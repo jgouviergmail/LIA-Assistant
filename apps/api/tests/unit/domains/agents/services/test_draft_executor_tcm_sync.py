@@ -157,6 +157,25 @@ async def test_event_delete_removes_from_list(
 
 
 @pytest.mark.asyncio
+async def test_ticket_delete_removes_from_list(
+    mock_manager: MagicMock, runnable_config: dict[str, Any]
+) -> None:
+    """ADR-276: a confirmed deletion takes the ticket out of the context, or
+    « celui-là » keeps pointing at a row that no longer exists."""
+    await _run(
+        mock_manager,
+        draft_type="ticket_delete",
+        draft_content={"ticket_id": "t-doomed", "title": "Book the venue", "children": 2},
+        result_data={"success": True, "ticket_id": "t-doomed", "deleted": 3},
+        runnable_config=runnable_config,
+    )
+    kwargs = mock_manager.remove_item_from_list.await_args.kwargs
+    assert kwargs["domain"] == "tickets"
+    assert kwargs["item_id"] == "t-doomed"
+    mock_manager.set_current_item.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_delete_when_not_in_list_clears_matching_current(
     mock_manager: MagicMock, runnable_config: dict[str, Any]
 ) -> None:

@@ -71,6 +71,7 @@ async def proactive_notification_effect(
     user_id: uuid.UUID,
     run_id: str,
     task_type: str,
+    occurrence: str | None = None,
 ) -> AsyncIterator[ProactiveEffect]:
     """Claim the right to notify, then close the row from the dispatch result.
 
@@ -80,12 +81,18 @@ async def proactive_notification_effect(
             its decision row so the three registers join.
         task_type: Which sweep decided to write — a bounded value
             (``heartbeat``, ``interest``…), never user text.
+        occurrence: Which of the run's notifications this is, when a run
+            speaks more than once — a workboard run says it started, then
+            that it finished, or that it waits (ADR-276). None for a sweep
+            that speaks once, whose key stays what it always was.
 
     Yields:
         The effect, whose ``delivered`` the caller sets from the dispatch.
     """
     effect = ProactiveEffect()
-    ticket = await _claim(user_id=user_id, run_id=run_id, task_type=task_type)
+    ticket = await _claim(
+        user_id=user_id, run_id=run_id, task_type=task_type, occurrence=occurrence
+    )
     try:
         yield effect
     finally:
@@ -93,13 +100,34 @@ async def proactive_notification_effect(
             await _close(ticket, delivered=effect.delivered)
 
 
-async def _claim(*, user_id: uuid.UUID, run_id: str, task_type: str) -> object | None:
+def _idempotency_key(run_id: str, occurrence: str | None) -> str:
+    """The identity of ONE notification within a run.
+
+    A sweep that speaks once keeps the key it always had, so no row already
+    written changes meaning; a run that speaks more than once names each
+    thing it says.
+
+    Args:
+        run_id: The run.
+        occurrence: What is being said, when the run says several things.
+
+    Returns:
+        The idempotency key.
+    """
+    base = f"{run_id}:notification"
+    return base if occurrence is None else f"{base}:{occurrence}"
+
+
+async def _claim(
+    *, user_id: uuid.UUID, run_id: str, task_type: str, occurrence: str | None
+) -> object | None:
     """Take the right to notify, in its own committed transaction.
 
     Args:
         user_id: Who is being notified.
         run_id: The sweep's correlation key.
         task_type: Which sweep decided to write.
+        occurrence: Which of the run's notifications this is, or None.
 
     Returns:
         The claim ticket, or None when the ledger could not take it — the
@@ -121,9 +149,13 @@ async def _claim(*, user_id: uuid.UUID, run_id: str, task_type: str) -> object |
                 execution_mode=OUT_OF_TURN_EXECUTION_MODE,
                 tool_name=NOTIFICATION_CAPABILITY,
                 mutation_policy=NOTIFICATION_POLICY,
-                # One claim per sweep: a retry of the same run must not add a
-                # second « LIA notified you » to the person's register.
-                idempotency_key=f"{run_id}:notification",
+                # One claim per sweep AND per thing said: a retry of the same
+                # run must not add a second « LIA notified you » to the
+                # person's register — and the second thing a run says must
+                # not be lost as a retry of the first. Measured 2026-09-09: a
+                # followed ticket's « finished » was dispatched, and its row
+                # was lost to the claim « started » had taken under the run.
+                idempotency_key=_idempotency_key(run_id, occurrence),
                 args_digest=args_digest(NOTIFICATION_CAPABILITY, arguments),
                 label={
                     "i18n_key": f"effects.labels.{NOTIFICATION_CAPABILITY}",

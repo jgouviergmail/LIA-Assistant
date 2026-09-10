@@ -19,7 +19,7 @@ is not a backup; the decision had to include a *tested, documented* restore.
 
 Add a **`postgres-backup` sidecar** based on
 **`prodrigestivill/postgres-backup-local:16-alpine`** to both compose files,
-with every parameter `.env`-driven (section `[80] DATABASE BACKUP`), a
+with every parameter `.env`-driven (section `[88] DATABASE BACKUP`), a
 dedicated storage target, a verification script that performs a real restore,
 and Taskfile entry points (`backup:now`, `backup:verify`).
 

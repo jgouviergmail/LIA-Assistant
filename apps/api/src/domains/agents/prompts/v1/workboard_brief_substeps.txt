@@ -1,0 +1,3 @@
+
+The person broke this task into steps. They are separate tickets with their own lives, so treat them as the shape of the work rather than as a checklist to tick off here.
+{child_titles}

@@ -87,3 +87,24 @@ class TestTheDraftIdentity:
         assert draft_digest({"to": "a@b.c", "body": "v1"}) == draft_digest(
             {"body": "v1", "to": "a@b.c"}
         )
+
+
+class TestTheBatchIdentity:
+    """Lot 7: what a ticket run showed is one draft OR a whole batch, in order."""
+
+    def test_a_batch_is_one_identity(self) -> None:
+        from src.domains.agents.effects.digest import drafts_digest
+
+        first = {"to": "a@example.org", "body": "one"}
+        second = {"to": "b@example.org", "body": "two"}
+        assert drafts_digest([first, second]) == drafts_digest([dict(first), dict(second)])
+        assert drafts_digest([first, second]) != drafts_digest([second, first])
+        assert drafts_digest([first, second]) != drafts_digest([first])
+
+    def test_a_batch_of_one_is_not_the_bare_draft(self) -> None:
+        """Both sides of the replay use the LIST form; nothing may compare one
+        against the other and pass by accident."""
+        from src.domains.agents.effects.digest import draft_digest, drafts_digest
+
+        content = {"to": "a@example.org"}
+        assert drafts_digest([content]) != draft_digest(content)

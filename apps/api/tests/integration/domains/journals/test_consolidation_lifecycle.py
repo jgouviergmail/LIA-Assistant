@@ -31,6 +31,7 @@ from langchain_core.messages import AIMessage
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.domains.conversations.models import Conversation, ConversationMessage
 from src.domains.journals import consolidation_service
 from src.domains.journals.models import JournalEntry, JournalTheme
 from src.domains.journals.repository import (
@@ -106,6 +107,33 @@ def _fake_llm(
         return AIMessage(content=payload)
 
     return _call
+
+
+async def _make_conversation(session: AsyncSession, user: User) -> Conversation:
+    """Insert the person's one conversation."""
+    conversation = Conversation(user_id=user.id, title="c")
+    session.add(conversation)
+    await session.flush()
+    return conversation
+
+
+async def _make_message(
+    session: AsyncSession,
+    conversation: Conversation,
+    *,
+    role: str,
+    content: str,
+    at: datetime,
+    hidden: bool = False,
+) -> ConversationMessage:
+    """Insert one row the way the repository writes it: `user` or `assistant`,
+    hidden when it belongs to a run LIA ran alone (ADR-276)."""
+    row = ConversationMessage(
+        conversation_id=conversation.id, role=role, content=content, created_at=at, hidden=hidden
+    )
+    session.add(row)
+    await session.flush()
+    return row
 
 
 async def _make_entry(session: AsyncSession, user: User, theme: str) -> JournalEntry:
@@ -435,3 +463,70 @@ class TestThemeDistribution:
 
         counts = await JournalEntryRepository(async_session).count_by_theme_global()
         assert counts.get(JournalTheme.IDEAS_ANALYSES.value, 0) == 0
+
+
+class TestTheConversationReadsSpeakTheRepositorysVocabulary:
+    """Both enrichment reads filtered `human`/`ai` while the repository writes
+    `user`/`assistant` — dead since v1.7.0, invisible to unit tests that stub
+    the session — read the UTC hour as the person's, and read a run's hidden
+    rows as the person's words. Proven on PostgreSQL."""
+
+    @pytest.mark.usefixtures("_redirect_db_context")
+    async def test_the_history_is_the_persons_visible_exchange(
+        self, async_session: AsyncSession
+    ) -> None:
+        user = await _make_user(async_session)
+        conversation = await _make_conversation(async_session, user)
+        now = datetime.now(UTC)
+        await _make_message(
+            async_session,
+            conversation,
+            role="user",
+            content="Bonjour",
+            at=now - timedelta(minutes=3),
+        )
+        await _make_message(
+            async_session,
+            conversation,
+            role="assistant",
+            content="Salut",
+            at=now - timedelta(minutes=2),
+        )
+        await _make_message(
+            async_session,
+            conversation,
+            role="user",
+            content="the brief of a run",
+            at=now - timedelta(minutes=1),
+            hidden=True,
+        )
+
+        history = await consolidation_service._load_conversation_history(
+            user.id, since=None, max_messages=10, max_days=7
+        )
+
+        assert history == "USER: Bonjour\nASSISTANT: Salut"
+
+    @pytest.mark.usefixtures("_redirect_db_context")
+    async def test_usage_patterns_count_the_persons_messages_in_their_own_hours(
+        self, async_session: AsyncSession
+    ) -> None:
+        """Kiritimati is UTC+14: 20:30 UTC is 10:30 the next morning there. Read
+        as the UTC hour, the same message was an « evening » one."""
+        user = await _make_user(async_session, timezone="Pacific/Kiritimati")
+        conversation = await _make_conversation(async_session, user)
+        at = (datetime.now(UTC) - timedelta(days=1)).replace(
+            hour=20, minute=30, second=0, microsecond=0
+        )
+        await _make_message(async_session, conversation, role="user", content="q", at=at)
+        # Not the person speaking, and not the person either: a run's brief.
+        await _make_message(async_session, conversation, role="assistant", content="a", at=at)
+        await _make_message(
+            async_session, conversation, role="user", content="run", at=at, hidden=True
+        )
+
+        section = await consolidation_service._build_usage_patterns_section(user.id)
+
+        assert "User messages: 1." in section
+        assert "morning 1" in section
+        assert "evening" not in section

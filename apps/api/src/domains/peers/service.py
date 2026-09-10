@@ -40,6 +40,7 @@ from src.domains.peers.schemas import (
     PeerEvent,
     ShareItem,
 )
+from src.domains.shared.peer_release_sink import release_tickets_between
 from src.domains.shared.text_normalization import fold_email, fold_name
 from src.domains.users.models import User
 
@@ -223,14 +224,30 @@ class PeersService:
         )
         return (await self.db.execute(stmt)).scalar_one_or_none()
 
-    def _emit(self, kind: str, connection: PeerConnection, actor_id: UUID) -> None:
-        """Append a lifecycle event for Lot 3's notification dispatch."""
+    def _emit(
+        self,
+        kind: str,
+        connection: PeerConnection,
+        actor_id: UUID,
+        released: dict[UUID, int] | None = None,
+    ) -> None:
+        """Append a lifecycle event for Lot 3's notification dispatch.
+
+        Args:
+            kind: What happened to the pair.
+            connection: The pair row.
+            actor_id: Who acted.
+            released: How many tickets came back to each OWNER (ADR-276 lot 5).
+                Carried as a tuple of pairs so the event stays frozen and
+                hashable, and empty when nothing moved.
+        """
         self.pending_events.append(
             PeerEvent(
                 kind=kind,
                 connection_id=connection.id,
                 actor_id=actor_id,
                 affected_ids=(connection.user_a_id, connection.user_b_id),
+                released=tuple(sorted(released.items())) if released else (),
             )
         )
 
@@ -437,8 +454,19 @@ class PeersService:
         if updated is None:  # already removed by a concurrent action
             raise_invalid_input("peers_not_connected")
         await self.repo.delete_shares_for_connection(connection.id)
-        self._emit("connection_removed", updated, user_id)
-        logger.info("peers_connection_removed", connection_id=str(connection_id))
+        # ADR-276 lot 5: the work in flight comes back BEFORE the event is
+        # emitted, in this very transaction — a connection that is gone while
+        # its tickets stay assigned is worse than either alone. The board is
+        # reached through a seam because `workboard` imports this package.
+        released = await release_tickets_between(
+            db=self.db, user_a=updated.user_a_id, user_b=updated.user_b_id
+        )
+        self._emit("connection_removed", updated, user_id, released=released)
+        logger.info(
+            "peers_connection_removed",
+            connection_id=str(connection_id),
+            tickets_released=sum(released.values()),
+        )
         return ConnectionStateView(id=updated.id, status=updated.status)
 
     # ------------------------------------------------------------------
@@ -456,6 +484,13 @@ class PeersService:
             raise_invalid_input("peers_self_block")
         await self.repo.create_block(blocker_id, blocked_id)
         connection = await self.repo.get_pair(blocker_id, blocked_id)
+        # Read BEFORE the transition below rewrites it: only a pair that was
+        # ACCEPTED could hold a ticket, and asking the board about a pending one
+        # is a query for nothing. Reading it afterwards answers « removed » for
+        # every pair, so nothing would ever be handed back.
+        was_accepted = (
+            connection is not None and connection.status == PeerConnectionStatus.ACCEPTED.value
+        )
         if connection is not None and connection.status in (
             PeerConnectionStatus.PENDING.value,
             PeerConnectionStatus.ACCEPTED.value,
@@ -472,7 +507,16 @@ class PeersService:
                 now=datetime.now(UTC),
             )
             await self.repo.delete_shares_for_connection(connection.id)
-        # Deliberately NO event: the blocked user must observe nothing.
+            # The pair is severed, so the tickets come back — leaving them
+            # assigned would keep the blocked account named on the blocker's
+            # board.
+            if was_accepted:
+                await release_tickets_between(
+                    db=self.db, user_a=connection.user_a_id, user_b=connection.user_b_id
+                )
+        # Deliberately NO event: the blocked user must observe nothing — and
+        # handing tickets back must not become the notification a block refuses
+        # to send.
         logger.info("peers_block_placed", blocker_id=str(blocker_id))
 
     async def unblock_peer(self, blocker_id: UUID, blocked_id: UUID) -> bool:

@@ -10,6 +10,7 @@ from uuid import UUID
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     DateTime,
     ForeignKey,
     Index,
@@ -18,6 +19,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -150,6 +152,17 @@ class ConversationMessage(BaseModel):
     tts_cost_eur: Mapped[Decimal | None] = mapped_column(Numeric(10, 6), nullable=True)
     tts_usd_to_eur_rate: Mapped[Decimal | None] = mapped_column(Numeric(10, 6), nullable=True)
 
+    # ADR-276: a row of an out-of-turn run (a workboard ticket LIA executes).
+    # It is archived like any turn — archive-first needs it, and the decision
+    # register points at it — and the chat READ is what leaves it out.
+    hidden: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=text("false"),
+        comment="Row of an out-of-turn run: kept in full, excluded from the chat read.",
+    )
+
     # Relationship
     conversation: Mapped[Conversation] = relationship(back_populates="messages")
 
@@ -169,6 +182,15 @@ class ConversationMessage(BaseModel):
             "ix_conversation_messages_tts_provider",
             "tts_provider",
             postgresql_where="tts_provider IS NOT NULL",
+        ),
+        # The rows an out-of-turn run wrote (ADR-276). Two readers need exactly
+        # this small set once a minute for ever — the retention sweep and the
+        # volume gauges — and the vast majority of a conversation is visible,
+        # so the index carries only what they read.
+        Index(
+            "ix_conversation_messages_hidden",
+            "created_at",
+            postgresql_where="hidden",
         ),
     )
 

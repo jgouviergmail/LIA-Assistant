@@ -443,6 +443,15 @@ export const MEETING_DEFAULT_SILENCE_PROMPT_MINUTES = 10;
 export const EYES_WIDGET_PREFS_KEY = 'lia_eyes_widget_prefs';
 
 /**
+ * LocalStorage key persisting the shortcuts dock's display preferences
+ * (position as viewport percentages, folded state) — ADR-277.
+ *
+ * Outside the SEC-035 purge registry for the eyes' reason: a display
+ * preference of the device. WHAT is pinned is on the account, not here.
+ */
+export const SHORTCUTS_DOCK_PREFS_KEY = 'lia_shortcuts_dock_prefs';
+
+/**
  * SessionStorage key holding the debug metrics history (SEC-035).
  *
  * The entries carry the user's own request text plus execution details, and the

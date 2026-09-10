@@ -27,9 +27,11 @@ import pytest
 from src.domains.heartbeat import source_policy
 from src.domains.heartbeat.source_policy import (
     HEARTBEAT_SOURCE_DEPENDENCIES,
+    HEARTBEAT_SOURCE_FEATURE_FLAGS,
     HEARTBEAT_SOURCE_KEYS,
     assert_source_registry_complete,
     disabled_sources_for,
+    is_source_available,
     is_source_enabled,
     sanitize_disabled_sources,
     unmet_dependencies,
@@ -43,7 +45,7 @@ def _user(disabled: object = None) -> SimpleNamespace:
 
 
 class TestRegistry:
-    def test_covers_the_twelve_sources_a_notification_can_come_from(self) -> None:
+    def test_covers_the_thirteen_sources_a_notification_can_come_from(self) -> None:
         assert HEARTBEAT_SOURCE_KEYS == frozenset(
             {
                 "calendar",
@@ -60,6 +62,11 @@ class TestRegistry:
                 # ADR-214: learned habits (rhythm context + missed-routine
                 # offers) — gated like any interruption source.
                 "habits",
+                # ADR-276 D14: tickets overdue, due soon, or waiting on the
+                # person. Gated like any other interruption source — « LIA may
+                # read my board » and « LIA may interrupt me about it » stay
+                # two switches.
+                "workboard",
             }
         )
 
@@ -170,3 +177,47 @@ class TestDependencies:
         # The reader turned departure off too — there is nothing surprising
         # left to tell them, and saying it anyway would be noise.
         assert unmet_dependencies(["calendar", "departure"]) == {}
+
+
+class TestASwitchedOffSubsystemOpensNothing:
+    """Two different gates, and only one of them is the person's.
+
+    A fetcher whose DEPLOYMENT flag is off returns None without opening
+    anything, so counting it among the sources the sweep opened would claim a
+    read that never happened (ADR-263 — a cache hit is not a consultation, and
+    neither is a subsystem nobody runs). Measured 2026-09-09: five sources
+    short-circuit on a flag, and all five were recorded as consultations on any
+    deployment that had switched one off.
+    """
+
+    def test_a_source_with_no_flag_is_always_available(self) -> None:
+        assert is_source_available(SimpleNamespace(), "calendar") is True
+
+    def test_a_flag_that_is_on_lets_the_source_through(self) -> None:
+        settings = SimpleNamespace(workboard_enabled=True)
+
+        assert is_source_available(settings, "workboard") is True
+
+    def test_a_flag_that_is_off_stops_it(self) -> None:
+        settings = SimpleNamespace(workboard_enabled=False)
+
+        assert is_source_available(settings, "workboard") is False
+
+    def test_an_absent_flag_reads_as_off(self) -> None:
+        """A deployment that has never heard of the subsystem does not run it,
+        and the safe reading of « I cannot tell » is « it opened nothing »."""
+        assert is_source_available(SimpleNamespace(), "workboard") is False
+
+    def test_every_declared_flag_names_a_real_source(self) -> None:
+        assert set(HEARTBEAT_SOURCE_FEATURE_FLAGS) <= HEARTBEAT_SOURCE_KEYS
+
+    def test_the_five_flagged_subsystems_are_declared(self) -> None:
+        """Found by reading the fetchers, not by reading this table — so the
+        table is the claim and the fetchers are the evidence."""
+        assert set(HEARTBEAT_SOURCE_FEATURE_FLAGS) == {
+            "open_loops",
+            "workboard",
+            "departure",
+            "habits",
+            "health_signals",
+        }

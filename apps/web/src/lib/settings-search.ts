@@ -173,6 +173,15 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     // only its body waits for the shortcuts to load.
     gate: { kind: 'always' },
   },
+  'my-shortcuts': {
+    titleKey: 'settings.my_shortcuts.title',
+    descriptionKey: 'settings.my_shortcuts.description',
+    keywordsKey: `${KEYWORDS_PREFIX}.my-shortcuts`,
+    group: 'personalization',
+    // The picker lists what THIS account can open; the shell itself is
+    // always there (chat-shortcuts precedent).
+    gate: { kind: 'always' },
+  },
   // Commitments live with the other CAPABILITIES, not with display
   // preferences (2026-08-02) — right after `interests`, which is how the
   // Features tab orders them. The index is what deep links and the quick
@@ -400,6 +409,16 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     gate: {
       kind: 'runtime',
       reason: 'renders nothing when the instance flag meetings_enabled is off',
+    },
+  },
+  workboard: {
+    titleKey: 'settings.workboard.title',
+    descriptionKey: 'settings.workboard.description',
+    keywordsKey: `${KEYWORDS_PREFIX}.workboard`,
+    group: 'extensions_data',
+    gate: {
+      kind: 'runtime',
+      reason: 'renders nothing when the instance flag workboard_enabled is off',
     },
   },
   'user-consumption-export': {

@@ -108,6 +108,31 @@ class TestTheNotificationIsClaimedBeforeItLeaves:
         keys = {call.args[0].idempotency_key for call in claim.await_args_list}
         assert keys == {"sweep-3:notification"}
 
+    async def test_a_run_that_speaks_twice_claims_twice(self) -> None:
+        """ADR-276: a workboard run says it started, then that it finished.
+        Measured 2026-09-09: the second was dispatched and its row lost to
+        the claim of the first — a retry and a second act must not share a key."""
+        claim, close = _ledger()
+        with (
+            patch("src.domains.agents.effects.runtime._LEDGER.claim", claim),
+            patch("src.domains.agents.effects.runtime._LEDGER.close", close),
+        ):
+            for occurrence in ("run_started", "run_finished", "run_finished"):
+                async with proactive_notification_effect(
+                    user_id=uuid.uuid4(),
+                    run_id="run-7",
+                    task_type="workboard",
+                    occurrence=occurrence,
+                ):
+                    pass
+
+        keys = [call.args[0].idempotency_key for call in claim.await_args_list]
+        assert keys == [
+            "run-7:notification:run_started",
+            "run-7:notification:run_finished",
+            "run-7:notification:run_finished",  # a retry of ONE thing said
+        ]
+
     async def test_the_label_carries_the_sweep_and_no_user_text(self) -> None:
         claim, close = _ledger()
         with (

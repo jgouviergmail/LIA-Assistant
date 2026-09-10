@@ -63,6 +63,7 @@ async def archive_user_message_first(
         an archiving hiccup must never block the generation itself).
     """
     from src.core.field_names import FIELD_IS_AUTOMATED_SOURCE, FIELD_RUN_ID
+    from src.domains.agents.api.run_origin import with_hidden_stamp
     from src.infrastructure.database import get_db_context
 
     metadata: dict[str, Any] = {FIELD_RUN_ID: run_id, **attachment_meta}
@@ -70,6 +71,10 @@ async def archive_user_message_first(
         metadata["hitl_response"] = True
     if is_automated_source:
         metadata[FIELD_IS_AUTOMATED_SOURCE] = True
+    # ADR-276: the SECOND row of an out-of-turn run. Stamping only the answer
+    # would leave the synthetic question in the chat, which is the half a
+    # reader would find hardest to explain.
+    metadata = with_hidden_stamp(metadata)
     try:
         async with get_db_context() as archive_db:
             row = await conv_service.archive_message(

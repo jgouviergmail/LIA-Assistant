@@ -79,6 +79,7 @@ import {
   Vibrate,
   Wind,
   Zap,
+  Pin,
 } from 'lucide-react';
 
 export interface MoreSectionConfig {
@@ -154,6 +155,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'relation_star',
       'relation_sections',
       'relation_debrief',
+      'pinned_dock',
     ],
   },
   {
@@ -240,6 +242,7 @@ export const CARD_ICONS: Record<string, LucideIcon> = {
   mobile_logo_nav: Menu,
   relation_star: Star,
   relation_sections: PanelsTopLeft,
+  pinned_dock: Pin,
   relation_debrief: NotebookPen,
   briefing_custom: LayoutGrid,
   card_actions: Zap,
@@ -311,6 +314,7 @@ export const SCENE_LABEL_KEYS: Readonly<Record<string, readonly string[]>> = {
   mobile_logo_nav: [],
   relation_star: [],
   relation_sections: ['section'],
+  pinned_dock: [],
   relation_debrief: ['open', 'next'],
   briefing_custom: [],
   week_grid: [],

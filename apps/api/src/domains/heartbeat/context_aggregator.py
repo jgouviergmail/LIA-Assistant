@@ -49,6 +49,7 @@ from src.domains.heartbeat.context_sources import (
     fetch_departure_advice,
     fetch_open_loops_context,
     fetch_recent_other_notifications,
+    fetch_workboard_context,
 )
 from src.domains.heartbeat.context_sources import (
     format_utc_datetime as _format_utc_datetime,
@@ -61,7 +62,8 @@ from src.domains.heartbeat.health_context import fetch_health_signals
 from src.domains.heartbeat.repository import HeartbeatNotificationRepository
 from src.domains.heartbeat.schemas import HeartbeatContext, WeatherChange
 from src.domains.heartbeat.second_pass_query import build_second_pass_query
-from src.domains.heartbeat.source_policy import is_source_enabled
+from src.domains.heartbeat.source_placement import SOURCE_PLACEMENTS
+from src.domains.heartbeat.source_policy import is_source_available, is_source_enabled
 from src.domains.interests.models import InterestNotification, UserInterest
 from src.domains.push_channels.wake import WakePayload
 from src.infrastructure.database.session import get_db_context
@@ -231,11 +233,15 @@ class ContextAggregator:
             ("birthdays", self._fetch_birthdays, common, False),
             ("open_loops", fetch_open_loops_context, common, True),
             ("habits", fetch_habits_context, (user_id, user, settings), True),
+            ("workboard", fetch_workboard_context, common, True),
         )
         planned = [
             (name, self._with_fresh_session(fetch, *args) if scoped else fetch(*args))
             for name, fetch, args, scoped in specs
-            if is_source_enabled(user, name)
+            # BOTH gates: the person's refusal, and whether this
+            # deployment runs the subsystem at all. A source failing the
+            # second opens nothing, so it must not be recorded as read.
+            if is_source_enabled(user, name) and is_source_available(settings, name)
         ]
         started = perf_counter()
         results = await asyncio.gather(*(coro for _, coro in planned), return_exceptions=True)
@@ -323,15 +329,13 @@ class ContextAggregator:
         # Refusing `calendar` therefore leaves nothing to advise on — the
         # switch stays independent because a user may well want the agenda in
         # the decision without traffic-driven nudges about it.
-        if is_source_enabled(user, "departure"):
+        if is_source_enabled(user, "departure") and is_source_available(settings, "departure"):
             opened.append("departure")
             try:
                 departure = await fetch_departure_advice(
                     user_id, user, settings, context.calendar_events
                 )
-                if departure:
-                    context.departure_advice = departure
-                    context.available_sources.append("departure")
+                self._apply_source_result(context, "departure", departure)
             except Exception as e:
                 logger.warning(
                     "heartbeat_departure_second_pass_failed",
@@ -364,72 +368,66 @@ class ContextAggregator:
         name: str,
         result: Any,
     ) -> None:
-        """Apply a source result to the appropriate context fields."""
-        if name == "calendar" and result:
-            context.calendar_events = result
-            context.available_sources.append("calendar")
+        """Apply a source result to the appropriate context fields.
 
-        elif name == "tasks" and result:
-            context.pending_tasks = result
-            context.available_sources.append("tasks")
+        The correspondence lives in ``source_placement`` rather than in
+        branches here: the chain that preceded it carried 35 cyclomatic
+        complexity in a file frozen five logical lines below its cap, so a new
+        source could not be added without breaking one rule or the other.
 
-        elif name == "emails" and result:
-            context.unread_emails = result
-            context.available_sources.append("emails")
+        Args:
+            context: The context being aggregated.
+            name: The source that produced the result.
+            result: What it returned. A falsy result places nothing — an empty
+                list means the source ran and found nothing, and announcing it
+                would put an empty section in front of the decision.
+        """
+        if not result:
+            return
 
-        elif name == "weather" and result:
-            weather_current, weather_changes, location_source, city_name = result
-            if weather_current:
-                context.weather_current = weather_current
-                context.available_sources.append("weather")
-            if weather_changes:
-                context.weather_changes = weather_changes
-            if location_source is not None:
-                context.weather_location_source = location_source
-            if city_name is not None:
-                context.weather_location_city = city_name
+        if name == "weather":
+            self._apply_weather(context, result)
+            return
 
-        elif name == "interests" and result:
-            context.trending_interests = result
-            context.available_sources.append("interests")
+        if name == "activity":
+            # A pair, and never announced: how long ago somebody spoke is
+            # context for the decision, not news to interrupt them with.
+            context.last_interaction_at, context.hours_since_last_interaction = result
+            return
 
-        elif name == "memories" and result:
-            context.user_memories = result
-            context.available_sources.append("memories")
+        placement = SOURCE_PLACEMENTS.get(name)
+        if placement is None:
+            # Unreachable by construction: `assert_placements_complete` refuses
+            # the boot when a gateable source has nowhere to land. Logged
+            # rather than dropped, because the silent fallback is what ADR-085
+            # forbids and what this extraction closed.
+            logger.warning("heartbeat_source_unplaced", source=name)
+            return
 
-        elif name == "activity" and result:
-            last_at, hours_since = result
-            context.last_interaction_at = last_at
-            context.hours_since_last_interaction = hours_since
+        setattr(context, placement.field, result)
+        if placement.announces:
+            context.available_sources.append(name)
 
-        elif name == "recent_heartbeats" and result:
-            context.recent_heartbeats = result
+    def _apply_weather(self, context: HeartbeatContext, result: Any) -> None:
+        """Place the four values one weather fetch returns.
 
-        elif name == "recent_interests" and result:
-            context.recent_interest_notifications = result
+        Hand-placed because they are independent: a forecast change with no
+        current reading must not make « weather » an available source.
 
-        elif name == "recent_other" and result:
-            context.recent_other_notifications = result
-
-        elif name == "journals" and result:
-            context.journal_entries = result
-            context.available_sources.append("journals")
-
-        elif name == "health_signals" and result:
-            context.health_signals = result
-            context.available_sources.append("health_signals")
-
-        elif name == "birthdays" and result:
-            context.upcoming_birthdays = result
-            context.available_sources.append("birthdays")
-
-        elif name == "open_loops" and result:
-            context.open_loops = result
-            context.available_sources.append("open_loops")
-
-        elif name == "habits" and result:
-            context.habits = result
-            context.available_sources.append("habits")
+        Args:
+            context: The context being aggregated.
+            result: ``(current, changes, location_source, city_name)``.
+        """
+        weather_current, weather_changes, location_source, city_name = result
+        if weather_current:
+            context.weather_current = weather_current
+            context.available_sources.append("weather")
+        if weather_changes:
+            context.weather_changes = weather_changes
+        if location_source is not None:
+            context.weather_location_source = location_source
+        if city_name is not None:
+            context.weather_location_city = city_name
 
     # ------------------------------------------------------------------
     # Time context (synchronous, always succeeds)
@@ -1000,6 +998,10 @@ class ContextAggregator:
             .where(
                 Conversation.user_id == user_id,
                 ConversationMessage.role == "user",
+                # A run's synthetic question is not the person speaking
+                # (ADR-276): reading it here would make a ticket LIA ran
+                # alone look like the person's last words.
+                ConversationMessage.hidden.is_(False),
             )
             .order_by(ConversationMessage.created_at.desc())
             .limit(1)

@@ -33,6 +33,7 @@ import {
   Users,
   Zap,
   ClipboardList,
+  SquareKanban,
 } from 'lucide-react';
 
 /** Icon per FAQ section key (`faq.sections.<key>` in the locale files). */
@@ -56,6 +57,7 @@ export const FAQ_SECTION_ICONS: Record<string, LucideIcon> = {
   sub_agents: Bot,
   rag_spaces: Library,
   meetings: ClipboardList,
+  workboard: SquareKanban,
   voice_mode: Mic,
   image_generation: ImageIcon,
   document_generation: FileOutput,

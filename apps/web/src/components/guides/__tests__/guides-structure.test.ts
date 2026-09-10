@@ -52,6 +52,22 @@ const read = (family: string, lang: string): string =>
 const sectionNumbers = (text: string): string[] =>
   [...text.matchAll(/^## (\d+)\. /gm)].map(m => m[1]);
 
+/**
+ * Every `<h2>` `GuideMarkdown` will render, in its order.
+ *
+ * The renderer strips everything before the first `## N.` and then numbers the
+ * REMAINING `h2` elements positionally — so an *unnumbered* heading in the body
+ * consumes an id. `how` carried `## Conclusion` as its 30th heading with eleven
+ * sections after it: the conclusion took §30's anchor and icon, sections 30-39
+ * each wore their predecessor's, and §40 rendered with `id={undefined}`. Every
+ * check above counts `^## \d+\.` headings only, so all of them stayed green.
+ */
+const renderedHeadings = (text: string): string[] => {
+  const first = text.match(/\n## \d+\./);
+  const body = first?.index != null ? text.substring(first.index) : text;
+  return [...body.matchAll(/^## (.*)$/gm)].map(m => m[1]);
+};
+
 const tocNumbers = (text: string): string[] => [...text.matchAll(/^(\d+)\. \[/gm)].map(m => m[1]);
 
 /** The `**Version**` stamp, whatever the locale calls it (Versión, Versione, 版本). */
@@ -80,6 +96,31 @@ describe.each(FAMILIES)('$name guide', ({ name, sections, hasMarkdownToc }) => {
       );
 
     expect(mismatched).toEqual([]);
+  });
+
+  it('renders no heading the navigation cannot name', () => {
+    // The renderer counts every `<h2>`, not only the numbered ones: one extra
+    // heading in the body shifts every anchor after it by one and strands the
+    // last section with no id at all.
+    const stray = LANGS.flatMap(lang =>
+      renderedHeadings(read(name, lang))
+        .filter(heading => !/^\d+\. /.test(heading))
+        .map(heading => `${name}.${lang}: unnumbered heading "## ${heading}"`)
+    );
+
+    expect(stray).toEqual([]);
+
+    const miscounted = LANGS.map(lang => ({
+      lang,
+      count: renderedHeadings(read(name, lang)).length,
+    }))
+      .filter(({ count }) => count !== sections.length)
+      .map(
+        ({ lang, count }) =>
+          `${name}.${lang}: ${count} rendered <h2> for ${sections.length} nav entries`
+      );
+
+    expect(miscounted).toEqual([]);
   });
 
   it('numbers its sections contiguously from 1', () => {

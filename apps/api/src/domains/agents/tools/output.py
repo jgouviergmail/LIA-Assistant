@@ -108,6 +108,7 @@ REGISTRY_TYPE_TO_KEY: dict[RegistryItemType, str] = {
     RegistryItemType.NOTE: "notes",
     RegistryItemType.CALENDAR_SLOT: "slots",
     RegistryItemType.HUE_LIGHT: "hues",  # Philips Hue smart lights
+    RegistryItemType.TICKET: "tickets",  # Workboard tickets (ADR-276)
 }
 
 

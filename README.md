@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.43.2</strong> — <strong>Documents with the craft their format deserves, and an answer that is cut says so.</strong> The prompt was suspected and was not the cause: it already asked for more than the renderer could produce — measured, <strong>2 of the template's 11 PowerPoint layouts, 4 of Word's 164 named styles, no PDF stylesheet at all</strong>, and a 4:3 deck. The model now says what a thing <em>is</em> — an ordered sequence, a quote, a callout, a part opener, a comparison, data — and the renderer draws it with each format's native mechanisms: Word's fields and numbering definitions, PowerPoint's own layouts on a 16:9 stage, a named Excel Table over typed columns, exact page numbers and bookmarks in the PDF. Nothing overflows by construction: text is measured before it is placed, and Office itself reports <strong>0 overflows across 69 slides</strong>. Facing it, honesty about what a model returns: a payload cut at the output budget was closed mechanically and the shortened object validated — <strong>12 report cuts and 14 deck cuts in 100 became shorter documents announced “generated successfully”</strong>. A truncation is now a refusal that names the budget, never a rescue. — 9 September 2026.
+  <strong>Version 1.44.0</strong> — <strong>A unit of work with a lifecycle, a holder and a result.</strong> A provider's task list has no lifecycle and no holder; a reminder is a push at an instant, and nothing survives the ring; a routine is a repeated instruction that never ends. The <strong>workboard</strong> holds what none of them held — one row per ticket, shared by its owner and its holder, across seven columns — and the holder can be LIA, which claims one ticket per sweep, runs it out of turn and writes back what it did. <strong>Meeting an action it cannot take alone, it asks instead of refusing</strong>: the confirmation card the chat would have shown is written on the ticket, and answering is one comment — yes, no, or what to change. What was shown is replayed under a digest lock, so an approval covers that exact action and nothing wider. Two measurements shaped the design: a <code>CHECK</code> constraint spanning two columns a foreign-key action can touch is violable whichever way the cascades fire — <strong>invisible to twenty green model tests, caught at the first real <code>DELETE FROM users</code></strong> — and the stream chunk the run engine waited for is <strong>emitted by nothing</strong>, so a clarification settled as a success for six green lots. Beside it, <strong>the settings sections you actually use, pinned in a floating dock on every screen</strong>. — 10 September 2026.
 </p>
 
 ---
@@ -116,8 +116,8 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **46** functional domains | **570,000** lines of code (excl. tests) | **33,000+** automated tests | **274** ADRs                                                           |
-| **252** versions shipped  | **6 languages**, parity enforced in CI  | **541** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **47** functional domains | **650,000** lines of code (excl. tests) | **35,000+** automated tests | **276** ADRs                                                           |
+| **253** versions shipped  | **6 languages**, parity enforced in CI  | **547** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, 7 open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -275,6 +275,27 @@ The result is measured, not proclaimed:
 - **Reformatting, two modes, one transcript**: `replace` rewrites in place through the durable regeneration; `new` derives a second meeting row pointing at its source (`source_meeting_id`, FK `SET NULL`), READY with no report while the server writes, indexed as its own knowledge-space document. Never a « copy »: the transcript is the same, the minutes are not.
 - **The minutes leave from the platform**: `APPLICATION_SMTP_FROM` through `EmailService`, whose SMTP exchange runs off the event loop; the subject is the localized « Meeting minutes » followed by the title. The user's email connector — and its refusal when there was none — is gone from the path.
 
+### The Workboard — A Ticket Has a Lifecycle, a Holder and a Result ([ADR-276](docs/architecture/ADR-276-Workboard.md))
+
+- **One row per ticket, shared by both sides**: a board is "owner = me OR holder = me", written once as a repository predicate every read reuses — so an owner and a holder can never disagree about what a ticket says. Seven columns (idea, to do, in progress, waiting, to confirm, validating, done), six always drawn, the seventh only while it holds something. A ticket carries a title, a description, a priority, dates, sub-tickets, comments and a history; a ticket the caller cannot see answers 404 exactly like one that does not exist.
+- **The holder can be LIA, and then it works**: a sweep every minute claims **one** ticket (`FOR UPDATE SKIP LOCKED` plus a conditional update, committed before any work starts — a worker that grabbed five would abandon five), runs it, and settles from an **explicit result**, never from the absence of an exception. Three refusals stop a claimed ticket and **none is a failure**: an inactive account, a quota ceiling and a busy conversation — the last two return the claim, give the run back to the ticket's budget and log *skipped*.
+- **It asks instead of refusing**: out of turn the effect gate used to refuse both a confirmation and a draft. A ticket run can carry the question to a person, so the gate lets it ask, the ticket lands in « To confirm » holding the draft, and the comment LIA writes is exactly the card the chat would have shown. Answering is one comment — a bare yes, a bare no, or anything else, classified in six languages with no model call — and **sending it is the answer**: the ticket goes back to LIA in « To do » with its attempt counters reset, under the run cap.
+- **An approval covers what was shown, and nothing wider**: the run publishes the identity of what it displayed (draft type plus a digest of the content) and the replay runs *inside the graph* under that exact identity — identical, confirmed; different, asked again with the new preview. A batch of drafts is one identity, so the whole batch is what gets approved rather than its first element.
+- **The database carries what it can, and the service carries the rest**: `assignee_user_id` is `SET NULL`, because four paths hard-delete a user row and only one runs the account purge — a cascade would destroy the owner's ticket when their peer leaves. **No `CHECK` spans two columns a foreign-key action can touch**: measured on a real PostgreSQL server, deleting a peer's account fires two independent actions on one row and the constraint rejects whichever intermediate state arrives first, with no guaranteed order and no deferrable `CHECK`. The invariant lives in the service, which re-verifies the connection at every write.
+- **A peer who leaves takes no work with them**: removing or blocking a connection releases the tickets held in **both** directions inside a savepoint — all or nothing, because a half-written release would make a displayed count a lie — and each side reads its own figure. A refusal releases nothing, since a pair that was never accepted could hold nothing.
+- **LIA raises what deserves a word, with the reason it raised it**: a heartbeat source reads the tickets that are overdue, due soon, waiting on the person or waiting to be validated, narrowing **in SQL** under an explicit ordering, quoting the last comment rather than paraphrasing it, and cooling down from delivery instead of from reading.
+- **Every claim, every read and every act is on the record** (ADR-263): a run claims each thing it says separately — measured 2026-09-09, one claim per run silently dropped the second notification as a replay — and the register requires the run that caused it rather than substituting an id.
+- **Costs are the account's, read from the tracker it already writes**: the ticket adds `last_run_*` into its totals by column arithmetic inside the settle's transaction. The panel states the run's **verdict** — answered, waiting, to confirm, failed, postponed for quota or for a busy conversation — never the column the ticket happens to sit in.
+- **Everything is a published setting** (ADR-184): the sweep interval, the run timeout, attempts, the quota retry, the per-account ticket ceiling, sub-tickets, runs per ticket, hidden-row retention, field lengths and the nudge windows. Boot refuses a timeout shorter than the sweep interval, since the reaper would release runs still in flight.
+- **A board is read before it is read**: the priority is the card's leading edge and never a badge, the holder leads the card, the bell sits before the due date, « overdue » is a second line under a date that stays, and a late card wears an inner frame that breathes only where motion is welcome. Below `lg` nothing drags: a swipe changes column, a finger anywhere on a card opens it, and the column and the holder are two lists on the card — every item wearing its own glyph.
+
+### Pinned Settings Sections in a Floating Dock ([ADR-277](docs/architecture/ADR-277-Settings-Shortcuts-Dock.md))
+
+- **What is pinned belongs to the account, where the dock sits belongs to the device**: the list travels in one nullable JSONB column and follows the person to every browser they sign in from; the dock's position and folded state stay in that device's `localStorage`, outside the purge registry for the same reason the eyes' position is.
+- **The backend keeps the shape of a token, never the list of them**: the vocabulary belongs to the frontend, so a section renamed since it was pinned simply disappears at read time instead of becoming a dead link. The cap is a published runtime setting, returned by the endpoint so the picker can say « 3 / 5 » without guessing a server constant.
+- **One floating mechanic, shared with the expressive eyes**: a press on an interactive descendant is never a drag, a surface that is itself a button drags like any other and swallows the click a drop leaves behind, arrow keys move only the surface holding the focus, and a capsule unfolded from the lower half of the screen grows **upward** so it never leaves the viewport.
+- **The picker offers only what the shell would show**: it reads the availability model the settings page already uses, extracted so the two cannot drift apart.
+
 ### Redis Key Families & What a Reset May Purge ([ADR-260](docs/architecture/ADR-260-Redis-Key-Families-Scope-And-Reset-Purge.md))
 
 - **A key declares its scope, and the reset reads the declaration**: `CONVERSATION`, `USER_CACHE`, `USER_LEARNING`, `USER_RUNTIME`, `GLOBAL` in one registry (`infrastructure/cache/key_families.py`). The purge deletes by family instead of by glob — the scan is unchanged, so nothing escapes it; only the decision moved.
@@ -341,7 +362,7 @@ ExecutionStep(
 - **Apple Calendar**: Search, create, update, delete events (CalDAV)
 - **Apple Contacts**: Search, list, create, update, delete (CardDAV)
 
-### Microsoft 365 Integrations (OAuth 2.0 + PKCE)
+### Microsoft 365 Integrations (OAuth 2.1 + PKCE)
 
 - **Outlook**: Search, read, send, reply, forward, trash (Graph API)
 - **Calendar**: Search, create, update, delete events (calendarView)
@@ -379,7 +400,7 @@ ExecutionStep(
 
 ### Enterprise Observability
 
-- **Prometheus**: 541 custom metrics (agents, LLM, infrastructure)
+- **Prometheus**: 547 custom metrics (agents, LLM, infrastructure)
 - **Grafana**: 28 production-ready dashboards
 - **Langfuse**: LLM-specific tracing with prompt versions
 - **Loki**: Structured JSON logs with PII filtering
@@ -900,6 +921,7 @@ apps/api/src/
 │   ├── channels/            # Multi-channel messaging (Telegram)
 │   ├── reminders/           # Reminder & notification scheduling
 │   ├── scheduled_actions/   # Recurring scheduled actions
+│   ├── workboard/           # Ticket board (lifecycle, holder, LIA runs, result)
 │   ├── journals/            # Personal Journals (introspective notebooks)
 │   ├── health_metrics/      # iPhone Shortcuts health ingestion + charts
 │   └── users/               # User management
@@ -1005,8 +1027,8 @@ OpenAI compatibility layer, which is what makes the difference:
 
 | Technology | Role                 |
 | ---------- | -------------------- |
-| Prometheus | 473 metrics          |
-| Grafana    | 28 dashboards        |
+| Prometheus | 547 metrics          |
+| Grafana    | 29 dashboards        |
 | Loki       | Aggregated logs      |
 | Tempo      | Distributed tracing  |
 | Langfuse   | LLM observability    |
@@ -1059,7 +1081,7 @@ OpenAI compatibility layer, which is what makes the difference:
 
 ### Architecture Decision Records (ADR)
 
-274 ADR files (ADR-001 through ADR-275 — ADR-008 has no separate file) documenting major architectural decisions:
+276 ADR files (ADR-001 through ADR-277 — ADR-008 has no separate file) documenting major architectural decisions:
 
 - [ADR-007: Service Layer Pattern for Node Complexity](./docs/architecture/ADR-007-Service-Layer-Pattern-For-Node-Complexity.md)
 - [ADR-048: Semantic Tool Router](./docs/architecture/ADR-048-Semantic-Tool-Router.md)

@@ -46,9 +46,25 @@ export class ApiError extends Error {
 /**
  * Request configuration options.
  */
+/**
+ * One query parameter's value.
+ *
+ * A LIST is repeated (`?status=a&status=b`), which is what FastAPI reads for a
+ * `list[str] = Query(...)`; joining it into one value would reach the server as
+ * a single unrecognised string. `undefined` means "not asked for" and is
+ * dropped, so a caller can spread an optional filter without building the
+ * object twice.
+ */
+export type QueryParamValue =
+  | string
+  | number
+  | boolean
+  | readonly (string | number)[]
+  | undefined;
+
 export interface RequestConfig extends RequestInit {
   /** Query parameters to append to URL */
-  params?: Record<string, string | number | boolean>;
+  params?: Record<string, QueryParamValue>;
   /** Request timeout in milliseconds (default: API_TIMEOUT_DEFAULT from constants) */
   timeout?: number;
 }
@@ -109,9 +125,31 @@ export function apiEndpointUrl(endpoint: string): string {
 }
 
 /**
+ * Append the caller's parameters to a search-parameter bag, in order.
+ *
+ * ONE implementation for the two branches of `buildUrl`: an absolute base goes
+ * through `URL`, a relative one through `URLSearchParams`, and a rule applied
+ * to one and not the other is a difference nobody would see until a deployment
+ * without a reverse proxy.
+ *
+ * @param target - The bag to fill (`url.searchParams` or a standalone one).
+ * @param params - The caller's parameters; `undefined` values are dropped.
+ */
+function appendParams(target: URLSearchParams, params: Record<string, QueryParamValue>): void {
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined) return;
+    if (Array.isArray(value)) {
+      value.forEach(item => target.append(key, String(item)));
+      return;
+    }
+    target.append(key, String(value));
+  });
+}
+
+/**
  * Build URL with query parameters.
  */
-function buildUrl(endpoint: string, params?: Record<string, string | number | boolean>): string {
+function buildUrl(endpoint: string, params?: Record<string, QueryParamValue>): string {
   const baseUrl = getBaseUrl();
 
   // Build full path by concatenating baseUrl + endpoint
@@ -123,20 +161,18 @@ function buildUrl(endpoint: string, params?: Record<string, string | number | bo
   if (baseUrl.startsWith('http')) {
     // Absolute URL - use URL class for proper query param handling
     const url = new URL(fullPath);
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        url.searchParams.append(key, String(value));
-      });
-    }
+    if (params) appendParams(url.searchParams, params);
     return url.toString();
   } else {
     // Relative URL - simple string concatenation
     if (params) {
       const searchParams = new URLSearchParams();
-      Object.entries(params).forEach(([key, value]) => {
-        searchParams.append(key, String(value));
-      });
-      return `${fullPath}?${searchParams.toString()}`;
+      appendParams(searchParams, params);
+      // An empty bag adds NO `?`: every parameter may legitimately be absent
+      // (an unset filter, an empty multi-select), and a bare `?` is a different
+      // URL for the cache and for a route matcher.
+      const query = searchParams.toString();
+      return query ? `${fullPath}?${query}` : fullPath;
     }
     return fullPath;
   }

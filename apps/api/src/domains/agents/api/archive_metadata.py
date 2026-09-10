@@ -1,4 +1,4 @@
-"""What an archived assistant message carries beyond its text.
+"""What an archived message carries beyond its text.
 
 Four enrichers used to be applied inline in ``api/service.py``: widgets, the
 execution trace, the follow-up chips and the initiative motivation. ADR-263
@@ -14,6 +14,19 @@ Two properties every enricher already had, and this chain keeps:
   attach, so the archive path holds no conditionals;
 - **new dict**: none of them mutates its input, so one turn's metadata can
   never leak into another's.
+
+**Every row a TURN archives is built here**, and that is the point rather than
+tidiness: a turn archives up to three rows — the question, the answer, and, when
+it stops on a HITL interrupt, the question LIA asked instead of answering — and
+the out-of-turn stamp (ADR-276) must reach ALL of them or the chat shows half a
+run. Measured 2026-09-09 on the dev account: the HITL question was assembled as
+a dict literal at its call site, so a workboard run that stopped on a
+confirmation put its full draft preview in the person's chat as an ordinary
+assistant message, AND left a row the retention sweep can never purge (it
+matches on ``hidden`` AND the stamp). That path had been unreachable until lot 7
+let a ticket run ask a question at all. ``build_*_metadata`` is therefore the
+one door, and ``test_archive_rows_are_stamped_guard.py`` refuses an inline dict
+at any archive call site of this package.
 """
 
 from __future__ import annotations
@@ -24,6 +37,8 @@ from typing import Any
 import structlog
 
 from src.core.config import settings
+from src.core.field_names import FIELD_RUN_ID
+from src.domains.agents.api.run_origin import with_hidden_stamp
 from src.domains.agents.data_registry.message_widgets import with_persisted_widgets
 from src.domains.agents.services.streaming.followup_metadata import (
     with_followup_suggestions,
@@ -95,7 +110,46 @@ def build_assistant_metadata(
     )
     metadata = with_followup_suggestions(metadata, followup_suggestions)
     metadata = with_initiative_motivation(metadata, initiative_motivation)
-    return with_performed_effects(metadata, effects)
+    metadata = with_performed_effects(metadata, effects)
+    # ADR-276: an out-of-turn run archives its rows exactly like any turn — the
+    # decision register points at them — and it is the READ that keeps them out
+    # of the chat. Branch-free like every enricher beside it: the stamp decides
+    # for itself whether a run is driving.
+    return with_hidden_stamp(metadata)
+
+
+def build_hitl_question_metadata(*, run_id: str, intention: str | None) -> dict[str, Any]:
+    """What the question a turn asked instead of answering carries.
+
+    A turn that stops on a HITL interrupt archives the QUESTION as its
+    assistant row, so the conversation reads correctly on reload. It is a row
+    of the turn like the other two, so it carries the run's stamp — and an
+    out-of-turn run's question therefore stays out of the chat, where nobody
+    could answer it anyway: the person answers on the ticket (ADR-276 lot 7).
+
+    Args:
+        run_id: The turn, shared with the three ADR-263 registers.
+        intention: The turn's classified intention, when one was resolved.
+
+    Returns:
+        The metadata to archive with the question.
+    """
+    return with_hidden_stamp({FIELD_RUN_ID: run_id, "hitl_question": True, "intention": intention})
+
+
+def build_interrupted_stream_metadata(*, run_id: str, reason: str) -> dict[str, Any]:
+    """What a partial answer carries when the stream died under it.
+
+    Args:
+        run_id: The turn, shared with the three ADR-263 registers.
+        reason: Why the stream ended early.
+
+    Returns:
+        The metadata to archive with what was produced before the break.
+    """
+    return with_hidden_stamp(
+        {FIELD_RUN_ID: run_id, "interrupted": True, "interrupt_reason": reason}
+    )
 
 
 async def persist_psyche_snapshot(

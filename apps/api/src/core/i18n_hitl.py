@@ -21,9 +21,6 @@ Usage:
     # Get action prompt
     prompt = HitlMessages.get_action_prompt("fr")
 
-    # Get draft summary template
-    summary = HitlMessages.get_draft_summary("email", "it", to="jean@ex.com", subject="RDV")
-
     # Get clarification header
     header = HitlMessages.get_clarification_header("zh-CN")
 
@@ -153,12 +150,12 @@ _ACTION_LABELS: dict[str, dict[str, str]] = {
 # =============================================================================
 
 _ACTION_PROMPTS: dict[str, str] = {
-    "fr": "<br/>Que veux-tu faire ?",
-    "en": "<br/>What would you like to do?",
-    "es": "<br/>¿Qué quieres hacer?",
-    "de": "<br/>Was möchtest du tun?",
-    "it": "<br/>Cosa vuoi fare?",
-    "zh-CN": "<br/>你想怎么做？",
+    "fr": "Que veux-tu faire ?",
+    "en": "What would you like to do?",
+    "es": "¿Qué quieres hacer?",
+    "de": "Was möchtest du tun?",
+    "it": "Cosa vuoi fare?",
+    "zh-CN": "你想怎么做？",
 }
 
 # =============================================================================
@@ -166,12 +163,12 @@ _ACTION_PROMPTS: dict[str, str] = {
 # =============================================================================
 
 _CLARIFICATION_HEADERS: dict[str, str] = {
-    "fr": "J'ai besoin de clarifications sur les points suivants :<br/><br/>",
-    "en": "I need clarification on the following points:<br/><br/>",
-    "es": "Necesito aclaraciones sobre los siguientes puntos:<br/><br/>",
-    "de": "Ich benötige Klarstellungen zu folgenden Punkten:<br/><br/>",
-    "it": "Ho bisogno di chiarimenti sui seguenti punti:<br/><br/>",
-    "zh-CN": "我需要以下几点的澄清：<br/><br/>",
+    "fr": "J'ai besoin de clarifications sur les points suivants :",
+    "en": "I need clarification on the following points:",
+    "es": "Necesito aclaraciones sobre los siguientes puntos:",
+    "de": "Ich benötige Klarstellungen zu folgenden Punkten:",
+    "it": "Ho bisogno di chiarimenti sui seguenti punti:",
+    "zh-CN": "我需要以下几点的澄清：",
 }
 
 # =============================================================================
@@ -519,6 +516,7 @@ _DESTRUCTIVE_CONFIRM_ACTION_TITLES: dict[str, dict[str, str]] = {
         "file_delete": "Confirmation de suppression",
         "label_delete": "Confirmation de suppression",
         "reminder_delete": "Confirmation de suppression",
+        "ticket_delete": "Confirmation de suppression",
         "email": "Confirmation d'envoi",
         "email_reply": "Confirmation de réponse",
         "email_forward": "Confirmation de transfert",
@@ -537,6 +535,7 @@ _DESTRUCTIVE_CONFIRM_ACTION_TITLES: dict[str, dict[str, str]] = {
         "file_delete": "Confirm deletion",
         "label_delete": "Confirm deletion",
         "reminder_delete": "Confirm deletion",
+        "ticket_delete": "Confirm deletion",
         "email": "Confirm sending",
         "email_reply": "Confirm reply",
         "email_forward": "Confirm forwarding",
@@ -555,6 +554,7 @@ _DESTRUCTIVE_CONFIRM_ACTION_TITLES: dict[str, dict[str, str]] = {
         "file_delete": "Confirmar eliminación",
         "label_delete": "Confirmar eliminación",
         "reminder_delete": "Confirmar eliminación",
+        "ticket_delete": "Confirmar eliminación",
         "email": "Confirmar envío",
         "email_reply": "Confirmar respuesta",
         "email_forward": "Confirmar reenvío",
@@ -573,6 +573,7 @@ _DESTRUCTIVE_CONFIRM_ACTION_TITLES: dict[str, dict[str, str]] = {
         "file_delete": "Löschung bestätigen",
         "label_delete": "Löschung bestätigen",
         "reminder_delete": "Löschung bestätigen",
+        "ticket_delete": "Löschung bestätigen",
         "email": "Versand bestätigen",
         "email_reply": "Antwort bestätigen",
         "email_forward": "Weiterleitung bestätigen",
@@ -591,6 +592,7 @@ _DESTRUCTIVE_CONFIRM_ACTION_TITLES: dict[str, dict[str, str]] = {
         "file_delete": "Conferma eliminazione",
         "label_delete": "Conferma eliminazione",
         "reminder_delete": "Conferma eliminazione",
+        "ticket_delete": "Conferma eliminazione",
         "email": "Conferma invio",
         "email_reply": "Conferma risposta",
         "email_forward": "Conferma inoltro",
@@ -609,6 +611,7 @@ _DESTRUCTIVE_CONFIRM_ACTION_TITLES: dict[str, dict[str, str]] = {
         "file_delete": "确认删除",
         "label_delete": "确认删除",
         "reminder_delete": "确认删除",
+        "ticket_delete": "确认删除",
         "email": "确认发送",
         "email_reply": "确认回复",
         "email_forward": "确认转发",
@@ -1330,130 +1333,6 @@ _DRAFT_UPDATE_BLOCK_LABELS: dict[str, dict[str, str]] = {
 # DRAFT SUMMARIES - Templates for draft type summaries
 # =============================================================================
 
-# Format: {draft_type: {language: template_string}}
-# Templates use Python format strings with named placeholders
-_DRAFT_SUMMARIES: dict[str, dict[str, str]] = {
-    "email": {
-        "fr": "**Destinataire** : {to}\n**Sujet** : {subject}",
-        "en": "**To** : {to}\n**Subject** : {subject}",
-        "es": "**Para** : {to}\n**Asunto** : {subject}",
-        "de": "**An** : {to}\n**Betreff** : {subject}",
-        "it": "**A** : {to}\n**Oggetto** : {subject}",
-        "zh-CN": "**收件人** : {to}\n**主题** : {subject}",
-    },
-    "email_reply": {
-        "fr": "↩️ **Réponse à** : {original_from}\n**Sujet** : {subject}",
-        "en": "↩️ **Reply to** : {original_from}\n**Subject** : {subject}",
-        "es": "↩️ **Respuesta a** : {original_from}\n**Asunto** : {subject}",
-        "de": "↩️ **Antwort an** : {original_from}\n**Betreff** : {subject}",
-        "it": "↩️ **Risposta a** : {original_from}\n**Oggetto** : {subject}",
-        "zh-CN": "↩️ **回复** : {original_from}\n**主题** : {subject}",
-    },
-    "email_forward": {
-        "fr": "↪️ **Transférer à** : {to}\n**Sujet** : {subject}",
-        "en": "↪️ **Forward to** : {to}\n**Subject** : {subject}",
-        "es": "↪️ **Reenviar a** : {to}\n**Asunto** : {subject}",
-        "de": "↪️ **Weiterleiten an** : {to}\n**Betreff** : {subject}",
-        "it": "↪️ **Inoltra a** : {to}\n**Oggetto** : {subject}",
-        "zh-CN": "↪️ **转发给** : {to}\n**主题** : {subject}",
-    },
-    "email_delete": {
-        "fr": 'Suppression email : "{subject}"',
-        "en": 'Delete email: "{subject}"',
-        "es": 'Eliminación email: "{subject}"',
-        "de": 'E-Mail löschen: "{subject}"',
-        "it": 'Elimina email: "{subject}"',
-        "zh-CN": '删除邮件："{subject}"',
-    },
-    "event": {
-        "fr": "**{summary}**\n🕐 {start}",
-        "en": "**{summary}**\n🕐 {start}",
-        "es": "**{summary}**\n🕐 {start}",
-        "de": "**{summary}**\n🕐 {start}",
-        "it": "**{summary}**\n🕐 {start}",
-        "zh-CN": "**{summary}**\n🕐 {start}",
-    },
-    "event_update": {
-        "fr": 'Modification événement: "{summary}"',
-        "en": 'Update event: "{summary}"',
-        "es": 'Modificación evento: "{summary}"',
-        "de": 'Termin aktualisieren: "{summary}"',
-        "it": 'Modifica evento: "{summary}"',
-        "zh-CN": '更新活动："{summary}"',
-    },
-    "event_delete": {
-        "fr": 'Suppression événement: "{summary}"',
-        "en": 'Delete event: "{summary}"',
-        "es": 'Eliminación evento: "{summary}"',
-        "de": 'Termin löschen: "{summary}"',
-        "it": 'Elimina evento: "{summary}"',
-        "zh-CN": '删除活动："{summary}"',
-    },
-    "contact": {
-        "fr": "Contact: {name}{email_part}",
-        "en": "Contact: {name}{email_part}",
-        "es": "Contacto: {name}{email_part}",
-        "de": "Kontakt: {name}{email_part}",
-        "it": "Contatto: {name}{email_part}",
-        "zh-CN": "联系人：{name}{email_part}",
-    },
-    "contact_update": {
-        "fr": "Modification contact: {name}",
-        "en": "Update contact: {name}",
-        "es": "Modificación contacto: {name}",
-        "de": "Kontakt aktualisieren: {name}",
-        "it": "Modifica contatto: {name}",
-        "zh-CN": "更新联系人：{name}",
-    },
-    "contact_delete": {
-        "fr": "Suppression contact: {name}",
-        "en": "Delete contact: {name}",
-        "es": "Eliminación contacto: {name}",
-        "de": "Kontakt löschen: {name}",
-        "it": "Elimina contatto: {name}",
-        "zh-CN": "删除联系人：{name}",
-    },
-    "task": {
-        "fr": 'Tâche: "{title}"',
-        "en": 'Task: "{title}"',
-        "es": 'Tarea: "{title}"',
-        "de": 'Aufgabe: "{title}"',
-        "it": 'Attività: "{title}"',
-        "zh-CN": '任务："{title}"',
-    },
-    "task_update": {
-        "fr": 'Modification tâche: "{title}"',
-        "en": 'Update task: "{title}"',
-        "es": 'Modificación tarea: "{title}"',
-        "de": 'Aufgabe aktualisieren: "{title}"',
-        "it": 'Modifica attività: "{title}"',
-        "zh-CN": '更新任务："{title}"',
-    },
-    "task_delete": {
-        "fr": 'Suppression tâche: "{title}"',
-        "en": 'Delete task: "{title}"',
-        "es": 'Eliminación tarea: "{title}"',
-        "de": 'Aufgabe löschen: "{title}"',
-        "it": 'Elimina attività: "{title}"',
-        "zh-CN": '删除任务："{title}"',
-    },
-    "file_delete": {
-        "fr": 'Suppression fichier: "{name}"',
-        "en": 'Delete file: "{name}"',
-        "es": 'Eliminación archivo: "{name}"',
-        "de": 'Datei löschen: "{name}"',
-        "it": 'Elimina file: "{name}"',
-        "zh-CN": '删除文件："{name}"',
-    },
-    "label_delete": {
-        "fr": 'Suppression label: "{name}"',
-        "en": 'Delete label: "{name}"',
-        "es": 'Eliminación etiqueta: "{name}"',
-        "de": 'Label löschen: "{name}"',
-        "it": 'Elimina etichetta: "{name}"',
-        "zh-CN": '删除标签："{name}"',
-    },
-}
 
 # =============================================================================
 # ACTION DESCRIPTIONS - Extended descriptions for action buttons
@@ -1956,49 +1835,6 @@ class HitlMessages:
         return _get(draft_type)
 
     @staticmethod
-    def get_draft_summary(
-        draft_type: str,
-        language: str,
-        **kwargs: Any,
-    ) -> str:
-        """
-        Get formatted draft summary.
-
-        Args:
-            draft_type: Type of draft (email, event, contact, etc.)
-            language: Language code
-            **kwargs: Template variables (to, subject, name, summary, etc.)
-
-        Returns:
-            Formatted draft summary string
-
-        Example:
-            >>> HitlMessages.get_draft_summary("email", "fr", to="jean@ex.com", subject="RDV")
-            'Email pour jean@ex.com, sujet: "RDV"'
-        """
-        lang = HitlMessages._normalize_language(language)
-
-        templates = _DRAFT_SUMMARIES.get(draft_type, {})
-        template = templates.get(lang, templates.get("en", ""))
-
-        if not template:
-            # Fallback to generic message
-            return HitlMessages.get_fallback(HitlMessageType.DRAFT_CRITIQUE, language)
-
-        # Handle optional email_part for contacts
-        if "email_part" not in kwargs and "email" in kwargs:
-            email = kwargs.pop("email", "")
-            kwargs["email_part"] = f" ({email})" if email else ""
-        elif "email_part" not in kwargs:
-            kwargs["email_part"] = ""
-
-        try:
-            return template.format(**kwargs)
-        except KeyError:
-            # If template variables missing, return template as-is
-            return template
-
-    @staticmethod
     def get_draft_update_labels(language: str) -> dict[str, str]:
         """Get localized block labels for draft UPDATE templates.
 
@@ -2035,19 +1871,23 @@ class HitlMessages:
         labels = HitlMessages.get_action_labels(lang)
         prompt = HitlMessages.get_action_prompt(lang)
 
+        # A Markdown list, and nothing else: the three ``<br/>`` this used to
+        # append to each item were redundant with the list itself, and were
+        # read out as typed by every surface that renders no markup.
         if include_descriptions:
             descriptions = _ACTION_DESCRIPTIONS.get(lang, _ACTION_DESCRIPTIONS["en"])
-            return f"""
-{prompt}<br/>
-- ✅ **{labels["confirm"]}** : {descriptions["confirm"]}<br/>
-- ✏️ **{labels["edit"]}** : {descriptions["edit"]}<br/>
-- 🚫 **{labels["cancel"]}** : {descriptions["cancel"]}<br/>"""
-        else:
-            return f"""
-{prompt}<br/>
-- ✅ **{labels["confirm"]}**<br/>
-- ✏️ **{labels["edit"]}**<br/>
-- 🚫 **{labels["cancel"]}**<br/>"""
+            return (
+                f"{prompt}\n\n"
+                f"- ✅ **{labels['confirm']}** : {descriptions['confirm']}\n"
+                f"- ✏️ **{labels['edit']}** : {descriptions['edit']}\n"
+                f"- 🚫 **{labels['cancel']}** : {descriptions['cancel']}"
+            )
+        return (
+            f"{prompt}\n\n"
+            f"- ✅ **{labels['confirm']}**\n"
+            f"- ✏️ **{labels['edit']}**\n"
+            f"- 🚫 **{labels['cancel']}**"
+        )
 
     @staticmethod
     def format_clarification_questions(
@@ -2070,11 +1910,11 @@ class HitlMessages:
         if len(questions) == 1:
             return questions[0]
 
-        # Multiple questions: Format as numbered list
+        # Multiple questions: a Markdown ordered list under its header.
         header = HitlMessages.get_clarification_header(language)
-        formatted_questions = "<br/>".join([f"{i + 1}. {q}" for i, q in enumerate(questions)])
+        formatted_questions = "\n".join([f"{i + 1}. {q}" for i, q in enumerate(questions)])
 
-        return header + formatted_questions
+        return f"{header}\n\n{formatted_questions}"
 
     @staticmethod
     def format_disambiguation_question(

@@ -120,6 +120,17 @@ class ProactiveMessages:
             "it": "Connessioni",
             "zh-CN": "用户互联",
         },
+        # The workboard (ADR-276). ONE title for every ticket event: a person
+        # reading their notifications recognises the surface, and the body says
+        # which ticket and what happened.
+        "workboard": {
+            "fr": "Tableau de bord",
+            "en": "Workboard",
+            "es": "Tablero de trabajo",
+            "de": "Aufgabenboard",
+            "it": "Bacheca",
+            "zh-CN": "工单板",
+        },
     }
 
     _SOURCES_LABEL: dict[str, str] = {
@@ -179,6 +190,28 @@ class ProactiveMessages:
         "zh-CN": "你与 {name} 的连接已被移除。你们之间的所有共享均已停止。",
     }
 
+    #: What came back when the pair ended (ADR-276 lot 5), appended to the
+    #: removal sentence above. Two tables rather than one templated string: a
+    #: « 1 tickets » is the kind of seam a reader notices immediately, and zh
+    #: has no plural form so both of its entries are the same sentence.
+    _PEER_REMOVED_RELEASED_ONE: dict[str, str] = {
+        "fr": " {count} ticket du tableau vous est revenu.",
+        "en": " {count} workboard ticket has come back to you.",
+        "es": " {count} ticket del tablero ha vuelto a ti.",
+        "de": " {count} Workboard-Ticket ist an dich zurückgegangen.",
+        "it": " {count} ticket della bacheca è tornato a te.",
+        "zh-CN": "{count} 个工单已回到你手中。",
+    }
+
+    _PEER_REMOVED_RELEASED_MANY: dict[str, str] = {
+        "fr": " {count} tickets du tableau vous sont revenus.",
+        "en": " {count} workboard tickets have come back to you.",
+        "es": " {count} tickets del tablero han vuelto a ti.",
+        "de": " {count} Workboard-Tickets sind an dich zurückgegangen.",
+        "it": " {count} ticket della bacheca sono tornati a te.",
+        "zh-CN": "{count} 个工单已回到你手中。",
+    }
+
     # Lot 4: sender-side confirmations for relayed messages.
     _PEER_MESSAGE_DELIVERED_BODIES: dict[str, str] = {
         "fr": "Ton message pour {name} a bien été transmis par son assistant.",
@@ -195,6 +228,79 @@ class ProactiveMessages:
         "de": "Deine Nachricht an {name} konnte nicht übermittelt werden. Versuche es später erneut.",
         "it": "Il tuo messaggio per {name} non è stato consegnato. Riprova più tardi.",
         "zh-CN": "你发给 {name} 的消息未能送达。请稍后重试。",
+    }
+
+    #: What a workboard notification says, per event (ADR-276). Written
+    #: sentences, never a model call: a notification about a ticket is a fact,
+    #: and paying for prose to say « LIA a terminé ce ticket » would be worse
+    #: than saying it plainly. Six languages, like everything a reader sees.
+    _WORKBOARD_BODIES: dict[str, dict[str, str]] = {
+        "run_started": {
+            "fr": "LIA a commencé « {title} ».",
+            "en": "LIA has started “{title}”.",
+            "es": "LIA ha empezado «{title}».",
+            "de": "LIA hat „{title}“ begonnen.",
+            "it": "LIA ha iniziato «{title}».",
+            "zh-CN": "LIA 已开始处理“{title}”。",
+        },
+        "run_finished": {
+            "fr": "LIA a terminé « {title} » : {excerpt}",
+            "en": "LIA has finished “{title}”: {excerpt}",
+            "es": "LIA ha terminado «{title}»: {excerpt}",
+            "de": "LIA hat „{title}“ abgeschlossen: {excerpt}",
+            "it": "LIA ha terminato «{title}»: {excerpt}",
+            "zh-CN": "LIA 已完成“{title}”：{excerpt}",
+        },
+        "run_failed": {
+            "fr": "LIA n'a pas pu terminer « {title} ». Le ticket reste en cours.",
+            "en": "LIA could not finish “{title}”. The ticket stays in progress.",
+            "es": "LIA no ha podido terminar «{title}». El ticket sigue en curso.",
+            "de": "LIA konnte „{title}“ nicht abschließen. Das Ticket bleibt in Arbeit.",
+            "it": "LIA non è riuscita a completare «{title}». Il ticket resta in corso.",
+            "zh-CN": "LIA 未能完成“{title}”。该工单仍在进行中。",
+        },
+        "assigned": {
+            "fr": "Un ticket t'a été confié : « {title} ».",
+            "en": "A ticket has been handed to you: “{title}”.",
+            "es": "Te han asignado un ticket: «{title}».",
+            "de": "Dir wurde ein Ticket übergeben: „{title}“.",
+            "it": "Ti è stato affidato un ticket: «{title}».",
+            "zh-CN": "有一个工单交给你了：“{title}”。",
+        },
+        "confirming": {
+            "fr": (
+                "« {title} » attend ton accord : LIA a préparé une action et te la "
+                "présente sur le ticket. [Répondre sur le ticket]({ticket_url})"
+            ),
+            "en": (
+                "“{title}” is waiting for your go-ahead: LIA prepared an action and "
+                "laid it out on the ticket. [Answer on the ticket]({ticket_url})"
+            ),
+            "es": (
+                "«{title}» espera tu visto bueno: LIA ha preparado una acción y te la "
+                "presenta en el ticket. [Responder en el ticket]({ticket_url})"
+            ),
+            "de": (
+                "„{title}“ wartet auf dein Okay: LIA hat eine Aktion vorbereitet und "
+                "sie im Ticket dargelegt. [Im Ticket antworten]({ticket_url})"
+            ),
+            "it": (
+                "«{title}» aspetta il tuo via libera: LIA ha preparato un'azione e te "
+                "la presenta sul ticket. [Rispondi sul ticket]({ticket_url})"
+            ),
+            "zh-CN": (
+                "“{title}”正在等你的确认：LIA 准备了一项操作，已在工单上列出。"
+                "[在工单上回复]({ticket_url})"
+            ),
+        },
+        "waiting": {
+            "fr": "« {title} » attend ta réponse. [Terminer dans le chat]({intent_url})",
+            "en": "“{title}” is waiting for you. [Finish it in the chat]({intent_url})",
+            "es": "«{title}» te está esperando. [Terminarlo en el chat]({intent_url})",
+            "de": "„{title}“ wartet auf dich. [Im Chat abschließen]({intent_url})",
+            "it": "«{title}» sta aspettando te. [Concludilo nella chat]({intent_url})",
+            "zh-CN": "“{title}”正在等你。[在对话中完成]({intent_url})",
+        },
     }
 
     _ROUTINE_APPROVAL_BODIES: dict[str, str] = {
@@ -312,6 +418,45 @@ class ProactiveMessages:
         return template.format(title=title, intent_url=intent_url)
 
     @staticmethod
+    def workboard_body(
+        event: str,
+        title: str,
+        language: str,
+        *,
+        excerpt: str = "",
+        intent_url: str = "",
+        ticket_url: str = "",
+    ) -> str:
+        """Localized body of one workboard notification (ADR-276).
+
+        Args:
+            event: A :class:`WorkboardEvent` value — bounded, never user
+                text.
+            title: The ticket's own title, already bounded by its column.
+            language: Any locale spelling; normalized internally.
+            excerpt: The beginning of what LIA wrote on the ticket, bounded by
+                the caller.
+            intent_url: Chat deep link that finishes a stopped run (ADR-173).
+            ticket_url: Where the ticket lives, for the events answered there.
+
+        Returns:
+            The localized body; an unknown event yields an empty string rather
+            than a placeholder sentence — a notification nobody can read is
+            worse than none.
+        """
+        from src.core.i18n import normalize_language
+
+        table = ProactiveMessages._WORKBOARD_BODIES.get(event)
+        if table is None:
+            return ""
+        template = table.get(normalize_language(language), table["en"])
+        # The ticket's title and LIA's excerpt are VALUES here, never a format
+        # string: a title reading « payer la facture {montant} » must not raise.
+        return template.format(
+            title=title, excerpt=excerpt, intent_url=intent_url, ticket_url=ticket_url
+        )
+
+    @staticmethod
     def _peer_template(table: dict[str, str], language: str) -> str:
         """Resolve a peers body template through the normalization chokepoint."""
         from src.core.i18n import normalize_language
@@ -405,19 +550,33 @@ class ProactiveMessages:
         ).format(name=peer_name)
 
     @staticmethod
-    def peer_removed_body(peer_name: str, language: str) -> str:
+    def peer_removed_body(peer_name: str, language: str, released: int = 0) -> str:
         """Chat body telling either side a connection was removed (spec §5.3).
+
+        The workboard sentence is APPENDED rather than sent as a second
+        notification (ADR-276 lot 5): two messages a second apart about one
+        event is noise, and this path already reaches both sides. Nothing is
+        added when nothing moved — « 0 ticket came back » is noise of its own.
 
         Args:
             peer_name: Display name of the other side.
             language: Recipient language.
+            released: How many workboard tickets came back to THIS recipient.
 
         Returns:
             Localized body.
         """
-        return ProactiveMessages._peer_template(
+        body = ProactiveMessages._peer_template(
             ProactiveMessages._PEER_REMOVED_BODIES, language
         ).format(name=peer_name)
+        if released <= 0:
+            return body
+        table = (
+            ProactiveMessages._PEER_REMOVED_RELEASED_ONE
+            if released == 1
+            else ProactiveMessages._PEER_REMOVED_RELEASED_MANY
+        )
+        return body + ProactiveMessages._peer_template(table, language).format(count=released)
 
     @staticmethod
     def sources_label(language: str) -> str:

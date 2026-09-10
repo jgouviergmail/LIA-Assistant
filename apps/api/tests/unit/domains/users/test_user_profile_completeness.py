@@ -98,6 +98,7 @@ DISTINCTIVE_VALUES: dict[str, Any] = {
     "image_generation_output_format": "webp",
     "use_last_known_location": True,
     "health_metrics_agents_enabled": True,
+    "settings_shortcuts": ["theme", "font"],
     "created_at": datetime(2020, 1, 2, 3, 4, 5, tzinfo=UTC),
     "updated_at": datetime(2021, 6, 7, 8, 9, 10, tzinfo=UTC),
 }

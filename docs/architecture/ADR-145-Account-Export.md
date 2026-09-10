@@ -22,6 +22,6 @@
 
 ## Consequences
 
-- Migration `b9d5f7a32c84`; `AccountExportSettings` config module in the Settings MRO; `.env` section [83].
+- Migration `b9d5f7a32c84`; `AccountExportSettings` config module in the Settings MRO; `.env` section [91].
 - Frontend `AccountExportSettings` in the Security group (step-up guarded request, status badge, download link, self-hides on 404 when the flag is off).
 - Rejected: per-domain hand-written exporters (the generic metadata-driven fetch + the completeness guard beats 25 bespoke functions and cannot drift); APScheduler `run_date` one-shots (lost on restart — the exact "features die invisibly" class).

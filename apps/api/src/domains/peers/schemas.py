@@ -29,12 +29,17 @@ class PeerEvent:
         connection_id: Pair row the event happened on.
         actor_id: User who performed the action.
         affected_ids: Users to notify (Lot 3 dispatch).
+        released: How many workboard tickets came back to each OWNER when
+            the pair ended (ADR-276 lot 5), as a tuple of pairs so the
+            event stays frozen. Empty when nothing moved — and each side
+            has its own number, since a pair usually holds work both ways.
     """
 
     kind: str
     connection_id: UUID
     actor_id: UUID
     affected_ids: tuple[UUID, ...]
+    released: tuple[tuple[UUID, int], ...] = ()
 
 
 @dataclass(frozen=True)

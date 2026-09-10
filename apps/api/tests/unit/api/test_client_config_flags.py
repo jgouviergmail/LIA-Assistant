@@ -21,6 +21,13 @@ class TestClientConfigFlags:
         assert "peers_enabled" in payload["features"]
         assert payload["features"]["peers_enabled"] is bool(settings.peers_enabled)
 
+    async def test_workboard_flag_present_and_mirrors_settings(self):
+        """ADR-274: the board page, its settings section and the chat's ticket
+        actions all gate on this flag — the gate-keeper rule (ADR-061)."""
+        payload = await get_client_config()
+        assert "workboard_enabled" in payload["features"]
+        assert payload["features"]["workboard_enabled"] is bool(settings.workboard_enabled)
+
     async def test_sibling_gate_flags_still_present(self):
         """The section-gating flags the settings page consumes (page.tsx memo)."""
         payload = await get_client_config()

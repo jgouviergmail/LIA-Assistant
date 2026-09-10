@@ -33,6 +33,7 @@ from src.core.i18n import normalize_language
 from src.domains.agents.api.archive_first import archive_user_message_first
 from src.domains.agents.api.archive_metadata import (
     build_assistant_metadata,
+    build_hitl_question_metadata,
     persist_psyche_snapshot,
     with_performed_effects,
 )
@@ -1140,11 +1141,9 @@ class AgentService(
                                     conversation_id,
                                     "assistant",
                                     streaming_service.hitl_generated_question,
-                                    {
-                                        FIELD_RUN_ID: run_id,
-                                        "hitl_question": True,
-                                        "intention": intention_label,
-                                    },
+                                    build_hitl_question_metadata(
+                                        run_id=run_id, intention=intention_label
+                                    ),
                                     archive_db,
                                 )
                                 messages_archived += 1

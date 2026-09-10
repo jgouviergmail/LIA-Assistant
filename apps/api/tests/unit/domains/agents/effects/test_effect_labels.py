@@ -55,7 +55,7 @@ class TestTheLabelSaysWhatHappened:
         label = build_effect_label("some_future_tool", {})
         assert label is not None
         assert label["i18n_key"] == "effects.labels.generic"
-        # ``_readable_tool_name`` drops the ``_tool`` suffix, as on the card.
+        # ``readable_tool_name`` drops the ``_tool`` suffix, as on the card.
         assert label["values"]["tool"] == "some future"
 
 

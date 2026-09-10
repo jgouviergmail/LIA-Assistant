@@ -82,6 +82,7 @@ import {
   Gauge,
   ClipboardList,
   ScrollText,
+  SquareKanban,
 } from 'lucide-react';
 
 interface FAQContentProps {
@@ -113,6 +114,7 @@ const sections = [
   'interests',
   'heartbeat',
   'scheduled_actions',
+  'workboard',
   'mcp_servers',
   'skills',
   'plugins',
@@ -204,6 +206,7 @@ export const featureIcons = {
   platformCapabilities: SlidersHorizontal,
   tabularAdmin: FileSpreadsheet,
   meetings: ClipboardList,
+  workboard: SquareKanban,
   transparencyRegisters: ScrollText,
 };
 
@@ -280,6 +283,8 @@ export const featureKeys = [
   'ephemeralScripts',
   // Wired at v1.39.0 with ADR-258 — meeting recording and structured minutes.
   'meetings',
+  // Wired at v1.44.0 with ADR-276 — the workboard.
+  'workboard',
   // Wired at v1.41.0 with ADR-263 — the two transparency registers.
   'transparencyRegisters',
   'platformCapabilities',

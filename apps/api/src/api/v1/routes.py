@@ -155,6 +155,11 @@ if getattr(settings, "peers_enabled", False):
 
     api_router.include_router(peers_router)  # User-to-user connections (peers program)
 
+if getattr(settings, "workboard_enabled", False):
+    from src.domains.workboard.router import router as workboard_router
+
+    api_router.include_router(workboard_router)  # Ticket board (ADR-276)
+
 if getattr(settings, "diagnostics_enabled", False):
     from src.domains.diagnostics.router import router as diagnostics_admin_router
     from src.domains.diagnostics.webhook_router import router as diagnostics_webhook_router
@@ -363,6 +368,9 @@ async def get_client_config() -> dict:
             # Meeting recording (ADR-258): gates the composer action, the
             # meetings pages and the settings section.
             "meetings_enabled": getattr(settings, "meetings_enabled", False),
+            # Workboard (ADR-276): gates the board page, its settings section
+            # and the ticket actions under a chat notification.
+            "workboard_enabled": getattr(settings, "workboard_enabled", False),
         },
         "api_version": constants.API_VERSION,  # PHASE 2.1: Use constant instead of hardcoded value
     }

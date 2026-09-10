@@ -236,8 +236,10 @@
       "relations_sub": "Ihre Kontakte auf einen Blick",
       "capabilities": "Fähigkeiten",
       "capabilities_sub": "Ihre Konstellation",
+      "workboard": "Workboard",
+      "workboard_sub": "Woran LIA arbeitet",
       "actions": "Register",
-      "actions_sub": "Was LIA getan und was sie abgerufen hat"
+      "actions_sub": "Aktionen nachverfolgen"
     },
     "briefing": {
       "synthesis_audio_error": "Die Sprachwiedergabe ist fehlgeschlagen — der Sprachanbieter hat kein Audio geliefert. Prüfen Sie die Spracheinstellungen.",
@@ -2503,7 +2505,7 @@
       "auth_none": "Keine",
       "auth_api_key": "API-Schlüssel",
       "auth_bearer": "Bearer-Token",
-      "auth_oauth2": "OAuth 2.0",
+      "auth_oauth2": "OAuth 2.1",
       "status_active": "Verbunden",
       "status_error": "Fehler",
       "status_auth_required": "Auth erforderlich",
@@ -3232,6 +3234,13 @@
       "edit_id_label": "Kennung der Verknüpfung /{{id}}",
       "edit_text_label": "Eingefügter Text der Verknüpfung /{{id}}"
     },
+    "my_shortcuts": {
+      "title": "Meine Verknüpfungen",
+      "description": "Heften Sie die Bereiche der Einstellungen an, die Sie am häufigsten nutzen: ein schwebendes Menü zeigt sie dann auf jedem Bildschirm, einen Klick entfernt. Verschieben Sie es, wohin Sie möchten, und klappen Sie es ein, wenn Sie es nicht brauchen.",
+      "count": "{{current}} / {{max}} angeheftet",
+      "limit_reached": "Limit erreicht — lösen Sie eine Verknüpfung, um eine andere anzuheften.",
+      "empty": "Noch nichts angeheftet: das schwebende Menü erscheint mit der ersten Verknüpfung."
+    },
     "briefing_grid": {
       "title": "Mein Dashboard",
       "description": "Wählen Sie, welche Karten auf dem Dashboard erscheinen und in welcher Reihenfolge. Eine ausgeblendete Karte wird gar nicht mehr abgerufen.",
@@ -3526,6 +3535,7 @@
         "display-mode": "Karten, Darstellung, Antwortformat, Layout, Markdown, Klartext",
         "briefing-grid": "Startseite, Übersicht, Dashboard, Widgets, Karten, Briefing, Reihenfolge",
         "chat-shortcuts": "Slash, Kürzel, Befehl, Schnellanfrage, Makro, /Befehl, Textbaustein, bearbeiten, umbenennen",
+        "my-shortcuts": "Verknüpfung, anheften, Favorit, schwebendes Menü, Dock, Schnellzugriff, Bereiche",
         "open-loops": "zusagen, offene punkte, ausstehend, nachverfolgung, versprechen, unerledigt",
         "habits": "gewohnheiten, rhythmus, routinen, zeitplan, gelernt, aktivitätsfenster, wiederkehrende anfragen, automatisierungsvorschläge, Erkennungsschwelle, warum keine Gewohnheit, Serie, Tage in Folge, Meilenstein, Rekord, lesepräsenz, app öffnen, daumen zählen, anwesenheit",
         "notifications": "Push, Benachrichtigungen, Hinweise, mobil, Erinnerungen, FCM, native App, Android-App, iOS-App, Weck-Relais, APNs",
@@ -3573,7 +3583,8 @@
         "admin-diagnostics": "zustand diagnose vorfälle alarme überwachung selbstprüfung plattform status prometheus loki konnektivität ausgehend netzwerk embeddings vektoren kontingent gedächtnis sprache Runbook Beweise Logs Diagnose Version",
         "meetings": "besprechung, aufnahme, protokoll, transkription, bericht, mikrofon, notizen, zusammenfassung, aktionen, vorlage, vorlagen, vorlagenbibliothek, protokollformat, standardformat, automatisches format, format ändern, abschnitte, anweisungen, protokoll-e-mail",
         "admin-registers": "register, transparenz, aktionen, abrufe, export, protokoll, audit, admin, Diagramme, Statistiken, Zahlen, Überblick, Initiative, proaktiv, Artikel 12, vollständiger Auszug, Züge",
-        "reminders": "Erinnerung, erinnere mich, Warnung, Benachrichtigung, wiederkehrende Erinnerung, wiederholen, Merkzettel, Wiederholung, täglich, Zeitfenster"
+        "reminders": "Erinnerung, erinnere mich, Warnung, Benachrichtigung, wiederkehrende Erinnerung, wiederholen, Merkzettel, Wiederholung, täglich, Zeitfenster",
+        "workboard": "workboard board tickets ticket kanban spalten zu erledigen backlog"
       }
     },
     "haptics": {
@@ -3638,6 +3649,26 @@
     "meetings": {
       "title": "Besprechungsprotokolle",
       "description": "Nimm eine Besprechung aus dem Chat-Eingabefeld auf; LIA transkribiert sie und verfasst das Protokoll nach deinem Aufbau."
+    },
+    "workboard": {
+      "title": "Workboard",
+      "description": "Ihre Tickets und was LIA allein ausführen darf.",
+      "open_board": "Workboard öffnen",
+      "needs_you": "{{count}} Ticket wartet auf Sie",
+      "needs_you_one": "{{count}} Ticket wartet auf Sie",
+      "needs_you_other": "{{count}} Tickets warten auf Sie",
+      "nothing_waiting": "Nichts wartet auf Sie.",
+      "glance": "Das Board auf einen Blick",
+      "tile_total": "Auf Ihrem Board",
+      "tile_overdue": "Überfällig",
+      "tile_lia": "Bei LIA",
+      "tile_needs_me": "Warten auf Sie",
+      "by_column": "Nach Spalte",
+      "capacity_label": "Kapazität des Kontos",
+      "capacity": "{{owned}} / {{max}} Tickets",
+      "cost": "Kosten der Läufe",
+      "runs_one": "{{count}} Lauf",
+      "runs_other": "{{count}} Läufe"
     }
   },
   "relations": {
@@ -4289,6 +4320,11 @@
       }
     }
   },
+  "shortcuts_dock": {
+    "label": "Meine Verknüpfungen — mit den Pfeiltasten verschieben",
+    "minimize": "Verknüpfungen einklappen",
+    "restore": "Verknüpfungen anzeigen"
+  },
   "faq": {
     "title": "Häufig gestellte Fragen",
     "subtitle": "Finde Antworten auf die häufigsten Fragen zu LIA",
@@ -4379,7 +4415,7 @@
         },
         "security": {
           "title": "🔐 Mehrstufige Sicherheit",
-          "description": "Tiefenverteidigung, vom Anmelden bis zur Speicherung: Passkeys, TOTP mit Backup-Codes, verstärkte Neuanmeldung bei sensiblen Aktionen und jede aktive Sitzung sichtbar und widerrufbar. Darunter OAuth 2.0 mit PKCE, PII aus den Logs gefiltert, Isolation zwischen Nutzern, Verschlüsselung im Ruhezustand, ein DSGVO-Export, in dem Geheimmaterial konstruktionsbedingt nicht exportierbar ist, und tägliche Sicherungen mit getesteter Wiederherstellung. Ein Skill läuft in einem Wegwerf-Container ohne Socket und ohne Netzwerk. Und jeder von Dritten geschriebene Text — E-Mail, Einladung, Webseite, MCP-Server — erreicht das Modell als zu analysierendes Datum markiert, nie als Anweisung."
+          "description": "Tiefenverteidigung, vom Anmelden bis zur Speicherung: Passkeys, TOTP mit Backup-Codes, verstärkte Neuanmeldung bei sensiblen Aktionen und jede aktive Sitzung sichtbar und widerrufbar. Darunter OAuth 2.1 mit PKCE, PII aus den Logs gefiltert, Isolation zwischen Nutzern, Verschlüsselung im Ruhezustand, ein DSGVO-Export, in dem Geheimmaterial konstruktionsbedingt nicht exportierbar ist, und tägliche Sicherungen mit getesteter Wiederherstellung. Ein Skill läuft in einem Wegwerf-Container ohne Socket und ohne Netzwerk. Und jeder von Dritten geschriebene Text — E-Mail, Einladung, Webseite, MCP-Server — erreicht das Modell als zu analysierendes Datum markiert, nie als Anweisung."
         },
         "resilience": {
           "title": "🛡️ Performance & Token-Optimierung",
@@ -4423,7 +4459,7 @@
         },
         "mcp": {
           "title": "🔌 MCP (Model Context Protocol)",
-          "description": "Vollständige MCP-Unterstützung, ausgerichtet auf die aktuelle Protokollrevision — 2026-07-28 — in beiden Hälften: wie mit einem Server gesprochen wird (beide Generationen, mit automatischem Rückfall) und wie seine Werkzeug-Deklarationen gelesen werden, im vollen Spielraum des Standards. Instanz-Server und Server pro Nutzerin, vier Authentifizierungsarten (keine, API-Schlüssel, Bearer-Token, an den Aussteller gebundenes OAuth 2.1), automatische Werkzeugerkennung samt lesbarem Namen und generierte Domänenbeschreibungen, damit der Router weiß, wofür jeder Server da ist. Ein mit dem eigenen Konto des Benutzers verbundener Server erklärt das überall dort, wo das Modell seine Fähigkeiten liest: „meine“ wird auf dieses Konto aufgelöst, ohne nach einem Benutzernamen zu fragen."
+          "description": "Vollständige MCP-Unterstützung, ausgerichtet auf die aktuelle Protokollrevision — 2026-07-28 — in beiden Hälften: wie mit einem Server gesprochen wird (beide Generationen, mit automatischem Rückfall) und wie seine Werkzeug-Deklarationen gelesen werden. Instanz-Server und Server pro Nutzerin, vier Authentifizierungsarten (keine, API-Schlüssel, Bearer-Token, an den Aussteller gebundenes OAuth 2.1), automatische Werkzeugerkennung samt lesbarem Namen und generierte Domänenbeschreibungen, damit der Router weiß, wofür jeder Server da ist."
         },
         "mcpApps": {
           "title": "📱 Interaktive MCP Apps",
@@ -4511,7 +4547,7 @@
         },
         "reactMode": {
           "title": "⚡ ReAct-Ausführungsmodus",
-          "description": "Die Alternative zur Pipeline: Die Assistentin denkt Schritt für Schritt — Werkzeug aufrufen, Ergebnis lesen, über das Weitere entscheiden — mit vier eigenen Knoten und nativer Freigabe. Die Pipeline bleibt Standard und kostet 4- bis 8-mal weniger Token; umgeschaltet wird in der Chat-Kopfzeile. Jeder Zug startet mit sauberem Datenregister, und der Agent soll den exakten Wert holen statt einen erinnerten Näherungswert. Drei Leitplanken rahmen die Schleife: Ihre Frist misst Rechenzeit, sodass Warten auf deine Freigabe sie nicht mehr aufzehrt, und ein identisch wiederholter Werkzeugaufruf wird abgelehnt und beendet dann den Zug. Und die in Werkzeugen verbrachte Zeit trägt ihr eigenes Budget, getrennt vom Denken — eine einzelne lange Delegation kann nicht mehr den ganzen Zug verbrauchen."
+          "description": "Die Alternative zur Pipeline: Die Assistentin denkt Schritt für Schritt — Werkzeug aufrufen, Ergebnis lesen, über das Weitere entscheiden — mit vier eigenen Knoten und nativer Freigabe. Die Pipeline bleibt Standard und kostet 4- bis 8-mal weniger Token; umgeschaltet wird in der Chat-Kopfzeile. Jeder Zug startet mit sauberem Datenregister, und der Agent soll den exakten Wert holen statt einen erinnerten Näherungswert."
         },
         "proactiveInitiative": {
           "title": "🎯 Proaktive Initiative",
@@ -4571,7 +4607,7 @@
         },
         "selfDiagnostics": {
           "title": "🩺 Selbstdiagnose & Vorfallgedächtnis",
-          "description": "LIA liest ihre eigene Telemetrie über Clients, die nie eine Anfrage scheitern lassen: Jeder Ausfall wird zu einem typisierten „nicht verfügbar“. Ein periodischer Selbsttest bewertet die goldenen Signale und prüft Abhängigkeiten direkt; Alarme und kritische Urteile laufen in einen Vorfall pro Problem zusammen, diagnostiziert von einem budgetbegrenzten Modell, das zuerst ein begrenztes Beweispaket liest – Metrik-Aufschlüsselungen, einen bereinigten Logauszug, den laufenden Build – sowie das Runbook des Alarms, und dann unter seinem Urteil zeigt, was es gelesen hat. Ein bekannter Ausfall prägt die Antworten: Beeinträchtigte Fähigkeiten werden schon bei der Planung umgangen, und ein fehlgeschlagener Schritt wird aus typisierten Fehlercodes erklärt, nie aus Rohlogs."
+          "description": "LIA liest ihre eigene Telemetrie über Clients, die nie eine Anfrage scheitern lassen: Jeder Ausfall wird zu einem typisierten „nicht verfügbar“. Ein periodischer Selbsttest bewertet die goldenen Signale und prüft Abhängigkeiten direkt; Alarme und kritische Urteile laufen in einen Vorfall pro Problem zusammen, diagnostiziert von einem budgetbegrenzten Modell, das ein begrenztes Beweispaket liest – Metrik-Aufschlüsselungen, einen bereinigten Logauszug, den laufenden Build, das Runbook des Alarms – und unter seinem Urteil zeigt, was es gelesen hat. Ein bekannter Ausfall prägt die Antworten: Beeinträchtigte Fähigkeiten werden schon bei der Planung umgangen, und ein fehlgeschlagener Schritt wird aus typisierten Fehlercodes erklärt, nie aus Rohlogs."
         },
         "ephemeralScripts": {
           "title": "🧮 Berechnete Antworten statt geratener",
@@ -4584,6 +4620,10 @@
         "transparencyRegisters": {
           "title": "📋 Register für Aktionen und Abfragen",
           "description": "Drei Register, automatisch geführt und nie vermischt: was LIA für dich <i>getan</i> hat, mit Ergebnis und deiner Bestätigung; was sie zum Antworten <i>abgefragt</i> hat, festgehalten als Fähigkeit und nie als Suchinhalt; und was sie <i>von sich aus</i> unternommen hat, was zuvor nirgends festgehalten wurde. Eine Aktion wird vor ihrer Ausführung eingetragen: Ein Erfolg wird nie aus einem fehlenden Fehler geschlossen. Ein vierter Reiter zeichnet den Zeitraum. Jeder Auszug ist vollständig — nichts abgeschnitten, die exakte Anzahl im Kopf — und alles wird mit deinem Konto gelöscht."
+        },
+        "workboard": {
+          "title": "🗂️ Das Ticket-Board",
+          "description": "Ein Ticket ist eine Arbeitseinheit mit Lebenszyklus, Inhaber und Ergebnis — genau das, was einer Aufgabenliste, einer Erinnerung und einer Routine fehlt. Sieben Spalten, Unter-Tickets, Kommentare, eine Historie. Inhaber bist du, eine Verbindung oder LIA: Übergib ihr ein Ticket, und sie nimmt es von selbst auf, führt es aus, kommentiert das Ergebnis und gibt es dir zur Freigabe zurück. Vor einer Aktion, die sie nicht allein ausführen kann, fragt sie auf dem Ticket, statt abzulehnen: Ein Kommentar antwortet — ja, nein oder was zu ändern ist."
         }
       },
       "diagram_alt": "LIA-Architekturdiagramm"
@@ -4592,6 +4632,18 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_44_0": {
+          "title": "v1.44.0 — 🗂️ Ein Board für das, woran du wirklich arbeitest",
+          "date": "September 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🗂️ Das Ticket-Board</b> — ein Ticket ist eine Arbeitseinheit mit einem eigenen Leben: Titel, Beschreibung, Priorität, Fälligkeit, Unter-Tickets, Kommentare und eine Historie. Es durchläuft sieben Spalten, von der bloßen Idee bis zu erledigt. Eine Aufgabenliste hat keinen Lebenszyklus, eine Erinnerung klingelt einmal und hinterlässt nichts, eine Routine endet nie — das ist die Fläche, die dazwischen fehlte.",
+            "i2": "<b>🤖 Gib LIA ein Ticket, und sie arbeitet daran</b> — sie nimmt eines nach dem anderen, erledigt es allein und kommentiert, was sie gefunden oder erstellt hat. Du bekommst das Ergebnis zur Freigabe, in einer eigenen Spalte. Wird ein Lauf verschoben, weil ein Kontingent oder ein laufendes Gespräch dazwischenkam, sagt das Ticket genau das: verschoben ist nicht gescheitert, und der Versuch wird dir zurückgegeben.",
+            "i3": "<b>💬 Braucht LIA deine Zustimmung, fragt sie auf dem Ticket</b> — genau die Karte, die du im Chat gesehen hättest, steht dort, mit dem, was sie vorhat. Du antwortest mit einem Kommentar: <i>ja</i>, <i>nein</i> oder was zu ändern ist. Den Kommentar zu senden ist die Antwort — das Ticket geht sofort zurück an LIA. Freigegeben wird genau das, was ausgeführt wird: ändert sich ein Detail, fragt LIA erneut, statt etwas anzunehmen.",
+            "i4": "<b>🔔 Sie hakt nach, und die Einstellungen zeigen das Board auf einen Blick</b> — ein überfälliges Ticket, eine nahe Fälligkeit, eine offen gebliebene Frage oder ein Ergebnis, das niemand freigegeben hat, kommen im Chat zurück und zitieren, was wirklich wartet, statt es zu umschreiben. Einstellungen › Workboard nennt die Summen, die exakte Anzahl je Spalte und was bei dir liegt — jede Zahl ein Link ins bereits gefilterte Board.",
+            "i5": "<b>📌 Hefte die Einstellungen an, die du wirklich nutzt</b> — wähle bis zu fünf Bereiche unter Einstellungen › Meine Verknüpfungen, und sie begleiten dich auf jedem Bildschirm in einer kleinen schwebenden Kapsel. Verschiebe sie, klappe sie zu einem Punkt zusammen, klappe sie mit einem Klick wieder auf. Was angeheftet ist, folgt deinem Konto von Browser zu Browser; wo die Kapsel sitzt, gehört diesem Gerät."
+          }
+        },
         "v1_43_2": {
           "title": "v1.43.2 — 📊 Dokumente mit der Sorgfalt ihres Formats",
           "date": "September 2026",
@@ -4675,7 +4727,7 @@
           "count": "3",
           "items": {
             "i1": "<b>📄 Eine Datei mit allem, was über dich erfasst ist</b> — die Exporte je Register decken jeweils ein Journal ab. Eine neue <b>vereinheitlichte Auswertung</b>, unterhalb der Reiter von <i>Register</i>, bündelt alle fünf Aufzeichnungen, die LIA führt — deine Züge, die Aktionen, die Abfragen, die Modellaufrufe und jede Lücke im Register selbst — in einer maschinenlesbaren Datei, wie es Artikel 12 der EU-KI-Verordnung erwartet. Es ist dieselbe Datei, die ein Administrator erzeugen kann, auf dein Konto allein begrenzt: Die aufgerufene Route nimmt gar keinen Kontoparameter, kann also nur deins liefern. Sie enthält keine Inhalte, jede Kennung ist durch ein Handle ersetzt — deine eingeschlossen —, sodass du sie einem Antrag, einer Beschwerde oder einem Fehlerbericht unverändert beilegen kannst.",
-            "i2": "<b>🏅 Die Standards, denen LIA folgt, auf der Startseite benannt</b> — unter dem Sicherheitsabschnitt nennt sie ein Band: DSGVO, Artikel 12 der KI-Verordnung, Model Context Protocol, Agent Plugins, agentskills.io, OWASP Top 10, WebAuthn, OAuth 2.0 mit PKCE, OpenTelemetry, Prometheus, Keep a Changelog, semantische Versionierung und WCAG 2.2 AA. Ein offener Standard macht ein Versprechen an einem Text prüfbar, den andere geschrieben haben.",
+            "i2": "<b>🏅 Die Standards, denen LIA folgt, auf der Startseite benannt</b> — unter dem Sicherheitsabschnitt nennt sie ein Band: DSGVO, Artikel 12 der KI-Verordnung, Model Context Protocol, Agent Plugins, agentskills.io, OWASP Top 10, WebAuthn, OAuth 2.1 mit PKCE, OpenTelemetry, Prometheus, Keep a Changelog, semantische Versionierung und WCAG 2.2 AA. Ein offener Standard macht ein Versprechen an einem Text prüfbar, den andere geschrieben haben.",
             "i3": "<b>✨ Eine Karte mehr auf « Mehr », und Anleitungen, die keine Releases mehr erzählen</b> — die Karte zeigt die kleine unsichtbare Entscheidung im Inneren der Register: Die Zeile wird geschrieben, <i>bevor</i> die Aktion geschieht, und wird erst grün, wenn das Werkzeug es ausdrücklich sagt. Und die Anleitungen Geschichte und Warum zählen vergangene Releases nicht mehr einzeln auf; sie sagen, was diese Releases begründet haben."
           }
         },
@@ -7973,7 +8025,7 @@
           },
           "q2": {
             "question": "Wie werden meine Daten geschützt?",
-            "answer": "Wir verwenden mehrere Sicherheitsebenen:<br>• <strong>Schutz personenbezogener Daten (PII)</strong>: Deine sensiblen Daten (Name, E-Mail, Kontakte) sind geschützt und werden niemals weitergegeben<br>• HTTP-only-Cookies zur Verhinderung von XSS-Angriffen<br>• Sichere serverseitige Sitzungen mit Redis<br>• Datenverschlüsselung während der Übertragung (HTTPS)<br>• OAuth 2.0-Authentifizierung mit PKCE<br><br><strong>💾 Dauerhaftigkeit:</strong><br>• Automatische tägliche Datenbank-Backups (7 Tage / 4 Wochen / 6 Monate Historie)<br>• Wiederherstellungsprozedur real getestet — ein Zwischenfall kostet höchstens den letzten Tag<br><br><strong>🧬 Software-Lieferkette:</strong><br>• Jedes Release enthält eine eingefrorene, kryptografisch verifizierte Komponentenliste (reproduzierbare Builds)<br>• Alle Abhängigkeiten — auch indirekte — werden automatisch auf bekannte Schwachstellen geprüft"
+            "answer": "Wir verwenden mehrere Sicherheitsebenen:<br>• <strong>Schutz personenbezogener Daten (PII)</strong>: Deine sensiblen Daten (Name, E-Mail, Kontakte) sind geschützt und werden niemals weitergegeben<br>• HTTP-only-Cookies zur Verhinderung von XSS-Angriffen<br>• Sichere serverseitige Sitzungen mit Redis<br>• Datenverschlüsselung während der Übertragung (HTTPS)<br>• OAuth 2.1-Authentifizierung mit PKCE<br><br><strong>💾 Dauerhaftigkeit:</strong><br>• Automatische tägliche Datenbank-Backups (7 Tage / 4 Wochen / 6 Monate Historie)<br>• Wiederherstellungsprozedur real getestet — ein Zwischenfall kostet höchstens den letzten Tag<br><br><strong>🧬 Software-Lieferkette:</strong><br>• Jedes Release enthält eine eingefrorene, kryptografisch verifizierte Komponentenliste (reproduzierbare Builds)<br>• Alle Abhängigkeiten — auch indirekte — werden automatisch auf bekannte Schwachstellen geprüft"
           },
           "q3": {
             "question": "Welche Daten erfasst LIA?",
@@ -8271,6 +8323,45 @@
           "q8": {
             "question": "Kann ich das Format eines bereits erstellten Protokolls ändern?",
             "answer": "Ja, solange das Transkript aufbewahrt wird. Auf der Besprechungsseite bietet <strong>Format ändern…</strong> zwei Ausgänge: das vorhandene Protokoll <strong>ersetzen</strong>, oder ein <strong>neues Protokoll</strong> derselben Besprechung erhalten. Das neue behält die Verbindung zu seinem Ursprung — die ursprüngliche Besprechung nennt, wie viele Protokolle aus ihr hervorgegangen sind — und wandert als eigenständiges Dokument mit eigenen Kosten in den Wissensbereich.<br><br>So liest du dieselbe Besprechung auf zwei Arten: das Arbeitsprotokoll auf der einen Seite, das vollständige, aufgeräumte Transkript auf der anderen, oder ein Analyseformat, wenn du den Austausch statt seiner Schlüsse betrachten willst. <strong>Neu erstellen</strong> bleibt daneben: es schreibt das Protokoll mit <em>demselben</em> Format neu, nützlich direkt nachdem du deine Abschnitte geändert hast.<br><br><strong>💡 Gut zu wissen:</strong> Neuschreiben kostet eine neue Synthese, abgerechnet wie die erste, und der Dialog sagt es, bevor du bestätigst. Löschst du das Transkript, bleibt das Protokoll lesbar, kann aber nicht mehr neu geschrieben werden."
+          }
+        }
+      },
+      "workboard": {
+        "title": "Workboard",
+        "description": "Ein Ticket hat einen Lebenszyklus, einen Inhaber und ein Ergebnis — deins, das einer Verbindung oder das von LIA.",
+        "count": "8",
+        "questions": {
+          "q1": {
+            "question": "Wofür ist das Workboard da?",
+            "answer": "Für alles, was länger als einen Augenblick dauert. Eine Aufgabenliste hat weder Lebenszyklus noch Inhaber; eine Erinnerung klingelt einmal und hinterlässt nichts; eine Routine wiederholt sich, ohne je fertig zu werden. Ein <strong>Ticket</strong> dagegen trägt Titel, Beschreibung, Priorität, Start- und Fälligkeitsdatum, Unter-Tickets, Kommentare und eine Historie — und es durchläuft sieben Spalten, von der bloßen Idee bis zu erledigt. Du öffnest es über <strong>Workboard</strong> in der Kopfzeile."
+          },
+          "q2": {
+            "question": "Was bedeuten die Spalten?",
+            "answer": "<strong>Idee</strong>: notiert, noch nicht angefangen — LIA führt so eines nie aus. <strong>Zu erledigen</strong>: bereit, aufgegriffen zu werden. <strong>In Arbeit</strong>: in Bearbeitung, von dir oder von LIA. <strong>Wartet</strong>: angehalten, wartet auf eine Entscheidung von dir. <strong>Zu bestätigen</strong>: LIA hat etwas vorbereitet, das sie nicht allein tun kann, und fragt nach — diese Spalte erscheint nur, solange sie ein Ticket enthält. <strong>In Prüfung</strong>: LIA hat geliefert, du entscheidest. <strong>Erledigt</strong>: abgeschlossen, auch das, was du bewusst nicht tun wolltest — der Grund bleibt in der Historie des Tickets."
+          },
+          "q3": {
+            "question": "Wie übergebe ich LIA ein Ticket?",
+            "answer": "Öffne das Ticket und setze <strong>Gehalten von</strong> auf LIA — oder wähle LIA gleich beim Anlegen. Von da an kümmert sie sich in ihrem Takt darum: Sie nimmt ein Ticket nach dem anderen, führt es aus und kommentiert, was sie gefunden oder erstellt hat. Das Ticket wandert mit der Antwort nach <strong>In Prüfung</strong> oder kommt mit einer Frage zurück. Mit <strong>Jetzt ausführen</strong> setzt du es an den Anfang der Warteschlange. Was LIA liest, sind deine eigenen Worte — Titel, Beschreibung und bei einem Unter-Ticket der Titel des übergeordneten Tickets: Kommentare gehen nie in die Anweisung ein, niemand sonst kann einen Lauf darüber lenken."
+          },
+          "q4": {
+            "question": "Was passiert, wenn LIA meine Zustimmung braucht?",
+            "answer": "Sie hält an und fragt auf dem Ticket, statt es einfach zu tun oder aufzugeben. Das Ticket landet in <strong>Zu bestätigen</strong>, und LIA schreibt dort genau die Karte, die du im Chat gesehen hättest: was sie vorhat, Feld für Feld. Antworte mit einem Kommentar — <em>ja</em>, <em>nein</em> oder was zu ändern ist — und das ist die ganze Antwort: Das Ticket geht von selbst an LIA zurück. Hast du etwas geändert, baut sie neu und fragt erneut, statt etwas anzunehmen; ausgeführt wird genau das, was du freigegeben hast, und nichts Weiteres."
+          },
+          "q5": {
+            "question": "Kann ich ein Ticket mit jemandem teilen?",
+            "answer": "Ja, mit allen, mit denen du auf dieser Instanz verbunden bist. Setze <strong>Gehalten von</strong> auf diese Person, und das Ticket erscheint auch auf ihrem Board — es ist dasselbe Ticket, ihr könnt also nie zwei verschiedene Fassungen davon lesen. Sie kann es verschieben, kommentieren, eigene Benachrichtigungen einstellen und es zurückgeben; Titel, Beschreibung, Löschen und Neuzuweisung bleiben bei dir. Endet die Verbindung, kommt jedes in beide Richtungen gehaltene Ticket automatisch zu seinem Eigentümer zurück. Nicht möglich ist, ein Ticket der LIA einer anderen Person zu übergeben: Die Anweisung ist deine, und sie unbeaufsichtigt mit deren Werkzeugen auszuführen, brächte deren Daten in einen Kommentar, den du liest."
+          },
+          "q6": {
+            "question": "Erinnert LIA mich?",
+            "answer": "Sie bringt zurück, was ein Wort verdient, samt dem Grund dafür: eine überschrittene Fälligkeit, eine nahe Fälligkeit, eine eigene Frage, die zu lange offen blieb, oder ein Ergebnis, das niemand freigegeben hat. Sie zitiert, was wirklich wartet, statt es zu umschreiben, und wiederholt sich nicht — ein erwähntes Ticket bleibt ein paar Tage still. Jedes Ticket trägt seinen eigenen Schalter <strong>Im Chat über den Fortschritt informieren</strong>: Ein Ticket, das du lieber still bearbeitest, bleibt auf dem Board, ohne je zu sprechen. Eine Nachricht wird nie gefiltert: dass dir ein Ticket übergeben wurde — niemand abonniert ein Ticket, von dem er noch nicht weiß, dass er es hält."
+          },
+          "q7": {
+            "question": "Was kostet das, und wo sehe ich es?",
+            "answer": "Ein Lauf, den LIA für dich macht, wird deinem Konto berechnet wie jeder andere, und das Ticket zählt mit: Das Panel zeigt Token und Kosten des letzten Laufs sowie die Summe des Tickets über sein ganzes Leben. Ein von deiner Verbrauchsgrenze abgelehnter Lauf ist kein Fehlschlag — er wird verschoben, der Versuch wird zurückgegeben, und das Ticket sagt es. <strong>Einstellungen › Workboard</strong> zeigt das Board auf einen Blick: Summen, was überfällig ist, was LIA hält, was bei dir liegt, die exakte Anzahl je Spalte und deine Auslastung gegenüber ihrer Obergrenze."
+          },
+          "q8": {
+            "question": "Gibt es Grenzen?",
+            "answer": "Ja, und sie sind alle veröffentlicht statt versteckt: wie viele Tickets ein Konto besitzen darf, wie viele Unter-Tickets ein Ticket haben darf, wie oft LIA dasselbe Ticket in seinem Leben ausführen darf, wie lange ein Lauf dauern darf und wie lange die verborgene Mitschrift eines Laufs nach dem Abschluss aufbewahrt wird. Titel, Beschreibungen und Kommentare haben eine Länge. Die Administration deiner Instanz stellt sie ein; eine Ablehnung nennt immer die erreichte Grenze, statt still zu scheitern."
           }
         }
       }
@@ -8572,6 +8663,10 @@
       "slide_never_overflows": {
         "title": "Nichts läuft über die Folie hinaus",
         "desc": "Bevor LIA Text setzt, misst sie ihn. Eine überfüllte Folie wird verkleinert und dann geteilt statt abgeschnitten, und ein zu langer Aufzählungspunkt endet am Satzende, nie mitten im Wort. Ein Schriftzeichen zählt doppelt, weil es den Platz zweier Buchstaben einnimmt."
+      },
+      "pinned_dock": {
+        "title": "Deine Einstellungen, wo du auch bist",
+        "desc": "Hefte die Bereiche an, die du nutzt; eine Kapsel trägt sie über jeden Bildschirm."
       }
     },
     "scenes": {
@@ -9364,6 +9459,7 @@
     "source_health_signals": "Gesundheit",
     "source_birthdays": "Geburtstage",
     "source_open_loops": "Verpflichtungen",
+    "source_workboard": "Aufgabenboard",
     "source_habits": "Gewohnheiten",
     "source_departure": "Aufbruchszeit",
     "source_not_connected": "Nicht verbunden",
@@ -9847,6 +9943,10 @@
       "meetings": {
         "title": "Besprechung aufnehmen, Protokoll erhalten",
         "description": "Eine Schaltfläche in der Kopfzeile — oder der Menüeintrag am Telefon — und dein Gerät nimmt die Besprechung auf, ein Banner begleitet dich auf jeder Seite, während du weiter mit LIA sprichst. Wenn du stoppst, transkribiert LIA alles und schreibt das Protokoll im passenden Format: dreißig integrierte Vorlagen decken Teamrunden, Gespräche, persönliche Termine und Vorlesungen ab — LIA wählt selbst nach dem, was gesagt wurde, oder du gibst deine vor. Lies es im Chat, lade das PDF, erhalte es per E-Mail, schreibe es in einem anderen Format neu und frage LIA Wochen später danach. Nichts erfunden: Eine Lücke wird benannt, eine unbenannte Stimme bleibt unbenannt, und was es gekostet hat, steht daneben."
+      },
+      "workboard": {
+        "title": "Ein Board für das, woran du wirklich arbeitest",
+        "description": "Ein Ticket ist keine Zeile in einer Liste: Es hat einen Lebenszyklus, jemanden, der es trägt, und ein Ergebnis. Sieben Spalten von der bloßen Idee bis zu erledigt, Unter-Tickets, Kommentare, eine Historie — und einen Inhaber, der du sein kannst, jemand, mit dem du auf derselben Instanz verbunden bist, oder LIA selbst. Übergib LIA ein Ticket, und sie nimmt es von selbst auf, macht die Arbeit, kommentiert, was sie gefunden hat, und gibt dir das Ergebnis zur Freigabe zurück. Trifft sie auf etwas, das sie nicht allein tun kann, gibt sie weder auf noch entscheidet sie für dich: Sie fragt auf dem Ticket und zeigt genau, was sie vorhat — ein Kommentar genügt als Antwort: ja, nein oder was zu ändern ist. Sie hakt bei Überfälligem und Liegengebliebenem nach und zitiert, was wirklich wartet; und jedes Ticket hat seinen eigenen Schalter dafür, ob der Chat überhaupt etwas sagt."
       }
     },
     "use_cases": {
@@ -10557,7 +10657,7 @@
       "human-in-the-loop": {
         "title": "Human-in-the-Loop: 6 Genehmigungsstufen für volle Kontrolle",
         "excerpt": "LIA führt keine kritische Aktion ohne deine Zustimmung durch. Sein 6-stufiges HITL-System schützt Sie vor Fehlern und Halluzinationen.",
-        "body": "<h2>Warum menschliche Validierung unverzichtbar ist</h2><p>Sprachmodelle können halluzinieren oder eine Absicht falsch interpretieren. LIA löst dieses Problem, indem es den <strong>Menschen in den Mittelpunkt jeder kritischen Entscheidung</strong> stellt. Keine E-Mail wird gesendet, kein Termin erstellt, keine Daten geändert ohne deine ausdrückliche Genehmigung.</p><h2>Die 6 Genehmigungsstufen</h2><p>Das HITL-System von LIA klassifiziert jede Aktion nach 6 Stufen:</p><ul><li><strong>Plan-Genehmigung</strong> — Vor der Ausführung eines mehrstufigen Plans generiert LIA eine <code>PlanApprovalRequest</code> mit einer Planzusammenfassung und änderbaren Parametern und wartet auf deine Freigabe.</li><li><strong>Klärung</strong> — Bei mehrdeutiger Absicht fragt LIA nach Präzisierungen, anstatt zu raten.</li><li><strong>Entwurfskritik</strong> — Bei E-Mails oder Nachrichten legt LIA einen Entwurf zur Genehmigung vor dem Versand vor.</li><li><strong>Destruktive Bestätigung</strong> — Jede Löschung oder irreversible Änderung erfordert eine ausdrückliche Bestätigung.</li><li><strong>FOR_EACH-Bestätigung</strong> — Bei Stapeloperationen kann jedes Element einzeln genehmigt werden.</li><li><strong>Änderungsprüfung</strong> — Parameteränderungen werden zur Überprüfung vorgelegt.</li></ul><h2>5 mögliche Entscheidungen mit Konfidenz</h2><p>Der HITL-Klassifizierer erzeugt ein <strong>ClassificationResult</strong> mit 5 möglichen Entscheidungen, jeweils mit einem Konfidenzwert zwischen 0.0 und 1.0:</p><ul><li><strong>APPROVE</strong> — Die Aktion wird genehmigt und an den <code>task_orchestrator</code> weitergeleitet</li><li><strong>REJECT</strong> — Die Aktion wird abgelehnt, der Fluss wird zum Knoten <code>response</code> umgeleitet</li><li><strong>EDIT</strong> — Der Benutzer ändert die Parameter über <code>edited_params</code>, ein <code>PlanEditor</code> wendet die Änderungen an</li><li><strong>REPLAN</strong> — Der Benutzer formuliert seine Absicht über <code>reformulated_intent</code> um, der Fluss kehrt zum <code>planner</code> zurück</li><li><strong>AMBIGUOUS</strong> — Das System stellt eine <code>clarification_question</code>, um die Mehrdeutigkeit aufzulösen</li></ul><h2>Native LangGraph-Unterbrechung</h2><p>Technisch verwendet der Knoten <code>approval_gate</code> die Funktion <code>interrupt()</code> von LangGraph, um die <strong>Ausführung des Graphen zu unterbrechen</strong> und auf die Antwort des Benutzers zu warten. Der Zustand wird in PostgreSQL persistiert, was eine asynchrone Wiederaufnahme selbst nach einer Trennung ermöglicht.</p><h2>du hast immer das letzte Wort</h2><p>An jedem Validierungspunkt sind die Klassifizierungsstrategien komponierbar: basierend auf dem Tool-Manifest, den geschätzten Kosten, der Datensensibilität und der Benutzerrolle. LIA umgeht diesen Schritt niemals.</p><p>Und dieses letzte Wort wird wortwörtlich respektiert: Die Überarbeitungsschleifen folgen einem replay-sicheren Muster (ein <code>interrupt()</code> pro Node-Ausführung, checkpointed Schleifenzustand — ADR-092), sodass eine Wiederaufnahme niemals einen vergangenen LLM- oder API-Aufruf wiederholt. Was du bestätigst — nach beliebig vielen Überarbeitungen — wird exakt so ausgeführt.</p><h2>Einmal bestätigen, nie zweimal</h2><p>Eine falsch platzierte Schutzmaßnahme wendet sich gegen ihre eigene Absicht. Vor dem Plan konnte ein semantischer Validator bei einer als „unumkehrbar“ eingestuften Aktion anhalten — eine E-Mail senden, einen Termin buchen, anrufen — obwohl unmittelbar danach eine Vorschau mit ausdrücklicher Bestätigung für genau dieselbe Aktion folgte. Die Nutzerin musste <strong>darauf bestehen, um gehört zu werden</strong>.</p><p>Die Regel steht nun geschrieben: Eine Aktion, die stromabwärts bereits ihre eigene Bestätigung trägt, wird stromaufwärts nie angehalten. Der Validator beurteilt die <strong>Struktur</strong> des Plans — fehlender Parameter, falsches Werkzeug, widersprüchliche Kardinalität — und nicht, wie folgenschwer die Aktion wirkt. Dieselbe Frage zweimal zu stellen schafft keine Sicherheit: Sie verlagert die Last auf die Nutzerin und bringt ihr am Ende bei, ungelesen zu klicken.</p>"
+        "body": "<h2>Warum menschliche Validierung unverzichtbar ist</h2><p>Sprachmodelle können halluzinieren oder eine Absicht falsch interpretieren. LIA löst dieses Problem, indem es den <strong>Menschen in den Mittelpunkt jeder kritischen Entscheidung</strong> stellt. Keine E-Mail wird gesendet, kein Termin erstellt, keine Daten geändert ohne deine ausdrückliche Genehmigung.</p><h2>Die 6 Genehmigungsstufen</h2><p>Das HITL-System von LIA klassifiziert jede Aktion nach 6 Stufen:</p><ul><li><strong>Plan-Genehmigung</strong> — Vor der Ausführung eines mehrstufigen Plans generiert LIA eine <code>PlanApprovalRequest</code> mit einer Planzusammenfassung und änderbaren Parametern und wartet auf deine Freigabe.</li><li><strong>Klärung</strong> — Bei mehrdeutiger Absicht fragt LIA nach Präzisierungen, anstatt zu raten.</li><li><strong>Entwurfskritik</strong> — Bei E-Mails oder Nachrichten legt LIA einen Entwurf zur Genehmigung vor dem Versand vor.</li><li><strong>Destruktive Bestätigung</strong> — Jede Löschung oder irreversible Änderung erfordert eine ausdrückliche Bestätigung.</li><li><strong>FOR_EACH-Bestätigung</strong> — Bei Stapeloperationen kann jedes Element einzeln genehmigt werden.</li><li><strong>Änderungsprüfung</strong> — Parameteränderungen werden zur Überprüfung vorgelegt.</li></ul><h2>5 mögliche Entscheidungen mit Konfidenz</h2><p>Der HITL-Klassifizierer erzeugt ein <strong>ClassificationResult</strong> mit 5 möglichen Entscheidungen, jeweils mit einem Konfidenzwert zwischen 0.0 und 1.0:</p><ul><li><strong>APPROVE</strong> — Die Aktion wird genehmigt und an den <code>task_orchestrator</code> weitergeleitet</li><li><strong>REJECT</strong> — Die Aktion wird abgelehnt, der Fluss wird zum Knoten <code>response</code> umgeleitet</li><li><strong>EDIT</strong> — Der Benutzer ändert die Parameter über <code>edited_params</code>, ein <code>PlanEditor</code> wendet die Änderungen an</li><li><strong>REPLAN</strong> — Der Benutzer formuliert seine Absicht über <code>reformulated_intent</code> um, der Fluss kehrt zum <code>planner</code> zurück</li><li><strong>AMBIGUOUS</strong> — Das System stellt eine <code>clarification_question</code>, um die Mehrdeutigkeit aufzulösen</li></ul><h2>Native LangGraph-Unterbrechung</h2><p>Technisch verwendet der Knoten <code>approval_gate</code> die Funktion <code>interrupt()</code> von LangGraph, um die <strong>Ausführung des Graphen zu unterbrechen</strong> und auf die Antwort des Benutzers zu warten. Der Zustand wird in PostgreSQL persistiert, was eine asynchrone Wiederaufnahme selbst nach einer Trennung ermöglicht.</p><h2>du hast immer das letzte Wort</h2><p>An jedem Validierungspunkt sind die Klassifizierungsstrategien komponierbar: basierend auf dem Tool-Manifest, den geschätzten Kosten, der Datensensibilität und der Benutzerrolle. LIA umgeht diesen Schritt niemals.</p><p>Und dieses letzte Wort wird wortwörtlich respektiert: Die Überarbeitungsschleifen folgen einem replay-sicheren Muster (ein <code>interrupt()</code> pro Node-Ausführung, checkpointed Schleifenzustand — ADR-092), sodass eine Wiederaufnahme niemals einen vergangenen LLM- oder API-Aufruf wiederholt. Was du bestätigst — nach beliebig vielen Überarbeitungen — wird exakt so ausgeführt.</p><h2>Einmal bestätigen, nie zweimal</h2><p>Eine falsch platzierte Schutzmaßnahme wendet sich gegen ihre eigene Absicht. Vor dem Plan konnte ein semantischer Validator bei einer als „unumkehrbar“ eingestuften Aktion anhalten — eine E-Mail senden, einen Termin buchen, anrufen — obwohl unmittelbar danach eine Vorschau mit ausdrücklicher Bestätigung für genau dieselbe Aktion folgte. Die Nutzerin musste <strong>darauf bestehen, um gehört zu werden</strong>.</p><p>Die Regel steht nun geschrieben: Eine Aktion, die stromabwärts bereits ihre eigene Bestätigung trägt, wird stromaufwärts nie angehalten. Der Validator beurteilt die <strong>Struktur</strong> des Plans — fehlender Parameter, falsches Werkzeug, widersprüchliche Kardinalität — und nicht, wie folgenschwer die Aktion wirkt. Dieselbe Frage zweimal zu stellen schafft keine Sicherheit: Sie verlagert die Last auf die Nutzerin und bringt ihr am Ende bei, ungelesen zu klicken.</p><h2>Dieselben Stufen, außerhalb eines Gesprächs</h2><p>Eine Assistentin, die allein arbeitet, stößt an dieselbe Wand: Sie hat etwas vorbereitet, das sie nicht allein tun darf, und es ist niemand da. Abzulehnen würde die Arbeit verschwenden; es trotzdem zu tun, bräche die Regel. Auf dem Ticket-Board tut sie weder das eine noch das andere — sie <strong>fragt auf dem Ticket</strong>. Die Karte, die du im Chat gesehen hättest, steht dort, Feld für Feld, und die Antwort ist ein Kommentar: ja, nein oder was zu ändern ist.</p><p>Freigegeben wird genau das, was ausgeführt wird, und nichts Weiteres: Die Assistentin veröffentlicht die Identität dessen, was sie dir gezeigt hat, und die Aktion wird nur gegen diese Identität wiederholt. Ändert sich ein Detail, baut sie neu und fragt erneut, statt anzunehmen, deine Antwort gelte weiterhin. Ein Stapel Entwürfe zählt als eine Sache: Jeder Eintrag wird gezeigt, und freigegeben wird der Stapel — nie sein erstes Element.</p>"
       },
       "llm-providers": {
         "title": "Wähle das richtige Modell für jede Aufgabe",
@@ -10577,7 +10677,7 @@
       "mcp-protocol": {
         "title": "Model Context Protocol: LIA unbegrenzt erweitern",
         "excerpt": "Mit dem MCP-Protokoll von Anthropic kann LIA sich mit beliebigen externen Diensten verbinden.",
-        "body": "<h2>Was ist MCP?</h2><p>Das <strong>Model Context Protocol (MCP)</strong> ist ein offener Standard von Anthropic, der KI-Assistenten die Verbindung mit externen Tool-Servern ermöglicht. LIA implementiert dieses Protokoll mit <strong>benutzerspezifischen MCP-Servern</strong> und bietet damit unbegrenzte und personalisierte Erweiterbarkeit.</p><h2>Tool-Erkennung und Integration</h2><p>Du konfigurierst deine MCP-Server in der LIA-Oberfläche. Bei der Verbindung ruft LIA <code>list_tools()</code> auf jedem Server auf, um die verfügbaren Tools dynamisch zu erkennen. Jedes MCP-Tool wird über <strong>MCPToolAdapter</strong> gekapselt, der <code>BaseTool</code> von LangChain erweitert, was eine nahtlose Integration in den Tool-Katalog des Agenten ermöglicht. Die MCP-Tools sind anschließend genauso verwendbar wie native Tools.</p><h2>Sicherer Transport</h2><p>LIA verwendet ausschließlich den <strong>Streamable-HTTP</strong>-Transport für MCP-Server. Der stdio-Transport ist aus <strong>Sicherheitsgründen deaktiviert</strong> (Risiko der Ausführung beliebiger Prozesse). Jeder Server unterliegt einem individuellen Rate-Limiting über <code>asyncio.Lock</code>, um Überlastung zu vermeiden.</p><h2>4 Authentifizierungstypen</h2><p>Jeder MCP-Server unterstützt einen der 4 Authentifizierungstypen:</p><ul><li><strong>NONE</strong> — Keine Authentifizierung (öffentliche oder interne Server)</li><li><strong>API_KEY</strong> — API-Schlüssel in den Headern übertragen</li><li><strong>BEARER</strong> — Bearer-Token für Standard-REST-APIs</li><li><strong>OAUTH2</strong> — Vollständiges OAuth 2.0 mit PKCE</li></ul><p>Alle Anmeldedaten werden vor der Speicherung in der Datenbank <strong>mit Fernet verschlüsselt</strong> (AES-128 CBC + HMAC). Kein Geheimnis wird im Klartext offengelegt.</p><h2>Mehrschichtige Sicherheit</h2><p>Die MCP-Sicherheit basiert auf mehreren Mechanismen:</p><ul><li><strong>Obligatorisches HITL</strong> — Alle MCP-Tools unterliegen standardmäßig der Human-in-the-Loop-Validierung</li><li><strong>SSRF-Schutz</strong> — Die Funktion <code>validate_http_endpoint()</code> blockiert URLs, die auf interne Netzwerke zeigen (127.0.0.1, 10.x, 192.168.x usw.)</li><li><strong>Health Checks</strong> — Der Zustand jedes MCP-Servers wird über eine dedizierte Prometheus-Gauge überwacht</li><li><strong>Konfigurierbare Limits</strong> — Anzahl der Server (10), Tools pro Server (20), Timeout pro Aufruf (30s)</li></ul><h2>Iterativer Modus (ReAct)</h2><p>Einige MCP-Server haben komplexe APIs, bei denen der statische Planer die richtigen Parameter nicht im Voraus generieren kann. Im <strong>iterativen Modus</strong> liest ein dedizierter ReAct-Agent zuerst die Server-Dokumentation, versteht das erwartete Format und ruft dann die Tools korrekt auf. Aktivierbar pro Server über den <code>iterative_mode</code>-Toggle.</p><h2>MCP-Server im Paket: Agent Plugins</h2><p>Über die Einzeldeklaration hinaus ist LIA ein konformer Client des offenen <strong>Agent-Plugins</strong>-Standards (agent-plugins.org): ein portables Paket aus MCP-Servern und Skills — dasselbe Format, das ChatGPT, Cursor, GitHub Copilot und VS Code installieren. Jeder von einem Plugin mitgebrachte Server trägt seine Herkunft, behält seine konfigurierten Zugangsdaten über Plugin-Updates hinweg und geht nur mit der Gruppen-Deinstallation — mit einem vollständigen Bericht pro Komponente bei jeder Installation, einschließlich dessen, was übersprungen wurde und warum.</p><h2>Lesen, was ein Server deklariert</h2><p>Das Protokoll zu sprechen ist nur die eine Hälfte. Die andere besteht darin zu verstehen, was ein Server über seine eigenen Werkzeuge sagt — und die aktuelle Revision, <strong>2026-07-28</strong>, ist dort bewusst großzügig: Die Parameter eines Werkzeugs werden in JSON Schema 2020-12 beschrieben, und <em>jedes</em> Schlüsselwort dieses Standards ist erlaubt. Derselbe optionale Parameter kann als Typunion oder als <code>anyOf</code> geschrieben werden; eine verschachtelte Struktur direkt oder über eine interne Referenz deklariert werden; eine geschlossene Menge ein <code>enum</code> oder eine einzelne Konstante sein. Ein Client, der nur die einfachste Form versteht, scheitert nicht laut — er endet still mit weniger Werkzeugen, als der Server angeboten hat.</p><p>LIA liest den vollen Spielraum, über eine einzige Implementierung, die sich die beiden Stellen teilen, die sie brauchen: die dem Modell angebotene Signatur und der Eintrag, über den der Planer nachdenkt. Zwei Lesarten einer Deklaration geraten am Ende immer auseinander, also gibt es nur eine. Und jede ihrer Funktionen antwortet auf alles, was ein Server sendet, denn eine Ausnahme würde dort ein Werkzeug kosten — und ein verlorenes Werkzeug ist eine Fähigkeit, die Ihnen fehlt, ohne dass es Ihnen jemand sagt.</p><p>Was ein Server durchsetzt, wird weitergegeben statt behalten: geschlossene Mengen, Grenzen und Größen erreichen den Planer, der dann einen Wert vorschlägt, den der Server akzeptiert, statt einen zu raten, den er ablehnt. Verhaltenshinweise werden ebenfalls gelesen, aber nur in eine Richtung — die Spezifikation verlangt, sie als nicht vertrauenswürdig zu behandeln, sodass ein als zerstörend deklariertes Werkzeug stets nach Bestätigung fragt, während ein Server, der sich harmlos nennt, nie eine weniger erhält.</p>"
+        "body": "<h2>Was ist MCP?</h2><p>Das <strong>Model Context Protocol (MCP)</strong> ist ein offener Standard von Anthropic, der KI-Assistenten die Verbindung mit externen Tool-Servern ermöglicht. LIA implementiert dieses Protokoll mit <strong>benutzerspezifischen MCP-Servern</strong> und bietet damit unbegrenzte und personalisierte Erweiterbarkeit.</p><h2>Tool-Erkennung und Integration</h2><p>Du konfigurierst deine MCP-Server in der LIA-Oberfläche. Bei der Verbindung ruft LIA <code>list_tools()</code> auf jedem Server auf, um die verfügbaren Tools dynamisch zu erkennen. Jedes MCP-Tool wird über <strong>MCPToolAdapter</strong> gekapselt, der <code>BaseTool</code> von LangChain erweitert, was eine nahtlose Integration in den Tool-Katalog des Agenten ermöglicht. Die MCP-Tools sind anschließend genauso verwendbar wie native Tools.</p><h2>Sicherer Transport</h2><p>LIA verwendet ausschließlich den <strong>Streamable-HTTP</strong>-Transport für MCP-Server. Der stdio-Transport ist aus <strong>Sicherheitsgründen deaktiviert</strong> (Risiko der Ausführung beliebiger Prozesse). Jeder Server unterliegt einem individuellen Rate-Limiting über <code>asyncio.Lock</code>, um Überlastung zu vermeiden.</p><h2>4 Authentifizierungstypen</h2><p>Jeder MCP-Server unterstützt einen der 4 Authentifizierungstypen:</p><ul><li><strong>NONE</strong> — Keine Authentifizierung (öffentliche oder interne Server)</li><li><strong>API_KEY</strong> — API-Schlüssel in den Headern übertragen</li><li><strong>BEARER</strong> — Bearer-Token für Standard-REST-APIs</li><li><strong>OAUTH2</strong> — Vollständiges OAuth 2.1 mit PKCE</li></ul><p>Alle Anmeldedaten werden vor der Speicherung in der Datenbank <strong>mit Fernet verschlüsselt</strong> (AES-128 CBC + HMAC). Kein Geheimnis wird im Klartext offengelegt.</p><h2>Mehrschichtige Sicherheit</h2><p>Die MCP-Sicherheit basiert auf mehreren Mechanismen:</p><ul><li><strong>Obligatorisches HITL</strong> — Alle MCP-Tools unterliegen standardmäßig der Human-in-the-Loop-Validierung</li><li><strong>SSRF-Schutz</strong> — Die Funktion <code>validate_http_endpoint()</code> blockiert URLs, die auf interne Netzwerke zeigen (127.0.0.1, 10.x, 192.168.x usw.)</li><li><strong>Health Checks</strong> — Der Zustand jedes MCP-Servers wird über eine dedizierte Prometheus-Gauge überwacht</li><li><strong>Konfigurierbare Limits</strong> — Anzahl der Server (10), Tools pro Server (20), Timeout pro Aufruf (30s)</li></ul><h2>Iterativer Modus (ReAct)</h2><p>Einige MCP-Server haben komplexe APIs, bei denen der statische Planer die richtigen Parameter nicht im Voraus generieren kann. Im <strong>iterativen Modus</strong> liest ein dedizierter ReAct-Agent zuerst die Server-Dokumentation, versteht das erwartete Format und ruft dann die Tools korrekt auf. Aktivierbar pro Server über den <code>iterative_mode</code>-Toggle.</p><h2>MCP-Server im Paket: Agent Plugins</h2><p>Über die Einzeldeklaration hinaus ist LIA ein konformer Client des offenen <strong>Agent-Plugins</strong>-Standards (agent-plugins.org): ein portables Paket aus MCP-Servern und Skills — dasselbe Format, das ChatGPT, Cursor, GitHub Copilot und VS Code installieren. Jeder von einem Plugin mitgebrachte Server trägt seine Herkunft, behält seine konfigurierten Zugangsdaten über Plugin-Updates hinweg und geht nur mit der Gruppen-Deinstallation — mit einem vollständigen Bericht pro Komponente bei jeder Installation, einschließlich dessen, was übersprungen wurde und warum.</p><h2>Lesen, was ein Server deklariert</h2><p>Das Protokoll zu sprechen ist nur die eine Hälfte. Die andere besteht darin zu verstehen, was ein Server über seine eigenen Werkzeuge sagt — und die aktuelle Revision, <strong>2026-07-28</strong>, ist dort bewusst großzügig: Die Parameter eines Werkzeugs werden in JSON Schema 2020-12 beschrieben, und <em>jedes</em> Schlüsselwort dieses Standards ist erlaubt. Derselbe optionale Parameter kann als Typunion oder als <code>anyOf</code> geschrieben werden; eine verschachtelte Struktur direkt oder über eine interne Referenz deklariert werden; eine geschlossene Menge ein <code>enum</code> oder eine einzelne Konstante sein. Ein Client, der nur die einfachste Form versteht, scheitert nicht laut — er endet still mit weniger Werkzeugen, als der Server angeboten hat.</p><p>LIA liest den vollen Spielraum, über eine einzige Implementierung, die sich die beiden Stellen teilen, die sie brauchen: die dem Modell angebotene Signatur und der Eintrag, über den der Planer nachdenkt. Zwei Lesarten einer Deklaration geraten am Ende immer auseinander, also gibt es nur eine. Und jede ihrer Funktionen antwortet auf alles, was ein Server sendet, denn eine Ausnahme würde dort ein Werkzeug kosten — und ein verlorenes Werkzeug ist eine Fähigkeit, die Ihnen fehlt, ohne dass es Ihnen jemand sagt.</p><p>Was ein Server durchsetzt, wird weitergegeben statt behalten: geschlossene Mengen, Grenzen und Größen erreichen den Planer, der dann einen Wert vorschlägt, den der Server akzeptiert, statt einen zu raten, den er ablehnt. Verhaltenshinweise werden ebenfalls gelesen, aber nur in eine Richtung — die Spezifikation verlangt, sie als nicht vertrauenswürdig zu behandeln, sodass ein als zerstörend deklariertes Werkzeug stets nach Bestätigung fragt, während ein Server, der sich harmlos nennt, nie eine weniger erhält.</p>"
       },
       "skills-system": {
         "title": "Skills: Expertenanweisungen zur Anpassung von LIA",
@@ -10625,9 +10725,9 @@
         "body": "<h2>Privacy by Design</h2><p>LIA ist von Anfang an mit Datenschutz als Grundprinzip konzipiert, nicht als nachträgliche Ergänzung.</p><h2>Symmetrische Fernet-Verschlüsselung</h2><p>Alle sensiblen Daten werden mit <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256) über die Funktion <code>encrypt_data()</code> verschlüsselt. Dies umfasst OAuth-Token, Connector-Anmeldedaten, PII und MCP-Server-Anmeldedaten. OAuth-Anmeldedaten werden vor dem Schreiben in die Datenbank verschlüsselt und beim Abrufen on-the-fly entschlüsselt. Die Verschlüsselungsschlüssel werden getrennt von den Daten verwaltet.</p><h2>Minimierung der Datenerhebung</h2><p>LIA erhebt nur die für seinen Betrieb strikt notwendigen Daten:</p><ul><li>Profilinformationen (Name, E-Mail, Präferenzen)</li><li>Konversationsverlauf (verschlüsselt)</li><li>Verbindungs-Token zu Diensten (verschlüsselt)</li><li>Anonymisierte Nutzungsmetriken</li></ul><h2>Löschung und Kaskadierung</h2><p>Die Löschung eines Benutzerkontos löst eine <strong>vollständige Kaskadenlöschung</strong> aus: Connectoren, Konversationen, Einstellungen, Sitzungen, Erinnerungen und alle zugehörigen Daten werden unwiderruflich gelöscht. Keine verwaisten Daten verbleiben in der Datenbank.</p><h2>Sichere Sitzungen und Cookies</h2><p>Die Sitzungs-Cookies sind mit den Attributen <code>HttpOnly</code>, <code>Secure</code> (in Produktion) und <code>SameSite=lax</code> konfiguriert. Die Sitzungsdauer beträgt standardmäßig 7 Tage, erweiterbar auf 30 Tage mit der Option \"Angemeldet bleiben\". Einmal-Token werden nach der ersten Verwendung über eine Redis-Sperrliste ungültig gemacht.</p><h2>Schutz externer Inhalte</h2><p>Inhalte, die aus externen Quellen abgerufen werden (E-Mails, Webseiten, Dokumente), werden vor der Injektion in die Prompts als <code>UNTRUSTED</code> mit konfigurierbarem Wrapping markiert. Das Tool web_fetch ist auf 10 Aufrufe pro 60-Sekunden-Fenster pro Benutzer rate-limitiert, um Missbrauch zu verhindern.</p><h2>PII-Filterung in Logs</h2><p>Das Logging-System wendet die <strong>OWASP Logging Cheat Sheet</strong>-Empfehlungen an, um persönliche Daten automatisch aus den Anwendungslogs zu filtern. Keine sensiblen Daten erscheinen in den Logs.</p><h2>Datenportabilität (v1.9.1)</h2><p>LIA ermöglicht jedem Benutzer den <strong>Export seiner persönlichen Verbrauchsdaten</strong> als CSV über Einstellungen > Funktionen. Drei Exporttypen: LLM-Verbrauch (Tokens und Kosten pro Aufruf), Google-API-Verbrauch und aggregierte Zusammenfassung. Sicherheit: Die <code>user_id</code> wird serverseitig erzwungen — kein Parameter wird offengelegt (IDOR-Schutz).</p><h2>Backups mit bewiesener Wiederherstellung</h2><p>Daten zu schützen heißt auch, sicherzustellen, dass sie Zwischenfälle überstehen. Die Produktionsdatenbank wird jede Nacht automatisch gesichert — mit 7 Tagen, 4 Wochen und 6 Monaten Historie, in einem dedizierten Verzeichnis mit restriktiven Berechtigungen. Und weil ein Backup erst zählt, wenn die Wiederherstellung bewiesen ist, wird die Prozedur real getestet: Der letzte Dump wird in einem Wegwerf-Container wiederhergestellt und mit der Live-Datenbank verglichen (Schemarevision, Zeilenzahlen) — eine Übung, die mit dem Stack ausgeliefert wird.</p><h2>Eine vollständige Akte, keine Stichprobe</h2><p>Drei automatisch geführte Register sagen, was LIA für dich <strong>getan</strong> hat, was sie zur Antwort <strong>abgefragt</strong> hat und was sie <strong>von sich aus</strong> unternommen hat. Sie tragen keinen Inhalt: Eine Einsichtnahme behält die Fähigkeit — „dein Kalender“ — und nie den Suchinhalt, denn ihn aufzuschreiben hieße, genau die Daten zu kopieren, für deren Rechenschaft das Register existiert.</p><p>Die Akte, die du unter <strong>Einstellungen &gt; Register</strong> herunterlädst, ist <strong>vollständig</strong>. Früher trug sie eine Zeilenobergrenze: ein realer Schutz, da das ganze Dokument auf einem Raspberry Pi im Speicher zusammengesetzt wurde, aber auf die falsche Größe angewandt. Knapp war der Speicher; begrenzt war die Wahrheit. Ein serverseitiger Cursor begrenzt nun den Puffer: Unabhängig vom Umfang trägt die Datei alles, was deine Filter benennen, die exakte Anzahl steht samt Erzeugungszeitpunkt im Kopf, und der Download wird unterwegs komprimiert, wenn dein Browser das annimmt.</p>"
       },
       "observability": {
-        "title": "541 Prometheus-Metriken, 28 Grafana-Dashboards und Langfuse-Tracing",
-        "excerpt": "LIA bietet Enterprise-Observability mit 473 Metriken, Grafana-Dashboards, LLM-Tracing via Langfuse und E-Mail-Alerting mit Runbooks.",
-        "body": "<h2>Die drei Säulen der Observability</h2><p>LIA implementiert die drei Säulen moderner Observability:</p><ul><li><strong>Metriken</strong> — 541 Prometheus-Metriken für HTTP, Agenten, Token, Kosten, OAuth und Performance</li><li><strong>Logs</strong> — Strukturiertes JSON-Logging via structlog, zentralisiert in Loki mit PII-Filterung</li><li><strong>Traces</strong> — Verteiltes Tracing via OpenTelemetry (Tempo) und LLM-Tracing via Langfuse</li></ul><h2>23 spezialisierte Metrik-Dateien</h2><p>Jede Domäne besitzt ihre eigene deklarative Metrik-Datei. Die 23 Module decken ab: HTTP, Agenten (SSE/Router/LLM/HITL/Planer), Datenbank, LangGraph, Langfuse, Voice, RAG Spaces, OAuth, Channels, Fehler, Sub-Agenten, Redis, Attachments, Browser, Compaction, Briefing, Business, Registry, Heartbeat, Gesundheitsmetriken, Journale, Telefonie und Nutzungslimits. Jede Datei definiert domänenspezifische Prometheus-Counter, Histogramme und Gauges.</p><h2>Definition der Prometheus-Metriken</h2><p>Jede Domäne definiert ihre Metriken deklarativ:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>28 Grafana-Dashboards</h2><p>LIA liefert 28 nummerierte Grafana-Dashboards von 01 bis 28: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony, briefing, product-value, meetings und effect-ledger. Jedes Dashboard bietet filterbare Ansichten nach Benutzer, Zeitraum und Umgebung. Das 26. ist ein Produkt-Cockpit: validierte Ergebnisse (explizites 👍 oder eine unkorrigiert gebliebene Aktion), Aktivierungs-Funnel, Retention und Kosten pro nützlichem Ergebnis — die exakte Zählung lebt in PostgreSQL, und Grafana liest sie über eine auf Aggregat-Views beschränkte Nur-Lese-Rolle.</p><h2>Ziel-KPIs aus dem Quellcode</h2><p>LIA überwacht präzise Indikatoren, die im Quellcode definiert sind: TTFT (Time To First Token) des Streamings, Router-Latenz zwischen 0,1 und 2 Sekunden, Tool-Ausführungsdauer der Agenten zwischen 0,1 und 10 Sekunden, Router-Konfidenz p50 &gt; 0,8, LLM-Kosten pro Anfrage &lt; 0,05€, HTTP-5xx-Fehlerrate &lt; 1%.</p><h2>E-Mail-Alerts mit Runbooks</h2><p>Die Überwachung endet nicht bei Dashboards: Ein Kern aus 14 vitalen Alerts — API, PostgreSQL oder Redis nicht erreichbar, Festplatte, Container-Speicher, 5xx-Fehlerrate, Streaming-Latenz, fehlgeschlagenes nächtliches Backup, nicht erreichbare öffentliche URL, bald ablaufendes TLS-Zertifikat, ausgefallene Ratenbegrenzung — wird kontinuierlich von Prometheus ausgewertet und per E-Mail über Alertmanager zugestellt. Jeder Alert verweist auf sein Runbook (Schritt-für-Schritt-Anleitung), die Schwellenwerte werden pro Umgebung in .env-Dateien gepflegt, und promtool-Unit-Tests garantieren, dass die in Benachrichtigungen angezeigten Schwellenwerte exakt den auslösenden Ausdrücken entsprechen. Eine Blackbox-Sonde testet sogar die gesamte Kette Ende-zu-Ende, vom Cloudflare-Edge bis zum Frontend — genau wie ein Nutzer.</p><h2>Langfuse: Dediziertes LLM-Tracing</h2><p>Die Langfuse-Integration verfügt über 8 dedizierte Metriken zur Verfolgung jedes LLM-Aufrufs: verbrauchte Token (Eingabe/Ausgabe/Cache), Antwortzeit, verwendetes Modell, geschätzte Kosten und Anfrage-Kontext. Dies ermöglicht die Identifizierung ineffizienter Prompts, den Vergleich von LLM-Modellen untereinander und die langfristige Optimierung des Token-Verbrauchs.</p><h2>DevOps Claude CLI: Diagnose in natürlicher Sprache (v1.13.0)</h2><p>Neueste Entwicklung des Observability-Stacks: Administratoren können Server jetzt direkt aus der LIA-Konversation diagnostizieren. Claude Code CLI — im API-Docker-Container installiert — inspiziert autonom Logs, prüft die Container-Gesundheit und analysiert die Ressourcennutzung. Persistente Sitzungen, konfigurierbare Berechtigungen pro Umgebung und Echtzeit-Streaming der Untersuchungsschritte via SSE.</p><h2>Und seit v1.34: der Assistent liest die eigene Telemetrie</h2><p>All das gab es für Menschen; der Assistent selbst las nichts davon. ADR-247 hat diese Schleife geschlossen: Eine periodische Selbstprüfung verdichtet die goldenen Signale plus direkte Sonden zu Zustands-Snapshots mit exakten Werten; Alarme und kritische Verdikte konvergieren zu einem Vorfall pro Ausfall, diagnostiziert von einem budgetgedeckelten, auf den Runbooks gegründeten LLM; Administratoren erhalten ein Plattformzustand-Panel, proaktive Benachrichtigungen und lesende Chat-Werkzeuge. Und ein bekannter Ausfall formt nun die Antworten — beeinträchtigte Fähigkeiten werden bei der Planung umfahren, fehlgeschlagene Schritte aus typisierten Fehlercodes erklärt, nie aus rohen Logs. Seitdem wird die Diagnose nicht mehr aus einer Zahl allein geschrieben: Ein pro Vorfallsart deklariertes Rezept sagt, welche Aufschlüsselungen und welche Logereignisse zu lesen sind, das Paket wird im Moment der Diagnose gesammelt, personenbezogene Daten entfernt, eine unerreichbare Quelle wird als nicht verfügbar benannt statt als Stille gelesen, und was das Modell gelesen hat, wird unter seinem Urteil gezeigt.</p><h2>Ergebnisse zählen, nicht Versuche</h2><p>Ein Zähler musste in v1.38.3 neu gedacht werden. Die Aufrufe zu zählen, die einen Anbieter erreichen, ist die Wahrheit über den Anbieter — und der falsche Nenner, sobald diese Aufrufe wiederholt werden, denn ein aufgefangener Fehler bläht die Fehlerrate auf, obwohl nichts verloren ging. Ein zweiter Zähler erfasst nun eine Zeile je logischem Vorgang, Wiederholungen zusammengefaltet, und beantwortet die einzige Frage, auf die ein Betreiber reagiert: Hat der Aufrufer sein Ergebnis bekommen? Ein dritter sagt, was die Ratenglättung mit jedem Versuch tat, denn „das Budget ist zu klein“ und „Redis ist ausgefallen“ sehen in einem Boolean gleich aus und verlangen entgegengesetzte Maßnahmen.</p><p>Die jüngste Lektion betrifft die Wahl dessen, was man misst. Die autonome Schleife zählte ihre Iterationen und ihre Dauer — und nichts für das, was tatsächlich wächst: den Prompt, der dem Modell bei jedem Schritt geliefert wird. Am Produktionscode gemessen sind das 2,3 k Tokens bei der ersten und 112 k bei der neunzigsten Iteration, weil jedes Werkzeugergebnis in dem Gespräch bleibt, das das Modell erneut liest. Zwei Histogramme erfassen nun die gelieferte Größe und ihren Anteil am Kontextfenster des Modells, gespeist vom selben memoisierten Zähler, den der Zustands-Reducer ohnehin pflegt — die Messung kostet auf dem heißen Pfad also nichts. Bewusst wurde keine Kompressionsstrategie mitgeliefert: Ein System, das auf eine nie beobachtete Größe reagiert, optimiert eine Vermutung.</p>"
+        "title": "547 Prometheus-Metriken, 28 Grafana-Dashboards und Langfuse-Tracing",
+        "excerpt": "LIA bietet Enterprise-Observability mit 547 Metriken, Grafana-Dashboards, LLM-Tracing via Langfuse und E-Mail-Alerting mit Runbooks.",
+        "body": "<h2>Die drei Säulen der Observability</h2><p>LIA implementiert die drei Säulen moderner Observability:</p><ul><li><strong>Metriken</strong> — 547 Prometheus-Metriken für HTTP, Agenten, Token, Kosten, OAuth und Performance</li><li><strong>Logs</strong> — Strukturiertes JSON-Logging via structlog, zentralisiert in Loki mit PII-Filterung</li><li><strong>Traces</strong> — Verteiltes Tracing via OpenTelemetry (Tempo) und LLM-Tracing via Langfuse</li></ul><h2>23 spezialisierte Metrik-Dateien</h2><p>Jede Domäne besitzt ihre eigene deklarative Metrik-Datei. Die 23 Module decken ab: HTTP, Agenten (SSE/Router/LLM/HITL/Planer), Datenbank, LangGraph, Langfuse, Voice, RAG Spaces, OAuth, Channels, Fehler, Sub-Agenten, Redis, Attachments, Browser, Compaction, Briefing, Business, Registry, Heartbeat, Gesundheitsmetriken, Journale, Telefonie und Nutzungslimits. Jede Datei definiert domänenspezifische Prometheus-Counter, Histogramme und Gauges.</p><h2>Definition der Prometheus-Metriken</h2><p>Jede Domäne definiert ihre Metriken deklarativ:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>28 Grafana-Dashboards</h2><p>LIA liefert 28 nummerierte Grafana-Dashboards von 01 bis 28: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony, briefing, product-value, meetings und effect-ledger. Jedes Dashboard bietet filterbare Ansichten nach Benutzer, Zeitraum und Umgebung. Das 26. ist ein Produkt-Cockpit: validierte Ergebnisse (explizites 👍 oder eine unkorrigiert gebliebene Aktion), Aktivierungs-Funnel, Retention und Kosten pro nützlichem Ergebnis — die exakte Zählung lebt in PostgreSQL, und Grafana liest sie über eine auf Aggregat-Views beschränkte Nur-Lese-Rolle.</p><h2>Ziel-KPIs aus dem Quellcode</h2><p>LIA überwacht präzise Indikatoren, die im Quellcode definiert sind: TTFT (Time To First Token) des Streamings, Router-Latenz zwischen 0,1 und 2 Sekunden, Tool-Ausführungsdauer der Agenten zwischen 0,1 und 10 Sekunden, Router-Konfidenz p50 &gt; 0,8, LLM-Kosten pro Anfrage &lt; 0,05€, HTTP-5xx-Fehlerrate &lt; 1%.</p><h2>E-Mail-Alerts mit Runbooks</h2><p>Die Überwachung endet nicht bei Dashboards: Ein Kern aus 14 vitalen Alerts — API, PostgreSQL oder Redis nicht erreichbar, Festplatte, Container-Speicher, 5xx-Fehlerrate, Streaming-Latenz, fehlgeschlagenes nächtliches Backup, nicht erreichbare öffentliche URL, bald ablaufendes TLS-Zertifikat, ausgefallene Ratenbegrenzung — wird kontinuierlich von Prometheus ausgewertet und per E-Mail über Alertmanager zugestellt. Jeder Alert verweist auf sein Runbook (Schritt-für-Schritt-Anleitung), die Schwellenwerte werden pro Umgebung in .env-Dateien gepflegt, und promtool-Unit-Tests garantieren, dass die in Benachrichtigungen angezeigten Schwellenwerte exakt den auslösenden Ausdrücken entsprechen. Eine Blackbox-Sonde testet sogar die gesamte Kette Ende-zu-Ende, vom Cloudflare-Edge bis zum Frontend — genau wie ein Nutzer.</p><h2>Langfuse: Dediziertes LLM-Tracing</h2><p>Die Langfuse-Integration verfügt über 8 dedizierte Metriken zur Verfolgung jedes LLM-Aufrufs: verbrauchte Token (Eingabe/Ausgabe/Cache), Antwortzeit, verwendetes Modell, geschätzte Kosten und Anfrage-Kontext. Dies ermöglicht die Identifizierung ineffizienter Prompts, den Vergleich von LLM-Modellen untereinander und die langfristige Optimierung des Token-Verbrauchs.</p><h2>DevOps Claude CLI: Diagnose in natürlicher Sprache (v1.13.0)</h2><p>Neueste Entwicklung des Observability-Stacks: Administratoren können Server jetzt direkt aus der LIA-Konversation diagnostizieren. Claude Code CLI — im API-Docker-Container installiert — inspiziert autonom Logs, prüft die Container-Gesundheit und analysiert die Ressourcennutzung. Persistente Sitzungen, konfigurierbare Berechtigungen pro Umgebung und Echtzeit-Streaming der Untersuchungsschritte via SSE.</p><h2>Und seit v1.34: der Assistent liest die eigene Telemetrie</h2><p>All das gab es für Menschen; der Assistent selbst las nichts davon. ADR-247 hat diese Schleife geschlossen: Eine periodische Selbstprüfung verdichtet die goldenen Signale plus direkte Sonden zu Zustands-Snapshots mit exakten Werten; Alarme und kritische Verdikte konvergieren zu einem Vorfall pro Ausfall, diagnostiziert von einem budgetgedeckelten, auf den Runbooks gegründeten LLM; Administratoren erhalten ein Plattformzustand-Panel, proaktive Benachrichtigungen und lesende Chat-Werkzeuge. Und ein bekannter Ausfall formt nun die Antworten — beeinträchtigte Fähigkeiten werden bei der Planung umfahren, fehlgeschlagene Schritte aus typisierten Fehlercodes erklärt, nie aus rohen Logs. Seitdem wird die Diagnose nicht mehr aus einer Zahl allein geschrieben: Ein pro Vorfallsart deklariertes Rezept sagt, welche Aufschlüsselungen und welche Logereignisse zu lesen sind, das Paket wird im Moment der Diagnose gesammelt, personenbezogene Daten entfernt, eine unerreichbare Quelle wird als nicht verfügbar benannt statt als Stille gelesen, und was das Modell gelesen hat, wird unter seinem Urteil gezeigt.</p><h2>Ergebnisse zählen, nicht Versuche</h2><p>Ein Zähler musste in v1.38.3 neu gedacht werden. Die Aufrufe zu zählen, die einen Anbieter erreichen, ist die Wahrheit über den Anbieter — und der falsche Nenner, sobald diese Aufrufe wiederholt werden, denn ein aufgefangener Fehler bläht die Fehlerrate auf, obwohl nichts verloren ging. Ein zweiter Zähler erfasst nun eine Zeile je logischem Vorgang, Wiederholungen zusammengefaltet, und beantwortet die einzige Frage, auf die ein Betreiber reagiert: Hat der Aufrufer sein Ergebnis bekommen? Ein dritter sagt, was die Ratenglättung mit jedem Versuch tat, denn „das Budget ist zu klein“ und „Redis ist ausgefallen“ sehen in einem Boolean gleich aus und verlangen entgegengesetzte Maßnahmen.</p><p>Die jüngste Lektion betrifft die Wahl dessen, was man misst. Die autonome Schleife zählte ihre Iterationen und ihre Dauer — und nichts für das, was tatsächlich wächst: den Prompt, der dem Modell bei jedem Schritt geliefert wird. Am Produktionscode gemessen sind das 2,3 k Tokens bei der ersten und 112 k bei der neunzigsten Iteration, weil jedes Werkzeugergebnis in dem Gespräch bleibt, das das Modell erneut liest. Zwei Histogramme erfassen nun die gelieferte Größe und ihren Anteil am Kontextfenster des Modells, gespeist vom selben memoisierten Zähler, den der Zustands-Reducer ohnehin pflegt — die Messung kostet auf dem heißen Pfad also nichts. Bewusst wurde keine Kompressionsstrategie mitgeliefert: Ein System, das auf eine nie beobachtete Größe reagiert, optimiert eine Vermutung.</p>"
       },
       "prompt-engineering": {
         "title": "Versioniertes Prompt-System: 78 Prompts als Code verwaltet",
@@ -10662,7 +10762,7 @@
       "progressive-steps": {
         "title": "Echtzeit-Ausführungsschritte: Beobachte LIA bei der Arbeit",
         "excerpt": "LIA zeigt progressiv jeden Ausführungsschritt an — Routing, Planung, Tool-Aufrufe — in Echtzeit während deine Anfrage verarbeitet wird.",
-        "body": "<h2>Transparenz in Aktion</h2><p>Wenn Sie eine komplexe Anfrage an LIA senden, können mehrere Sekunden vergehen, bevor die Antwort eintrifft. Was macht der Assistent in dieser Zeit? Mit der progressiven Schrittanzeige weißt du es <strong>in Echtzeit</strong>: Jeder durchlaufene Knoten, jedes aufgerufene Tool erscheint, sobald es passiert. Und die Anzeige selbst lebt: vergangene Schritte verblassen, der aktuelle atmet, das Ganze geht fließend in die ersten Worte der Antwort über, und ein Cursor blinkt, während die Antwort geschrieben wird.</p><h2>Wie es funktioniert</h2><p>Das Backend nutzt LangGraphs <code>updates</code>-Stream-Modus zur Erkennung der Fertigstellung jedes Graph-Knotens. Bei jedem Schritt wird ein SSE-<code>execution_step</code>-Event an das Frontend gesendet mit:</p><ul><li>Dem <strong>i18n-Schlüssel</strong> des Tools oder Knotens (in die Sprache des Benutzers übersetzt)</li><li>Einem <strong>Reasoning-Auszug</strong> (auf 120 Zeichen gekürzt) im ReAct-Modus</li><li><strong>Fallback-Metadaten</strong> für nicht im Katalog aufgeführte Tools</li></ul><h2>Frontend-Anzeige</h2><p>Schritte sammeln sich visuell in der Oberfläche, Zeile für Zeile, begrenzt auf <strong>10 gleichzeitig sichtbare Schritte</strong>. Ein <strong>i18n-Schlüssel-Deduplizierungsmechanismus</strong> verhindert die Wiederholung identischer Schritte. Beim ersten Antwort-Token falten sich die Schritte zu einer eingeklappten Zeile „⚙ N Schritte · X s“ unter der Antwort zusammen — mit der Nachricht gespeichert: Der Blick hinter die Kulissen bleibt auch nach einem Neuladen erhalten, auf allen Geräten.</p><h2>Pipeline und ReAct</h2><p>Im <strong>Pipeline</strong>-Modus stammen die Schritte aus dem ExecutionPlan: Planner, semantischer Validator, Genehmigungstor, Aufgabenorchestrator. Im <strong>ReAct</strong>-Modus generiert jeder Tool-Aufruf einen Schritt mit einem Auszug des LLM-Reasonings.</p><h2>90 Tools abgedeckt</h2><p>Alle <strong>90 Katalog-Tools</strong> haben dedizierte i18n-Schlüssel in 6 Sprachen. Die Texte wurden übersetzt, um natürliche Nachrichten in jeder Sprache zu bieten statt technischer Bezeichner.</p><h2>Keine zufälligen Nachrichten mehr</h2><p>Das alte System zeigte amüsante, aber zufällige Wartephrasen an. Dieses System wurde vollständig durch <strong>echte, kontextbezogene Schritte</strong> ersetzt, die genau widerspiegeln, was der Assistent in jedem Moment tut.</p><h2>Wenn der Stream verstummt</h2><p>Eine Schrittanzeige ist nur so viel wert wie der Stream, der sie speist. Legt ein Telefon den Tab schlafen, stirbt die Verbindung ohne Ankündigung — kein Ende, kein Fehler — und der Bildschirm bleibt endlos beim zuletzt gezeigten Schritt stehen, während die Antwort auf dem Server längst fertig und gespeichert ist. Nichts unterschied diesen Zustand von einer schlicht langen Antwort. LIA erkennt diese Stille nun: Nach einem am Herzschlag-Rhythmus des Servers ausgerichteten Budget wird die tote Verbindung verworfen und der im Hintergrund weiterlaufende Durchgang automatisch wieder aufgenommen.</p>"
+        "body": "<h2>Transparenz in Aktion</h2><p>Wenn Sie eine komplexe Anfrage an LIA senden, können mehrere Sekunden vergehen, bevor die Antwort eintrifft. Was macht der Assistent in dieser Zeit? Mit der progressiven Schrittanzeige weißt du es <strong>in Echtzeit</strong>: Jeder durchlaufene Knoten, jedes aufgerufene Tool erscheint, sobald es passiert. Und die Anzeige selbst lebt: vergangene Schritte verblassen, der aktuelle atmet, das Ganze geht fließend in die ersten Worte der Antwort über, und ein Cursor blinkt, während die Antwort geschrieben wird.</p><h2>Wie es funktioniert</h2><p>Das Backend nutzt LangGraphs <code>updates</code>-Stream-Modus zur Erkennung der Fertigstellung jedes Graph-Knotens. Bei jedem Schritt wird ein SSE-<code>execution_step</code>-Event an das Frontend gesendet mit:</p><ul><li>Dem <strong>i18n-Schlüssel</strong> des Tools oder Knotens (in die Sprache des Benutzers übersetzt)</li><li>Einem <strong>Reasoning-Auszug</strong> (auf 120 Zeichen gekürzt) im ReAct-Modus</li><li><strong>Fallback-Metadaten</strong> für nicht im Katalog aufgeführte Tools</li></ul><h2>Frontend-Anzeige</h2><p>Schritte sammeln sich visuell in der Oberfläche, Zeile für Zeile, begrenzt auf <strong>10 gleichzeitig sichtbare Schritte</strong>. Ein <strong>i18n-Schlüssel-Deduplizierungsmechanismus</strong> verhindert die Wiederholung identischer Schritte. Beim ersten Antwort-Token falten sich die Schritte zu einer eingeklappten Zeile „⚙ N Schritte · X s“ unter der Antwort zusammen — mit der Nachricht gespeichert: Der Blick hinter die Kulissen bleibt auch nach einem Neuladen erhalten, auf allen Geräten.</p><h2>Pipeline und ReAct</h2><p>Im <strong>Pipeline</strong>-Modus stammen die Schritte aus dem ExecutionPlan: Planner, semantischer Validator, Genehmigungstor, Aufgabenorchestrator. Im <strong>ReAct</strong>-Modus generiert jeder Tool-Aufruf einen Schritt mit einem Auszug des LLM-Reasonings.</p><h2>114 Tools abgedeckt</h2><p>Alle <strong>114 Katalog-Tools</strong> haben dedizierte i18n-Schlüssel in 6 Sprachen. Die Texte wurden übersetzt, um natürliche Nachrichten in jeder Sprache zu bieten statt technischer Bezeichner.</p><h2>Keine zufälligen Nachrichten mehr</h2><p>Das alte System zeigte amüsante, aber zufällige Wartephrasen an. Dieses System wurde vollständig durch <strong>echte, kontextbezogene Schritte</strong> ersetzt, die genau widerspiegeln, was der Assistent in jedem Moment tut.</p><h2>Wenn der Stream verstummt</h2><p>Eine Schrittanzeige ist nur so viel wert wie der Stream, der sie speist. Legt ein Telefon den Tab schlafen, stirbt die Verbindung ohne Ankündigung — kein Ende, kein Fehler — und der Bildschirm bleibt endlos beim zuletzt gezeigten Schritt stehen, während die Antwort auf dem Server längst fertig und gespeichert ist. Nichts unterschied diesen Zustand von einer schlicht langen Antwort. LIA erkennt diese Stille nun: Nach einem am Herzschlag-Rhythmus des Servers ausgerichteten Budget wird die tote Verbindung verworfen und der im Hintergrund weiterlaufende Durchgang automatisch wieder aufgenommen.</p>"
       },
       "account-lifecycle": {
         "title": "Konto-Lebenszyklus: 4 Zustände für vollständige DSGVO-Konformität",
@@ -10797,6 +10897,7 @@
       "transparency": "Radikale Transparenz",
       "emotional_depth": "Emotionale Tiefe",
       "reliability": "Produktionszuverlässigkeit",
+      "standards": "Normen und Konformität",
       "openness": "Radikale Offenheit",
       "vision": "Vision"
     }
@@ -10841,7 +10942,7 @@
       "habits": "Gewohnheitslernen",
       "governance": "Eine Instanz regieren",
       "tabular_admin": "Per Datei verwalten",
-      "evolution": "Evolutionsprogramm",
+      "evolution": "Sichtbare Arbeit",
       "expressive_eyes": "Ausdrucksstarke Augen",
       "native_apps": "Native Apps",
       "self_diagnostics": "Selbstdiagnose",
@@ -10851,7 +10952,9 @@
       "shock_absorbers": "Drei Mechanismen, eine Konvergenz",
       "meetings": "Meetings: die Zeile ist der Job",
       "registers": "Drei Register",
-      "relation_debrief": "Ein Debriefing je Beziehung"
+      "relation_debrief": "Ein Debriefing je Beziehung",
+      "workboard": "Das Ticket-Board",
+      "conclusion": "Fazit"
     }
   },
   "healthMetrics": {
@@ -11292,6 +11395,12 @@
         "subtitle": "Ihre Routinen und ihre nächste Ausführung.",
         "empty": "Keine geplante Aktion.",
         "error": "Geplante Aktionen konnten nicht gelesen werden."
+      },
+      "workboard": {
+        "title": "Tickets",
+        "subtitle": "Tickets, die auf dich warten: ein Lauf hält auf deine Antwort, oder etwas ist überfällig.",
+        "empty": "Kein Ticket wartet auf dich.",
+        "error": "Die Tickets konnten nicht gelesen werden."
       }
     },
     "direction_received": "Empfangen",
@@ -12310,7 +12419,8 @@
         "task": "Aufgabe „{{target}}“ erstellt",
         "task_delete": "Aufgabe „{{target}}“ gelöscht",
         "task_update": "Aufgabe „{{target}}“ geändert",
-        "vacation_responder": "Abwesenheitsnotiz eingerichtet"
+        "vacation_responder": "Abwesenheitsnotiz eingerichtet",
+        "ticket_delete": "Ticket „{{target}}“ vom Board gelöscht"
       },
       "edit_image": "Bild bearbeitet: {{target}}",
       "generate_document": "Dokument „{{target}}“ erzeugt",
@@ -12323,6 +12433,9 @@
       "run_skill_script": "Skript der Fähigkeit „{{target}}“ ausgeführt",
       "set_current_item": "„{{target}}“ als aktuelles Element des Gesprächs gesetzt",
       "toggle_scheduled_action_tool": "Geplante Aktion „{{target}}“ aktiviert oder pausiert",
+      "create_ticket_tool": "Ticket „{{target}}“ auf dem Board erstellt",
+      "update_ticket_tool": "Ticket „{{target}}“ geändert",
+      "comment_ticket_tool": "Ticket „{{target}}“ kommentiert",
       "create_reminder_tool": "Erinnerung „{{target}}“ erstellt",
       "proactive_notification": "Benachrichtigung gesendet ({{kind}})"
     },
@@ -12389,6 +12502,7 @@
       "sub_agent": "Sub-Agent",
       "task": "Aufgaben",
       "telephony": "Telefonie",
+      "ticket": "Aufgabenboard",
       "unknown": "Nicht identifizierte Fähigkeit",
       "weather": "Wetter",
       "web_fetch": "Webseite",
@@ -12615,5 +12729,227 @@
     "delete_confirm": "„{{content}}\" wird gelöscht.",
     "delete_series_confirm": "„{{content}}\" wiederholt sich ({{schedule}}). Beim Löschen entfallen alle künftigen Termine.",
     "section_what": "Woran zu erinnern ist"
+  },
+  "workboard": {
+    "title": "Workboard",
+    "subtitle": "Ihre Tickets: woran Sie arbeiten, was Sie LIA übergeben haben, was andere Ihnen schulden.",
+    "columns": {
+      "idea": "Idee",
+      "todo": "Zu erledigen",
+      "in_progress": "In Arbeit",
+      "waiting": "Wartet",
+      "confirming": "Zu bestätigen",
+      "validating": "Zu prüfen",
+      "done": "Erledigt"
+    },
+    "priority": {
+      "low": "Niedrig",
+      "medium": "Mittel",
+      "high": "Hoch",
+      "urgent": "Dringend"
+    },
+    "party": {
+      "me": "Ich",
+      "lia": "LIA",
+      "unknown": "Jemand anderes",
+      "held_by": "Gehalten von {{name}}",
+      "owned_by": "Von {{name}}"
+    },
+    "card": {
+      "steps": "{{done}}/{{total}} Schritte",
+      "due": "Fällig {{date}}",
+      "overdue": "Überfällig",
+      "open": "Öffnen",
+      "delete": "Löschen",
+      "follow_on": "Über dieses Ticket informieren",
+      "follow_off": "Nicht mehr informieren",
+      "followed": "Im Chat verfolgt",
+      "not_followed": "Im Chat nicht verfolgt",
+      "actions": "Ticket-Aktionen",
+      "drag_card": "Ticket {{title}} verschieben",
+      "run_running": "LIA arbeitet daran",
+      "run_waiting": "Wartet auf Sie",
+      "run_failed": "Letzter Lauf fehlgeschlagen",
+      "run_succeeded": "LIA hat geantwortet",
+      "column_of": "Spalte von {{title}}",
+      "holder_of": "Inhaber von {{title}}"
+    },
+    "board": {
+      "label": "Ticket-Board",
+      "column_count": "{{count}} Ticket",
+      "column_count_one": "{{count}} Ticket",
+      "column_count_other": "{{count}} Tickets",
+      "pick_column": "Angezeigte Spalte",
+      "previous_column": "Vorherige Spalte",
+      "next_column": "Nächste Spalte",
+      "partial": "Die ersten {{shown}} von {{total}} Tickets werden gezeigt. Filtere, um den Rest zu sehen."
+    },
+    "dnd": {
+      "instructions": "Leertaste oder Eingabe hebt ein Ticket auf, die Pfeiltasten bewegen es, Leertaste oder Eingabe legt es ab, Escape bricht ab.",
+      "picked_up": "Ticket „{{title}}“ aus {{column}} aufgenommen.",
+      "moved_over": "Ticket „{{title}}“ über {{column}}.",
+      "dropped": "Ticket „{{title}}“ in {{column}} abgelegt.",
+      "cancelled": "Verschieben abgebrochen; Ticket „{{title}}“ blieb, wo es war."
+    },
+    "filters": {
+      "title": "Filter",
+      "search": "Titel suchen",
+      "side": "Gehalten von",
+      "side_all": "Alle",
+      "side_me": "Ich",
+      "side_lia": "LIA",
+      "side_peer": "Eine Verbindung",
+      "priority": "Priorität",
+      "priority_any": "Beliebige Priorität",
+      "overdue": "Nur überfällige",
+      "sort": "Sortieren nach",
+      "sort_position": "Board-Reihenfolge",
+      "sort_priority": "Priorität",
+      "sort_due": "Fälligkeit",
+      "sort_updated": "Letzte Änderung",
+      "sort_created": "Erstellung",
+      "reset": "Filter zurücksetzen",
+      "total": "{{count}} Ticket passt",
+      "total_one": "{{count}} Ticket passt",
+      "total_other": "{{count}} Tickets passen"
+    },
+    "actions": {
+      "create": "Neues Ticket",
+      "run_now": "Jetzt ausführen",
+      "finish_in_chat": "Im Chat abschließen",
+      "save": "Speichern",
+      "cancel": "Abbrechen",
+      "close": "Schließen",
+      "add_step": "Schritt hinzufügen",
+      "comment": "Kommentieren",
+      "open_board": "Board öffnen",
+      "open_ticket": "Ticket öffnen"
+    },
+    "form": {
+      "new_title": "Neues Ticket",
+      "title": "Titel",
+      "title_hint": "Was zu tun ist, in Ihren Worten.",
+      "description": "Beschreibung",
+      "description_hint": "Übergeben Sie dieses Ticket an LIA, ist das die Anweisung, der sie folgt.",
+      "priority": "Priorität",
+      "status": "Spalte",
+      "assignee": "Gehalten von",
+      "hand_back": "Zurückgeben",
+      "start_at": "Beginn",
+      "due_at": "Fälligkeit",
+      "follow": "Fortschritt im Chat melden",
+      "execution_mode": "Ausführungsmodus"
+    },
+    "detail": {
+      "steps": "Schritte",
+      "comments": "Kommentare",
+      "history": "Verlauf",
+      "data": "Angaben",
+      "settings": "Einstellungen",
+      "last_run": "Letzter Lauf",
+      "no_comment": "Noch kein Kommentar.",
+      "no_step": "Noch kein Schritt.",
+      "no_history": "Bisher ist nichts passiert.",
+      "comment_placeholder": "Kommentar schreiben…",
+      "author_user": "Sie",
+      "author_lia": "LIA",
+      "author_peer": "Eine Verbindung",
+      "loading": "Ticket wird geladen…",
+      "read_only": "Die Worte der Eigentümerin: nur sie darf Titel und Beschreibung ändern.",
+      "editable": "Bearbeiten Sie dieses Ticket, kommentieren Sie es und verfolgen Sie, was LIA damit gemacht hat.",
+      "confirming_hint": "LIA hat eine Aktion vorbereitet und wartet auf Ihr Okay: Antworten Sie mit einem Kommentar („ja“, „nein“ oder was zu ändern ist) und übergeben Sie ihr dann das Ticket.",
+      "usage": "Kosten",
+      "usage_runs_one": "{{count}} Ausführung",
+      "usage_runs_other": "{{count}} Ausführungen",
+      "outcome_success": "LIA hat geantwortet",
+      "outcome_waiting": "Wartet auf Sie",
+      "outcome_confirming": "Eine Aktion wartet auf Ihr Okay",
+      "outcome_failed": "Fehlgeschlagen",
+      "outcome_skipped_quota": "Verschoben — Kontingent erreicht",
+      "outcome_skipped_busy": "Verschoben — ein Gespräch lief gerade"
+    },
+    "events": {
+      "created": "Erstellt",
+      "status_changed": "Spalte geändert",
+      "assigned": "Übergeben",
+      "returned": "An den Eigentümer zurückgegeben",
+      "returned_by_run": "LIA gibt Ihnen das Ticket zurück",
+      "released": "An den Eigentümer zurückgegeben — Verbindung entfernt",
+      "approved": "Aktion genehmigt",
+      "refused": "Aktion abgelehnt",
+      "amended": "Antwort weitergegeben",
+      "priority_changed": "Priorität geändert",
+      "dates_changed": "Daten geändert",
+      "run_started": "LIA hat begonnen",
+      "run_finished": "LIA ist fertig",
+      "follow_changed": "Benachrichtigungen geändert"
+    },
+    "history": {
+      "status": "Spalte",
+      "priority": "Priorität",
+      "start": "Beginn",
+      "due": "Fällig",
+      "follow": "Benachrichtigungen",
+      "on": "an",
+      "off": "aus",
+      "none": "keine",
+      "separator": ": "
+    },
+    "empty": {
+      "title": "Noch nichts auf dem Board",
+      "description": "Ein Ticket ist Arbeit mit eigenem Leben: Sie können sie erledigen oder LIA übergeben.",
+      "filtered_title": "Kein Ticket passt",
+      "filtered_description": "Das Board ist nicht leer — diese Filter sind es.",
+      "column": "Nichts hier",
+      "column_off_page": "Nicht auf dieser Seite — grenzen Sie das Board ein, um sie zu sehen."
+    },
+    "unavailable": "Das Workboard ist auf dieser Instanz deaktiviert.",
+    "load_error": "Das Board konnte nicht gelesen werden.",
+    "delete_confirm": {
+      "title": "Dieses Ticket löschen?",
+      "body": "„{{title}}“, seine Schritte, Kommentare und sein Verlauf gehen mit."
+    },
+    "deleted": "Ticket gelöscht.",
+    "created": "Ticket erstellt.",
+    "run_requested": "LIA nimmt es innerhalb einer Minute auf.",
+    "errors": {
+      "generic": "Das konnte nicht ausgeführt werden.",
+      "title_required": "Ein Ticket braucht einen Titel.",
+      "title_too_long": "Dieser Titel ist zu lang.",
+      "description_too_long": "Diese Beschreibung ist zu lang.",
+      "comment_required": "Ein Kommentar darf nicht leer sein.",
+      "comment_too_long": "Dieser Kommentar ist zu lang.",
+      "depth_exceeded": "Ein Schritt kann keine eigenen Schritte haben.",
+      "parent_not_owned": "Dieses Ticket ist nicht auf Ihrem Board.",
+      "too_many_tickets": "Ihr Board ist voll.",
+      "too_many_children": "Dieses Ticket hat so viele Schritte, wie es tragen kann.",
+      "assignee_not_connected": "Sie sind mit dieser Person nicht verbunden.",
+      "cross_account_delegation": "Ein Ticket, das jemand anderes hält, kann LIA nicht übergeben werden.",
+      "peer_cannot_delete": "Nur die Eigentümerin kann dieses Ticket löschen.",
+      "peer_cannot_edit_field": "Das sind die Worte der Eigentümerin.",
+      "peer_cannot_reassign": "Sie können dieses Ticket nur zurückgeben.",
+      "run_now_requires_lia": "Übergeben Sie das Ticket erst an LIA, bevor Sie es ausführen lassen.",
+      "answer_required": "Antworten Sie zuerst mit einem Kommentar — „ja“, „nein“ oder was zu ändern ist — und übergeben Sie das Ticket dann an LIA.",
+      "max_runs_reached": "LIA hat dieses Ticket bereits so oft ausgeführt, wie sie darf.",
+      "status_invalid": "Diese Spalte gibt es nicht.",
+      "priority_invalid": "Diese Priorität gibt es nicht.",
+      "dates_inverted": "Die Fälligkeit liegt vor dem Beginn.",
+      "peers_disabled": "Verbindungen sind auf dieser Instanz deaktiviert.",
+      "not_found": "Dieses Ticket gibt es nicht mehr."
+    },
+    "run_errors": {
+      "assignee_inactive": "Das Konto, das dieses Ticket hält, ist nicht mehr aktiv – LIA kann es nicht ausführen.",
+      "empty_answer": "LIA hat diesmal nichts erzeugt – das Ticket ist unverändert.",
+      "generic": "Der Lauf endete ohne Antwort.",
+      "run_failed": "Der Lauf ist fehlgeschlagen; LIA versucht es nicht von selbst erneut. Nutzen Sie „Jetzt ausführen“.",
+      "run_reaped": "Der Lauf wurde unterbrochen, und niemand hat gesehen, wie er endete."
+    },
+    "notification": {
+      "actions_label": "Ticket-Aktionen"
+    },
+    "execution_mode": {
+      "react": "ReAct-Modus",
+      "pipeline": "Pipeline-Modus"
+    }
   }
 }

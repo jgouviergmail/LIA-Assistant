@@ -59,6 +59,7 @@ import {
   Users,
   Repeat,
   ClipboardList,
+  SquareKanban,
 } from 'lucide-react';
 
 export type ChapterId = 'act' | 'know' | 'anticipate' | 'control' | 'grow' | 'connect';
@@ -129,7 +130,14 @@ export const CHAPTERS: readonly ChapterConfig[] = [
     num: '03',
     mood: '😏',
     benefits: 3,
-    catalog: ['proactive', 'interests', 'habits', 'reminders_scheduling', 'health_metrics'],
+    catalog: [
+      'proactive',
+      'interests',
+      'habits',
+      'reminders_scheduling',
+      'workboard',
+      'health_metrics',
+    ],
     tinted: false,
   },
   {
@@ -221,6 +229,7 @@ export const REQUIRED_FEATURE_KEYS: readonly string[] = [
   'interests',
   'habits',
   'reminders_scheduling',
+  'workboard',
   'telephony',
   'meetings',
   'skills',
@@ -274,6 +283,7 @@ export const FEATURE_ICONS: Record<string, LucideIcon> = {
   interests: Star,
   habits: Repeat,
   reminders_scheduling: CalendarClock,
+  workboard: SquareKanban,
   telephony: PhoneCall,
   meetings: ClipboardList,
   skills: Blocks,

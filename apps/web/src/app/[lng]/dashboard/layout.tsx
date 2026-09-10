@@ -17,6 +17,7 @@ import { PersonalitySelector } from '@/components/PersonalitySelector';
 import { ConnectorHealthAlert } from '@/components/connectors/ConnectorHealthAlert';
 import { OnboardingTutorial } from '@/components/onboarding';
 import { CompanionPresence } from '@/components/companion/CompanionPresence';
+import { ShortcutsDock } from '@/components/shortcuts/ShortcutsDock';
 import { BroadcastProvider } from '@/lib/broadcast';
 import { BroadcastModal } from '@/components/broadcast';
 import {
@@ -307,6 +308,9 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
 
           {/* Floating companion — follows across dashboard pages, hidden on chat */}
           <CompanionPresence isAuthenticated={!!user} />
+          {/* The pinned settings sections, on every dashboard screen (ADR-277);
+            renders nothing until one is pinned. */}
+          <ShortcutsDock lng={lng} />
         </div>
       </MeetingRecorderProvider>
     </BroadcastProvider>

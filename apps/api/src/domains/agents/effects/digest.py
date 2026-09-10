@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from src.core.config import settings
@@ -51,6 +51,22 @@ def payload_digest(payload: Any) -> str:
         payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False, default=str
     ).encode("utf-8")
     return hashlib.sha256(canonical).hexdigest()
+
+
+def drafts_digest(contents: Sequence[Mapping[str, Any]]) -> str:
+    """Identity of what a workboard run showed the person (ADR-276, lot 7).
+
+    ONE draft or a BATCH of them, in order: approving « send these three »
+    approves those three and no other set, so the identity covers the whole
+    list and a batch of one is not the same identity as the bare draft.
+
+    Args:
+        contents: The ``draft_content`` mappings, in presentation order.
+
+    Returns:
+        64-character hex digest.
+    """
+    return payload_digest([dict(content) for content in contents])
 
 
 def draft_digest(draft_content: Mapping[str, Any]) -> str:

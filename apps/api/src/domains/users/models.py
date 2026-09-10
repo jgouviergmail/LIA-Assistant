@@ -618,6 +618,19 @@ class User(BaseModel):
         ),
     )
 
+    # Settings sections pinned to the floating shortcuts dock (ADR-277):
+    # ["theme", "font", ...]. NULL = none. Writes are full NEW-list
+    # replacements (JSONB new-dict rule); the tolerant reader is
+    # domains/shared/settings_shortcuts.sanitize_settings_shortcuts.
+    settings_shortcuts: Mapped[list[str] | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment=(
+            "Settings section tokens pinned to the floating shortcuts dock: "
+            "[token, ...] — NULL = none (ADR-277)."
+        ),
+    )
+
     # Per-user skill activation states (normalized in user_skill_states table)
     skill_states: Mapped[list[UserSkillState]] = relationship(
         back_populates="user", cascade="all, delete-orphan"

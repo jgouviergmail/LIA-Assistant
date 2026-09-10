@@ -1220,7 +1220,7 @@ def decrypt_token(encrypted_token: str) -> str:
 
 La protection des données inclut leur durabilité : la base PostgreSQL de production est
 sauvegardée automatiquement par un sidecar `pg_dump` (rotation quotidienne/hebdomadaire/mensuelle,
-planification et rétention pilotées par `.env`, section `[80]`). Les dumps sont déposés dans un
+planification et rétention pilotées par `.env`, section `[88]`). Les dumps sont déposés dans un
 répertoire dédié en `chmod 700` — ils restent sensibles : le chiffrement Fernet couvre les
 colonnes PII, pas le schéma ni les colonnes non chiffrées. La procédure de restauration est
 **testée** (restauration dans un conteneur jetable + comparaison de schéma et de comptages via

@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import Delete, delete, or_, select, text, update
+from sqlalchemy import Delete, Update, delete, or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
@@ -44,6 +44,49 @@ if TYPE_CHECKING:
     from fastapi import Request
 
 logger = get_logger(__name__)
+
+
+def build_workboard_release(user_id: UUID) -> Update:
+    """Hand back the workboard tickets ``user_id`` holds without owning them.
+
+    Runs BEFORE the purge's DELETEs. Two mechanisms protect a ticket from a
+    departing account and neither covers the other's case:
+    ``workboard_tickets.assignee_user_id`` is ``ON DELETE SET NULL``, which
+    releases it on the four paths that HARD-delete a users row; account
+    deletion, however, SCRUBS the users row instead of deleting it, so no
+    foreign-key action fires at all — this statement is that path's release.
+
+    ``NULL`` is the workboard's way of saying « the owner holds it » (ADR-276),
+    so clearing the column IS the hand-back. The tickets the account OWNS are
+    left alone: the purge deletes those, and releasing them first would be a
+    wasted write that also masks a purge which failed to run.
+
+    Written here rather than in ``domains/workboard`` for the reason the whole
+    purge is metadata-driven: ``users`` imports no domain, and reaching into
+    one would close a runtime import cycle the F009 ratchet counts — the peers
+    block above is as domain-specific as this one and lives inline for exactly
+    that reason.
+
+    Args:
+        user_id: The account being deleted.
+
+    Returns:
+        The UPDATE to execute before the purge loop.
+    """
+    import_all_models()
+    tickets = Base.metadata.tables["workboard_tickets"]
+    return (
+        update(tickets)
+        .where(
+            tickets.c.assignee_user_id == user_id,
+            tickets.c.owner_user_id != user_id,
+        )
+        .values(
+            assignee_kind="human",
+            assignee_user_id=None,
+            follow_assignee=False,
+        )
+    )
 
 
 def build_purge_statements(user_id: UUID) -> list[tuple[str, Delete]]:
@@ -164,6 +207,11 @@ def build_purge_statements(user_id: UUID) -> list[tuple[str, Delete]]:
         by_user("heartbeat_notifications"),
         by_user("reminders"),
         by_user("scheduled_actions"),
+        # Workboard (ADR-276): the tickets the account OWNS. Comments and the
+        # event log follow by FK CASCADE. Tickets it merely HELD are released
+        # by ``release_assignments_statement`` in _purge_user_data_tables —
+        # this DELETE must never take another person's ticket with it.
+        by_user("workboard_tickets", column="owner_user_id"),
         by_user("user_skill_states"),
         by_user("skills", column="owner_id"),
         by_user("user_mcp_servers"),
@@ -764,7 +812,21 @@ class AccountDeletionService:
         Returns:
             Dict mapping table name → deleted row count.
         """
-        counts: dict[str, int] = {}
+        # Workboard (ADR-276) — BEFORE the deletes: account deletion scrubs the
+        # users row instead of deleting it, so the ``ON DELETE SET NULL`` that
+        # releases a ticket on every hard-delete path never fires here. Without
+        # this statement a departing account would stay named as the assignee
+        # of somebody else's ticket, for good.
+        released = await self.db.execute(build_workboard_release(user_id))
+        released_rows = int(released.rowcount or 0)  # type: ignore[attr-defined]
+        if released_rows:
+            logger.info(
+                "workboard_assignments_released",
+                user_id=str(user_id),
+                tickets=released_rows,
+            )
+
+        counts: dict[str, int] = {"workboard_tickets_released": released_rows}
         for table_name, stmt in build_purge_statements(user_id):
             result = await self.db.execute(stmt)
             counts[table_name] = result.rowcount  # type: ignore[attr-defined]

@@ -31,12 +31,23 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Bell, CalendarClock, History, Lightbulb, MessageSquare, Sparkles, Star } from 'lucide-react';
+import {
+  Bell,
+  CalendarClock,
+  History,
+  LayoutGrid,
+  Lightbulb,
+  MessageSquare,
+  Sparkles,
+  Star,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { HeartbeatHistory } from '@/components/settings/HeartbeatHistory';
 import { InterestNotificationHistory } from '@/components/settings/InterestNotificationHistory';
 import { HubSection, type HubSectionProps } from '@/components/notifications/HubSection';
+import { NeedsMeList } from '@/components/workboard/NeedsMeList';
+import type { TicketRow } from '@/types/workboard';
 import { OpenOffersList } from '@/components/notifications/OpenOffersList';
 import { PendingRemindersList } from '@/components/notifications/PendingRemindersList';
 import { RelayedMessagesList } from '@/components/notifications/RelayedMessagesList';
@@ -142,7 +153,29 @@ function useHubSections() {
     enabled: isOpen('scheduled'),
   });
 
-  return { config, counts, track, offers, peers, proactive, interests, reminders, scheduled };
+  // The workboard (ADR-276): tickets that need THIS person — a run stopped on
+  // their answer, or something overdue. Flag-gated like every program section.
+  const workboard = usePagedSection<{ tickets: TicketRow[]; total: number }, TicketRow>({
+    path: '/workboard/needs-me',
+    selectItems: payload => payload.tickets,
+    selectTotal: payload => payload.total,
+    enabled: isOpen('workboard') && Boolean(config?.features?.workboard_enabled),
+  });
+  const workboardEnabled = Boolean(config?.features?.workboard_enabled);
+
+  return {
+    config,
+    counts,
+    track,
+    offers,
+    peers,
+    proactive,
+    interests,
+    reminders,
+    scheduled,
+    workboard,
+    workboardEnabled,
+  };
 }
 
 /**
@@ -179,6 +212,28 @@ function sectionShell<TItem>(
   };
 }
 
+/** The workboard section (ADR-276), extracted for the same reason as the
+ * proposals one: the flag gate and the rows live with the section, so the hub
+ * component does not grow a branch per program. */
+function WorkboardHubSection({
+  enabled,
+  section,
+  tickets,
+  lng,
+}: {
+  enabled: boolean;
+  section: Omit<HubSectionProps, 'icon' | 'children'>;
+  tickets: readonly TicketRow[] | undefined;
+  lng: string;
+}) {
+  if (!enabled) return null;
+  return (
+    <HubSection icon={LayoutGrid} {...section}>
+      <NeedsMeList tickets={tickets ?? []} lng={lng as Language} />
+    </HubSection>
+  );
+}
+
 /** The proposals section (Lot 5-C2), extracted so the hub component stays
  * under the CC ratchet: the flag gate and the rows live here. */
 function ProposalsHubSection({
@@ -210,8 +265,19 @@ function ProposalsHubSection({
 export function NotificationsHub({ lng }: { lng: string }) {
   const { t, i18n } = useTranslation();
   const locale = getIntlLocale(i18n.language as Language);
-  const { config, counts, track, offers, peers, proactive, interests, reminders, scheduled } =
-    useHubSections();
+  const {
+    config,
+    counts,
+    track,
+    offers,
+    peers,
+    proactive,
+    interests,
+    reminders,
+    scheduled,
+    workboard,
+    workboardEnabled,
+  } = useHubSections();
   const shell = <TItem,>(key: string, section: PagedSection<TItem>, countKey: keyof HubCounts) =>
     sectionShell(key, section, t, track(key), counts?.[countKey]);
 
@@ -296,6 +362,13 @@ export function NotificationsHub({ lng }: { lng: string }) {
         <HubSection icon={CalendarClock} {...shell('scheduled', scheduled, 'scheduled')}>
           <ScheduledActionsList actions={scheduled.items ?? []} locale={locale} />
         </HubSection>
+
+        <WorkboardHubSection
+          enabled={workboardEnabled}
+          section={shell('workboard', workboard, 'workboard')}
+          tickets={workboard.items}
+          lng={lng}
+        />
       </div>
 
       <section aria-labelledby="hub-advanced" className="rounded-xl border border-border/40 p-4">

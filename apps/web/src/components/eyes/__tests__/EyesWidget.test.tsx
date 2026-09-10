@@ -1038,3 +1038,37 @@ describe('EyesWidget — cartoon accessories (RNG-pinned)', () => {
     expect(document.querySelector('.lia-accessory')).toBeNull();
   });
 });
+
+describe('EyesWidget — the restore dot moves too (2026-09-10)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    useEyesWidgetStore.getState().reset();
+  });
+
+  it('can be dragged, and the drop does not restore the eyes', () => {
+    renderWidget();
+    fireEvent.click(screen.getByRole('button', { name: 'eyes.minimize' }));
+    const dot = screen.getByRole('button', { name: 'eyes.restore' });
+
+    fireEvent.pointerDown(dot, { pointerId: 5, clientX: 100, clientY: 100 });
+    fireEvent.pointerMove(dot, { pointerId: 5, clientX: 170, clientY: 150 });
+    fireEvent.pointerUp(dot, { pointerId: 5, clientX: 170, clientY: 150 });
+    fireEvent.click(dot);
+
+    expect(useEyesWidgetStore.getState().position).not.toBeNull();
+    expect(document.querySelector('.lia-eyes')).toBeNull();
+  });
+
+  it('sits where the eyes were dragged, and a plain click restores them there', () => {
+    useEyesWidgetStore.getState().setPosition({ xPct: 30, yPct: 40 });
+    renderWidget();
+    fireEvent.click(screen.getByRole('button', { name: 'eyes.minimize' }));
+    const dot = screen.getByRole('button', { name: 'eyes.restore' });
+
+    expect(dot.style.left).toBe('30%');
+    expect(dot.className).not.toContain('bottom-32');
+    fireEvent.click(dot);
+
+    expect(document.querySelector('.lia-eyes')).not.toBeNull();
+  });
+});

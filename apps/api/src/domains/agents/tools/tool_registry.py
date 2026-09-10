@@ -452,6 +452,12 @@ def _import_tool_modules() -> None:
         tool_modules.append(("src.domains.agents.tools.peers_tools", "peers_tools"))
         tool_modules.append(("src.domains.agents.tools.peers_read_tools", "peers_read_tools"))
 
+    # Workboard (ADR-276): the board of tickets, from the chat. Flag-gated
+    # like its router, its sweep and its manifests — a disabled instance must
+    # not register tools whose REST surface is absent.
+    if getattr(get_settings(), "workboard_enabled", False):
+        tool_modules.append(("src.domains.agents.tools.workboard_tools", "workboard_tools"))
+
     # Health Metrics tools (v1.17.2): only register when feature is enabled.
     # Seven tools owned by the unified ``health_agent``.
     # See docs/technical/HEALTH_METRICS.md.

@@ -14,6 +14,8 @@ from __future__ import annotations
 import pytest
 
 from src.domains.agents.effects.gate import (
+    ERROR_CONFIRMATION_IMPOSSIBLE,
+    ERROR_CONFIRMATION_MISSING,
     GateAction,
     decide_effect,
 )
@@ -45,9 +47,49 @@ class TestWhatNeverTouchesTheLedger:
         """The tool only BUILDS the draft; the executor is what acts."""
         assert decide_effect("draft", _scope()).action is GateAction.PASS_THROUGH
 
+    def test_a_draft_passes_through_with_no_scope_at_all(self) -> None:
+        """No scope is not an unattended scope: a caller that published none is
+        unknown, and refusing on ignorance would break the 25 draft-producing
+        tools wherever a scope has not reached them yet."""
+        assert decide_effect("draft", None).action is GateAction.PASS_THROUGH
+
     def test_a_tool_without_a_manifest_passes_through(self) -> None:
         """22 registered instances have none (browser sub-tools, legacy readers)."""
         assert decide_effect(None, _scope()).action is GateAction.PASS_THROUGH
+
+
+class TestAnUnattendedRunCannotDraft:
+    """ADR-276 amends ADR-263: a draft owes the same answer as a confirmation.
+
+    A ``draft`` tool asks a human by RAISING a HITL interrupt. In an unattended
+    run there is nobody to answer it: measured on the routine path, the
+    interrupt becomes a non-retryable ``RuntimeError`` and STAYS on the thread,
+    so the next chat turn is answered as a decision nobody made. The gate
+    already refuses ``confirm`` for exactly this reason.
+    """
+
+    def test_a_draft_is_refused_when_nobody_can_answer_it(self) -> None:
+        decision = decide_effect("draft", _scope(source="scheduled"))
+        assert decision.action is GateAction.REFUSE
+        assert decision.error_code == ERROR_CONFIRMATION_IMPOSSIBLE
+
+    def test_the_refusal_tells_the_model_not_to_announce_it_as_done(self) -> None:
+        """ADR-182: never report as performed what was not performed."""
+        message = decide_effect("draft", _scope(source="scheduled")).llm_message or ""
+        assert "never announce it as done" in message
+
+    def test_an_attended_turn_still_drafts(self) -> None:
+        """The 25 draft-producing tools must keep working in the chat."""
+        for source in ("user", "proactive"):
+            assert (
+                decide_effect("draft", _scope(source=source)).action is GateAction.PASS_THROUGH
+            ), source
+
+    def test_a_confirm_is_refused_the_same_way_it_always_was(self) -> None:
+        """The amendment must not disturb the rule it extends."""
+        decision = decide_effect("confirm", _scope(source="scheduled"))
+        assert decision.action is GateAction.REFUSE
+        assert decision.error_code == ERROR_CONFIRMATION_IMPOSSIBLE
 
 
 class TestWhatIsRecorded:
@@ -110,3 +152,44 @@ class TestTheVocabularyIsExhaustive:
         for policy in MUTATION_POLICIES:
             decision = decide_effect(policy, _scope(approved=True))
             assert decision.action in set(GateAction), policy
+
+
+class TestASurfaceThatCanCarryTheQuestion:
+    """ADR-276 lot 7: a workboard ticket can put a draft in front of the person.
+
+    Nobody is there NOW, but the question has somewhere to go — so for such a
+    run the two policies that need somebody ask exactly as they do in the chat,
+    and the run captures the interrupt instead of leaving it on the thread.
+    """
+
+    def test_a_confirm_becomes_the_draft_the_chat_would_show(self) -> None:
+        decision = decide_effect("confirm", _scope(source="scheduled"), carrier=True)
+        assert decision.action is GateAction.REFUSE
+        assert decision.error_code == ERROR_CONFIRMATION_MISSING  # the ASK path
+
+    def test_a_draft_builds_its_own(self) -> None:
+        decision = decide_effect("draft", _scope(source="scheduled"), carrier=True)
+        assert decision.action is GateAction.PASS_THROUGH
+
+    def test_a_routine_is_still_refused(self) -> None:
+        """The flag is the surface's, never the source's: a routine cannot carry
+        a draft anywhere, and keeps the refusal ADR-276 gave it."""
+        for policy in ("confirm", "draft"):
+            decision = decide_effect(policy, _scope(source="scheduled"))
+            assert decision.action is GateAction.REFUSE, policy
+            assert decision.error_code == ERROR_CONFIRMATION_IMPOSSIBLE, policy
+
+    def test_an_attended_turn_is_unchanged_by_the_flag(self) -> None:
+        assert decide_effect("draft", _scope(), carrier=True).action is GateAction.PASS_THROUGH
+        assert decide_effect("confirm", _scope(), carrier=True).error_code == (
+            ERROR_CONFIRMATION_MISSING
+        )
+
+    def test_a_carrier_never_turns_a_refusal_into_an_execution(self) -> None:
+        """Carrying the question is not answering it."""
+        decision = decide_effect("confirm", _scope(source="scheduled"), carrier=True)
+        assert decision.action is not GateAction.LEDGER
+
+    def test_an_approved_replay_on_a_carrier_is_recorded_and_performed(self) -> None:
+        decision = decide_effect("confirm", _scope(source="scheduled", approved=True), carrier=True)
+        assert decision.action is GateAction.LEDGER

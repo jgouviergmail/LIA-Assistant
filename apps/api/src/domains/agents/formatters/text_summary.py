@@ -47,6 +47,7 @@ DOMAIN_LABELS = {
         "web_fetch": "Page(s) web",  # CONTEXT_DOMAIN_WEB_FETCH
         "web_fetchs": "Page(s) web",  # CONTEXT_DOMAIN_WEB_FETCH alias
         "reminders": "Rappel(s)",  # CONTEXT_DOMAIN_REMINDERS
+        "tickets": "Ticket(s)",  # CONTEXT_DOMAIN_TICKETS (ADR-276)
         "routes": "Itinéraire(s)",
         "mcps": "Résultat(s) MCP",  # CONTEXT_DOMAIN_MCP
         "mcp_apps": "Application(s) MCP",  # CONTEXT_DOMAIN_MCP_APPS
@@ -78,6 +79,7 @@ DOMAIN_LABELS = {
         "web_fetch": "Web page(s)",  # CONTEXT_DOMAIN_WEB_FETCH
         "web_fetchs": "Web page(s)",  # CONTEXT_DOMAIN_WEB_FETCH alias
         "reminders": "Reminder(s)",  # CONTEXT_DOMAIN_REMINDERS
+        "tickets": "Ticket(s)",  # CONTEXT_DOMAIN_TICKETS (ADR-276)
         "routes": "Route(s)",
         "mcps": "MCP result(s)",  # CONTEXT_DOMAIN_MCP
         "mcp_apps": "MCP app(s)",  # CONTEXT_DOMAIN_MCP_APPS
@@ -109,6 +111,7 @@ DOMAIN_LABELS = {
         "web_fetch": "Página(s) web",
         "web_fetchs": "Página(s) web",
         "reminders": "Recordatorio(s)",
+        "tickets": "Ticket(s)",  # CONTEXT_DOMAIN_TICKETS (ADR-276)
         "routes": "Ruta(s)",
         "mcps": "Resultado(s) MCP",
         "mcp_apps": "Aplicación(es) MCP",
@@ -140,6 +143,7 @@ DOMAIN_LABELS = {
         "web_fetch": "Webseite(n)",
         "web_fetchs": "Webseite(n)",
         "reminders": "Erinnerung(en)",
+        "tickets": "Ticket(s)",  # CONTEXT_DOMAIN_TICKETS (ADR-276)
         "routes": "Route(n)",
         "mcps": "MCP-Ergebnis(se)",
         "mcp_apps": "MCP-App(s)",
@@ -171,6 +175,7 @@ DOMAIN_LABELS = {
         "web_fetch": "Pagina/e web",
         "web_fetchs": "Pagina/e web",
         "reminders": "Promemoria",
+        "tickets": "Ticket",  # CONTEXT_DOMAIN_TICKETS (ADR-276)
         "routes": "Percorso/i",
         "mcps": "Risultato/i MCP",
         "mcp_apps": "App MCP",
@@ -202,6 +207,7 @@ DOMAIN_LABELS = {
         "web_fetch": "网页",
         "web_fetchs": "网页",
         "reminders": "提醒",
+        "tickets": "工单",  # CONTEXT_DOMAIN_TICKETS (ADR-276)
         "routes": "路线",
         "mcps": "MCP结果",
         "mcp_apps": "MCP应用",

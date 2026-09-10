@@ -37,7 +37,6 @@ from uuid import uuid4
 from pydantic import BaseModel, Field
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
-from src.core.i18n_drafts import get_draft_summary_label
 
 
 class DraftType(str, Enum):
@@ -73,6 +72,7 @@ class DraftType(str, Enum):
     TOOL_CALL = "tool_call"  # A tool whose policy demands confirmation (ADR-263)
     SPREADSHEET_WRITE = "spreadsheet_write"  # Sheets range update / row append (lot F)
     DOCUMENT_APPEND = "document_append"  # Docs text append (lot F)
+    TICKET_DELETE = "ticket_delete"  # Workboard ticket delete draft (ADR-276)
 
 
 class DraftStatus(str, Enum):
@@ -735,171 +735,25 @@ class Draft(BaseModel):
         user_language: str = "fr",
         user_timezone: str | None = None,
     ) -> str:
-        """
-        Get a human-readable summary of the draft.
+        """Get the one-line summary naming what this draft would do.
 
-        Used in HITL questions and LLM summaries.
-        Supports multilingual output via centralized i18n.
-
-        Supported languages: fr, en, es, de, it, zh-CN
+        Used in HITL questions and LLM summaries, in the 6 supported languages.
+        Delegates to :func:`~src.domains.agents.drafts.summary_renderer.render_summary`,
+        where every draft type has a registered renderer and a boot-time
+        completeness assert — the cascade this replaced ended in an untranslated
+        ``Draft (<value>)`` that 9 of the 26 types actually reached.
 
         Args:
-            user_language: Language code for i18n
-            user_timezone: IANA timezone for datetime formatting (defaults to content.user_timezone)
+            user_language: Language code for i18n.
+            user_timezone: IANA timezone for datetime formatting (defaults to
+                ``content.user_timezone``).
+
+        Returns:
+            The localized sentence.
         """
-        from src.core.time_utils import format_datetime_for_display
+        from src.domains.agents.drafts.summary_renderer import render_summary
 
-        # Use provided timezone or fallback to content.user_timezone
-        tz = user_timezone or self.content.get("user_timezone", DEFAULT_USER_DISPLAY_TIMEZONE)
-
-        def format_dt(dt_str: str | None) -> str:
-            """Format an ISO datetime string for display."""
-            if not dt_str:
-                return ""
-            return format_datetime_for_display(dt_str, tz, user_language, include_time=True)
-
-        if self.type == DraftType.EMAIL:
-            return "<br/>" + get_draft_summary_label(
-                "email_to",
-                user_language,
-                to=self.content.get("to", "?"),
-                subject=self.content.get("subject", "?"),
-            )
-
-        elif self.type == DraftType.EMAIL_REPLY:
-            return "<br/>" + get_draft_summary_label(
-                "email_reply_to",
-                user_language,
-                to=self.content.get("to", "?"),
-                subject=self.content.get("subject", "?"),
-            )
-
-        elif self.type == DraftType.EMAIL_FORWARD:
-            return "<br/>" + get_draft_summary_label(
-                "email_forward_to",
-                user_language,
-                to=self.content.get("to", "?"),
-                subject=self.content.get("subject", "?"),
-            )
-
-        elif self.type == DraftType.EMAIL_DELETE:
-            return "<br/>" + get_draft_summary_label(
-                "email_delete",
-                user_language,
-                subject=self.content.get("subject", "?"),
-            )
-
-        elif self.type == DraftType.EVENT:
-            start_raw = self.content.get("start_datetime", "")
-            start = format_dt(start_raw) if start_raw else "?"
-            return "<br/>" + get_draft_summary_label(
-                "event_create",
-                user_language,
-                summary=self.content.get("summary", "?"),
-                start=start,
-            )
-
-        elif self.type == DraftType.EVENT_UPDATE:
-            summary = self.content.get("summary")
-            if not summary:
-                summary = self.content.get("current_event", {}).get("summary", "?")
-            return "<br/>" + get_draft_summary_label(
-                "event_update",
-                user_language,
-                summary=summary,
-            )
-
-        elif self.type == DraftType.EVENT_DELETE:
-            event = self.content.get("event", {})
-            return "<br/>" + get_draft_summary_label(
-                "event_delete",
-                user_language,
-                summary=event.get("summary", "?"),
-            )
-
-        elif self.type == DraftType.CONTACT:
-            return "<br/>" + get_draft_summary_label(
-                "contact_create",
-                user_language,
-                name=self.content.get("name", "?"),
-            )
-
-        elif self.type == DraftType.CONTACT_UPDATE:
-            name = self.content.get("name")
-            if not name:
-                names = self.content.get("current_contact", {}).get("names", [])
-                name = names[0].get("displayName", "?") if names else "?"
-            return "<br/>" + get_draft_summary_label(
-                "contact_update",
-                user_language,
-                name=name,
-            )
-
-        elif self.type == DraftType.CONTACT_DELETE:
-            names = self.content.get("contact", {}).get("names", [])
-            name = names[0].get("displayName", "?") if names else "?"
-            return "<br/>" + get_draft_summary_label(
-                "contact_delete",
-                user_language,
-                name=name,
-            )
-
-        elif self.type == DraftType.TASK:
-            return "<br/>" + get_draft_summary_label(
-                "task_create",
-                user_language,
-                title=self.content.get("title", "?"),
-            )
-
-        elif self.type == DraftType.TASK_UPDATE:
-            title = self.content.get("title")
-            if not title:
-                title = self.content.get("current_task", {}).get("title", "?")
-            return "<br/>" + get_draft_summary_label(
-                "task_update",
-                user_language,
-                title=title,
-            )
-
-        elif self.type == DraftType.TASK_DELETE:
-            return "<br/>" + get_draft_summary_label(
-                "task_delete",
-                user_language,
-                title=self.content.get("title", "?"),
-            )
-
-        elif self.type == DraftType.FILE_DELETE:
-            file_data = self.content.get("file", {})
-            return "<br/>" + get_draft_summary_label(
-                "file_delete",
-                user_language,
-                name=file_data.get("name", "?"),
-            )
-
-        elif self.type == DraftType.LABEL_DELETE:
-            return "<br/>" + get_draft_summary_label(
-                "label_delete",
-                user_language,
-                name=self.content.get("label_name", "?"),
-            )
-
-        elif self.type == DraftType.PHONE_CALL:
-            return "<br/>" + get_draft_summary_label(
-                "phone_call",
-                user_language,
-                name=self.content.get("callee_name", "?"),
-                objective=self.content.get("objective", "?"),
-            )
-
-        elif self.type == DraftType.DEVOPS_TASK:
-            return "<br/>" + get_draft_summary_label(
-                "devops_task",
-                user_language,
-                server=self.content.get("server", "?"),
-                task=self.content.get("task", "?"),
-            )
-
-        return f"Draft ({self.type.value})"
+        return render_summary(self, user_language, user_timezone)
 
     def get_detailed_preview(
         self,

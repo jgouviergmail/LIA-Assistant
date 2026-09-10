@@ -338,6 +338,8 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         "DELETE /api/v1/users/me/home-location",
         "GET /api/v1/users/me/home-location",
         "PUT /api/v1/users/me/home-location",
+        "GET /api/v1/users/me/settings-shortcuts",
+        "PUT /api/v1/users/me/settings-shortcuts",
         "GET /api/v1/users/search/by-email",
         "GET /api/v1/users/timezones",
         "DELETE /api/v1/users/{user_id}",

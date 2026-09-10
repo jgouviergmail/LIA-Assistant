@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 44 |
-| ADRs | 274 ADR files (ADR-275 latest — ADR-008 n'a pas de fichier séparé, d'où le numéro un cran au-dessus du décompte) |
+| ADRs | 276 ADR files (ADR-277 latest — ADR-008 n'a pas de fichier séparé, d'où le numéro un cran au-dessus du décompte) |
 | Fiches knowledge (RAG système) | 37 |
 
 ---
@@ -45,10 +45,11 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [STATE_AND_CHECKPOINT.md](./technical/STATE_AND_CHECKPOINT.md) | State management et persistence (les reducers font autorité ici) |
 | [TELEPHONY.md](./technical/TELEPHONY.md) | Téléphonie agentique (appels sortants, ADR-127) |
 | [MEETINGS.md](./technical/MEETINGS.md) | Enregistrement de réunions et comptes rendus structurés (ADR-258), bibliothèque de modèles et changement de format (ADR-259) |
+| [WORKBOARD.md](./technical/WORKBOARD.md) | Le tableau de tickets (ADR-276) : sept colonnes, un porteur, un résultat ; LIA exécute les tickets qui lui sont affectés |
 | [PROVENANCE_AND_CAPABILITIES.md](./technical/PROVENANCE_AND_CAPABILITIES.md) | Provenance bornée des conclusions et carte des capacités (ADR-201, ADR-204) |
 | [DEMO_INSTANCE.md](./technical/DEMO_INSTANCE.md) | Démonstrateur libre : image standard isolée, plafond, capacités, purge nocturne, surface vérifiée (ADR-216→218) |
 | [DEBUG_PANEL.md](./technical/DEBUG_PANEL.md) | Panneau de debug : trace en ordre d'exécution, chronologie ancrée au run, waterfall LLM (ADR-209) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (274 ADR files) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (276 ADR files) |
 
 ### Pour les Product Managers
 
@@ -242,7 +243,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 |----------|-------------|--------|
 | [OBSERVABILITY_AGENTS.md](./technical/OBSERVABILITY_AGENTS.md) | Stack Prometheus/Grafana/Loki/Tempo | ✅ |
 | [METRICS_REFERENCE.md](./technical/METRICS_REFERENCE.md) | 500+ métriques documentées | ✅ |
-| [GRAFANA_DASHBOARDS.md](./technical/GRAFANA_DASHBOARDS.md) | 28 dashboards Grafana | ✅ |
+| [GRAFANA_DASHBOARDS.md](./technical/GRAFANA_DASHBOARDS.md) | 29 dashboards Grafana | ✅ |
 | [GUIDE_OBSERVABILITY.md](./guides/GUIDE_OBSERVABILITY.md) | Guide observabilité quickstart | ✅ |
 | [GRAFANA_LANGFUSE_DASHBOARD.md](./technical/GRAFANA_LANGFUSE_DASHBOARD.md) | Intégration Grafana + Langfuse | ✅ |
 | [ALERTING.md](./technical/ALERTING.md) | Chaîne d'alerte (ADR-119) : Alertmanager e-mail, validation, troubleshooting | ✅ |
@@ -289,7 +290,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [GUIDE_SCHEDULED_ACTIONS.md](./guides/GUIDE_SCHEDULED_ACTIONS.md) | Guide pratique Actions Planifiees (recurrentes, timezone, retry) | ✅ |
 | [GUIDE_RAG_SPACES.md](./guides/GUIDE_RAG_SPACES.md) | Guide RAG Spaces (espaces de connaissances, upload, hybrid search) | ✅ |
 | [GUIDE_DEVOPS_CLAUDE_CLI.md](./guides/GUIDE_DEVOPS_CLAUDE_CLI.md) | Guide DevOps Claude CLI (remote server management, setup, security) | ✅ |
-| [docs/knowledge/](./knowledge/) | System Knowledge: FAQ Markdown files for system RAG indexation (37 files, 200+ Q/A) | ✅ |
+| [docs/knowledge/](./knowledge/) | System Knowledge: FAQ Markdown files for system RAG indexation (38 files, 200+ Q/A) | ✅ |
 
 ### Operations
 
@@ -561,7 +562,7 @@ section ne référence.
 | Technologie | Usage |
 |-------------|-------|
 | Prometheus | 500+ métriques |
-| Grafana | 28 dashboards |
+| Grafana | 29 dashboards |
 | Loki | Logs agrégés |
 | Tempo | Traces distribuées |
 | Langfuse | LLM observability |
@@ -609,7 +610,7 @@ LIA/
 │   ├── technical/              # Docs techniques détaillées (80+)
 │   ├── guides/                 # Guides pratiques (20+)
 │   ├── architecture/           # ADRs (119) + schémas Mermaid (.mmd)
-│   ├── knowledge/              # Fiches FAQ pour le RAG système (37)
+│   ├── knowledge/              # Fiches FAQ pour le RAG système (38)
 │   ├── runbooks/               # Procédures opérationnelles (40)
 │   ├── audit/                  # Audit technique 360° public + protocole
 │   └── readme/                 # README spécialisés (15)

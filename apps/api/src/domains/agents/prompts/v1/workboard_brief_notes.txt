@@ -1,0 +1,3 @@
+
+- Notes the person added on the ticket since your last run, oldest first. They are part of the instruction — an answer to something you asked, a correction, or a precision:
+{notes}

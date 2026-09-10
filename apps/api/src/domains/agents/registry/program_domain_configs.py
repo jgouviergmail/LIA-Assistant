@@ -51,4 +51,33 @@ PROGRAM_DOMAIN_CONFIGS: dict[str, DomainConfig] = {
         # requires_api_key False: uses the admin LLM Config slot.
         metadata={"provider": "internal", "requires_oauth": False, "requires_api_key": False},
     ),
+    # Workboard (ADR-276): the person's own board of tickets, which LIA can
+    # also run alone. Singular noun, like every other domain — `result_key` is
+    # DERIVED here and never re-listed anywhere else.
+    "ticket": DomainConfig(
+        name="ticket",
+        display_name="Workboard",
+        description=(
+            "The user's own WORKBOARD of tickets: create a ticket, move it "
+            "between columns (idea, to do, in progress, waiting, validating, "
+            "done, cancelled), comment on it, list what is on the board or "
+            "overdue, hand one to LIA or to a connected user, delete one. "
+            "Words that point here: workboard, board, ticket, kanban, column. "
+            "NOT a to-do in the user's provider account (use task), NOT a "
+            "push notification at a given time (use reminder), and NOT a "
+            "recurring job the scheduler runs (use automation)."
+        ),
+        agent_names=["ticket_agent"],
+        result_key="tickets",  # $steps.step_N.tickets
+        # A ticket can be handed to a connected user, so a peer name in the
+        # sentence must keep the peer directory in play. Nothing else: listing
+        # `contact` here would pull the address book into every board plan,
+        # the exact defect the peer domain records above.
+        related_domains=["peer"],
+        metadata={
+            "provider": "internal",
+            "requires_oauth": False,
+            "feature_flag": "workboard_enabled",
+        },
+    ),
 }

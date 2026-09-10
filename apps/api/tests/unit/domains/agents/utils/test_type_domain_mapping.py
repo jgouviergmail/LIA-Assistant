@@ -74,6 +74,10 @@ class TestTypeToDomainMap:
         assert "REMINDER" in TYPE_TO_DOMAIN_MAP
         assert TYPE_TO_DOMAIN_MAP["REMINDER"] == ("reminder", "reminders")
 
+    def test_ticket_mapping_exists(self):
+        """ADR-276: a workboard ticket is a registry item like a reminder."""
+        assert TYPE_TO_DOMAIN_MAP["TICKET"] == ("ticket", "tickets")
+
     def test_all_values_are_tuples(self):
         """Test that all values are tuples of (domain, items_key)."""
         for type_name, value in TYPE_TO_DOMAIN_MAP.items():

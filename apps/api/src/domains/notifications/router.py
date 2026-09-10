@@ -621,4 +621,5 @@ async def get_hub_counts(
         reminders=counts.reminders,
         scheduled=counts.scheduled,
         offers=counts.offers,
+        workboard=counts.workboard,
     )

@@ -27,6 +27,7 @@ PROVIDER_REF_ORDER: Final[tuple[str, ...]] = (
     "thread_id",
     "event_id",
     "task_id",
+    "ticket_id",
     "resource_name",
     "file_id",
     "label_id",

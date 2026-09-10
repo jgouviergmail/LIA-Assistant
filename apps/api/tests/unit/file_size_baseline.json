@@ -42,7 +42,7 @@
     "domains/connectors/service.py": 1562,
     "domains/conversations/repository.py": 688,
     "domains/conversations/service.py": 805,
-    "domains/heartbeat/context_aggregator.py": 705,
+    "domains/heartbeat/context_aggregator.py": 690,
     "domains/interests/services/extraction_service.py": 747,
     "domains/journals/extraction_service.py": 708,
     "domains/psyche/engine.py": 874,

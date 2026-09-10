@@ -21,7 +21,7 @@ from src.core.field_names import (
     FIELD_CREATED_AT,
     FIELD_FEEDBACK_SUBMITTED,
     FIELD_FEEDBACK_VALUE,
-    FIELD_GOOGLE_API_REQUESTS,
+    FIELD_HIDDEN,
     FIELD_RUN_ID,
     FIELD_TARGET_ID,
     FIELD_TOTAL_COST_EUR,
@@ -31,6 +31,12 @@ from src.core.field_names import (
     FIELD_TOTAL_TOKENS_OUT,
 )
 from src.core.repository import BaseRepository
+from src.domains.conversations.message_reads import (
+    matching_content,
+    older_than,
+    token_summary_payload,
+    visible_only,
+)
 from src.domains.conversations.models import (
     Conversation,
     ConversationAuditLog,
@@ -218,6 +224,7 @@ class ConversationRepository(BaseRepository[Conversation]):
         conversation_id: UUID,
         limit: int = 50,
         order_desc: bool = True,
+        include_hidden: bool = False,
     ) -> Sequence[ConversationMessage]:
         """
         Get messages for a conversation with optional limit and ordering.
@@ -238,8 +245,11 @@ class ConversationRepository(BaseRepository[Conversation]):
             ... )
         """
         try:
-            stmt = select(ConversationMessage).where(
-                ConversationMessage.conversation_id == conversation_id
+            stmt = visible_only(
+                select(ConversationMessage).where(
+                    ConversationMessage.conversation_id == conversation_id
+                ),
+                include_hidden=include_hidden,
             )
 
             if order_desc:
@@ -292,6 +302,7 @@ class ConversationRepository(BaseRepository[Conversation]):
         limit: int = 50,
         search: str | None = None,
         before_created_at: datetime | None = None,
+        include_hidden: bool = False,
     ) -> Sequence[tuple[ConversationMessage, dict[str, Any] | None]]:
         """
         Get messages with their token summaries in a single optimized query.
@@ -345,59 +356,17 @@ class ConversationRepository(BaseRepository[Conversation]):
                 )
                 .where(ConversationMessage.conversation_id == conversation_id)
             )
-
-            # Apply optional substring search filter on message content (QW-2):
-            # case-insensitive (ILIKE) AND accent-insensitive — unaccent() on
-            # both sides, same approach as the admin user search (extension
-            # installed by migration add_unaccent_ext_001). LIKE wildcards in
-            # the user's term are escaped so "50%" matches the literal text.
-            if search:
-                escaped = search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-                stmt = stmt.where(
-                    func.unaccent(ConversationMessage.content).ilike(
-                        func.unaccent(f"%{escaped}%"), escape="\\"
-                    )
-                )
-
-            # Keyset pagination: skip messages newer than (or equal to) the cursor.
-            # Strict ``<`` matches the "older than" semantics used by the scroll-up
-            # caller — the cursor is the ``created_at`` of the oldest message in the
-            # previous page, which the client already holds.
-            #
-            # NOTE: collision on identical microsecond-precision ``created_at`` could
-            # skip a message. Negligible in practice — upgrade to a composite
-            # (created_at, id) cursor if collisions are observed.
-            if before_created_at is not None:
-                stmt = stmt.where(ConversationMessage.created_at < before_created_at)
-
+            stmt = visible_only(stmt, include_hidden=include_hidden)
+            stmt = matching_content(stmt, search)
+            stmt = older_than(stmt, before_created_at)
             stmt = stmt.order_by(ConversationMessage.created_at.desc()).limit(limit)
 
             result = await self.db.execute(stmt)
             rows = result.all()
 
-            # Convert to list of (message, token_summary_dict)
-            results = []
-            for message, token_summary in rows:
-                token_dict = None
-                if token_summary:
-                    total_tokens = (
-                        token_summary.total_prompt_tokens + token_summary.total_completion_tokens
-                    )
-                    # Include Google API costs in total for accurate billing
-                    llm_cost = float(token_summary.total_cost_eur or 0)
-                    google_cost = float(token_summary.google_api_cost_eur or 0)
-                    total_cost = llm_cost + google_cost
-
-                    token_dict = {
-                        FIELD_RUN_ID: token_summary.run_id,
-                        "total_tokens": total_tokens,
-                        "prompt_tokens": token_summary.total_prompt_tokens,
-                        "completion_tokens": token_summary.total_completion_tokens,
-                        "cached_tokens": token_summary.total_cached_tokens,
-                        "cost_eur": total_cost if total_cost > 0 else None,
-                        FIELD_GOOGLE_API_REQUESTS: token_summary.google_api_requests,
-                    }
-                results.append((message, token_dict))
+            results = [
+                (message, token_summary_payload(token_summary)) for message, token_summary in rows
+            ]
 
             logger.debug(
                 "messages_with_tokens_retrieved",
@@ -466,6 +435,7 @@ class ConversationRepository(BaseRepository[Conversation]):
         self,
         conversation_id: UUID,
         message_limit: int = 50,
+        include_hidden: bool = False,
     ) -> Conversation | None:
         """
         Get conversation with its messages eagerly loaded.
@@ -500,6 +470,10 @@ class ConversationRepository(BaseRepository[Conversation]):
 
             if conversation:
                 # Limit messages in Python (already ordered by DESC in relationship definition)
+                if not include_hidden:
+                    conversation.messages = [
+                        message for message in conversation.messages if not message.hidden
+                    ]
                 if len(conversation.messages) > message_limit:
                     conversation.messages = conversation.messages[:message_limit]
 
@@ -708,6 +682,15 @@ class ConversationRepository(BaseRepository[Conversation]):
                 role=role,
                 content=content,
                 message_metadata=metadata or {},
+                # DERIVED from the stamp, never asked of the caller (ADR-276).
+                # An out-of-turn run marks its metadata and gets the column for
+                # free, on every archive path there is and every one there will
+                # be. The first version threaded neither: the stamp wrote the
+                # metadata, nothing wrote the column, and both rows of a real
+                # run were visible in the chat while every test was green — the
+                # integration test INSERTED `hidden=True` itself and only ever
+                # proved the READS filter it.
+                hidden=bool((metadata or {}).get(FIELD_HIDDEN, False)),
                 stt_provider=stt_provider,
                 stt_audio_duration_seconds=stt_audio_duration_seconds,
                 stt_cost_usd=stt_cost_usd,
@@ -971,6 +954,7 @@ class ConversationRepository(BaseRepository[Conversation]):
     async def get_last_user_message(
         self,
         conversation_id: UUID,
+        include_hidden: bool = False,
     ) -> ConversationMessage | None:
         """
         Get the most recent user message for a conversation.
@@ -990,10 +974,12 @@ class ConversationRepository(BaseRepository[Conversation]):
 
         try:
             stmt = (
-                select(ConversationMessage)
-                .where(
-                    ConversationMessage.conversation_id == conversation_id,
-                    ConversationMessage.role == "user",
+                visible_only(
+                    select(ConversationMessage).where(
+                        ConversationMessage.conversation_id == conversation_id,
+                        ConversationMessage.role == "user",
+                    ),
+                    include_hidden=include_hidden,
                 )
                 .order_by(desc(ConversationMessage.created_at))
                 .limit(1)
@@ -1024,6 +1010,7 @@ class ConversationRepository(BaseRepository[Conversation]):
         conversation_id: UUID,
         after_timestamp: datetime,
         limit: int = 5,
+        include_hidden: bool = False,
     ) -> Sequence[ConversationMessage]:
         """
         Get proactive notification messages created after a given timestamp.
@@ -1052,12 +1039,14 @@ class ConversationRepository(BaseRepository[Conversation]):
         """
         try:
             stmt = (
-                select(ConversationMessage)
-                .where(
-                    ConversationMessage.conversation_id == conversation_id,
-                    ConversationMessage.role == "assistant",
-                    ConversationMessage.created_at > after_timestamp,
-                    ConversationMessage.message_metadata["type"].astext.like("proactive_%"),
+                visible_only(
+                    select(ConversationMessage).where(
+                        ConversationMessage.conversation_id == conversation_id,
+                        ConversationMessage.role == "assistant",
+                        ConversationMessage.created_at > after_timestamp,
+                        ConversationMessage.message_metadata["type"].astext.like("proactive_%"),
+                    ),
+                    include_hidden=include_hidden,
                 )
                 .order_by(ConversationMessage.created_at.asc())
                 .limit(limit)

@@ -64,6 +64,27 @@ describe('priorityTone', () => {
     expect(priorityTone('critical')).toBe('secondary');
     expect(priorityTone('')).toBe('secondary');
   });
+
+  it('puts the workboard urgent level in the ATTENTION family (ADR-276)', () => {
+    // A fourth level arrived with the workboard, and an unknown one renders
+    // GREY — which the owner rule reserves for INACTIVE elements. The most
+    // urgent ticket on the board was the one badge that said "dormant".
+    //
+    // It shares `alert` with `high` on purpose: the measurement above forbids
+    // demoting `high` to a pale tint (destructive/10 and warning/10 read as one
+    // level), and there is no ground above the single solid one. The two top
+    // levels therefore share the family and are told apart by their WORD, which
+    // the badge already carries.
+    expect(priorityTone('urgent')).toBe('alert');
+  });
+
+  it('leaves the three heartbeat levels exactly where they were', () => {
+    // The addition above is purely additive: `HeartbeatHistory` is the only
+    // other reader of this table, and nothing it renders may move.
+    expect(priorityTone('high')).toBe('alert');
+    expect(priorityTone('medium')).toBe('warning');
+    expect(priorityTone('low')).toBe('secondary');
+  });
 });
 
 describe('outcomeTone', () => {
@@ -139,6 +160,26 @@ describe('lifecycleTone', () => {
     expect(lifecycleTone('succeeded')).toBe('success');
     expect(lifecycleTone('failed')).toBe('destructive');
     expect(lifecycleTone('claimed')).toBe('info');
+  });
+
+  it('gives the seven workboard columns a tone, and never grey to a live one', () => {
+    // Four of the seven were unknown to this table (ADR-276) and fell to the
+    // neutral fallback — so « à faire », « en attente » and « en validation »,
+    // all of them live work, wore the badge the owner rule reserves for
+    // INACTIVE elements.
+    //
+    // `idea` is the exception that proves the family's own definition: nothing
+    // is happening and nothing is wrong, which is what `secondary` says.
+    expect(lifecycleTone('idea')).toBe('secondary');
+    // A live trait with no semantic family takes the theme colour.
+    expect(lifecycleTone('todo')).toBe('default');
+    expect(lifecycleTone('in_progress')).toBe('info');
+    // It needs the person; nothing is broken.
+    expect(lifecycleTone('waiting')).toBe('warning');
+    // It just happened and awaits a reading.
+    expect(lifecycleTone('validating')).toBe('info');
+    expect(lifecycleTone('done')).toBe('success');
+    expect(lifecycleTone('cancelled')).toBe('secondary');
   });
 
   it('reads a refusal as a decision, never as an incident', () => {

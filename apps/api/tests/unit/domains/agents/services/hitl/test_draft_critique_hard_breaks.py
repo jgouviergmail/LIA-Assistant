@@ -28,6 +28,14 @@ async def _collect(chunks: list[str]) -> str:
     return "".join([tok async for tok in _with_markdown_hard_breaks(_stream(chunks))])
 
 
+async def test_a_thematic_break_never_takes_a_br() -> None:
+    """`---<br/>` is three characters, not a rule — what capture 1 showed
+    (lot 14). The break stays a break whatever newline follows it."""
+    assert await _collect(["Ok.\n---\nSuite"]) == "Ok.<br/>\n---\nSuite"
+    assert await _collect(["a\n\n---\n\nb"]) == "a\n\n---\n\nb"
+    assert await _collect(["a\n***\nb"]) == "a<br/>\n***\nb"
+
+
 async def test_single_newlines_become_br() -> None:
     """The real glued-fields case: field lines separated by bare newlines."""
     out = await _collect(["📞 **Jérôme**\n\n", "📱 Tél : +33682511639\n", "🎯 Objectif : déjeuner"])

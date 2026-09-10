@@ -170,16 +170,38 @@ function EyesToolbar(props: {
   );
 }
 
-/** Minimized state: a 12 px dot on a 44 px target in the surface's corner. */
+/**
+ * Minimized state: a 12 px dot on a 44 px target — in the surface's corner,
+ * or wherever the eyes were last dragged, and draggable itself (owner,
+ * 2026-09-10): a dot parked over what somebody is reading must move too.
+ * It shares the widget's persisted spot, so the eyes come back where the
+ * dot was left. A press that travels is a drag; the click that follows a
+ * drop is swallowed rather than read as « show ».
+ */
 function EyesRestoreDot(props: { label: string; onShow: () => void; surface: EyesSurface }) {
+  const ref = useRef<HTMLButtonElement>(null);
+  const position = useEyesWidgetStore(s =>
+    props.surface === 'landing' ? s.landingPosition : s.position
+  );
+  const drag = useEyesDrag(ref, props.surface);
   return (
     <button
+      ref={ref}
       type="button"
-      onClick={props.onShow}
+      onClick={() => {
+        if (drag.wasRecentDrag()) return;
+        props.onShow();
+      }}
+      onPointerDown={drag.onPointerDown}
+      onPointerMove={drag.onPointerMove}
+      onPointerUp={drag.onPointerUp}
+      onPointerCancel={drag.onPointerUp}
+      onKeyDown={drag.onKeyDown}
       aria-label={props.label}
+      style={widgetStyle(drag.dragPos, position, null)}
       className={cn(
-        'group fixed z-30 flex h-11 w-11 items-end justify-end',
-        FALLBACK_ANCHOR_CLASSES[props.surface]
+        'group fixed z-30 flex h-11 w-11 cursor-grab touch-none items-end justify-end active:cursor-grabbing',
+        !drag.dragPos && !position && FALLBACK_ANCHOR_CLASSES[props.surface]
       )}
     >
       <span className="h-3 w-3 rounded-full bg-primary/60 shadow-md ring-2 ring-background transition-colors group-hover:bg-primary" />

@@ -29,8 +29,24 @@ from src.domains.agents.effects.scope import EffectScope
 #:   filesystem (SEC-001), so there is no external effect to record — and a
 #:   ReAct loop calls it often enough that a row per run would be noise;
 #: - ``draft`` only BUILDS the confirmation the user will answer; the effect
-#:   happens later, in the draft executor, which has its own gate.
+#:   happens later, in the draft executor, which has its own gate. It is
+#:   unconditional only where somebody can answer — see
+#:   :data:`POLICIES_NEEDING_SOMEBODY`.
 PASS_THROUGH_POLICIES: Final[frozenset[str]] = frozenset({"read", "sandboxed", "draft"})
+
+#: Policies that cannot proceed when nobody is there to answer them.
+#:
+#: ``confirm`` was the original member: a pre-execution card nobody can click.
+#: ``draft`` joined it (ADR-276) because it asks the same question by another
+#: means — it RAISES a HITL interrupt — and measured on the routine path, that
+#: interrupt becomes a non-retryable ``RuntimeError`` and STAYS on the thread,
+#: so the person's next chat message is read as a decision they never made.
+#:
+#: A surface that can CARRY the question to the person is the exception (lot
+#: 7): a workboard run captures the interrupt, puts the draft on the ticket
+#: and clears the thread, so for it these two policies ask as they do in the
+#: chat — see the ``carrier`` argument of :func:`decide_effect`.
+POLICIES_NEEDING_SOMEBODY: Final[frozenset[str]] = frozenset({"confirm", "draft"})
 
 #: Policies that reach the world and are therefore recorded.
 LEDGERED_POLICIES: Final[frozenset[str]] = frozenset({"reversible", "artefact", "confirm"})
@@ -88,7 +104,9 @@ class GateDecision:
     unscoped: bool = False
 
 
-def decide_effect(policy: str | None, scope: EffectScope | None) -> GateDecision:
+def decide_effect(
+    policy: str | None, scope: EffectScope | None, *, carrier: bool = False
+) -> GateDecision:
     """Decide what happens to one tool call.
 
     Args:
@@ -96,22 +114,41 @@ def decide_effect(policy: str | None, scope: EffectScope | None) -> GateDecision
             instance with no manifest (22 of them: the browser sub-tools the
             browser loop calls, and the legacy readers no planner can reach).
         scope: The authority the executor published, or None when none did.
+        carrier: True when the turn is driven by a surface that can put a
+            draft in front of the person and wait for their answer — a
+            workboard ticket (ADR-276, lot 7). Nobody is there NOW, but the
+            question has somewhere to go: a ``confirm`` becomes the draft the
+            chat would have shown and a ``draft`` builds its own, and the run
+            captures the interrupt instead of leaving it on the thread.
 
     Returns:
         The verdict. Pure: no I/O, no clock, no registry — every branch is
         enumerable in a unit test.
     """
+    unattended = scope is not None and scope.source in UNATTENDED_SOURCES and not carrier
+
+    # A DRAFT is only ever a pass-through where somebody can answer it. Nobody
+    # can, here — so it is refused rather than raising an interrupt that would
+    # outlive the run (ADR-276 amends ADR-263).
+    if (
+        policy in POLICIES_NEEDING_SOMEBODY
+        and unattended
+        and not (scope is not None and scope.approved)
+    ):
+        return GateDecision(
+            action=GateAction.REFUSE,
+            error_code=ERROR_CONFIRMATION_IMPOSSIBLE,
+            llm_message=_MESSAGE_UNATTENDED,
+        )
+
     if policy is None or policy in PASS_THROUGH_POLICIES:
         return GateDecision(action=GateAction.PASS_THROUGH)
 
     if policy == "confirm" and not (scope is not None and scope.approved):
-        unattended = scope is not None and scope.source in UNATTENDED_SOURCES
         return GateDecision(
             action=GateAction.REFUSE,
-            error_code=(
-                ERROR_CONFIRMATION_IMPOSSIBLE if unattended else ERROR_CONFIRMATION_MISSING
-            ),
-            llm_message=_MESSAGE_UNATTENDED if unattended else _MESSAGE_MISSING,
+            error_code=ERROR_CONFIRMATION_MISSING,
+            llm_message=_MESSAGE_MISSING,
         )
 
     return GateDecision(action=GateAction.LEDGER, unscoped=scope is None)

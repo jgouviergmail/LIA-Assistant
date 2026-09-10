@@ -342,7 +342,15 @@ export default defineConfig({
         // statements 78.72 / branches 74.00 / functions 75.99 / lines 79.45.
         // Raised 76/71/73/77 -> 76/72/73/77 (floor(measured - 2) per axis —
         // branches alone crosses an integer step this time).
-        statements: 76,
+        // Global floor — re-measured 2026-09-10 after the workboard cold
+        // review (ADR-276: the run-failure sentences and their two surfaces,
+        // the due-date helpers and the two controls that write them, the
+        // phone column that empties under the reader, the holder a peer list
+        // cannot name yet, and the search bound the API declares):
+        // statements 79.12 / branches 74.59 / functions 76.24 / lines 79.84.
+        // Raised 76/72/74/77 -> 77/72/74/77 (floor(measured - 2) per axis —
+        // statements alone crosses an integer step this time).
+        statements: 77,
         branches: 72,
         functions: 74,
         lines: 77,

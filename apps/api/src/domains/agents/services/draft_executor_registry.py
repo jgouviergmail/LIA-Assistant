@@ -126,6 +126,13 @@ def ensure_executors_registered() -> None:
 
         register_executor(DraftType.DEVOPS_TASK.value, execute_devops_task_draft)
 
+        # Workboard ticket deletion (ADR-276): the draft IS the confirmation
+        # gate. Flag-independent, like telephony: a confirmed draft must
+        # always resolve to an executor.
+        from src.domains.agents.tools.workboard_tools import execute_ticket_delete_draft
+
+        register_executor(DraftType.TICKET_DELETE.value, execute_ticket_delete_draft)
+
         # Peers relayed messages (A3): the draft IS the confirmation gate
         from src.domains.agents.tools.peers_tools import execute_peer_message_draft
 

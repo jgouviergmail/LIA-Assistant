@@ -24,7 +24,7 @@ from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, OUT_OF_TURN_EXECUTION_MODE_DEFAULT
 from src.core.recurrence import RecurrenceSpec
 from src.infrastructure.database.models import BaseModel, UUIDMixin
 from src.infrastructure.database.session import Base
@@ -165,6 +165,17 @@ class ScheduledAction(BaseModel):
         default=False,
         server_default="false",
         comment="True = propose via notification (?intent= link) instead of executing.",
+    )
+
+    execution_mode: Mapped[str] = mapped_column(
+        String(10),
+        nullable=False,
+        default=OUT_OF_TURN_EXECUTION_MODE_DEFAULT,
+        server_default=OUT_OF_TURN_EXECUTION_MODE_DEFAULT,
+        comment=(
+            "pipeline | react — how this routine executes. The loop by default: "
+            "nobody is there to steer a plan when it fires."
+        ),
     )
 
     # Status

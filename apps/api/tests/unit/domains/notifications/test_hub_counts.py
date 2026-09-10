@@ -27,9 +27,17 @@ Two properties are load-bearing and easy to lose:
 from __future__ import annotations
 
 import uuid
+from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
+
+@asynccontextmanager
+async def _fake_session():
+    """A session the count never really uses: the repository is a double."""
+    yield MagicMock()
+
 
 pytestmark = pytest.mark.unit
 
@@ -51,6 +59,7 @@ async def _counts(**over: object):
         "interests": 2,
         "reminders": 1,
         "scheduled": 4,
+        "workboard": 5,
     }
     defaults.update(over)
     with patch(
@@ -71,6 +80,7 @@ class TestWhatTheHubPublishes:
         assert result.interests == 2
         assert result.reminders == 1
         assert result.scheduled == 4
+        assert result.workboard == 5
 
     async def test_zero_is_a_real_answer_not_a_missing_one(self) -> None:
         """An empty section must read as empty, never as unknown."""
@@ -111,8 +121,8 @@ class TestTheProbesDegradeRatherThanFail:
         from pathlib import Path
 
         source = Path("src/domains/notifications/hub_counts.py").read_text(encoding="utf-8")
-        # Five gathered probes, five context managers.
-        assert source.count("async with get_db_context()") == 6
+        # One context manager per probe that reads a table.
+        assert source.count("async with get_db_context()") == 7
         assert "asyncio.gather" in source
 
 
@@ -138,6 +148,41 @@ class TestADisabledSubsystemIsNotQueried:
             with patch.object(hub_counts, "get_db_context") as db_context:
                 assert await hub_counts._proactive(uuid.uuid4()) == 0
                 db_context.assert_not_called()
+
+    async def test_workboard_off_returns_zero_without_touching_the_database(self) -> None:
+        from src.domains.notifications import hub_counts
+
+        with patch.object(hub_counts.settings, "workboard_enabled", False):
+            with patch.object(hub_counts, "get_db_context") as db_context:
+                assert await hub_counts._workboard(uuid.uuid4()) == 0
+                db_context.assert_not_called()
+
+    async def test_the_workboard_badge_reads_an_aggregate_not_a_page(self) -> None:
+        """The badge is read on every dashboard load, and it needs ONE number.
+
+        Asking the section's paged read for it cost a second statement and a
+        row nobody looks at, per load, per account.
+        """
+        from src.domains.notifications import hub_counts
+
+        repository = MagicMock()
+        repository.count_needs_me = AsyncMock(return_value=7)
+        repository.needs_me = AsyncMock(
+            side_effect=AssertionError("the badge must not read a page")
+        )
+        # The SOURCE module, because the import inside `_workboard` is local and
+        # resolves at call time. Never `patch.object(cls, "__new__")`: `__new__`
+        # is inherited, so unpatching WRITES `object.__new__` onto the class and
+        # every later `WorkboardRepository(db)` in the process raises — invisible
+        # under xdist, fatal in the sequential coverage run.
+        with patch.object(hub_counts.settings, "workboard_enabled", True):
+            with patch.object(hub_counts, "get_db_context", _fake_session):
+                with patch(
+                    "src.domains.workboard.repository.WorkboardRepository",
+                    return_value=repository,
+                ):
+                    assert await hub_counts._workboard(uuid.uuid4()) == 7
+        repository.count_needs_me.assert_awaited_once()
 
     async def test_a_section_the_instance_offers_is_still_counted(self) -> None:
         """The guard must not silence an ENABLED subsystem."""

@@ -244,8 +244,10 @@
       "relations_sub": "Your contacts at a glance",
       "capabilities": "Capabilities",
       "capabilities_sub": "Your constellation",
+      "workboard": "Workboard",
+      "workboard_sub": "What LIA is working on",
       "actions": "Registers",
-      "actions_sub": "What LIA did, and what it looked at"
+      "actions_sub": "Trace the actions"
     },
     "briefing": {
       "synthesis_audio_error": "The voice playback failed — the speech provider did not return audio. Check the voice settings.",
@@ -1296,7 +1298,7 @@
       "auth_none": "None",
       "auth_api_key": "API Key",
       "auth_bearer": "Bearer Token",
-      "auth_oauth2": "OAuth 2.0",
+      "auth_oauth2": "OAuth 2.1",
       "status_active": "Connected",
       "status_error": "Error",
       "status_auth_required": "Auth required",
@@ -3254,6 +3256,13 @@
       "edit_id_label": "Identifier of shortcut /{{id}}",
       "edit_text_label": "Inserted text of shortcut /{{id}}"
     },
+    "my_shortcuts": {
+      "title": "My shortcuts",
+      "description": "Pin the settings sections you use most: a floating menu then shows them on every screen, one click away. Drag it where you like, fold it when you don't need it.",
+      "count": "{{current}} / {{max}} pinned",
+      "limit_reached": "Limit reached — unpin one to pin another.",
+      "empty": "Nothing pinned yet: the floating menu appears with the first one."
+    },
     "briefing_grid": {
       "title": "My dashboard",
       "description": "Choose which cards appear on the Today dashboard and in what order. A hidden card is not fetched at all.",
@@ -3548,6 +3557,7 @@
         "display-mode": "cards, rendering, answer format, layout, markdown, plain text",
         "briefing-grid": "home, homepage, dashboard, widgets, cards, briefing, section order",
         "chat-shortcuts": "slash, shortcut, command, quick request, macro, /command, snippet, edit, rename",
+        "my-shortcuts": "shortcut, pin, favorite, floating menu, dock, quick access, sections",
         "open-loops": "commitments, open loops, pending, follow-up, promises, unfinished, nudges",
         "habits": "habits, rhythm, routines, schedule, learned, activity windows, recurring requests, automation suggestions, detection bar, why no habit detected, streak, days in a row, milestone, record, reading presence, app opening, thumbs count, presence",
         "notifications": "push, alerts, banners, mobile, reminders, FCM, native app, Android app, iOS app, wake relay, APNs",
@@ -3595,7 +3605,8 @@
         "admin-diagnostics": "health diagnostics incidents alerts monitoring self-check platform status prometheus loki connectivity egress outbound network embeddings vectors quota memory language runbook evidence logs diagnosis uptime build",
         "meetings": "meeting, recording, minutes, transcription, report, microphone, notes, summary, actions, template, templates, template library, minutes format, default format, automatic format, change the format, sections, instructions, minutes email",
         "admin-registers": "registers, transparency, actions, consultations, export, journal, audit, admin, charts, statistics, figures, overview, initiative, proactive, article 12, complete extraction, turns",
-        "reminders": "reminder, remind me, alert, notification, recurring reminder, repeat, snooze, post-it, recurrence, every day, time window"
+        "reminders": "reminder, remind me, alert, notification, recurring reminder, repeat, snooze, post-it, recurrence, every day, time window",
+        "workboard": "workboard board tickets ticket kanban columns todo backlog"
       }
     },
     "haptics": {
@@ -3660,6 +3671,26 @@
     "meetings": {
       "title": "Meeting minutes",
       "description": "Record a meeting from the chat composer; LIA transcribes it and writes the minutes with your structure."
+    },
+    "workboard": {
+      "title": "Workboard",
+      "description": "Your tickets, and what LIA is allowed to run on its own.",
+      "open_board": "Open the workboard",
+      "needs_you": "{{count}} ticket needs you",
+      "needs_you_one": "{{count}} ticket needs you",
+      "needs_you_other": "{{count}} tickets need you",
+      "nothing_waiting": "Nothing is waiting for you.",
+      "glance": "The board at a glance",
+      "tile_total": "On your board",
+      "tile_overdue": "Overdue",
+      "tile_lia": "With LIA",
+      "tile_needs_me": "Waiting on you",
+      "by_column": "By column",
+      "capacity_label": "Account capacity",
+      "capacity": "{{owned}} / {{max}} tickets",
+      "cost": "Cost of the runs",
+      "runs_one": "{{count}} run",
+      "runs_other": "{{count}} runs"
     }
   },
   "relations": {
@@ -4298,6 +4329,11 @@
       }
     }
   },
+  "shortcuts_dock": {
+    "label": "My shortcuts — move with the arrow keys",
+    "minimize": "Fold the shortcuts",
+    "restore": "Show the shortcuts"
+  },
   "faq": {
     "title": "Frequently Asked Questions",
     "subtitle": "Find answers to the most common questions about LIA",
@@ -4388,7 +4424,7 @@
         },
         "security": {
           "title": "🔐 Multi-Layer Security",
-          "description": "Defence in depth, from sign-in to storage: passkeys, TOTP with backup codes, step-up re-authentication for sensitive actions, and every active session visible and revocable. Underneath, OAuth 2.0 with PKCE, PII filtered out of the logs, isolation between users, encryption at rest, a GDPR export where secret material is unexportable by construction, and daily backups whose restore is tested. A skill runs in a throwaway container with no socket and no network. And any text written by a third party — email, invitation, web page, MCP server — reaches the model tagged as data to analyse, never as instruction."
+          "description": "Defence in depth, from sign-in to storage: passkeys, TOTP with backup codes, step-up re-authentication for sensitive actions, and every active session visible and revocable. Underneath, OAuth 2.1 with PKCE, PII filtered out of the logs, isolation between users, encryption at rest, a GDPR export where secret material is unexportable by construction, and daily backups whose restore is tested. A skill runs in a throwaway container with no socket and no network. And any text written by a third party — email, invitation, web page, MCP server — reaches the model tagged as data to analyse, never as instruction."
         },
         "resilience": {
           "title": "🛡️ Performance & Token Optimization",
@@ -4432,7 +4468,7 @@
         },
         "mcp": {
           "title": "🔌 MCP (Model Context Protocol)",
-          "description": "Full MCP support, aligned on the protocol's current revision — 2026-07-28 — across both of its halves: how a server is spoken to (both generations, with automatic fallback) and how its tool declarations are read, across the full latitude the standard allows. Instance servers and per-user servers, four authentication types (none, API key, bearer token, issuer-bound OAuth 2.1), automatic tool discovery with each tool's readable name, and generated domain descriptions so the router knows what each server is for. A server connected with the user's own account says so wherever the model reads its capabilities: “my” resolves to that account, with no username to ask for."
+          "description": "Full MCP support, aligned on the protocol's current revision — 2026-07-28 — across both of its halves: how a server is spoken to (both generations, with automatic fallback) and how its tool declarations are read. Instance servers and per-user servers, four authentication types (none, API key, bearer token, issuer-bound OAuth 2.1), automatic tool discovery with each tool's readable name, and generated domain descriptions so the router knows what each server is for."
         },
         "mcpApps": {
           "title": "📱 Interactive MCP Apps",
@@ -4520,7 +4556,7 @@
         },
         "reactMode": {
           "title": "⚡ ReAct Execution Mode",
-          "description": "The alternative to the pipeline: the assistant reasons step by step — calling a tool, reading the result, deciding what comes next — through four dedicated nodes with native approval support. The pipeline stays the default and costs 4 to 8× fewer tokens; you switch from the chat header. Each turn starts from a clean data registry, and the agent is told to fetch an exact value rather than recall an approximation. Three guardrails frame the loop: its deadline is measured on compute time, so waiting for your approval no longer eats into it; a tool re-called identically is refused and ends the turn; and tool time has its own budget."
+          "description": "The alternative to the pipeline: the assistant reasons step by step — calling a tool, reading the result, deciding what comes next — through four dedicated nodes with native approval support. The pipeline stays the default and costs 4 to 8× fewer tokens; you switch from the chat header. Each turn starts from a clean data registry, and the agent is told to fetch an exact value rather than recall an approximation."
         },
         "proactiveInitiative": {
           "title": "🎯 Proactive Initiative",
@@ -4560,7 +4596,7 @@
         },
         "plugins": {
           "title": "🧩 Agent Plugins (open standard)",
-          "description": "LIA is a conformant client of the Agent Plugins v1.0.0 open standard (steered by AWS, Microsoft, OpenAI, Cursor and Vercel, adopted by ChatGPT, Codex, Cursor, Copilot and VS Code): one portable package bundling skills and MCP servers. A plugin installs from a zip or a hardened https URL through the same pipeline as individual skills — staged extraction, zip-bomb and path-traversal guards, atomic install with rollback — and returns an exhaustive per-component report rather than a silent partial success. Components keep their plugin provenance, so an update preserves configured credentials and a plugin can never be silently amputated."
+          "description": "LIA is a conformant client of the Agent Plugins v1.0.0 open standard, adopted by ChatGPT, Codex, Cursor, Copilot and VS Code: one portable package bundling skills and MCP servers. A plugin installs from a zip or a hardened https URL through the same pipeline as individual skills — staged extraction, zip-bomb and path-traversal guards, atomic install with rollback — and returns an exhaustive per-component report rather than a silent partial success. Components keep their plugin provenance, so an update preserves configured credentials and a plugin can never be silently amputated."
         },
         "tabularAdmin": {
           "title": "📗 Administration by workbook",
@@ -4580,7 +4616,7 @@
         },
         "selfDiagnostics": {
           "title": "🩺 Self-diagnostics & incident memory",
-          "description": "LIA reads its own telemetry through clients that never fail a request: every outage becomes a typed “unavailable” result. A periodic self-check evaluates the golden signals and probes dependencies directly; alerts and critical verdicts converge into one incident per problem, diagnosed by a budget-capped model that reads a bounded evidence pack — metric breakdowns, a sanitized log excerpt, the running build — plus the alert's runbook, and shows what it read under its verdict. A known outage shapes the answers: degraded capabilities are routed around at planning time, and a failed step is explained from typed error codes, never raw logs."
+          "description": "LIA reads its own telemetry through clients that never fail a request: every outage becomes a typed “unavailable” result. A periodic self-check evaluates the golden signals and probes dependencies directly; alerts and critical verdicts converge into one incident per problem, diagnosed by a budget-capped model that reads a bounded evidence pack — metric breakdowns, a sanitized log excerpt, the running build, the alert's runbook — and shows what it read under its verdict. A known outage shapes the answers: degraded capabilities are routed around at planning time, and a failed step is explained from typed error codes, never raw logs."
         },
         "ephemeralScripts": {
           "title": "🧮 Computed answers, not guessed ones",
@@ -4593,6 +4629,10 @@
         "transparencyRegisters": {
           "title": "📋 Registers of actions and consultations",
           "description": "Three registers, kept automatically and never mixed: what LIA <i>did</i> for you, with its outcome and your confirmation; what it <i>consulted</i> to answer, recorded as the capability and never as what was searched; and what it undertook <i>on its own initiative</i>, which nothing recorded until it got its own tab. An action is written down before it happens, so a success is never inferred from a missing error. A fourth draws the period. Every extraction is complete — nothing truncated, the exact count in the header — and all of it goes with your account."
+        },
+        "workboard": {
+          "title": "🗂️ The workboard",
+          "description": "A ticket is a unit of work with a lifecycle, a holder and a result — what a task list, a reminder and a routine lack. Seven columns, sub-tickets, comments, a history. The holder can be you, a connection, or LIA: given a ticket, LIA picks it up on its own, runs it, comments what it produced and hands it back to validate. Facing an action it cannot take alone, it asks on the ticket instead of refusing, and one comment answers: yes, no, or what to change."
         }
       },
       "diagram_alt": "LIA architecture diagram"
@@ -4601,6 +4641,18 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_44_0": {
+          "title": "v1.44.0 — 🗂️ A board for what you are actually doing",
+          "date": "September 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>🗂️ The workboard</b> — a ticket is a unit of work that has a life: a title, a description, a priority, a due date, sub-tickets, comments and a history. It crosses seven columns, from a plain idea to done. A task list has no lifecycle, a reminder rings once and leaves nothing behind, a routine never ends — this is the surface that was missing between them.",
+            "i2": "<b>🤖 Hand a ticket to LIA and it works on it</b> — LIA takes one ticket at a time, does it on its own, and comments what it found or produced. You get the result to validate, in its own column. If a run is postponed because a quota or a busy conversation got in the way, the ticket says so plainly: postponed is not failed, and the attempt is given back.",
+            "i3": "<b>💬 When LIA needs your agreement, it asks on the ticket</b> — the very card you would have seen in the chat is written there, with what it is about to do. Answer with one comment: <i>yes</i>, <i>no</i>, or what to change. Sending the comment is the answer — the ticket goes straight back to LIA. What you approved is exactly what runs: change one detail and LIA asks again rather than assuming.",
+            "i4": "<b>🔔 It follows up, and Settings shows the board at a glance</b> — an overdue ticket, one due soon, a question left waiting or a result nobody validated comes back in the chat, quoting what is actually waiting instead of paraphrasing it. Settings › Workboard states the totals, the exact count per column and what is on your plate, each one a link into the board already filtered.",
+            "i5": "<b>📌 Pin the settings you actually use</b> — pick up to five sections in Settings › My shortcuts and they follow you on every screen in a small floating capsule. Move it where you like, fold it into a dot, unfold it with one click. What is pinned follows your account from one browser to the next; where the capsule sits belongs to that device."
+          }
+        },
         "v1_43_2": {
           "title": "v1.43.2 — 📊 Documents with the craft their format deserves",
           "date": "September 2026",
@@ -4684,7 +4736,7 @@
           "count": "3",
           "items": {
             "i1": "<b>📄 One file with everything recorded about you</b> — the exports on each register cover one journal apiece. A new <b>unified extraction</b>, below the tabs of <i>Registers</i>, gathers all five records LIA keeps — your turns, the actions, the consultations, the model calls and any gap in the record itself — into a single machine-readable file, as the EU AI Act's Article 12 expects. It is the same file an administrator can produce, narrowed to your account alone: the route it calls takes no account parameter at all, so it can only ever return yours. And it holds no content, with every identifier replaced by a handle — yours included — so you can attach it to a portability request, a complaint or a bug report without editing anything out of it first.",
-            "i2": "<b>🏅 The standards LIA follows, stated on the home page</b> — under the security section, a strip now names them: GDPR, the AI Act's Article 12, the Model Context Protocol, Agent Plugins, agentskills.io, OWASP Top 10, WebAuthn, OAuth 2.0 with PKCE, OpenTelemetry, Prometheus, Keep a Changelog, semantic versioning and WCAG 2.2 AA. An open standard is what makes a promise checkable against a text somebody else wrote.",
+            "i2": "<b>🏅 The standards LIA follows, stated on the home page</b> — under the security section, a strip now names them: GDPR, the AI Act's Article 12, the Model Context Protocol, Agent Plugins, agentskills.io, OWASP Top 10, WebAuthn, OAuth 2.1 with PKCE, OpenTelemetry, Prometheus, Keep a Changelog, semantic versioning and WCAG 2.2 AA. An open standard is what makes a promise checkable against a text somebody else wrote.",
             "i3": "<b>✨ A new card on « More », and guides that stopped narrating releases</b> — the card shows the small invisible decision inside the registers: the line is written <i>before</i> the action happens, and only turns green when the tool says so out loud. And the Story and Why guides no longer recount past releases one by one; they state what those releases established."
           }
         },
@@ -7982,7 +8034,7 @@
           },
           "q2": {
             "question": "How is my data protected?",
-            "answer": "Multiple security levels protect your data:<br><br><strong>🔐 Authentication:</strong><br>• OAuth 2.0 with PKCE (security standard)<br>• Secure server-side sessions (Redis) with HTTP-only cookies<br><br><strong>🔒 Data protection:</strong><br>• Encryption in transit (HTTPS/TLS)<br>• HTTP-only cookies (XSS protection)<br>• Built-in CSRF protection<br><br><strong>🛡️ Personal Information Protection (PII):</strong><br>• Your sensitive data (emails, contacts) remain confidential<br>• Never shared with unauthorized third-party services<br>• Minimal access to external APIs<br><br><strong>📋 Best practices:</strong><br>• Automatic logout after inactivity<br>• Ability to revoke connector access<br>• Audit logs of sensitive actions<br><br><strong>💾 Durability:</strong><br>• Automatic daily database backups (7 days / 4 weeks / 6 months of history kept)<br>• Restore procedure tested for real — an incident cannot cost you more than the last day<br><br><strong>🧬 Software supply chain:</strong><br>• Every release ships a locked, cryptographically verified list of components (reproducible builds)<br>• All dependencies — including indirect ones — are automatically scanned for known vulnerabilities"
+            "answer": "Multiple security levels protect your data:<br><br><strong>🔐 Authentication:</strong><br>• OAuth 2.1 with PKCE (security standard)<br>• Secure server-side sessions (Redis) with HTTP-only cookies<br><br><strong>🔒 Data protection:</strong><br>• Encryption in transit (HTTPS/TLS)<br>• HTTP-only cookies (XSS protection)<br>• Built-in CSRF protection<br><br><strong>🛡️ Personal Information Protection (PII):</strong><br>• Your sensitive data (emails, contacts) remain confidential<br>• Never shared with unauthorized third-party services<br>• Minimal access to external APIs<br><br><strong>📋 Best practices:</strong><br>• Automatic logout after inactivity<br>• Ability to revoke connector access<br>• Audit logs of sensitive actions<br><br><strong>💾 Durability:</strong><br>• Automatic daily database backups (7 days / 4 weeks / 6 months of history kept)<br>• Restore procedure tested for real — an incident cannot cost you more than the last day<br><br><strong>🧬 Software supply chain:</strong><br>• Every release ships a locked, cryptographically verified list of components (reproducible builds)<br>• All dependencies — including indirect ones — are automatically scanned for known vulnerabilities"
           },
           "q3": {
             "question": "What data does LIA collect?",
@@ -8280,6 +8332,45 @@
           "q8": {
             "question": "Can I change the format of minutes already written?",
             "answer": "Yes, as long as the transcript is kept. On the meeting page, <strong>Change the format…</strong> offers two outcomes: <strong>replace</strong> the existing minutes, or get <strong>new minutes</strong> from the same meeting. The new ones keep the link to their origin — the original meeting states how many minutes came out of it — and join the knowledge space as a document of their own, with their own cost.<br><br>That is what lets you read one meeting two ways: the working minutes on one side, the full cleaned-up transcript on the other, or an analysis format when you want to look at the exchange rather than its conclusions. <strong>Rebuild</strong> stays next to it: it rewrites the minutes with <em>the same</em> format, useful right after you changed your sections.<br><br><strong>💡 Good to know:</strong> rewriting costs a new synthesis, billed like the first one, and the dialog says so before you confirm. If you delete the transcript, the minutes stay readable but can no longer be rewritten."
+          }
+        }
+      },
+      "workboard": {
+        "title": "Workboard",
+        "description": "A ticket has a lifecycle, a holder and a result — yours, a connection's, or LIA's.",
+        "count": "8",
+        "questions": {
+          "q1": {
+            "question": "What is the workboard for?",
+            "answer": "For everything that takes more than one moment. A task list has no lifecycle and nobody carrying it; a reminder rings once and leaves nothing behind; a routine repeats forever without ever finishing. A <strong>ticket</strong> has a title, a description, a priority, a start date and a due date, sub-tickets, comments and a history — and it moves across seven columns, from a plain idea to done. Open it from <strong>Workboard</strong> in the header."
+          },
+          "q2": {
+            "question": "What do the columns mean?",
+            "answer": "<strong>Idea</strong>: noted, not committed to — LIA never runs one. <strong>To do</strong>: ready to be picked up. <strong>In progress</strong>: being worked on, by you or by LIA. <strong>Waiting</strong>: stopped, waiting on a decision from you. <strong>To confirm</strong>: LIA has built something it cannot do alone and is asking — this column only appears while it holds a ticket. <strong>Validating</strong>: LIA has delivered, it is up to you to accept. <strong>Done</strong>: finished, including something you decided not to do — the reason stays in the ticket's history."
+          },
+          "q3": {
+            "question": "How do I hand a ticket to LIA?",
+            "answer": "Open the ticket and set <strong>Held by</strong> to LIA — or pick LIA when you create it. From then on LIA takes it in its own time: it picks up one ticket at a time, runs it, and comments what it found or produced. The ticket moves to <strong>Validating</strong> with the answer, or comes back to you with a question. You can also press <strong>Run now</strong> to put it at the front of the queue. What LIA reads is your own words — the title, the description, and for a sub-ticket the parent's title: comments never enter the instruction, so nobody else can steer a run through them."
+          },
+          "q4": {
+            "question": "What happens when LIA needs my agreement?",
+            "answer": "It stops and asks on the ticket instead of doing it or giving up. The ticket lands in <strong>To confirm</strong>, and LIA writes exactly the card you would have seen in the chat: what it is about to do, field by field. Reply with one comment — <em>yes</em>, <em>no</em>, or what you want changed — and that is the whole answer: the ticket goes back to LIA on its own. If you changed something, LIA rebuilds and asks again rather than assuming; what you approved is what runs, and nothing wider."
+          },
+          "q5": {
+            "question": "Can I share a ticket with someone?",
+            "answer": "Yes, with anyone you are connected to on this instance. Set <strong>Held by</strong> to them and the ticket appears on their board too — it is the same ticket, so the two of you can never read two different versions of it. They can move it, comment, set their own notifications and hand it back; the title, the description, deletion and reassignment stay yours. If the connection ends, every ticket held either way comes back to its owner automatically. What you cannot do is hand a ticket to someone else's LIA: the instruction is yours, and running it unattended with their tools would put their data in a comment you read."
+          },
+          "q6": {
+            "question": "Will LIA remind me?",
+            "answer": "It brings back what deserves a word, with the reason it did: a due date that has passed, one coming up, a question of its own left waiting too long, or a result nobody has validated. It quotes what is actually waiting rather than paraphrasing it, and it does not repeat itself — a ticket it mentioned stays quiet for a couple of days. Each ticket carries its own <strong>Notify me in the chat</strong> switch, so a ticket you would rather handle silently stays on the board without ever speaking. One message is never filtered: being handed a ticket, because nobody subscribes to a ticket they do not know they hold yet."
+          },
+          "q7": {
+            "question": "What does it cost, and where do I see it?",
+            "answer": "A run LIA does for you is billed to your account like any other, and the ticket adds it up: the panel shows the last run's tokens and cost, and the ticket's total across its life. A run refused by your usage ceiling is not a failure — it is postponed, the attempt is given back, and the ticket says so. <strong>Settings › Workboard</strong> shows the whole board at a glance: totals, what is overdue, what LIA holds, what is on your plate, an exact count per column, and your capacity against its ceiling."
+          },
+          "q8": {
+            "question": "Are there limits?",
+            "answer": "Yes, and they are all published rather than hidden: how many tickets an account may own, how many sub-tickets a ticket may have, how many times LIA may run the same ticket in its life, how long a run may take, and how long a hidden run transcript is kept after a ticket closes. Titles, descriptions and comments have a length. Your instance's administrator sets them; a refusal always names the limit it hit instead of failing silently."
           }
         }
       }
@@ -8581,6 +8672,10 @@
       "slide_never_overflows": {
         "title": "Nothing runs off the slide",
         "desc": "Before placing text, LIA measures it. A crowded slide is shrunk, then split in two rather than clipped, and an over-long bullet stops at the end of a sentence, never mid-word. An ideograph counts double, because it takes the room of two letters."
+      },
+      "pinned_dock": {
+        "title": "Your settings, wherever you are",
+        "desc": "Pin the sections you use; a small capsule carries them on every screen."
       }
     },
     "scenes": {
@@ -9177,6 +9272,7 @@
     "source_health_signals": "Health",
     "source_birthdays": "Birthdays",
     "source_open_loops": "Commitments",
+    "source_workboard": "Workboard",
     "source_habits": "Habits",
     "source_departure": "Leave-by advice",
     "source_not_connected": "Not connected",
@@ -9927,6 +10023,10 @@
       "meetings": {
         "title": "Record a meeting, get the minutes",
         "description": "A button in the header — or the menu entry on a phone — and your device records the meeting, a banner following you on every page while you keep talking with LIA. When you stop, LIA transcribes everything and writes the minutes in the format that fits: thirty built-in templates cover team reviews, interviews, personal appointments, lectures — LIA picks one from what was said, or you impose your own. Read them in the chat, download the PDF, get them by email, rewrite them in another format, and ask LIA about them weeks later. Nothing invented: a gap is stated, an unnamed speaker stays unnamed, and what it cost is written next to it."
+      },
+      "workboard": {
+        "title": "A board for what you are actually doing",
+        "description": "A ticket is not a line in a list: it has a lifecycle, someone carrying it and a result. Seven columns from a plain idea to done, sub-tickets, comments, a history — and a holder who can be you, someone you are connected to on the same instance, or LIA itself. Hand LIA a ticket and it picks it up on its own, does the work, comments what it found and hands the result back for you to validate. When it meets something it cannot do alone, it does not give up and does not decide for you: it asks on the ticket, showing exactly what it is about to do, and one comment answers — yes, no, or what to change. It follows up on what is overdue or left waiting, quoting what is really pending, and every ticket has its own switch for whether the chat says anything at all."
       }
     },
     "use_cases": {
@@ -10637,7 +10737,7 @@
       "human-in-the-loop": {
         "title": "Human-in-the-Loop: 6 Approval Levels to Keep You in Control",
         "excerpt": "LIA never takes critical actions without your consent. Its 6-level HITL system protects you against errors and hallucinations.",
-        "body": "<h2>Why human validation is essential</h2><p>Language models can hallucinate or misinterpret intent. LIA solves this by placing <strong>humans at the center of every critical decision</strong>. No email is sent, no event created, no data modified without your explicit validation.</p><h2>The 6 approval levels</h2><p>LIA's HITL system classifies each action into 6 levels:</p><ul><li><strong>Plan Approval</strong> — Before executing a multi-step plan, LIA generates a <code>PlanApprovalRequest</code> containing a plan summary and modifiable parameters, then waits for your go-ahead.</li><li><strong>Clarification</strong> — If intent is ambiguous, LIA asks for details rather than guessing.</li><li><strong>Draft Critique</strong> — For emails or messages, LIA submits a draft for approval before sending.</li><li><strong>Destructive Confirmation</strong> — Any deletion or irreversible modification requires explicit confirmation.</li><li><strong>FOR_EACH Confirmation</strong> — For batch operations, each item can be validated individually.</li><li><strong>Modifier Review</strong> — Parameter changes are presented for verification.</li></ul><h2>5 possible decisions with confidence</h2><p>The HITL classifier produces a <strong>ClassificationResult</strong> with 5 possible decisions, each accompanied by a confidence score between 0.0 and 1.0:</p><ul><li><strong>APPROVE</strong> — The action is validated and passes to the <code>task_orchestrator</code></li><li><strong>REJECT</strong> — The action is refused, the flow is redirected to the <code>response</code> node</li><li><strong>EDIT</strong> — The user modifies parameters via <code>edited_params</code>, a <code>PlanEditor</code> applies the changes</li><li><strong>REPLAN</strong> — The user reformulates their intent via <code>reformulated_intent</code>, the flow returns to the <code>planner</code></li><li><strong>AMBIGUOUS</strong> — The system asks a <code>clarification_question</code> to resolve the ambiguity</li></ul><h2>Native LangGraph interruption</h2><p>Technically, the <code>approval_gate</code> node uses LangGraph's <code>interrupt()</code> function to <strong>suspend graph execution</strong> and wait for the user's response. The state is persisted in PostgreSQL, allowing asynchronous resumption even after a disconnection.</p><h2>You always have the last word</h2><p>At each validation point, classification strategies are composable: based on tool manifests, estimated cost, data sensitivity, and user role. LIA never bypasses this step.</p><p>And that last word is honored to the letter: review loops follow a replay-safe pattern (one <code>interrupt()</code> per node execution, checkpointed loop state — ADR-092), so a resume never replays a past LLM or API call. What you approve, after as many edits as you need, is exactly what gets executed.</p><h2>Validate once, never twice</h2><p>A safeguard in the wrong place works against its own intent. Upstream of the plan, a semantic validator could halt on an action it judged \"irreversible\" — sending an email, booking an appointment, placing a call — while a preview and an explicit confirmation were arriving right after, on exactly the same action. The user had to <strong>insist in order to be obeyed</strong>.</p><p>The rule is now written down: an action that already carries its own confirmation downstream is never halted upstream. The validator judges the <strong>structure</strong> of the plan — missing parameter, wrong tool, inconsistent cardinality — and not how consequential the action feels. Asking the same question twice adds no safety: it shifts the burden onto the user and eventually teaches them to click without reading.</p>"
+        "body": "<h2>Why human validation is essential</h2><p>Language models can hallucinate or misinterpret intent. LIA solves this by placing <strong>humans at the center of every critical decision</strong>. No email is sent, no event created, no data modified without your explicit validation.</p><h2>The 6 approval levels</h2><p>LIA's HITL system classifies each action into 6 levels:</p><ul><li><strong>Plan Approval</strong> — Before executing a multi-step plan, LIA generates a <code>PlanApprovalRequest</code> containing a plan summary and modifiable parameters, then waits for your go-ahead.</li><li><strong>Clarification</strong> — If intent is ambiguous, LIA asks for details rather than guessing.</li><li><strong>Draft Critique</strong> — For emails or messages, LIA submits a draft for approval before sending.</li><li><strong>Destructive Confirmation</strong> — Any deletion or irreversible modification requires explicit confirmation.</li><li><strong>FOR_EACH Confirmation</strong> — For batch operations, each item can be validated individually.</li><li><strong>Modifier Review</strong> — Parameter changes are presented for verification.</li></ul><h2>5 possible decisions with confidence</h2><p>The HITL classifier produces a <strong>ClassificationResult</strong> with 5 possible decisions, each accompanied by a confidence score between 0.0 and 1.0:</p><ul><li><strong>APPROVE</strong> — The action is validated and passes to the <code>task_orchestrator</code></li><li><strong>REJECT</strong> — The action is refused, the flow is redirected to the <code>response</code> node</li><li><strong>EDIT</strong> — The user modifies parameters via <code>edited_params</code>, a <code>PlanEditor</code> applies the changes</li><li><strong>REPLAN</strong> — The user reformulates their intent via <code>reformulated_intent</code>, the flow returns to the <code>planner</code></li><li><strong>AMBIGUOUS</strong> — The system asks a <code>clarification_question</code> to resolve the ambiguity</li></ul><h2>Native LangGraph interruption</h2><p>Technically, the <code>approval_gate</code> node uses LangGraph's <code>interrupt()</code> function to <strong>suspend graph execution</strong> and wait for the user's response. The state is persisted in PostgreSQL, allowing asynchronous resumption even after a disconnection.</p><h2>You always have the last word</h2><p>At each validation point, classification strategies are composable: based on tool manifests, estimated cost, data sensitivity, and user role. LIA never bypasses this step.</p><p>And that last word is honored to the letter: review loops follow a replay-safe pattern (one <code>interrupt()</code> per node execution, checkpointed loop state — ADR-092), so a resume never replays a past LLM or API call. What you approve, after as many edits as you need, is exactly what gets executed.</p><h2>Validate once, never twice</h2><p>A safeguard in the wrong place works against its own intent. Upstream of the plan, a semantic validator could halt on an action it judged \"irreversible\" — sending an email, booking an appointment, placing a call — while a preview and an explicit confirmation were arriving right after, on exactly the same action. The user had to <strong>insist in order to be obeyed</strong>.</p><p>The rule is now written down: an action that already carries its own confirmation downstream is never halted upstream. The validator judges the <strong>structure</strong> of the plan — missing parameter, wrong tool, inconsistent cardinality — and not how consequential the action feels. Asking the same question twice adds no safety: it shifts the burden onto the user and eventually teaches them to click without reading.</p><h2>The same levels, outside a conversation</h2><p>An assistant that works on its own runs into the same wall: it has prepared something it may not do alone, and there is nobody in front of it. Refusing would waste the work; doing it anyway would break the rule. On the workboard it does neither — it <strong>asks on the ticket</strong>. The card you would have seen in the chat is written there, field by field, and answering is one comment: yes, no, or what to change.</p><p>What you approve is what runs, and nothing wider: the assistant publishes the identity of exactly what it showed you, and the action is replayed only against that identity. Change one detail and it rebuilds and asks again rather than assuming your answer still applies. A batch of drafts counts as one thing: every item is shown, and the batch is what gets approved — never its first element.</p>"
       },
       "llm-providers": {
         "title": "Multi-Provider AI: choose the right model for every task",
@@ -10657,7 +10757,7 @@
       "mcp-protocol": {
         "title": "Model Context Protocol: Extend LIA Infinitely",
         "excerpt": "Using Anthropic's MCP protocol, LIA can connect to any external service: databases, business APIs, internal tools, and more.",
-        "body": "<h2>What is MCP?</h2><p>The <strong>Model Context Protocol (MCP)</strong> is an open standard developed by Anthropic that enables AI assistants to connect to external tool servers. LIA implements this protocol with <strong>per-user MCP servers</strong>, offering unlimited and personalized extensibility.</p><h2>Tool discovery and integration</h2><p>You configure your MCP servers in the LIA interface. On connection, LIA calls <code>list_tools()</code> on each server to dynamically discover available tools. Each MCP tool is wrapped via <strong>MCPToolAdapter</strong> which extends LangChain's <code>BaseTool</code>, enabling seamless integration into the agent's tool catalog. MCP tools are then usable exactly like native tools.</p><h2>Secure transport</h2><p>LIA exclusively uses <strong>Streamable HTTP</strong> transport for MCP servers. The stdio transport is <strong>disabled for security reasons</strong> (risk of arbitrary process execution). Each server is subject to individual rate limiting via <code>asyncio.Lock</code> to prevent overload.</p><h2>4 authentication types</h2><p>Each MCP server supports one of 4 authentication types:</p><ul><li><strong>NONE</strong> — No authentication (public or internal servers)</li><li><strong>API_KEY</strong> — API key transmitted in headers</li><li><strong>BEARER</strong> — Bearer token for standard REST APIs</li><li><strong>OAUTH2</strong> — Full OAuth 2.0 with PKCE</li></ul><p>All credentials are <strong>encrypted with Fernet</strong> (AES-128 CBC + HMAC) before database storage. No secret is exposed in plaintext.</p><h2>Multi-layer security</h2><p>MCP security relies on several mechanisms:</p><ul><li><strong>Mandatory HITL</strong> — All MCP tools are subject to Human-in-the-Loop validation by default</li><li><strong>SSRF protection</strong> — The <code>validate_http_endpoint()</code> function blocks URLs pointing to internal networks (127.0.0.1, 10.x, 192.168.x, etc.)</li><li><strong>Health checks</strong> — Each MCP server's status is monitored via a dedicated Prometheus gauge</li><li><strong>Configurable limits</strong> — Number of servers (10), tools per server (20), timeout per call (30s)</li></ul><h2>Iterative mode (ReAct)</h2><p>Some MCP servers have complex APIs where the static planner can't generate correct parameters upfront. With <strong>iterative mode</strong>, a dedicated ReAct agent reads the server's documentation first, understands the expected format, then calls tools with correct parameters. This is powered by a generic <strong>ReactSubAgentRunner</strong> — the same engine used by browser control. Enable it per-server with the <code>iterative_mode</code> toggle.</p><h2>MCP servers by the box: Agent Plugins</h2><p>Beyond declaring servers one by one, LIA is a conformant client of the open <strong>Agent Plugins</strong> standard (agent-plugins.org): a portable package bundling MCP servers and skills, the same format ChatGPT, Cursor, GitHub Copilot and VS Code install. Each server a plugin brings carries its provenance, keeps its configured credentials across plugin updates, and leaves only with the plugin's group uninstall — with a full per-component report at every install, including what was skipped and why.</p><h2>Reading what a server declares</h2><p>Speaking the protocol is only half of it. The other half is understanding what a server says about its own tools — and the current revision, <strong>2026-07-28</strong>, is deliberately generous there: a tool's parameters are described in JSON Schema 2020-12, and <em>any</em> keyword of that standard is allowed. The same optional parameter can be written as a union of types or as an <code>anyOf</code>; a nested structure can be declared inline or through an internal reference; a closed set can be an <code>enum</code> or a single constant. A client that only understands the simplest form does not fail loudly — it quietly ends up with fewer tools than the server offered.</p><p>LIA reads the full latitude, through a single implementation shared by the two places that need it: the signature offered to the model, and the entry the planner reasons over. Two readings of one declaration always end up disagreeing, so there is one. And every function in it answers for whatever a server sends, because raising an exception there would cost a tool — and a lost tool is a capability you no longer have without anyone telling you.</p><p>What a server enforces is passed on rather than kept: closed sets, bounds and sizes reach the planner, so it proposes a value the server will accept instead of guessing one it will refuse. Behaviour hints are read too, but in one direction only — the specification requires a client to treat them as untrusted, so a tool declared destructive always asks for confirmation, while a server claiming to be harmless never earns one less.</p>"
+        "body": "<h2>What is MCP?</h2><p>The <strong>Model Context Protocol (MCP)</strong> is an open standard developed by Anthropic that enables AI assistants to connect to external tool servers. LIA implements this protocol with <strong>per-user MCP servers</strong>, offering unlimited and personalized extensibility.</p><h2>Tool discovery and integration</h2><p>You configure your MCP servers in the LIA interface. On connection, LIA calls <code>list_tools()</code> on each server to dynamically discover available tools. Each MCP tool is wrapped via <strong>MCPToolAdapter</strong> which extends LangChain's <code>BaseTool</code>, enabling seamless integration into the agent's tool catalog. MCP tools are then usable exactly like native tools.</p><h2>Secure transport</h2><p>LIA exclusively uses <strong>Streamable HTTP</strong> transport for MCP servers. The stdio transport is <strong>disabled for security reasons</strong> (risk of arbitrary process execution). Each server is subject to individual rate limiting via <code>asyncio.Lock</code> to prevent overload.</p><h2>4 authentication types</h2><p>Each MCP server supports one of 4 authentication types:</p><ul><li><strong>NONE</strong> — No authentication (public or internal servers)</li><li><strong>API_KEY</strong> — API key transmitted in headers</li><li><strong>BEARER</strong> — Bearer token for standard REST APIs</li><li><strong>OAUTH2</strong> — Full OAuth 2.1 with PKCE</li></ul><p>All credentials are <strong>encrypted with Fernet</strong> (AES-128 CBC + HMAC) before database storage. No secret is exposed in plaintext.</p><h2>Multi-layer security</h2><p>MCP security relies on several mechanisms:</p><ul><li><strong>Mandatory HITL</strong> — All MCP tools are subject to Human-in-the-Loop validation by default</li><li><strong>SSRF protection</strong> — The <code>validate_http_endpoint()</code> function blocks URLs pointing to internal networks (127.0.0.1, 10.x, 192.168.x, etc.)</li><li><strong>Health checks</strong> — Each MCP server's status is monitored via a dedicated Prometheus gauge</li><li><strong>Configurable limits</strong> — Number of servers (10), tools per server (20), timeout per call (30s)</li></ul><h2>Iterative mode (ReAct)</h2><p>Some MCP servers have complex APIs where the static planner can't generate correct parameters upfront. With <strong>iterative mode</strong>, a dedicated ReAct agent reads the server's documentation first, understands the expected format, then calls tools with correct parameters. This is powered by a generic <strong>ReactSubAgentRunner</strong> — the same engine used by browser control. Enable it per-server with the <code>iterative_mode</code> toggle.</p><h2>MCP servers by the box: Agent Plugins</h2><p>Beyond declaring servers one by one, LIA is a conformant client of the open <strong>Agent Plugins</strong> standard (agent-plugins.org): a portable package bundling MCP servers and skills, the same format ChatGPT, Cursor, GitHub Copilot and VS Code install. Each server a plugin brings carries its provenance, keeps its configured credentials across plugin updates, and leaves only with the plugin's group uninstall — with a full per-component report at every install, including what was skipped and why.</p><h2>Reading what a server declares</h2><p>Speaking the protocol is only half of it. The other half is understanding what a server says about its own tools — and the current revision, <strong>2026-07-28</strong>, is deliberately generous there: a tool's parameters are described in JSON Schema 2020-12, and <em>any</em> keyword of that standard is allowed. The same optional parameter can be written as a union of types or as an <code>anyOf</code>; a nested structure can be declared inline or through an internal reference; a closed set can be an <code>enum</code> or a single constant. A client that only understands the simplest form does not fail loudly — it quietly ends up with fewer tools than the server offered.</p><p>LIA reads the full latitude, through a single implementation shared by the two places that need it: the signature offered to the model, and the entry the planner reasons over. Two readings of one declaration always end up disagreeing, so there is one. And every function in it answers for whatever a server sends, because raising an exception there would cost a tool — and a lost tool is a capability you no longer have without anyone telling you.</p><p>What a server enforces is passed on rather than kept: closed sets, bounds and sizes reach the planner, so it proposes a value the server will accept instead of guessing one it will refuse. Behaviour hints are read too, but in one direction only — the specification requires a client to treat them as untrusted, so a tool declared destructive always asks for confirmation, while a server claiming to be harmless never earns one less.</p>"
       },
       "skills-system": {
         "title": "Skills: Expert Instructions to Customize LIA",
@@ -10705,9 +10805,9 @@
         "body": "<h2>Privacy by design</h2><p>LIA is designed from the ground up with data protection as a founding principle, not an afterthought.</p><h2>Fernet symmetric encryption</h2><p>All sensitive data is encrypted with <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256) via the <code>encrypt_data()</code> function. This covers OAuth tokens, connector credentials, PII, and MCP server credentials. OAuth credentials are encrypted before database writes and decrypted on-the-fly during retrieval. Encryption keys are managed separately from data.</p><h2>Collection minimization</h2><p>LIA only collects data strictly necessary for its operation:</p><ul><li>Profile information (name, email, preferences)</li><li>Conversation history (encrypted)</li><li>Service connection tokens (encrypted)</li><li>Anonymized usage metrics</li></ul><h2>Deletion and cascading</h2><p>Deleting a user account triggers a complete <strong>cascading delete</strong>: connectors, conversations, settings, sessions, memories, and all associated data are irreversibly deleted. No orphaned data persists in the database.</p><h2>Secure sessions and cookies</h2><p>Session cookies are configured with <code>HttpOnly</code>, <code>Secure</code> (in production), and <code>SameSite=lax</code> attributes. Session duration is 7 days by default, extendable to 30 days with the \"Remember me\" option. Single-use tokens are invalidated after first use via a Redis blacklist.</p><h2>External content protection</h2><p>Content retrieved from external sources (emails, web pages, documents) is tagged as <code>UNTRUSTED</code> with configurable wrapping before injection into prompts. The web_fetch tool is rate limited to 10 calls per 60-second window per user to prevent abuse.</p><h2>PII filtering in logs</h2><p>The logging system applies <strong>OWASP Logging Cheat Sheet</strong> recommendations to automatically filter personal data from application logs. No sensitive data appears in logs.</p><h2>Data portability (v1.9.1)</h2><p>LIA allows each user to <strong>export their own consumption data</strong> as CSV from Settings > Features. Three export types: LLM consumption (tokens and costs per call), Google API consumption, and aggregated summary. Security: the <code>user_id</code> is forced server-side — no parameter is exposed, preventing access to other users' data (IDOR protection).</p><h2>Backups with a proven restore</h2><p>Protecting data also means making sure it survives incidents. The production database is backed up automatically every night, with 7 days, 4 weeks and 6 months of history kept, in a dedicated directory with restrictive permissions. And because a backup only counts once a restore has been proven, the procedure is tested for real: the latest dump is restored into a disposable container and compared against the live database (schema revision, row counts) — a drill that ships with the stack.</p><h2>A complete record, not a sample</h2><p>Three registers kept automatically say what LIA <strong>did</strong> for you, what it <strong>consulted</strong> to answer you, and what it undertook <strong>on its own initiative</strong>. They carry no content: a consultation keeps the capability — \"your calendar\" — and never what was searched for, because writing it down would copy the very data the register exists to make accountable.</p><p>The record you download from <strong>Settings &gt; Registers</strong> is <strong>complete</strong>. It used to carry a row ceiling: a real protection, since the whole document was assembled in memory on a Raspberry Pi, but applied to the wrong variable. What was scarce was memory; what was bounded was the truth. A server-side cursor now bounds the buffer: whatever the volume, the file carries everything your filters name, the exact count is stated in the header alongside the instant of generation, and the download is compressed on the fly when your browser accepts it.</p>"
       },
       "observability": {
-        "title": "541 Prometheus Metrics, 28 Grafana Dashboards, and Langfuse Tracing",
-        "excerpt": "LIA offers enterprise-grade observability with 473 metrics, dedicated Grafana dashboards, LLM tracing via Langfuse, and email alerting with runbooks.",
-        "body": "<h2>The three pillars of observability</h2><p>LIA implements the three pillars of modern observability:</p><ul><li><strong>Metrics</strong> — 541 Prometheus metrics covering HTTP, agents, tokens, costs, OAuth, and performance</li><li><strong>Logs</strong> — Structured JSON logging via structlog, centralized in Loki with PII filtering</li><li><strong>Traces</strong> — Distributed tracing via OpenTelemetry (Tempo) and LLM tracing via Langfuse</li></ul><h2>23 specialized metrics files</h2><p>Each domain has its own declarative metrics file. The 23 modules cover: HTTP, agents (SSE/router/LLM/HITL/planner), database, LangGraph, Langfuse, voice, RAG spaces, OAuth, channels, errors, sub-agents, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, health metrics, journals, telephony, and usage limits. Each file defines domain-specific Prometheus Counter, Histogram, and Gauge metrics.</p><h2>Prometheus metrics definition</h2><p>Each domain defines its metrics declaratively:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>28 Grafana dashboards</h2><p>LIA provides 28 Grafana dashboards numbered 01 to 28: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony, briefing, product-value, meetings, and effect-ledger. Each dashboard offers views filterable by user, time period, and environment. The 26th is a product cockpit: validated outcomes (explicit 👍 or an action left uncorrected), activation funnel, retention and cost per useful result — the exact counting lives in PostgreSQL and Grafana reads it through a read-only role restricted to aggregate views.</p><h2>Target KPIs from code</h2><p>LIA monitors precise indicators defined in source code: streaming TTFT (Time To First Token), router latency between 0.1 and 2 seconds, agent tool execution duration between 0.1 and 10 seconds, router confidence p50 &gt; 0.8, LLM cost per request &lt; €0.05, HTTP 5xx error rate &lt; 1%.</p><h2>Email alerts with runbooks</h2><p>Supervision doesn't stop at dashboards: a core of 14 vital alerts — API, PostgreSQL or Redis down, disk, container memory, 5xx error rate, streaming latency, failed nightly backup, unreachable public URL, TLS certificate close to expiry, rate limiting running blind — is continuously evaluated by Prometheus and delivered by email through Alertmanager. Every alert references its runbook (step-by-step resolution procedure), thresholds are set per environment in .env files, and promtool unit tests guarantee that the thresholds displayed in notifications match the firing expressions exactly. A blackbox probe even tests the whole chain end to end, from the Cloudflare edge to the frontend, exactly like a user would.</p><h2>Langfuse: dedicated LLM tracing</h2><p>The Langfuse integration has 8 dedicated metrics to trace every LLM call: consumed tokens (input/output/cache), response time, model used, estimated cost, and request context. This identifies inefficient prompts, compares LLM models against each other, and optimizes token consumption over time.</p><h2>DevOps Claude CLI: Natural Language Diagnostics (v1.13.0)</h2><p>Latest evolution of the observability stack: administrators can now diagnose servers directly from the LIA conversation. By simply asking \"Check the logs to see if everything is working\", Claude Code CLI — installed in the API Docker container — independently inspects logs, checks container health, analyzes resource usage and reports its findings. Persistent sessions for multi-turn investigations, configurable permissions per environment (prod read-only, dev full access), and real-time streaming of investigation steps via SSE.</p><h2>And since v1.34: the assistant reads its own telemetry</h2><p>All of the above existed for humans; the assistant itself read none of it. ADR-247 closed that loop: a periodic self-check turns the golden signals plus direct probes into health snapshots with exact values; alerts and critical verdicts converge into one incident per outage, diagnosed by a budget-capped LLM grounded on the operations runbooks; administrators get a Platform health panel, proactive notifications and read-only chat tools. And a known outage now shapes answers — degraded capabilities are routed around at planning time, and failed steps are explained from typed error codes, never raw logs. Since then the diagnosis is no longer written from a number alone: a recipe declared per kind of incident says which breakdowns and which log events to read, the pack is collected at the moment of the diagnosis with personal data removed, a source it could not reach is stated as unavailable rather than read as silence, and what the model read is shown under its verdict.</p><h2>Counting outcomes, not attempts</h2><p>One counter had to be rethought in v1.38.3. Counting the calls that reach a provider is the truth about the provider — and the wrong denominator the moment those calls are retried, because a failure that was recovered inflates the error rate while nothing was actually lost. A second counter now records one row per logical operation, retries collapsed, and answers the only question an operator acts on: did the caller get its result? A third says what the rate shaper did with each attempt, because “the budget is too small” and “Redis is down” look identical in a boolean and call for opposite actions.</p><p>The most recent lesson is about choosing what to measure. The autonomous loop had counters for its iterations and its duration — and none for the thing that actually grows: the prompt delivered to the model at each step. Measured on production code, that is 2.3k tokens at the first iteration and 112k at the ninetieth, because every tool result stays in the conversation the model re-reads. Two histograms now record the delivered size and its share of the model's context window, fed by the same memoized counter the state reducer already maintains, so the measurement costs nothing on the hot path. No compression policy shipped with them, deliberately: a system that acts on a quantity it has never observed is optimising a guess.</p>"
+        "title": "547 Prometheus Metrics, 28 Grafana Dashboards, and Langfuse Tracing",
+        "excerpt": "LIA offers enterprise-grade observability with 547 metrics, dedicated Grafana dashboards, LLM tracing via Langfuse, and email alerting with runbooks.",
+        "body": "<h2>The three pillars of observability</h2><p>LIA implements the three pillars of modern observability:</p><ul><li><strong>Metrics</strong> — 547 Prometheus metrics covering HTTP, agents, tokens, costs, OAuth, and performance</li><li><strong>Logs</strong> — Structured JSON logging via structlog, centralized in Loki with PII filtering</li><li><strong>Traces</strong> — Distributed tracing via OpenTelemetry (Tempo) and LLM tracing via Langfuse</li></ul><h2>23 specialized metrics files</h2><p>Each domain has its own declarative metrics file. The 23 modules cover: HTTP, agents (SSE/router/LLM/HITL/planner), database, LangGraph, Langfuse, voice, RAG spaces, OAuth, channels, errors, sub-agents, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, health metrics, journals, telephony, and usage limits. Each file defines domain-specific Prometheus Counter, Histogram, and Gauge metrics.</p><h2>Prometheus metrics definition</h2><p>Each domain defines its metrics declaratively:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>28 Grafana dashboards</h2><p>LIA provides 28 Grafana dashboards numbered 01 to 28: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony, briefing, product-value, meetings, and effect-ledger. Each dashboard offers views filterable by user, time period, and environment. The 26th is a product cockpit: validated outcomes (explicit 👍 or an action left uncorrected), activation funnel, retention and cost per useful result — the exact counting lives in PostgreSQL and Grafana reads it through a read-only role restricted to aggregate views.</p><h2>Target KPIs from code</h2><p>LIA monitors precise indicators defined in source code: streaming TTFT (Time To First Token), router latency between 0.1 and 2 seconds, agent tool execution duration between 0.1 and 10 seconds, router confidence p50 &gt; 0.8, LLM cost per request &lt; €0.05, HTTP 5xx error rate &lt; 1%.</p><h2>Email alerts with runbooks</h2><p>Supervision doesn't stop at dashboards: a core of 14 vital alerts — API, PostgreSQL or Redis down, disk, container memory, 5xx error rate, streaming latency, failed nightly backup, unreachable public URL, TLS certificate close to expiry, rate limiting running blind — is continuously evaluated by Prometheus and delivered by email through Alertmanager. Every alert references its runbook (step-by-step resolution procedure), thresholds are set per environment in .env files, and promtool unit tests guarantee that the thresholds displayed in notifications match the firing expressions exactly. A blackbox probe even tests the whole chain end to end, from the Cloudflare edge to the frontend, exactly like a user would.</p><h2>Langfuse: dedicated LLM tracing</h2><p>The Langfuse integration has 8 dedicated metrics to trace every LLM call: consumed tokens (input/output/cache), response time, model used, estimated cost, and request context. This identifies inefficient prompts, compares LLM models against each other, and optimizes token consumption over time.</p><h2>DevOps Claude CLI: Natural Language Diagnostics (v1.13.0)</h2><p>Latest evolution of the observability stack: administrators can now diagnose servers directly from the LIA conversation. By simply asking \"Check the logs to see if everything is working\", Claude Code CLI — installed in the API Docker container — independently inspects logs, checks container health, analyzes resource usage and reports its findings. Persistent sessions for multi-turn investigations, configurable permissions per environment (prod read-only, dev full access), and real-time streaming of investigation steps via SSE.</p><h2>And since v1.34: the assistant reads its own telemetry</h2><p>All of the above existed for humans; the assistant itself read none of it. ADR-247 closed that loop: a periodic self-check turns the golden signals plus direct probes into health snapshots with exact values; alerts and critical verdicts converge into one incident per outage, diagnosed by a budget-capped LLM grounded on the operations runbooks; administrators get a Platform health panel, proactive notifications and read-only chat tools. And a known outage now shapes answers — degraded capabilities are routed around at planning time, and failed steps are explained from typed error codes, never raw logs. Since then the diagnosis is no longer written from a number alone: a recipe declared per kind of incident says which breakdowns and which log events to read, the pack is collected at the moment of the diagnosis with personal data removed, a source it could not reach is stated as unavailable rather than read as silence, and what the model read is shown under its verdict.</p><h2>Counting outcomes, not attempts</h2><p>One counter had to be rethought in v1.38.3. Counting the calls that reach a provider is the truth about the provider — and the wrong denominator the moment those calls are retried, because a failure that was recovered inflates the error rate while nothing was actually lost. A second counter now records one row per logical operation, retries collapsed, and answers the only question an operator acts on: did the caller get its result? A third says what the rate shaper did with each attempt, because “the budget is too small” and “Redis is down” look identical in a boolean and call for opposite actions.</p><p>The most recent lesson is about choosing what to measure. The autonomous loop had counters for its iterations and its duration — and none for the thing that actually grows: the prompt delivered to the model at each step. Measured on production code, that is 2.3k tokens at the first iteration and 112k at the ninetieth, because every tool result stays in the conversation the model re-reads. Two histograms now record the delivered size and its share of the model's context window, fed by the same memoized counter the state reducer already maintains, so the measurement costs nothing on the hot path. No compression policy shipped with them, deliberately: a system that acts on a quantity it has never observed is optimising a guess.</p>"
       },
       "prompt-engineering": {
         "title": "Versioned Prompt System: 78 Prompts Managed as Code",
@@ -10742,7 +10842,7 @@
       "progressive-steps": {
         "title": "Real-Time Execution Steps: Watch LIA Work",
         "excerpt": "LIA progressively displays each execution step — routing, planning, tool calls — in real time while processing your request.",
-        "body": "<h2>Transparency in action</h2><p>When you send a complex request to LIA, several seconds may pass before the response arrives. What is the assistant doing during that time? With progressive step display, you know <strong>in real time</strong>: each node traversed, each tool called appears as it happens. And the display itself is alive: past steps dim, the current one breathes, the whole block fades into the first words of the reply, and a caret blinks while the answer is being written.</p><h2>How it works</h2><p>The backend uses LangGraph's <code>updates</code> stream mode to detect each graph node's completion. At each step, an SSE <code>execution_step</code> event is sent to the frontend with:</p><ul><li>The tool or node's <strong>i18n key</strong> (translated into the user's language)</li><li>A <strong>reasoning excerpt</strong> (truncated to 120 characters) in ReAct mode</li><li><strong>Fallback metadata</strong> for tools not listed in the catalogue</li></ul><h2>Frontend display</h2><p>Steps accumulate visually in the interface, line by line, capped at <strong>10 steps</strong> visible simultaneously. An <strong>i18n key deduplication</strong> mechanism prevents identical steps from repeating (via a reference Set). When the answer starts streaming, the steps fold into a collapsed “⚙ N steps · X s” line under the response — stored with the message, so the backstage is still there after a reload, on every device.</p><h2>Pipeline and ReAct</h2><p>In <strong>Pipeline</strong> mode, steps come from the ExecutionPlan: planner, semantic validator, approval gate, task orchestrator. In <strong>ReAct</strong> mode, each tool call generates a step with an excerpt of the LLM's reasoning.</p><h2>90 tools covered</h2><p>All <strong>90 catalogue tools</strong> have dedicated i18n keys across 6 languages. Texts were translated to provide natural messages in each language (\"Searching contacts...\", \"Reading emails...\") rather than technical identifiers.</p><h2>No more random messages</h2><p>The old system displayed amusing but random waiting phrases (\"LIA is thinking...\", \"Analysis in progress...\"). This system has been entirely replaced by <strong>real, contextual steps</strong> that reflect exactly what the assistant is doing at each moment.</p><h2>When the stream goes quiet</h2><p>A step display is only worth as much as the stream feeding it. When a phone suspends the tab, the connection dies announcing nothing — no end, no error — and the screen stays on the last step shown, indefinitely, while the answer is finished and saved on the server. Nothing told that state apart from a merely slow answer. LIA now recognises that silence: past a budget calibrated on the server's heartbeat rhythm, the dead connection is dropped and the turn still running in the background is picked back up automatically.</p>"
+        "body": "<h2>Transparency in action</h2><p>When you send a complex request to LIA, several seconds may pass before the response arrives. What is the assistant doing during that time? With progressive step display, you know <strong>in real time</strong>: each node traversed, each tool called appears as it happens. And the display itself is alive: past steps dim, the current one breathes, the whole block fades into the first words of the reply, and a caret blinks while the answer is being written.</p><h2>How it works</h2><p>The backend uses LangGraph's <code>updates</code> stream mode to detect each graph node's completion. At each step, an SSE <code>execution_step</code> event is sent to the frontend with:</p><ul><li>The tool or node's <strong>i18n key</strong> (translated into the user's language)</li><li>A <strong>reasoning excerpt</strong> (truncated to 120 characters) in ReAct mode</li><li><strong>Fallback metadata</strong> for tools not listed in the catalogue</li></ul><h2>Frontend display</h2><p>Steps accumulate visually in the interface, line by line, capped at <strong>10 steps</strong> visible simultaneously. An <strong>i18n key deduplication</strong> mechanism prevents identical steps from repeating (via a reference Set). When the answer starts streaming, the steps fold into a collapsed “⚙ N steps · X s” line under the response — stored with the message, so the backstage is still there after a reload, on every device.</p><h2>Pipeline and ReAct</h2><p>In <strong>Pipeline</strong> mode, steps come from the ExecutionPlan: planner, semantic validator, approval gate, task orchestrator. In <strong>ReAct</strong> mode, each tool call generates a step with an excerpt of the LLM's reasoning.</p><h2>114 tools covered</h2><p>All <strong>90 catalogue tools</strong> have dedicated i18n keys across 6 languages. Texts were translated to provide natural messages in each language (\"Searching contacts...\", \"Reading emails...\") rather than technical identifiers.</p><h2>No more random messages</h2><p>The old system displayed amusing but random waiting phrases (\"LIA is thinking...\", \"Analysis in progress...\"). This system has been entirely replaced by <strong>real, contextual steps</strong> that reflect exactly what the assistant is doing at each moment.</p><h2>When the stream goes quiet</h2><p>A step display is only worth as much as the stream feeding it. When a phone suspends the tab, the connection dies announcing nothing — no end, no error — and the screen stays on the last step shown, indefinitely, while the answer is finished and saved on the server. Nothing told that state apart from a merely slow answer. LIA now recognises that silence: past a budget calibrated on the server's heartbeat rhythm, the dead connection is dropped and the turn still running in the background is picked back up automatically.</p>"
       },
       "account-lifecycle": {
         "title": "Account Lifecycle: 4 States for Complete GDPR Compliance",
@@ -10877,6 +10977,7 @@
       "transparency": "Radical transparency",
       "emotional_depth": "Emotional depth",
       "reliability": "Production reliability",
+      "standards": "Standards and compliance",
       "openness": "Radical openness",
       "vision": "Vision"
     }
@@ -10921,7 +11022,7 @@
       "habits": "Habit learning",
       "governance": "Governing an instance",
       "tabular_admin": "Administering by file",
-      "evolution": "Evolution program",
+      "evolution": "Visible work",
       "expressive_eyes": "Expressive eyes",
       "native_apps": "Native apps",
       "self_diagnostics": "Self-diagnostics",
@@ -10931,7 +11032,9 @@
       "shock_absorbers": "Three mechanisms, one convergence",
       "meetings": "Meetings: the row is the job",
       "registers": "Three registers",
-      "relation_debrief": "A debrief per relationship"
+      "relation_debrief": "A debrief per relationship",
+      "workboard": "The workboard",
+      "conclusion": "Conclusion"
     }
   },
   "psyche": {
@@ -11293,6 +11396,12 @@
         "subtitle": "Your routines and their next run.",
         "empty": "No scheduled action.",
         "error": "Could not read the scheduled actions."
+      },
+      "workboard": {
+        "title": "Tickets",
+        "subtitle": "Tickets that need you: a run stopped for your answer, or something is overdue.",
+        "empty": "No ticket needs you.",
+        "error": "Could not read the tickets."
       }
     },
     "direction_received": "Received",
@@ -12311,7 +12420,8 @@
         "task": "Created the task “{{target}}”",
         "task_delete": "Deleted the task “{{target}}”",
         "task_update": "Updated the task “{{target}}”",
-        "vacation_responder": "Set the vacation responder"
+        "vacation_responder": "Set the vacation responder",
+        "ticket_delete": "Deleted the ticket “{{target}}” from the board"
       },
       "edit_image": "Edited an image: {{target}}",
       "generate_document": "Generated the document “{{target}}”",
@@ -12324,6 +12434,9 @@
       "run_skill_script": "Ran the “{{target}}” skill script",
       "set_current_item": "Set “{{target}}” as the conversation's current item",
       "toggle_scheduled_action_tool": "Enabled or paused the scheduled action “{{target}}”",
+      "create_ticket_tool": "Created the ticket “{{target}}” on the board",
+      "update_ticket_tool": "Changed the ticket “{{target}}”",
+      "comment_ticket_tool": "Commented on the ticket “{{target}}”",
       "create_reminder_tool": "Created the reminder “{{target}}”",
       "proactive_notification": "Notification sent ({{kind}})"
     },
@@ -12390,6 +12503,7 @@
       "sub_agent": "Sub-agent",
       "task": "Tasks",
       "telephony": "Telephony",
+      "ticket": "Workboard",
       "unknown": "Unidentified capability",
       "weather": "Weather",
       "web_fetch": "Web page",
@@ -12616,5 +12730,227 @@
     "delete_confirm": "\"{{content}}\" will be deleted.",
     "delete_series_confirm": "\"{{content}}\" repeats ({{schedule}}). Deleting it removes every future occurrence.",
     "section_what": "What to remind"
+  },
+  "workboard": {
+    "title": "Workboard",
+    "subtitle": "Your tickets: what you are doing, what you handed to LIA, what someone owes you.",
+    "columns": {
+      "idea": "Idea",
+      "todo": "To do",
+      "in_progress": "In progress",
+      "waiting": "Waiting",
+      "confirming": "To confirm",
+      "validating": "To validate",
+      "done": "Done"
+    },
+    "priority": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "urgent": "Urgent"
+    },
+    "party": {
+      "me": "Me",
+      "lia": "LIA",
+      "unknown": "Someone else",
+      "held_by": "Held by {{name}}",
+      "owned_by": "From {{name}}"
+    },
+    "card": {
+      "steps": "{{done}}/{{total}} steps",
+      "due": "Due {{date}}",
+      "overdue": "Overdue",
+      "open": "Open",
+      "delete": "Delete",
+      "follow_on": "Tell me about this ticket",
+      "follow_off": "Stop telling me about this ticket",
+      "followed": "Followed in the chat",
+      "not_followed": "Not followed in the chat",
+      "actions": "Ticket actions",
+      "drag_card": "Move the ticket {{title}}",
+      "run_running": "LIA is working on it",
+      "run_waiting": "Waiting for you",
+      "run_failed": "Last run failed",
+      "run_succeeded": "LIA answered",
+      "column_of": "Column of {{title}}",
+      "holder_of": "Holder of {{title}}"
+    },
+    "board": {
+      "label": "Ticket board",
+      "column_count": "{{count}} ticket",
+      "column_count_one": "{{count}} ticket",
+      "column_count_other": "{{count}} tickets",
+      "pick_column": "Column shown",
+      "previous_column": "Previous column",
+      "next_column": "Next column",
+      "partial": "Showing the first {{shown}} of {{total}} tickets. Narrow the board to see the rest."
+    },
+    "dnd": {
+      "instructions": "Press space or enter to pick up a ticket, the arrow keys to move it, space or enter to drop it, escape to cancel.",
+      "picked_up": "Ticket « {{title}} » picked up from {{column}}.",
+      "moved_over": "Ticket « {{title}} » is over {{column}}.",
+      "dropped": "Ticket « {{title}} » dropped in {{column}}.",
+      "cancelled": "Move cancelled; ticket « {{title}} » stayed where it was."
+    },
+    "filters": {
+      "title": "Filters",
+      "search": "Search a title",
+      "side": "Held by",
+      "side_all": "Anyone",
+      "side_me": "Me",
+      "side_lia": "LIA",
+      "side_peer": "A connection",
+      "priority": "Priority",
+      "priority_any": "Any priority",
+      "overdue": "Overdue only",
+      "sort": "Sort by",
+      "sort_position": "Board order",
+      "sort_priority": "Priority",
+      "sort_due": "Due date",
+      "sort_updated": "Last change",
+      "sort_created": "Creation",
+      "reset": "Clear the filters",
+      "total": "{{count}} ticket matches",
+      "total_one": "{{count}} ticket matches",
+      "total_other": "{{count}} tickets match"
+    },
+    "actions": {
+      "create": "New ticket",
+      "run_now": "Run now",
+      "finish_in_chat": "Finish in the chat",
+      "save": "Save",
+      "cancel": "Cancel",
+      "close": "Close",
+      "add_step": "Add a step",
+      "comment": "Comment",
+      "open_board": "Open the board",
+      "open_ticket": "Open the ticket"
+    },
+    "form": {
+      "new_title": "New ticket",
+      "title": "Title",
+      "title_hint": "What has to be done, in your own words.",
+      "description": "Description",
+      "description_hint": "If you hand this ticket to LIA, this is the instruction it will follow.",
+      "priority": "Priority",
+      "status": "Column",
+      "assignee": "Held by",
+      "hand_back": "Hand it back",
+      "start_at": "Start",
+      "due_at": "Due date",
+      "follow": "Notify progress in the chat",
+      "execution_mode": "Execution mode"
+    },
+    "detail": {
+      "steps": "Steps",
+      "comments": "Comments",
+      "history": "History",
+      "data": "Details",
+      "settings": "Settings",
+      "last_run": "Last run",
+      "no_comment": "No comment yet.",
+      "no_step": "No step yet.",
+      "no_history": "Nothing has happened yet.",
+      "comment_placeholder": "Write a comment…",
+      "author_user": "You",
+      "author_lia": "LIA",
+      "author_peer": "A connection",
+      "loading": "Loading the ticket…",
+      "read_only": "The owner's words: only they can change the title and the description.",
+      "editable": "Edit this ticket, comment on it, and follow what LIA did with it.",
+      "confirming_hint": "LIA prepared an action and is waiting for your go-ahead: answer with a comment (“yes”, “no”, or what to change), then hand it the ticket.",
+      "usage": "Cost",
+      "usage_runs_one": "{{count}} run",
+      "usage_runs_other": "{{count}} runs",
+      "outcome_success": "LIA answered",
+      "outcome_waiting": "Waiting for you",
+      "outcome_confirming": "An action awaits your go-ahead",
+      "outcome_failed": "Failed",
+      "outcome_skipped_quota": "Postponed — quota reached",
+      "outcome_skipped_busy": "Postponed — a conversation was in progress"
+    },
+    "events": {
+      "created": "Created",
+      "status_changed": "Column changed",
+      "assigned": "Handed over",
+      "returned": "Handed back to the owner",
+      "returned_by_run": "LIA hands the ticket back to you",
+      "released": "Handed back to the owner — connection removed",
+      "approved": "Action approved",
+      "refused": "Action refused",
+      "amended": "Answer passed on",
+      "priority_changed": "Priority changed",
+      "dates_changed": "Dates changed",
+      "run_started": "LIA started",
+      "run_finished": "LIA finished",
+      "follow_changed": "Notifications changed"
+    },
+    "history": {
+      "status": "Column",
+      "priority": "Priority",
+      "start": "Start",
+      "due": "Due",
+      "follow": "Notifications",
+      "on": "on",
+      "off": "off",
+      "none": "none",
+      "separator": ": "
+    },
+    "empty": {
+      "title": "Nothing on the board yet",
+      "description": "A ticket is a piece of work with a life of its own: you can do it, or hand it to LIA.",
+      "filtered_title": "No ticket matches",
+      "filtered_description": "The board is not empty — these filters are.",
+      "column": "Nothing here",
+      "column_off_page": "Not on this page — narrow the board to see them."
+    },
+    "unavailable": "The workboard is switched off on this instance.",
+    "load_error": "Could not read the board.",
+    "delete_confirm": {
+      "title": "Delete this ticket?",
+      "body": "« {{title}} », its steps, its comments and its history go with it."
+    },
+    "deleted": "Ticket deleted.",
+    "created": "Ticket created.",
+    "run_requested": "LIA will pick it up within a minute.",
+    "errors": {
+      "generic": "That could not be done.",
+      "title_required": "A ticket needs a title.",
+      "title_too_long": "This title is too long.",
+      "description_too_long": "This description is too long.",
+      "comment_required": "A comment cannot be empty.",
+      "comment_too_long": "This comment is too long.",
+      "depth_exceeded": "A step cannot have steps of its own.",
+      "parent_not_owned": "That ticket is not on your board.",
+      "too_many_tickets": "Your board is full.",
+      "too_many_children": "This ticket has as many steps as it can hold.",
+      "assignee_not_connected": "You are not connected to that person.",
+      "cross_account_delegation": "A ticket someone else holds cannot be handed to LIA.",
+      "peer_cannot_delete": "Only the owner can delete this ticket.",
+      "peer_cannot_edit_field": "Those are the owner's words.",
+      "peer_cannot_reassign": "You can only hand this ticket back.",
+      "run_now_requires_lia": "Hand the ticket to LIA before asking it to run.",
+      "answer_required": "Answer with a comment first — “yes”, “no”, or what to change — then hand the ticket to LIA.",
+      "max_runs_reached": "LIA has already run this ticket as often as it may.",
+      "status_invalid": "That column does not exist.",
+      "priority_invalid": "That priority does not exist.",
+      "dates_inverted": "The due date comes before the start.",
+      "peers_disabled": "Connections are switched off on this instance.",
+      "not_found": "That ticket is gone."
+    },
+    "run_errors": {
+      "assignee_inactive": "The account that holds this ticket is no longer active, so LIA cannot run it.",
+      "empty_answer": "LIA produced nothing this time — the ticket is untouched.",
+      "generic": "The run stopped without an answer.",
+      "run_failed": "The run failed; LIA will not retry on its own. Use « Run now » to try again.",
+      "run_reaped": "The run was interrupted and nobody saw how it ended."
+    },
+    "notification": {
+      "actions_label": "Ticket actions"
+    },
+    "execution_mode": {
+      "react": "ReAct mode",
+      "pipeline": "Pipeline mode"
+    }
   }
 }

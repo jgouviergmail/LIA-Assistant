@@ -204,6 +204,14 @@ def _executor_env(
         stack.enter_context(
             patch("src.infrastructure.cache.redis.get_redis_cache", AsyncMock(return_value=redis))
         )
+        # The thread probe reads the pending-HITL record the chat reads
+        # (ADR-276 lot 7); a test that wants a pending question patches it.
+        stack.enter_context(
+            patch(
+                "src.domains.agents.api.hitl_pending.check_pending_hitl_uncached",
+                AsyncMock(return_value=None),
+            )
+        )
         stack.enter_context(
             patch(
                 "src.infrastructure.scheduler.scheduled_action_executor.now_utc", return_value=NOW
@@ -533,10 +541,13 @@ class TestRunHistory:
 
     @pytest.mark.asyncio
     async def test_a_pending_hitl_is_recorded_as_skipped(self) -> None:
-        with _executor_env(chunks=[_chunk("token", "never")]) as env:
-            env.agent_service.graph.aget_state = AsyncMock(
-                return_value=SimpleNamespace(tasks=[SimpleNamespace(interrupts=["pending"])])
-            )
+        with (
+            _executor_env(chunks=[_chunk("token", "never")]) as env,
+            patch(
+                "src.domains.agents.api.hitl_pending.check_pending_hitl_uncached",
+                AsyncMock(return_value={"action_requests": [{"type": "clarification"}]}),
+            ),
+        ):
             await execute_single_action(action_id=env.action_id, user_id=env.user_id)
 
             env.agent_service.stream_chat_response.assert_not_called()

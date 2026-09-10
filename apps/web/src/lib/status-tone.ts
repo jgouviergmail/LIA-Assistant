@@ -35,8 +35,27 @@ export type BadgeTone =
 
 const NEUTRAL: BadgeTone = 'secondary';
 
-/** Heartbeat notification priority: `low` | `medium` | `high`. */
+/** Priority as the card's leading edge — a ramp, not a binary. */
+const PRIORITY_ACCENT: Record<string, string> = {
+  urgent: 'border-l-destructive',
+  high: 'border-l-warning',
+  medium: 'border-l-primary/40',
+  low: 'border-l-border',
+};
+
+/**
+ * Priority level: `low` | `medium` | `high`, plus the workboard's `urgent`.
+ *
+ * `urgent` shares `alert` with `high` rather than displacing it (ADR-276). The
+ * measurement below forbids demoting `high` to a pale tint, and `alert` is the
+ * ONLY solid ground the badge offers — so the two top levels share the
+ * ATTENTION family and are told apart by their WORD, which the badge carries
+ * anyway. Rendering `urgent` on the fallback instead would have painted the
+ * most urgent ticket of the board in the grey the owner rule reserves for
+ * inactive elements.
+ */
 const PRIORITY: Record<string, BadgeTone> = {
+  urgent: 'alert',
   // SOLID, not the pale `destructive`: measured on screen, a red-100 ground and
   // a warning/10 ground are the same level to the eye.
   high: 'alert',
@@ -80,6 +99,23 @@ const DIRECTION: Record<string, BadgeTone> = {
  * status is a fact, not an alarm.
  */
 const LIFECYCLE: Record<string, BadgeTone> = {
+  // The workboard's columns (ADR-276). Four of them were unknown to this
+  // table and fell to the neutral fallback, so three LIVE states — « à faire »,
+  // « en attente », « en validation » — wore the badge the owner rule reserves
+  // for inactive elements. Declared here rather than left to the fallback:
+  // `idea` IS inert, and that must read as a decision. The `cancelled` entry
+  // further down belongs to telephony and the exports — never a board column,
+  // which is why dropping « Annulé » from the board leaves it standing.
+  idea: NEUTRAL,
+  // Live work with no semantic family of its own: the theme colour, per the
+  // owner rule on active traits.
+  todo: 'default',
+  // It waits for the person; nothing is broken.
+  waiting: 'warning',
+  // LIA prepared an action and needs the person's go: the same wait, sharper.
+  confirming: 'warning',
+  // A run produced a result nobody has read yet — it just happened.
+  validating: 'info',
   // Succeeded, or running normally.
   active: 'success',
   completed: 'success',
@@ -140,6 +176,57 @@ const CALL_OUTCOME: Record<string, BadgeTone> = {
   declined: NEUTRAL,
   unreachable: NEUTRAL,
 };
+
+/**
+ * Priority as a card ACCENT: the coloured edge a board is read by.
+ *
+ * Deliberately a four-level RAMP where `priorityTone` has three: the badge
+ * marks the exception (`high` and `urgent` are both simply « loud », which is
+ * why they share `alert`), while the edge RANKS — an edge that painted high
+ * and urgent the same would carry no information at all. Read together on one
+ * card they agree: the badge says « above the default », the edge says how far.
+ *
+ * Args:
+ *   priority: `low`, `medium`, `high` or `urgent`.
+ *
+ * Returns:
+ *   The border class for the card's leading edge; the neutral border for
+ *   anything this build does not know.
+ */
+export function priorityAccent(priority: string): string {
+  return PRIORITY_ACCENT[priority] ?? 'border-l-border';
+}
+
+/**
+ * The INK of a priority's mark — the edge's own tone, one entry per edge
+ * entry above, so a list item and the card it ranks can never disagree
+ * (ADR-276, D81). `medium` takes the accent at full strength: a dimmed ink
+ * is refused by the text guard, and a 3.5 px glyph carries no wash.
+ */
+const PRIORITY_INK: Record<string, string> = {
+  urgent: 'text-destructive',
+  high: 'text-warning',
+  medium: 'text-primary',
+  low: 'text-muted-foreground',
+};
+
+export function priorityInk(priority: string): string {
+  return PRIORITY_INK[priority] ?? 'text-muted-foreground';
+}
+
+/**
+ * The GROUND a card sits on, for the one priority that must be seen across a
+ * whole board rather than read on one card.
+ *
+ * `urgent` and `high` share the same badge tone (both are alert red: measured,
+ * a red-100 ground and a warning/10 ground are the same level to the eye), so
+ * the edge alone was the only thing telling them apart — four pixels. A pastel
+ * ground separates them at a glance without shouting: everything else keeps the
+ * card's normal surface.
+ */
+export function priorityGround(priority: string): string {
+  return priority === 'urgent' ? 'bg-rose-50 dark:bg-rose-950/40' : '';
+}
 
 /**
  * Tone for a notification priority.

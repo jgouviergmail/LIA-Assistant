@@ -429,6 +429,11 @@ class HeartbeatProactiveTask:
                 "open_loop_ids": [
                     ol["id"] for ol in (target.context.open_loops or []) if ol.get("id")
                 ],
+                # ADR-276 D14 — ticket ids surfaced this cycle, consumed by
+                # the post-notification cooldown bump (on_notification_sent).
+                "workboard_ticket_ids": [
+                    ticket["id"] for ticket in (target.context.workboard or []) if ticket.get("id")
+                ],
                 # ADR-214 — the missed-routine candidate surfaced this cycle,
                 # consumed by the post-notification offer bookkeeping.
                 "habit_offer_id": (
@@ -551,6 +556,10 @@ class HeartbeatProactiveTask:
             # actually used the HABITS source (same doctrine — exposing a
             # candidate the LLM skipped must not burn its cooldown).
             await _bump_offered_habit(db, user_id, result.metadata)
+
+            # ADR-276 D14 — same doctrine again: a ticket the decision saw and
+            # chose not to mention must not burn its cooldown.
+            await _bump_used_workboard(db, user_id, result.metadata)
 
             await db.commit()
 
@@ -685,6 +694,40 @@ async def _bump_offered_habit(db: Any, user_id: UUID, metadata: dict[str, Any]) 
         offers=len(offer_dates),
         muted=habit.muted_until_reproof,
     )
+
+
+async def _bump_used_workboard(db: Any, user_id: UUID, metadata: dict[str, Any]) -> None:
+    """Start the cooldown on tickets a delivered notification surfaced (D14).
+
+    Runs only when the decision actually used the WORKBOARD source: bumping at
+    fetch time would silence a ticket the decision chose not to mention, which
+    is the opposite of what a cooldown is for. Malformed ids are skipped rather
+    than failing the whole bump — the notification has already gone out.
+
+    Args:
+        db: Session of the audit transaction.
+        user_id: Whose board. Not decoration: it is the clause that stops an id
+            from anywhere else touching somebody else's ticket.
+        metadata: What the delivered notification carried.
+    """
+    ticket_ids = metadata.get("workboard_ticket_ids") or []
+    if "WORKBOARD" not in metadata.get("sources_used", []) or not ticket_ids:
+        return
+    from src.domains.workboard.repository import WorkboardRepository
+
+    parsed_ids = []
+    for raw_id in ticket_ids:
+        try:
+            parsed_ids.append(UUID(str(raw_id)))
+        except ValueError:
+            continue
+    if parsed_ids:
+        bumped = await WorkboardRepository(db).bump_nudged(parsed_ids, user_id=user_id)
+        logger.info(
+            "workboard_nudge_bumped",
+            user_id=str(user_id),
+            count=bumped,
+        )
 
 
 async def _bump_used_open_loops(db: Any, user_id: UUID, metadata: dict[str, Any]) -> None:

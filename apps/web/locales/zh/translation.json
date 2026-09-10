@@ -236,8 +236,10 @@
       "relations_sub": "一览您的联系人",
       "capabilities": "能力",
       "capabilities_sub": "你的星座",
+      "workboard": "工作看板",
+      "workboard_sub": "LIA 正在处理的事",
       "actions": "登记册",
-      "actions_sub": "LIA 做过什么，以及查阅过什么"
+      "actions_sub": "追溯操作"
     },
     "briefing": {
       "synthesis_audio_error": "语音播放失败——语音服务未返回音频。请检查语音设置。",
@@ -2511,7 +2513,7 @@
       "auth_none": "无",
       "auth_api_key": "API 密钥",
       "auth_bearer": "Bearer Token",
-      "auth_oauth2": "OAuth 2.0",
+      "auth_oauth2": "OAuth 2.1",
       "status_active": "已连接",
       "status_error": "错误",
       "status_auth_required": "需要认证",
@@ -3240,6 +3242,13 @@
       "edit_id_label": "快捷指令 /{{id}} 的标识",
       "edit_text_label": "快捷指令 /{{id}} 插入的文本"
     },
+    "my_shortcuts": {
+      "title": "我的快捷入口",
+      "description": "固定您最常用的设置区块：之后每个页面都会显示一个悬浮菜单，一键直达。您可以把它拖到任意位置，不需要时收起。",
+      "count": "已固定 {{current}} / {{max}}",
+      "limit_reached": "已达上限——取消一个才能固定另一个。",
+      "empty": "尚未固定任何区块：固定第一个后悬浮菜单即会出现。"
+    },
     "briefing_grid": {
       "title": "我的仪表盘",
       "description": "选择在仪表盘上显示哪些卡片及其顺序。隐藏的卡片将完全不再获取数据。",
@@ -3533,6 +3542,7 @@
         "display-mode": "显示模式, 卡片, 渲染, 回复格式, 布局, markdown, 纯文本",
         "briefing-grid": "首页, 主页, 仪表板, 小组件, 卡片, 简报, 板块顺序",
         "chat-shortcuts": "斜杠, 快捷指令, 命令, 快速请求, 宏, /命令, 消息模板, 编辑, 重命名",
+        "my-shortcuts": "快捷入口, 固定, 收藏, 悬浮菜单, 停靠栏, 快速访问, 区块",
         "open-loops": "承诺, 待办承诺, 待处理, 跟进, 未完成",
         "habits": "习惯, 节奏, 例行, 时间表, 学习, 活动时段, 重复请求, 自动化建议、检测阈值、为什么没有习惯, 连续天数, 里程碑, 纪录, 阅读在场, 打开应用, 点赞计入, 在场",
         "notifications": "推送, 提醒, 通知, 手机, FCM, 原生应用, 安卓应用, iOS 应用, 唤醒中继, APNs, Android 应用, iPhone 应用",
@@ -3580,7 +3590,8 @@
         "admin-diagnostics": "健康 诊断 事件 警报 监控 自检 平台状态 prometheus loki 连接 出站 网络 向量 嵌入 配额 记忆 语言 运行手册 证据 日志 诊断 版本",
         "meetings": "会议, 录音, 纪要, 转写, 报告, 麦克风, 笔记, 摘要, 行动项, 模板, 模板库, 纪要格式, 默认格式, 自动格式, 更改格式, 章节, 指令, 纪要邮件",
         "admin-registers": "记录, 透明度, 操作, 查阅, 导出, 日志, 审计, 管理，图表，统计，数字，总览, 主动, 主动行动, 第 12 条, 完整导出, 回合",
-        "reminders": "提醒, 提醒我, 警报, 通知, 重复提醒, 重复, 便签，重复，每天，时间段"
+        "reminders": "提醒, 提醒我, 警报, 通知, 重复提醒, 重复, 便签，重复，每天，时间段",
+        "workboard": "workboard 工单板 工单 看板 列 待办 待处理"
       },
       "results_count_other": "找到 {{count}} 项设置"
     },
@@ -3646,6 +3657,26 @@
     "meetings": {
       "title": "会议纪要",
       "description": "在聊天输入框中录制会议，LIA 会转写并按你的结构撰写纪要。"
+    },
+    "workboard": {
+      "title": "Workboard",
+      "description": "您的工单，以及 LIA 可以自行执行的内容。",
+      "open_board": "打开工单板",
+      "needs_you": "{{count}} 个工单在等您",
+      "needs_you_one": "{{count}} 个工单在等您",
+      "needs_you_other": "{{count}} 个工单在等您",
+      "nothing_waiting": "没有需要您处理的工单。",
+      "glance": "工单板一览",
+      "tile_total": "工单板上的工单",
+      "tile_overdue": "已逾期",
+      "tile_lia": "由 LIA 处理",
+      "tile_needs_me": "等待您决定",
+      "by_column": "按列",
+      "capacity_label": "账户容量",
+      "capacity": "{{owned}} / {{max}} 个工单",
+      "cost": "执行成本",
+      "runs_one": "{{count}} 次执行",
+      "runs_other": "{{count}} 次执行"
     }
   },
   "relations": {
@@ -4284,6 +4315,11 @@
       }
     }
   },
+  "shortcuts_dock": {
+    "label": "我的快捷入口——用方向键移动",
+    "minimize": "收起快捷入口",
+    "restore": "显示快捷入口"
+  },
   "faq": {
     "title": "常见问题",
     "subtitle": "查找有关LIA最常见问题的答案",
@@ -4374,7 +4410,7 @@
         },
         "security": {
           "title": "🔐 多层安全",
-          "description": "从登录到存储的纵深防御：通行密钥、带备用码的 TOTP、敏感操作的二次强认证，以及每个活跃会话都可见可吊销。底层还有带 PKCE 的 OAuth 2.0、日志中过滤个人信息、用户间隔离、静态数据加密、机密材料在结构上不可导出的 GDPR 导出，以及经过恢复演练的每日备份。技能在一次性容器中运行，没有 socket，也没有网络。而任何第三方写的文本——邮件、邀请、网页、MCP 服务器——送到模型时都标注为「待分析的数据」，绝不是指令。"
+          "description": "从登录到存储的纵深防御：通行密钥、带备用码的 TOTP、敏感操作的二次强认证，以及每个活跃会话都可见可吊销。底层还有带 PKCE 的 OAuth 2.1、日志中过滤个人信息、用户间隔离、静态数据加密、机密材料在结构上不可导出的 GDPR 导出，以及经过恢复演练的每日备份。技能在一次性容器中运行，没有 socket，也没有网络。而任何第三方写的文本——邮件、邀请、网页、MCP 服务器——送到模型时都标注为「待分析的数据」，绝不是指令。"
         },
         "resilience": {
           "title": "🛡️ 性能与 Token 优化",
@@ -4579,6 +4615,10 @@
         "transparencyRegisters": {
           "title": "📋 操作与查阅登记簿",
           "description": "三本自动维护、从不混同的登记簿：LIA 为你<i>做</i>了什么——连同结果与你的确认；它为回答而<i>查阅</i>了什么，后者只记录能力，绝不记录搜索内容；以及她<i>自行</i>着手做了什么，这一项此前无处可查。操作在发生之前即被登记：绝不会因为没有报错就推断成功。第四个标签页勾勒该时段。每一次导出都是完整的——不作截断，确切行数写在开头——并随账户一并删除。"
+        },
+        "workboard": {
+          "title": "🗂️ 工作板",
+          "description": "一张工单是一个有生命周期、有承担者、有结果的工作单元——这正是任务清单、提醒和例行任务各自缺少的东西。七个栏目、子工单、评论，还有一段历史。承担者可以是你、与你建立连接的人，或者 LIA：把工单交给它，它会自行接手、执行、把产出写成评论，再交回给你验收。遇到无法独自完成的动作，它不会一口回绝，而是在工单上提问——一条评论就能答复：好、不要，或者要改什么。"
         }
       },
       "diagram_alt": "LIA架构图"
@@ -4587,6 +4627,18 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_44_0": {
+          "title": "v1.44.0 — 🗂️ 一块真正对应你手头事情的工作板",
+          "date": "2026 年 9 月",
+          "count": "5",
+          "items": {
+            "i1": "<b>🗂️ 工单板</b> —— 一张工单是一件有生命周期的工作：标题、描述、优先级、截止日期、子工单、评论和一段历史。它会走过七个栏目，从一个念头一直到完成。任务清单没有生命周期，提醒只响一次、之后什么也不留下，例行任务则永远不会结束——这正是三者之间一直缺失的那一块。",
+            "i2": "<b>🤖 把工单交给 LIA，它就会去做</b> —— 它一次只接一张，独立完成，并把找到或产出的内容写成评论。结果会回到专门的一栏，等你确认。如果因为额度上限或正在进行的对话而推迟，工单会如实说明：推迟不等于失败，这次尝试会还给你。",
+            "i3": "<b>💬 需要你同意时，LIA 会在工单上提问</b> —— 你本会在聊天里看到的那张卡片就写在工单上，说明它即将做什么。你用一条评论回答：<i>好</i>、<i>不要</i>，或者需要改什么。发出评论就是回答——工单会立刻回到 LIA 手上。你批准的正是将要执行的：只要有一处不同，LIA 会重新提问，而不是自行假定。",
+            "i4": "<b>🔔 它会主动跟进，设置里一眼看清整块板</b> —— 逾期的工单、临近的截止日期、一直没人回答的问题，或是没人确认的结果，都会回到聊天里，并直接引用真正在等待的内容，而不是转述。设置 › Workboard 会给出总数、每一栏的准确数量以及落在你这边的事项，每一项都是一个已经筛选好的工作板链接。",
+            "i5": "<b>📌 把常用的设置钉起来</b> —— 在设置 › 我的快捷方式里最多选择五个板块，它们就会在每个页面上以一枚悬浮胶囊陪着你。可以随意拖动、折叠成一个小圆点、再一键展开。钉了什么跟随你的账号，换浏览器也在；胶囊放在哪里，则属于这台设备。"
+          }
+        },
         "v1_43_2": {
           "title": "v1.43.2 — 📊 与格式相称的文档质感",
           "date": "2026 年 9 月",
@@ -4670,7 +4722,7 @@
           "count": "3",
           "items": {
             "i1": "<b>📄 一个文件，涵盖关于你的全部记录</b>——各登记簿的导出各自只覆盖一本日志。<i>登记簿</i>标签页下方新增的<b>统一提取</b>，把 LIA 保存的全部五项记录——你的对话轮次、操作、查阅、模型调用，以及登记簿自身的任何缺口——汇集为一个机器可读的文件，正如欧盟人工智能法案第 12 条所要求。它与管理员能生成的文件完全相同，只是仅限于你的账户：所调用的路由根本不接受账户参数，因此只可能返回你自己的。文件不含任何内容，每个标识符都以句柄代替——包括你自己的——因此可原样附于数据可携带请求、投诉或故障报告，无需事先删改。",
-            "i2": "<b>🏅 LIA 遵循的规范，写在首页上</b>——在安全板块下方，新增的标识条一一列出：GDPR、人工智能法案第 12 条、Model Context Protocol、Agent Plugins、agentskills.io、OWASP Top 10、WebAuthn、带 PKCE 的 OAuth 2.0、OpenTelemetry、Prometheus、Keep a Changelog、语义化版本，以及 WCAG 2.2 AA。开放标准的意义正在于：承诺可以对照他人所写的文本来核验。",
+            "i2": "<b>🏅 LIA 遵循的规范，写在首页上</b>——在安全板块下方，新增的标识条一一列出：GDPR、人工智能法案第 12 条、Model Context Protocol、Agent Plugins、agentskills.io、OWASP Top 10、WebAuthn、带 PKCE 的 OAuth 2.1、OpenTelemetry、Prometheus、Keep a Changelog、语义化版本，以及 WCAG 2.2 AA。开放标准的意义正在于：承诺可以对照他人所写的文本来核验。",
             "i3": "<b>✨「更多」页新增一张卡片，指南也不再复述版本</b>——这张卡片展示登记簿内部那个看不见的小决定：那一行在动作发生<i>之前</i>就已写下，且只有工具明确回报时才转为绿色。同时，故事与理念两份指南不再逐一叙述过往版本，而是直接说出这些版本确立了什么。"
           }
         },
@@ -7968,7 +8020,7 @@
           },
           "q2": {
             "question": "我的数据如何受到保护？",
-            "answer": "我们使用多层安全措施：<br>• <strong>个人信息保护（PII）</strong>：你的敏感数据（姓名、邮箱、联系人）受到保护，绝不会被共享<br>• HTTP-only cookies防止XSS攻击<br>• 使用Redis的安全服务器端会话<br>• 传输中的数据加密（HTTPS）<br>• 带PKCE的OAuth 2.0身份验证<br><br><strong>💾 数据持久性：</strong><br>• 数据库每日自动备份（保留 7 天 / 4 周 / 6 个月历史）<br>• 恢复流程定期真实测试——即使发生事故，损失也不会超过最近一天<br><br><strong>🧬 软件供应链：</strong><br>• 每个版本都附带一份锁定且经加密校验的组件清单（可复现构建）<br>• 所有依赖——包括间接依赖——都会自动扫描已知漏洞"
+            "answer": "我们使用多层安全措施：<br>• <strong>个人信息保护（PII）</strong>：你的敏感数据（姓名、邮箱、联系人）受到保护，绝不会被共享<br>• HTTP-only cookies防止XSS攻击<br>• 使用Redis的安全服务器端会话<br>• 传输中的数据加密（HTTPS）<br>• 带PKCE的OAuth 2.1身份验证<br><br><strong>💾 数据持久性：</strong><br>• 数据库每日自动备份（保留 7 天 / 4 周 / 6 个月历史）<br>• 恢复流程定期真实测试——即使发生事故，损失也不会超过最近一天<br><br><strong>🧬 软件供应链：</strong><br>• 每个版本都附带一份锁定且经加密校验的组件清单（可复现构建）<br>• 所有依赖——包括间接依赖——都会自动扫描已知漏洞"
           },
           "q3": {
             "question": "LIA收集哪些数据？",
@@ -8266,6 +8318,45 @@
           "q8": {
             "question": "已经生成的纪要可以更换格式吗？",
             "answer": "可以，只要转写内容仍被保留。在会议页面上，<strong>更改格式…</strong>提供两种结果：<strong>替换</strong>现有纪要，或获得同一场会议的<strong>一份新纪要</strong>。新纪要保留与来源的关联——原会议会显示由它产生了多少份纪要——并作为独立文档进入知识空间，拥有自己的费用。<br><br>这让你可以用两种方式读同一场会议：一边是工作用的纪要，另一边是完整而整洁的转写，或者在你想看对话本身而非其结论时使用分析类格式。<strong>重新生成</strong>仍在旁边：它用<em>相同</em>格式重写纪要，在你刚修改过章节之后很有用。<br><br><strong>💡 小贴士：</strong>重写需要一次新的合成，计费方式与第一次相同，对话框会在你确认前提示。如果你删除了转写内容，纪要仍可阅读，但无法再被重写。"
+          }
+        }
+      },
+      "workboard": {
+        "title": "工作板",
+        "description": "一张工单有生命周期、有承担者、有结果——可以是你、你的一个连接，或者 LIA。",
+        "count": "8",
+        "questions": {
+          "q1": {
+            "question": "工作板是用来做什么的？",
+            "answer": "用来承载一切超过一瞬间的事情。任务清单没有生命周期，也没有承担的人；提醒只响一次，之后什么也不留下；例行任务不断重复，却永远不会结束。而一张<strong>工单</strong>拥有标题、描述、优先级、开始日期与截止日期、子工单、评论和一段历史——它会走过七个栏目，从一个念头一直到完成。从页头的 <strong>Workboard</strong> 打开它。"
+          },
+          "q2": {
+            "question": "各个栏目是什么意思？",
+            "answer": "<strong>想法</strong>：记下了，还没有着手——LIA 从不执行这一栏的工单。<strong>待办</strong>：可以开始了。<strong>进行中</strong>：正在推进，由你或由 LIA。<strong>等待中</strong>：停下了，在等你的决定。<strong>待确认</strong>：LIA 准备好了一件它无法独自完成的事，正在征求你的同意——这一栏只有在其中确实有工单时才会出现。<strong>待验收</strong>：LIA 已交付，由你来接受。<strong>已完成</strong>：结束了，包括你决定不做的事——理由留在工单的历史里。"
+          },
+          "q3": {
+            "question": "怎样把一张工单交给 LIA？",
+            "answer": "打开工单，把<strong>负责人</strong>设为 LIA——或者在创建时就选择 LIA。之后它会按自己的节奏处理：一次只取一张，独立执行，并把找到或产出的内容写成评论。工单会带着答复进入<strong>待验收</strong>，或者带着一个问题回到你这里。你也可以按<strong>立即执行</strong>把它排到队首。LIA 读到的只有你自己的话——标题、描述，以及子工单所属父工单的标题：评论从不进入指令，因此别人无法借此左右一次执行。"
+          },
+          "q4": {
+            "question": "LIA 需要我同意时会怎样？",
+            "answer": "它会停下来在工单上提问，而不是径直去做或干脆放弃。工单进入<strong>待确认</strong>，LIA 在那里写下你本会在聊天里看到的那张卡片：它即将做什么，逐项列明。你用一条评论回答——<em>好</em>、<em>不要</em>，或者要改什么——这就是全部答复：工单会自动回到 LIA 手上。如果你改了什么，它会重新构建并再次询问，而不是自行假定；被批准的正是将要执行的，不会更宽。"
+          },
+          "q5": {
+            "question": "可以把工单分享给别人吗？",
+            "answer": "可以，分享给本实例上任何与你建立了连接的人。把<strong>负责人</strong>设为对方，工单也会出现在对方的板上——那是同一张工单，因此你们不可能读到两个不同的版本。对方可以移动它、评论、设置自己的通知，也可以把它交还；标题、描述、删除和重新指派仍然属于你。如果连接结束，双向持有的每一张工单都会自动回到它的所有者手中。不能做的是：把工单交给别人的 LIA——指令是你的，在无人看管的情况下用对方的工具执行它，会把对方的数据写进一条你会读到的评论里。"
+          },
+          "q6": {
+            "question": "LIA 会提醒我吗？",
+            "answer": "它会把值得一提的事带回来，并说明带回来的理由：已经逾期、临近截止、它自己提出的问题太久没有回音，或者有结果一直没人验收。它会直接引用真正在等待的内容，而不是转述；而且不会啰嗦——提过一次的工单会安静两天。每张工单都有自己的<strong>在聊天中通知进展</strong>开关：你希望安静处理的工单会留在板上，永远不出声。只有一条消息从不被过滤：有人把一张工单交给了你——因为没有人会去订阅一张自己还不知道已经在手的工单。"
+          },
+          "q7": {
+            "question": "这要花多少钱，在哪里看？",
+            "answer": "LIA 为你做的一次执行，会像其他任何一次一样计入你的账号，工单会替你记账：面板会显示上一次执行的 token 与费用，以及这张工单整个生命周期的总计。被你的用量上限拒绝的执行不算失败——它只是被推迟，这次尝试会还给你，工单也会如实说明。<strong>设置 › Workboard</strong> 一眼呈现整块板：总数、逾期项、LIA 手上的、落在你这边的、每一栏的准确数量，以及你的容量与上限的对比。"
+          },
+          "q8": {
+            "question": "有没有限制？",
+            "answer": "有，而且全部公开而非隐藏：一个账号可以拥有多少张工单、一张工单可以有多少子工单、LIA 在一张工单的一生中可以执行多少次、一次执行最长多久，以及工单关闭后隐藏的执行记录保留多久。标题、描述和评论都有长度上限。这些由你所在实例的管理员设定；被拒绝时总会指明触及了哪一条限制，而不是无声失败。"
           }
         }
       }
@@ -8567,6 +8658,10 @@
       "slide_never_overflows": {
         "title": "文字不会溢出幻灯片",
         "desc": "在排布文字之前，LIA 会先度量它。过密的幻灯片先缩小，再拆成两页，而不是被裁掉；过长的要点在句末停下，绝不在词中间断开。一个汉字按两个字母的宽度计算，因为它确实占那么宽。"
+      },
+      "pinned_dock": {
+        "title": "你的设置，走到哪儿都在",
+        "desc": "把常用板块钉起来，一枚小胶囊会带着它们出现在每个页面。"
       }
     },
     "scenes": {
@@ -9359,6 +9454,7 @@
     "source_health_signals": "健康",
     "source_birthdays": "生日",
     "source_open_loops": "承诺事项",
+    "source_workboard": "工单板",
     "source_habits": "习惯",
     "source_departure": "出发时间",
     "source_not_connected": "未连接",
@@ -9842,6 +9938,10 @@
       "meetings": {
         "title": "录制会议，收到纪要",
         "description": "页头的一个按钮——或手机上的菜单入口——你的设备便开始录制会议，横幅跟随你到每个页面，同时你可以继续与 LIA 交谈。停止后，LIA 转写全部内容，并以合适的格式撰写纪要：三十种内置模板覆盖团队例会、面谈、个人预约和课程——LIA 会根据会上说了什么自行选择，你也可以指定自己的格式。在聊天中阅读、下载 PDF、通过邮件接收、改用其他格式重写，数周后还能向 LIA 询问。不臆造任何内容：缺口会被指出，未命名的发言人保持未命名，花费就写在旁边。"
+      },
+      "workboard": {
+        "title": "一块真正对应你手头事情的工作板",
+        "description": "一张工单不是清单里的一行：它有生命周期、有人承担、有结果。七个栏目，从一个念头一直到完成，还有子工单、评论和一段历史——承担者可以是你、同一实例上与你建立连接的人，也可以是 LIA 自己。把工单交给 LIA，它会自行接手、完成工作、把找到的内容写成评论，再把结果交回给你验收。遇到无法独自完成的事，它既不放弃，也不替你决定：它会在工单上提问，逐项展示自己即将做什么，而你用一条评论就能答复——好、不要，或者要改什么。逾期的、久等的，它会主动跟进，并直接引用真正在等待的内容；每张工单还各有一个开关，决定聊天里到底要不要提起它。"
       }
     },
     "use_cases": {
@@ -10552,7 +10652,7 @@
       "human-in-the-loop": {
         "title": "人在回路中：6级审批保持你的控制",
         "excerpt": "LIA从不在未经你同意的情况下执行关键操作。其6级HITL系统保护你免受错误和幻觉的影响。",
-        "body": "<h2>为什么人工验证至关重要</h2><p>语言模型可能产生幻觉或误解意图。LIA通过将<strong>人类置于每个关键决策的中心</strong>来解决这一问题。未经你的明确验证，不会发送任何邮件、创建任何日程或修改任何数据。</p><h2>6个审批级别</h2><p>LIA的HITL系统根据6个级别对每个操作进行分类：</p><ul><li><strong>计划审批</strong> — 在执行多步骤计划之前，LIA生成包含计划摘要和可修改参数的<code>PlanApprovalRequest</code>，然后等待你的批准。</li><li><strong>澄清</strong> — 如果意图不明确，LIA会请求更多信息，而不是猜测。</li><li><strong>草稿审查</strong> — 对于邮件或消息，LIA在发送前提交草稿供你审核。</li><li><strong>破坏性确认</strong> — 任何不可逆的删除或修改都需要明确确认。</li><li><strong>FOR_EACH确认</strong> — 对于批量操作，每个元素都可以单独验证。</li><li><strong>修改审查</strong> — 参数变更需提交验证。</li></ul><h2>5种决策与置信度</h2><p>HITL分类器生成包含5种可能决策的<strong>ClassificationResult</strong>，每种决策附带0.0到1.0之间的置信度分数：</p><ul><li><strong>APPROVE</strong> — 操作已验证，传递给<code>task_orchestrator</code></li><li><strong>REJECT</strong> — 操作被拒绝，流程重定向到<code>response</code>节点</li><li><strong>EDIT</strong> — 用户通过<code>edited_params</code>修改参数，<code>PlanEditor</code>应用修改</li><li><strong>REPLAN</strong> — 用户通过<code>reformulated_intent</code>重新表述意图，流程返回<code>planner</code></li><li><strong>AMBIGUOUS</strong> — 系统提出<code>clarification_question</code>以消除歧义</li></ul><h2>LangGraph原生中断</h2><p>从技术上讲，<code>approval_gate</code>节点使用LangGraph的<code>interrupt()</code>函数<strong>暂停图的执行</strong>并等待用户响应。状态持久化在PostgreSQL中，即使断开连接后也支持异步恢复。</p><h2>你始终拥有最终决定权</h2><p>在每个验证点，分类策略都是可组合的：基于工具清单、估计成本、数据敏感性和用户角色。LIA永远不会绕过这一步骤。</p><p>而且这个最终决定权得到严格尊重：审阅循环遵循 replay-safe 模式（每次节点执行仅一个 <code>interrupt()</code>，循环状态通过 checkpoint 保存——ADR-092），因此恢复执行绝不会重放过去的 LLM 或 API 调用。无论经过多少次修改，你确认的内容正是实际执行的内容。</p><h2>确认一次，绝不两次</h2><p>放错位置的防护会背离自己的初衷。在计划的上游，语义校验器可能因为认定某个动作「不可撤销」而停下来——发送邮件、预约日程、拨打电话——而紧接着，针对完全相同的动作，本就会出现预览和明确的确认。用户必须<strong>反复坚持才能被执行</strong>。</p><p>如今这条规则已经写明：下游已经自带确认的动作，绝不在上游被拦截。校验器只判断计划的<strong>结构</strong>——参数缺失、工具选错、数量对应不一致——而不判断这个动作看起来有多严重。把同一个问题问两遍并不会带来更多安全：它只是把负担转嫁给用户，最终教会他们不读就点。</p>"
+        "body": "<h2>为什么人工验证至关重要</h2><p>语言模型可能产生幻觉或误解意图。LIA通过将<strong>人类置于每个关键决策的中心</strong>来解决这一问题。未经你的明确验证，不会发送任何邮件、创建任何日程或修改任何数据。</p><h2>6个审批级别</h2><p>LIA的HITL系统根据6个级别对每个操作进行分类：</p><ul><li><strong>计划审批</strong> — 在执行多步骤计划之前，LIA生成包含计划摘要和可修改参数的<code>PlanApprovalRequest</code>，然后等待你的批准。</li><li><strong>澄清</strong> — 如果意图不明确，LIA会请求更多信息，而不是猜测。</li><li><strong>草稿审查</strong> — 对于邮件或消息，LIA在发送前提交草稿供你审核。</li><li><strong>破坏性确认</strong> — 任何不可逆的删除或修改都需要明确确认。</li><li><strong>FOR_EACH确认</strong> — 对于批量操作，每个元素都可以单独验证。</li><li><strong>修改审查</strong> — 参数变更需提交验证。</li></ul><h2>5种决策与置信度</h2><p>HITL分类器生成包含5种可能决策的<strong>ClassificationResult</strong>，每种决策附带0.0到1.0之间的置信度分数：</p><ul><li><strong>APPROVE</strong> — 操作已验证，传递给<code>task_orchestrator</code></li><li><strong>REJECT</strong> — 操作被拒绝，流程重定向到<code>response</code>节点</li><li><strong>EDIT</strong> — 用户通过<code>edited_params</code>修改参数，<code>PlanEditor</code>应用修改</li><li><strong>REPLAN</strong> — 用户通过<code>reformulated_intent</code>重新表述意图，流程返回<code>planner</code></li><li><strong>AMBIGUOUS</strong> — 系统提出<code>clarification_question</code>以消除歧义</li></ul><h2>LangGraph原生中断</h2><p>从技术上讲，<code>approval_gate</code>节点使用LangGraph的<code>interrupt()</code>函数<strong>暂停图的执行</strong>并等待用户响应。状态持久化在PostgreSQL中，即使断开连接后也支持异步恢复。</p><h2>你始终拥有最终决定权</h2><p>在每个验证点，分类策略都是可组合的：基于工具清单、估计成本、数据敏感性和用户角色。LIA永远不会绕过这一步骤。</p><p>而且这个最终决定权得到严格尊重：审阅循环遵循 replay-safe 模式（每次节点执行仅一个 <code>interrupt()</code>，循环状态通过 checkpoint 保存——ADR-092），因此恢复执行绝不会重放过去的 LLM 或 API 调用。无论经过多少次修改，你确认的内容正是实际执行的内容。</p><h2>确认一次，绝不两次</h2><p>放错位置的防护会背离自己的初衷。在计划的上游，语义校验器可能因为认定某个动作「不可撤销」而停下来——发送邮件、预约日程、拨打电话——而紧接着，针对完全相同的动作，本就会出现预览和明确的确认。用户必须<strong>反复坚持才能被执行</strong>。</p><p>如今这条规则已经写明：下游已经自带确认的动作，绝不在上游被拦截。校验器只判断计划的<strong>结构</strong>——参数缺失、工具选错、数量对应不一致——而不判断这个动作看起来有多严重。把同一个问题问两遍并不会带来更多安全：它只是把负担转嫁给用户，最终教会他们不读就点。</p><h2>同样的层级，只是不在对话里</h2><p>一个独自工作的助手会撞上同一堵墙：它准备好了一件自己无权独立完成的事，而面前没有人。直接拒绝会浪费已经完成的工作；照做则破坏了规则。在工单板上，它两者都不做——它<strong>在工单上提问</strong>。你本会在聊天里看到的那张卡片就写在那里，逐项列明，而答复只需要一条评论：好、不要，或者要改什么。</p><p>你批准的正是将要执行的，不会更宽：助手会公布自己所展示内容的精确身份，而这个动作只会在同一身份下被重放。只要有一处不同，它就会重新构建并再次询问，而不是假定你的回答仍然适用。一批草稿算作一件事：每一项都会展示，被批准的是整批——绝不是其中的第一项。</p>"
       },
       "llm-providers": {
         "title": "多供应商AI：为每个任务选择合适的模型",
@@ -10572,7 +10672,7 @@
       "mcp-protocol": {
         "title": "Model Context Protocol：无限扩展LIA",
         "excerpt": "通过Anthropic的MCP协议，LIA可以连接任何外部服务。",
-        "body": "<h2>什么是MCP？</h2><p><strong>Model Context Protocol（MCP）</strong>是Anthropic开发的开放标准，使AI助手能够连接外部工具服务器。LIA实现了该协议，支持<strong>每用户MCP服务器</strong>，提供无限且个性化的扩展性。</p><h2>工具发现与集成</h2><p>你在LIA界面中配置MCP服务器。连接时，LIA对每个服务器调用<code>list_tools()</code>动态发现可用工具。每个MCP工具通过<strong>MCPToolAdapter</strong>封装，扩展LangChain的<code>BaseTool</code>，实现与智能体工具目录的无缝集成。MCP工具随后可以像原生工具一样使用。</p><h2>安全传输</h2><p>LIA专门使用<strong>Streamable HTTP</strong>传输方式连接MCP服务器。stdio传输<strong>出于安全原因被禁用</strong>（存在任意进程执行风险）。每个服务器通过<code>asyncio.Lock</code>进行独立的速率限制以防止过载。</p><h2>4种认证类型</h2><p>每个MCP服务器支持以下4种认证类型之一：</p><ul><li><strong>NONE</strong> — 无认证（公共或内部服务器）</li><li><strong>API_KEY</strong> — 通过headers传输的API密钥</li><li><strong>BEARER</strong> — 标准REST API的Bearer Token</li><li><strong>OAUTH2</strong> — 完整的OAuth 2.0 + PKCE</li></ul><p>所有凭据在存储到数据库之前通过<strong>Fernet</strong>（AES-128 CBC + HMAC）<strong>加密</strong>。没有任何密钥以明文暴露。</p><h2>多层安全</h2><p>MCP安全基于多重机制：</p><ul><li><strong>强制HITL</strong> — 所有MCP工具默认需要Human-in-the-Loop验证</li><li><strong>SSRF防护</strong> — <code>validate_http_endpoint()</code>函数阻止指向内部网络（127.0.0.1、10.x、192.168.x等）的URL</li><li><strong>健康检查</strong> — 每个MCP服务器的状态通过专用Prometheus gauge监控</li><li><strong>可配置限制</strong> — 服务器数量（10）、每服务器工具数（20）、每次调用超时（30秒）</li></ul><h2>迭代模式 (ReAct)</h2><p>某些MCP服务器有复杂的API，静态规划器无法预先生成正确的参数。在<strong>迭代模式</strong>下，专用ReAct代理先阅读服务器文档，理解预期格式，然后正确调用工具。可通过<code>iterative_mode</code>开关按服务器启用。</p><h2>整箱的 MCP 服务器：Agent Plugins</h2><p>除了逐个声明服务器，LIA 还是开放标准 <strong>Agent Plugins</strong>（agent-plugins.org）的合规客户端：一种打包 MCP 服务器和技能的便携软件包，与 ChatGPT、Cursor、GitHub Copilot 和 VS Code 安装的格式相同。插件带来的每个服务器都携带其来源，在插件更新之间保留已配置的凭据，并且只随插件整体卸载而离开——每次安装都有按组件的完整报告，包括跳过了什么、为什么。</p><h2>读懂服务器的声明</h2><p>会说这门协议只是其中一半，另一半是理解服务器如何描述自己的工具——而当前修订版 <strong>2026-07-28</strong> 在这一点上刻意留出了很大空间：工具的参数用 JSON Schema 2020-12 描述，该标准的<em>任何</em>关键字都被允许。同一个可选参数既可以写成类型联合，也可以写成 <code>anyOf</code>；嵌套结构可以就地声明，也可以通过内部引用声明；封闭集合可以是 <code>enum</code>，也可以是单个常量。只理解最简单写法的客户端不会大声报错——它只会悄悄地拿到比服务器实际提供的更少的工具。</p><p>LIA 读取全部这些写法，并且只有一处实现，由两个需要它的地方共用：提供给模型的签名，以及规划器据以推理的条目。对同一份声明的两种读法最终必然分歧，所以只保留一种。而其中每个函数都会对服务器发来的任何内容给出答案，因为在那里抛出异常的代价是丢掉一个工具——而丢掉的工具意味着你失去了一项能力，却无人告知。</p><p>服务器强制执行的规则会被传递而非留存：封闭集合、取值边界与数量上限都会到达规划器，于是它提出的是服务器会接受的值，而不是靠猜测得出、随后被拒绝的值。行为提示同样会被读取，但只朝一个方向——规范要求把它们视为不可信，因此被声明为破坏性的工具始终会请求确认，而自称无害的服务器绝不会因此少一次确认。</p>"
+        "body": "<h2>什么是MCP？</h2><p><strong>Model Context Protocol（MCP）</strong>是Anthropic开发的开放标准，使AI助手能够连接外部工具服务器。LIA实现了该协议，支持<strong>每用户MCP服务器</strong>，提供无限且个性化的扩展性。</p><h2>工具发现与集成</h2><p>你在LIA界面中配置MCP服务器。连接时，LIA对每个服务器调用<code>list_tools()</code>动态发现可用工具。每个MCP工具通过<strong>MCPToolAdapter</strong>封装，扩展LangChain的<code>BaseTool</code>，实现与智能体工具目录的无缝集成。MCP工具随后可以像原生工具一样使用。</p><h2>安全传输</h2><p>LIA专门使用<strong>Streamable HTTP</strong>传输方式连接MCP服务器。stdio传输<strong>出于安全原因被禁用</strong>（存在任意进程执行风险）。每个服务器通过<code>asyncio.Lock</code>进行独立的速率限制以防止过载。</p><h2>4种认证类型</h2><p>每个MCP服务器支持以下4种认证类型之一：</p><ul><li><strong>NONE</strong> — 无认证（公共或内部服务器）</li><li><strong>API_KEY</strong> — 通过headers传输的API密钥</li><li><strong>BEARER</strong> — 标准REST API的Bearer Token</li><li><strong>OAUTH2</strong> — 完整的OAuth 2.1 + PKCE</li></ul><p>所有凭据在存储到数据库之前通过<strong>Fernet</strong>（AES-128 CBC + HMAC）<strong>加密</strong>。没有任何密钥以明文暴露。</p><h2>多层安全</h2><p>MCP安全基于多重机制：</p><ul><li><strong>强制HITL</strong> — 所有MCP工具默认需要Human-in-the-Loop验证</li><li><strong>SSRF防护</strong> — <code>validate_http_endpoint()</code>函数阻止指向内部网络（127.0.0.1、10.x、192.168.x等）的URL</li><li><strong>健康检查</strong> — 每个MCP服务器的状态通过专用Prometheus gauge监控</li><li><strong>可配置限制</strong> — 服务器数量（10）、每服务器工具数（20）、每次调用超时（30秒）</li></ul><h2>迭代模式 (ReAct)</h2><p>某些MCP服务器有复杂的API，静态规划器无法预先生成正确的参数。在<strong>迭代模式</strong>下，专用ReAct代理先阅读服务器文档，理解预期格式，然后正确调用工具。可通过<code>iterative_mode</code>开关按服务器启用。</p><h2>整箱的 MCP 服务器：Agent Plugins</h2><p>除了逐个声明服务器，LIA 还是开放标准 <strong>Agent Plugins</strong>（agent-plugins.org）的合规客户端：一种打包 MCP 服务器和技能的便携软件包，与 ChatGPT、Cursor、GitHub Copilot 和 VS Code 安装的格式相同。插件带来的每个服务器都携带其来源，在插件更新之间保留已配置的凭据，并且只随插件整体卸载而离开——每次安装都有按组件的完整报告，包括跳过了什么、为什么。</p><h2>读懂服务器的声明</h2><p>会说这门协议只是其中一半，另一半是理解服务器如何描述自己的工具——而当前修订版 <strong>2026-07-28</strong> 在这一点上刻意留出了很大空间：工具的参数用 JSON Schema 2020-12 描述，该标准的<em>任何</em>关键字都被允许。同一个可选参数既可以写成类型联合，也可以写成 <code>anyOf</code>；嵌套结构可以就地声明，也可以通过内部引用声明；封闭集合可以是 <code>enum</code>，也可以是单个常量。只理解最简单写法的客户端不会大声报错——它只会悄悄地拿到比服务器实际提供的更少的工具。</p><p>LIA 读取全部这些写法，并且只有一处实现，由两个需要它的地方共用：提供给模型的签名，以及规划器据以推理的条目。对同一份声明的两种读法最终必然分歧，所以只保留一种。而其中每个函数都会对服务器发来的任何内容给出答案，因为在那里抛出异常的代价是丢掉一个工具——而丢掉的工具意味着你失去了一项能力，却无人告知。</p><p>服务器强制执行的规则会被传递而非留存：封闭集合、取值边界与数量上限都会到达规划器，于是它提出的是服务器会接受的值，而不是靠猜测得出、随后被拒绝的值。行为提示同样会被读取，但只朝一个方向——规范要求把它们视为不可信，因此被声明为破坏性的工具始终会请求确认，而自称无害的服务器绝不会因此少一次确认。</p>"
       },
       "skills-system": {
         "title": "技能：专家指令定制LIA",
@@ -10620,9 +10720,9 @@
         "body": "<h2>隐私设计</h2><p>LIA从一开始就以数据保护为基本原则来设计，而非事后补充。</p><h2>Fernet对称加密</h2><p>所有敏感数据通过<strong>Fernet</strong>（AES-128 CBC + HMAC-SHA256）使用<code>encrypt_data()</code>函数加密。覆盖范围包括OAuth令牌、连接器凭据、PII和MCP服务器凭据。OAuth凭据在写入数据库前加密，读取时即时解密。加密密钥与数据分开管理。</p><h2>最小化数据收集</h2><p>LIA仅收集运行所需的最少数据：</p><ul><li>个人资料信息（姓名、邮箱、偏好设置）</li><li>对话历史（加密）</li><li>服务连接令牌（加密）</li><li>匿名使用指标</li></ul><h2>删除与级联</h2><p>删除用户账户会触发完整的<strong>级联删除</strong>：连接器、对话、设置、会话、记忆和所有关联数据都将不可逆地删除。数据库中不会保留任何孤立数据。</p><h2>安全会话与Cookie</h2><p>会话Cookie配置了<code>HttpOnly</code>、<code>Secure</code>（生产环境）和<code>SameSite=lax</code>属性。默认会话持续时间为7天，选择\"记住我\"可延长至30天。一次性令牌在首次使用后通过Redis黑名单机制失效。</p><h2>外部内容防护</h2><p>从外部来源（邮件、网页、文档）获取的内容在注入提示前标记为<code>UNTRUSTED</code>，并进行可配置封装。web_fetch工具限制为每个用户在60秒窗口内最多10次调用，以防止滥用。</p><h2>日志中PII过滤</h2><p>日志系统应用<strong>OWASP日志备忘录</strong>建议，自动从应用日志中过滤个人数据。敏感数据不会出现在日志中。</p><h2>数据可移植性 (v1.9.1)</h2><p>LIA允许每个用户从设置 > 功能中<strong>导出个人消费数据</strong>为CSV格式。三种导出类型：LLM消费（每次调用的Token和成本）、Google API消费和汇总摘要。安全性：<code>user_id</code>在服务器端强制设置——不暴露任何参数（IDOR防护）。</p><h2>恢复经过验证的备份</h2><p>保护数据也意味着确保数据能扛住事故。生产数据库每晚自动备份，保留 7 天、4 周和 6 个月的历史，存放在权限受限的专用目录中。而且，只有恢复被证明可行，备份才算数：恢复流程经过真实测试——将最新转储恢复到一次性容器中，并与线上数据库比对（模式修订、行数）——这一演练随技术栈一同交付。</p><h2>一份完整的记录，而不是一份样本</h2><p>三本自动维护的登记簿分别说明 LIA 为你<strong>做</strong>了什么、为回答你而<strong>查阅</strong>了什么，以及她<strong>自行着手</strong>做了什么。它们不承载任何内容：一次查阅只保留能力本身——「你的日程」——绝不保留搜索内容，因为写下来就等于抄录了这本登记簿正是为其问责而存在的那份数据。</p><p>你从<strong>设置 &gt; 登记簿</strong>下载的记录是<strong>完整</strong>的。它此前带有行数上限：那是一种真实的保护，因为整份文档要在 Raspberry Pi 上于内存中拼装——但它被施加在了错误的变量上。稀缺的是内存；被限制的却是真相。服务端游标如今限制的是缓冲区：无论数据量多大，文件都承载你的筛选条件所指定的全部内容，文件头写明确切行数与生成时刻，并在你的浏览器接受时顺带压缩。</p>"
       },
       "observability": {
-        "title": "541个Prometheus指标、28个Grafana仪表板和Langfuse追踪",
-        "excerpt": "LIA提供企业级可观测性：473指标、Grafana仪表板、通过Langfuse的LLM追踪，以及带处置指南的邮件告警。",
-        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 541个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中并带有PII过滤</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>23个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。23个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>28个Grafana仪表板</h2><p>LIA提供28个编号01至28的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony、briefing、product-value、meetings 和 effect-ledger。每个仪表板提供按用户、时间段和环境可过滤的视图。 第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 14 项关键告警组成的核心——API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成拥有8个专用指标来追踪每次LLM调用：消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p><h2>而自 v1.34 起：助手读取自身遥测</h2><p>以上一切原本只为人类而存在；助手自己什么都不读。ADR-247 闭合了这个环路：周期性自检把黄金指标与直接探针汇成带精确数值的健康快照；警报与严重判定按故障收敛为唯一事件，由预算受限、以运维手册为依据的 LLM 诊断；管理员拥有平台健康面板、主动通知和只读聊天工具。已知故障如今还会塑造回答——规划阶段即绕开降级能力，失败步骤用类型化错误码解释，绝不引用原始日志。此后，诊断不再只凭一个数字：按事件类型声明的配方规定要读取哪些细分指标和日志事件，证据包在诊断时收集并去除个人数据，无法访问的来源被声明为不可用而非当作沉默，模型读到的内容会展示在判定下方。</p><h2>统计结果，而非尝试</h2><p>v1.38.3 重新审视了一个计数器。统计抵达服务商的调用次数，是关于服务商的事实——可一旦这些调用会被重试，它就成了错误的分母：被重试救回的失败会抬高错误率，尽管什么都没丢失。如今第二个计数器按逻辑操作各记一行，重试折叠其中，回答运维人员唯一会据以行动的问题：调用方拿到结果了吗？第三个计数器则说明限流对每次尝试做了什么，因为「预算太小」与「Redis 宕机」在布尔值里毫无区别，却需要相反的处置。</p><p>最近的一课，关乎选择度量什么。自主循环有迭代次数和时长的计数器，却唯独没有度量真正增长的东西：每一步交付给模型的提示词。在生产代码上实测，第一次迭代是 2.3k tokens，第九十次是 112k——因为每个工具结果都留在模型会反复重读的对话里。现在有两个直方图记录交付体积及其占模型上下文窗口的比例，由状态归约器本就维护的那个带记忆化的计数器供数，因此这项度量在热路径上不产生额外开销。它们并未附带任何压缩策略，这是刻意的：一个对从未观测过的量采取行动的系统，优化的只是一个猜测。</p>"
+        "title": "547个Prometheus指标、28个Grafana仪表板和Langfuse追踪",
+        "excerpt": "LIA提供企业级可观测性：547 指标、Grafana仪表板、通过Langfuse的LLM追踪，以及带处置指南的邮件告警。",
+        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 547个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中并带有PII过滤</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>23个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。23个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>28个Grafana仪表板</h2><p>LIA提供28个编号01至28的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony、briefing、product-value、meetings 和 effect-ledger。每个仪表板提供按用户、时间段和环境可过滤的视图。 第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 14 项关键告警组成的核心——API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成拥有8个专用指标来追踪每次LLM调用：消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p><h2>而自 v1.34 起：助手读取自身遥测</h2><p>以上一切原本只为人类而存在；助手自己什么都不读。ADR-247 闭合了这个环路：周期性自检把黄金指标与直接探针汇成带精确数值的健康快照；警报与严重判定按故障收敛为唯一事件，由预算受限、以运维手册为依据的 LLM 诊断；管理员拥有平台健康面板、主动通知和只读聊天工具。已知故障如今还会塑造回答——规划阶段即绕开降级能力，失败步骤用类型化错误码解释，绝不引用原始日志。此后，诊断不再只凭一个数字：按事件类型声明的配方规定要读取哪些细分指标和日志事件，证据包在诊断时收集并去除个人数据，无法访问的来源被声明为不可用而非当作沉默，模型读到的内容会展示在判定下方。</p><h2>统计结果，而非尝试</h2><p>v1.38.3 重新审视了一个计数器。统计抵达服务商的调用次数，是关于服务商的事实——可一旦这些调用会被重试，它就成了错误的分母：被重试救回的失败会抬高错误率，尽管什么都没丢失。如今第二个计数器按逻辑操作各记一行，重试折叠其中，回答运维人员唯一会据以行动的问题：调用方拿到结果了吗？第三个计数器则说明限流对每次尝试做了什么，因为「预算太小」与「Redis 宕机」在布尔值里毫无区别，却需要相反的处置。</p><p>最近的一课，关乎选择度量什么。自主循环有迭代次数和时长的计数器，却唯独没有度量真正增长的东西：每一步交付给模型的提示词。在生产代码上实测，第一次迭代是 2.3k tokens，第九十次是 112k——因为每个工具结果都留在模型会反复重读的对话里。现在有两个直方图记录交付体积及其占模型上下文窗口的比例，由状态归约器本就维护的那个带记忆化的计数器供数，因此这项度量在热路径上不产生额外开销。它们并未附带任何压缩策略，这是刻意的：一个对从未观测过的量采取行动的系统，优化的只是一个猜测。</p>"
       },
       "prompt-engineering": {
         "title": "版本化提示系统：78个提示作为代码管理",
@@ -10657,7 +10757,7 @@
       "progressive-steps": {
         "title": "实时执行步骤：观看 LIA 工作过程",
         "excerpt": "LIA 在处理请求时逐步显示每个执行步骤 — 路由、规划、工具调用 — 实时呈现。",
-        "body": "<h2>透明度的实践</h2><p>当你向 LIA 发送复杂请求时，可能需要数秒才能收到回复。通过渐进式步骤显示，你可以<strong>实时了解</strong>：每个经过的节点、每个调用的工具都会即时显示。这个显示本身也是鲜活的：已完成的步骤逐渐变淡，当前步骤轻轻呼吸，整体淡入回答的第一批文字，撰写时还有光标闪烁。</p><h2>工作原理</h2><p>后端使用 LangGraph 的 <code>updates</code> 流模式检测每个图节点的完成。每一步都会向前端发送 SSE <code>execution_step</code> 事件，包含：</p><ul><li>工具或节点的 <strong>i18n 键</strong>（翻译成用户的语言）</li><li>ReAct 模式下的<strong>推理摘要</strong>（截断至120个字符）</li><li>目录中未列出工具的<strong>后备元数据</strong></li></ul><h2>前端显示</h2><p>步骤在界面中逐行累积显示，上限为同时可见 <strong>10个步骤</strong>。<strong>i18n 键去重</strong>机制防止相同步骤重复。</p><h2>Pipeline 和 ReAct</h2><p>在 <strong>Pipeline</strong> 模式下，步骤来自 ExecutionPlan。在 <strong>ReAct</strong> 模式下，每次工具调用都会生成一个步骤。</p><h2>覆盖90个工具</h2><p>目录中的所有 <strong>90个工具</strong>在6种语言中都有专用 i18n 键。</p><h2>不再有随机消息</h2><p>旧系统显示有趣但随机的等待短语。该系统已被完全替换为<strong>真实的上下文步骤</strong>。</p><h2>当数据流陷入静默</h2><p>步骤展示的价值，取决于喂养它的数据流是否还活着。当手机挂起标签页时，连接会无声中断 —— 既无结束，也无报错 —— 屏幕便一直停在最后显示的那个步骤上，而回答其实早已在服务器端完成并保存。此前没有任何迹象能把这种状态与一次单纯较慢的回答区分开。现在 LIA 能识别这种静默：超过按服务器心跳节奏校准的预算后，便丢弃这条已死的连接，并自动接续仍在后台运行的那一轮。</p>"
+        "body": "<h2>透明度的实践</h2><p>当你向 LIA 发送复杂请求时，可能需要数秒才能收到回复。通过渐进式步骤显示，你可以<strong>实时了解</strong>：每个经过的节点、每个调用的工具都会即时显示。这个显示本身也是鲜活的：已完成的步骤逐渐变淡，当前步骤轻轻呼吸，整体淡入回答的第一批文字，撰写时还有光标闪烁。</p><h2>工作原理</h2><p>后端使用 LangGraph 的 <code>updates</code> 流模式检测每个图节点的完成。每一步都会向前端发送 SSE <code>execution_step</code> 事件，包含：</p><ul><li>工具或节点的 <strong>i18n 键</strong>（翻译成用户的语言）</li><li>ReAct 模式下的<strong>推理摘要</strong>（截断至120个字符）</li><li>目录中未列出工具的<strong>后备元数据</strong></li></ul><h2>前端显示</h2><p>步骤在界面中逐行累积显示，上限为同时可见 <strong>10个步骤</strong>。<strong>i18n 键去重</strong>机制防止相同步骤重复。</p><h2>Pipeline 和 ReAct</h2><p>在 <strong>Pipeline</strong> 模式下，步骤来自 ExecutionPlan。在 <strong>ReAct</strong> 模式下，每次工具调用都会生成一个步骤。</p><h2>覆盖 114 个工具</h2><p>目录中的所有 <strong>90个工具</strong>在6种语言中都有专用 i18n 键。</p><h2>不再有随机消息</h2><p>旧系统显示有趣但随机的等待短语。该系统已被完全替换为<strong>真实的上下文步骤</strong>。</p><h2>当数据流陷入静默</h2><p>步骤展示的价值，取决于喂养它的数据流是否还活着。当手机挂起标签页时，连接会无声中断 —— 既无结束，也无报错 —— 屏幕便一直停在最后显示的那个步骤上，而回答其实早已在服务器端完成并保存。此前没有任何迹象能把这种状态与一次单纯较慢的回答区分开。现在 LIA 能识别这种静默：超过按服务器心跳节奏校准的预算后，便丢弃这条已死的连接，并自动接续仍在后台运行的那一轮。</p>"
       },
       "account-lifecycle": {
         "title": "账户生命周期：4种状态实现完整 GDPR 合规",
@@ -10792,6 +10892,7 @@
       "transparency": "彻底透明",
       "emotional_depth": "情感深度",
       "reliability": "生产可靠性",
+      "standards": "规范与合规",
       "openness": "彻底开放",
       "vision": "愿景"
     }
@@ -10836,7 +10937,7 @@
       "habits": "习惯学习",
       "governance": "治理一个实例",
       "tabular_admin": "按文件管理",
-      "evolution": "演进计划",
+      "evolution": "可见的工作",
       "expressive_eyes": "表情眼睛",
       "native_apps": "原生应用",
       "self_diagnostics": "自我诊断",
@@ -10846,7 +10947,9 @@
       "shock_absorbers": "三种机制，一次汇聚",
       "meetings": "会议：这一行就是任务",
       "registers": "三本登记簿",
-      "relation_debrief": "每段关系一份小结"
+      "relation_debrief": "每段关系一份小结",
+      "workboard": "工单板",
+      "conclusion": "结论"
     }
   },
   "healthMetrics": {
@@ -11287,6 +11390,12 @@
         "subtitle": "你的例程及其下次执行时间。",
         "empty": "没有计划任务。",
         "error": "无法读取计划任务。"
+      },
+      "workboard": {
+        "title": "工单",
+        "subtitle": "在等你的工单：某次执行停下来等你回复，或有事项已逾期。",
+        "empty": "没有需要你处理的工单。",
+        "error": "无法读取工单。"
       }
     },
     "direction_received": "已收到",
@@ -12305,7 +12414,8 @@
         "task": "已创建任务「{{target}}」",
         "task_delete": "已删除任务「{{target}}」",
         "task_update": "已修改任务「{{target}}」",
-        "vacation_responder": "已设置外出自动回复"
+        "vacation_responder": "已设置外出自动回复",
+        "ticket_delete": "已从工单板删除工单「{{target}}」"
       },
       "edit_image": "已修改图片：{{target}}",
       "generate_document": "已生成文档「{{target}}」",
@@ -12318,6 +12428,9 @@
       "run_skill_script": "已执行技能「{{target}}」的脚本",
       "set_current_item": "已将「{{target}}」设为当前对话对象",
       "toggle_scheduled_action_tool": "已启用或暂停计划操作「{{target}}」",
+      "create_ticket_tool": "已在工单板上创建工单「{{target}}」",
+      "update_ticket_tool": "已修改工单「{{target}}」",
+      "comment_ticket_tool": "已对工单「{{target}}」发表评论",
       "create_reminder_tool": "已创建提醒「{{target}}」",
       "proactive_notification": "已发送通知（{{kind}}）"
     },
@@ -12384,6 +12497,7 @@
       "sub_agent": "子代理",
       "task": "任务",
       "telephony": "电话",
+      "ticket": "工单板",
       "unknown": "未识别的能力",
       "weather": "天气",
       "web_fetch": "网页",
@@ -12610,5 +12724,227 @@
     "delete_confirm": "「{{content}}」将被删除。",
     "delete_series_confirm": "「{{content}}」会重复（{{schedule}}）。删除后所有后续提醒都会取消。",
     "section_what": "要提醒什么"
+  },
+  "workboard": {
+    "title": "Workboard",
+    "subtitle": "您的工单：您在做什么、您交给 LIA 的事、别人欠您的事。",
+    "columns": {
+      "idea": "想法",
+      "todo": "待办",
+      "in_progress": "进行中",
+      "waiting": "等待中",
+      "confirming": "待确认",
+      "validating": "待确认",
+      "done": "已完成"
+    },
+    "priority": {
+      "low": "低",
+      "medium": "中",
+      "high": "高",
+      "urgent": "紧急"
+    },
+    "party": {
+      "me": "我",
+      "lia": "LIA",
+      "unknown": "其他人",
+      "held_by": "由 {{name}} 负责",
+      "owned_by": "来自 {{name}}"
+    },
+    "card": {
+      "steps": "{{done}}/{{total}} 个步骤",
+      "due": "截止 {{date}}",
+      "overdue": "已逾期",
+      "open": "打开",
+      "delete": "删除",
+      "follow_on": "关注这个工单",
+      "follow_off": "取消关注",
+      "followed": "在聊天中关注",
+      "not_followed": "未在聊天中关注",
+      "actions": "工单操作",
+      "drag_card": "移动工单 {{title}}",
+      "run_running": "LIA 正在处理",
+      "run_waiting": "等待您的回复",
+      "run_failed": "上次执行失败",
+      "run_succeeded": "LIA 已回复",
+      "column_of": "{{title}} 的列",
+      "holder_of": "{{title}} 的负责人"
+    },
+    "board": {
+      "label": "工单板",
+      "column_count": "{{count}} 个工单",
+      "column_count_one": "{{count}} 个工单",
+      "column_count_other": "{{count}} 个工单",
+      "pick_column": "显示的列",
+      "previous_column": "上一列",
+      "next_column": "下一列",
+      "partial": "已显示 {{total}} 个工单中的前 {{shown}} 个。请使用筛选查看其余部分。"
+    },
+    "dnd": {
+      "instructions": "按空格或回车拿起工单，方向键移动，空格或回车放下，Esc 取消。",
+      "picked_up": "已从「{{column}}」拿起工单「{{title}}」。",
+      "moved_over": "工单「{{title}}」位于「{{column}}」上方。",
+      "dropped": "工单「{{title}}」已放入「{{column}}」。",
+      "cancelled": "移动已取消，工单「{{title}}」保持原位。"
+    },
+    "filters": {
+      "title": "筛选",
+      "search": "搜索标题",
+      "side": "负责人",
+      "side_all": "所有人",
+      "side_me": "我",
+      "side_lia": "LIA",
+      "side_peer": "某个联系人",
+      "priority": "优先级",
+      "priority_any": "任意优先级",
+      "overdue": "仅逾期",
+      "sort": "排序方式",
+      "sort_position": "看板顺序",
+      "sort_priority": "优先级",
+      "sort_due": "截止日期",
+      "sort_updated": "最近修改",
+      "sort_created": "创建时间",
+      "reset": "清除筛选",
+      "total": "{{count}} 个工单匹配",
+      "total_one": "{{count}} 个工单匹配",
+      "total_other": "{{count}} 个工单匹配"
+    },
+    "actions": {
+      "create": "新建工单",
+      "run_now": "立即执行",
+      "finish_in_chat": "在对话中完成",
+      "save": "保存",
+      "cancel": "取消",
+      "close": "关闭",
+      "add_step": "添加步骤",
+      "comment": "评论",
+      "open_board": "打开工单板",
+      "open_ticket": "打开工单"
+    },
+    "form": {
+      "new_title": "新建工单",
+      "title": "标题",
+      "title_hint": "用您自己的话写下要做的事。",
+      "description": "描述",
+      "description_hint": "如果把这个工单交给 LIA，这就是它将遵循的指令。",
+      "priority": "优先级",
+      "status": "列",
+      "assignee": "负责人",
+      "hand_back": "退回",
+      "start_at": "开始",
+      "due_at": "截止日期",
+      "follow": "在聊天中通知进展",
+      "execution_mode": "执行模式"
+    },
+    "detail": {
+      "steps": "步骤",
+      "comments": "评论",
+      "history": "历史",
+      "data": "详情",
+      "settings": "设置",
+      "last_run": "上次执行",
+      "no_comment": "还没有评论。",
+      "no_step": "还没有步骤。",
+      "no_history": "还没有发生任何事。",
+      "comment_placeholder": "写一条评论…",
+      "author_user": "您",
+      "author_lia": "LIA",
+      "author_peer": "某个联系人",
+      "loading": "正在加载工单…",
+      "read_only": "这是所有者的原话：只有他能修改标题和描述。",
+      "editable": "编辑该工单、发表评论，并跟踪 LIA 对它做了什么。",
+      "confirming_hint": "LIA 已准备好一项操作，正在等待您的确认：请用评论回复（「是」「否」或要改什么），然后把工单交给它。",
+      "usage": "费用",
+      "usage_runs_one": "{{count}} 次执行",
+      "usage_runs_other": "{{count}} 次执行",
+      "outcome_success": "LIA 已回复",
+      "outcome_waiting": "等待您的回复",
+      "outcome_confirming": "一项操作等待您的确认",
+      "outcome_failed": "失败",
+      "outcome_skipped_quota": "已推迟——配额已用完",
+      "outcome_skipped_busy": "已推迟——当时有对话进行中"
+    },
+    "events": {
+      "created": "已创建",
+      "status_changed": "更改了列",
+      "assigned": "已转交",
+      "returned": "已退回给所有者",
+      "returned_by_run": "LIA 把工单交还给您",
+      "released": "已退回给所有者——连接已移除",
+      "approved": "操作已批准",
+      "refused": "操作已拒绝",
+      "amended": "回复已转交",
+      "priority_changed": "更改了优先级",
+      "dates_changed": "更改了日期",
+      "run_started": "LIA 已开始",
+      "run_finished": "LIA 已完成",
+      "follow_changed": "更改了通知"
+    },
+    "history": {
+      "status": "列",
+      "priority": "优先级",
+      "start": "开始",
+      "due": "截止",
+      "follow": "通知",
+      "on": "已开启",
+      "off": "已关闭",
+      "none": "无",
+      "separator": "："
+    },
+    "empty": {
+      "title": "工单板还是空的",
+      "description": "工单是一件有自己生命周期的事：您可以自己做，也可以交给 LIA。",
+      "filtered_title": "没有匹配的工单",
+      "filtered_description": "工单板并不空，是这些筛选条件没有结果。",
+      "column": "这里没有内容",
+      "column_off_page": "不在本页——请筛选看板以查看它们。"
+    },
+    "unavailable": "本实例已关闭工单板。",
+    "load_error": "无法读取工单板。",
+    "delete_confirm": {
+      "title": "删除这个工单？",
+      "body": "「{{title}}」及其步骤、评论和历史都会一并删除。"
+    },
+    "deleted": "工单已删除。",
+    "created": "工单已创建。",
+    "run_requested": "LIA 会在一分钟内开始处理。",
+    "errors": {
+      "generic": "该操作未能完成。",
+      "title_required": "工单需要一个标题。",
+      "title_too_long": "标题太长了。",
+      "description_too_long": "描述太长了。",
+      "comment_required": "评论不能为空。",
+      "comment_too_long": "评论太长了。",
+      "depth_exceeded": "步骤不能再包含子步骤。",
+      "parent_not_owned": "该工单不在您的工单板上。",
+      "too_many_tickets": "您的工单板已满。",
+      "too_many_children": "这个工单的步骤数量已达上限。",
+      "assignee_not_connected": "您与该用户没有连接。",
+      "cross_account_delegation": "由他人负责的工单不能交给 LIA。",
+      "peer_cannot_delete": "只有所有者可以删除这个工单。",
+      "peer_cannot_edit_field": "这是所有者的原话。",
+      "peer_cannot_reassign": "您只能把这个工单交还。",
+      "run_now_requires_lia": "先把工单交给 LIA，再让它执行。",
+      "answer_required": "请先用评论回复——「是」「否」或要改什么——然后把工单交给 LIA。",
+      "max_runs_reached": "LIA 已达到该工单的执行次数上限。",
+      "status_invalid": "该列不存在。",
+      "priority_invalid": "该优先级不存在。",
+      "dates_inverted": "截止日期早于开始日期。",
+      "peers_disabled": "本实例已关闭用户互联。",
+      "not_found": "该工单已不存在。"
+    },
+    "run_errors": {
+      "assignee_inactive": "持有该工单的账号已停用，LIA 无法执行它。",
+      "empty_answer": "LIA 这次没有产出任何内容——工单保持原样。",
+      "generic": "本次执行结束时没有给出答复。",
+      "run_failed": "执行失败；LIA 不会自行重试。请使用「立即执行」重新发起。",
+      "run_reaped": "执行被中断，没有人看到它是如何结束的。"
+    },
+    "notification": {
+      "actions_label": "工单操作"
+    },
+    "execution_mode": {
+      "react": "ReAct 模式",
+      "pipeline": "Pipeline 模式"
+    }
   }
 }

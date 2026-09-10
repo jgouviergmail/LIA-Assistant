@@ -8,7 +8,9 @@ import structlog
 from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.config import settings
 from src.core.dependencies import get_db
+from src.core.exceptions import raise_invalid_input
 from src.core.security.authorization import (
     check_user_ownership_or_superuser,
     require_superuser,
@@ -18,6 +20,11 @@ from src.core.session_dependencies import (
     get_current_superuser_session,
 )
 from src.core.validators import get_common_timezones
+from src.domains.shared.settings_shortcuts import (
+    SettingsShortcutsPayload,
+    SettingsShortcutsResponse,
+    sanitize_settings_shortcuts,
+)
 from src.domains.users.models import User
 from src.domains.users.schemas import (
     AccountDeletionRequest,
@@ -203,6 +210,59 @@ async def clear_home_location(
     """Clear current user's home location."""
     service = UserService(db)
     await service.clear_home_location(current_user.id)
+
+
+# ========== PINNED SETTINGS SECTIONS (ADR-277) ==========
+
+
+def _settings_shortcuts_response(user: User) -> SettingsShortcutsResponse:
+    """The sanitized view of the row: NULL → nothing, a malformed entry dropped."""
+    cap = settings.settings_shortcuts_max_count
+    return SettingsShortcutsResponse(
+        shortcuts=sanitize_settings_shortcuts(user.settings_shortcuts, max_count=cap),
+        max_count=cap,
+    )
+
+
+@router.get(
+    "/me/settings-shortcuts",
+    response_model=SettingsShortcutsResponse,
+    summary="Get the settings sections pinned to the floating dock",
+)
+async def get_settings_shortcuts(
+    current_user: User = Depends(get_current_active_session),
+) -> SettingsShortcutsResponse:
+    """Sanitized view of the pinned sections (ADR-277), with the runtime cap.
+
+    NULL column → empty list; a malformed stored entry is dropped, never a
+    500 on the settings page.
+    """
+    return _settings_shortcuts_response(current_user)
+
+
+@router.put(
+    "/me/settings-shortcuts",
+    response_model=SettingsShortcutsResponse,
+    summary="Replace the settings sections pinned to the floating dock",
+)
+async def put_settings_shortcuts(
+    payload: SettingsShortcutsPayload,
+    current_user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> SettingsShortcutsResponse:
+    """Full replace of the pinned list (ADR-277).
+
+    Shape validation is strict (bad token, duplicates → 422); the COUNT cap
+    reads the runtime setting so the schema stays static. The write is a
+    plain NEW-list assignment — the JSONB new-dict rule.
+    """
+    cap = settings.settings_shortcuts_max_count
+    if len(payload.shortcuts) > cap:
+        raise_invalid_input(f"Too many settings shortcuts (max {cap})", max_count=cap)
+    current_user.settings_shortcuts = list(payload.shortcuts)
+    db.add(current_user)
+    await db.commit()
+    return _settings_shortcuts_response(current_user)
 
 
 # ========== ADMIN ENDPOINTS ==========

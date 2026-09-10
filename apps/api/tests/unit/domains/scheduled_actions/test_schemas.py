@@ -133,6 +133,7 @@ def _response(recurrence: RecurrenceSpec, **over: object) -> ScheduledActionResp
         "trigger_kind": "time",
         "condition_config": None,
         "requires_approval": False,
+        "execution_mode": "react",
         "next_trigger_at": datetime(2026, 9, 8, 6, 0, tzinfo=UTC),
         "is_enabled": True,
         "status": "active",

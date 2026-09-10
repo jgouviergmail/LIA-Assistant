@@ -52,6 +52,7 @@ from src.domains.agents.constants import (
 )
 from src.domains.agents.drafts.models import DraftAction
 from src.domains.agents.models import MessagesState
+from src.domains.agents.nodes.draft_preapproval import decide_draft
 from src.domains.agents.orchestration.parallel_executor import PendingDraftInfo
 from src.domains.agents.services.hitl.protocols import HitlInteractionType
 from src.domains.agents.utils.state_tracking import track_state_updates
@@ -668,7 +669,9 @@ async def _handle_draft_critique(
         batch_drafts=batch_drafts,
         clarification_question=state.get(STATE_KEY_DRAFT_CLARIFICATION_QUESTION),
     )
-    decision_data = interrupt(interrupt_payload)
+    # The one interrupt of this node execution — unless the person already
+    # approved this exact draft on their ticket (ADR-276 lot 7).
+    decision_data = decide_draft(pending_draft, interrupt_payload)
 
     elapsed_time = time.time() - start_time
     logger.info(

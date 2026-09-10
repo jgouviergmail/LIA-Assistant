@@ -151,22 +151,22 @@ class TestTheLabelTheUserReads:
         ``billing__cancel_subscription`` through a naive ``replace`` renders a
         double space on the card — measured on the Era server's own names.
         """
-        from src.domains.agents.effects.confirmation import _readable_tool_name
+        from src.domains.agents.effects.confirmation import readable_tool_name
 
         assert (
-            _readable_tool_name("mcp_era_billing__cancel_subscription")
+            readable_tool_name("mcp_era_billing__cancel_subscription")
             == "era: billing cancel subscription"
         )
 
     def test_a_native_tool_keeps_its_words(self) -> None:
-        from src.domains.agents.effects.confirmation import _readable_tool_name
+        from src.domains.agents.effects.confirmation import readable_tool_name
 
-        assert _readable_tool_name("delete_event_tool") == "delete event"
+        assert readable_tool_name("delete_event_tool") == "delete event"
 
     def test_a_server_with_no_operation_still_reads(self) -> None:
-        from src.domains.agents.effects.confirmation import _readable_tool_name
+        from src.domains.agents.effects.confirmation import readable_tool_name
 
-        assert _readable_tool_name("mcp_era") == "era"
+        assert readable_tool_name("mcp_era") == "era"
 
 
 class TestTheReplay:

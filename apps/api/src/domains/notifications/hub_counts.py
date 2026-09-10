@@ -55,6 +55,9 @@ class HubCounts:
         scheduled: Scheduled routines the account owns.
         offers: UNDECIDED missed-routine offers (Lot 5-C2) — like reminders,
             this one is a to-decide set, not a history.
+        workboard: Tickets that NEED the reader — a run stopped and waiting for
+            them, or something late on their board (ADR-276). A to-decide set
+            like the two above, never a tally of everything they own.
     """
 
     peer_messages: int
@@ -63,6 +66,7 @@ class HubCounts:
     reminders: int
     scheduled: int
     offers: int
+    workboard: int
 
 
 async def _safe_count(section: str, probe: Coroutine[None, None, int]) -> int:
@@ -128,6 +132,31 @@ async def _scheduled(user_id: UUID) -> int:
         return await ScheduledActionRepository(db).count_for_user(user_id)
 
 
+async def _workboard(user_id: UUID) -> int:
+    """Tickets waiting on the reader — 0 without a query when the board is off.
+
+    Gate-keeper (ADR-061): the hub does not render the section at all, so
+    counting it would be a statement per hub load for a badge nobody sees.
+
+    Args:
+        user_id: Whose board.
+
+    Returns:
+        The exact number of tickets needing them.
+    """
+    if not getattr(settings, "workboard_enabled", False):
+        return 0
+    async with get_db_context() as db:
+        from src.core.time_utils import now_utc
+        from src.domains.workboard.repository import WorkboardRepository
+
+        # The AGGREGATE alone: the badge needs the total, and asking for a page
+        # of it costs a second statement and a row nobody looks at, on every
+        # dashboard load. The predicate is the section's own, so the two can
+        # never disagree about what « needs me » means.
+        return await WorkboardRepository(db).count_needs_me(user_id, now_utc())
+
+
 async def _offers(user_id: UUID) -> int:
     """Open missed-routine offers — 0 without a query when heartbeat is off."""
     if not settings.heartbeat_enabled:
@@ -157,13 +186,22 @@ async def resolve_hub_counts(user: User) -> HubCounts:
         One exact total per section; 0 for any section whose read failed.
     """
     user_id: UUID = user.id
-    peer_messages, proactive, interests, reminders, scheduled, offers = await asyncio.gather(
+    (
+        peer_messages,
+        proactive,
+        interests,
+        reminders,
+        scheduled,
+        offers,
+        workboard,
+    ) = await asyncio.gather(
         _safe_count("peer_messages", _peer_messages(user_id)),
         _safe_count("proactive", _proactive(user_id)),
         _safe_count("interests", _interests(user_id)),
         _safe_count("reminders", _reminders(user_id)),
         _safe_count("scheduled", _scheduled(user_id)),
         _safe_count("offers", _offers(user_id)),
+        _safe_count("workboard", _workboard(user_id)),
     )
     return HubCounts(
         peer_messages=peer_messages,
@@ -172,4 +210,5 @@ async def resolve_hub_counts(user: User) -> HubCounts:
         reminders=reminders,
         scheduled=scheduled,
         offers=offers,
+        workboard=workboard,
     )

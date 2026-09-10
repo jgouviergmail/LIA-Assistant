@@ -55,6 +55,7 @@ HEARTBEAT_SOURCE_KEYS: frozenset[str] = frozenset(
         "open_loops",
         "departure",
         "habits",
+        "workboard",
     }
 )
 
@@ -74,6 +75,7 @@ HEARTBEAT_SOURCE_ORDER: tuple[str, ...] = (
     "open_loops",
     "departure",
     "habits",
+    "workboard",
 )
 
 
@@ -92,6 +94,44 @@ HEARTBEAT_SOURCE_ORDER: tuple[str, ...] = (
 HEARTBEAT_SOURCE_DEPENDENCIES: dict[str, tuple[str, ...]] = {
     "departure": ("calendar",),
 }
+
+
+#: Sources whose whole subsystem the DEPLOYMENT can switch off, and the
+#: setting that does it.
+#:
+#: This is not the same gate as the person's own refusal
+#: (:data:`HEARTBEAT_SOURCE_KEYS`), and the difference matters to the register
+#: rather than to the notification: a fetcher whose feature flag is off returns
+#: ``None`` without opening anything, so counting it among the sources the
+#: sweep OPENED would claim a read that never happened (ADR-263 — a cache hit
+#: is not a consultation, and neither is a switched-off subsystem). Measured
+#: 2026-09-09: five sources short-circuit on a flag and all five were recorded
+#: as consultations on any deployment that had switched one off.
+#:
+#: Only the DEPLOYMENT flag is declared here. A per-account preference the
+#: fetcher reads on its own (``user.habits_enabled``) stays the fetcher's
+#: business: it narrows what a source returns, it does not stop it opening.
+HEARTBEAT_SOURCE_FEATURE_FLAGS: dict[str, str] = {
+    "open_loops": "open_loops_enabled",
+    "workboard": "workboard_enabled",
+    "departure": "heartbeat_departure_enabled",
+    "habits": "habits_enabled",
+    "health_signals": "health_metrics_enabled",
+}
+
+
+def is_source_available(settings: Any, name: str) -> bool:
+    """Whether this deployment runs the subsystem behind a source at all.
+
+    Args:
+        settings: Application settings.
+        name: Source key.
+
+    Returns:
+        True when the source has no deployment flag, or its flag is on.
+    """
+    flag = HEARTBEAT_SOURCE_FEATURE_FLAGS.get(name)
+    return flag is None or bool(getattr(settings, flag, False))
 
 
 def assert_source_registry_complete() -> None:
@@ -123,6 +163,11 @@ def assert_source_registry_complete() -> None:
             raise RuntimeError(f"Heartbeat dependency on unknown source(s): {', '.join(unknown)}.")
         if source in requires:
             raise RuntimeError(f"Heartbeat source {source!r} depends on itself.")
+    unknown_flagged = sorted(set(HEARTBEAT_SOURCE_FEATURE_FLAGS) - HEARTBEAT_SOURCE_KEYS)
+    if unknown_flagged:
+        raise RuntimeError(
+            f"Heartbeat feature flag declared for unknown source(s): {unknown_flagged}."
+        )
 
 
 assert_source_registry_complete()

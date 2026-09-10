@@ -25,6 +25,7 @@ import { apiResourceUrl } from '@/lib/utils/api-resource-url';
 import { MarkdownContent } from './MarkdownContent';
 import { documentTypeIcon } from './document-card-icon';
 import { PeerMessageActions } from '@/components/chat/PeerMessageActions';
+import { WorkboardNotificationActions } from '@/components/chat/WorkboardNotificationActions';
 import { isInterestNotificationMetadata } from './InterestNotificationCard';
 import { MeetingMinutesCard } from '@/components/meetings/MeetingMinutesCard';
 import { isMeetingNotificationMetadata } from '@/types/meetings';
@@ -347,6 +348,10 @@ function AssistantActionRow({
       {/* Peers Lot 7: reply/block on relayed messages, accept/decline on
           incoming connection requests — self-gated on the metadata. */}
       <PeerMessageActions metadata={message.metadata} onPrefillComposer={onPrefillComposer} />
+      {/* ADR-276: open the ticket, open the board, and — for a run that
+          stopped needing the person — finish it in the chat. Self-gated on
+          the metadata, like the peer row above it. */}
+      <WorkboardNotificationActions metadata={message.metadata} />
       <ExecutionTraceDisclosure trace={trace} />
       {/* ADR-263: what the turn actually DID. Visible, never folded — a claim
           the reader must expand to see is a claim they will miss. */}

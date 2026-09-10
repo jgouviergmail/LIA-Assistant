@@ -120,3 +120,66 @@ class TestDispatchPeerEvents:
             dispatcher_cls.return_value.dispatch = dispatch
             await dispatch_peer_events([_event("connection_removed")], _db(users, _connection()))
         assert dispatch.await_count == 2  # second recipient still served
+
+
+class TestWhatCameBackWhenThePairEnded:
+    """ADR-276 lot 5: the removal already reaches both sides, so the workboard
+    sentence rides ALONG rather than arriving as a second notification a second
+    later. The number is each recipient's OWN — a pair usually holds work in
+    both directions, and the pair's total would tell each of them something
+    that is not true of them."""
+
+    async def test_each_side_reads_its_own_count(self):
+        users = {ACTOR: _user(ACTOR, "fr", "Marie"), OTHER: _user(OTHER, "fr", "Max")}
+        event = PeerEvent(
+            kind="connection_removed",
+            connection_id=CONNECTION_ID,
+            actor_id=ACTOR,
+            affected_ids=(ACTOR, OTHER),
+            released=((ACTOR, 3), (OTHER, 1)),
+        )
+        dispatch = AsyncMock()
+
+        with patch("src.domains.peers.notifications.NotificationDispatcher") as dispatcher_cls:
+            dispatcher_cls.return_value.dispatch = dispatch
+            await dispatch_peer_events([event], _db(users, _connection()))
+
+        bodies = {
+            call.kwargs["user"].id: call.kwargs["content"] for call in dispatch.await_args_list
+        }
+        assert "3 tickets" in bodies[ACTOR]
+        assert "1 ticket " in bodies[OTHER]
+        assert "3" not in bodies[OTHER]
+
+    async def test_a_side_that_got_nothing_back_reads_the_plain_sentence(self):
+        # « 0 ticket came back » is noise; the severance sentence stands alone.
+        users = {ACTOR: _user(ACTOR, "fr", "Marie"), OTHER: _user(OTHER, "fr", "Max")}
+        event = PeerEvent(
+            kind="connection_removed",
+            connection_id=CONNECTION_ID,
+            actor_id=ACTOR,
+            affected_ids=(ACTOR, OTHER),
+            released=((ACTOR, 2),),
+        )
+        dispatch = AsyncMock()
+
+        with patch("src.domains.peers.notifications.NotificationDispatcher") as dispatcher_cls:
+            dispatcher_cls.return_value.dispatch = dispatch
+            await dispatch_peer_events([event], _db(users, _connection()))
+
+        bodies = {
+            call.kwargs["user"].id: call.kwargs["content"] for call in dispatch.await_args_list
+        }
+        assert "2 tickets" in bodies[ACTOR]
+        assert "ticket" not in bodies[OTHER]
+
+    async def test_a_pair_that_held_nothing_changes_no_wording(self):
+        users = {ACTOR: _user(ACTOR, "fr", "Marie"), OTHER: _user(OTHER, "fr", "Max")}
+        dispatch = AsyncMock()
+
+        with patch("src.domains.peers.notifications.NotificationDispatcher") as dispatcher_cls:
+            dispatcher_cls.return_value.dispatch = dispatch
+            await dispatch_peer_events([_event("connection_removed")], _db(users, _connection()))
+
+        for call in dispatch.await_args_list:
+            assert "ticket" not in call.kwargs["content"]

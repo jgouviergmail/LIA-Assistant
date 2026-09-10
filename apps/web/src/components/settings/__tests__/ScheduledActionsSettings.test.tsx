@@ -259,6 +259,9 @@ describe('ScheduledActionsSettings — creation', () => {
         trigger_kind: 'time',
         condition_config: null,
         requires_approval: false,
+        // The row carries its own execution mode (ADR-276, lot 10): the loop
+        // by default, because nobody is there to steer a plan when it fires.
+        execution_mode: 'react',
       })
     );
     expect(toast.success).toHaveBeenCalledWith('scheduled_actions.create_success');

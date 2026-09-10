@@ -60,6 +60,7 @@ import { LanguageSettings } from './LanguageSettings';
 import { LocationSettings } from './LocationSettings';
 import { MCPServersSettings } from './MCPServersSettings';
 import { MemorySettings } from './MemorySettings';
+import { MyShortcutsSettings } from './MyShortcutsSettings';
 import { NotificationSettings } from './NotificationSettings';
 import { OpenLoopsSection } from './OpenLoopsSection';
 import { PeerConnectionsSettings } from './PeerConnectionsSettings';
@@ -72,6 +73,7 @@ import { SecuritySettings } from './SecuritySettings';
 import { SkillsSettings } from './SkillsSettings';
 import TelephonyCallsSection from './TelephonyCallsSection';
 import { MeetingsSettings } from './MeetingsSettings';
+import { WorkboardSettings } from '@/components/settings/WorkboardSettings';
 import { TimezoneSelector } from './TimezoneSelector';
 import UserConnectorsSection from './UserConnectorsSection';
 import { UserDebugSettings } from './UserDebugSettings';
@@ -98,6 +100,7 @@ export const SETTINGS_SECTION_REGISTRY: Readonly<
   haptics: { render: lng => <HapticsSettings lng={lng} /> },
   'briefing-grid': { render: lng => <BriefingGridSettings lng={lng} /> },
   'chat-shortcuts': { render: lng => <ChatShortcutsSettings lng={lng} /> },
+  'my-shortcuts': { render: lng => <MyShortcutsSettings lng={lng} /> },
 
   // ---- Preferences / Notifications & Communication
   notifications: { render: lng => <NotificationSettings lng={lng} /> },
@@ -158,6 +161,7 @@ export const SETTINGS_SECTION_REGISTRY: Readonly<
   plugins: { feature: 'plugins', render: lng => <PluginsSettings lng={lng} /> },
   'rag-spaces': { feature: 'rag-spaces', render: lng => <SpacesSettingsSection lng={lng} /> },
   meetings: { feature: 'meetings', render: lng => <MeetingsSettings lng={lng} /> },
+  workboard: { feature: 'workboard', render: lng => <WorkboardSettings lng={lng} /> },
   'user-consumption-export': {
     feature: 'user-consumption-export',
     render: lng => <ConsumptionExportSection lng={lng} mode="user" />,

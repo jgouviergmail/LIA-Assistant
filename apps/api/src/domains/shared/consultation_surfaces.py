@@ -244,6 +244,7 @@ CONSULTATION_SURFACES: Final[Mapping[str, ConsultationSurface]] = {
             "health_signals": "health",
             "birthdays": "contact",
             "open_loops": "peer",
+            "workboard": "ticket",
             "habits": "automation",
             # Second pass — a dynamic query rather than the static one the
             # historical implementation anchored on (ADR-135).

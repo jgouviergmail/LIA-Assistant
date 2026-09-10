@@ -40,6 +40,7 @@ TYPE_TO_DOMAIN_MAP: dict[str, tuple[str, str]] = {
     "WEB_SEARCH": ("web_search", "web_searchs"),  # Unified triple source search
     # Internal domain types (no OAuth)
     "REMINDER": ("reminder", "reminders"),  # User reminders (internal)
+    "TICKET": ("ticket", "tickets"),  # Workboard tickets (ADR-276, internal)
     "WEB_PAGE": ("web_fetch", "web_fetchs"),  # Fetched web page content (evolution F1)
     "MCP_RESULT": ("mcp", "mcps"),  # MCP tool results (evolution F2.3)
     "MCP_APP": ("mcp_app", "mcp_apps"),  # MCP Apps interactive widgets (evolution F2.5)
@@ -238,6 +239,7 @@ ITEMS_KEY_TO_REGISTRY_CONFIG: dict[str, tuple[str, str]] = {
     "files": ("FILE", "id"),
     "places": ("PLACE", "place_id"),
     "reminders": ("REMINDER", "id"),
+    "tickets": ("TICKET", "id"),
     # --- Composite ID domains (FOR_EACH filtering NOT supported) ---
     # ROUTE ID: f"{origin}_{destination}_{mode}_{timestamp}" — no single payload field
     "routes": ("ROUTE", "id"),
@@ -343,6 +345,7 @@ TOOL_PATTERN_TO_DOMAIN_MAP: dict[str, str] = {
     "perplexity": "perplexitys",  # CONTEXT_DOMAIN_PERPLEXITY (domain + "s")
     "web_search": "web_searchs",  # CONTEXT_DOMAIN_WEB_SEARCH (unified triple source)
     "reminder": "reminders",  # User reminders (internal)
+    "ticket": "tickets",  # CONTEXT_DOMAIN_TICKETS (ADR-276)
     "route": "routes",  # CONTEXT_DOMAIN_ROUTES (Google Routes directions)
     "query": "querys",  # CONTEXT_DOMAIN_QUERY (domain + "s")
     "web_fetch": "web_fetchs",  # CONTEXT_DOMAIN_WEB_FETCH (evolution F1)

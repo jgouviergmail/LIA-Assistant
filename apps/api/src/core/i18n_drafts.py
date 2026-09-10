@@ -35,6 +35,7 @@ DRAFT_SUCCESS_MESSAGES: dict[Language, dict[str, str]] = {
         "file_delete": "Supprimé avec succès",
         "label_delete": "Label supprimé avec succès",
         "reminder_delete": "Rappel '{content}' supprimé",
+        "ticket_delete": "Ticket '{title}' supprimé",
         "phone_call": "J'appelle **{name}** maintenant, je te fais un retour dès que j'ai la réponse.",
         "_default": "Action exécutée avec succès",
     },
@@ -55,6 +56,7 @@ DRAFT_SUCCESS_MESSAGES: dict[Language, dict[str, str]] = {
         "file_delete": "Deleted successfully",
         "label_delete": "Label deleted successfully",
         "reminder_delete": "Reminder '{content}' deleted",
+        "ticket_delete": "Ticket '{title}' deleted",
         "phone_call": "I'm calling **{name}** now — I'll get back to you as soon as I have an answer.",
         "_default": "Action completed successfully",
     },
@@ -75,6 +77,7 @@ DRAFT_SUCCESS_MESSAGES: dict[Language, dict[str, str]] = {
         "file_delete": "Eliminado con éxito",
         "label_delete": "Etiqueta eliminada con éxito",
         "reminder_delete": "Recordatorio '{content}' eliminado",
+        "ticket_delete": "Ticket '{title}' eliminado",
         "phone_call": "Estoy llamando a **{name}** ahora; te aviso en cuanto tenga una respuesta.",
         "_default": "Acción ejecutada con éxito",
     },
@@ -95,6 +98,7 @@ DRAFT_SUCCESS_MESSAGES: dict[Language, dict[str, str]] = {
         "file_delete": "Erfolgreich gelöscht",
         "label_delete": "Label erfolgreich gelöscht",
         "reminder_delete": "Erinnerung '{content}' gelöscht",
+        "ticket_delete": "Ticket '{title}' gelöscht",
         "phone_call": "Ich rufe **{name}** jetzt an und melde mich, sobald ich eine Antwort habe.",
         "_default": "Aktion erfolgreich ausgeführt",
     },
@@ -115,6 +119,7 @@ DRAFT_SUCCESS_MESSAGES: dict[Language, dict[str, str]] = {
         "file_delete": "Eliminato con successo",
         "label_delete": "Etichetta eliminata con successo",
         "reminder_delete": "Promemoria '{content}' eliminato",
+        "ticket_delete": "Ticket '{title}' eliminato",
         "phone_call": "Sto chiamando **{name}** adesso; ti aggiorno appena ho una risposta.",
         "_default": "Azione eseguita con successo",
     },
@@ -135,6 +140,7 @@ DRAFT_SUCCESS_MESSAGES: dict[Language, dict[str, str]] = {
         "file_delete": "删除成功",
         "label_delete": "标签删除成功",
         "reminder_delete": "提醒 '{content}' 已删除",
+        "ticket_delete": "工单 '{title}' 已删除",
         "phone_call": "我正在拨打 **{name}**，一有答复我就告诉你。",
         "_default": "操作成功完成",
     },
@@ -163,6 +169,7 @@ DRAFT_CANCEL_MESSAGES: dict[Language, dict[str, str]] = {
         "file_delete": "Suppression annulée",
         "label_delete": "Suppression annulée",
         "reminder_delete": "Suppression annulée",
+        "ticket_delete": "Suppression annulée",
         "phone_call": "Appel annulé",
         "_default": "Action annulée",
     },
@@ -183,6 +190,7 @@ DRAFT_CANCEL_MESSAGES: dict[Language, dict[str, str]] = {
         "file_delete": "Deletion cancelled",
         "label_delete": "Deletion cancelled",
         "reminder_delete": "Deletion cancelled",
+        "ticket_delete": "Deletion cancelled",
         "phone_call": "Call cancelled",
         "_default": "Action cancelled",
     },
@@ -203,6 +211,7 @@ DRAFT_CANCEL_MESSAGES: dict[Language, dict[str, str]] = {
         "file_delete": "Eliminación cancelada",
         "label_delete": "Eliminación cancelada",
         "reminder_delete": "Eliminación cancelada",
+        "ticket_delete": "Eliminación cancelada",
         "phone_call": "Llamada cancelada",
         "_default": "Acción cancelada",
     },
@@ -223,6 +232,7 @@ DRAFT_CANCEL_MESSAGES: dict[Language, dict[str, str]] = {
         "file_delete": "Löschung abgebrochen",
         "label_delete": "Löschung abgebrochen",
         "reminder_delete": "Löschung abgebrochen",
+        "ticket_delete": "Löschung abgebrochen",
         "phone_call": "Anruf abgebrochen",
         "_default": "Aktion abgebrochen",
     },
@@ -243,6 +253,7 @@ DRAFT_CANCEL_MESSAGES: dict[Language, dict[str, str]] = {
         "file_delete": "Eliminazione annullata",
         "label_delete": "Eliminazione annullata",
         "reminder_delete": "Eliminazione annullata",
+        "ticket_delete": "Eliminazione annullata",
         "phone_call": "Chiamata annullata",
         "_default": "Azione annullata",
     },
@@ -263,6 +274,7 @@ DRAFT_CANCEL_MESSAGES: dict[Language, dict[str, str]] = {
         "file_delete": "删除已取消",
         "label_delete": "删除已取消",
         "reminder_delete": "删除已取消",
+        "ticket_delete": "删除已取消",
         "phone_call": "通话已取消",
         "_default": "操作已取消",
     },
@@ -315,29 +327,43 @@ DRAFT_SUMMARY_LABELS: dict[Language, dict[str, str]] = {
         "email_to": "Email à {to}",
         "email_reply_to": "Réponse à {to}",
         "email_forward_to": "Transfert à {to}",
-        "email_delete": "Suppression email: {subject}",
+        "email_delete": "Suppression email : {subject}",
         # Event actions
-        "event_create": "Événement: {summary} le {start}",
-        "event_update": "Modification événement: {summary}",
-        "event_delete": "Suppression événement: {summary}",
+        "event_create": "Événement : {summary} le {start}",
+        "event_update": "Modification événement : {summary}",
+        "event_delete": "Suppression événement : {summary}",
         # Contact actions
-        "contact_create": "Contact: {name}",
-        "contact_update": "Modification contact: {name}",
-        "contact_delete": "Suppression contact: {name}",
+        "contact_create": "Contact : {name}",
+        "contact_update": "Modification contact : {name}",
+        "contact_delete": "Suppression contact : {name}",
         # Task actions
-        "task_create": "Tâche: {title}",
-        "task_update": "Modification tâche: {title}",
-        "task_delete": "Suppression tâche: {title}",
+        "task_create": "Tâche : {title}",
+        "task_update": "Modification tâche : {title}",
+        "task_delete": "Suppression tâche : {title}",
         # File actions
-        "file_delete": "Suppression fichier: {name}",
+        "file_delete": "Suppression fichier : {name}",
         # Label actions
-        "label_delete": "Suppression label: {name}",
+        "label_delete": "Suppression label : {name}",
         # Phone call action
-        "phone_call": "Appel à {name}: {objective}",
+        "phone_call": "Appel à {name} : {objective}",
         # Draft header
-        "draft_created": "📄 **Brouillon créé**: {title}",
-        "action_required": "**Action requise**: confirmez, modifiez ou annulez.",
+        "draft_created": "📄 **Brouillon créé** : {title}",
+        "action_required": "**Action requise** : confirmez, modifiez ou annulez.",
         "devops_task": "Tâche serveur {server} : {task}",
+        # Nine draft types reached no branch at all before lot 13 and were
+        # titled « Draft (tool_call) » — the enum value, in English, in every
+        # language. See drafts/summary_renderer.py, whose boot assert is what
+        # keeps this list complete.
+        "reminder_delete": "Suppression rappel : {content}",
+        "ticket_delete": "Suppression ticket : {title}",
+        "scheduled_action": "Automatisation : {title}",
+        "peer_message": "Message à {name}",
+        "vacation_responder_on": "Réponse automatique : {subject}",
+        "vacation_responder_off": "Désactivation de la réponse automatique",
+        "email_filter": "Filtre email : {criteria}",
+        "tool_call": "Action : {tool}",
+        "spreadsheet_write": "Écriture dans {file} ({sheet})",
+        "document_append": "Ajout dans {file}",
     },
     "en": {
         "email_to": "Email to {to}",
@@ -359,6 +385,20 @@ DRAFT_SUMMARY_LABELS: dict[Language, dict[str, str]] = {
         "draft_created": "📄 **Draft created**: {title}",
         "action_required": "**Action required**: confirm, edit, or cancel.",
         "devops_task": "Server task on {server}: {task}",
+        # Nine draft types reached no branch at all before lot 13 and were
+        # titled « Draft (tool_call) » — the enum value, in English, in every
+        # language. See drafts/summary_renderer.py, whose boot assert is what
+        # keeps this list complete.
+        "reminder_delete": "Delete reminder: {content}",
+        "ticket_delete": "Delete ticket: {title}",
+        "scheduled_action": "Automation: {title}",
+        "peer_message": "Message to {name}",
+        "vacation_responder_on": "Auto-reply: {subject}",
+        "vacation_responder_off": "Turn off the auto-reply",
+        "email_filter": "Email filter: {criteria}",
+        "tool_call": "Action: {tool}",
+        "spreadsheet_write": "Write to {file} ({sheet})",
+        "document_append": "Append to {file}",
     },
     "es": {
         "email_to": "Email a {to}",
@@ -380,6 +420,20 @@ DRAFT_SUMMARY_LABELS: dict[Language, dict[str, str]] = {
         "draft_created": "📄 **Borrador creado**: {title}",
         "action_required": "**Acción requerida**: confirme, modifique o cancele.",
         "devops_task": "Tarea de servidor en {server}: {task}",
+        # Nine draft types reached no branch at all before lot 13 and were
+        # titled « Draft (tool_call) » — the enum value, in English, in every
+        # language. See drafts/summary_renderer.py, whose boot assert is what
+        # keeps this list complete.
+        "reminder_delete": "Eliminar recordatorio: {content}",
+        "ticket_delete": "Eliminar ticket: {title}",
+        "scheduled_action": "Automatización: {title}",
+        "peer_message": "Mensaje a {name}",
+        "vacation_responder_on": "Respuesta automática: {subject}",
+        "vacation_responder_off": "Desactivar la respuesta automática",
+        "email_filter": "Filtro de correo: {criteria}",
+        "tool_call": "Acción: {tool}",
+        "spreadsheet_write": "Escritura en {file} ({sheet})",
+        "document_append": "Añadir en {file}",
     },
     "de": {
         "email_to": "E-Mail an {to}",
@@ -401,6 +455,20 @@ DRAFT_SUMMARY_LABELS: dict[Language, dict[str, str]] = {
         "draft_created": "📄 **Entwurf erstellt**: {title}",
         "action_required": "**Aktion erforderlich**: bestätigen, bearbeiten oder abbrechen.",
         "devops_task": "Serveraufgabe auf {server}: {task}",
+        # Nine draft types reached no branch at all before lot 13 and were
+        # titled « Draft (tool_call) » — the enum value, in English, in every
+        # language. See drafts/summary_renderer.py, whose boot assert is what
+        # keeps this list complete.
+        "reminder_delete": "Erinnerung löschen: {content}",
+        "ticket_delete": "Ticket löschen: {title}",
+        "scheduled_action": "Automatisierung: {title}",
+        "peer_message": "Nachricht an {name}",
+        "vacation_responder_on": "Abwesenheitsnotiz: {subject}",
+        "vacation_responder_off": "Abwesenheitsnotiz deaktivieren",
+        "email_filter": "E-Mail-Filter: {criteria}",
+        "tool_call": "Aktion: {tool}",
+        "spreadsheet_write": "Schreiben in {file} ({sheet})",
+        "document_append": "Hinzufügen in {file}",
     },
     "it": {
         "email_to": "Email a {to}",
@@ -422,6 +490,20 @@ DRAFT_SUMMARY_LABELS: dict[Language, dict[str, str]] = {
         "draft_created": "📄 **Bozza creata**: {title}",
         "action_required": "**Azione richiesta**: conferma, modifica o annulla.",
         "devops_task": "Attività server su {server}: {task}",
+        # Nine draft types reached no branch at all before lot 13 and were
+        # titled « Draft (tool_call) » — the enum value, in English, in every
+        # language. See drafts/summary_renderer.py, whose boot assert is what
+        # keeps this list complete.
+        "reminder_delete": "Eliminazione promemoria: {content}",
+        "ticket_delete": "Eliminazione ticket: {title}",
+        "scheduled_action": "Automazione: {title}",
+        "peer_message": "Messaggio a {name}",
+        "vacation_responder_on": "Risposta automatica: {subject}",
+        "vacation_responder_off": "Disattivazione della risposta automatica",
+        "email_filter": "Filtro email: {criteria}",
+        "tool_call": "Azione: {tool}",
+        "spreadsheet_write": "Scrittura in {file} ({sheet})",
+        "document_append": "Aggiunta in {file}",
     },
     "zh-CN": {
         "email_to": "发送邮件给 {to}",
@@ -443,6 +525,20 @@ DRAFT_SUMMARY_LABELS: dict[Language, dict[str, str]] = {
         "draft_created": "📄 **草稿已创建**: {title}",
         "action_required": "**需要操作**: 确认、修改或取消。",
         "devops_task": "服务器任务 {server}：{task}",
+        # Nine draft types reached no branch at all before lot 13 and were
+        # titled « Draft (tool_call) » — the enum value, in English, in every
+        # language. See drafts/summary_renderer.py, whose boot assert is what
+        # keeps this list complete.
+        "reminder_delete": "删除提醒：{content}",
+        "ticket_delete": "删除工单：{title}",
+        "scheduled_action": "自动化：{title}",
+        "peer_message": "发送给 {name} 的消息",
+        "vacation_responder_on": "自动回复：{subject}",
+        "vacation_responder_off": "关闭自动回复",
+        "email_filter": "邮件过滤器：{criteria}",
+        "tool_call": "操作：{tool}",
+        "spreadsheet_write": "写入 {file}（{sheet}）",
+        "document_append": "追加到 {file}",
     },
 }
 
@@ -459,6 +555,7 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "bcc": "Cci",
         "subject": "Objet",
         "no_subject": "(sans objet)",
+        "steps": "Étapes",
         "body": "Message",
         "from": "De",
         "date": "Date",
@@ -501,6 +598,10 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "query": "Requête",
         "filter_archive": "Les messages seront archivés",
         "filter_mark_read": "Les messages seront marqués comme lus",
+        # Not a label: what a preview row puts between one and its value.
+        # A literal ": " in the renderer would publish English punctuation
+        # in six languages.
+        "separator": " : ",
     },
     "en": {
         "to": "To",
@@ -508,6 +609,7 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "bcc": "Bcc",
         "subject": "Subject",
         "no_subject": "(no subject)",
+        "steps": "Steps",
         "body": "Message",
         "from": "From",
         "date": "Date",
@@ -550,6 +652,10 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "query": "Query",
         "filter_archive": "Matching messages will be archived",
         "filter_mark_read": "Matching messages will be marked as read",
+        # Not a label: what a preview row puts between one and its value.
+        # A literal ": " in the renderer would publish English punctuation
+        # in six languages.
+        "separator": ": ",
     },
     "es": {
         "to": "Destinatario",
@@ -557,6 +663,7 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "bcc": "Cco",
         "subject": "Asunto",
         "no_subject": "(sin asunto)",
+        "steps": "Pasos",
         "body": "Mensaje",
         "from": "De",
         "date": "Fecha",
@@ -599,6 +706,10 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "query": "Consulta",
         "filter_archive": "Los mensajes coincidentes se archivarán",
         "filter_mark_read": "Los mensajes coincidentes se marcarán como leídos",
+        # Not a label: what a preview row puts between one and its value.
+        # A literal ": " in the renderer would publish English punctuation
+        # in six languages.
+        "separator": ": ",
     },
     "de": {
         "to": "An",
@@ -606,6 +717,7 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "bcc": "Bcc",
         "subject": "Betreff",
         "no_subject": "(kein Betreff)",
+        "steps": "Schritte",
         "body": "Nachricht",
         "from": "Von",
         "date": "Datum",
@@ -648,6 +760,10 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "query": "Abfrage",
         "filter_archive": "Passende Nachrichten werden archiviert",
         "filter_mark_read": "Passende Nachrichten werden als gelesen markiert",
+        # Not a label: what a preview row puts between one and its value.
+        # A literal ": " in the renderer would publish English punctuation
+        # in six languages.
+        "separator": ": ",
     },
     "it": {
         "to": "Destinatario",
@@ -655,6 +771,7 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "bcc": "Ccn",
         "subject": "Oggetto",
         "no_subject": "(senza oggetto)",
+        "steps": "Passaggi",
         "body": "Messaggio",
         "from": "Da",
         "date": "Data",
@@ -697,6 +814,10 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "query": "Query",
         "filter_archive": "I messaggi corrispondenti verranno archiviati",
         "filter_mark_read": "I messaggi corrispondenti verranno segnati come letti",
+        # Not a label: what a preview row puts between one and its value.
+        # A literal ": " in the renderer would publish English punctuation
+        # in six languages.
+        "separator": ": ",
     },
     "zh-CN": {
         "to": "收件人",
@@ -704,6 +825,7 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "bcc": "密送",
         "subject": "主题",
         "no_subject": "（无主题）",
+        "steps": "步骤",
         "body": "内容",
         "from": "发件人",
         "date": "日期",
@@ -746,6 +868,10 @@ DRAFT_PREVIEW_LABELS: dict[Language, dict[str, str]] = {
         "query": "查询",
         "filter_archive": "匹配的邮件将被归档",
         "filter_mark_read": "匹配的邮件将被标记为已读",
+        # Not a label: what a preview row puts between one and its value.
+        # A literal ": " in the renderer would publish English punctuation
+        # in six languages.
+        "separator": "：",
     },
 }
 
@@ -1008,6 +1134,7 @@ DRAFT_RESULT_NOUNS: dict[Language, dict[str, dict[str, str]]] = {
     "fr": {
         "peer_message": {"singular": "message", "plural": "messages", "gender": "m"},
         "reminder": {"singular": "rappel", "plural": "rappels", "gender": "m"},
+        "ticket": {"singular": "ticket", "plural": "tickets", "gender": "m"},
         "email": {"singular": "email", "plural": "emails", "gender": "m"},
         "event": {"singular": "événement", "plural": "événements", "gender": "m"},
         "contact": {"singular": "contact", "plural": "contacts", "gender": "m"},
@@ -1033,6 +1160,7 @@ DRAFT_RESULT_NOUNS: dict[Language, dict[str, dict[str, str]]] = {
     "en": {
         "peer_message": {"singular": "message", "plural": "messages"},
         "reminder": {"singular": "reminder", "plural": "reminders"},
+        "ticket": {"singular": "ticket", "plural": "tickets"},
         "email": {"singular": "email", "plural": "emails"},
         "event": {"singular": "event", "plural": "events"},
         "contact": {"singular": "contact", "plural": "contacts"},
@@ -1054,6 +1182,7 @@ DRAFT_RESULT_NOUNS: dict[Language, dict[str, dict[str, str]]] = {
             "plural": "recordatorios",
             "gender": "m",
         },
+        "ticket": {"singular": "ticket", "plural": "tickets", "gender": "m"},
         "email": {"singular": "email", "plural": "emails", "gender": "m"},
         "event": {"singular": "evento", "plural": "eventos", "gender": "m"},
         "contact": {"singular": "contacto", "plural": "contactos", "gender": "m"},
@@ -1079,6 +1208,7 @@ DRAFT_RESULT_NOUNS: dict[Language, dict[str, dict[str, str]]] = {
     "de": {
         "peer_message": {"singular": "Nachricht", "plural": "Nachrichten"},
         "reminder": {"singular": "Erinnerung", "plural": "Erinnerungen"},
+        "ticket": {"singular": "Ticket", "plural": "Tickets"},
         "email": {"singular": "E-Mail", "plural": "E-Mails"},
         "event": {"singular": "Termin", "plural": "Termine"},
         "contact": {"singular": "Kontakt", "plural": "Kontakte"},
@@ -1097,6 +1227,7 @@ DRAFT_RESULT_NOUNS: dict[Language, dict[str, dict[str, str]]] = {
         "peer_message": {"singular": "messaggio", "plural": "messaggi", "gender": "m"},
         # Italian: "promemoria", "email", "attività", "file" are invariant for number.
         "reminder": {"singular": "promemoria", "plural": "promemoria", "gender": "m"},
+        "ticket": {"singular": "ticket", "plural": "ticket", "gender": "m"},
         "email": {"singular": "email", "plural": "email", "gender": "f"},
         "event": {"singular": "evento", "plural": "eventi", "gender": "m"},
         "contact": {"singular": "contatto", "plural": "contatti", "gender": "m"},
@@ -1123,6 +1254,7 @@ DRAFT_RESULT_NOUNS: dict[Language, dict[str, dict[str, str]]] = {
         "peer_message": {"singular": "消息", "plural": "消息"},
         # Chinese has no grammatical number; both forms hold the same string.
         "reminder": {"singular": "提醒", "plural": "提醒"},
+        "ticket": {"singular": "工单", "plural": "工单"},
         "email": {"singular": "邮件", "plural": "邮件"},
         "event": {"singular": "事件", "plural": "事件"},
         "contact": {"singular": "联系人", "plural": "联系人"},

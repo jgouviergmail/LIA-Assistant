@@ -964,7 +964,10 @@ class DraftService:
             user_language,
             title=draft_title,
         )
-        action_prompt = "<br/><br/>" + get_draft_summary_label(
+        # Three Markdown blocks, one blank line apart. The action prompt used
+        # to carry a "<br/><br/>" of its own IN FRONT of that blank line, so
+        # the card showed four empty lines before the question it asks.
+        action_prompt = get_draft_summary_label(
             "action_required",
             user_language,
         )

@@ -71,6 +71,7 @@ def _body_for(
     other: User | None,
     connection: PeerConnection | None,
     language: str,
+    released: int = 0,
 ) -> tuple[str, str]:
     """Build (task_type, body) for one recipient.
 
@@ -79,6 +80,8 @@ def _body_for(
         other: The OTHER participant relative to the recipient.
         connection: Pair row (for the request's context note).
         language: Recipient language.
+        released: How many workboard tickets came back to THIS recipient
+            (ADR-276 lot 5) — theirs, not the pair's total.
 
     Returns:
         Tuple of (proactive task type, localized markdown body).
@@ -96,7 +99,9 @@ def _body_for(
     if kind == "request_declined":
         return PEER_CONNECTION_TASK_TYPE, ProactiveMessages.peer_declined_body(name, language)
     # connection_removed (and any future kind defaults to the removal wording).
-    return PEER_CONNECTION_TASK_TYPE, ProactiveMessages.peer_removed_body(name, language)
+    return PEER_CONNECTION_TASK_TYPE, ProactiveMessages.peer_removed_body(
+        name, language, released=released
+    )
 
 
 def _recipients(event: PeerEvent) -> tuple[UUID, ...]:
@@ -131,7 +136,13 @@ async def dispatch_peer_events(events: list[PeerEvent], db: AsyncSession) -> Non
                 continue  # deactivated/deleted accounts get nothing (spec §5.3)
             other_id = next((uid for uid in event.affected_ids if uid != recipient_id), None)
             other = participants.get(other_id) if other_id is not None else None
-            task_type, body = _body_for(event.kind, other, connection, recipient.language)
+            # The RECIPIENT's own count: a pair usually holds work in both
+            # directions, and the pair's total would tell each side
+            # something that is not true of them (ADR-276 lot 5).
+            released = dict(event.released).get(recipient_id, 0)
+            task_type, body = _body_for(
+                event.kind, other, connection, recipient.language, released=released
+            )
             try:
                 await dispatcher.dispatch(
                     user=recipient,

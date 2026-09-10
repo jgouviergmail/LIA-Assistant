@@ -159,6 +159,14 @@ class HubCountsResponse(BaseModel):
             "to-decide set, never a history."
         ),
     )
+    workboard: int = Field(
+        ge=0,
+        description=(
+            "Tickets that NEED the reader (ADR-276): a run stopped and waiting "
+            "for them, or something late on their board. A to-decide set, never "
+            "a tally of the whole board."
+        ),
+    )
 
 
 class AndroidPushConfig(BaseModel):

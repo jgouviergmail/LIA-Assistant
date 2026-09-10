@@ -20,8 +20,10 @@ and yields a keepalive event on every empty window so SSE consumers can
 emit heartbeats.
 """
 
+import asyncio
 import json
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, AsyncIterator
+from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass, replace
 from typing import Any, Literal, cast
 
@@ -358,6 +360,81 @@ async def release_active_run(redis: Redis, conversation_id: str, stream_id: str)
         active_run_key(conversation_id),
         stream_id,
     )
+
+
+async def heartbeat_active_run(redis: Redis, conversation_id: str, stream_id: str) -> None:
+    """Periodically re-arm the active-run lock TTL while the run is alive.
+
+    Stops by itself when the lock is lost (expired or taken over by a newer
+    run) — a zombie producer must never keep a conversation locked.
+
+    Args:
+        redis: Redis client.
+        conversation_id: Conversation the lock scopes.
+        stream_id: The owner token this producer holds.
+    """
+    period = settings.background_runs_heartbeat_seconds
+    while True:
+        await asyncio.sleep(period)
+        try:
+            still_owner = await refresh_active_run(redis, conversation_id, stream_id)
+        except Exception as exc:  # noqa: BLE001 — transient Redis hiccup: keep trying
+            logger.warning(
+                "active_run_heartbeat_failed",
+                conversation_id=conversation_id,
+                stream_id=stream_id,
+                error=str(exc),
+            )
+            continue
+        if not still_owner:
+            logger.warning(
+                "active_run_lock_lost",
+                conversation_id=conversation_id,
+                stream_id=stream_id,
+            )
+            return
+
+
+@asynccontextmanager
+async def active_run_lease(
+    redis: Redis, conversation_id: str, *, run_id: str, stream_id: str
+) -> AsyncIterator[bool]:
+    """Hold the conversation's lock for the length of a block, or say it could not.
+
+    The three moves a durable claim owes — acquire, heartbeat, release by OWNER
+    token — belong together: a caller that writes them itself eventually writes
+    two of the three. The chat producer acquires in its router and releases in
+    its own ``finally`` (the two halves live in different modules, so it cannot
+    use this), which is exactly why the SECOND caller must not copy the shape.
+
+    Yields False rather than raising when the lock is taken: a run that steps
+    aside for a live conversation did nothing wrong.
+
+    Args:
+        redis: Redis client.
+        conversation_id: Conversation the lock scopes.
+        run_id: Billing/correlation id of the run.
+        stream_id: The owner token; the release is conditional on it, so a
+            zombie can never free a newer run's lock.
+
+    Yields:
+        Whether the lock was acquired. Nothing is released when it was not.
+    """
+    acquired = await register_active_run(redis, conversation_id, run_id=run_id, stream_id=stream_id)
+    if not acquired:
+        yield False
+        return
+    heartbeat = asyncio.create_task(heartbeat_active_run(redis, conversation_id, stream_id))
+    try:
+        yield True
+    finally:
+        heartbeat.cancel()
+        with suppress(asyncio.CancelledError):
+            await heartbeat
+        # Shielded: a cancellation propagating through this block must not stop
+        # the conversation from being unlocked.
+        with suppress(Exception):
+            await asyncio.shield(release_active_run(redis, conversation_id, stream_id))
 
 
 async def get_active_run(redis: Redis, conversation_id: str) -> dict[str, str] | None:

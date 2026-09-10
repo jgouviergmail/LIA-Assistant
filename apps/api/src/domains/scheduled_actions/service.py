@@ -91,6 +91,7 @@ class ScheduledActionService:
                     else None
                 ),
                 "requires_approval": data.requires_approval,
+                "execution_mode": data.execution_mode,
                 "next_trigger_at": next_trigger_at,
                 "is_enabled": True,
                 "status": ScheduledActionStatus.ACTIVE.value,

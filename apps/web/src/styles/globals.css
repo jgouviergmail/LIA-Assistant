@@ -34,6 +34,9 @@
   /* Animations */
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
+  /* A late ticket's inner frame breathes (ADR-276, D80): slow enough to be
+     noticed at a glance and forgotten at the second, never a blink. */
+  --animate-overdue-pulse: overdue-pulse 2.8s ease-in-out infinite;
 
   /* Color Palette - Professional Theme in OKLCH format for Tailwind 4.0 */
   /* Light mode colors - Soft & comfortable for eyes */
@@ -87,7 +90,6 @@
      theme and mode resolve to. */
   --color-ring-offset-background: var(--color-background);
 
-
   /* Settings group tones (deliberate deviation — see lib/settings-group-tones.ts).
      Twelve hues at one lightness per mode, so no group reads
      paler than its neighbour. The ANGLES are not evenly spaced and the CHROMA
@@ -103,13 +105,13 @@
      and blends each tone over its own 12% chip before measuring. Light: the lightest
      that clears 3:1 for all twelve hues on the near-white card. */
   --color-settings-security: oklch(55% 0.21 6); /* red — the one hue with a convention here */
-  --color-settings-automation-tracking: oklch(55% 0.20 32); /* amber */
+  --color-settings-automation-tracking: oklch(55% 0.2 32); /* amber */
   --color-settings-system: oklch(55% 0.13 52); /* ochre */
   --color-settings-content-extensions: oklch(55% 0.11 100); /* olive */
   --color-settings-connections-integrations: oklch(55% 0.14 132); /* green */
   --color-settings-extensions-data: oklch(55% 0.15 148); /* emerald */
-  --color-settings-ai-connectors: oklch(55% 0.10 174); /* teal */
-  --color-settings-notifications-communication: oklch(55% 0.10 230); /* sky */
+  --color-settings-ai-connectors: oklch(55% 0.1 174); /* teal */
+  --color-settings-notifications-communication: oklch(55% 0.1 230); /* sky */
   --color-settings-identity-memory: oklch(55% 0.18 256); /* blue */
   --color-settings-personalization: oklch(55% 0.24 284); /* indigo */
   --color-settings-voice-media: oklch(55% 0.26 310); /* violet */
@@ -161,8 +163,7 @@
     --color-input: oklch(32% 0.005 250);
     --color-ring: oklch(68% 0.2 250);
 
-  
-  /* Settings group tones (deliberate deviation — see lib/settings-group-tones.ts).
+    /* Settings group tones (deliberate deviation — see lib/settings-group-tones.ts).
      Twelve hues at one lightness per mode, so no group reads
      paler than its neighbour. The ANGLES are not evenly spaced and the CHROMA
      is per hue — both were, and neither survived measurement:
@@ -181,7 +182,7 @@
     --color-settings-system: oklch(72% 0.17 52); /* ochre */
     --color-settings-content-extensions: oklch(72% 0.14 100); /* olive */
     --color-settings-connections-integrations: oklch(72% 0.19 132); /* green */
-    --color-settings-extensions-data: oklch(72% 0.20 148); /* emerald */
+    --color-settings-extensions-data: oklch(72% 0.2 148); /* emerald */
     --color-settings-ai-connectors: oklch(72% 0.13 174); /* teal */
     --color-settings-notifications-communication: oklch(72% 0.13 230); /* sky */
     --color-settings-identity-memory: oklch(72% 0.14 256); /* blue */
@@ -633,6 +634,20 @@
     }
     to {
       height: 0;
+    }
+  }
+
+  /* A late ticket's inner frame (ADR-276, D80): it rests as a NORMAL border
+     — the card's own, `border` at 60 % — and rises to the alert ink, eased
+     both ways. Callers gate it on `motion-safe`, so a reader who asked for
+     less motion keeps the frame still, red. */
+  @keyframes overdue-pulse {
+    0%,
+    100% {
+      border-color: color-mix(in oklch, var(--color-border) 60%, transparent);
+    }
+    50% {
+      border-color: var(--color-destructive);
     }
   }
 
@@ -2380,13 +2395,27 @@ html:not(.dark) .cosmos .cosmos-cloud.c3 {
   --i: 0;
   animation: none !important;
 }
-.cosmos :is(#transparency, #use-cases, #technology, #architecture) .grid > :nth-child(2) { --i: 1; }
-.cosmos :is(#transparency, #use-cases, #technology, #architecture) .grid > :nth-child(3) { --i: 2; }
-.cosmos :is(#transparency, #use-cases, #technology, #architecture) .grid > :nth-child(4) { --i: 3; }
-.cosmos :is(#transparency, #use-cases, #technology, #architecture) .grid > :nth-child(5) { --i: 4; }
-.cosmos :is(#transparency, #use-cases, #technology, #architecture) .grid > :nth-child(6) { --i: 5; }
-.cosmos :is(#transparency, #use-cases, #technology, #architecture) .grid > :nth-child(7) { --i: 6; }
-.cosmos :is(#transparency, #use-cases, #technology, #architecture) .grid > :nth-child(8) { --i: 7; }
+.cosmos :is(#transparency, #use-cases, #technology, #architecture) .grid > :nth-child(2) {
+  --i: 1;
+}
+.cosmos :is(#transparency, #use-cases, #technology, #architecture) .grid > :nth-child(3) {
+  --i: 2;
+}
+.cosmos :is(#transparency, #use-cases, #technology, #architecture) .grid > :nth-child(4) {
+  --i: 3;
+}
+.cosmos :is(#transparency, #use-cases, #technology, #architecture) .grid > :nth-child(5) {
+  --i: 4;
+}
+.cosmos :is(#transparency, #use-cases, #technology, #architecture) .grid > :nth-child(6) {
+  --i: 5;
+}
+.cosmos :is(#transparency, #use-cases, #technology, #architecture) .grid > :nth-child(7) {
+  --i: 6;
+}
+.cosmos :is(#transparency, #use-cases, #technology, #architecture) .grid > :nth-child(8) {
+  --i: 7;
+}
 
 /* "LIA n'a rien à cacher" — proofs SURGE one by one (rise + inflate) */
 .cosmos #transparency .grid > * {
@@ -2446,21 +2475,36 @@ html:not(.dark) .cosmos .cosmos-cloud.c3 {
     translateY(calc((1 - var(--f)) * 34px));
   transform-origin: top center;
 }
-.cosmos #architecture [role='img'] > div > :nth-child(2) { --i: 1; }
-.cosmos #architecture [role='img'] > div > :nth-child(3) { --i: 2; }
-.cosmos #architecture [role='img'] > div > :nth-child(4) { --i: 3; }
-.cosmos #architecture [role='img'] > div > :nth-child(5) { --i: 4; }
+.cosmos #architecture [role='img'] > div > :nth-child(2) {
+  --i: 1;
+}
+.cosmos #architecture [role='img'] > div > :nth-child(3) {
+  --i: 2;
+}
+.cosmos #architecture [role='img'] > div > :nth-child(4) {
+  --i: 3;
+}
+.cosmos #architecture [role='img'] > div > :nth-child(5) {
+  --i: 4;
+}
 .cosmos #architecture ol > li {
   --j: 0;
   --g: clamp(0, calc((var(--sp, 1) - 0.22 - var(--j) * 0.06) * 12), 1);
   opacity: calc(0.25 + var(--g) * 0.75);
   transform: translateX(calc((1 - var(--g)) * -18px));
 }
-.cosmos #architecture ol > :nth-child(2) { --j: 1; }
-.cosmos #architecture ol > :nth-child(3) { --j: 2; }
-.cosmos #architecture ol > :nth-child(4) { --j: 3; }
-.cosmos #architecture ol > :nth-child(5) { --j: 4; }
-
+.cosmos #architecture ol > :nth-child(2) {
+  --j: 1;
+}
+.cosmos #architecture ol > :nth-child(3) {
+  --j: 2;
+}
+.cosmos #architecture ol > :nth-child(4) {
+  --j: 3;
+}
+.cosmos #architecture ol > :nth-child(5) {
+  --j: 4;
+}
 
 /* --- Card bloom, final form (owner: subtle, refined). A colored shadow
    paints ONLY outside the border-box: solid card backgrounds stay solid,
@@ -2482,38 +2526,85 @@ html:not(.dark) .cosmos {
     0 -10px 40px -16px var(--cosmos-bloom-b);
 }
 
-
 /* --- Chapter scenes scrubbed (cosmos only): the vignette assembles at the
    rhythm of YOUR scroll — the original one-shot timeline's delay-* stagger
    becomes proportional scrub windows on --sp; ambient loops keep breathing. --- */
-.cosmos [id^='chapter-'] .delay-100 { --d: 100; }
-.cosmos [id^='chapter-'] .delay-200 { --d: 200; }
-.cosmos [id^='chapter-'] .delay-300 { --d: 300; }
-.cosmos [id^='chapter-'] .delay-400 { --d: 400; }
-.cosmos [id^='chapter-'] .delay-500 { --d: 500; }
-.cosmos [id^='chapter-'] .delay-600 { --d: 600; }
-.cosmos [id^='chapter-'] .delay-700 { --d: 700; }
-.cosmos [id^='chapter-'] .delay-800 { --d: 800; }
-.cosmos [id^='chapter-'] .delay-1000 { --d: 1000; }
-.cosmos [id^='chapter-'] .delay-1200 { --d: 1200; }
-.cosmos [id^='chapter-'] .delay-1500 { --d: 1500; }
-.cosmos [id^='chapter-'] .delay-2000 { --d: 2000; }
-.cosmos [id^='chapter-'] .delay-2500 { --d: 2500; }
-.cosmos [id^='chapter-'] .delay-3000 { --d: 3000; }
-.cosmos [id^='chapter-'] .scroll-stage
-  :is(.animate-chip-pop, .animate-glass-in, .animate-word-in, .animate-step-in, .animate-drop-fill, .animate-wire-draw, .animate-fan-draw, .animate-gate-pulse, .animate-step-dim) {
+.cosmos [id^='chapter-'] .delay-100 {
+  --d: 100;
+}
+.cosmos [id^='chapter-'] .delay-200 {
+  --d: 200;
+}
+.cosmos [id^='chapter-'] .delay-300 {
+  --d: 300;
+}
+.cosmos [id^='chapter-'] .delay-400 {
+  --d: 400;
+}
+.cosmos [id^='chapter-'] .delay-500 {
+  --d: 500;
+}
+.cosmos [id^='chapter-'] .delay-600 {
+  --d: 600;
+}
+.cosmos [id^='chapter-'] .delay-700 {
+  --d: 700;
+}
+.cosmos [id^='chapter-'] .delay-800 {
+  --d: 800;
+}
+.cosmos [id^='chapter-'] .delay-1000 {
+  --d: 1000;
+}
+.cosmos [id^='chapter-'] .delay-1200 {
+  --d: 1200;
+}
+.cosmos [id^='chapter-'] .delay-1500 {
+  --d: 1500;
+}
+.cosmos [id^='chapter-'] .delay-2000 {
+  --d: 2000;
+}
+.cosmos [id^='chapter-'] .delay-2500 {
+  --d: 2500;
+}
+.cosmos [id^='chapter-'] .delay-3000 {
+  --d: 3000;
+}
+.cosmos
+  [id^='chapter-']
+  .scroll-stage
+  :is(
+    .animate-chip-pop,
+    .animate-glass-in,
+    .animate-word-in,
+    .animate-step-in,
+    .animate-drop-fill,
+    .animate-wire-draw,
+    .animate-fan-draw,
+    .animate-gate-pulse,
+    .animate-step-dim
+  ) {
   --f: clamp(0, calc((var(--sp, 1) - 0.1 - var(--d, 0) / 8500) * 5), 1);
 }
-.cosmos [id^='chapter-'] .scroll-stage
-  :is(.animate-chip-pop, .animate-glass-in, .animate-word-in, .animate-step-in, .animate-drop-fill, .animate-wire-draw) {
+.cosmos
+  [id^='chapter-']
+  .scroll-stage
+  :is(
+    .animate-chip-pop,
+    .animate-glass-in,
+    .animate-word-in,
+    .animate-step-in,
+    .animate-drop-fill,
+    .animate-wire-draw
+  ) {
   animation: none !important;
 }
 .cosmos [id^='chapter-'] .scroll-stage :is(.animate-chip-pop, .animate-drop-fill) {
   opacity: var(--f);
   transform: scale(calc(0.85 + 0.15 * var(--f)));
 }
-.cosmos [id^='chapter-'] .scroll-stage
-  :is(.animate-glass-in, .animate-word-in, .animate-step-in) {
+.cosmos [id^='chapter-'] .scroll-stage :is(.animate-glass-in, .animate-word-in, .animate-step-in) {
   opacity: var(--f);
 }
 .cosmos [id^='chapter-'] .scroll-stage .animate-wire-draw {

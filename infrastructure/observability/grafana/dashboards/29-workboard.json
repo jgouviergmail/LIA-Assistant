@@ -1,0 +1,701 @@
+{
+  "id": null,
+  "uid": "29-workboard",
+  "title": "29 - Workboard",
+  "tags": [
+    "lia",
+    "workboard",
+    "adr-276"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "1m",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "links": [],
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {},
+        "hide": 0,
+        "refresh": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "row",
+      "title": "Ce que LIA fait du tableau",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": 1,
+      "title": "Tickets aboutis (24 h)",
+      "type": "stat",
+      "datasource": "$datasource",
+      "description": "Runs settled with an answer. A labelled counter that never fired exposes no series at all, hence `or vector(0)` and noValue 0 — an operator must read a green zero, not « No data ».",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(workboard_runs_total{outcome=\"success\"}[24h])) or vector(0)",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Rendus à la personne (24 h)",
+      "type": "stat",
+      "datasource": "$datasource",
+      "description": "Runs that stopped on a question the person answers on the ticket: a capability nobody could allow, a clarification, or a draft to confirm (« à confirmer », lot 7). Not failures — the ticket moved.",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 1
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(workboard_runs_total{outcome=~\"waiting|confirming\"}[24h])) or vector(0)",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Échecs (24 h)",
+      "type": "stat",
+      "datasource": "$datasource",
+      "description": "Runs that produced nothing usable. The ticket stays « en cours » with a typed code and waits for the person: nothing retries it on its own.",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 1
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(workboard_runs_total{outcome=\"failed\"}[24h])) or vector(0)",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Écartés faute de quota (24 h)",
+      "type": "stat",
+      "datasource": "$datasource",
+      "description": "A quota refusal is not a generation failure (ADR-272). A wall of these reads as a ceiling reached, and the tickets kept their lifetime budget.",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 1
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(workboard_runs_total{outcome=\"skipped_quota\"}[24h])) or vector(0)",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 10
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Écartés, conversation occupée (24 h)",
+      "type": "stat",
+      "datasource": "$datasource",
+      "description": "The person was talking to LIA, so the ticket stepped aside. Sustained values mean the sweep and the chat compete for the same threads.",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 1
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(workboard_runs_total{outcome=\"skipped_busy\"}[24h])) or vector(0)",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Durée d'un run (p50 / p95)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "description": "From claim to settle. The last buckets straddle WORKBOARD_RUN_TIMEOUT_SECONDS: a p95 approaching it means runs the reaper is about to take back.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 5
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(workboard_run_duration_seconds_bucket[1h]))) or vector(0)",
+          "legendFormat": "p50",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(workboard_run_duration_seconds_bucket[1h]))) or vector(0)",
+          "legendFormat": "p95",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "0",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 5
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "title": "Issues des runs (par heure)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "description": "Every outcome side by side: a board that stops advancing shows here before anybody notices a ticket standing still.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 5
+      },
+      "targets": [
+        {
+          "expr": "sum by (outcome) (increase(workboard_runs_total[1h])) or vector(0)",
+          "legendFormat": "{{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 60,
+            "stacking": {
+              "mode": "normal"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "Ce que le tableau dit dans le chat",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 13
+      }
+    },
+    {
+      "id": 8,
+      "title": "Notifications envoyées (par événement, 24 h)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "description": "Following a ticket is OFF by default (D6): a board must not become a source of noise. A rising curve here is the first sign it has.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 14
+      },
+      "targets": [
+        {
+          "expr": "sum by (event) (increase(workboard_notifications_total{delivered=\"true\"}[1h])) or vector(0)",
+          "legendFormat": "{{event}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 60,
+            "stacking": {
+              "mode": "normal"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "title": "Notifications non délivrées (24 h)",
+      "type": "stat",
+      "datasource": "$datasource",
+      "description": "Settled from the dispatch RESULT, never from the absence of an exception (ADR-263). A « waiting » notification nobody received is a ticket that never moves again.",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 14
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(workboard_notifications_total{delivered=\"false\"}[24h])) or vector(0)",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
+      "id": 13,
+      "title": "Rejeux d'une action approuvée (24 h)",
+      "type": "stat",
+      "datasource": "$datasource",
+      "description": "A run replaying what the person approved on the ticket is let through only when the rebuilt draft is IDENTICAL to what they were shown (ADR-092, ADR-276 lot 7). A mismatch asks again with the new preview and runs nothing; sustained mismatches mean the brief's citation is not enough for the model to reproduce the draft.",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 14
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(workboard_replays_total{result=\"matched\"}[24h])) or vector(0)",
+          "legendFormat": "conformes",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(increase(workboard_replays_total{result=\"mismatched\"}[24h])) or vector(0)",
+          "legendFormat": "non conformes",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "non conformes"
+            },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "textMode": "value_and_name",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "Ce que les transcriptions cachées coûtent",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 22
+      }
+    },
+    {
+      "id": 10,
+      "title": "Lignes cachées",
+      "type": "stat",
+      "datasource": "$datasource",
+      "description": "A run archives its question and its answer, hidden from the chat but kept in the record (D3). The owner accepted that on ONE condition: that the growth be watched rather than assumed. Two bounds hold it — ten runs per ticket, and the retention window.",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 23
+      },
+      "targets": [
+        {
+          "expr": "max(lia_hidden_run_rows) or vector(0)",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
+      "id": 11,
+      "title": "Poids des lignes cachées",
+      "type": "stat",
+      "datasource": "$datasource",
+      "description": "The same measurement in bytes: content and stamp. Read it beside the row count — a size climbing while the count does not means longer runs, not more of them.",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 23
+      },
+      "targets": [
+        {
+          "expr": "max(lia_hidden_run_bytes) or vector(0)",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "decimals": 1,
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
+      "id": 12,
+      "title": "Croissance des transcriptions cachées",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "description": "The curve the retention sweep is supposed to flatten. A monotonic climb means the purge is not running, or the window is too wide.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 23
+      },
+      "targets": [
+        {
+          "expr": "max(lia_hidden_run_rows) or vector(0)",
+          "legendFormat": "lignes",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    }
+  ]
+}

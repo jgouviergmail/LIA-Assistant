@@ -64,5 +64,6 @@ def import_all_models() -> None:
     import src.domains.usage_limits.models  # noqa: F401
     import src.domains.user_mcp.models  # noqa: F401
     import src.domains.users.models  # noqa: F401
+    import src.domains.workboard.models  # noqa: F401
 
     _models_imported = True

@@ -24,7 +24,7 @@
 | **RTO** | Minutes (single-command restore; see below) |
 | **Healthcheck** | Baked into the image: `curl -f http://localhost:8080/` against its internal webhook server |
 
-All knobs live in `.env` section **[80] DATABASE BACKUP** — no hardcoded values.
+All knobs live in `.env` section **[88] DATABASE BACKUP** — no hardcoded values.
 These variables are consumed by docker-compose only; the API has no Settings module for them (deliberate, ADR-109).
 
 Dumps contain personal data (PII columns are Fernet-encrypted by the app, but schema

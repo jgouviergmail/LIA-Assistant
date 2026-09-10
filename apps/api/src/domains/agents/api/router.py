@@ -313,6 +313,7 @@ def _build_partial_finalizer(conversation_id: str, run_id: str) -> PartialFinali
     async def _finalize(partial_content: str, reason: str) -> None:
         import uuid as _uuid
 
+        from src.domains.agents.api.archive_metadata import build_interrupted_stream_metadata
         from src.domains.conversations.service import ConversationService
         from src.infrastructure.database import get_db_context
 
@@ -322,7 +323,7 @@ def _build_partial_finalizer(conversation_id: str, run_id: str) -> PartialFinali
                 _uuid.UUID(conversation_id),
                 "assistant",
                 partial_content,
-                {FIELD_RUN_ID: run_id, "interrupted": True, "interrupt_reason": reason},
+                build_interrupted_stream_metadata(run_id=run_id, reason=reason),
                 db,
             )
 

@@ -92,6 +92,84 @@ def _validate_redis_key_families() -> None:
         raise
 
 
+def _install_proactive_notifier() -> None:
+    """Wire the notification dispatcher into its seam, and prove it (ADR-276).
+
+    Same inversion and same lesson as the consultation register: a feature
+    domain must not import the dispatcher (``agents`` imports ``workboard``,
+    the dispatcher imports ``agents``), so the adapter installs itself as an
+    IMPORT SIDE EFFECT — and an import nobody declares is an import that can
+    stop happening when somebody reorders a module.
+
+    ADR-270 measured what that costs on the consultation seam: it answered a
+    no-op, in silence, along the exact path a sweep used. Here the cost would
+    be a person never told that a ticket was handed to them, with nothing
+    anywhere saying so.
+
+    Raises:
+        RuntimeError: If the dispatcher did not claim the seam.
+    """
+    # The adapter also installs itself at import, for every path that does not
+    # go through the boot. Here the step INSTALLS: an import runs its side effect
+    # once per process, so a module already imported wires nothing and the check
+    # below would refuse a seam that was never claimed rather than claiming it
+    # (measured 2026-09-10 — a boot guard raising in a worker where the adapter
+    # was merely already loaded).
+    from src.domains.shared.proactive_sink import (
+        install_proactive_notifier,
+        notifier_is_installed,
+    )
+    from src.infrastructure.proactive.notification_sink import (
+        dispatch_proactive_notification,
+    )
+
+    install_proactive_notifier(dispatch_proactive_notification)
+
+    if not notifier_is_installed():
+        raise RuntimeError(
+            "the notification dispatcher did not claim its seam: every "
+            "domain-initiated notification would be dropped silently"
+        )
+
+
+def _install_ticket_releaser() -> None:
+    """Wire the board into the peer-release seam, and prove it (ADR-276 lot 5).
+
+    Same inversion and same lesson as the two seams beside it: ``workboard``
+    imports ``peers`` (the service re-checks the connection at every write), so
+    ``peers`` cannot import the board back. The adapter installs itself as an
+    IMPORT SIDE EFFECT — and an import nobody declares is one that can stop
+    happening when somebody reorders a module.
+
+    ADR-270 measured what that costs: a no-op answering in silence along the
+    exact path a sweep used. Here the cost would be a ticket left assigned to
+    somebody who no longer has any access to the board it lives on.
+
+    Raises:
+        RuntimeError: If the board did not claim the seam.
+    """
+    # The adapter also installs itself at import, for every path that does not
+    # go through the boot. Here the step INSTALLS: an import runs its side effect
+    # once per process, so a module already imported wires nothing and the check
+    # below would refuse a seam that was never claimed rather than claiming it
+    # (measured 2026-09-10 — a boot guard raising in a worker where the adapter
+    # was merely already loaded).
+    from src.domains.shared.peer_release_sink import (
+        install_ticket_releaser,
+        releaser_is_installed,
+    )
+    from src.domains.workboard.release_adapter import release_tickets_between
+
+    install_ticket_releaser(release_tickets_between)
+
+    if not releaser_is_installed():
+        raise RuntimeError(
+            "the workboard did not claim the peer-release seam: a removed "
+            "connection would leave its tickets assigned to somebody who can "
+            "no longer reach them"
+        )
+
+
 def _install_consultation_sink() -> None:
     """Wire the consultation register into its seam, and prove it (ADR-270).
 
@@ -112,10 +190,24 @@ def _install_consultation_sink() -> None:
     Raises:
         RuntimeError: If the register did not claim the seam.
     """
-    # Importing the register is what installs both the sink and the collector
-    # factory; the import is the wiring, so it is made explicit here.
-    import src.domains.agents.effects.treatments  # noqa: F401
-    from src.domains.shared.consultation_sink import sink_is_installed
+    # The adapter also installs itself at import, for every path that does not
+    # go through the boot. Here the step INSTALLS: an import runs its side effect
+    # once per process, so a module already imported wires nothing and the check
+    # below would refuse a seam that was never claimed rather than claiming it
+    # (measured 2026-09-10 — a boot guard raising in a worker where the adapter
+    # was merely already loaded).
+    from src.domains.agents.effects.treatment_recorder import treatment_recorder
+    from src.domains.agents.effects.treatments import (
+        record_out_of_turn_consultation,
+    )
+    from src.domains.shared.consultation_sink import (
+        install_collector_factory,
+        install_consultation_sink,
+        sink_is_installed,
+    )
+
+    install_consultation_sink(record_out_of_turn_consultation)
+    install_collector_factory(treatment_recorder)
 
     if not sink_is_installed():
         raise RuntimeError(
@@ -255,6 +347,19 @@ def run_failfast_validations() -> None:
         logger.error("draft_preview_renderer_incomplete", error=str(exc), exc_info=True)
         raise RuntimeError(f"Draft preview renderer registry incomplete: {exc}") from exc
 
+    # Validate Draft Summary Renderer exhaustivity (ADR-085 pattern: the
+    # cascade this replaced fell back to « Draft (tool_call) » for 9 of the 26
+    # types, in English, in every language — an omission nothing could detect).
+    try:
+        from src.domains.agents.drafts.summary_renderer import (
+            assert_summary_renderer_completeness,
+        )
+
+        assert_summary_renderer_completeness()
+    except AssertionError as exc:
+        logger.error("draft_summary_renderer_incomplete", error=str(exc), exc_info=True)
+        raise RuntimeError(f"Draft summary renderer registry incomplete: {exc}") from exc
+
     # Validate evidence-driven expansion entity types (ADR-085 pattern:
     # fail-fast if an evidence domain maps to an ontology type without the
     # properties/source_domains that expansion relies on).
@@ -331,6 +436,8 @@ def run_failfast_validations() -> None:
     _validate_diagnostics_registries()
     _validate_redis_key_families()
     _install_consultation_sink()
+    _install_proactive_notifier()
+    _install_ticket_releaser()
 
     # Enforce the PostgreSQL connection budget (F004): fail-fast in production,
     # warn in development. The shipped prod profile fits (168 ≤ 195 usable), so an

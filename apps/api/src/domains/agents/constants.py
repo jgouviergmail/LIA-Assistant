@@ -71,6 +71,7 @@ AGENT_DOCUMENT_GENERATION = "document_generation_agent"  # AI document generatio
 AGENT_REMINDER = "reminder_agent"  # Internal reminders (no OAuth)
 AGENT_AUTOMATION = "automation_agent"  # Chat-piloted scheduled actions (ADR-140)
 AGENT_PEER = "peer_agent"  # User-to-user connections (peers program)
+AGENT_TICKET = "ticket_agent"  # The workboard of tickets (ADR-276)
 AGENT_DOCUMENT = "document_agent"  # User RAG spaces as active capability (ADR-141)
 AGENT_HEALTH = "health_agent"  # Health Metrics — unified agent (v1.17.2)
 AGENT_TELEPHONY = "telephony_agent"  # Outbound calls + their history (ADR-193)
@@ -218,6 +219,7 @@ CONTEXT_DOMAIN_BROWSERS = "browsers"  # Interactive web browsing (evolution F7)
 CONTEXT_DOMAIN_HUE = "hues"  # Philips Hue smart lights (Smart Home)
 CONTEXT_DOMAIN_REMINDERS = "reminders"  # Personal push notification reminders
 CONTEXT_DOMAIN_HEALTH_SIGNALS = "health_signals"  # v1.17.2 Health Metrics
+CONTEXT_DOMAIN_TICKETS = "tickets"  # Workboard tickets (ADR-276), = the domain result_key
 
 # Web Search sources (used by unified_web_search_tool)
 WEB_SEARCH_SOURCE_PERPLEXITY = "perplexity"

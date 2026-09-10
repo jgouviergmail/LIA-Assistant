@@ -179,3 +179,66 @@ async def _close_real_io_on_test_loop() -> Any:
     if getattr(pool, "checkedin", lambda: 0)() or getattr(pool, "checkedout", lambda: 0)():
         with suppress(Exception):
             await close_db()
+
+
+# --------------------------------------------------------------------------- #
+# Process-global isolation: a test puts back what it replaced.                  #
+# --------------------------------------------------------------------------- #
+
+#: Seams a domain calls and an adapter INSTALLS at import time (ADR-263,
+#: ADR-270, ADR-276 lot 5). Each is one module-level name, replaced by the
+#: adapter at boot and by mocks in tests.
+_INSTALLED_SEAMS: tuple[tuple[str, str], ...] = (
+    ("src.domains.shared.proactive_sink", "_notifier"),
+    ("src.domains.shared.consultation_sink", "_sink"),
+    ("src.domains.shared.consultation_sink", "_collector_factory"),
+    ("src.domains.shared.peer_release_sink", "_releaser"),
+)
+
+#: Per-conversation in-memory stores: a dict keyed by conversation id, shared by
+#: the whole process. Two test modules legitimately use the same ids.
+_CONVERSATION_STORES: tuple[tuple[str, str], ...] = (
+    ("src.domains.document_generation.document_store", "_pending_documents"),
+    ("src.domains.image_generation.image_store", "_pending_images"),
+)
+
+
+@pytest.fixture(autouse=True)
+def _restore_process_globals() -> Iterator[None]:
+    """Put back every process global a unit test replaced or filled.
+
+    Two failures on the same run made the case (2026-09-10): the boot guard for
+    the notification seam raised because another module had reset that seam to
+    its mute default, and the document store returned a slide deck a simulation
+    in a different file had left under the same conversation id. Both tests pass
+    alone; both fail when ``--dist loadscope`` puts the two modules on one
+    worker, under an order ``pytest-randomly`` picks afresh each run.
+
+    Restoring belongs HERE rather than in each test module: the leak is a
+    property of the global, not of the test that happened to touch it, and a
+    per-module fixture protects only the module that remembered to write one.
+
+    The fixture reads ``sys.modules`` instead of importing: a test that never
+    loads these modules pays four dictionary lookups and nothing else.
+    """
+    import sys
+
+    before = [
+        (module, name, getattr(module, name))
+        for path, name in _INSTALLED_SEAMS
+        if (module := sys.modules.get(path)) is not None and hasattr(module, name)
+    ]
+    for path, name in _CONVERSATION_STORES:
+        store = getattr(sys.modules.get(path), name, None)
+        if store is not None:
+            store.clear()
+
+    try:
+        yield
+    finally:
+        for module, name, value in before:
+            setattr(module, name, value)
+        for path, name in _CONVERSATION_STORES:
+            store = getattr(sys.modules.get(path), name, None)
+            if store is not None:
+                store.clear()

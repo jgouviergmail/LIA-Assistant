@@ -18,6 +18,7 @@ import {
   Eye,
   FileText,
   FileSpreadsheet,
+  Flag,
   FolderTree,
   Gauge,
   GitBranch,
@@ -47,6 +48,7 @@ import {
   CalendarClock,
   Stethoscope,
   TabletSmartphone,
+  SquareKanban,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -115,6 +117,8 @@ export const HOW_TOC_SECTIONS: readonly GuideTocSection[] = [
   { id: 'meetings', icon: ClipboardList },
   { id: 'registers', icon: BookLock },
   { id: 'relation_debrief', icon: NotebookPen },
+  { id: 'workboard', icon: SquareKanban },
+  { id: 'conclusion', icon: Flag },
 ] as const;
 
 export const WHY_TOC_SECTIONS: readonly GuideTocSection[] = [
@@ -126,6 +130,7 @@ export const WHY_TOC_SECTIONS: readonly GuideTocSection[] = [
   { id: 'transparency', icon: Eye },
   { id: 'emotional_depth', icon: Heart },
   { id: 'reliability', icon: Activity },
+  { id: 'standards', icon: BadgeCheck },
   { id: 'openness', icon: Puzzle },
   { id: 'vision', icon: Compass },
 ] as const;

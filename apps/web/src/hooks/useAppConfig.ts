@@ -45,6 +45,9 @@ export interface AppConfig {
     activity_timeline_enabled?: boolean;
     // Meeting recording & minutes (ADR-258) — gates the composer entry and the recorder.
     meetings_enabled?: boolean;
+    // The workboard (ADR-276) — gates its settings section, its hub section and
+    // the board page itself. Published by the API since lot 1.
+    workboard_enabled?: boolean;
   };
   api_version: string;
 }

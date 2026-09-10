@@ -2,7 +2,7 @@
 
 **Document de reference technique - Observabilite Production avec Grafana**
 
-> **Version 4.5** | 2026-07-29 | 28 dashboards, 719 panels
+> **Version 4.5** | 2026-07-29 | 29 dashboards, 905 panels
 
 ---
 
@@ -23,7 +23,7 @@
 
 ### Objectifs
 
-Les **28 dashboards Grafana** fournissent une observabilite complete pour :
+Les **29 dashboards Grafana** fournissent une observabilite complete pour :
 
 1. **Monitoring production** : Sante applicative, SLOs, performance HTTP, ressources infrastructure
 2. **Agent debugging** : Pipeline d'orchestration LangGraph, router, planner, outils, HITL
@@ -150,7 +150,7 @@ OpenTelemetry OTLP --> Tempo --> Grafana
 ## Lecture par tiers (audience)
 
 Le catalogue ci-dessus est ordonne par numero ; celui-ci l'est par **qui ouvre
-quoi**. Les deux vues portent sur les memes 28 dashboards — elles vivent dans ce
+quoi**. Les deux vues portent sur les memes 29 dashboards — elles vivent dans ce
 document, et non dans un second fichier, parce que la version enveloppe qui les
 separait a derive quatre fois du catalogue qu'elle resumait (elle annoncait
 encore 25 dashboards apres l'ajout du 26).
@@ -537,4 +537,4 @@ docker compose restart grafana
 **Version** : 4.5
 **Date** : 2026-07-29
 **Auteur** : Equipe LIA
-**Statut** : Production (28 dashboards, 719 panels)
+**Statut** : Production (29 dashboards, 905 panels)

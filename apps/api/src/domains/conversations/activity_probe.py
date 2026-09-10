@@ -52,6 +52,11 @@ async def fetch_last_user_activity_at(
             Conversation.user_id == user_id,
             ConversationMessage.role == "user",
             ConversationMessage.created_at >= since,
+            # The automation flag below already excludes a run's question;
+            # the column says the same thing by construction (ADR-276), so a
+            # future writer that stamps one and not the other still cannot
+            # count as the person being active.
+            ConversationMessage.hidden.is_(False),
             ConversationMessage.message_metadata[FIELD_IS_AUTOMATED_SOURCE].astext.is_distinct_from(
                 "true"
             ),

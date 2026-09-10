@@ -9,7 +9,10 @@
  *   2026-07-25: `grep -c 'register_agent(' agents.py` — the telephony agent
  *   had landed without this counter following it.
  * - tools: tool manifests the running catalogue actually EXPOSES, not the count
- *   Re-measured 2026-09-03 (v1.39.0) on the dev instance = 108 (`tool_count` in the
+ *   Re-measured 2026-09-10 (v1.44.0) on the dev instance = 114 (`tool_count` in
+ *   the catalogue log at boot): the six ticket manifests of the workboard
+ *   (ADR-276) joined the catalogue, under a domain of their own.
+ *   Previous re-measure 2026-09-03 (v1.39.0) on the dev instance = 108 (`tool_count` in the
  *   catalogue log at boot; `grep -rcE '^[A-Za-z_]+ = ToolManifest\(' src/domains/agents/`
  *   agrees): the meetings read tool (ADR-258) joined the catalogue.
  *   Re-measured 2026-08-29 (v1.37.0) on the running production instance =
@@ -80,6 +83,9 @@
  *   over the 471 of v1.29.0 (instance ceiling, administrable capabilities and
  *   demonstrator envelope, ADR-216/217/218; 466 at v1.27.7).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
+ *   Re-measured 2026-09-10 (v1.44.0): backend 27 290 collected over `tests/`
+ *   (sum of the per-file counts of `pytest --collect-only -q`, 1 601 files) +
+ *   frontend 8 017 (`vitest list` on the HOST, 631 files) = 35 307 -> 35000.
  *   Re-measured 2026-09-09 (v1.43.2): backend 25 732 collected over `tests/`
  *   (sum of the per-file counts of `pytest --collect-only -q`, 1 548 files) +
  *   frontend 7 642 (`vitest list` on the HOST) = 33 374 -> 33000 (the value
@@ -287,7 +293,7 @@
  *   highest number runs one above the file count.
  * - releases: CHANGELOG.md release entries — `grep -c '^## \['` MINUS the
  *   `## [Unreleased]` heading when one is present (it is not a release).
- *   223 headings at v1.31.2, no Unreleased pending.
+ *   223 headings at v1.31.2, no Unreleased pending. 253 at v1.44.0.
  * - auditScore/auditAreas: technical audit V11 of the 2026-07-16 snapshot
  *   (released as v1.25.0) — 24 normalized areas mapped to ISO/IEC 25010:2023,
  *   arithmetic mean 199/240 = 8.3/10, security out of scope. Full public
@@ -298,14 +304,14 @@
 
 export const LANDING_STATS = {
   agents: 20,
-  tools: 108,
+  tools: 114,
   providers: 7,
   voiceLanguages: 99,
-  metrics: 541,
+  metrics: 547,
   uiLanguages: 6,
-  tests: 33000,
-  adrs: 274,
-  releases: 252,
+  tests: 35000,
+  adrs: 276,
+  releases: 253,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

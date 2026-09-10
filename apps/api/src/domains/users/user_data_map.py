@@ -270,6 +270,23 @@ TABLE_RULES: dict[str, TableRule] = {
     "reminders": _PURGED_FULL,
     "scheduled_actions": _PURGED_FULL,
     "open_loops": _PURGED_FULL,
+    # Workboard (ADR-276). Two-sided like the peers tables: a row belongs to
+    # the archive when the requester OWNS it or is ASSIGNED it. The purge
+    # deletes what the account owns; what it merely HELD is released back to
+    # its owner FIRST, by `build_workboard_release` in
+    # `users/account_deletion_service.py` — inline there because `users`
+    # imports no domain. The `ON DELETE SET NULL` on `assignee_user_id` covers
+    # the four paths that hard-delete a users row; account deletion SCRUBS that
+    # row instead, so no foreign-key action fires and the statement is the only
+    # release there.
+    "workboard_tickets": TableRule(
+        data_class=TableDataClass.USER_PURGED,
+        export=ExportPolicy.FULL,
+        reason=(
+            "Tickets the account owns or holds — purged when owned, released "
+            "when merely held, exported on both sides."
+        ),
+    ),
     # Product analytics (ADR-178): outcome truth + lifecycle events. No FK
     # CASCADE (plain user_id columns) — purged explicitly by the deletion
     # service, exported in full (bounded telemetry, no free text).
@@ -386,6 +403,22 @@ TABLE_RULES: dict[str, TableRule] = {
             "One row per tick of a routine (ADR-265): outcome, served slot, "
             "attempts, error — the user's own execution history, bounded by "
             "retention. Cascades from scheduled_actions AND users."
+        ),
+    ),
+    "workboard_comments": TableRule(
+        data_class=TableDataClass.USER_CASCADE,
+        export=ExportPolicy.FULL,
+        reason=(
+            "Comments on a ticket (ADR-276), by the owner, a peer or LIA. "
+            "Cascades from workboard_tickets; exported through its ticket."
+        ),
+    ),
+    "workboard_ticket_events": TableRule(
+        data_class=TableDataClass.USER_CASCADE,
+        export=ExportPolicy.FULL,
+        reason=(
+            "Append-only ticket history (ADR-276): who changed what, and when "
+            "a run ran. Cascades from workboard_tickets; exported with it."
         ),
     ),
     "rag_drive_sources": TableRule(
@@ -629,4 +662,5 @@ USER_COLUMNS: dict[str, UserColumnClass] = {
     "briefing_preferences": _PREFERENCE,
     "onboarding_checklist": _PREFERENCE,
     "chat_shortcuts": _PREFERENCE,
+    "settings_shortcuts": _PREFERENCE,
 }

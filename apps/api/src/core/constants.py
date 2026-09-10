@@ -1748,6 +1748,10 @@ CHAT_SHORTCUTS_MAX_COUNT_DEFAULT = 20  # Default cap on shortcuts per user
 CHAT_SHORTCUT_ID_MAX_LENGTH = 32  # Slug typed after the slash
 CHAT_SHORTCUT_TEXT_MAX_LENGTH = 500  # Inserted intent text
 
+# Pinned settings sections — the floating shortcuts dock (ADR-277)
+SETTINGS_SHORTCUTS_MAX_COUNT_DEFAULT = 5  # Sections a person may pin to the dock
+SETTINGS_SHORTCUT_TOKEN_MAX_LENGTH = 64  # A settings section token (frontend vocabulary)
+
 # System settings cache keys
 REDIS_KEY_DEBUG_PANEL_ENABLED = "system:debug_panel_enabled"
 REDIS_KEY_DEBUG_PANEL_USER_ACCESS_ENABLED = "system:debug_panel_user_access_enabled"
@@ -5362,7 +5366,7 @@ DOCUMENT_GENERATION_MAX_SOURCE_CHARS_DEFAULT: int = 60000
 DOCUMENT_GENERATION_LLM_TYPE: str = "document_generation"
 
 # ----------------------------------------------------------------------------
-# Rendering craft (ADR-274)
+# Rendering craft (ADR-276)
 # ----------------------------------------------------------------------------
 # Page size of docx/pdf outputs (ISO A4 everywhere except North America; a
 # deployment picks). Slides are 16:9 LANDSCAPE and deliberately not configurable.
@@ -5374,7 +5378,7 @@ DOCUMENT_GENERATION_PAGE_SIZE_DEFAULT: Literal["a4", "letter"] = "a4"
 DOCUMENT_GENERATION_TOC_MIN_HEADINGS_DEFAULT: int = 5
 
 # Slide density budgets PUBLISHED to the writer and ENFORCED by the renderer:
-# beyond them the slide is split in two, never overflowed (ADR-184, ADR-274).
+# beyond them the slide is split in two, never overflowed (ADR-184, ADR-276).
 DOCUMENT_GENERATION_SLIDE_MAX_BULLETS_DEFAULT: int = 6
 DOCUMENT_GENERATION_SLIDE_MAX_BULLET_CHARS_DEFAULT: int = 110
 
@@ -5647,6 +5651,54 @@ PEERS_ACCESS_LOG_RETENTION_DAYS_DEFAULT = 90
 SCHEDULER_JOB_PEERS_DELIVERY_SWEEP = "peers_delivery_sweep"
 # Hard cap on the optional context note attached to a connection request.
 PEERS_CONTEXT_MESSAGE_MAX_CHARS = 500
+
+# Workboard (ADR-276) — defaults for src/core/config/workboard.py.
+# Every bound a tool parameter meets is published from the same setting
+# (ADR-184: an enforced bound must be readable by whoever produces the value).
+WORKBOARD_RUN_SWEEP_SECONDS_DEFAULT = 60
+# Hard bound of ONE run, and the age past which a claim is reaped. Must stay
+# >= the sweep interval or the reaper would release runs still in flight.
+WORKBOARD_RUN_TIMEOUT_SECONDS_DEFAULT = 600
+WORKBOARD_RUN_MAX_ATTEMPTS_DEFAULT = 3
+WORKBOARD_QUOTA_RETRY_MINUTES_DEFAULT = 30
+WORKBOARD_MAX_TICKETS_PER_USER_DEFAULT = 2000
+WORKBOARD_MAX_CHILDREN_PER_TICKET_DEFAULT = 50
+# Runs one ticket may have in its LIFE (ADR-276 D3b). With two archived rows
+# per run at ~2.4 kB each (measured 2026-09-08), this is what bounds the
+# hidden transcripts a board can accumulate.
+WORKBOARD_MAX_RUNS_PER_TICKET_DEFAULT = 10
+WORKBOARD_HIDDEN_ROWS_RETENTION_DAYS_DEFAULT = 90
+WORKBOARD_TITLE_MAX_CHARS_DEFAULT = 200
+WORKBOARD_DESCRIPTION_MAX_CHARS_DEFAULT = 8000
+WORKBOARD_COMMENT_MAX_CHARS_DEFAULT = 4000
+WORKBOARD_CLOSED_HIDE_DAYS_DEFAULT = 30
+WORKBOARD_NUDGE_DUE_HOURS_DEFAULT = 24
+WORKBOARD_NUDGE_WAITING_HOURS_DEFAULT = 48
+WORKBOARD_NUDGE_COOLDOWN_DAYS_DEFAULT = 2
+WORKBOARD_NUDGE_MAX_ITEMS_DEFAULT = 8
+# How many of the owner's latest notes (their comments since LIA's last run)
+# a ticket brief carries — the person's answer to a confirmation travels this
+# way (lot 7). Each note is bounded by WORKBOARD_COMMENT_MAX_CHARS.
+WORKBOARD_BRIEF_MAX_NOTES_DEFAULT = 10
+# What an out-of-turn run executes in, when nobody said otherwise. It is a
+# per-ROW choice — a ticket's and a routine's alike — so this is the value a
+# new row is born with, never a deployment-wide switch: two tickets of one
+# account legitimately want different modes, and a setting could not say so.
+ExecutionMode = Literal["pipeline", "react"]
+OUT_OF_TURN_EXECUTION_MODE_DEFAULT: ExecutionMode = "react"
+SCHEDULER_JOB_WORKBOARD_RUN_SWEEP = "workboard_run_sweep"
+# Session id prefix of a run, mirroring SCHEDULED_ACTIONS_SESSION_PREFIX: the
+# session id is what tells a reader of the logs which surface drove the turn.
+WORKBOARD_RUN_SESSION_PREFIX = "workboard_ticket_"
+# Pause between two attempts of ONE run. Not a setting: it is a property of the
+# transient failures it waits out, not of a deployment.
+WORKBOARD_RUN_RETRY_DELAY_SECONDS = 30
+# Ceiling of the technical message stored beside a failed run's typed code.
+# `last_run_error` is read by a person on a card, never replayed by anything.
+WORKBOARD_RUN_ERROR_MAX_CHARS = 500
+# How much of LIA's comment a notification quotes. A push notification is a
+# headline: the whole answer is one tap away on the ticket itself.
+WORKBOARD_NOTIFICATION_EXCERPT_MAX_CHARS = 200
 
 # ============================================================================
 # Google push channels (lot H, 2026-08) — defaults for src/core/config/push.py

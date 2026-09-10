@@ -306,6 +306,7 @@ _DOMAIN_ID_KEYS: dict[str, tuple[str, ...]] = {
     "contacts": ("resource_name",),
     "tasks": ("task_id",),
     "emails": ("message_id", "id"),
+    "tickets": ("ticket_id",),  # Workboard (ADR-276): the draft and the executor both name it
 }
 
 # Draft type → TCM domain (plural key used by namespace).
@@ -326,6 +327,7 @@ _DRAFT_TYPE_TO_TCM_DOMAIN: dict[str, str] = {
     "contact_delete": "contacts",
     "task_delete": "tasks",
     "email_delete": "emails",
+    "ticket_delete": "tickets",
 }
 
 # Derived from _DOMAIN_ID_KEYS — never edit by hand.

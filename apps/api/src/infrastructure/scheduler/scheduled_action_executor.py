@@ -51,6 +51,12 @@ from src.infrastructure.observability.metrics import (
     background_job_errors_total,
 )
 from src.infrastructure.proactive.notification import plain_text_for_notification
+from src.infrastructure.scheduler.out_of_turn_run import (
+    RunOutcome,
+    StreamRequest,
+    conversation_has_pending_hitl,
+    stream_instruction,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -172,8 +178,6 @@ async def execute_single_action(
     Returns:
         Response content from the agent.
     """
-    from src.domains.agents.api.service import AgentService
-    from src.domains.conversations.service import ConversationService
     from src.domains.notifications.service import FCMNotificationService
     from src.domains.scheduled_actions.repository import ScheduledActionRepository
     from src.domains.users.service import UserService
@@ -305,185 +309,89 @@ async def execute_single_action(
             )
             return ""
 
-        # === Guard: Check for pending HITL interrupt on user's conversation ===
-        try:
-            conv_service = ConversationService()
-            conversation = await conv_service.get_or_create_conversation(
-                user_id, db, language=user_language
-            )
-            agent_service = AgentService()
-            await agent_service._ensure_graph_built()
-
-            from langchain_core.runnables import RunnableConfig
-
-            config = RunnableConfig(configurable={"thread_id": str(conversation.id)})
-            state_snapshot = await agent_service.graph.aget_state(config)
-
-            has_pending_hitl = any(
-                hasattr(t, "interrupts") and t.interrupts for t in (state_snapshot.tasks or [])
-            )
-            if has_pending_hitl:
-                logger.info(
-                    "scheduled_action_skipped_hitl_pending",
-                    action_id=str(action_id),
-                    user_id=str(user_id),
-                    conversation_id=str(conversation.id),
-                )
-                # Recalculate next trigger for the next cycle (skip without error)
-                next_trigger = _next_trigger(action, due_at)
-                await repo.mark_execution_success(action, next_trigger)
-                await record_run(
-                    db,
-                    action,
-                    due_at=due_at,
-                    started_at=started_at,
-                    outcome=ScheduledRunOutcome.SKIPPED_HITL,
-                    attempts=0,
-                )
-                await db.commit()
-                return ""
-        except Exception as guard_err:
-            logger.warning(
-                "scheduled_action_hitl_guard_error",
+        # === Guard: the thread must not already hold an unanswered question ===
+        # The probe FAILS OPEN (it is the engine's contract): failing to ask
+        # whether a question is pending must not become a reason to do nothing.
+        has_pending_hitl, pending_conversation_id = await conversation_has_pending_hitl(
+            db, user_id, user_language
+        )
+        if has_pending_hitl:
+            logger.info(
+                "scheduled_action_skipped_hitl_pending",
                 action_id=str(action_id),
-                error=str(guard_err),
+                user_id=str(user_id),
+                conversation_id=str(pending_conversation_id),
             )
-            # Continue execution - guard failure should not block execution
+            # Recalculate next trigger for the next cycle (skip without error)
+            next_trigger = _next_trigger(action, due_at)
+            await repo.mark_execution_success(action, next_trigger)
+            await record_run(
+                db,
+                action,
+                due_at=due_at,
+                started_at=started_at,
+                outcome=ScheduledRunOutcome.SKIPPED_HITL,
+                attempts=0,
+            )
+            await db.commit()
+            return ""
 
-        # === Execute via agent pipeline (with retry on transient errors) ===
-        response_content = ""
-        last_error: Exception | None = None
+        # === Execute via the shared out-of-turn engine (ADR-276) ===
+        # The retry policy, the timeout, the fresh session per attempt and the
+        # ``content_replacement`` rule live in ONE place now; what a ROUTINE
+        # does with the outcome stays here.
+        result = await stream_instruction(
+            StreamRequest(
+                user_id=user_id,
+                prompt=prompt_to_run,
+                session_id=session_id,
+                language=user_language,
+                timezone=user_timezone,
+                display_name=user_display_name,
+                display_mode=user_display_mode,
+                timeout_seconds=settings.scheduled_actions_execution_timeout_seconds,
+                max_attempts=SCHEDULED_ACTIONS_MAX_RETRIES + 1,
+                retry_delay_seconds=SCHEDULED_ACTIONS_RETRY_DELAY_SECONDS,
+                # The ROUTINE's own choice (the loop by default): nobody is
+                # there to steer a plan when it fires. Never the person's chat
+                # preference — the header toggle speaks for the chat alone.
+                execution_mode=action.execution_mode,
+            )
+        )
+        response_content = result.text
+        attempt = result.attempts
+        # A routine has nobody to ask, so a question it cannot ask is a failure
+        # — the behaviour this path has always had. The workboard reads the
+        # same outcome differently, which is why the engine names it rather
+        # than deciding for its callers.
+        error_msg: str | None = result.error
+        if result.outcome is RunOutcome.WAITING:
+            error_msg = "RuntimeError: HITL interrupt during scheduled action execution"
 
-        for attempt in range(
-            1, SCHEDULED_ACTIONS_MAX_RETRIES + 2
-        ):  # +2: range(1, max+2) = [1..max+1]
-            # Unique session per attempt to avoid stale checkpoint state.
-            # If attempt 1 partially executes the graph before timing out,
-            # attempt 2 must start from a clean state, not resume a broken checkpoint.
-            attempt_session_id = session_id if attempt == 1 else f"{session_id}_retry_{attempt}"
-
-            try:
-                agent_service = AgentService()
-
-                async def _run_stream(
-                    svc: AgentService = agent_service,
-                    _sid: str = attempt_session_id,
-                    _attempt: int = attempt,
-                ) -> str:
-                    content_parts: list[str] = []
-                    # Canonical post-processed content (HTML cards, photo
-                    # injection, psyche-tag cleanup) arrives as a single
-                    # ``content_replacement`` chunk AFTER the token deltas —
-                    # it REPLACES them rather than appending, mirroring
-                    # ``AgentService.stream_chat_response``. Accumulating only
-                    # tokens built the notification from the pre-post-processing
-                    # text, so the push body and the archived message the user
-                    # then opens in chat could disagree, and a ``<psyche_eval``
-                    # tag split across two token chunks (the streaming-level
-                    # filter is documented as partial) reached the lock screen.
-                    replacement: str | None = None
-                    async for chunk in svc.stream_chat_response(
-                        user_message=prompt_to_run,
-                        user_id=user_id,
-                        session_id=_sid,
-                        user_timezone=user_timezone,
-                        user_language=user_language,
-                        user_display_name=user_display_name,
-                        user_display_mode=user_display_mode,  # honor user's cards/html/markdown preference
-                        is_automated_source=True,  # skip memory/interest/journal/psyche extraction
-                        auto_approve_plan=True,
-                        # Archive-first (ADR-117): attempt 1 already persisted
-                        # the user row at run start; retries must not duplicate it.
-                        archive_user_message=(_attempt == 1),
-                    ):
-                        if (
-                            chunk.type == "token"
-                            and chunk.content
-                            and isinstance(chunk.content, str)
-                        ):
-                            content_parts.append(chunk.content)
-                        elif chunk.type == "content_replacement" and isinstance(chunk.content, str):
-                            replacement = chunk.content
-                        elif chunk.type == "hitl_interrupt":
-                            # HITL interrupt during execution -> non-retryable
-                            raise RuntimeError("HITL interrupt during scheduled action execution")
-                    return replacement if replacement is not None else "".join(content_parts)
-
-                response_content = await asyncio.wait_for(
-                    _run_stream(),
-                    timeout=settings.scheduled_actions_execution_timeout_seconds,
-                )
-
-                # Success — recalculate next trigger (+ the N-07 dedup ledger,
-                # written only on a REAL run so a failed one retries the fact).
-                next_trigger = _next_trigger(action, due_at)
-                await repo.mark_execution_success(
-                    action, next_trigger, condition_state=new_condition_state
-                )
-                await record_run(
-                    db,
-                    action,
-                    due_at=due_at,
-                    started_at=started_at,
-                    outcome=ScheduledRunOutcome.SUCCESS,
-                    attempts=attempt,
-                )
-
-                logger.info(
-                    "scheduled_action_executed_success",
-                    action_id=str(action_id),
-                    user_id=str(user_id),
-                    response_length=len(response_content),
-                    next_trigger_at=next_trigger.isoformat() if next_trigger else None,
-                    attempt=attempt,
-                )
-                last_error = None
-                break
-
-            except (TimeoutError, ConnectionError, OSError) as transient_err:
-                last_error = transient_err
-                is_last_attempt = attempt > SCHEDULED_ACTIONS_MAX_RETRIES
-
-                if is_last_attempt:
-                    logger.warning(
-                        "scheduled_action_transient_error_final",
-                        action_id=str(action_id),
-                        error=str(transient_err),
-                        error_type=type(transient_err).__name__,
-                        attempt=attempt,
-                    )
-                else:
-                    logger.warning(
-                        "scheduled_action_transient_error_retrying",
-                        action_id=str(action_id),
-                        error=str(transient_err),
-                        error_type=type(transient_err).__name__,
-                        attempt=attempt,
-                        retry_delay=SCHEDULED_ACTIONS_RETRY_DELAY_SECONDS,
-                    )
-                    await asyncio.sleep(SCHEDULED_ACTIONS_RETRY_DELAY_SECONDS)
-
-            except Exception as exec_err:
-                # Non-retryable error (HITL interrupt, RuntimeError, etc.)
-                last_error = exec_err
-                logger.error(
-                    "scheduled_action_execution_error",
-                    action_id=str(action_id),
-                    error=f"{type(exec_err).__name__}: {exec_err}",
-                    attempt=attempt,
-                )
-                break
-
-        # Mark failure if all attempts failed
-        if last_error is not None:
-            if isinstance(last_error, TimeoutError):
-                error_msg = (
-                    f"Execution timed out after {settings.scheduled_actions_execution_timeout_seconds}s"
-                    f" ({SCHEDULED_ACTIONS_MAX_RETRIES + 1} attempts)"
-                )
-            else:
-                error_msg = f"{type(last_error).__name__}: {last_error}"
-
+        if error_msg is None:
+            # Success — recalculate next trigger (+ the N-07 dedup ledger,
+            # written only on a REAL run so a failed one retries the fact).
+            next_trigger = _next_trigger(action, due_at)
+            await repo.mark_execution_success(
+                action, next_trigger, condition_state=new_condition_state
+            )
+            await record_run(
+                db,
+                action,
+                due_at=due_at,
+                started_at=started_at,
+                outcome=ScheduledRunOutcome.SUCCESS,
+                attempts=attempt,
+            )
+            logger.info(
+                "scheduled_action_executed_success",
+                action_id=str(action_id),
+                user_id=str(user_id),
+                response_length=len(response_content),
+                next_trigger_at=next_trigger.isoformat() if next_trigger else None,
+                attempt=attempt,
+            )
+        else:
             next_trigger = _next_trigger(action, due_at)
             await repo.mark_execution_failure(
                 action,

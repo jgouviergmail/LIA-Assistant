@@ -28,21 +28,25 @@ const SETTINGS = 'dashboard.quick_access_compact.settings';
 const SETTINGS_SUB = 'dashboard.quick_access_compact.settings_sub';
 const CAPABILITIES = 'dashboard.quick_access_compact.capabilities';
 const ACTIONS = 'dashboard.quick_access_compact.actions';
+const WORKBOARD = 'dashboard.quick_access_compact.workboard';
 
 describe('QuickAccessCompact', () => {
-  it('offers four destinations: help, capabilities, actions, settings', () => {
+  it('offers five destinations, in the order the questions come', () => {
     // The constellation earns a door here rather than a sixth nav slot: the
     // header row is already at its widest, and this is a place you visit
     // rather than a place you live. The action register (ADR-263) earns one
-    // for the same reason — you come here to CHECK what was done.
+    // for the same reason — you come here to CHECK what was done. The board
+    // (ADR-276) sits BETWEEN them: what LIA can do, what it is doing, what it
+    // has done — and the middle one is the only one still moving.
     renderWithProviders(<QuickAccessCompact lng="fr" />);
 
     const links = screen.getAllByRole('link');
-    expect(links).toHaveLength(4);
+    expect(links).toHaveLength(5);
     expect(links[0]).toHaveAccessibleName(new RegExp(HELP));
     expect(links[1]).toHaveAccessibleName(new RegExp(CAPABILITIES));
-    expect(links[2]).toHaveAccessibleName(new RegExp(ACTIONS));
-    expect(links[3]).toHaveAccessibleName(new RegExp(SETTINGS));
+    expect(links[2]).toHaveAccessibleName(new RegExp(WORKBOARD));
+    expect(links[3]).toHaveAccessibleName(new RegExp(ACTIONS));
+    expect(links[4]).toHaveAccessibleName(new RegExp(SETTINGS));
   });
 
   it('does NOT duplicate a destination the header already carries', () => {
@@ -132,7 +136,7 @@ describe('QuickAccessCompact', () => {
     const { container } = renderWithProviders(<QuickAccessCompact lng="fr" />);
 
     const links = Array.from(container.querySelectorAll('a'));
-    expect(links).toHaveLength(4);
+    expect(links).toHaveLength(5);
     // ONE parent for all of them: that is what makes it a bar rather than a
     // grid of cards, whatever the number of destinations.
     const parents = new Set(links.map(link => link.parentElement));

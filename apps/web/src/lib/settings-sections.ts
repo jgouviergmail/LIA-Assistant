@@ -111,6 +111,13 @@ export const SETTINGS_SECTIONS = {
     accordionValue: 'chat-shortcuts',
     declaredIn: 'components/settings/ChatShortcutsSettings.tsx',
   },
+  // The sections pinned to the floating dock (ADR-277): a picker over this
+  // very table, so it lives with the other personal shortcuts.
+  'my-shortcuts': {
+    tab: 'preferences',
+    accordionValue: 'my-shortcuts',
+    declaredIn: 'components/settings/MyShortcutsSettings.tsx',
+  },
 
   // ---- Preferences tab / Notifications & Communication
   notifications: {
@@ -280,6 +287,14 @@ export const SETTINGS_SECTIONS = {
     tab: 'features',
     accordionValue: 'meetings',
     declaredIn: 'components/settings/MeetingsSettings.tsx',
+  },
+  // The workboard (ADR-276). This section is the board's DOOR — D15 gives it no
+  // header destination — so a deep link here is how a person reaches their
+  // tickets from anywhere in the settings.
+  workboard: {
+    tab: 'features',
+    accordionValue: 'workboard',
+    declaredIn: 'components/settings/WorkboardSettings.tsx',
   },
   // The component serves both the user and the admin export from one file and
   // therefore picks its accordion value at runtime (`mode`), which is why the

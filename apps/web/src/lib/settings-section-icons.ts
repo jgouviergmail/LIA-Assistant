@@ -61,6 +61,7 @@ import {
   MonitorSmartphone,
   Palette,
   PhoneCall,
+  Pin,
   Plug,
   Puzzle,
   Radar,
@@ -93,6 +94,7 @@ export const SETTINGS_SECTION_ICONS: Readonly<Record<SettingsSectionToken, Lucid
   haptics: Vibrate,
   'briefing-grid': LayoutDashboard,
   'chat-shortcuts': TerminalSquare,
+  'my-shortcuts': Pin,
   notifications: Bell,
   channels: MessageCircle,
   'security-auth': Fingerprint,
@@ -123,6 +125,7 @@ export const SETTINGS_SECTION_ICONS: Readonly<Record<SettingsSectionToken, Lucid
   plugins: Puzzle,
   'rag-spaces': Library,
   meetings: ClipboardList,
+  workboard: LayoutGrid,
   'user-consumption-export': FileSpreadsheet,
 
   // ---- Administration

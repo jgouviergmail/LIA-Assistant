@@ -24,6 +24,8 @@ export interface TestUser {
   onboarding_completed: boolean;
   language: string;
   timezone: string;
+  /** Settings section tokens pinned to the floating dock (ADR-277). */
+  settings_shortcuts: string[];
 }
 
 export function makeTestUser(overrides: Partial<TestUser> = {}): TestUser {
@@ -40,6 +42,7 @@ export function makeTestUser(overrides: Partial<TestUser> = {}): TestUser {
     voice_mode_enabled: false,
     voice_stt_mode: 'remote',
     tokens_display_enabled: true,
+    settings_shortcuts: [],
     debug_panel_enabled: false,
     response_display_mode: 'default',
     onboarding_completed: true,

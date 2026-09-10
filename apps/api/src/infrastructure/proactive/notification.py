@@ -25,7 +25,7 @@ from src.core.field_names import (
     FIELD_RUN_ID,
     FIELD_TARGET_ID,
 )
-from src.domains.agents.display.plain_text import strip_html_if_markup
+from src.domains.agents.display.plain_text import markdown_links_to_plain, strip_html_if_markup
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_channels import (
     channel_notification_errors_total,
@@ -34,7 +34,6 @@ from src.infrastructure.observability.metrics_channels import (
 
 logger = get_logger(__name__)
 
-_MD_LINK_RE = re.compile(r"\[([^\]]+)\]\((https?://[^)\s]+)\)")
 _WHITESPACE_RE = re.compile(r"\s+")
 
 
@@ -75,22 +74,6 @@ def plain_text_for_notification(text: str) -> str:
     if not text:
         return text
     return _WHITESPACE_RE.sub(" ", markdown_links_to_plain(strip_html_if_markup(text))).strip()
-
-
-def markdown_links_to_plain(text: str) -> str:
-    """Convert markdown links to "label (url)" for surfaces without markdown.
-
-    FCM push bodies and Telegram (HTML parse_mode with escaping) would render
-    raw markdown syntax; this keeps appended source links readable there
-    (ADR-131). Chat archive and SSE keep the original markdown.
-
-    Args:
-        text: Notification content, possibly containing markdown links.
-
-    Returns:
-        The text with every markdown link flattened to "label (url)".
-    """
-    return _MD_LINK_RE.sub(r"\1 (\2)", text)
 
 
 @dataclass

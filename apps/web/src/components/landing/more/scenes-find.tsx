@@ -24,6 +24,7 @@ import {
   RotateCw,
   Search,
   Star,
+  Pin,
 } from 'lucide-react';
 
 import { SETTINGS_GROUP_TONES } from '@/lib/settings-group-tones';
@@ -649,6 +650,62 @@ function RelationDebriefScene({ active, labels }: SceneProps) {
   );
 }
 
+type DockPhase = 'open' | 'folded' | 'moved' | 'reopened';
+const DOCK_STEPS: readonly TimelineStep<DockPhase>[] = [
+  { at: 0, state: 'open' },
+  { at: 1100, state: 'folded' },
+  { at: 1900, state: 'moved' },
+  { at: 2900, state: 'reopened' },
+];
+
+/**
+ * The pinned dock: it sits, folds into a dot, is dragged low, and unfolds
+ * UPWARD from there — the one behaviour a still screenshot cannot show, and
+ * the reason the capsule never leaves the screen when it is parked near the
+ * bottom edge.
+ */
+function PinnedDockScene({ active }: SceneProps) {
+  const phase = useLoopedTimeline(DOCK_STEPS, { active });
+  const folded = phase === 'folded' || phase === 'moved';
+  const low = phase === 'moved' || phase === 'reopened';
+  return (
+    <div className={cn(STAGE, 'justify-center')}>
+      {/* The page under it, indifferent. */}
+      <div className="absolute inset-3 space-y-1.5" aria-hidden="true">
+        <SkeletonLine w="w-2/3" className="h-1.5" />
+        <SkeletonLine w="w-1/2" className="h-1.5" />
+        <SkeletonLine w="w-3/5" className="h-1.5" />
+      </div>
+      <div
+        className={cn(
+          'absolute right-4 flex flex-col items-center justify-end gap-1 rounded-full border border-primary/40 bg-background/95 p-1 shadow-sm',
+          'transition-all duration-700 ease-out',
+          low ? 'bottom-3' : 'bottom-9'
+        )}
+      >
+        {/* Folded, only the grip shows; unfolded, the pinned sections stack
+            ABOVE it, so the foot stays where the dot was. */}
+        <span
+          className={cn(
+            'flex flex-col items-center gap-1 overflow-hidden transition-all duration-500 ease-out',
+            folded ? 'max-h-0 opacity-0' : 'max-h-16 opacity-100'
+          )}
+        >
+          <Moon className="h-3 w-3 text-primary" />
+          <Bell className="h-3 w-3 text-primary" />
+          <Search className="h-3 w-3 text-primary" />
+        </span>
+        <Pin
+          className={cn(
+            'h-3 w-3 shrink-0 transition-colors duration-300',
+            folded ? 'text-primary' : 'text-muted-foreground'
+          )}
+        />
+      </div>
+    </div>
+  );
+}
+
 export const FIND_SCENES: Readonly<Record<string, SceneComponent>> = {
   settings_shell: SettingsShellScene,
   settings_tones: SettingsTonesScene,
@@ -661,4 +718,5 @@ export const FIND_SCENES: Readonly<Record<string, SceneComponent>> = {
   relation_star: RelationStarScene,
   relation_sections: RelationSectionsScene,
   relation_debrief: RelationDebriefScene,
+  pinned_dock: PinnedDockScene,
 };

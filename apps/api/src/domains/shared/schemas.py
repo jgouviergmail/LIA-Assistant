@@ -36,6 +36,7 @@ from src.core.constants import (
 )
 from src.core.security import validate_password_strict
 from src.core.validators import validate_timezone
+from src.domains.shared.settings_shortcuts import sanitize_settings_shortcuts
 
 # Valid theme values (centralized constants)
 #
@@ -364,11 +365,25 @@ class UserBase(BaseModel, TimezoneValidatorMixin, ThemeValidatorMixin, FontFamil
             "(agents, Heartbeat source, journal/memory context)."
         ),
     )
+    settings_shortcuts: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Settings section tokens pinned to the floating shortcuts dock "
+            "(ADR-277) — the frontend's vocabulary, at most the runtime cap."
+        ),
+    )
 
     created_at: datetime = Field(..., description="Account creation timestamp")
     updated_at: datetime = Field(..., description="Last update timestamp")
 
     model_config = {"from_attributes": True}
+
+    @field_validator("settings_shortcuts", mode="before")
+    @classmethod
+    def _read_settings_shortcuts_as_stored(cls, value: Any) -> list[str]:
+        """The column is read as stored: a malformed entry is dropped, never a
+        500 on ``/auth/me`` (the tolerant reader of ADR-277)."""
+        return sanitize_settings_shortcuts(value, max_count=settings.settings_shortcuts_max_count)
 
     @field_validator("memory_enabled", mode="before")
     @classmethod

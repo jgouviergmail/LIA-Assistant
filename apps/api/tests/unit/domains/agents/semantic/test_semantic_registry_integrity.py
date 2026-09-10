@@ -56,6 +56,13 @@ KNOWN_UNBRIDGED_RELATED_DOMAINS: frozenset[tuple[str, str]] = frozenset(
         # the ADR-121 doctrine (never tag an output without verifying the
         # actual payload); bridge when one exists.
         ("peer", "event"),
+        # Workboard (ADR-276): same shape, same reason. A ticket is handed to
+        # a peer by the NAME the person said, resolved against the caller's
+        # accepted connections — the peer tools expose names, never typed
+        # resource ids, so there is nothing real to pivot on. The adjacency is
+        # routing-level: a peer name in the sentence must keep the peer
+        # directory in play.
+        ("ticket", "peer"),
     }
 )
 

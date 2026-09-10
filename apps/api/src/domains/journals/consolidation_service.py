@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from src.domains.journals.models import JournalEntry
 
 from src.core.config import settings
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.domains.journals.constants import JOURNAL_ENTRY_CONTENT_MAX_LENGTH
 from src.domains.journals.extraction_service import (
@@ -77,7 +78,14 @@ async def _build_usage_patterns_section(user_id: UUID) -> str:
                 return ""
 
             since = datetime.now(UTC) - timedelta(days=7)
-            hour_local = func.extract("hour", ConversationMessage.created_at)
+            # The hour the PERSON lived, not the server's: `created_at` is UTC,
+            # and a bucket read from it filed a Paris evening under « afternoon ».
+            from src.domains.users.models import User
+
+            zone = (
+                await db.execute(select(User.timezone).where(User.id == user_id))
+            ).scalar_one_or_none() or DEFAULT_USER_DISPLAY_TIMEZONE
+            hour_local = func.extract("hour", func.timezone(zone, ConversationMessage.created_at))
             bucket = case(
                 (hour_local.between(5, 11), "morning"),
                 (hour_local.between(12, 17), "afternoon"),
@@ -90,7 +98,11 @@ async def _build_usage_patterns_section(user_id: UUID) -> str:
                 .where(
                     and_(
                         ConversationMessage.conversation_id == conversation_id,
-                        ConversationMessage.role == "human",
+                        # The vocabulary the repository WRITES (`user`, never
+                        # `human`): this read had matched nothing since v1.7.0.
+                        ConversationMessage.role == "user",
+                        # A run's synthetic question is not the person speaking.
+                        ConversationMessage.hidden.is_(False),
                         ConversationMessage.created_at > since,
                     )
                 )
@@ -356,7 +368,10 @@ async def _load_conversation_history(
                     and_(
                         ConversationMessage.conversation_id == conversation.id,
                         ConversationMessage.created_at > effective_since,
-                        ConversationMessage.role.in_(["human", "ai"]),
+                        ConversationMessage.role.in_(["user", "assistant"]),
+                        # The rows of a run LIA ran alone are LIA's words, not
+                        # the person's exchange (ADR-276).
+                        ConversationMessage.hidden.is_(False),
                     )
                 )
                 .order_by(ConversationMessage.created_at.desc())
@@ -371,7 +386,7 @@ async def _load_conversation_history(
             messages.reverse()
             lines = []
             for msg in messages:
-                prefix = "USER" if msg.role == "human" else "ASSISTANT"
+                prefix = "USER" if msg.role == "user" else "ASSISTANT"
                 content = msg.content[:500] if len(msg.content) > 500 else msg.content
                 lines.append(f"{prefix}: {content}")
 

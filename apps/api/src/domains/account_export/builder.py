@@ -79,6 +79,12 @@ _DECRYPTED_COLUMNS: dict[str, frozenset[str]] = {
 _VIA_PARENT: dict[str, tuple[str, str, str]] = {
     # table → (parent_table, local_fk_column, parent_owner_column)
     "conversation_messages": ("conversations", "conversation_id", "user_id"),
+    # Workboard (ADR-276): a ticket's thread and history reach the archive
+    # through the ticket the requester OWNS. What a peer wrote on someone
+    # else's ticket belongs to that ticket's owner, and the peer's own archive
+    # carries the ticket row itself (two-sided, below).
+    "workboard_comments": ("workboard_tickets", "ticket_id", "owner_user_id"),
+    "workboard_ticket_events": ("workboard_tickets", "ticket_id", "owner_user_id"),
     "rag_drive_sources": ("rag_spaces", "space_id", "user_id"),
     "rag_documents": ("rag_spaces", "space_id", "user_id"),
 }
@@ -103,6 +109,10 @@ _TWO_SIDED: dict[str, tuple[str, str]] = {
     "peer_connections": ("user_a_id", "user_b_id"),
     "peer_messages": ("sender_id", "recipient_id"),
     "peer_access_log": ("accessor_id", "owner_id"),
+    # A ticket is on the archive of whoever OWNS it and of whoever HOLDS it:
+    # the board of user U is « owner = U or assignee = U », and an archive
+    # that showed only one of the two would omit half of somebody's board.
+    "workboard_tickets": ("owner_user_id", "assignee_user_id"),
 }
 
 

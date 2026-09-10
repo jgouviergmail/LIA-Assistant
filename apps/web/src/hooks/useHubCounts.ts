@@ -26,6 +26,12 @@ export interface HubCounts {
   scheduled: number;
   /** Undecided missed-routine offers (Lot 5-C2) — a to-decide set. */
   offers: number;
+  /**
+   * Tickets that need THIS person (ADR-276): a run stopped waiting for them,
+   * or something on their board is overdue. A set to decide, never a count of
+   * everything the account owns.
+   */
+  workboard: number;
 }
 
 export interface UseHubCountsResult {

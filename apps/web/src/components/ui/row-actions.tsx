@@ -68,14 +68,24 @@ export interface RowActionsProps {
    * say "actions": a list renders one trigger per row.
    */
   menuLabel: string;
+  /**
+   * Force the « ⋮ » menu at every width.
+   *
+   * The breakpoint below asks the VIEWPORT how much room there is, which is
+   * the right question for a full-width row and the wrong one for a row inside
+   * a narrow container. A workboard card lives in a ~208 px column whatever
+   * the screen: three inline icon buttons took half of it and landed on the
+   * text beside them.
+   */
+  compact?: boolean;
   className?: string;
 }
 
-export function RowActions({ actions, menuLabel, className }: RowActionsProps) {
+export function RowActions({ actions, menuLabel, compact, className }: RowActionsProps) {
   return (
     <div className={cn('flex shrink-0 items-center', className)}>
       {/* sm+: every action one tap away, none hidden behind a hover. */}
-      <div className="hidden gap-1 sm:flex">
+      <div className={cn('hidden gap-1', !compact && 'sm:flex')}>
         {actions.map(action => {
           const Icon = action.icon;
           const glyph = action.loading ? (
@@ -122,7 +132,10 @@ export function RowActions({ actions, menuLabel, className }: RowActionsProps) {
             type="button"
             variant="ghost"
             size="icon"
-            className="sm:hidden"
+            // Compact rides a line of badges rather than a row of its own:
+            // a 36 px control beside 20 px pills reads as misaligned whatever
+            // the flex alignment says.
+            className={cn(compact ? 'h-7 w-7' : 'sm:hidden')}
             aria-label={menuLabel}
           >
             <MoreVertical className="h-4 w-4 text-muted-foreground" aria-hidden="true" />

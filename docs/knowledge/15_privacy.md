@@ -22,7 +22,7 @@ Yes, your conversations are **strictly private**:
 Multiple security levels protect your data:
 
 **🔐 Authentication:**
-• OAuth 2.0 with PKCE (security standard)
+• OAuth 2.1 with PKCE (security standard)
 • Secure server-side sessions (Redis) with HTTP-only cookies
 
 **🔒 Data protection:**

@@ -48,6 +48,7 @@ EXPECTED_EXTERNAL: dict[RegistryItemType, str] = {
     RegistryItemType.MCP_RESULT: "third-party MCP server output",
     RegistryItemType.MCP_APP: "third-party MCP widget payload",
     RegistryItemType.SKILL_APP: "rich output of a URL-imported skill",
+    RegistryItemType.TICKET: "title/description/comments of a ticket a connected user handed over",
 }
 
 # Types that are machine-generated or authored by the user / LIA itself.

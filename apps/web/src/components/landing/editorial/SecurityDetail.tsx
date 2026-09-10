@@ -35,7 +35,7 @@ const STANDARDS = [
   'agentskills.io',
   'OWASP Top 10',
   'WebAuthn / FIDO2',
-  'OAuth 2.0 + PKCE',
+  'OAuth 2.1 + PKCE',
   'OpenTelemetry',
   'Prometheus / OpenMetrics',
   'Keep a Changelog',

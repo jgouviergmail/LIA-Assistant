@@ -35,6 +35,15 @@ def _make_settings(**overrides) -> SimpleNamespace:
         "heartbeat_weather_rain_threshold_low": 0.3,
         "heartbeat_weather_temp_change_threshold": 5.0,
         "heartbeat_weather_wind_threshold": 14.0,
+        # The DEPLOYMENT flags the aggregator now reads before planning a
+        # source: a subsystem switched off opens nothing, so it must not be
+        # recorded as read (ADR-263). A stub missing them would silence
+        # sources this file exists to observe.
+        "heartbeat_departure_enabled": True,
+        "open_loops_enabled": True,
+        "workboard_enabled": True,
+        "habits_enabled": True,
+        "health_metrics_enabled": True,
     }
     defaults.update(overrides)
     return SimpleNamespace(**defaults)

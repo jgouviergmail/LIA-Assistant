@@ -39,10 +39,8 @@ import { SettingsOverview } from '@/components/settings/SettingsOverview';
 import { SettingsPane } from '@/components/settings/SettingsPane';
 import { SettingsRail } from '@/components/settings/SettingsRail';
 import { SettingsSearch } from '@/components/settings/SettingsSearch';
-import { useAppConfig } from '@/hooks/useAppConfig';
-import { useDebugPanelEnabled } from '@/hooks/useDebugPanelEnabled';
+import { useSettingsAvailability } from '@/hooks/useSettingsAvailability';
 import { useTranslation } from '@/i18n/client';
-import type { SettingsSearchAvailability } from '@/lib/settings-search';
 import { buildSettingsShellModel } from '@/lib/settings-shell-model';
 import { isSettingsSectionToken, type SettingsSectionToken } from '@/lib/settings-sections';
 import { cn } from '@/lib/utils';
@@ -67,12 +65,6 @@ export default function SettingsPage({ params }: SettingsPageProps) {
   const searchParams = useSearchParams();
   const lng = useLanguageParam(params);
   const { t } = useTranslation(lng);
-  const { userAccessAvailable } = useDebugPanelEnabled();
-  // The one instance flag a settings section actually reads before rendering
-  // (`OpenLoopsSection`). The other `/config` flags are NOT consulted here: the
-  // sections they name render regardless, and filtering the shell on them
-  // would hide something the pane can show.
-  const { config } = useAppConfig();
 
   /** Section shown in the pane; null = the overview. */
   const [active, setActive] = React.useState<SettingsSectionToken | null>(null);
@@ -82,27 +74,9 @@ export default function SettingsPage({ params }: SettingsPageProps) {
   // Track if OAuth callback toast has been shown (prevents duplicate toasts)
   const oauthToastShownRef = React.useRef(false);
 
-  // Stable identity: `SettingsSearch` memoizes its whole index on this object,
-  // and a fresh one per render would rebuild fifty entries every keystroke.
-  const availability = React.useMemo<SettingsSearchAvailability>(
-    () => ({
-      isSuperuser: !!user?.is_superuser,
-      // Mirrors `OpenLoopsSection` exactly, loading state included: while
-      // `/config` is in flight the section is genuinely absent, and the shell
-      // rebuilds by itself when the answer lands.
-      openLoopsEnabled: !!config?.features?.open_loops_enabled,
-      habitsEnabled: !!config?.features?.habits_enabled,
-      peersEnabled: !!config?.features?.peers_enabled,
-      debugUserAccess: userAccessAvailable,
-    }),
-    [
-      user?.is_superuser,
-      config?.features?.open_loops_enabled,
-      config?.features?.habits_enabled,
-      config?.features?.peers_enabled,
-      userAccessAvailable,
-    ]
-  );
+  // The same flags the « my shortcuts » picker reads (ADR-277): one hook,
+  // so the shell and the picker cannot disagree about what exists.
+  const availability = useSettingsAvailability();
 
   const model = React.useMemo(() => buildSettingsShellModel(availability), [availability]);
 

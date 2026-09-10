@@ -24,6 +24,7 @@ from typing import Any, Final
 import structlog
 
 from src.core.field_names import FIELD_INJECTED_RUNTIME
+from src.domains.agents.api.run_origin import current_origin_carries_drafts, record_refusal
 from src.domains.agents.effects.digest import args_digest
 from src.domains.agents.effects.gate import (
     ERROR_CONFIRMATION_MISSING,
@@ -467,6 +468,10 @@ async def _refuse_or_ask(
     effect_refusals_total.labels(reason=str(decision.error_code)).inc()
     if request is not None:
         await _LEDGER.refuse(request, error_code=str(decision.error_code))
+    # ADR-276: an out-of-turn run settles from a CODE, never from the model's
+    # prose. Recording here rather than at the decision keeps the decision a
+    # pure function; outside such a run this is a no-op.
+    record_refusal(tool_name, str(decision.error_code))
     logger.info(
         "effect_refused",
         tool_name=tool_name,
@@ -652,7 +657,7 @@ def gated(
     async def _run_gated(*args: Any, **kwargs: Any) -> Any:
         policy = resolve_policy(tool_name)
         scope = current_scope()
-        decision = decide_effect(policy, scope)
+        decision = decide_effect(policy, scope, carrier=current_origin_carries_drafts())
 
         if decision.action is GateAction.PASS_THROUGH:
             return await _pass_through(tool_name, policy, coroutine, args, kwargs)

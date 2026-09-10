@@ -220,6 +220,17 @@ PromptName = Literal[
     # Template library (ADR-259): automatic template choice and part-by-part rewrite.
     "meeting_template_selection_prompt",
     "meeting_transcript_rewrite_prompt",
+    # Workboard (ADR-276): the brief a ticket becomes when LIA runs it alone,
+    # plus the fragments the ticket's own shape switches on. READ BY PATH from
+    # `workboard/brief.py` (`core.prompt_store`), never through this loader:
+    # lot 3 makes `agents` import `workboard`, so the edge back would be a
+    # cycle — the same break as meetings, telephony and documents.
+    "workboard_ticket_brief_prompt",
+    "workboard_brief_description",
+    "workboard_brief_notes",
+    "workboard_brief_approved_action",
+    "workboard_brief_parent_step",
+    "workboard_brief_substeps",
 ]
 
 

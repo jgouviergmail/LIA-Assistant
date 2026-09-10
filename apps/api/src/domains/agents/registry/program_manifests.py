@@ -60,3 +60,12 @@ def register_program_manifests(registry: AgentRegistry) -> None:
 
         register_peer_manifests(registry)
         registry.register_tool_manifest(get_peer_messages_catalogue_manifest)
+
+    # Workboard (ADR-276): flag-gated like its router and its sweep — a
+    # disabled instance must not advertise tools whose REST surface is absent.
+    if getattr(settings, "workboard_enabled", False):
+        from src.domains.agents.workboard.catalogue_registration import (
+            register_workboard_manifests,
+        )
+
+        register_workboard_manifests(registry)

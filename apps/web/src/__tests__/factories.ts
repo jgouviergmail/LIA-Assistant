@@ -190,6 +190,7 @@ export function makeScheduledAction(over: Partial<ScheduledAction> = {}): Schedu
     trigger_kind: 'time',
     condition_config: null,
     requires_approval: false,
+    execution_mode: 'react',
     next_trigger_at: '2026-08-03T06:00:00Z',
     is_enabled: true,
     status: 'active',

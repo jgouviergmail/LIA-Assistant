@@ -348,6 +348,29 @@ async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
                 "peers_delivery_sweep_job_scheduled",
                 interval_seconds=settings.peers_delivery_sweep_seconds,
             )
+        # Workboard run sweep (ADR-276, lot 2): the ONE job that owns every
+        # time-based transition of a ticket — it reaps the claims a dead worker
+        # left, drops the hidden transcripts past retention, and runs at most
+        # one ticket assigned to LIA.
+        if getattr(settings, "workboard_enabled", False):
+            from src.core.constants import SCHEDULER_JOB_WORKBOARD_RUN_SWEEP
+            from src.infrastructure.scheduler.workboard_runner import sweep_workboard_runs
+
+            scheduler.add_job(
+                sweep_workboard_runs,
+                trigger="interval",
+                seconds=settings.workboard_run_sweep_seconds,
+                jitter=jitter_seconds_for(seconds=settings.workboard_run_sweep_seconds),
+                id=SCHEDULER_JOB_WORKBOARD_RUN_SWEEP,
+                name="Workboard run sweep",
+                replace_existing=True,
+                max_instances=1,
+                misfire_grace_time=60,
+            )
+            logger.info(
+                "workboard_run_sweep_job_scheduled",
+                interval_seconds=settings.workboard_run_sweep_seconds,
+            )
         logger.info(
             "scheduled_action_executor_job_scheduled",
             interval_seconds=SCHEDULED_ACTIONS_EXECUTOR_INTERVAL_SECONDS,

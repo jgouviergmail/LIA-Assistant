@@ -4,7 +4,7 @@
 >
 > Version: 1.7
 > Date: 2026-07-17
-> Architecture: Prometheus + Grafana (28 dashboards, 719 panels)
+> Architecture: Prometheus + Grafana (29 dashboards, 905 panels)
 > Total métriques : compté par `scripts/audit/measure_metric_coverage.py` (analyse AST, source de vérité — ne pas recopier un nombre ici : la garde de couverture et la tuile publique en dérivent déjà). Relevé 2026-09-02 : **499** + recording rules Prometheus
 > Source de vérité : `src/infrastructure/observability/metrics_*.py` — ce catalogue détaille les familles principales (~120 métriques), voir « Couverture du catalogue »
 > Compliance: OpenTelemetry conventions, Google SRE best practices
@@ -2867,14 +2867,14 @@ curl -G http://localhost:9090/api/v1/query \
 ### LIA Internal Docs
 
 - **[OBSERVABILITY_AGENTS.md](OBSERVABILITY_AGENTS.md)**: Architecture observabilité complète
-- **[GRAFANA_DASHBOARDS.md](GRAFANA_DASHBOARDS.md)**: 28 dashboards Grafana détaillés
+- **[GRAFANA_DASHBOARDS.md](GRAFANA_DASHBOARDS.md)**: 29 dashboards Grafana détaillés
 - **[TOKEN_TRACKING_AND_COUNTING.md](TOKEN_TRACKING_AND_COUNTING.md)**: Token tracking architecture
 
 ### Code References
 
 - **apps/api/src/infrastructure/observability/metrics_agents.py**: Métriques principales (110+ définitions)
 - **infrastructure/observability/prometheus/recording_rules.yml**: Recording rules (40+ règles)
-- **infrastructure/observability/grafana/dashboards/**: 28 dashboards JSON
+- **infrastructure/observability/grafana/dashboards/**: 29 dashboards JSON
 
 ---
 

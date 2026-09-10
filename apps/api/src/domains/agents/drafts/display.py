@@ -316,6 +316,20 @@ DRAFT_DISPLAY_REGISTRY: dict[DraftType, DraftDisplayConfig] = {
         noun_key="reminder",
         verb_past_key="deleted",
     ),
+    # -------------------------------------------------------------- Workboard
+    # A ticket goes with its steps, its thread and its history (ADR-276): the
+    # preview names it and says how many steps follow it out.
+    DraftType.TICKET_DELETE: DraftDisplayConfig(
+        emoji="\U0001f5c2\ufe0f",  # 🗂️
+        item_label_fields=("title",),
+        item_secondary_datetime_key=None,
+        detail_fields=(
+            DraftDisplayField("title", "\U0001f5c2\ufe0f", "title"),
+            DraftDisplayField("children", "\U0001f9e9", "steps"),
+        ),
+        noun_key="ticket",
+        verb_past_key="deleted",
+    ),
     # -------------------------------------------------------------- Telephony
     DraftType.PHONE_CALL: DraftDisplayConfig(
         emoji="\U0001f4de",  # 📞

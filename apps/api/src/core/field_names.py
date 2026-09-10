@@ -46,6 +46,14 @@ FIELD_TOOL_NAME = "tool_name"
 # actions) so response_node skips long-term memory / interest / journal / psyche
 # extraction. Only direct user inputs (web chat, channels, voice) feed those.
 FIELD_IS_AUTOMATED_SOURCE = "is_automated_source"
+# Archive metadata: the row belongs to an out-of-turn run and must not be read
+# back into the chat (ADR-276). Declared here because TWO sides depend on the
+# same spelling — the stamp that writes it (`agents/api/run_origin.py`) and the
+# ONE archive write that turns it into the `hidden` COLUMN
+# (`ConversationRepository.create_message`). Proved necessary the hard way: the
+# stamp wrote the metadata, nothing wrote the column, and both rows of a real
+# run showed up in the chat with every test green.
+FIELD_HIDDEN = "hidden"
 # RunnableConfig.configurable: normalized person names resolved for the turn
 # (from memory reference resolution), consumed by the runtime semantic
 # parameter guard in the parallel executor.
@@ -276,6 +284,7 @@ __all__ = [
     "FIELD_THREAD_ID",
     "FIELD_CONVERSATION_ID",
     "FIELD_RUN_ID",
+    "FIELD_HIDDEN",
     "FIELD_TURN_ID",
     "FIELD_STEP_ID",
     "FIELD_WAVE_ID",

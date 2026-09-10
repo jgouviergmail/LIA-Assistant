@@ -20,6 +20,8 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { ExecutionModeField } from '@/components/workboard/ExecutionModeField';
+import type { ExecutionMode } from '@/types/workboard';
 import { Textarea } from '@/components/ui/textarea';
 import { EmptyState } from '@/components/ui/empty-state';
 import { RowActions } from '@/components/ui/row-actions';
@@ -113,6 +115,7 @@ interface FormState {
   condition_type: ConditionType;
   condition_query: string;
   requires_approval: boolean;
+  execution_mode: ExecutionMode;
 }
 
 const EMPTY_FORM: FormState = {
@@ -123,6 +126,7 @@ const EMPTY_FORM: FormState = {
   condition_type: 'task_overdue',
   condition_query: '',
   requires_approval: false,
+  execution_mode: 'react',
 };
 
 /** N-07 condition types offered by the studio (mirror of the backend). */
@@ -164,6 +168,7 @@ function formStateFromAction(action: ScheduledAction): FormState {
     condition_type: action.condition_config?.type ?? 'task_overdue',
     condition_query: action.condition_config?.query ?? '',
     requires_approval: action.requires_approval ?? false,
+    execution_mode: (action.execution_mode ?? 'react') as ExecutionMode,
   };
 }
 
@@ -191,6 +196,8 @@ function buildUpdatePayload(
   }
   if (form.requires_approval !== (editing.requires_approval ?? false))
     update.requires_approval = form.requires_approval;
+  if (form.execution_mode !== (editing.execution_mode ?? 'react'))
+    update.execution_mode = form.execution_mode;
   return update;
 }
 
@@ -304,7 +311,6 @@ function getStatusBadgeVariant(action: ScheduledAction): BadgeTone {
   return lifecycleTone(action.status);
 }
 
-
 /**
  * The trigger question (N-07): does the routine fire at every tick, or only
  * when a condition is met — and which one.
@@ -326,7 +332,7 @@ function ConditionFields({
 }) {
   return (
     <>
-          {/* N-07 studio: trigger kind */}
+      {/* N-07 studio: trigger kind */}
       <div className="space-y-3">
         <Label htmlFor="sa-trigger-kind">{t('scheduled_actions.studio.trigger_kind')}</Label>
         <Select
@@ -348,9 +354,7 @@ function ConditionFields({
       {/* N-07 studio: condition config (condition kind only) */}
       {form.trigger_kind === 'condition' && (
         <div className="space-y-3 rounded-lg border border-border/40 p-3">
-          <Label htmlFor="sa-condition-type">
-            {t('scheduled_actions.studio.condition_type')}
-          </Label>
+          <Label htmlFor="sa-condition-type">{t('scheduled_actions.studio.condition_type')}</Label>
           <Select
             value={form.condition_type}
             onValueChange={v => setForm(f => ({ ...f, condition_type: v as ConditionType }))}
@@ -387,7 +391,6 @@ function ConditionFields({
           )}
         </div>
       )}
-
     </>
   );
 }
@@ -435,14 +438,10 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
     card.focus({ preventScroll: true });
   }, []);
 
-
   // The schedule line is the SERVER's sentence (`schedule_display`): one
   // authority, composed from localized clauses, and the only place that knows
   // how a monthly or stepped recurrence reads in six languages.
-  const formatSchedule = useCallback(
-    (action: ScheduledAction) => action.schedule_display,
-    []
-  );
+  const formatSchedule = useCallback((action: ScheduledAction) => action.schedule_display, []);
 
   // Format datetime for display
   const formatDateTime = (isoString: string | null) => {
@@ -456,7 +455,6 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
       return isoString;
     }
   };
-
 
   // Open create dialog
   const handleOpenCreate = () => {
@@ -523,6 +521,7 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
           trigger_kind: form.trigger_kind,
           condition_config: conditionConfig,
           requires_approval: form.requires_approval,
+          execution_mode: form.execution_mode,
         };
         await createAction(data);
         toast.success(t('scheduled_actions.create_success'));
@@ -680,6 +679,13 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
                 onCheckedChange={v => setForm(f => ({ ...f, requires_approval: v }))}
               />
             </div>
+            {/* Same choice as a ticket's, same words: nobody is there to steer
+                a plan when a routine fires, so the loop is the default. */}
+            <ExecutionModeField
+              id="sa-mode"
+              value={form.execution_mode}
+              onChange={mode => setForm(f => ({ ...f, execution_mode: mode }))}
+            />
           </FormSection>
         </div>
 

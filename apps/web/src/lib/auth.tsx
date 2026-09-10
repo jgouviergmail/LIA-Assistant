@@ -42,6 +42,8 @@ export interface User {
   use_last_known_location?: boolean;
   health_metrics_agents_enabled?: boolean;
   login_notifications_enabled?: boolean;
+  /** Settings section tokens pinned to the floating dock (ADR-277). */
+  settings_shortcuts?: string[];
 }
 
 export interface LoginResult {

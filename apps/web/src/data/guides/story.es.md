@@ -2,9 +2,9 @@
 
 > Informe de experiencia — un sistema completo, del diseño a la producción.
 
-**Versión**: 2.0
+**Versión**: 2.1
 **Fecha**: 2026-08-23
-**Aplicación**: LIA v1.43.2
+**Aplicación**: LIA v1.44.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ La casi totalidad del código fue escrita por una IA, bajo dirección humana: un
 | Indicador | Valor |
 | --- | --- |
 | Código escrito por una IA — dirigida, encuadrada, controlada | **≈ 100 %** |
-| Líneas de código (sin tests) — 44 dominios funcionales | **580.000** |
-| Tests automatizados, ejecutados en cada commit y entrega | **33.000+** |
-| Decisiones de arquitectura documentadas (ADR) | **274** |
-| Versiones entregadas a ritmo regular | **252** |
+| Líneas de código (sin tests) — 47 dominios funcionales | **650.000** |
+| Tests automatizados, ejecutados en cada commit y entrega | **35.000+** |
+| Decisiones de arquitectura documentadas (ADR) | **276** |
+| Versiones entregadas a ritmo regular | **253** |
 | Idiomas, paridad verificada automáticamente | **6** |
 | Auditoría técnica sobre 24 perímetros | **8,3/10** |
 
@@ -50,7 +50,7 @@ Una IA que programa produce volumen; solo produce calidad bajo restricción. Cua
 
 ## 4. Los arbitrajes
 
-Tres decisiones estructurantes, entre las 274 documentadas:
+Tres decisiones estructurantes, entre las 276 documentadas:
 
 **Soberanía y reversibilidad — ninguna dependencia irreversible de proveedor.** Los modelos de IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modelos locales vía Ollama) están detrás de una abstracción única: cada uso puede cambiar de proveedor por configuración, con comparación de costes. Mismo principio del lado del negocio: Google, Apple y Microsoft son intercambiables por categoría funcional. El alojamiento está íntegramente controlado; los datos personales están cifrados y permanecen en la infraestructura.
 
@@ -62,7 +62,7 @@ Tres decisiones estructurantes, entre las 274 documentadas:
 
 Un sistema que se pilota con instrumentos:
 
-- **Observabilidad**: veintiséis paneles — salud aplicativa, compromisos de servicio, costes de IA, comportamiento de los agentes, infraestructura. Más de 490 métricas; logs estructurados centralizados con filtrado de datos personales; trazado distribuido de extremo a extremo. Unos cuarenta procedimientos de explotación escritos — diagnóstico, remediación, restauración. Y el asistente lee él mismo esa telemetría: autocomprobación periódica, una memoria de incidentes diagnosticados sobre esas mismas procedimientos, y respuestas que esquivan una avería conocida. Y un diagnóstico muestra las evidencias de las que nació.
+- **Observabilidad**: veintinueve paneles — salud aplicativa, compromisos de servicio, costes de IA, comportamiento de los agentes, infraestructura. Más de 540 métricas; logs estructurados centralizados con filtrado de datos personales; trazado distribuido de extremo a extremo. Unos cuarenta procedimientos de explotación escritos — diagnóstico, remediación, restauración. Y el asistente lee él mismo esa telemetría: autocomprobación periódica, una memoria de incidentes diagnosticados sobre esas mismas procedimientos, y respuestas que esquivan una avería conocida. Y un diagnóstico muestra las evidencias de las que nació.
 - **Entrega**: despliegue contenerizado, migraciones de esquema automatizadas, imágenes publicadas para dos arquitecturas de hardware (amd64/arm64).
 - **Costes**: infraestructura frugal por elección — unos 150 € de hardware, cero licencias, bloques open source dimensionados a la necesidad real.
 - **Conformidad**: seguridad revisada punto de acceso por punto de acceso; cifrado de los datos personales; ciclo de vida de las cuentas alineado con el RGPD.
@@ -85,11 +85,7 @@ El nivel anunciado en este documento resulta de una auditoría técnica completa
 
 El plan de acción está organizado en olas, cada una con criterios de salida medibles. Es la forma de rendir cuentas de este proyecto: no un nivel proclamado, un nivel medido — desviaciones incluidas.
 
-Esta exigencia tiene una consecuencia que el proyecto aprendió a su costa: **una suite de pruebas en verde no demuestra que una función sirva**. Demuestra que lo probado se comporta como está escrito. Los defectos que sobreviven a las barreras son precisamente aquellos por los que nunca se les preguntó — una capacidad que nadie invoca, una cifra que nadie suma, una guardia que reconoce un nombre en lugar de un mecanismo.
-
-Dos ejemplos recientes lo ilustran con exactitud. El registro de los actos se alimentaba por una única puerta, y todo lo que la asistente emprendía por su cuenta pasaba de largo: la lista se leía vacía hiciera lo que hiciera, sin que fallara una sola prueba, porque ninguna preguntaba qué debía haber en ella. Y el expediente que un usuario descarga llevaba un tope de filas — medido, justificado y aplicado a la variable equivocada: lo escaso era la memoria; lo acotado era la verdad. Ninguno de los dos es un error de código. Son preguntas que nunca se habían hecho.
-
-Un tercer caso, aún más taimado, viene de la maquetación de los documentos generados. El estimador que decide si un texto cabe en una diapositiva estaba calibrado contra PowerPoint con cincuenta y cuatro medidas, todas latinas. Un ideograma ocupa el doble que una letra: una diapositiva densa en chino se desbordaba ciento veinticuatro puntos, y la prueba que debía detectarlo no veía nada, **porque preguntaba al mismo módulo que estaba juzgando**. Un oráculo que comparte el error de aquello que mide es verde por construcción. Hizo falta que Office abriera los archivos para que la cifra apareciera.
+Esta exigencia tiene una consecuencia que el proyecto aprendió a su costa: **una suite de pruebas en verde no demuestra que una función sirva**. Demuestra que lo probado se comporta como está escrito. Los defectos que sobreviven a las barreras son precisamente aquellos por los que nunca se les preguntó — una capacidad que nadie invoca, una cifra que nadie suma, una guardia que reconoce un nombre en lugar de un mecanismo. Casi nunca son errores de código: son preguntas que nunca se habían hecho.
 
 De ahí una regla de trabajo: **nada se da por bueno antes de haber corrido**, sobre datos reales y por el camino que recorre la persona usuaria. Un componente puede ser correcto y su página estar vacía; un contador puede ser exacto y su pregunta equivocada. Cada entrega termina por tanto con una revisión adversarial, hecha en frío, cuyo objeto no es pasar las pruebas sino buscar lo que no cubren.
 

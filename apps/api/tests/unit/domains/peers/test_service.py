@@ -538,6 +538,25 @@ class TestRespondGuards:
 class TestRemovalAndBlock:
     """Removal notifies both (event); blocking is silent and severs everything."""
 
+    @pytest.fixture(autouse=True)
+    def _quiet_board(self):
+        """Keep the workboard out of it (ADR-276 lot 5).
+
+        Both exits now hand shared tickets back through
+        ``domains/shared/peer_release_sink``. The seam is installed process-wide
+        the moment any test imports the board's adapter, so without this the
+        real board would receive the AsyncMock session these tests use and
+        synthesise coroutines nobody awaits. What the release does is proven in
+        ``test_connection_release.py`` and on PostgreSQL.
+        """
+        from unittest.mock import patch as _patch
+
+        with _patch(
+            "src.domains.peers.service.release_tickets_between",
+            AsyncMock(return_value={}),
+        ):
+            yield
+
     async def test_remove_deletes_shares_and_emits_event(self):
         service = _service()
         accepted = _pair_row(status=PeerConnectionStatus.ACCEPTED)

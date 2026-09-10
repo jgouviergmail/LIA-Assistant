@@ -84,6 +84,7 @@ class RegistryItemType(str, Enum):
     # Generic/utility types
     NOTE = "NOTE"
     CALENDAR_SLOT = "CALENDAR_SLOT"
+    TICKET = "TICKET"  # Workboard ticket (ADR-276): the person's own, or one a peer handed over
 
 
 # Interactive widget registry types.

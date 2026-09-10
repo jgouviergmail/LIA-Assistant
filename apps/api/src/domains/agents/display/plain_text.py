@@ -19,6 +19,13 @@ entry point.
 ``html_to_text`` is imported lazily so this module keeps no import-time
 dependency on the display package — that is what lets ``infrastructure``
 callers import it at module level without inverting the layer graph.
+
+It owns the MARKDOWN half for the same reason. A surface that renders neither
+vocabulary renders both literally, and the two arrive together: a HITL
+confirmation is Markdown written by our own renderer around a value that may be
+HTML written by a mail client. :func:`markdown_to_plain_text` runs both, in that
+order, and is the ONE door for such a surface — a ticket comment, where
+``**Titre**`` and ``<br/>`` were read out exactly as typed (ADR-276, lot 13).
 """
 
 import re
@@ -111,3 +118,84 @@ def strip_html_if_markup(text: str) -> str:
     from src.domains.agents.display.components.base import html_to_text
 
     return html_to_text(_ICON_SPAN_RE.sub(" ", text), preserve_links=False)
+
+
+#: ``[label](url)`` — the label is what a reader needs, the URL what they lose.
+#: The target must be an http(s) URL with no space in it: ``[le devis](voir
+#: plus bas)`` is prose, and flattening it would invent a link that is not one.
+_MD_LINK_RE = re.compile(r"\[([^\]]+)\]\((https?://[^)\s]+)\)")
+#: A fenced block's delimiter line, with or without a language tag.
+_MD_FENCE_RE = re.compile(r"^[ \t]*(?:```|~~~)[^\n]*\n?", re.MULTILINE)
+#: Emphasis, which always comes in pairs: bold, italic, strike-through, code.
+#: ``_`` is deliberately absent — in the text these surfaces carry it lives
+#: inside identifiers (``run_id``, ``in_progress``) far more often than around
+#: emphasis, and stripping it there would corrupt the value being confirmed.
+_MD_EMPHASIS_RE = re.compile(r"(\*\*|\*|~~|`)(?=\S)(.+?)(?<=\S)\1", re.DOTALL)
+#: A heading's leading hashes, and a blockquote's mark.
+_MD_HEADING_RE = re.compile(r"^[ \t]*#{1,6}[ \t]+", re.MULTILINE)
+_MD_QUOTE_RE = re.compile(r"^[ \t]*>[ \t]?", re.MULTILINE)
+#: An unordered list marker. A bullet REPLACES it rather than being dropped: a
+#: list with no mark at all reads as prose that lost its punctuation.
+_MD_BULLET_RE = re.compile(r"^([ \t]*)[-*+][ \t]+", re.MULTILINE)
+#: A table's delimiter row (``|---|:--:|``). The header and the rows are data a
+#: reader wants; this line only tells a renderer where the head stops, and it
+#: must go BEFORE the bullet rule, which would read its dashes as a list.
+_MD_TABLE_RULE_RE = re.compile(
+    r"^[ \t]*\|?[ \t]*:?-{2,}:?[ \t]*(\|[ \t]*:?-*:?[ \t]*)*\|?[ \t]*$\n?", re.MULTILINE
+)
+#: Three line breaks or more — a gap nothing renders and every surface shows.
+_MD_BLANK_RUN_RE = re.compile(r"\n{3,}")
+#: ``<br>`` in any spelling: a line break someone wrote as markup.
+_BR_RE = re.compile(r"<br\s*/?>", re.IGNORECASE)
+
+
+def markdown_links_to_plain(text: str) -> str:
+    """Convert markdown links to "label (url)" for surfaces without markdown.
+
+    FCM push bodies and Telegram (HTML parse_mode with escaping) would render
+    raw markdown syntax; this keeps appended source links readable there
+    (ADR-131). Chat archive and SSE keep the original markdown.
+
+    Args:
+        text: Content, possibly containing markdown links.
+
+    Returns:
+        The text with every markdown link flattened to "label (url)".
+    """
+    return _MD_LINK_RE.sub(r"\1 (\2)", text)
+
+
+def markdown_to_plain_text(text: str) -> str:
+    """Flatten Markdown *and* HTML into text a bare surface can render.
+
+    For a surface that renders neither vocabulary — a ticket comment is a
+    paragraph of escaped text — and where both arrive: LIA's own words are
+    Markdown, and the value inside a HITL confirmation may be HTML written by
+    somebody else's mail client. Line structure is PRESERVED (such a surface
+    honours newlines); only the marks go.
+
+    Order is load-bearing. ``<br/>`` becomes a real break BEFORE the HTML
+    stripper runs, since a text whose only markup is ``<br/>`` would otherwise
+    be flattened onto one line; the fences go before the emphasis, so a code
+    fence's language tag is never mistaken for content; a table's delimiter row
+    goes before the bullet rule, which would otherwise read its dashes as a
+    list; and the emphasis pass runs twice, because a nested pair
+    (``**a `b`**``) only becomes a pair of its own once the outer one is gone.
+
+    Args:
+        text: Content, possibly Markdown, possibly HTML, possibly both.
+
+    Returns:
+        The same text, marks removed and lines kept.
+    """
+    if not text:
+        return text
+    out = strip_html_if_markup(_BR_RE.sub("\n", text))
+    out = _MD_FENCE_RE.sub("", out)
+    out = _MD_HEADING_RE.sub("", out)
+    out = _MD_QUOTE_RE.sub("", out)
+    out = _MD_TABLE_RULE_RE.sub("", out)
+    out = _MD_BULLET_RE.sub(r"\1• ", out)
+    out = markdown_links_to_plain(out)
+    out = _MD_EMPHASIS_RE.sub(r"\2", _MD_EMPHASIS_RE.sub(r"\2", out))
+    return _MD_BLANK_RUN_RE.sub("\n\n", out).strip()

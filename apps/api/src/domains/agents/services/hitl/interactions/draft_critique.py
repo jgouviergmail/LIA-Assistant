@@ -40,6 +40,7 @@ Updated: 2025-12-06 (i18n centralization - 6 languages support)
 """
 
 import json
+import re
 import time
 from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING, Any
@@ -50,19 +51,57 @@ from src.core.i18n_drafts import format_hitl_item_preview
 from src.core.i18n_hitl import HitlMessages, HitlMessageType
 from src.core.time_utils import format_value_if_datetime_string
 from src.domains.agents.drafts.display import get_draft_display_config
-from src.domains.agents.drafts.models import DraftAction
+from src.domains.agents.drafts.models import Draft, DraftAction, DraftType
+from src.domains.agents.drafts.preview_renderer import render_confirmation_card
 from src.domains.agents.prompts import format_with_current_datetime
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.logging import get_logger
 
 from ..protocols import HitlInteractionType
 from ..registry import HitlInteractionRegistry
-from .draft_fallback_summary import build_fallback_critique
 
 if TYPE_CHECKING:
     from ..question_generator import HitlQuestionGenerator
 
 logger = get_logger(__name__)
+
+#: Between the card and the question: a thematic break, with the blank lines
+#: that make it one. Glued to a line, `---` is three characters (capture 1).
+CARD_SEPARATOR = "\n\n---\n\n"
+
+#: A line that IS a Markdown rule — three or more of one mark, nothing else.
+_THEMATIC_BREAK_RE = re.compile(r"^\s*(?:-{3,}|\*{3,}|_{3,})\s*$")
+
+
+def _card_prefix(
+    draft_type: str, draft_content: dict[str, Any], user_language: str, user_timezone: str
+) -> str:
+    """The card the person reads, rendered here rather than by the model.
+
+    Best-effort by contract: a draft type the renderer does not know yields
+    no card and no rule, and the model's question streams alone — the failure
+    is logged, never a crash before the question.
+
+    Args:
+        draft_type: The draft's type, as the interrupt names it.
+        draft_content: The draft's content dict.
+        user_language: The reader's language.
+        user_timezone: The reader's zone, for the dates.
+
+    Returns:
+        The card followed by :data:`CARD_SEPARATOR`, or an empty string.
+    """
+    try:
+        draft = Draft(type=DraftType(draft_type), content=dict(draft_content or {}))
+        card = render_confirmation_card(draft, user_language, user_timezone)
+    except (ValueError, TypeError, KeyError, AttributeError) as card_error:
+        logger.warning(
+            "draft_critique_card_unavailable",
+            draft_type=draft_type,
+            error=f"{type(card_error).__name__}: {card_error}",
+        )
+        return ""
+    return f"{card}{CARD_SEPARATOR}" if card else ""
 
 
 async def _with_markdown_hard_breaks(
@@ -105,7 +144,11 @@ async def _with_markdown_hard_breaks(
                 break
             head, run = pending[:i], j - i
             already_break = (emitted_tail + head).rstrip().endswith(("<br>", "<br/>"))
-            out = head + ("<br/>\n" if run == 1 and not already_break else "\n" * run)
+            # A rule stays a rule: `---<br/>` is no longer a thematic break.
+            is_rule = bool(_THEMATIC_BREAK_RE.match(head))
+            out = head + (
+                "<br/>\n" if run == 1 and not already_break and not is_rule else "\n" * run
+            )
             yield out
             emitted_tail = (emitted_tail + out)[-8:]
             pending = pending[j:]
@@ -286,14 +329,18 @@ class DraftCritiqueInteraction:
                 user_language=user_language,
             )
 
-            words = formatted.split()
-            for i, word in enumerate(words):
-                if i == 0:
-                    ttft = time.time() - start_time
-                    hitl_question_ttft_seconds.labels(type="draft_critique").observe(ttft)
-
-                token_count += 1
-                yield word + " "
+            # Line by line, THEN word by word — like the batch path above.
+            # ``formatted.split()`` alone splits on every whitespace, newlines
+            # included, so the question that reached the chat was one long
+            # line whatever shape the renderer gave it.
+            for line in formatted.split("\n"):
+                for word in line.split():
+                    if token_count == 0:
+                        ttft = time.time() - start_time
+                        hitl_question_ttft_seconds.labels(type="draft_critique").observe(ttft)
+                    token_count += 1
+                    yield word + " "
+                yield "\n"
 
             # Track metrics
             total_duration = time.time() - start_time
@@ -311,7 +358,15 @@ class DraftCritiqueInteraction:
             )
             return
 
-        # Otherwise, generate via LLM
+        # Otherwise, generate via LLM — under the card, which the renderer
+        # writes and streams first (lot 14): the model is asked for the
+        # question alone, so the fields have one shape whatever it answers.
+        prefix = _card_prefix(draft_type, draft_content, user_language, user_timezone)
+        # The prefix ends on the separator's own newlines, so re-adding one per
+        # line reproduces it EXACTLY once the split's empty tail is dropped.
+        for line in prefix.split("\n")[:-1]:
+            yield line + "\n"
+
         start_time = time.time()
         first_token_received = False
         token_count = 0
@@ -365,13 +420,9 @@ class DraftCritiqueInteraction:
                 draft_id=draft_id,
                 error=str(e),
             )
-            # Yield fallback (preserve newlines for markdown)
-            fallback = self._generate_fallback_critique(
-                draft_type=draft_type,
-                draft_content=draft_content,
-                user_language=user_language,
-                user_timezone=user_timezone,
-            )
+            # The card is already out — it streamed before the model was
+            # asked — so only the QUESTION follows, word by word.
+            fallback = self._fallback_question(draft_type, user_language)
             for line in fallback.split("\n"):
                 if line:
                     for word in line.split():
@@ -545,7 +596,7 @@ Generate the review question:"""
             user_language, include_descriptions=True
         )
 
-        return f"{emoji} {summary}<br/>{actions}"
+        return f"{emoji} {summary}\n\n{actions}"
 
     def _generate_fallback_critique(
         self,
@@ -554,12 +605,45 @@ Generate the review question:"""
         user_language: str,
         user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
     ) -> str:
-        """Generate the critique shown when the LLM produced nothing.
+        """The critique shown when the LLM produced nothing.
 
-        Delegates to :func:`build_fallback_critique` — see that module for the
-        per-draft-type ladder and the reason it lives outside this class.
+        The SAME card the streaming path opens with, then a localized question:
+        the deletion question under its irreversibility warning for a
+        destructive draft, the generic critique sentence for the others. It
+        replaced a per-type ladder kept in step with a third copy of the card
+        vocabulary — a card read from the renderer's dispatch table, asserted
+        complete at boot, cannot forget a type the way that ladder once forgot
+        ``label_delete``.
+
+        Args:
+            draft_type: The draft's type.
+            draft_content: The draft's content.
+            user_language: The reader's language.
+            user_timezone: The reader's zone, for the dates.
+
+        Returns:
+            Markdown: card, rule, question.
         """
-        return build_fallback_critique(draft_type, draft_content, user_language, user_timezone)
+        card = _card_prefix(draft_type, draft_content, user_language, user_timezone)
+        return f"{card}{self._fallback_question(draft_type, user_language)}"
+
+    @staticmethod
+    def _fallback_question(draft_type: str, user_language: str) -> str:
+        """The question asked when the model produced none.
+
+        Args:
+            draft_type: The draft's type — a destructive one is asked about
+                under its irreversibility warning.
+            user_language: The reader's language.
+
+        Returns:
+            One localized question, Markdown-safe.
+        """
+        config = get_draft_display_config(draft_type)
+        if config is not None and config.verb_past_key == "deleted":
+            ui = HitlMessages.get_destructive_confirm_translations(user_language)
+            return f"⚠️ {ui['default_warning']}\n\n{ui['confirm_question']}"
+        return HitlMessages.get_fallback(HitlMessageType.DRAFT_CRITIQUE, user_language)
 
     def _generate_batch_critique(
         self,
@@ -774,17 +858,24 @@ Generate the review question:"""
             },
         ]
 
-        action_requests = [
-            {
-                "type": "draft_critique",
-                "draft_type": draft_type,
-                "draft_id": draft_id,
-                "draft_content": draft_content,
-                "available_actions": available_actions,
-                # Data Registry LOT 4: Include registry_ids in action_request
-                "registry_ids": registry_ids,
-            }
-        ]
+        action_request: dict[str, Any] = {
+            "type": "draft_critique",
+            "draft_type": draft_type,
+            "draft_id": draft_id,
+            "draft_content": draft_content,
+            "available_actions": available_actions,
+            # Data Registry LOT 4: Include registry_ids in action_request
+            "registry_ids": registry_ids,
+            # ADR-276 lot 7: a ticket run READS this chunk to carry the draft to
+            # the person. The tool that built it names the replay, and a BATCH
+            # is one identity — approving the first of three must never run
+            # the other two unseen.
+            "tool_name": context.get("tool_name"),
+        }
+        if context.get("batch_total", 1) > 1:
+            action_request["batch_total"] = context.get("batch_total")
+            action_request["batch_drafts"] = context.get("batch_drafts", [])
+        action_requests = [action_request]
 
         return {
             "message_id": message_id,

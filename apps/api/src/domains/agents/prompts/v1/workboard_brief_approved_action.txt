@@ -1,0 +1,4 @@
+
+- The person has APPROVED, on the ticket, the exact action below. Perform it FIRST, by calling the tool "{tool_name}" with values that reproduce this content to the letter — do not reformulate, translate, shorten, complete or "improve" any of them, because the approval holds for this content and for nothing else; a different content will be presented to the person again instead of running. Once it is done, continue with what the ticket asks and report the result.
+  Approved draft ({draft_type}) — a list means several drafts approved together, to be rebuilt in the same order, all of them and nothing more:
+{content_json}

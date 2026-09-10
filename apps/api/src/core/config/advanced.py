@@ -48,6 +48,7 @@ from src.core.constants import (
     PROMPT_DATETIME_FORMAT_DEFAULT,
     PROMPT_TIMEZONE_DEFAULT,
     REDIS_SCAN_COUNT_DEFAULT,
+    SETTINGS_SHORTCUTS_MAX_COUNT_DEFAULT,
     SUPPORTED_LANGUAGES,
     TOKEN_ENCODING_NAME_DEFAULT,
     TOOL_CONTEXT_CONFIDENCE_THRESHOLD,
@@ -154,6 +155,16 @@ class AdvancedSettings(BaseSettings):
         ge=1,
         le=200,
         description="Maximum user-defined slash shortcuts per user",
+    )
+
+    # ========================================================================
+    # Pinned settings sections — the floating shortcuts dock (ADR-277)
+    # ========================================================================
+    settings_shortcuts_max_count: int = Field(
+        default=SETTINGS_SHORTCUTS_MAX_COUNT_DEFAULT,
+        ge=1,
+        le=20,
+        description="Maximum settings sections a user may pin to the floating dock",
     )
 
     # ========================================================================

@@ -4,9 +4,9 @@
 >
 > Technische Präsentationsdokumentation für Architekten, Ingenieure und technische Experten.
 
-**Version**: 4.9
+**Version**: 5.0
 **Datum**: 2026-08-23
-**Application**: LIA v1.43.2
+**Application**: LIA v1.44.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -42,8 +42,7 @@
 27. [Deterministisches Gewohnheitslernen](#27-deterministisches-gewohnheitslernen)
 28. [Eine Instanz regieren: Ausgaben, Fähigkeiten, Installation](#28-eine-instanz-regieren-ausgaben-fähigkeiten-installation)
 29. [Per Datei verwalten: Die Arbeitsmappe ist das Formular](#29-per-datei-verwalten-die-arbeitsmappe-ist-das-formular)
-
-30. [Das Evolutionsprogramm: sichtbare Arbeit, gesteuertes Lernen](#30-das-evolutionsprogramm-sichtbare-arbeit-gesteuertes-lernen)
+30. [Sichtbare Arbeit, gesteuertes Lernen](#30-sichtbare-arbeit-gesteuertes-lernen)
 31. [Ausdrucksstarke Augen: eine von Signalen gesteuerte Figur](#31-ausdrucksstarke-augen-eine-von-signalen-gesteuerte-figur)
 32. [Native Apps: eine Hülle, Ihr Server](#32-native-apps-eine-hülle-ihr-server)
 33. [Selbstdiagnose: ein Assistent, der die eigene Telemetrie liest](#33-selbstdiagnose-ein-assistent-der-die-eigene-telemetrie-liest)
@@ -54,6 +53,8 @@
 38. [Besprechungsprotokolle: die Zeile ist der Job, die Vorlage der Vertrag](#38-besprechungsprotokolle-die-zeile-ist-der-job-die-vorlage-der-vertrag)
 39. [Drei Register, und das, um das niemand gebeten hatte](#39-drei-register-und-das-um-das-niemand-gebeten-hatte)
 40. [Ein Debriefing je Beziehung: was zehn Abschnitte nicht sagen](#40-ein-debriefing-je-beziehung-was-zehn-abschnitte-nicht-sagen)
+41. [Das Ticket-Board: eine Zeile, zwei Seiten und eine Assistentin, die fragt](#41-das-ticket-board-eine-zeile-zwei-seiten-und-eine-assistentin-die-fragt)
+42. [Fazit](#42-fazit)
 ---
 
 ## 1. Kontext und grundlegende Entscheidungen
@@ -67,8 +68,8 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Self-Hosting ARM64 | Docker Multi-Arch, semantische Embeddings (mehrsprachig), Playwright Chromium Cross-Platform |
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
-| Vollständige Transparenz | 541 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 274 ADRs, ~25.732 von pytest gesammelte Tests in 1.548 Dateien, native Observability, HITL auf 6 Ebenen |
+| Vollständige Transparenz | 547 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
+| Produktionszuverlässigkeit | 276 ADRs, ~27.290 von pytest gesammelte Tests in 1.601 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -86,10 +87,10 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 
 | Metrik | Wert |
 |----------|--------|
-| Tests | 25.732 von pytest über 1.548 Testdateien gesammelt + 7.642 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
+| Tests | 27.290 von pytest über 1.601 Testdateien gesammelt + 8.014 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
 | pytest-Fixtures | 755, davon 32 über conftest geteilt |
 | Dokumentationsdokumente | 549 |
-| ADRs (Architecture Decision Records) | 274 |
+| ADRs (Architecture Decision Records) | 276 |
 | Prometheus-Metriken | 486 Definitionen |
 | Grafana-Dashboards | 26 |
 | Unterstützte Sprachen (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -655,7 +656,7 @@ Jede Erinnerung ist ein strukturiertes Dokument mit:
 
 Jede Erinnerung trägt **zwei Embeddings**: eines über ihren Inhalt, eines über die auslösenden Schlüsselwörter. Die Anfrage wird mit beiden verglichen, der bessere Treffer gewinnt (`LEAST(dist_content, dist_keyword)`, Rückfall auf den Inhalt, wenn der Schlüsselwortvektor leer ist).
 
-Das Langzeitgedächtnis hat ein eigenes PostgreSQL-Modell; die oben beschriebene Suche ist die, die es verwendet. Der Suchpfad folgte, der hybride Pfad nicht: Am 2026-07-27 hatte er **überhaupt keinen Aufrufer mehr**, 21 % Abdeckung, 100 von 127 Zeilen nie erreicht — und das Debug-Panel bewarb die Option dennoch beim Nutzer. Modul, Einstellungen, Metriken und Anzeige wurden gemeinsam entfernt ([ADR-168](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-168-Removal-Of-Dead-Hybrid-Memory-Search.md)). Die hybride Suche lebt weiter, aber dort, wo sie tatsächlich verwendet wird: RAG Spaces (Abschnitt 17).
+Das Langzeitgedächtnis hat ein eigenes PostgreSQL-Modell; die oben beschriebene Suche ist die, die es verwendet. Daneben existierte ein zweiter, hybrider Pfad: **ohne jeden Aufrufer**, weitgehend ungetestet — und vom Debug-Panel dennoch beim Nutzer beworben. Modul, Einstellungen, Metriken und Anzeige wurden gemeinsam entfernt ([ADR-168](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-168-Removal-Of-Dead-Hybrid-Memory-Search.md)). Die hybride Suche lebt weiter, aber dort, wo sie tatsächlich verwendet wird: RAG Spaces (Abschnitt 17).
 
 ### 11.5. Stratifizierte Tagebücher (Journals)
 
@@ -963,7 +964,7 @@ Herkunft ist daher eine Eigenschaft der **Daten**: Die 24 Registry-Typen werden 
 
 | Technologie | Rolle |
 |-------------|------|
-| Prometheus | 541 benutzerdefinierte Metriken (RED Pattern) |
+| Prometheus | 547 benutzerdefinierte Metriken (RED Pattern) |
 | Grafana | 26 produktionsreife Dashboards |
 | Loki | Aggregierte strukturierte JSON-Logs |
 | Tempo | Verteiltes Cross-Service-Tracing (OTLP gRPC) |
@@ -971,7 +972,7 @@ Herkunft ist daher eine Eigenschaft der **Daten**: Die 24 Registry-Typen werden 
 | Alertmanager | Kern aus 14 vitalen Alerts per E-Mail (verknüpfte Runbooks, Schwellenwerte je Umgebung) + Webhook zu LIA: jeder Alarm wird zum Vorfall im Produkt (ADR-247) |
 | structlog | Strukturiertes Logging mit PII-Filterung |
 
-**Eine Metrik, die kein Dashboard erreicht, ist eine Metrik, auf die niemand reagiert.** Der Abstand zwischen dem, was der Code ausgibt, und dem, was ein Operator sehen kann, wird gemessen, nie angenommen: `scripts/audit/measure_metric_coverage.py` liest jede Metrikdefinition per AST (nicht per Regex — eine Regex liest `ZoneInfo("UTC")` als `Info`-Metrik) und prüft jeden Namen gegen sämtliche Dashboard-Panels, Recording Rules und Alert-Ausdrücke. 541 definiert; die 57, die nichts erreichen, stehen ausdrücklich in einer **ausschließlich schrumpfenden** Baseline — eine neu erblindete Metrik lässt den Build rot werden, und eine sichtbar gewordene Metrik muss die Liste verlassen, sonst nimmt die nächste blinde stillschweigend ihren Platz ein. Der Preis dafür, dies nicht gehabt zu haben: Eine offen ausfallende Heartbeat-Quelle verwarf die Gesundheitssignale bei 46,5 % der Ticks eine Woche lang, ohne dass eine Metrik es bemerkt hätte (ADR-148). Zwei Fallen, die der Wächter konstruktiv schließt — ein Zähler mit Labels, der nie ausgelöst hat, liefert **überhaupt keine Serie**, sodass ein Panel für einen seltenen Fehler `or vector(0)` braucht, sonst zeigt es „No data“, wo ein Operator eine grüne Null erwartet; und Abdeckung wird ausschließlich aus **Ausdrücken** von Panels und Regeln gelesen, denn eine in einem Kommentar genannte Metrik ist nicht verdrahtet.
+**Eine Metrik, die kein Dashboard erreicht, ist eine Metrik, auf die niemand reagiert.** Der Abstand zwischen dem, was der Code ausgibt, und dem, was ein Operator sehen kann, wird gemessen, nie angenommen: `scripts/audit/measure_metric_coverage.py` liest jede Metrikdefinition per AST (nicht per Regex — eine Regex liest `ZoneInfo("UTC")` als `Info`-Metrik) und prüft jeden Namen gegen sämtliche Dashboard-Panels, Recording Rules und Alert-Ausdrücke. 547 definiert; die 57, die nichts erreichen, stehen ausdrücklich in einer **ausschließlich schrumpfenden** Baseline — eine neu erblindete Metrik lässt den Build rot werden, und eine sichtbar gewordene Metrik muss die Liste verlassen, sonst nimmt die nächste blinde stillschweigend ihren Platz ein. Der Preis dafür, dies nicht gehabt zu haben: Eine offen ausfallende Heartbeat-Quelle verwarf die Gesundheitssignale bei 46,5 % der Ticks eine Woche lang, ohne dass eine Metrik es bemerkt hätte (ADR-148). Zwei Fallen, die der Wächter konstruktiv schließt — ein Zähler mit Labels, der nie ausgelöst hat, liefert **überhaupt keine Serie**, sodass ein Panel für einen seltenen Fehler `or vector(0)` braucht, sonst zeigt es „No data“, wo ein Operator eine grüne Null erwartet; und Abdeckung wird ausschließlich aus **Ausdrücken** von Panels und Regeln gelesen, denn eine in einem Kommentar genannte Metrik ist nicht verdrahtet.
 
 ### 20.2. Eingebettetes Debug-Panel
 
@@ -1373,7 +1374,7 @@ Eine CSS-Regel bestimmt die Abstände des Design-Systems: Vertikale Ränder eine
 
 ## 24. Architekturentscheidungen (ADR)
 
-274 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
+276 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
 
 | ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
 |-----|----------|----------------|---------------|
@@ -1475,17 +1476,9 @@ Das Aufräumen brachte eine Regel hervor, die über diese Domäne hinausreicht: 
 
 Eine `.xlsx` ist ein Archiv: Der Zip-Bomben-Schutz ist der des Plugin-Importers, geteilt statt neu geschrieben, und gelesen wird blockweise begrenzt — eine Datei außerhalb der Vorlage wird abgewiesen, bevor sie vollständig im Speicher liegt. Der Rest hängt an einer OOXML-Eigenheit, die sich rächt: Die Booleans des Blattschutzes bedeuten „gesperrt“, wenn sie wahr sind, sodass das Schützen des Blattes zum Sperren von fünf berechneten Spalten **das Hinzufügen eines Modells verbot**; und das Attribut, das eine Auswahlliste zu aktivieren scheint, blendet sie in Wahrheit aus. Beide Verhalten sind durch Zusicherungen auf dem erzeugten XML festgenagelt, denn eine gutgläubige Korrektur an einem von beiden würde die halbe Ergonomie der Datei stillschweigend entfernen.
 
-## Fazit
+## 30. Sichtbare Arbeit, gesteuertes Lernen
 
-LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
-
-Die 274 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~25.732 Tests in 1.548 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
-
-Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
-
-## 30. Das Evolutionsprogramm: sichtbare Arbeit, gesteuertes Lernen
-
-Die Aktivitätsseite ist ein **reines Read-Model**: parallele Fetcher (eine Session pro Quelle — eine AsyncSession ist nicht nebenläufigkeitssicher) aggregieren sieben bestehende Audit-Tabellen, die Summen sind exakte `COUNT(*)` über das gesamte Fenster, Obergrenzen werden benannt (`truncated`), und eine ausgefallene Quelle wird aufgeführt statt still ergänzt — ehrliches Zählen (ADR-185) von Anfang bis Ende. Das Gedächtnis folgt einer **Supersessions-Spur** (ADR-235): Eine automatische Korrektur erzeugt einen Nachfolger und archiviert den alten Fakt (`superseded_by_id`), jede Lesung filtert die aktive Menge über ein zentrales Prädikat, und die Spur wird nach Ablauf der Aufbewahrung bereinigt; manuelle Änderungen behalten ihre Überschreib-Autorität. Gelernte Regeln sind eine **siebte Gedächtniskategorie**, die am Kopf des Prompts injiziert wird, unter denselben Schutzmechanismen (Anheften, Aufbewahrung, DSGVO). Die Sprachprosodie ist eine **begrenzte Modulation** (Totzone, harte Grenzen, Flag) der administrierten Einstellungen — nie ein Ersatz. Die Autonomie bleibt gedeckelt: Das ReAct-Iterationsbudget passt sich der Domänenspanne der Anfrage an, ohne je die konfigurierte Obergrenze zu überschreiten, und unbekannte Komplexität erhält die volle Obergrenze — gespart wird nur beim nachweislich Einfachen.
+Die Aktivitätsseite ist ein **reines Read-Model**: Parallele Fetcher (eine Session pro Quelle, da `AsyncSession` nicht nebenläufig ist) aggregieren die vorhandenen Audit-Tabellen, die Summen sind exakte `COUNT(*)` über das ganze Fenster, Obergrenzen sind deklariert, und eine ausgefallene Quelle wird aufgeführt statt stillschweigend ergänzt — ehrliches Zählen (ADR-185), durchgängig angewandt. Das Gedächtnis führt eine **Supersession-Spur**: Eine automatische Korrektur erzeugt einen Nachfolger und archiviert die alte Tatsache (`superseded_by_id`), jeder Lesevorgang filtert die aktive Menge über ein zentrales Prädikat, und die Spur wird nach der Aufbewahrungsfrist bereinigt; die manuelle Bearbeitung behält ihre Überschreibungshoheit. Gelernte Regeln sind eine **eigenständige Gedächtniskategorie**, an den Anfang des Prompts eingefügt, unter denselben Schutzmechanismen (Anheften, Aufbewahrung, DSGVO). Die Sprachprosodie ist eine **begrenzte Modulation** (Totband, harte Grenzen, Flag) der administrierten Einstellungen — nie ein Ersatz. Und die Autonomie bleibt gedeckelt: Das ReAct-Iterationsbudget passt sich der Domänenbreite der Anfrage an, ohne je die konfigurierte Obergrenze zu überschreiten, und eine unbekannte Komplexität erhält die volle Obergrenze — gespart wird nur beim nachweislich Einfachen.
 
 ## 31. Ausdrucksstarke Augen: eine von Signalen gesteuerte Figur
 
@@ -1507,7 +1500,7 @@ Die Android- und iOS-Apps (ADR-246) sind **WebView-Hüllen**, einmal pro Store v
 
 ## 33. Selbstdiagnose: ein Assistent, der die eigene Telemetrie liest
 
-Bis ADR-247 emittierte LIA all diese Observability und las nichts davon: überall instrumentiert, sich selbst gegenüber blind. Das Selbstdiagnose-Subsystem schließt die Schleife mit einer Designregel pro Säule.
+All diese Observability zu emittieren und nichts davon zu lesen heißt: überall instrumentiert und sich selbst gegenüber blind. Das Selbstdiagnose-Subsystem (ADR-247) schließt die Schleife mit einer Designregel pro Säule.
 
 **Lesen wirft nie.** Die Prometheus/Loki/Alertmanager-Clients (`infrastructure/telemetry/`) verdichten jeden Fehlermodus — Timeout, 5xx, defektes JSON, offener Schutzschalter, deaktivierte Quelle — zu einem typisierten `unavailable`-Ergebnis. Eine Installation ohne Observability-Stack läuft unverändert: eine leere URL deaktiviert die Quelle.
 
@@ -1621,4 +1614,26 @@ Das Gesicht des Begleiters wählte seinen Ausdruck am Ende eines Zuges aus der d
 
 **Im Chat tritt das Debriefing neben den Peer-Block — mit der umgekehrten Anweisung.** Der Peer-Block nennt exakte Fakten, weil er sie im Zug selbst liest; derselbe Satz über einer datierten Zusammenfassung wäre eine Maschine für falsche Behauptungen. Die Vorlage sagt daher, dass sie datiert ist, trägt ihr **Alter** und nicht nur ihr Datum, und verweist jede Zahl, jede Anzahl und jeden Status an die Werkzeuge. Eine mehrdeutige Namensübereinstimmung fügt **nichts** ein: Das Verzeichnis enthält jede je geöffnete Beziehung, Firmennamen und Rufnummern eingeschlossen, und ein Fehltreffer gäbe die Akte einer Person auf eine Frage nach einer anderen heraus.
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 274 ADRs und des Changelogs (v1.0 bis v1.43.2). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+## 41. Das Ticket-Board: eine Zeile, zwei Seiten und eine Assistentin, die fragt
+
+**Eine Arbeitseinheit braucht einen Lebenszyklus, einen Inhaber und ein Ergebnis** — und keine der vorhandenen Flächen hatte alle drei. Die Aufgabenliste eines Anbieters hat keinen Lebenszyklus; eine Erinnerung ist ein Anstoß in einem Augenblick, und nach dem Klingeln bleibt nichts; eine Routine ist eine wiederholte Anweisung, die nie fertig wird. Ein Ticket trägt Titel, Beschreibung, Priorität, Daten, Unter-Tickets, Kommentare und eine Historie durch sieben Spalten, und sein Inhaber kann der Eigentümer sein, eine verbundene Person oder die Assistentin selbst.
+
+**Eine Zeile, von beiden Seiten gelesen.** Ein Board ist „ich besitze es ODER ich halte es“, einmal als Repository-Prädikat geschrieben, das jede Lesung wiederverwendet — zwei Abfragen wären zwei Autoritäten darüber, was ein geteiltes Ticket sagt. Ein Ticket, das die aufrufende Seite nicht sieht, antwortet genau wie eines, das nicht existiert: Keine Kennung lässt sich abtasten. Die Seite und ihre Zählungen je Spalte stammen aus derselben gefilterten Anweisung: Eine Überschrift, die sieben nennt, über einer Spalte, die drei zeigt, wäre schlimmer als gar keine Überschrift.
+
+**Was die Datenbank tragen kann und was nicht.** Die Inhaberspalte steht auf `SET NULL`, weil vier Wege eine `users`-Zeile hart löschen und nur einer davon die Kontobereinigung ausführt — eine Kaskade würde das Ticket des Eigentümers zerstören, wenn dessen Gegenüber geht. Der Invariant „eine verbundene Person hält ein Ticket nur unter einer angenommenen Verbindung“ ist bewusst KEINE Einschränkung: Ein `CHECK` über zwei Spalten, die eine Fremdschlüsselaktion berühren kann, ist in jeder Kaskadenrichtung verletzbar, keine Reihenfolge ist garantiert, und PostgreSQL kennt kein aufschiebbares `CHECK`. Er lebt daher im Service, der die Verbindung bei jedem Schreiben erneut prüft — was ohnehin die richtige Regel ist: Eine Freigabe wird zur Ausführungszeit geprüft und nie aus einer gespeicherten Zeile gelesen.
+
+**Ein Durchlauf beansprucht ein Ticket und schließt aus einem Ergebnis ab.** Jede Minute gibt ein Job mit Jitter zuerst die Ansprüche frei, die ein toter Worker noch hält, und beansprucht dann ein einziges Ticket unter `FOR UPDATE SKIP LOCKED` mit einem bedingten `UPDATE`, das festgeschrieben wird, bevor irgendeine Arbeit beginnt — wer fünf genommen hätte, ließe fünf zurück. Abgeschlossen wird aus einem ausdrücklichen Ergebnis, nie aus dem Ausbleiben einer Ausnahme, und der Durchlauf benennt, was er getan hat: Drei Ablehnungen können ein beanspruchtes Ticket stoppen, und keine davon ist ein Fehlschlag. Ein inaktives Konto ist endgültig; eine Kontingentgrenze und ein laufendes Gespräch geben den Anspruch zurück, erstatten den Durchlauf dem Budget des Tickets und werden als *übersprungen* protokolliert.
+
+**Außerhalb eines Zuges fragt sie, statt abzulehnen.** Das Ausführungstor lehnte außerhalb eines Gesprächs sowohl eine Bestätigung als auch einen Entwurf ab, weil es niemanden zu fragen gab. Ein Ticket-Durchlauf hat jemanden: Das Tor lässt nun eine Herkunft, die einen Entwurf tragen kann, genau die Karte bauen, die der Chat gezeigt hätte; das Ticket landet in „zu bestätigen“ und hält sie, und der nächste Kommentar des Eigentümers klassifiziert die Antwort **ganz ohne Modellaufruf** — ein gefaltetes Lexikon in sechs Sprachen, in dem ein bloßes Ja freigibt, ein bloßes Nein schließt und alles andere zur Anweisung wird. Die Wiederholung läuft dann im Graphen unter einer Prüfsummensperre: Der Durchlauf veröffentlicht die Identität dessen, was er gezeigt hat, und der vom Werkzeug neu gebaute Entwurf passiert nur unter genau dieser Identität und unter keiner weiteren.
+
+**Was ein Durchlauf schreibt und wohin.** Ein Durchlauf archiviert sein Briefing und seine Frage als Zeilen DES DURCHLAUFS — aus dem Chat herausgehalten, vom Entscheidungsregister referenziert, von der Aufbewahrung nach dem Abschluss des Tickets entfernt —, während die Benachrichtigung, die die Person lesen soll, eine gewöhnliche Nachricht ist. Der Unterschied ist eine ABGELEITETE Spalte statt eines Stempels in den Metadaten, berechnet an der einen Stelle, die die Zeile baut; und jede archivierte Zug-Metadatenstruktur wird von einem benannten Erbauer gebaut, unter einer Wache, die ein an der Aufrufstelle geschriebenes Wörterbuch ablehnt — genau so hatte einst eine Löschvorschau den Chat erreicht.
+
+## 42. Fazit
+
+LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
+
+Die 276 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~27.290 Tests in 1.601 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+
+Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
+
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 276 ADRs und des Changelogs (v1.0 bis v1.44.0). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

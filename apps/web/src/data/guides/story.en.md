@@ -2,9 +2,9 @@
 
 > Field report — a complete system, from design to production.
 
-**Version**: 2.0
+**Version**: 2.1
 **Date**: 2026-08-23
-**Application**: LIA v1.43.2
+**Application**: LIA v1.44.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | Indicator | Value |
 | --- | --- |
 | Code written by an AI — directed, framed, controlled | **≈ 100%** |
-| Lines of code (excluding tests) — 44 functional domains | **580,000** |
-| Automated tests, run on every commit and release | **33,000+** |
-| Documented architecture decisions (ADR) | **274** |
-| Versions shipped at a steady pace | **252** |
+| Lines of code (excluding tests) — 47 functional domains | **650,000** |
+| Automated tests, run on every commit and release | **35,000+** |
+| Documented architecture decisions (ADR) | **276** |
+| Versions shipped at a steady pace | **253** |
 | Languages, parity checked automatically | **6** |
 | Technical audit across 24 areas | **8.3/10** |
 
@@ -50,7 +50,7 @@ An AI that codes produces volume; it only produces quality under constraint. Fou
 
 ## 4. The trade-offs
 
-Three structural decisions, among the 274 documented:
+Three structural decisions, among the 276 documented:
 
 **Sovereignty & reversibility — no irreversible vendor dependency.** AI models (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, local models via Ollama) sit behind a single abstraction: any usage can switch provider through configuration, with cost comparison. The same principle applies to business services: Google, Apple and Microsoft are interchangeable per functional category. Hosting is fully controlled; personal data is encrypted and stays on the infrastructure.
 
@@ -62,7 +62,7 @@ Three structural decisions, among the 274 documented:
 
 A system flown on instruments:
 
-- **Observability**: twenty-six dashboards — application health, service commitments, AI costs, agent behavior, infrastructure. More than 490 metrics; centralized structured logs with personal-data filtering; end-to-end distributed tracing. Some forty written operating procedures — diagnosis, remediation, restoration. And the assistant reads that telemetry itself: a periodic self-check, an incident memory diagnosed against those very procedures, and answers that route around a known outage. And a diagnosis shows the evidence it was written from.
+- **Observability**: twenty-nine dashboards — application health, service commitments, AI costs, agent behavior, infrastructure. More than 540 metrics; centralized structured logs with personal-data filtering; end-to-end distributed tracing. Some forty written operating procedures — diagnosis, remediation, restoration. And the assistant reads that telemetry itself: a periodic self-check, an incident memory diagnosed against those very procedures, and answers that route around a known outage. And a diagnosis shows the evidence it was written from.
 - **Delivery**: containerized deployment, automated schema migrations, images published for two hardware architectures (amd64/arm64).
 - **Costs**: frugal infrastructure by choice — about €150 of hardware, zero licenses, open-source building blocks sized to actual needs.
 - **Compliance**: security reviewed endpoint by endpoint; personal data encrypted; account lifecycle aligned with the GDPR.
@@ -85,11 +85,7 @@ The level claimed in this document comes from a complete technical audit: 24 are
 
 The action plan is organized in waves, each with measurable exit criteria. That is how this project reports on itself: not a proclaimed level, a measured one — gaps included.
 
-That requirement carries a consequence the project learned the hard way: **a green test suite does not prove a feature works**. It proves that what was tested behaves as written. The defects that survive the gates are exactly the ones the gates were never asked about — a capability nobody calls, a figure nobody adds up, a guard that recognises a name rather than a mechanism.
-
-Two recent examples illustrate it exactly. The register of acts was fed by a single door, and everything the assistant undertook on her own went past it: the list read empty whatever she did, without a single test failing, because none of them asked what ought to be in it. And the record a user downloads carried a row ceiling — measured, justified, and applied to the wrong variable: what was scarce was memory; what was bounded was the truth. Neither of those is a coding mistake. They are questions that had never been asked.
-
-A third case, subtler still, comes from the layout of generated documents. The estimator that decides whether text fits on a slide was calibrated against PowerPoint over fifty-four measurements — all of them Latin. An ideograph is twice as wide as a letter: a dense Chinese slide overflowed by a hundred and twenty-four points, and the test meant to catch it saw nothing, **because it asked the very module it was judging**. An oracle that shares the error of what it measures is green by construction. It took having Office open the files itself for the number to appear.
+That requirement carries a consequence the project learned the hard way: **a green test suite does not prove a feature works**. It proves that what was tested behaves as written. The defects that survive the gates are exactly the ones the gates were never asked about — a capability nobody calls, a figure nobody adds up, a guard that recognises a name rather than a mechanism. These are almost never coding mistakes: they are questions that had never been asked.
 
 Hence a working rule: **nothing is believed until it has run**, against real data and along the path a user takes. A component can be correct and its page empty; a counter can be exact and its question wrong. Every release therefore ends with an adversarial review, conducted cold, whose purpose is not to run the tests but to look for what they do not cover.
 

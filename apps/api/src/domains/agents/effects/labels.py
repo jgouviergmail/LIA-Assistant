@@ -117,6 +117,12 @@ EFFECT_LABEL_BUILDERS: dict[str, LabelValuesBuilder] = {
     # what the reader asked to be reminded of, never the whole request.
     "create_reminder_tool": _target("content", "original_message"),
     "toggle_scheduled_action_tool": _target("name", "action_name", "action_id"),
+    # Workboard (ADR-276). `create` names the title it was given; the three
+    # others name the ticket as the person referred to it — an id or a
+    # title, whichever they said, because that is what they will recognise.
+    "create_ticket_tool": _target("title"),
+    "update_ticket_tool": _target("ticket", "title"),
+    "comment_ticket_tool": _target("ticket"),
     "browser_task_tool": _target("task", "instruction", "url"),
     "activate_skill_tool": _target("skill_name", "name", "skill_id"),
     "import_user_skill": _target("skill_name", "name", "source"),
@@ -143,6 +149,9 @@ EFFECT_LABEL_BUILDERS: dict[str, LabelValuesBuilder] = {
     "draft:task_update": _draft("title", "name", "task_id"),
     "draft:task_delete": _draft("title", "name", "task_id"),
     "draft:reminder_delete": _draft("content", "title", "reminder_id"),
+    # Workboard (ADR-276): the tool builds a draft and never acts; the
+    # executor is what claims the effect, so the label lives on the draft.
+    "draft:ticket_delete": _draft("title", "ticket_id"),
     "draft:scheduled_action": _draft("name", "title", "instruction"),
     "draft:file_delete": _draft("name", "filename", "file_id"),
     "draft:label_delete": _draft("name", "label_name", "label_id"),
@@ -181,18 +190,18 @@ def build_effect_label(tool_name: str, arguments: dict[str, Any]) -> dict[str, A
             return {"i18n_key": key, "values": {}}
 
     if tool_name.startswith(f"{MCP_TOOL_NAME_PREFIX}_"):
-        from src.domains.agents.effects.confirmation import _readable_tool_name
+        from src.domains.agents.effects.confirmation import readable_tool_name
 
         return {
             "i18n_key": "effects.labels.mcp",
-            "values": {"tool": _readable_tool_name(tool_name)},
+            "values": {"tool": readable_tool_name(tool_name)},
         }
 
-    from src.domains.agents.effects.confirmation import _readable_tool_name
+    from src.domains.agents.effects.confirmation import readable_tool_name
 
     return {
         "i18n_key": "effects.labels.generic",
-        "values": {"tool": _readable_tool_name(tool_name)},
+        "values": {"tool": readable_tool_name(tool_name)},
     }
 
 

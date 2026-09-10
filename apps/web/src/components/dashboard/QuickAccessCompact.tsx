@@ -1,7 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { ChevronRight, ClipboardList, HelpCircle, Settings, Sparkles } from 'lucide-react';
+import {
+  ChevronRight,
+  ClipboardList,
+  HelpCircle,
+  KanbanSquare,
+  Settings,
+  Sparkles,
+} from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
@@ -60,6 +67,16 @@ export function QuickAccessCompact({ lng }: QuickAccessCompactProps) {
         icon={Sparkles}
         label={t('dashboard.quick_access_compact.capabilities')}
         sublabel={t('dashboard.quick_access_compact.capabilities_sub')}
+        tone="primary"
+      />
+      {/* ADR-276: the board of what LIA is DOING, between what it can do and
+          what it has done — the three answer one question each, in that order,
+          and the middle one is the only one that is still moving. */}
+      <QuickAccessAction
+        href={`/${lng}/dashboard/workboard`}
+        icon={KanbanSquare}
+        label={t('dashboard.quick_access_compact.workboard')}
+        sublabel={t('dashboard.quick_access_compact.workboard_sub')}
         tone="primary"
       />
       {/* ADR-263: the register of what LIA actually did. It earns a door here

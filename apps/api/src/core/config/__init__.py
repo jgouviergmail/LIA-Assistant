@@ -73,6 +73,7 @@ from .skills import SkillsSettings
 from .telephony import TelephonySettings
 from .usage_limits import UsageLimitsSettings
 from .voice import VoiceSettings
+from .workboard import WorkboardSettings
 
 
 class SupportedCurrency(str, Enum):
@@ -132,6 +133,7 @@ class Settings(
     HabitsSettings,
     OpenLoopsSettings,
     PeersSettings,
+    WorkboardSettings,
     SchedulerSettings,
     LocksSettings,
     BackgroundRunsSettings,

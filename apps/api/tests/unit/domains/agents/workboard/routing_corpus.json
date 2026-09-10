@@ -1,0 +1,164 @@
+{
+  "_comment": "What a person says about their board, and which tool must answer. Grouped by FAMILY: the expected tool is language-independent, only the phrasing changes, so each expectation is written ONCE and checked against six utterances. Two consumers: the deterministic test (does the vocabulary reach the router and the manifests? in CI, no network) and the on-demand measurement (utterance -> tool, through a real model — `task workboard:corpus:measure`). The NEGATIVE families are the point of the exercise: a ticket is confused with a provider to-do, a timed notification and a scheduled routine, and a corpus that only proves the happy cases would be a corpus that proves nothing.",
+  "families": [
+    {
+      "name": "create_for_me",
+      "expect_domain": "ticket",
+      "expect_tool": "create_ticket_tool",
+      "utterances": {
+        "fr": "Mets sur mon tableau qu'il faut réserver la salle pour le 20",
+        "en": "Put on my board that I need to book the room for the 20th",
+        "de": "Setz auf mein Board, dass ich den Raum für den 20. buchen muss",
+        "es": "Pon en mi tablero que hay que reservar la sala para el 20",
+        "it": "Metti sulla mia bacheca che devo prenotare la sala per il 20",
+        "zh-CN": "在我的任务板上加一条：需要预订20号的会议室"
+      }
+    },
+    {
+      "name": "create_for_lia",
+      "expect_domain": "ticket",
+      "expect_tool": "create_ticket_tool",
+      "utterances": {
+        "fr": "Crée un ticket pour LIA : trouve-moi trois salles pour douze personnes",
+        "en": "Create a ticket for LIA: find me three rooms for twelve people",
+        "de": "Erstelle ein Ticket für LIA: finde mir drei Räume für zwölf Personen",
+        "es": "Crea un ticket para LIA: búscame tres salas para doce personas",
+        "it": "Crea un ticket per LIA: trovami tre sale per dodici persone",
+        "zh-CN": "给 LIA 创建一个任务：帮我找三个能容纳十二人的会议室"
+      }
+    },
+    {
+      "name": "create_for_a_peer",
+      "expect_domain": "ticket",
+      "expect_tool": "create_ticket_tool",
+      "utterances": {
+        "fr": "Crée un ticket « relire le contrat » et confie-le à Marie",
+        "en": "Create a ticket “review the contract” and hand it to Marie",
+        "de": "Erstelle ein Ticket „Vertrag prüfen“ und gib es an Marie",
+        "es": "Crea un ticket «revisar el contrato» y dáselo a Marie",
+        "it": "Crea un ticket «rivedere il contratto» e affidalo a Marie",
+        "zh-CN": "创建一个「审阅合同」的任务，交给 Marie"
+      }
+    },
+    {
+      "name": "move_a_ticket",
+      "expect_domain": "ticket",
+      "expect_tool": "update_ticket_tool",
+      "utterances": {
+        "fr": "Passe le ticket « réserver la salle » en terminé",
+        "en": "Move the ticket “book the room” to done",
+        "de": "Setz das Ticket „Raum buchen“ auf erledigt",
+        "es": "Pasa el ticket «reservar la sala» a terminado",
+        "it": "Sposta il ticket «prenotare la sala» in completato",
+        "zh-CN": "把「预订会议室」这个任务移到已完成"
+      }
+    },
+    {
+      "name": "comment_a_ticket",
+      "expect_domain": "ticket",
+      "expect_tool": "comment_ticket_tool",
+      "utterances": {
+        "fr": "Ajoute un commentaire sur le ticket de la salle : le devis est arrivé",
+        "en": "Add a comment on the room ticket: the quote has arrived",
+        "de": "Füge dem Raum-Ticket einen Kommentar hinzu: das Angebot ist da",
+        "es": "Añade un comentario al ticket de la sala: ha llegado el presupuesto",
+        "it": "Aggiungi un commento al ticket della sala: è arrivato il preventivo",
+        "zh-CN": "在会议室那个任务上加个评论：报价已经收到了"
+      }
+    },
+    {
+      "name": "list_my_board",
+      "expect_domain": "ticket",
+      "expect_tool": "list_tickets_tool",
+      "utterances": {
+        "fr": "Qu'est-ce qu'il y a sur mon tableau en ce moment ?",
+        "en": "What is on my workboard right now?",
+        "de": "Was steht gerade auf meinem Aufgabenboard?",
+        "es": "¿Qué hay ahora mismo en mi tablero de trabajo?",
+        "it": "Che cosa c'è adesso sulla mia bacheca?",
+        "zh-CN": "我的任务板上现在有什么？"
+      }
+    },
+    {
+      "name": "list_overdue",
+      "expect_domain": "ticket",
+      "expect_tool": "list_tickets_tool",
+      "utterances": {
+        "fr": "Quels tickets sont en retard sur mon tableau ?",
+        "en": "Which tickets on my board are overdue?",
+        "de": "Welche Tickets auf meinem Board sind überfällig?",
+        "es": "¿Qué tickets de mi tablero están atrasados?",
+        "it": "Quali ticket della mia bacheca sono in ritardo?",
+        "zh-CN": "我的任务板上有哪些任务已经逾期了？"
+      }
+    },
+    {
+      "name": "read_one_ticket",
+      "expect_domain": "ticket",
+      "expect_tool": "get_ticket_tool",
+      "utterances": {
+        "fr": "Où en est le ticket « réserver la salle » ?",
+        "en": "Where does the ticket “book the room” stand?",
+        "de": "Wie steht es um das Ticket „Raum buchen“?",
+        "es": "¿Cómo va el ticket «reservar la sala»?",
+        "it": "A che punto è il ticket «prenotare la sala»?",
+        "zh-CN": "「预订会议室」这个任务现在什么情况？"
+      }
+    },
+    {
+      "name": "delete_a_ticket",
+      "expect_domain": "ticket",
+      "expect_tool": "delete_ticket_tool",
+      "utterances": {
+        "fr": "Supprime le ticket « réserver la salle » de mon tableau",
+        "en": "Delete the ticket “book the room” from my board",
+        "de": "Lösche das Ticket „Raum buchen“ von meinem Board",
+        "es": "Elimina el ticket «reservar la sala» de mi tablero",
+        "it": "Elimina il ticket «prenotare la sala» dalla mia bacheca",
+        "zh-CN": "把「预订会议室」这个任务从我的任务板上删除"
+      }
+    },
+    {
+      "name": "negative_provider_task",
+      "expect_domain": "task",
+      "expect_tool": null,
+      "_why": "A to-do in the person's own provider account is NOT a ticket on the board — the single most likely confusion.",
+      "utterances": {
+        "fr": "Ajoute « acheter du café » à ma liste de tâches",
+        "en": "Add “buy coffee” to my task list",
+        "de": "Füge „Kaffee kaufen“ zu meiner Aufgabenliste hinzu",
+        "es": "Añade «comprar café» a mi lista de tareas",
+        "it": "Aggiungi «comprare il caffè» alla mia lista di attività",
+        "zh-CN": "把「买咖啡」加到我的待办清单里"
+      }
+    },
+    {
+      "name": "negative_reminder",
+      "expect_domain": "reminder",
+      "expect_tool": null,
+      "_why": "A notification at a given moment is a reminder, not a column on a board.",
+      "utterances": {
+        "fr": "Rappelle-moi d'appeler le traiteur demain à 10h",
+        "en": "Remind me to call the caterer tomorrow at 10",
+        "de": "Erinnere mich morgen um 10 Uhr daran, den Caterer anzurufen",
+        "es": "Recuérdame llamar al catering mañana a las 10",
+        "it": "Ricordami di chiamare il catering domani alle 10",
+        "zh-CN": "明天上午十点提醒我给餐饮公司打电话"
+      }
+    },
+    {
+      "name": "negative_routine",
+      "expect_domain": "automation",
+      "expect_tool": null,
+      "_why": "Something that repeats on a schedule is a routine the scheduler runs, never a ticket.",
+      "utterances": {
+        "fr": "Chaque lundi matin, fais-moi le point sur mes mails",
+        "en": "Every Monday morning, give me a summary of my emails",
+        "de": "Gib mir jeden Montagmorgen eine Zusammenfassung meiner E-Mails",
+        "es": "Cada lunes por la mañana, hazme un resumen de mis correos",
+        "it": "Ogni lunedì mattina, fammi il punto sulle mie mail",
+        "zh-CN": "每周一早上给我总结一下我的邮件"
+      }
+    }
+  ]
+}

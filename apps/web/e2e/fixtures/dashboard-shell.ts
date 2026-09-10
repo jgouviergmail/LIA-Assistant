@@ -23,6 +23,8 @@ const appConfig = {
   rate_limits: { enabled: false, per_minute: 60, burst: 10 },
   i18n: { supported_languages: ['en', 'fr', 'de', 'es', 'it', 'zh'], default_language: 'en' },
   features: {
+    // ADR-276: the board's own gate hides it when this is absent.
+    workboard_enabled: true,
     tool_approval_enabled: false,
     attachments_enabled: true,
     rag_spaces_enabled: true,

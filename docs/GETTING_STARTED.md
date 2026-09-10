@@ -5,7 +5,7 @@
 
 **Version**: 4.0
 **Last Updated**: 2026-08-22
-**Compatibility**: LIA v1.43.2
+**Compatibility**: LIA v1.44.0
 
 ## Table of Contents
 
@@ -422,7 +422,7 @@ PGADMIN_DEFAULT_EMAIL=admin@lia.local
 PGADMIN_DEFAULT_PASSWORD=admin
 ```
 
-> For production, start from **`.env.min.prod`** (the minimal working set with `CHANGE_ME` placeholders) or **`.env.prod.example`** (the full template, ~740 settings). Everything not listed above has sensible defaults; the [Feature Configuration Reference](#feature-configuration-reference) documents the production values of every subsystem.
+> For production, start from **`.env.min.prod`** (the minimal working set with `CHANGE_ME` placeholders) or **`.env.prod.example`** (the full template, ~1,090 settings). Everything not listed above has sensible defaults; the [Feature Configuration Reference](#feature-configuration-reference) documents the production values of every subsystem.
 
 ### LAN Access & SSL (Development)
 

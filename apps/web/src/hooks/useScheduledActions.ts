@@ -1,7 +1,7 @@
-import type {
-  RecurrenceSpec,
-} from '@/types/recurrence';
+import type { RecurrenceSpec } from '@/types/recurrence';
 import { useCallback, useEffect, useMemo } from 'react';
+
+import type { ExecutionMode } from '@/types/workboard';
 import { useApiQuery } from './useApiQuery';
 import { useApiMutation } from './useApiMutation';
 
@@ -61,6 +61,8 @@ export interface ScheduledAction {
   trigger_kind: TriggerKind;
   condition_config: ConditionConfig | null;
   requires_approval: boolean;
+  /** `pipeline` | `react` — how LIA runs it when it fires (ADR-276). */
+  execution_mode: string;
   /** UTC instant of the next run; **null** when the series is over. */
   next_trigger_at: string | null;
   is_enabled: boolean;
@@ -111,6 +113,7 @@ export interface ScheduledActionCreate {
   trigger_kind?: TriggerKind;
   condition_config?: ConditionConfig | null;
   requires_approval?: boolean;
+  execution_mode?: ExecutionMode;
 }
 
 /**
@@ -123,6 +126,7 @@ export interface ScheduledActionUpdate {
   trigger_kind?: TriggerKind;
   condition_config?: ConditionConfig | null;
   requires_approval?: boolean;
+  execution_mode?: ExecutionMode;
 }
 
 /** One instant of the current week, carried by the routine itself. */

@@ -348,6 +348,19 @@ tasks:
       - cmd: .venv/bin/python scripts/recurrence/measure_transcription.py {{.CLI_ARGS}}
         platforms: [linux, darwin]
 
+  workboard:corpus:measure:
+    desc: Measure which tool a model picks for a sentence about the board (NETWORK, on demand)
+    dir: "{{.API_DIR}}"
+    # A MEASUREMENT, never a gate — same doctrine as the recurrence corpus: CI
+    # holds no provider key, and a paid call on a path someone must pass to
+    # merge is not a build verdict. The deterministic half (can the vocabulary
+    # reach the domain at all?) is a unit test that runs with no network.
+    cmds:
+      - cmd: .venv/Scripts/python scripts/workboard/measure_routing.py {{.CLI_ARGS}}
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/workboard/measure_routing.py {{.CLI_ARGS}}
+        platforms: [linux, darwin]
+
   documents:corpus:render:
     desc: Render the document corpus in every format (a rendering step, never a gate)
     dir: "{{.API_DIR}}"

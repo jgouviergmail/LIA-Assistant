@@ -55,15 +55,20 @@ def confirmation_draft(tool_name: str, tool_args: dict[str, Any]) -> Any:
             # resume and the ledger all name. A second identity for one
             # operation is how two records of one effect begin.
             "tool_name": tool_name,
-            "tool_label": _readable_tool_name(tool_name),
+            "tool_label": readable_tool_name(tool_name),
             "tool_args": tool_args,
         },
         source_tool=tool_name,
     )
 
 
-def _readable_tool_name(tool_name: str) -> str:
-    """Turn a registered tool name into something a card can show.
+def readable_tool_name(tool_name: str) -> str:
+    """Turn a registered tool name into something a person can read.
+
+    Public because three surfaces now need the SAME rendering of a capability:
+    the confirmation card, the effect register's generic label, and the comment
+    a workboard run leaves when the gate refused it. A second humaniser would
+    name the same tool two ways on two screens.
 
     Args:
         tool_name: e.g. ``mcp_era_cancel_subscription`` or ``delete_event_tool``.

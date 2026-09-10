@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import apiClient, { ApiError, RequestConfig } from '@/lib/api-client';
+import type { QueryParamValue } from '@/lib/api-client';
 import { logger } from '@/lib/logger';
 
 /**
@@ -33,7 +34,7 @@ export interface UseApiQueryOptions<T> {
   /** Whether to fetch on mount (default: true) */
   enabled?: boolean;
   /** Request parameters */
-  params?: Record<string, string | number | boolean>;
+  params?: Record<string, QueryParamValue>;
   /** Additional request config */
   config?: RequestConfig;
   /** Callback on success */

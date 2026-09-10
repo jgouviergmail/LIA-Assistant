@@ -28,6 +28,8 @@ from src.core.config import get_settings
 from src.core.time_utils import resolve_user_timezone
 from src.domains.conversations.models import Conversation, ConversationMessage
 from src.domains.heartbeat.schemas import WeatherChange
+from src.domains.workboard.constants import AssigneeKind, TicketStatus
+from src.domains.workboard.notifications import excerpt_of
 
 logger = structlog.get_logger(__name__)
 
@@ -367,6 +369,125 @@ async def fetch_open_loops_context(
                     format_utc_datetime(loop.due_hint, user_tz) if loop.due_hint else None
                 ),
                 "days_open": max(0, (now - loop.created_at).days),
+            }
+        )
+
+    return entries or None
+
+
+# ------------------------------------------------------------------
+# Workboard (ADR-276 D14)
+# ------------------------------------------------------------------
+
+
+#: The reasons whose ticket carries something of LIA's to quote.
+STOPPED_ON_THE_PERSON: frozenset[str] = frozenset({"waiting", "confirming", "validating"})
+
+
+def _nudge_reason(ticket: Any, now: datetime, due_before: datetime) -> str | None:
+    """Why this ticket is worth a word, or None when it is not.
+
+    Read in order of urgency: a ticket both overdue and waiting is overdue —
+    the person needs the sharper of the two facts, not both.
+
+    Args:
+        ticket: The row.
+        now: The instant the sweep runs at.
+        due_before: The far edge of the due window.
+
+    Returns:
+        ``overdue``, ``due_soon``, ``waiting``, ``confirming``, ``validating``, or None.
+    """
+    # A deadline is the person's to keep only while they hold the ticket: one
+    # LIA holds is LIA's own backlog, and nagging the person about it is noise.
+    if ticket.assignee_kind == AssigneeKind.HUMAN.value and ticket.due_at is not None:
+        if ticket.due_at < now:
+            return "overdue"
+        if ticket.due_at <= due_before:
+            return "due_soon"
+    if ticket.status == TicketStatus.WAITING.value:
+        return "waiting"
+    if ticket.status == TicketStatus.CONFIRMING.value:
+        return "confirming"
+    if ticket.status == TicketStatus.VALIDATING.value:
+        return "validating"
+    return None
+
+
+async def fetch_workboard_context(
+    db: AsyncSession,
+    user_id: UUID,
+    user: Any,
+    settings: Any,
+) -> list[dict[str, Any]] | None:
+    """Fetch nudge-worthy workboard tickets for the decision prompt (D14).
+
+    The narrowing happens in SQL (:meth:`WorkboardRepository.list_nudge_worthy`)
+    rather than here: a board may hold thousands of tickets and the decision
+    wants at most a handful, so reading them all to keep eight would make the
+    cap a formality. Three settings shape it — the due window, how long a
+    ``waiting`` ticket may sit, and the per-ticket cooldown — and a fourth
+    bounds how many reach one prompt.
+
+    Entries carry the ticket ``id`` so ``proactive_task`` can start the
+    cooldown after a delivered notification actually used the WORKBOARD source.
+
+    Args:
+        db: Session for this fetcher alone.
+        user_id: Whose board.
+        user: User model, for the display timezone.
+        settings: Application settings.
+
+    Returns:
+        List of ``{id, title, status, priority, reason, due_local, waiting_on}``
+        or None when the board is switched off or nothing is worth saying.
+    """
+    if not getattr(settings, "workboard_enabled", False):
+        return None
+
+    from src.domains.workboard.repository import WorkboardRepository
+
+    now = datetime.now(UTC)
+    due_before = now + timedelta(hours=settings.workboard_nudge_due_hours)
+    repository = WorkboardRepository(db)
+    tickets = await repository.list_nudge_worthy(
+        user_id,
+        due_before=due_before,
+        waiting_since=now - timedelta(hours=settings.workboard_nudge_waiting_hours),
+        cooldown_before=now - timedelta(days=settings.workboard_nudge_cooldown_days),
+        limit=settings.workboard_nudge_max_items,
+    )
+    if not tickets:
+        return None
+
+    reasons = {ticket.id: _nudge_reason(ticket, now, due_before) for ticket in tickets}
+    # A stopped ticket is quoted, never paraphrased: the run's own comment
+    # holds LIA's question (waiting) or what it delivered (validating), and a
+    # prompt asked to « say what it waits on » without that text would invent
+    # it. One query for the set, bounded by the same excerpt the push uses.
+    stopped = [ticket.id for ticket in tickets if reasons[ticket.id] in STOPPED_ON_THE_PERSON]
+    said = await repository.latest_lia_comments(stopped) if stopped else {}
+
+    user_tz = resolve_user_tz(user)
+    entries: list[dict[str, Any]] = []
+    for ticket in tickets:
+        reason = reasons[ticket.id]
+        if reason is None:
+            # Unreachable through the query above, which selects on exactly
+            # these conditions. Skipped rather than filed under a guessed
+            # reason: a sentence naming the wrong one is worse than silence.
+            continue
+        entries.append(
+            {
+                "id": str(ticket.id),
+                "title": ticket.title,
+                "status": ticket.status,
+                "priority": ticket.priority,
+                "reason": reason,
+                "due_local": (
+                    format_utc_datetime(ticket.due_at, user_tz) if ticket.due_at else None
+                ),
+                "waiting_on": excerpt_of(said.get(ticket.id)) or None,
             }
         )
 

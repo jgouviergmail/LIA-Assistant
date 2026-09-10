@@ -45,6 +45,11 @@ GENERATOR_EXCLUDED_AGENTS = frozenset(
         # (relayed messages, cross-user reads), feature-flagged, draft-confirmed
         # per send — kept out of generated skills until deliberately designed.
         "peer_agent",
+        # Workboard (ADR-276): its tools can hand work to ANOTHER account and
+        # delete a ticket with its whole history. Same reasoning as the peers
+        # program — a generated skill is text a model wrote, and this surface
+        # is too young to be handed to one. Revisit deliberately.
+        "ticket_agent",
     }
 )
 

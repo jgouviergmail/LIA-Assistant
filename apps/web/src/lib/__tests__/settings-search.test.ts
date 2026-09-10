@@ -92,10 +92,15 @@ describe('SETTINGS_SEARCH_META — describes the page it claims to describe', ()
     // 2026-08-27) joined Administration / System.
     // 54 since the meetings section (ADR-258) joined Features / Extensions &
     // Data (2026-09-02).
+    // 57 since the workboard section joined Features / Extensions & Data
+    // (ADR-276): it is the board's only door, D15 giving it no header slot.
     // 56 since the reminders section joined Features / Automation & Tracking
     // (2026-09-06): reminders can repeat, and a schedule someone configured
     // once must be visible and changeable without asking for it in prose.
-    expect(TOKENS).toHaveLength(56);
+    // 58 since « my shortcuts » joined Preferences / Personalization
+    // (ADR-277, 2026-09-09): the picker of the sections the floating dock
+    // shows on every screen.
+    expect(TOKENS).toHaveLength(58);
   });
 
   it.each(Object.keys(LOCALES) as LocaleCode[])(
@@ -200,6 +205,7 @@ describe('SETTINGS_SEARCH_META — describes the page it claims to describe', ()
         'security-auth',
         'security-export',
         'telephony-calls',
+        'workboard',
       ].sort()
     );
   });

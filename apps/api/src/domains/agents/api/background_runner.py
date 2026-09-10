@@ -36,10 +36,10 @@ from src.infrastructure.observability.metrics_agents import (
 )
 from src.infrastructure.streaming.run_stream_broker import (
     clear_cancel,
+    heartbeat_active_run,
     is_cancel_requested,
     publish_chunk,
     publish_end,
-    refresh_active_run,
     release_active_run,
 )
 
@@ -134,7 +134,7 @@ async def _produce(
     heartbeat_task: asyncio.Task | None = None
     if conversation_id is not None:
         heartbeat_task = asyncio.create_task(
-            _heartbeat_active_run(redis, conversation_id, stream_id),
+            heartbeat_active_run(redis, conversation_id, stream_id),
             name=f"chat-run-heartbeat-{stream_id}",
         )
     # Lot 3: watch for a user cancellation signal (possibly set from another
@@ -253,34 +253,6 @@ async def _watch_cancel(
             cancel_state["requested"] = True
             logger.info("chat_run_cancelling", stream_id=stream_id)
             producer_task.cancel()
-            return
-
-
-async def _heartbeat_active_run(redis: Redis, conversation_id: str, stream_id: str) -> None:
-    """Periodically re-arm the active-run lock TTL while the run is alive.
-
-    Stops by itself when the lock is lost (expired or taken over by a newer
-    run) — a zombie producer must never keep a conversation locked.
-    """
-    period = settings.background_runs_heartbeat_seconds
-    while True:
-        await asyncio.sleep(period)
-        try:
-            still_owner = await refresh_active_run(redis, conversation_id, stream_id)
-        except Exception as exc:  # noqa: BLE001 — transient Redis hiccup: keep trying
-            logger.warning(
-                "active_run_heartbeat_failed",
-                conversation_id=conversation_id,
-                stream_id=stream_id,
-                error=str(exc),
-            )
-            continue
-        if not still_owner:
-            logger.warning(
-                "active_run_lock_lost",
-                conversation_id=conversation_id,
-                stream_id=stream_id,
-            )
             return
 
 

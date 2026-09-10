@@ -37,6 +37,7 @@ HeartbeatSourceLabel = Literal[
     "OPEN_LOOPS",
     "DEPARTURE_ADVICE",
     "HABITS",
+    "WORKBOARD",
 ]
 """Canonical source labels for the decision structured output (ADR-135).
 
@@ -162,6 +163,9 @@ class HeartbeatContext:
     # the post-notification cooldown bump.
     open_loops: list[dict[str, Any]] | None = None
 
+    # ADR-276 D14: tickets overdue, due soon, or waiting on the person.
+    workboard: list[dict[str, Any]] | None = None
+
     # Learned habits block (ADR-214) — {"rhythm": {class: [window labels]},
     # "missed_routine": {habit_id, signature, shape, trigger_label, weekday}}.
     # The habit_id travels to proactive_task for the post-notification offer
@@ -205,6 +209,7 @@ class HeartbeatContext:
                 self.health_signals,
                 self.upcoming_birthdays,
                 self.open_loops,
+                self.workboard,
                 self.departure_advice,
                 # Rhythm alone is context, not news: only a missed routine
                 # makes the habits block a reason to notify by itself.
@@ -356,6 +361,21 @@ class HeartbeatContext:
                 )
             sections.append(
                 "OPEN LOOPS (commitments being tracked for the user):\n" + "\n".join(loop_lines)
+            )
+
+        if self.workboard:
+            ticket_lines = []
+            for ticket in self.workboard:
+                due = f" (due {ticket['due_local']})" if ticket.get("due_local") else ""
+                said = f' — LIA wrote: "{ticket["waiting_on"]}"' if ticket.get("waiting_on") else ""
+                ticket_lines.append(
+                    f"  - [{ticket.get('reason', '?')}] {ticket.get('title', '?')}"
+                    f" - {ticket.get('status', '?')},"
+                    f" {ticket.get('priority', '?')} priority{due}{said}"
+                )
+            sections.append(
+                "WORKBOARD (tickets on the user's board needing attention):\n"
+                + "\n".join(ticket_lines)
             )
 
         if self.habits:

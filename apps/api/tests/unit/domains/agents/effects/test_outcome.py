@@ -50,6 +50,11 @@ class TestProviderReference:
     def test_it_is_read_at_the_top_level_too(self) -> None:
         assert read_outcome({"success": True, "message_id": "m1"}).provider_ref == "m1"
 
+    def test_a_confirmed_ticket_deletion_names_the_ticket(self) -> None:
+        """ADR-276: the executor returns `ticket_id`, and the register keeps it."""
+        outcome = read_outcome({"success": True, "ticket_id": "t-1", "deleted": 2})
+        assert outcome.provider_ref == "t-1"
+
     def test_absent_is_a_normal_answer(self) -> None:
         assert read_outcome({"success": True, "data": {"count": 3}}).provider_ref is None
 

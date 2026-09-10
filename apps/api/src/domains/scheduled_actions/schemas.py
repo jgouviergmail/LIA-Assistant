@@ -12,8 +12,10 @@ from zoneinfo import ZoneInfo
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from src.core.constants import (
+    OUT_OF_TURN_EXECUTION_MODE_DEFAULT,
     RECURRENCE_ROUTINE_LIMITS,
     SCHEDULED_ACTION_OCCURRENCES_PREVIEW,
+    ExecutionMode,
 )
 from src.core.i18n import DEFAULT_LANGUAGE
 from src.core.recurrence import RecurrenceSpec, describe, occurrences, week_slots
@@ -130,6 +132,10 @@ class ScheduledActionCreate(BaseModel):
         default=False,
         description="True = propose via notification instead of executing.",
     )
+    execution_mode: ExecutionMode = Field(
+        default=OUT_OF_TURN_EXECUTION_MODE_DEFAULT,
+        description="How LIA runs it: react (autonomous loop) or pipeline.",
+    )
 
     @model_validator(mode="after")
     def validate_against_routine_limits(self) -> ScheduledActionCreate:
@@ -186,6 +192,9 @@ class ScheduledActionUpdate(BaseModel):
     requires_approval: bool | None = Field(
         None, description="True = propose via notification instead of executing."
     )
+    execution_mode: ExecutionMode | None = Field(
+        None, description="react (autonomous loop) or pipeline; the next firing reads it."
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -237,6 +246,7 @@ class ScheduledActionResponse(BaseModel):
     trigger_kind: str
     condition_config: dict | None
     requires_approval: bool
+    execution_mode: str
     next_trigger_at: datetime | None
     is_enabled: bool
     status: str
