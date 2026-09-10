@@ -29,6 +29,7 @@ import { useConfirm } from '@/components/ui/use-confirm';
 import { useApiMutation } from '@/hooks/useApiMutation';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
+import { documentTypeIcon } from '@/components/chat/document-card-icon';
 import { apiImageProps, apiResourceUrl } from '@/lib/utils/api-resource-url';
 import { formatDate, formatFileSize } from '@/lib/format';
 import { assetLabel, assetOpenHref, expiryTone } from '@/lib/generated-assets/display';
@@ -86,6 +87,9 @@ export function GeneratedAssetGrid({
         {items.map(asset => {
           const label = assetLabel(asset);
           const isImage = asset.mime_type.startsWith('image/');
+          const TypeMark = documentTypeIcon(
+            asset.original_filename.split('.').pop()?.toLowerCase() ?? ''
+          );
           const tone = expiryTone(asset.expires_at);
           return (
             <li
@@ -106,6 +110,22 @@ export function GeneratedAssetGrid({
                 </span>
               </div>
 
+              {!isImage && (
+                <a
+                  href={assetOpenHref(asset, lng)}
+                  target="_blank"
+                  rel="noopener"
+                  data-testid="generated-asset-typemark"
+                  // The MARK of its type, where an image shows its thumbnail
+                  // (ADR-279). Drawn at the thumbnail's height so a page mixing
+                  // families keeps one rhythm instead of going ragged.
+                  className="flex h-36 w-full items-center justify-center rounded-lg border border-border/60 bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-label={t('settings.generated_assets.open', { name: label })}
+                >
+                  <TypeMark className="h-10 w-10 text-muted-foreground" aria-hidden="true" />
+                </a>
+              )}
+
               {isImage && (
                 <a
                   href={assetOpenHref(asset, lng)}
@@ -119,7 +139,13 @@ export function GeneratedAssetGrid({
                     {...apiImageProps(`/api/v1/attachments/${asset.id}`)}
                     alt={label}
                     loading="lazy"
-                    className="h-36 w-full object-cover"
+                    // WHOLE, never cropped: `object-cover` filled the tile by
+                    // cutting what did not fit, and on a thumbnail whose only
+                    // job is « is this the file I am looking for? » the cut
+                    // part is the part that answers. `contain` keeps the source
+                    // ratio and letterboxes on the card's own ground, so the
+                    // grid stays uniform without lying about the image.
+                    className="h-36 w-full bg-muted/40 object-contain"
                   />
                 </a>
               )}

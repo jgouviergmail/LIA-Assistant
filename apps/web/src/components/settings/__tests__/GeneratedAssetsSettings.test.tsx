@@ -129,6 +129,39 @@ describe('what a gallery states', () => {
     expect(screen.getByText('Coucher de soleil')).toBeInTheDocument();
   });
 
+  it('shows a thumbnail WHOLE rather than cropping it to a uniform tile', () => {
+    // Reported 2026-09-10: a portrait image came back cropped in the gallery.
+    // `object-cover` fills a fixed tile by cutting whatever does not fit — on a
+    // thumbnail whose whole job is « is this the file I am looking for? », the
+    // part it cuts is exactly the part that answers the question. `object-contain`
+    // keeps the source ratio and letterboxes instead; the tile stays uniform, so
+    // the grid does not become a masonry.
+    gallery.items = [asset()];
+    gallery.total = 1;
+
+    renderWithProviders(<GeneratedAssetsSettings lng="fr" />);
+
+    const thumbnail = screen.getByRole('img');
+    expect(thumbnail.className).toContain('object-contain');
+    expect(thumbnail.className).not.toContain('object-cover');
+  });
+
+  it('marks a document with its type where an image shows its thumbnail', () => {
+    // ADR-279 says a card carries « the preview, or the mark of its type ». It
+    // carried the preview and, for everything else, NOTHING: a document card
+    // was text alone, shorter than its neighbours, and the grid went ragged.
+    gallery.items = [
+      asset({ id: 'doc-1', mime_type: 'application/pdf', original_filename: 'bilan.pdf' }),
+    ];
+    gallery.total = 1;
+
+    renderWithProviders(<GeneratedAssetsSettings lng="fr" />);
+
+    const mark = screen.getByTestId('generated-asset-typemark');
+    // Same height as a thumbnail, so a mixed page keeps one rhythm.
+    expect(mark.className).toContain('h-36');
+  });
+
   it('says « nothing yet » differently from « no match »', () => {
     gallery.total = 0;
 
