@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 
 if TYPE_CHECKING:
     from src.domains.agents.data_registry.models import RegistryItemType
-    from src.domains.agents.drafts.display import DraftDisplayConfig
 from urllib.parse import urlparse
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
@@ -89,6 +88,7 @@ from src.domains.agents.display.config import config_for_viewport
 from src.domains.agents.display.html_renderer import NestedData, get_html_renderer
 from src.domains.agents.display.sentinel_filter import strip_widget_sentinels
 from src.domains.agents.drafts.models import DraftAction
+from src.domains.agents.drafts.result_renderer import render_execution_result
 from src.domains.agents.expressivity.turn import inject_tone_instruction, take_tone_annotation
 
 # Extracted modules (Phase 3 refactoring)
@@ -559,239 +559,6 @@ async def _execute_draft_if_confirmed(
             "draft_type": draft_action_result.get("draft_type"),
             "action": DraftAction.CONFIRM.value,
         }
-
-
-def _format_draft_execution_result(result: dict[str, Any] | None) -> str:
-    """
-    Format draft execution result for LLM context.
-
-    Reads ``DRAFT_DISPLAY_REGISTRY`` (see ADR-085) for the per-``DraftType``
-    display configuration: domain emoji, label fields, optional contextual
-    datetime, detailed-view fields, plus the noun/verb keys used to compose
-    a localized header like ``"3 rappels supprimés"`` (with proper
-    gender/number agreement per language).
-
-    Args:
-        result: Draft execution result dict with:
-            - status: "success" | "cancelled" | "error" | "partial_error"
-            - message: Localized message
-            - draft_type: Type of draft (contact, event, email, reminder_delete...)
-            - action: Optional, e.g. ``"confirm_batch"``
-            - data: Result data dict (may contain ``html_link``, ``_draft_content``,
-                ``batch_results``, ``success_count``, ``total_count``)
-
-    Returns:
-        Formatted markdown string for ``agent_results_summary``.
-    """
-    if not result:
-        return ""
-
-    from src.core.i18n_drafts import get_draft_preview_labels
-    from src.core.time_utils import format_datetime_for_display
-    from src.domains.agents.drafts.display import (
-        get_draft_display_config,
-        resolve_nested_value,
-    )
-
-    status = result.get("status", "unknown")
-    message = result.get("message", "")
-    draft_type = result.get("draft_type", "action")
-    data = result.get("data", {}) if isinstance(result.get("data"), dict) else {}
-    action = result.get("action", "")
-
-    config = get_draft_display_config(draft_type)
-    domain_emoji = config.emoji if config else ""
-
-    # ------------------------------------------------------------------ Batch
-    if action == DraftAction.CONFIRM_BATCH.value and status in ("success", "partial_error"):
-        return _format_batch_result(
-            status=status,
-            draft_type=draft_type,
-            domain_emoji=domain_emoji,
-            config=config,
-            data=data,
-        )
-
-    # ------------------------------------------------------------- Single OK
-    if status == "success":
-        draft = data.get("_draft_content", {}) if isinstance(data, dict) else {}
-        user_lang = draft.get("user_language") or "fr"
-        user_tz = draft.get("user_timezone") or DEFAULT_USER_DISPLAY_TIMEZONE
-        labels = get_draft_preview_labels(user_lang)
-
-        details: list[str] = []
-        if config:
-            for field in config.detail_fields:
-                value = (
-                    resolve_nested_value(draft, field.content_key)
-                    if "." in field.content_key
-                    else (draft.get(field.content_key) or data.get(field.content_key))
-                )
-                if value is None or not str(value).strip():
-                    continue
-
-                label = labels.get(field.label_key, field.content_key)
-                str_value = str(value)
-                if field.is_datetime and isinstance(value, str) and "T" in value:
-                    # Keep raw ISO if formatting fails.
-                    with suppress(ValueError, TypeError):
-                        str_value = format_datetime_for_display(
-                            value, user_tz, user_lang, include_time=True
-                        )
-                # Truncate long body-like fields (last path segment for nested keys).
-                last_key = field.content_key.rsplit(".", 1)[-1]
-                if last_key in ("body", "description", "notes") and len(str_value) > 200:
-                    str_value = str_value[:200] + "…"
-                # Explicit <br/> per field: the response LLM re-emits this block
-                # inside its HTML answer, where bare "\n" soft-wraps and markdown
-                # "-" bullets get half-copied (observed: two fields merged with a
-                # stray dash). <br/> survives the copy verbatim and renders as a
-                # hard break in every display mode (sanitize schema keeps `br`,
-                # same convention as the draft preview_renderer).
-                if str_value.startswith(("http://", "https://")):
-                    # URL-valued fields (e.g. conference_link) read as a link,
-                    # never as a raw URL dump.
-                    details.append(f"<br/>{field.emoji} [{label}]({str_value})")
-                else:
-                    details.append(f"<br/>{field.emoji} **{label}** : {str_value}")
-
-        html_link = data.get("html_link")
-        if html_link:
-            details.append(f"<br/>🔗 [{_('Link', user_lang)}]({html_link})")
-
-        header = f"\n\n{domain_emoji} ✅ {message}"
-        if details:
-            return f"{header}\n" + "\n".join(details)
-        return header
-
-    if status == "cancelled":
-        return f"\n\n{domain_emoji} 🚫 {message}"
-
-    if status == "partial_error":
-        # Non-batch partial_error fallback (defensive — batch is handled above).
-        success_count = data.get("success_count", 0)
-        total_count = data.get("total_count", 0)
-        return f"\n\n{domain_emoji} ⚠️ {message} ({success_count}/{total_count})"
-
-    if status == "error":
-        return f"\n\n{domain_emoji} ❌ {message}"
-
-    return ""
-
-
-def _format_batch_result(
-    status: str,
-    draft_type: str,
-    domain_emoji: str,
-    config: DraftDisplayConfig | None,
-    data: dict[str, Any],
-) -> str:
-    """Render the batch (``CONFIRM_BATCH``) execution result block.
-
-    Builds a localized header (``"3 rappels supprimés"``) plus one row per
-    item with the configured ``item_label_fields`` and optional secondary
-    datetime context. Falls back gracefully if the registry has no entry
-    (defensive — startup assertion should make this impossible).
-
-    Args:
-        status: Either ``"success"`` or ``"partial_error"``.
-        draft_type: Draft type string from the execution result.
-        domain_emoji: Pre-resolved emoji from the registry (or ``""``).
-        config: Display config for the draft type, or ``None`` if unknown.
-        data: Execution data dict containing ``batch_results``,
-            ``success_count``, ``total_count``.
-
-    Returns:
-        Formatted markdown block ready for ``agent_results_summary``.
-    """
-    from src.core.i18n_drafts import compose_result_header
-    from src.core.time_utils import format_value_if_datetime_string
-    from src.domains.agents.drafts.display import resolve_nested_value
-
-    batch_results = data.get("batch_results", [])
-    success_count = data.get("success_count", 0)
-    total_count = data.get("total_count", 0)
-
-    # Resolve user locale/timezone from any item that carries them.
-    user_lang = "fr"
-    user_tz = DEFAULT_USER_DISPLAY_TIMEZONE
-    for br in batch_results:
-        br_data = br.get("data", {}) if isinstance(br.get("data"), dict) else {}
-        br_draft = br_data.get("_draft_content", {}) or {}
-        if br_draft.get("user_language"):
-            user_lang = br_draft["user_language"]
-        if br_draft.get("user_timezone"):
-            user_tz = br_draft["user_timezone"]
-        if user_lang and user_tz:
-            break
-
-    lines: list[str] = []
-    for br in batch_results:
-        br_data = br.get("data", {}) if isinstance(br.get("data"), dict) else {}
-        draft_content = br_data.get("_draft_content", {}) or {}
-        br_status = br.get("status", "")
-        row_emoji = "✅" if br_status == "success" else "❌"
-
-        # Extract human-readable label using the registry-declared fields.
-        item_label = ""
-        if config:
-            for key in config.item_label_fields:
-                value = (
-                    resolve_nested_value(draft_content, key)
-                    if "." in key
-                    else draft_content.get(key)
-                )
-                if value:
-                    item_label = " ".join(str(value).split())
-                    break
-        if len(item_label) > 60:
-            item_label = item_label[:57] + "..."
-
-        # Optional contextual datetime appended to the row.
-        secondary = ""
-        if config and config.item_secondary_datetime_key:
-            dt_value = (
-                resolve_nested_value(draft_content, config.item_secondary_datetime_key)
-                if "." in config.item_secondary_datetime_key
-                else draft_content.get(config.item_secondary_datetime_key)
-            )
-            if dt_value and isinstance(dt_value, str):
-                formatted = format_value_if_datetime_string(
-                    dt_value,
-                    user_timezone=user_tz,
-                    locale=user_lang,
-                    include_time=True,
-                    include_day_name=False,
-                )
-                if formatted != dt_value:
-                    secondary = f" — {formatted}"
-
-        if item_label:
-            lines.append(f"{row_emoji} **{item_label}**{secondary}")
-        else:
-            logger.warning(
-                "draft_result_format_empty_label",
-                draft_type=draft_type,
-                available_keys=sorted(draft_content.keys()),
-            )
-            lines.append(f"{row_emoji} {br.get('message', '')}")
-
-    items_block = "\n".join(lines)
-    status_emoji = "✅" if status == "success" else "⚠️"
-
-    # Localized header with noun + verb agreement when the registry knows the type.
-    if config:
-        header_text = compose_result_header(
-            success_count=success_count,
-            total_count=total_count,
-            noun_key=config.noun_key,
-            verb_past_key=config.verb_past_key,
-            language=user_lang,
-        )
-        return f"\n\n{domain_emoji} {status_emoji} {header_text}\n{items_block}"
-
-    # Unknown draft type — preserve the legacy bare "X/Y" header as a fallback.
-    return f"\n\n{domain_emoji} {status_emoji} {success_count}/{total_count}\n{items_block}"
 
 
 # ============================================================================
@@ -2479,7 +2246,7 @@ async def _resolve_response_context_summary(
     draft_execution_result = await _execute_draft_if_confirmed(state, config, run_id)
     if draft_execution_result:
         # Format draft execution result for response synthesis
-        draft_summary = _format_draft_execution_result(draft_execution_result)
+        draft_summary = render_execution_result(draft_execution_result)
         if draft_summary:
             # After HITL confirmation, REPLACE the entire agent_results_summary
             # with only the execution result. The user already saw intermediate results

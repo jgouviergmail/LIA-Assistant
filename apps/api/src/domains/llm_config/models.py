@@ -72,6 +72,10 @@ class LLMConfigOverride(BaseModel):
         presence_penalty: Presence penalty override (-2.0 to 2.0)
         max_tokens: Max tokens override
         timeout_seconds: Timeout override in seconds
+        context_window: Context window this slot works with (tokens). NULL
+            = the model's own. For Ollama it is also what is REQUESTED
+            (``num_ctx``), because what LIA accounts with is what LIA asks
+            for (ADR-267/278).
         reasoning_effort: Reasoning override stored as JSONB, in ONE shape for
             every provider (ADR-245): ``{"level": "<str>", "budget_tokens":
             <int|null>, "exclude_from_output": <bool>}``, or NULL for no
@@ -129,6 +133,17 @@ class LLMConfigOverride(BaseModel):
     timeout_seconds: Mapped[int | None] = mapped_column(
         Integer,
         nullable=True,
+    )
+
+    context_window: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+        comment=(
+            "Context window this slot works with, in tokens. NULL = the "
+            "model's own (discovered, then catalogue, then the table). For "
+            "Ollama it is also the num_ctx requested on every call "
+            "(ADR-278, replacing the instance-wide OLLAMA_NUM_CTX)."
+        ),
     )
 
     reasoning_effort: Mapped[dict[str, Any] | None] = mapped_column(

@@ -144,3 +144,77 @@ describe('what each control produces', () => {
     expect(onChange).toHaveBeenCalledWith({ assignee: 'all', sort: 'position' });
   });
 });
+
+describe('on a phone the block folds', () => {
+  function renderFolded(filters: Filters = { assignee: 'all', sort: 'position' }) {
+    return renderWithProviders(
+      <BoardFilters lng="fr" filters={filters} onChange={onChange} collapsible />
+    );
+  }
+
+  it('renders a native disclosure that starts closed', () => {
+    const { container } = renderFolded();
+
+    const details = container.querySelector('details');
+    expect(details).not.toBeNull();
+    expect(details).not.toHaveAttribute('open');
+  });
+
+  it('costs nothing while closed — the controls are not in the DOM', () => {
+    renderFolded();
+
+    expect(screen.queryByLabelText('workboard.filters.search')).not.toBeInTheDocument();
+  });
+
+  it('says « no filter » when the board is untouched, and wears no badge', () => {
+    renderFolded();
+
+    expect(screen.getByText('workboard.filters.none')).toBeInTheDocument();
+    expect(screen.queryByText('1')).not.toBeInTheDocument();
+  });
+
+  it('states the EXACT number of narrowings and names them', () => {
+    renderFolded({ assignee: 'me', overdue: true, sort: 'position' });
+
+    expect(screen.getByText('2')).toBeInTheDocument();
+    expect(
+      screen.getByText('workboard.filters.side_me · workboard.filters.overdue')
+    ).toBeInTheDocument();
+  });
+
+  it('quotes the search needle rather than naming the field', () => {
+    renderFolded({ q: 'salle', assignee: 'all', sort: 'position' });
+
+    expect(screen.getByText(/salle/)).toBeInTheDocument();
+  });
+
+  it('reveals every control once opened, the reset included', async () => {
+    const { container } = renderFolded();
+
+    const details = container.querySelector('details') as HTMLDetailsElement;
+    details.open = true;
+    details.dispatchEvent(new Event('toggle', { bubbles: false }));
+
+    await screen.findByLabelText('workboard.filters.search');
+    expect(screen.getByRole('combobox', { name: 'workboard.filters.side' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /workboard.filters.reset/ })).toBeInTheDocument();
+  });
+
+  it('keeps the sort out of the count — it orders, it does not narrow', () => {
+    renderFolded({ assignee: 'all', sort: 'due' });
+
+    expect(screen.getByText('workboard.filters.none')).toBeInTheDocument();
+  });
+});
+
+describe('above lg the block is unchanged', () => {
+  it('renders a labelled section with its own heading, not a disclosure', () => {
+    const { container } = renderWithProviders(
+      <BoardFilters lng="fr" filters={{ assignee: 'all', sort: 'position' }} onChange={onChange} />
+    );
+
+    expect(container.querySelector('details')).toBeNull();
+    expect(screen.getByRole('region', { name: 'workboard.filters.title' })).toBeInTheDocument();
+    expect(screen.getByLabelText('workboard.filters.search')).toBeInTheDocument();
+  });
+});

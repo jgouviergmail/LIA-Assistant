@@ -21,7 +21,7 @@ import { formatNumber, formatEuro } from '@/lib/format';
 import { cn, proxyGoogleImageUrl } from '@/lib/utils';
 import { classifyImageExpiry } from '@/lib/image-expiry';
 import { copyMessageToClipboard } from '@/lib/message-clipboard';
-import { apiResourceUrl } from '@/lib/utils/api-resource-url';
+import { apiImageProps, apiResourceUrl } from '@/lib/utils/api-resource-url';
 import { MarkdownContent } from './MarkdownContent';
 import { documentTypeIcon } from './document-card-icon';
 import { PeerMessageActions } from '@/components/chat/PeerMessageActions';
@@ -442,14 +442,21 @@ function ImageExpiryNotice({
  */
 function GeneratedImageCards({ images }: { images: GeneratedImage[] }) {
   const { t } = useTranslation();
-  const [lightboxImage, setLightboxImage] = useState<{ url: string; alt: string } | null>(null);
+  const [lightboxImage, setLightboxImage] = useState<{
+    url: string;
+    alt: string;
+    crossOrigin?: 'use-credentials';
+  } | null>(null);
 
   return (
     <>
       <div className="mt-3 space-y-3">
         {images.map((img, i) => {
-          // Use relative URL to go through Next.js rewrite proxy
-          const displayUrl = apiResourceUrl(img.url);
+          // Resolved against the API origin, and asking for the
+          // credentials an embedded cross-origin image is denied by
+          // default under `COEP: credentialless`.
+          const imageProps = apiImageProps(img.url);
+          const displayUrl = imageProps.src;
           return (
             <div key={i} className="group relative w-full max-w-[512px] mx-auto">
               {/* Opening the lightbox is a real action: a native <button>
@@ -458,13 +465,19 @@ function GeneratedImageCards({ images }: { images: GeneratedImage[] }) {
                   (audit F013). */}
               <button
                 type="button"
-                onClick={() => setLightboxImage({ url: displayUrl, alt: img.alt })}
+                onClick={() =>
+                  setLightboxImage({
+                    url: displayUrl,
+                    alt: img.alt,
+                    crossOrigin: imageProps.crossOrigin,
+                  })
+                }
                 aria-label={t('common.expand_image')}
                 className="block w-full p-0 border-0 bg-transparent cursor-pointer rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={displayUrl}
+                  {...imageProps}
                   alt={img.alt}
                   className="w-full h-auto rounded-lg shadow-md hover:shadow-lg transition-shadow [-webkit-touch-callout:default]"
                 />
@@ -496,6 +509,7 @@ function GeneratedImageCards({ images }: { images: GeneratedImage[] }) {
         createPortal(
           <ImageLightbox
             src={lightboxImage.url}
+            crossOrigin={lightboxImage.crossOrigin}
             alt={lightboxImage.alt}
             isOpen={true}
             onClose={() => setLightboxImage(null)}
@@ -593,7 +607,8 @@ function BrowserScreenshotCard({ screenshot }: { screenshot: { url: string; alt:
   const { t } = useTranslation();
   const [lightboxOpen, setLightboxOpen] = useState(false);
   // The screenshot is an attachment like any other (`/api/v1/attachments/{id}`).
-  const source = apiResourceUrl(screenshot.url);
+  const imageProps = apiImageProps(screenshot.url);
+  const source = imageProps.src;
   return (
     <>
       <div className="mt-3">
@@ -608,10 +623,9 @@ function BrowserScreenshotCard({ screenshot }: { screenshot: { url: string; alt:
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={source}
+              {...imageProps}
               alt={screenshot.alt}
               className="w-full h-auto rounded-lg shadow-md hover:shadow-lg transition-shadow [-webkit-touch-callout:default]"
-              crossOrigin="use-credentials"
             />
           </button>
           {/* Discrete download button — visible on hover (desktop) or always visible (touch) */}
@@ -639,6 +653,7 @@ function BrowserScreenshotCard({ screenshot }: { screenshot: { url: string; alt:
         createPortal(
           <ImageLightbox
             src={source}
+            crossOrigin={imageProps.crossOrigin}
             alt={screenshot.alt}
             isOpen={lightboxOpen}
             onClose={() => setLightboxOpen(false)}

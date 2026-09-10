@@ -29,6 +29,7 @@ import {
   RecorderAwareMobileNavMenu,
 } from '@/components/meetings/MeetingRecorderControl';
 import { useAppConfig } from '@/hooks/useAppConfig';
+import { originFromPathname, withOrigin } from '@/lib/back-origin';
 import { destinationPath, visibleDestinations } from '@/lib/dashboard-nav';
 import type { DashboardDestination } from '@/lib/dashboard-nav';
 import { useTranslation } from '@/i18n/client';
@@ -75,6 +76,13 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
   // ADR-258: the meetings destination exists only where the instance offers
   // the feature — the same list feeds the desktop nav and the mobile menu.
   const destinations = visibleDestinations(appConfig?.features);
+  // The screen the reader is leaving, so a destination that draws a back
+  // button knows where it leads (`lib/back-origin.ts`).
+  const origin = originFromPathname(pathname);
+  const linkTo = (destination: (typeof destinations)[number]) =>
+    destination.carriesOrigin
+      ? withOrigin(destinationPath(destination.segment), origin)
+      : destinationPath(destination.segment);
   // Keep the backend's last-known location fed wherever the user navigates
   // (opt-in and throttle enforced inside; inert for anonymous visitors).
   useLastKnownLocationSync();
@@ -193,6 +201,7 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
                   <RecorderAwareMobileNavMenu
                     lng={lng}
                     buildHref={route => buildLocalizedPath(route, pathLng)}
+                    linkTo={linkTo}
                     translate={t}
                     isActiveRoute={isActiveRoute}
                     triggerLabel={t('common.menu')}
@@ -211,12 +220,13 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
                   mobile menu maps, as dashboard-nav.ts always claimed. The
                   hand-maintained copy here was the drift this kills. */}
                 <nav className="hidden min-w-0 lg:flex items-center gap-1">
-                  {destinations.map(({ segment, labelKey }) => {
+                  {destinations.map(destination => {
+                    const { segment, labelKey } = destination;
                     const Icon = DESTINATION_ICONS[segment];
                     return (
                       <Link
                         key={segment || 'home'}
-                        href={buildLocalizedPath(destinationPath(segment), pathLng)}
+                        href={buildLocalizedPath(linkTo(destination), pathLng)}
                         className={navLinkClass(segment)}
                         aria-current={isActiveRoute(segment) ? 'page' : undefined}
                         aria-label={t(labelKey)}

@@ -7,16 +7,31 @@
  * sort key — and « any » wears ONE sign wherever it appears. Every control
  * is labelled with its family's glyph, and the search box is debounced by
  * the caller's own state rather than firing a request per keystroke.
+ *
+ * **On a phone the block FOLDS** (owner, 2026-09-10). Five controls above one
+ * column of cards is a wall, and the reader came to look at their tickets, not
+ * at the controls. Folded it becomes an index entry, so it says WHAT it holds
+ * before being opened — the exact count of active narrowings and their own
+ * words (`lib/workboard/active-filters.ts`) — which is the whole point of the
+ * fold: a summary that says nothing makes the reader open it to find out.
+ *
+ * Closed means UNMOUNTED (`components/ui/disclosure.tsx` uses a native
+ * `<details>` and renders its children only while open), and the filter state
+ * lives in the PAGE, so folding costs nothing and loses nothing. Above `lg`
+ * the block is unchanged: a full-width row of four fields, always visible.
  */
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Filter, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { Disclosure } from '@/components/ui/disclosure';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { GlyphLabel, GlyphSelect } from '@/components/workboard/GlyphSelect';
 import { PRIORITY_ANY, PrioritySelect } from '@/components/workboard/PrioritySelect';
 import type { Language } from '@/i18n/settings';
+import { activeFilterCount, describeFilters } from '@/lib/workboard/active-filters';
 import { SEARCH_MAX_CHARS } from '@/lib/workboard/filters-url';
 import { anyIcon, filterIcon, partyIcon, sortIcon } from '@/lib/workboard/icons';
 import type { BoardFilters as Filters, BoardSide, BoardSort } from '@/types/workboard';
@@ -28,6 +43,12 @@ export interface BoardFiltersProps {
   lng: Language;
   filters: Filters;
   onChange: (filters: Filters) => void;
+  /**
+   * Fold the block behind a summary. The page passes `true` below `lg`, where
+   * one column of cards shows at a time and the controls would otherwise take
+   * the whole first screen.
+   */
+  collapsible?: boolean;
 }
 
 /** The family glyph in a label, and the glyph on each item. */
@@ -36,33 +57,20 @@ const ITEM_GLYPH = 'h-3.5 w-3.5 shrink-0';
 const ANY_GLYPH = 'h-3.5 w-3.5 shrink-0 text-primary';
 const FIELD = 'h-10 px-3 text-sm';
 
-export function BoardFilters({ filters, onChange }: BoardFiltersProps) {
+export function BoardFilters({ filters, onChange, collapsible = false }: BoardFiltersProps) {
   const { t } = useTranslation();
   const set = (patch: Partial<Filters>) => onChange({ ...filters, ...patch });
+  const reset = () => onChange({ assignee: 'all', sort: 'position' });
 
-  return (
-    <section
-      aria-label={t('workboard.filters.title')}
-      className="rounded-xl border border-border/50 bg-muted/20 p-3"
-    >
-      {/* A title always carries an icon, in the theme colour. « Clear »
-          belongs on the title's own line: at the end of a wrapping row of
-          controls it landed wherever the last field happened to stop. */}
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="flex items-center gap-2 text-sm font-semibold">
-          <Filter className="h-4 w-4 text-primary" aria-hidden="true" />
-          {t('workboard.filters.title')}
-        </h2>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onChange({ assignee: 'all', sort: 'position' })}
-        >
-          <X className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
-          {t('workboard.filters.reset')}
-        </Button>
-      </div>
+  const clearButton = (
+    <Button variant="outline" size="sm" onClick={reset}>
+      <X className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+      {t('workboard.filters.reset')}
+    </Button>
+  );
 
+  const controls = (
+    <>
       {/* A GRID, never a wrapping row of fixed widths: those left one field
           alone on its line at some widths and three on others, so nothing
           lined up with anything. One column on a phone, two from `sm`, four
@@ -162,6 +170,53 @@ export function BoardFilters({ filters, onChange }: BoardFiltersProps) {
           {t('workboard.filters.overdue')}
         </Label>
       </div>
+    </>
+  );
+
+  if (collapsible) return <FoldedFilters filters={filters}>{controls}{clearButton}</FoldedFilters>;
+
+  return (
+    <section
+      aria-label={t('workboard.filters.title')}
+      className="rounded-xl border border-border/50 bg-muted/20 p-3"
+    >
+      {/* A title always carries an icon, in the theme colour. « Clear »
+          belongs on the title's own line: at the end of a wrapping row of
+          controls it landed wherever the last field happened to stop. */}
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h2 className="flex items-center gap-2 text-sm font-semibold">
+          <Filter className="h-4 w-4 text-primary" aria-hidden="true" />
+          {t('workboard.filters.title')}
+        </h2>
+        {clearButton}
+      </div>
+      {controls}
     </section>
+  );
+}
+
+/**
+ * The phone shape: a summary that says what is narrowed, and the controls under it.
+ *
+ * The badge is the EXACT number of active narrowings and the description their
+ * own words — a fold whose summary says nothing is a fold the reader opens to
+ * find out. Both come from `lib/workboard/active-filters.ts`, which the empty
+ * state reads too, so the board cannot say « no match » while the summary says
+ * nothing is filtered.
+ */
+function FoldedFilters({ filters, children }: { filters: Filters; children: ReactNode }) {
+  const { t } = useTranslation();
+  const count = activeFilterCount(filters);
+  const described = describeFilters(filters, t);
+  return (
+    <Disclosure
+      icon={Filter}
+      title={t('workboard.filters.title')}
+      badge={count > 0 ? count : undefined}
+      badgeClassName={count > 0 ? 'bg-primary/15 text-primary' : undefined}
+      description={described || t('workboard.filters.none')}
+    >
+      <div className="space-y-3">{children}</div>
+    </Disclosure>
   );
 }

@@ -72,3 +72,4 @@ export {
   PerformedEffectsSection,
   type PerformedEffectsSectionProps,
 } from './PerformedEffectsSection';
+export { RegistersSection, type RegistersSectionProps } from './RegistersSection';

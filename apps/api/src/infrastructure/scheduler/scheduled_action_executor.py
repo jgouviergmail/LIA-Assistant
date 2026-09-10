@@ -367,6 +367,13 @@ async def execute_single_action(
         error_msg: str | None = result.error
         if result.outcome is RunOutcome.WAITING:
             error_msg = "RuntimeError: HITL interrupt during scheduled action execution"
+        # A ceiling refusal (``QUOTA_BLOCKED``) carries its message, so it takes
+        # the failure path below and the OCCURRENCE is abandoned — the series
+        # re-arms on its own next slot. A routine has no « skipped » outcome to
+        # write: ``ScheduledRunOutcome`` declares five, one per exit, and the
+        # weekly grid colours a cell from them. Adding a sixth for a case the
+        # ticket already handles would be a vocabulary change across the
+        # timeline and six locales for no gain the person can see.
 
         if error_msg is None:
             # Success — recalculate next trigger (+ the N-07 dedup ledger,

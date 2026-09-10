@@ -363,6 +363,11 @@ def get_llm(
         # Anthropic's ``effort``, which used to arrive here a SECOND time from a
         # column of its own and won or lost by dict-update order.
         reasoning_effort=merged_config.get("reasoning_effort"),
+        # The window THIS slot works with (ADR-278). For Ollama it is the
+        # ``num_ctx`` requested on every call, because what LIA accounts
+        # with is what LIA asks for; every other provider ignores it (its
+        # window is a property of the model, not a request).
+        context_window=merged_config.get("context_window"),
         provider_config=agent_config.provider_config,  # Advanced JSON config
     )
 

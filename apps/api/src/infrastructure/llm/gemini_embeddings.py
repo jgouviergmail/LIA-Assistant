@@ -477,19 +477,27 @@ class GeminiRetrievalEmbeddings(Embeddings):
         """
         import asyncio
 
-        # No event loop running (CLI context) — Prometheus metrics are sufficient
+        # No event loop running (CLI context) — Prometheus metrics are sufficient.
+        # The loop check comes FIRST: building the coroutine before it would
+        # leave one un-awaited on the CLI path.
         with suppress(RuntimeError):
-            loop = asyncio.get_running_loop()
+            asyncio.get_running_loop()
+            from src.infrastructure.async_utils import safe_fire_and_forget
             from src.infrastructure.llm.embedding_context import persist_embedding_tokens
 
-            loop.create_task(
+            # Not a raw `create_task`: asyncio holds tasks WEAKLY, so one whose
+            # only reference is the loop can be collected mid-write and the cost
+            # row is simply lost. `safe_fire_and_forget` is the module this
+            # codebase keeps for exactly that.
+            safe_fire_and_forget(
                 persist_embedding_tokens(
                     model_name=self.model_name,
                     token_count=token_count,
                     cost_usd=cost_usd,
                     operation=operation,
                     duration_ms=latency * 1000,
-                )
+                ),
+                name="gemini_embedding_cost",
             )
 
     def _emit_metrics(

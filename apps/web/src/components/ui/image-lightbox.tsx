@@ -9,6 +9,17 @@ import { useTranslation } from 'react-i18next';
 interface ImageLightboxProps {
   src: string;
   alt: string;
+  /**
+   * Credentials for an embedded API resource.
+   *
+   * The app answers `Cross-Origin-Embedder-Policy: credentialless`, under
+   * which a no-CORS cross-origin subresource is fetched WITHOUT cookies —
+   * so an API image answers 401 and the lightbox opens on nothing. The
+   * caller resolved the URL and is the only one that knows whether it is
+   * ours: `apiImageProps` produces this alongside `src`. Left undefined
+   * for a foreign image, which would FAIL a credentialed CORS check.
+   */
+  crossOrigin?: 'use-credentials';
   isOpen: boolean;
   onClose: () => void;
   /** Minimum width for the lightbox image (ensures zoom effect) */
@@ -91,6 +102,7 @@ function trapTab(e: KeyboardEvent, dialog: HTMLElement | null): void {
 export const ImageLightbox: React.FC<ImageLightboxProps> = ({
   src,
   alt,
+  crossOrigin,
   isOpen,
   onClose,
   minWidth,
@@ -297,6 +309,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={src}
+            crossOrigin={crossOrigin}
             alt={alt}
             referrerPolicy="no-referrer"
             className={cn(

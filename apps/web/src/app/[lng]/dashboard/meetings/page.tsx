@@ -15,6 +15,7 @@ import { ClipboardList, LibraryBig, MessageSquare, Mic } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useMeetingRecorderContext } from '@/components/meetings/MeetingRecorderProvider';
+import { BackLink } from '@/components/ui/back-link';
 import { MeetingSelectionBar } from '@/components/meetings/MeetingSelectionBar';
 import { MeetingStatusBadge } from '@/components/meetings/MeetingStatusBadge';
 import { SectionToolbar, type ToolbarAction } from '@/components/settings/SectionToolbar';
@@ -24,11 +25,13 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingAnnouncement } from '@/components/ui/loading-announcement';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useConfirm } from '@/components/ui/use-confirm';
+import { useBackOrigin } from '@/hooks/useBackOrigin';
 import { useLanguageParam } from '@/hooks/useLanguageParam';
 import { useLocalizedRouter } from '@/hooks/useLocalizedRouter';
 import { useMeetingList, type UseMeetingListReturn } from '@/hooks/useMeetings';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
+import { backDestination } from '@/lib/back-origin';
 import { formatEuro } from '@/lib/format';
 import { formatElapsed } from '@/lib/meetings/format';
 import { isSelectable, pageSelectionState, toggleId } from '@/lib/meetings/selection';
@@ -208,6 +211,7 @@ export default function MeetingsPage({ params }: MeetingsPageProps) {
   const lng = useLanguageParam(params);
   const { t } = useTranslation(lng);
   const router = useLocalizedRouter();
+  const back = backDestination(useBackOrigin());
   const toolbar = useToolbarActions(t, router);
   const [offset, setOffset] = useState(0);
   const list = useMeetingList(PAGE_SIZE, offset);
@@ -226,6 +230,12 @@ export default function MeetingsPage({ params }: MeetingsPageProps) {
   return (
     <div className="space-y-6">
       <header className="space-y-3">
+        {/* Six doors lead here — the header, the phone menu, a minutes card in
+            the chat, a recorder toast, the settings section, a slash command —
+            and this list had none back. The door that was used travels in the
+            URL as a token; with none, the chat is the way out (owner,
+            2026-09-10). */}
+        <BackLink label={t(back.labelKey)} onClick={() => router.push(back.href)} />
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
             <ClipboardList className="h-6 w-6 text-primary" aria-hidden="true" />

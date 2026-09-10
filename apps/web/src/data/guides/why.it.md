@@ -4,7 +4,7 @@
 
 **Versione**: 6.0
 **Data**: 2026-08-23
-**Applicazione**: LIA v1.44.0
+**Applicazione**: LIA v1.44.1
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -85,7 +85,7 @@ L'amministratore ha accesso a una terza scheda dedicata alla gestione dell'istan
 - **Messaggi broadcast**: inviare messaggi importanti a tutti gli utenti o a una selezione, con data di scadenza opzionale
 - **Export dei consumi globale**: esportare i consumi di tutti gli utenti in CSV
 - **Budget quotidiano dell'istanza**: limitare in euro ciò che l'istanza INTERA può spendere in una giornata — e non solo ciò che consuma ogni account. Il pannello mostra la spesa del giorno, il tetto realmente applicato e ciò che resta. Esaurito il budget, gli utenti apprendono che il deployment è in pausa e ricevono l'ora esatta del ripristino, non un messaggio fuorviante sulla loro quota personale
-- **Capacità di piattaforma**: attiva o disattiva dieci capacità all'istante, senza ridistribuire — dettatura, sintesi vocale, immagini, caricamenti, spazi documentali, ricerca web, navigazione, competenze, MCP, telefonia. Una capacità disattivata sparisce anche dal catalogo offerto al pianificatore, quindi LIA smette di proporre ciò che le rotte rifiuterebbero; ogni riga mostra ciò che il deployment permette, ciò che hai scelto tu e ciò che viene davvero applicato
+- **Capacità di piattaforma**: attiva o disattiva venticinque capacità all'istante, senza ridistribuire — tutte le funzioni che una persona vive davvero, dalla dettatura e le immagini alla lavagna dei ticket, ai diari, alla memoria a lungo termine e alle notifiche spontanee — raggruppate in sei famiglie perché un muro di interruttori resti leggibile. Un interruttore toglie la CAPACITÀ, mai l'archivio: spegnere la memoria ferma l'apprendimento di nuovi fatti mentre tutto ciò che è già stato appreso resta leggibile ed eliminabile. Una capacità disattivata sparisce anche dal catalogo offerto al pianificatore, quindi LIA smette di proporre ciò che le rotte rifiuterebbero; ogni riga mostra ciò che il deployment permette, ciò che hai scelto tu, ciò che viene davvero applicato e dove morde l'interruttore
 
 **IA e connettori:**
 

@@ -159,6 +159,14 @@ export const SETTINGS_SECTIONS = {
     accordionValue: 'image-generation',
     declaredIn: 'components/settings/ImageGenerationSettings.tsx',
   },
+  // What LIA produced (ADR-279): images, documents and browser screenshots the
+  // person can find, download and remove — next to the generation switch that
+  // creates them.
+  'generated-assets': {
+    tab: 'preferences',
+    accordionValue: 'generated-assets',
+    declaredIn: 'components/settings/GeneratedAssetsSettings.tsx',
+  },
 
   // ---- Preferences tab / Connections & Integrations
   connectors: {

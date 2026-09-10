@@ -9,6 +9,7 @@ Phase: evolution F4 — File Attachments & Vision Analysis
 Created: 2026-03-09
 """
 
+import enum
 import uuid
 from datetime import datetime
 
@@ -33,6 +34,29 @@ class AttachmentContentType:
 
     IMAGE = "image"
     DOCUMENT = "document"
+
+
+class AttachmentOrigin(str, enum.Enum):
+    """Who produced a file (ADR-279).
+
+    Every file the assistant produced used to be stored indistinguishably from
+    something the person uploaded, so nothing could list them and a conversation
+    reset deleted the lot. Naming the producer is what gives the person a
+    gallery — and what lets the reset remove ONLY what they put in.
+
+    A ``str`` enum so the column keeps a readable value and a raw string from a
+    query compares equal to a member.
+    """
+
+    #: What the person attached themselves. The only origin a conversation
+    #: reset removes.
+    UPLOAD = "upload"
+    #: ``generate_image`` / ``edit_image``.
+    GENERATED_IMAGE = "generated_image"
+    #: ``generate_document`` (ADR-226).
+    GENERATED_DOCUMENT = "generated_document"
+    #: The last frame of a browser run, kept for its card.
+    BROWSER_SCREENSHOT = "browser_screenshot"
 
 
 class Attachment(BaseModel):
@@ -94,6 +118,38 @@ class Attachment(BaseModel):
         nullable=False,
     )
 
+    # Who produced this file (ADR-279). NOT NULL with a default so every row
+    # answers the question, the pre-existing ones included.
+    origin: Mapped[str] = mapped_column(
+        String(30),
+        nullable=False,
+        default=AttachmentOrigin.UPLOAD.value,
+        server_default=AttachmentOrigin.UPLOAD.value,
+        comment=(
+            "Who produced the file: upload | generated_image | "
+            "generated_document | browser_screenshot (ADR-279). A conversation "
+            "reset removes uploads alone."
+        ),
+    )
+
+    # What the file is CALLED for a person, when its producer knew (the prompt
+    # of an image, the page a screenshot shows). NULL falls back to
+    # `original_filename`, which is all an upload ever has.
+    title: Mapped[str | None] = mapped_column(
+        String(200),
+        nullable=True,
+        default=None,
+        comment="Human-meaningful name of a generated file; NULL = use original_filename.",
+    )
+
+    # Where it was produced — a POINTER, never a copy, and SET NULL so a
+    # deleted conversation leaves the file listed rather than orphaning it.
+    conversation_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("conversations.id", ondelete="SET NULL"),
+        nullable=True,
+        default=None,
+    )
+
     # Extracted text from PDF (None for images)
     extracted_text: Mapped[str | None] = mapped_column(
         Text,
@@ -117,4 +173,8 @@ class Attachment(BaseModel):
     )
 
     # Composite index for user queries (ownership + chronological order)
-    __table_args__ = (Index("ix_attachments_user_id_created_at", "user_id", "created_at"),)
+    __table_args__ = (
+        Index("ix_attachments_user_id_created_at", "user_id", "created_at"),
+        # The gallery reads one origin family of one account, newest first.
+        Index("ix_attachments_user_id_origin_created_at", "user_id", "origin", "created_at"),
+    )

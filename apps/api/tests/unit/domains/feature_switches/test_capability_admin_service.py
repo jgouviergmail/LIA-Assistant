@@ -100,8 +100,18 @@ async def test_each_row_says_where_the_switch_is_enforced() -> None:
     # Route-enforced, no catalogue entry.
     assert rows[PlatformCapability.ATTACHMENTS.value].enforced_on_routes is True
     assert rows[PlatformCapability.ATTACHMENTS.value].enforced_in_catalogue is False
-    # Speech synthesis: enforced at a service chokepoint, reported as such.
-    assert rows[PlatformCapability.TTS.value].enforced_on_routes is True
+    # Speech synthesis: enforced at a SERVICE chokepoint, and reported as one
+    # since B7. The field used to be `route_enforced or service_enforced`, so it
+    # named routes and carried both — telling an operator a service gate was a
+    # route. The two are separate now, and the panel says which.
+    assert rows[PlatformCapability.TTS.value].enforced_on_routes is False
+    assert rows[PlatformCapability.TTS.value].enforced_in_service is True
+    assert rows[PlatformCapability.ATTACHMENTS.value].enforced_in_service is False
+
+    # Every row carries the family the panel groups it in, declared by the spec
+    # so the frontend never holds a second opinion about where a switch belongs.
+    assert rows[PlatformCapability.TTS.value].family == "media"
+    assert rows[PlatformCapability.WORKBOARD.value].family == "work"
 
 
 async def test_flipping_a_switch_writes_through_the_generic_store() -> None:

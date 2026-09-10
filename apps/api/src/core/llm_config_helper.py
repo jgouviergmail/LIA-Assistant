@@ -14,6 +14,7 @@ Usage:
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from src.core.constants import CAPABILITY_PROVENANCE_DECLARED
@@ -198,3 +199,102 @@ def get_effective_context_window(model: str) -> int:
         return caps.max_input_tokens
 
     return get_model_context_window(model)
+
+
+def get_effective_context_window_for_slot(agent_type: str) -> int:
+    """The context window ONE configured slot works with (ADR-278).
+
+    The window used to be resolved from a model NAME alone, and Ollama's came
+    from a single instance-wide variable that gave a 4 B tag and a 27 B tag the
+    same number. It is now a property of the configured slot, so two slots on
+    the same model may legitimately differ — a cheap router and an expensive
+    responder want different windows.
+
+    Resolution, first answer wins:
+
+    1. the slot's own ``context_window`` override, when an operator set one;
+    2. what the model itself declares — the discovered profile, then a curated
+       catalogue row, then the hand-maintained table
+       (:func:`get_effective_context_window`).
+
+    Every reader of the window starts from a slot (compaction, the ReAct
+    budget, the summarisation middleware, the meetings synthesis), so this is
+    the function they call; the per-model reader stays for the catalogue
+    surfaces, which have no slot.
+
+    Args:
+        agent_type: The LLM slot (``"response"``, ``"react_agent"``, ...).
+
+    Returns:
+        Context window in tokens (always > 0).
+    """
+    return resolve_context_window_for_slot(agent_type).tokens
+
+
+@dataclass(frozen=True)
+class ContextWindowResolution:
+    """The window one slot works with, and WHERE it came from (B8).
+
+    The number alone cannot be checked against anything. Which of the three
+    sources answered is what a person debugging a live exchange needs: a window
+    from the ``table`` is a DEFAULT, not a measurement — that table is wrong on
+    10 of its 56 entries — so reading it as the model's own declaration leads to
+    the wrong conclusion about why compaction fired.
+
+    Attributes:
+        tokens: The window, always > 0.
+        source: ``slot_override`` (an operator typed it), ``catalogue`` (a row
+            somebody vouched for — ``imported`` or ``verified``, ADR-244) or
+            ``table`` (the hand-maintained safety net, prefix matching and the
+            global default included).
+        slot: The LLM slot this answers for.
+        model: The model that slot is configured on.
+    """
+
+    tokens: int
+    source: str
+    slot: str
+    model: str
+
+
+def resolve_context_window_for_slot(agent_type: str) -> ContextWindowResolution:
+    """Resolve a slot's context window AND name the source that answered.
+
+    The ONE implementation of ADR-278's resolution:
+    :func:`get_effective_context_window_for_slot` returns this function's
+    ``tokens``. A second copy would eventually disagree, and the panel would
+    publish a window no reader ever used.
+
+    Args:
+        agent_type: The LLM slot.
+
+    Returns:
+        The resolution.
+    """
+    from src.core.config import settings as app_settings
+    from src.core.config.llm import get_model_context_window
+    from src.core.llm_utils import normalize_model_name
+    from src.infrastructure.llm.model_capabilities_cache import ModelCapabilitiesCache
+
+    config = get_llm_config_for_agent(app_settings, agent_type)
+    model = config.model
+    # `> 0` and not merely truthy: the write path refuses a zero, and honouring
+    # one here would make every turn look over budget.
+    if config.context_window and config.context_window > 0:
+        return ContextWindowResolution(
+            int(config.context_window), "slot_override", agent_type, model
+        )
+
+    caps = ModelCapabilitiesCache.get(model)
+    if caps is None:
+        normalized = normalize_model_name(model)
+        if normalized != model:
+            caps = ModelCapabilitiesCache.get(normalized)
+    if (
+        caps is not None
+        and caps.max_input_tokens > 0
+        and caps.capability_provenance != CAPABILITY_PROVENANCE_DECLARED
+    ):
+        return ContextWindowResolution(int(caps.max_input_tokens), "catalogue", agent_type, model)
+
+    return ContextWindowResolution(get_model_context_window(model), "table", agent_type, model)

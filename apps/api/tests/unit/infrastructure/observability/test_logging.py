@@ -10,6 +10,7 @@ Target: 69% → 80%+ coverage
 import logging
 from unittest.mock import Mock, patch
 
+import pytest
 from opentelemetry import trace
 from opentelemetry.trace import SpanContext, TraceFlags
 
@@ -19,6 +20,41 @@ from src.infrastructure.observability.logging import (
     get_logger,
     get_router_debug_logger,
 )
+
+
+@pytest.fixture(autouse=True)
+def _restore_structlog_configuration():
+    """Put structlog back the way this module found it.
+
+    ``configure_logging()`` is called for real several times below, and it
+    configures structlog GLOBALLY with ``cache_logger_on_first_use=True`` plus a
+    root stdlib handler. Left in place, a logger bound before the next test
+    keeps its cached bound logger and ignores any processor chain installed
+    afterwards. This module is the only one in the suite that configures
+    structlog for real, and it left that configuration behind for every test
+    that ran after it in the same worker — the class of leak the release of
+    2026-09-10 paid for with five unrestored process globals.
+
+    The root handlers are restored too: this module installs one on every call,
+    and they accumulate across a session otherwise.
+
+    (It is NOT proven to be the cause of the two order-dependent failures seen
+    on 2026-09-10 in `test:backend:unit:fast`; running this module immediately
+    before them does not reproduce. Restoring global state a test changed is
+    correct on its own terms.)
+    """
+    import structlog
+
+    saved = structlog.get_config()
+    root = logging.getLogger()
+    saved_handlers = list(root.handlers)
+    saved_level = root.level
+    try:
+        yield
+    finally:
+        structlog.configure(**saved)
+        root.handlers = saved_handlers
+        root.setLevel(saved_level)
 
 
 class TestAddOpenTelemetryContext:

@@ -58,6 +58,28 @@ SELECTORS_READ_BY: dict[str, frozenset[str]] = {
     "yearly": frozenset({"bymonth", "bymonthday"}),
 }
 
+#: The day-of-month value that means "the last one", whatever the month holds.
+#: A MARKER, never a day number: every reader that orders or words a day of
+#: month must treat it as such.
+LAST_DAY_MARKER = -1
+
+
+def day_sort_key(day: int) -> tuple[bool, int]:
+    """Canonical order for days of month: 1..31 ascending, then the marker.
+
+    The single ordering rule of the package. :data:`LAST_DAY_MARKER` is not a
+    day before the first, so it sorts LAST — and a reader that re-sorts with a
+    plain ``sorted`` undoes exactly that (measured 2026-09-10: "Le -1 et 1").
+
+    Args:
+        day: A day of month, or the marker.
+
+    Returns:
+        The sort key.
+    """
+    return (day < 0, day)
+
+
 #: How a recurrence walks the calendar. ``once`` is a recurrence of one.
 RecurrenceFreq = Literal["once", "daily", "weekly", "monthly", "yearly"]
 
@@ -121,7 +143,7 @@ def _canonical(values: object) -> object:
         return values
     if not all(isinstance(v, int) and not isinstance(v, bool) for v in values):
         return values
-    return tuple(sorted(set(values), key=lambda v: (v < 0, v)))
+    return tuple(sorted(set(values), key=day_sort_key))
 
 
 class DailyTimes(BaseModel):
@@ -342,6 +364,7 @@ class RecurrenceSpec(BaseModel):
         self._validate_ranges()
         self._validate_once()
         self._validate_reachable_dates()
+        self._validate_end_after_anchor()
         return self
 
     def _validate_selectors(self) -> None:
@@ -431,6 +454,29 @@ class RecurrenceSpec(BaseModel):
         )
         if not reachable:
             raise RecurrenceError("no calendar date matches these months and days of month")
+
+    def _validate_end_after_anchor(self) -> None:
+        """Refuse a series whose last day precedes its first.
+
+        The engine walks days from the anchor and stops at the first one past
+        ``end.on_date``, so such a spec yields nothing — it is the same dead
+        shape as the 30th of February, reached the other way. Measured
+        2026-09-10: accepted, and the routine surface filed it ACTIVE with a
+        null trigger, which is exactly the routine that does not say it is
+        dead.
+
+        The rule is structural, never chronological: a series entirely in the
+        past is a legitimate shape this model has no clock to judge, and its
+        consumer refuses it where it knows the instant.
+
+        Raises:
+            RecurrenceError: When the end date precedes the anchor.
+        """
+        if self.end.on_date is None or self.end.on_date >= self.anchor_date:
+            return
+        raise RecurrenceError(
+            f"end kind=on_date ({self.end.on_date}) precedes anchor_date ({self.anchor_date})"
+        )
 
     def per_day(self) -> int:
         """How many moments a SERVED day carries.

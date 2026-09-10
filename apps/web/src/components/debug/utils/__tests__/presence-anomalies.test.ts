@@ -152,3 +152,64 @@ describe('collectAnomalies', () => {
     expect(anomalies.map(a => a.section)).toContain('react_execution');
   });
 });
+
+describe('the two registers are present when they hold something (B8)', () => {
+  it('files an acting turn among the present sections, not the idle ones', () => {
+    // Neither had a predicate, so both fell to the falsy branch and were
+    // folded behind « N idle sections » on a turn that acted and consulted.
+    const presence = sectionPresence({
+      ...BASE,
+      performed_effects: { entries: [], count: 2, failed_count: 0 },
+      registers: {
+        decision: null,
+        treatments: {
+          entries: [
+            { tool_name: 'get_emails_tool', mutation_policy: 'read', outcome: 'ok', duration_ms: 8 },
+          ],
+          count: 1,
+          failed_count: 0,
+        },
+      },
+    } as never);
+
+    expect(presence.performed_effects).toBe(true);
+    expect(presence.registers).toBe(true);
+  });
+
+  it('leaves a turn that did and consulted nothing idle', () => {
+    const presence = sectionPresence({
+      ...BASE,
+      performed_effects: { entries: [], count: 0, failed_count: 0 },
+      registers: {
+        decision: null,
+        treatments: { entries: [], count: 0, failed_count: 0 },
+      },
+    } as never);
+
+    expect(presence.performed_effects).toBe(false);
+    expect(presence.registers).toBe(false);
+  });
+
+  it('is present on the strength of the turn record alone', () => {
+    // A turn that consulted nothing still HAS a decision row, and that is the
+    // spine a reader looks for.
+    const presence = sectionPresence({
+      ...BASE,
+      registers: {
+        decision: {
+          run_id: 'r',
+          source: 'user',
+          execution_mode: 'pipeline',
+          route: null,
+          plan_step_count: null,
+          outcome: 'interrupted',
+          stop_reason: null,
+          settled: false,
+        },
+        treatments: { entries: [], count: 0, failed_count: 0 },
+      },
+    } as never);
+
+    expect(presence.registers).toBe(true);
+  });
+});

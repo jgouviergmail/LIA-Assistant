@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.44.0</strong> — <strong>A unit of work with a lifecycle, a holder and a result.</strong> A provider's task list has no lifecycle and no holder; a reminder is a push at an instant, and nothing survives the ring; a routine is a repeated instruction that never ends. The <strong>workboard</strong> holds what none of them held — one row per ticket, shared by its owner and its holder, across seven columns — and the holder can be LIA, which claims one ticket per sweep, runs it out of turn and writes back what it did. <strong>Meeting an action it cannot take alone, it asks instead of refusing</strong>: the confirmation card the chat would have shown is written on the ticket, and answering is one comment — yes, no, or what to change. What was shown is replayed under a digest lock, so an approval covers that exact action and nothing wider. Two measurements shaped the design: a <code>CHECK</code> constraint spanning two columns a foreign-key action can touch is violable whichever way the cascades fire — <strong>invisible to twenty green model tests, caught at the first real <code>DELETE FROM users</code></strong> — and the stream chunk the run engine waited for is <strong>emitted by nothing</strong>, so a clarification settled as a success for six green lots. Beside it, <strong>the settings sections you actually use, pinned in a floating dock on every screen</strong>. — 10 September 2026.
+  <strong>Version 1.44.1</strong> — <strong>What LIA makes belongs to the person, not to the conversation.</strong> Generated images, reports, decks and browser screenshots were written to the attachments table, <strong>indistinguishable from an upload</strong>: nothing listed them, the only route to yesterday's report was the conversation that produced it, and clearing that conversation also cleared last week's images in other conversations. Three galleries hold them now, the retention deadline is stated <em>before</em> it falls, and a reset removes only what the person put there. Beside it, <strong>an operator can switch off every feature a person experiences</strong>: the panel offered twelve capabilities while the product shipped twenty-five — the workboard, journals, habits, long-term memory, proactive notifications and eight more could only be turned off by redeploying — and the partition is now checked both ways, so a feature shipped without a switch refuses to boot. And <strong>the context window belongs to the configured slot</strong>: one environment variable used to fix it for every Ollama model at once, asking a 4-billion-parameter model for the same window as a 27-billion one. — 10 September 2026.
 </p>
 
 ---
@@ -78,7 +78,7 @@
 | **Unpredictable LLM costs**     | Real-time token tracking, budget alerts, 93% optimization                                    |
 | **Uncontrolled hallucinations** | Human-in-the-Loop (HITL) with 6 approval levels                                              |
 | **Fragmented integrations**     | Unified multi-domain orchestration (20+ agents + MCP + sub-agents)                           |
-| **Limited observability**       | 450+ Prometheus metrics, 28 Grafana dashboards (including a product-value cockpit), email alerting with runbooks, GeoIP analytics |
+| **Limited observability**       | 547 Prometheus metrics, 29 Grafana dashboards (including a product-value cockpit), email alerting with runbooks, GeoIP analytics |
 | **Inconsistent performance**    | Gemini embedding-001 with asymmetric task types, semantic routing with hybrid scoring        |
 
 ### Primary Use Cases
@@ -116,8 +116,8 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **47** functional domains | **650,000** lines of code (excl. tests) | **35,000+** automated tests | **276** ADRs                                                           |
-| **253** versions shipped  | **6 languages**, parity enforced in CI  | **547** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **47** functional domains | **655,000** lines of code (excl. tests) | **36,000+** automated tests | **279** ADRs                                                           |
+| **254** versions shipped  | **6 languages**, parity enforced in CI  | **547** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, 7 open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -289,6 +289,31 @@ The result is measured, not proclaimed:
 - **Everything is a published setting** (ADR-184): the sweep interval, the run timeout, attempts, the quota retry, the per-account ticket ceiling, sub-tickets, runs per ticket, hidden-row retention, field lengths and the nudge windows. Boot refuses a timeout shorter than the sweep interval, since the reaper would release runs still in flight.
 - **A board is read before it is read**: the priority is the card's leading edge and never a badge, the holder leads the card, the bell sits before the due date, « overdue » is a second line under a date that stays, and a late card wears an inner frame that breathes only where motion is welcome. Below `lg` nothing drags: a swipe changes column, a finger anywhere on a card opens it, and the column and the holder are two lists on the card — every item wearing its own glyph.
 
+### My Generated Files — What LIA Produced Belongs to the Person ([ADR-279](docs/architecture/ADR-279-Generated-Assets-Gallery.md))
+
+Generated images, documents and browser screenshots live in the attachments
+table like everything else, and used to be **indistinguishable from an upload**:
+nothing listed them, the only route to yesterday's report was the conversation
+that produced it, and clearing that conversation cleared last week's images too.
+
+- **Three galleries, one per family** — images, documents and browser
+  screenshots, mounted one at a time. Search on the title and the filename, two
+  date windows, four sort orders; the page and its **exact total** come out of
+  the same `WHERE`, and the page cap is published in the response because it is
+  enforced.
+- **A file carries the name its producer knew** — "Quarterly review", never the
+  UUID on disk — and **its deadline**, whose tone warms six hours before the
+  retention period ends. The gallery makes the deadline visible; it does not
+  push it back.
+- **A reset removes what the person put there** — the deletion takes a family of
+  origins and the conversation reset passes uploads alone, so what LIA produced
+  survives the conversation that produced it. Uploading and consulting are two
+  capabilities sharing a table, so the upload switch guards the upload route
+  alone: turning it off never closes the door on files already produced.
+- **"Deleted" means gone** — an id the caller does not own, an upload, a row the
+  cleanup removed between the listing and the click, and the same id sent twice
+  are all **skipped**, never counted as removals.
+
 ### Pinned Settings Sections in a Floating Dock ([ADR-277](docs/architecture/ADR-277-Settings-Shortcuts-Dock.md))
 
 - **What is pinned belongs to the account, where the dock sits belongs to the device**: the list travels in one nullable JSONB column and follows the person to every browser they sign in from; the dock's position and folded state stay in that device's `localStorage`, outside the purge registry for the same reason the eyes' position is.
@@ -437,7 +462,7 @@ ExecutionStep(
 - **Offline PWA**: one unified service worker serves push and a branded 6-language offline page; `/api/` is never cached — ADR-146
 - **Per-User Usage Limits**: Token, message, and cost quotas (period/global) with 5-layer defense-in-depth enforcement, admin kill switch, real-time dashboard with WebSocket gauges. Feature flag: `USAGE_LIMITS_ENABLED=true`
 - **Instance Daily Spend Ceiling**: a durable UTC ledger caps what the whole deployment may spend in a day, not what one account consumes — atomic UPSERT with column arithmetic inside the transaction that persists the run's token summary, so concurrent runs can never lose spend to a read-modify-write race. Two bounds compose (`INSTANCE_DAILY_BUDGET_EUR` and an admin setting) and the smaller wins. Unlike per-user limits, which fail **open**, an unknown instance spend fails **closed**; refusals carry a dedicated code and a `Retry-After` to the next UTC midnight — ADR-216
-- **Administrable Platform Capabilities**: ten non-connector capabilities switch off from the admin panel with no redeploy, each declaring the mode by which it is really enforced — planner catalogue exclusion, a route dependency refusing with a stable code, or an internal chokepoint for capabilities that have no route at all. Two boot guards recalculate the declaration against the live agent catalogue and the live routers — ADR-217
+- **Administrable Platform Capabilities**: twenty-five capabilities — every feature a person actually experiences — switch off from the admin panel with no redeploy, grouped into six families declared by the backend so the panel and the registry cannot disagree about where a capability belongs. Each row declares the mode by which it is really enforced: planner catalogue exclusion, a route dependency refusing with a stable code, or an internal chokepoint read at call time, so an operator's switch takes effect without a restart. **A switch removes the capability, never the record** — switching memory off stops new facts being learned while every memory already learned stays readable and deletable. The partition is checked BOTH ways against a list a person maintains: a feature shipped without a switch fails the boot, and so does a switch nobody decided to ship — ADR-217, ADR-280
 - **Backups**: Automated daily PostgreSQL dumps (pg_dump sidecar, daily/weekly/monthly rotation, all `.env`-driven) with a tested one-command restore and a verification drill (`task backup:verify`) — ADR-109, runbook in `docs/runbooks/DATABASE_BACKUP_RESTORE.md`
 
 ### Transparency Registers — What Was Done, What Was Read, and Who Asked ([ADR-263](docs/architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md), [ADR-270](docs/architecture/ADR-270-Spend-Roads-And-Register-Authorship.md), [ADR-273](docs/architecture/ADR-273-Complete-Register-Extractions.md))
@@ -663,7 +688,7 @@ A web-based administration panel covering every operational aspect:
 | **Debug Settings**           | Toggle debug panel visibility, configure diagnostic verbosity per user                                                                                                                                                                                                                                                            |
 | **Usage Limits**             | Per-user token/message/cost quotas (period + global), real-time gauges, manual block/unblock, WebSocket live updates                                                                                                                                                                                                              |
 | **Instance Daily Budget**    | Instance-wide spend ceiling in euros (ADR-216) — today's spend, run count, the ceiling that actually applies and what remains. The operator value may only tighten the deployment bound, never widen it, and the panel shows both side by side                                                                                     |
-| **Platform Capabilities**    | Ten capabilities (dictation, speech, images, uploads, document spaces, web search, browsing, skills, MCP, telephony) switched off instantly without redeploying (ADR-217) — each row shows the deployment bound, the operator choice and the state actually enforced, with an "Unavailable" badge and its reason                    |
+| **Platform Capabilities**    | Twenty-five capabilities in six families — media and voice, memory and knowledge, reach and tools, work and initiative, people, assistant — switched off instantly without redeploying (ADR-217, ADR-280). Each row shows the deployment bound, the operator choice and the state actually enforced, with an "Unavailable" badge and its reason, and says whether the switch bites on the routes, at an internal chokepoint, or both              |
 | **Public Demo Link**         | Publish or retract the guided showroom link surfaced to visitors                                                                                                                                                                                                                                                                  |
 | **Consumption Export**       | CSV export of token usage, Google API usage, and aggregated consumption per user/period                                                                                                                                                                                                                                           |
 
@@ -1001,11 +1026,19 @@ OpenAI compatibility layer, which is what makes the difference:
 - **Thinking is controlled, not endured** — the configured depth reaches the server
   as `think`, including switching it off entirely, and the thinking trace comes back
   separated from the answer (streamed to the progress panel, as for DeepSeek).
+- **The context window belongs to the configured slot** ([ADR-278](docs/architecture/ADR-278-Per-Slot-Context-Window.md)) — a
+  frugal router and a generous responder can run the same model and deserve
+  different windows, which one instance-wide setting made impossible. The field is
+  pre-filled with what the server says about the tag and the model's own maximum is
+  shown below it; emptying it hands the slot back to the model. It is the number LIA
+  *asks* for and the number it *counts* with, so a local tag stays under the VRAM cap
+  while a cloud tag keeps its whole window.
 - **The server declares the capabilities** — tools, vision, thinking and context
-  length are read from `/api/show` and feed both the runtime and the administration
+  length are read from the tag listing first, `/api/show` filling in only what the
+  listing left incomplete, and feed both the runtime and the administration
   screen, so a depth never reaches a model that cannot think, and a control a local
   model would ignore is not offered.
-- **The context window is requested, not assumed** — `OLLAMA_NUM_CTX`, else the
+- **The context window is requested, not assumed** — the slot's own field, else the
   model's own maximum capped at 32768. The same number decides when the history is
   summarised, so the accounting and the server agree.
 - **Output cap, structured output and usage are native** — `num_predict`, the
@@ -1021,7 +1054,7 @@ OpenAI compatibility layer, which is what makes the difference:
 | DeepSeek   | **deepseek-v4-flash, deepseek-v4-pro** (V4 family — thinking-mode toggle, v1.19.1+), deepseek-chat (V3, legacy), deepseek-reasoner (R1, legacy) | Cost-effective reasoning. V4 supports tools + structured output via JSON-mode fallback when thinking is on.                     |
 | Perplexity | sonar-small/large-128k-online                                                                                                                   | Web-augmented responses. Base URL configurable via `PERPLEXITY_BASE_URL` env var (v1.19.1+).                                    |
 | Qwen       | qwen3-max, qwen3.5-plus, qwen3.5-flash                                                                                                          | Thinking + tools + vision (Alibaba Cloud DashScope). Base URL configurable via `QWEN_BASE_URL` (regional US/CN swap, v1.19.1+). |
-| Ollama     | Any local model (capabilities discovered from the server)                                                                                       | Zero API cost, self-hosted. **Native client** (`langchain-ollama`): thinking control, `num_ctx`, grammar-constrained JSON, usage on every response. `OLLAMA_BASE_URL` (server root) + optional `OLLAMA_NUM_CTX`. |
+| Ollama     | Any local model (capabilities discovered from the server)                                                                                       | Zero API cost, self-hosted. **Native client** (`langchain-ollama`): thinking control, `num_ctx`, grammar-constrained JSON, usage on every response. `OLLAMA_BASE_URL` (server root); the context window is set per LLM slot (ADR-278). |
 
 ### Observability
 
@@ -1081,7 +1114,7 @@ OpenAI compatibility layer, which is what makes the difference:
 
 ### Architecture Decision Records (ADR)
 
-276 ADR files (ADR-001 through ADR-277 — ADR-008 has no separate file) documenting major architectural decisions:
+279 ADR files (ADR-001 through ADR-280 — ADR-008 has no separate file) documenting major architectural decisions:
 
 - [ADR-007: Service Layer Pattern for Node Complexity](./docs/architecture/ADR-007-Service-Layer-Pattern-For-Node-Complexity.md)
 - [ADR-048: Semantic Tool Router](./docs/architecture/ADR-048-Semantic-Tool-Router.md)

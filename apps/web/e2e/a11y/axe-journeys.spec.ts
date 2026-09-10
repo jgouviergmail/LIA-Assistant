@@ -397,6 +397,70 @@ ${summary}`
     ).toHaveLength(0);
   });
 
+  test('the generated files gallery scans clean, folded and open', async ({
+    page,
+    authenticate,
+    mockApi,
+  }, testInfo) => {
+    // The section is a grid of cards, each carrying a checkbox, a thumbnail
+    // that is also a link, and three controls — the shape where an accessible
+    // name is easiest to lose. It is scanned OPEN, filters unfolded, so the
+    // scan covers the controls too rather than a page that happens to hide
+    // them.
+    await authenticate({ language: 'en' });
+    await mockApi([
+      {
+        url: /\/api\/v1\/generated-assets\?/,
+        json: {
+          items: [
+            {
+              id: 'a1b2c3d4-0000-4000-8000-0000000000a1',
+              title: 'Quarterly review',
+              original_filename: 'generated_review.png',
+              mime_type: 'image/png',
+              file_size: 2048,
+              origin: 'generated_image',
+              conversation_id: null,
+              created_at: '2026-09-10T08:00:00Z',
+              expires_at: '2026-09-11T08:00:00Z',
+            },
+          ],
+          total: 1,
+          total_bytes: 2048,
+          limit: 24,
+          offset: 0,
+          max_limit: 100,
+        },
+      },
+      {
+        url: '**/api/v1/attachments/**',
+        handler: async route => {
+          await route.fulfill({
+            status: 200,
+            contentType: 'image/png',
+            body: Buffer.from(
+              'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+              'base64'
+            ),
+          });
+        },
+      },
+    ]);
+    await page.goto('/en/dashboard/settings?section=generated-assets');
+    await expect(page.getByText('Quarterly review')).toBeVisible({ timeout: 20_000 });
+
+    const { blocking, summary } = await scanPage(
+      page,
+      testInfo,
+      '/dashboard/settings#generated-assets'
+    );
+    expect(
+      blocking,
+      `axe violations on the generated files gallery:
+${summary}`
+    ).toHaveLength(0);
+  });
+
   test('settings search results scan clean', async ({ page, authenticate, mockApi }, testInfo) => {
     // The listbox exists only while a query is typed, so the scan above never
     // sees it: an unlabelled listbox, an option without a name or a `mark` with

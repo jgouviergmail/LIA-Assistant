@@ -49,6 +49,11 @@ NODES_WITHOUT_A_SETTINGS_DESTINATION = {
     # Document generation is an instance-level capability with no per-account
     # setting — there is no switch for a reader to find.
     "documents",
+    # The Relations page IS the destination (ADR-269 puts the debrief switch
+    # there, where the result is shown), and it is not a settings section. The
+    # node used to point at « open loops », which is what it counted — the same
+    # mislabelling, seen from the other end.
+    "relations",
 }
 
 

@@ -45,6 +45,8 @@ from src.domains.agents.services.memory_extraction_parsing import (
     parse_extraction_result,
 )
 from src.domains.agents.utils.extraction_guards import enforce_delete_cap
+from src.domains.feature_switches.registry import PlatformCapability, is_capability_enabled
+from src.domains.memories.protection import automated_edit_refusal
 from src.domains.shared.extraction_targets import (
     find_last_user_message,
     is_synthetic_message,
@@ -352,7 +354,10 @@ async def extract_memories_background(
     from src.infrastructure.database.session import get_db_context
 
     try:
-        if not settings.memory_extraction_enabled:
+        # The DEPLOYMENT ceiling and the operator's switch, composed (B7). The
+        # memories router stays open either way: a switch removes the ability
+        # to learn, never the record already learned.
+        if not await is_capability_enabled(PlatformCapability.MEMORY):
             if parent_run_id:
                 _cache_debug_result(
                     parent_run_id,
@@ -654,12 +659,17 @@ async def extract_memories_background(
                             repo = _Repo(db)
                             memory = await repo.get_by_id(UUID(action.memory_id))
                             if memory and str(memory.user_id) == user_id:
+                                # A directive may be CORRECTED — that is the
+                                # whole point — so only a pinned row stops an
+                                # update. The shared predicate keeps the two
+                                # branches from drifting.
                                 if memory.pinned:
                                     logger.info(
-                                        "memory_extraction_pinned_skip",
+                                        "memory_extraction_skipped",
                                         user_id=user_id,
                                         action="update",
                                         memory_id=action.memory_id,
+                                        reason="pinned",
                                     )
                                     continue
                                 # Lot 2-B1: an automated correction supersedes —
@@ -739,12 +749,16 @@ async def extract_memories_background(
                             repo = _Repo(db)
                             memory = await repo.get_by_id(UUID(action.memory_id))
                             if memory and str(memory.user_id) == user_id:
-                                if memory.pinned:
+                                # A dictated directive is corrected, never
+                                # deleted; a pinned row is user-locked.
+                                refusal = automated_edit_refusal(memory)
+                                if refusal:
                                     logger.info(
-                                        "memory_extraction_pinned_skip",
+                                        "memory_extraction_skipped",
                                         user_id=user_id,
                                         action="delete",
                                         memory_id=action.memory_id,
+                                        reason=refusal,
                                     )
                                     continue
                                 # Lot 2-B1: automated deletion is an invalidation

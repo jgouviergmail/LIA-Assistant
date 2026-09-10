@@ -33,13 +33,21 @@ from src.domains.channels.schemas import (
     OTPGenerateResponse,
 )
 from src.domains.channels.service import ChannelService
+from src.domains.feature_switches.guard import capability_dependencies
+from src.domains.feature_switches.registry import PlatformCapability
 from src.domains.users.models import User
 from src.infrastructure.async_utils import safe_fire_and_forget
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/channels", tags=["Channels"])
+router = APIRouter(
+    prefix="/channels",
+    tags=["Channels"],
+    # The deployment ceiling already decides whether this router is
+    # mounted at all; this is the operator's switch inside it (B7).
+    dependencies=capability_dependencies(PlatformCapability.CHANNELS),
+)
 
 
 def _get_telegram_bot_username() -> str | None:

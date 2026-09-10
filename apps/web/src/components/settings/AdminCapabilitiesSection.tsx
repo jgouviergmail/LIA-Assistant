@@ -29,10 +29,120 @@ export interface CapabilitySwitch {
   /** What the runtime enforces: switch AND deployment. */
   effective_enabled: boolean;
   enforced_in_catalogue: boolean;
+  /** A route dependency refuses it. */
   enforced_on_routes: boolean;
+  /**
+   * An internal chokepoint refuses it — speech synthesis, memory extraction,
+   * the sandbox. Split from `enforced_on_routes` in B7, which used to carry
+   * both and told an operator a service gate was a route.
+   */
+  enforced_in_service?: boolean;
+  /** Which group the panel draws it in; declared by the backend spec. */
+  family?: string;
   updated_by: string | null;
   updated_at: string | null;
   is_default: boolean;
+}
+
+/**
+ * The order the panel draws its families in.
+ *
+ * The DECLARATION's order, never the payload's: an operator who switched
+ * something must find the panel where they left it. A family the backend sends
+ * that is not listed here is drawn last rather than dropped — an invisible
+ * switch is worse than a misplaced one.
+ */
+const FAMILY_ORDER: readonly string[] = [
+  'media',
+  'knowledge',
+  'reach',
+  'work',
+  'people',
+  'assistant',
+];
+
+/**
+ * Group the switches by family, in the declared order.
+ *
+ * @param rows - What the admin API returned.
+ * @returns One entry per non-empty family, families in `FAMILY_ORDER` first
+ *   and any unknown one after, each keeping the payload's own order inside.
+ */
+function groupByFamily(rows: readonly CapabilitySwitch[]): [string, CapabilitySwitch[]][] {
+  const byFamily = new Map<string, CapabilitySwitch[]>();
+  for (const row of rows) {
+    const family = row.family ?? 'assistant';
+    const bucket = byFamily.get(family);
+    if (bucket) bucket.push(row);
+    else byFamily.set(family, [row]);
+  }
+  const known = FAMILY_ORDER.filter(family => byFamily.has(family));
+  const unknown = [...byFamily.keys()].filter(family => !FAMILY_ORDER.includes(family));
+  return [...known, ...unknown].map(family => [family, byFamily.get(family) ?? []]);
+}
+
+/**
+ * Where a switch actually bites, in one sentence.
+ *
+ * @param capability - The row.
+ * @param t - The caller's translator.
+ * @returns The sentence the row carries under its description.
+ */
+function enforcementLine(
+  capability: CapabilitySwitch,
+  t: (key: string) => string
+): string {
+  const prefix = 'settings.admin.capabilities.';
+  if (!capability.deployment_available) return t(`${prefix}deploymentBlocked`);
+  if (capability.enforced_in_catalogue && capability.enforced_on_routes) {
+    return t(`${prefix}enforcedBoth`);
+  }
+  if (capability.enforced_in_catalogue) return t(`${prefix}enforcedCatalogue`);
+  // Split in B7: five capabilities are enforced at an internal chokepoint, and
+  // saying « routes » about them told an operator something untrue.
+  if (capability.enforced_on_routes) return t(`${prefix}enforcedRoutes`);
+  return t(`${prefix}enforcedService`);
+}
+
+/** One switch: what it is, where it bites, and whether it can move. */
+function CapabilityRow({
+  capability,
+  saving,
+  onToggle,
+  t,
+}: {
+  capability: CapabilitySwitch;
+  saving: boolean;
+  onToggle: (capability: CapabilitySwitch, checked: boolean) => Promise<void>;
+  t: (key: string) => string;
+}) {
+  const switchId = `capability-${capability.capability}`;
+  const blockedByDeployment = !capability.deployment_available;
+  return (
+    <div className="flex flex-col gap-3 rounded-lg border border-border p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0 flex-1 space-y-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <Label htmlFor={switchId} className="text-sm font-medium">
+            {t(capability.label_key)}
+          </Label>
+          {blockedByDeployment && (
+            <Badge variant="secondary">
+              {t('settings.admin.capabilities.unavailableBadge')}
+            </Badge>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground">{t(`${capability.label_key}_description`)}</p>
+        <p className="text-xs text-muted-foreground">{enforcementLine(capability, t)}</p>
+      </div>
+      <Switch
+        id={switchId}
+        checked={capability.switch_enabled}
+        disabled={saving || blockedByDeployment}
+        onCheckedChange={checked => void onToggle(capability, checked)}
+        aria-label={t(capability.label_key)}
+      />
+    </div>
+  );
 }
 
 /**
@@ -93,50 +203,28 @@ export default function AdminCapabilitiesSection({ lng }: BaseSettingsProps) {
     <div className="space-y-4">
       <InfoBox>{t('settings.admin.capabilities.intro')}</InfoBox>
 
-      <div className="space-y-3">
-        {(capabilities ?? []).map(capability => {
-          const switchId = `capability-${capability.capability}`;
-          const blockedByDeployment = !capability.deployment_available;
-          return (
-            <div
+      {groupByFamily(capabilities ?? []).map(([family, rows]) => (
+        <section
+          key={family}
+          role="group"
+          data-family={family}
+          aria-label={t(`settings.admin.capabilities.families.${family}`)}
+          className="space-y-3"
+        >
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {t(`settings.admin.capabilities.families.${family}`)}
+          </h3>
+          {rows.map(capability => (
+            <CapabilityRow
               key={capability.capability}
-              className="flex flex-col gap-3 rounded-lg border border-border p-4 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div className="flex-1 space-y-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Label htmlFor={switchId} className="text-sm font-medium">
-                    {t(capability.label_key)}
-                  </Label>
-                  {blockedByDeployment && (
-                    <Badge variant="secondary">
-                      {t('settings.admin.capabilities.unavailableBadge')}
-                    </Badge>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {t(`${capability.label_key}_description`)}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {blockedByDeployment
-                    ? t('settings.admin.capabilities.deploymentBlocked')
-                    : capability.enforced_in_catalogue && capability.enforced_on_routes
-                      ? t('settings.admin.capabilities.enforcedBoth')
-                      : capability.enforced_in_catalogue
-                        ? t('settings.admin.capabilities.enforcedCatalogue')
-                        : t('settings.admin.capabilities.enforcedRoutes')}
-                </p>
-              </div>
-              <Switch
-                id={switchId}
-                checked={capability.switch_enabled}
-                disabled={saving || blockedByDeployment}
-                onCheckedChange={checked => void handleToggle(capability, checked)}
-                aria-label={t(capability.label_key)}
-              />
-            </div>
-          );
-        })}
-      </div>
+              capability={capability}
+              saving={saving}
+              onToggle={handleToggle}
+              t={t}
+            />
+          ))}
+        </section>
+      ))}
     </div>
   );
 

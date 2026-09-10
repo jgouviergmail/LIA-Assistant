@@ -57,17 +57,21 @@ class TestComputeEffectiveThreshold:
     """Tests for dynamic threshold computation."""
 
     @patch("src.domains.agents.services.compaction_service.settings")
-    @patch("src.domains.agents.services.compaction_service.get_llm_config_for_agent")
-    @patch("src.domains.agents.services.compaction_service.get_effective_context_window")
-    def test_dynamic_ratio(self, mock_ctx_window, mock_config, mock_settings, service):
-        """Threshold = context_window * ratio when no absolute override."""
+    @patch("src.domains.agents.services.compaction_service.get_effective_context_window_for_slot")
+    def test_dynamic_ratio(self, mock_ctx_window, mock_settings, service):
+        """Threshold = context_window * ratio when no absolute override.
+
+        The window is read from the RESPONSE SLOT (ADR-278), so an operator who
+        narrowed that slot narrows the compaction trigger with it — the reader
+        no longer starts from a model name.
+        """
         mock_settings.compaction_token_threshold = 0
         mock_settings.compaction_threshold_ratio = 0.4
-        mock_config.return_value = MagicMock(model="claude-sonnet-4-6")
         mock_ctx_window.return_value = 200_000
 
         result = service.compute_effective_threshold()
         assert result == 80_000
+        mock_ctx_window.assert_called_once_with("response")
 
     @patch("src.domains.agents.services.compaction_service.settings")
     def test_absolute_override(self, mock_settings, service):

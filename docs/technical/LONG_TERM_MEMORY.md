@@ -169,6 +169,34 @@ en silence. C'est exactement ce qui est arrivé à `procedural` jusqu'au
 2026-08-28 — le parseur rejetait la catégorie que le prompt d'extraction
 demandait, et l'échec était journalisé en `debug`.
 
+### Une directive se corrige, elle ne se supprime pas (2026-09-10)
+
+Toutes les catégories portent un FAIT que LIA a inféré et peut ré-inférer.
+`procedural` non : elle porte les consignes que la personne a **dictées** sur
+la façon dont LIA doit travailler pour elle (ADR-236) — « réponds-moi toujours
+en français », « ne m'appelle jamais après 20 h ». Un balayage qui en fait
+disparaître une change le comportement de l'assistante en silence, et personne
+ne peut désigner le moment où c'est arrivé.
+
+La règle n'est pas « cette ligne est gelée » — ce serait aussi bloquer les
+corrections qui la maintiennent vraie, et c'est pourquoi l'épinglage a été
+écarté par le propriétaire (épinglé = verrouillé par l'utilisateur). La règle
+est qu'une directive **ne quitte jamais l'ensemble actif sans successeur** :
+
+| Chemin | Une directive |
+|---|---|
+| Balayage de rétention | jamais purgée, quels que soient son score et son âge |
+| Consolidation (détruit le perdant d'une paire) | jamais appariée |
+| `delete` de l'extracteur | ignoré, et dit |
+| `invalidate_memory` (retrait sans successeur) | refusé |
+| `supersede_with_update` (retrait AVEC successeur) | autorisé — c'est une correction |
+| `update_memory` (édition sur place) | autorisé |
+| La personne qui la supprime elle-même | autorisé — c'est son acte |
+
+Le prédicat unique est `memories/protection.py::is_protected_from_deletion`,
+lu par la rétention, le service et le dépôt ; le prompt d'extraction interdit
+le `delete` sur cette catégorie et l'écran le dit à la personne.
+
 ### Exemples de Mémoires
 
 | Contenu | Category | Weight | Trigger | Nuance |

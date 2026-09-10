@@ -29,6 +29,7 @@ from sqlalchemy.orm import aliased
 from sqlalchemy.sql.elements import ColumnElement
 
 from src.domains.memories.models import Memory, MemoryCategory
+from src.domains.memories.protection import PROTECTED_CATEGORIES
 from src.infrastructure.observability.logging import get_logger
 
 
@@ -568,6 +569,10 @@ class MemoryRepository:
                     mem_a.id < mem_b.id,
                     mem_a.pinned.is_(False),
                     mem_b.pinned.is_(False),
+                    # Consolidation DESTROYS the loser of a pair, so a dictated
+                    # directive is never paired (owner arbitration 2026-09-10).
+                    mem_a.category.not_in(PROTECTED_CATEGORIES),
+                    mem_b.category.not_in(PROTECTED_CATEGORIES),
                     mem_a.invalidated_at.is_(None),
                     mem_b.invalidated_at.is_(None),
                     mem_a.embedding.is_not(None),

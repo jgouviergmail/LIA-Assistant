@@ -604,6 +604,16 @@ export interface TokenBudget {
   zone: 'safe' | 'warning' | 'critical' | 'emergency';
   strategy: string;
   fallback_active: boolean;
+  // B8 — the room the turn actually had. The four thresholds above are
+  // instance-wide settings, independent of the model configured: a turn could
+  // sit in a « safe » zone whose ceiling exceeded its model's whole window.
+  context_window?: number; // The window the response slot works with (ADR-278)
+  context_window_source?: 'slot_override' | 'catalogue' | 'table';
+  context_window_model?: string;
+  context_used_percent?: number;
+  compaction_threshold?: number; // The instant compaction fires, published
+  compaction_threshold_source?: 'absolute' | 'ratio';
+  compaction_threshold_ratio?: number;
   // v3.1: Real token consumption from LLM calls (response included)
   /** Total tokens consumed (input + output) - real value from LLM calls */
   total_consumed?: number;
@@ -676,6 +686,19 @@ export interface LLMCall {
   call_type?: 'chat' | 'embedding' | 'image_generation'; // v3.3/v3.4: call category
   sequence?: number; // v3.3: Chronological order number (per tracking context)
   started_offset_ms?: number; // v3.4: Start position on the run timeline (waterfall)
+  // B8 — what was actually SENT and what came back. Recorded since ADR-263
+  // lot 7 and published to the panel since B8; every field is null when
+  // nothing was observed, never a default the provider never saw.
+  llm_type?: string | null; // The configured SLOT, not the graph node
+  provider?: string | null; // Who served it: a model name does not say
+  status?: string | null; // The call's verdict
+  failure_kind?: string | null; // Why it failed, when it did
+  temperature?: number | null;
+  top_p?: number | null;
+  max_output_tokens?: number | null;
+  reasoning_level?: string | null;
+  reasoning_budget_tokens?: number | null;
+  params_digest?: string | null; // « these two calls were made the same way »
 }
 
 /**
@@ -1176,7 +1199,17 @@ export interface EphemeralScript {
 
 export interface ReactExecutionMetrics {
   iterations: number;
-  max_iterations: number; // Published enforced bound (settings)
+  max_iterations: number; // The hard ceiling (settings)
+  // B8 — the bound the loop ACTUALLY stops at: ADR-238's domain-span
+  // allowance, extended block by block while the loop keeps bringing results
+  // back (ADR-248). Showing the ceiling alone made a turn narrowed to four
+  // iterations read as « 4/25 », i.e. as a model that gave up.
+  iteration_budget?: number;
+  iteration_ceiling?: number;
+  starting_budget?: number; // The allowance BEFORE any extension
+  productive_iterations?: number; // What bought the extensions
+  exit_reason?: string | null; // Why it stopped; null on an interrupted turn
+  abandoned_calls?: string[]; // Asked for and never got — is the budget calibrated?
   elapsed_seconds: number; // REASONING only — tools are counted apart (ADR-256)
   tool_seconds?: number; // Time spent inside tools (absent before ADR-256)
   tool_budget_seconds?: number; // Published enforced bound for the above
@@ -1197,6 +1230,14 @@ export interface HitlMetrics {
   clarification_field: string | null;
   for_each_cancelled: boolean;
   cancellation_reason: string | null;
+  // B8 — WHICH draft, and what became of it. The CONTENT never travels: it
+  // holds recipients, subjects and bodies, and this is an admin surface.
+  draft_type?: string | null;
+  draft_id?: string | null;
+  draft_action?: string | null; // confirm | edit | cancel
+  draft_digest?: string | null; // « the person approved THIS »
+  draft_edit_iterations?: number;
+  draft_clarification_question?: string | null;
 }
 
 /**
@@ -1336,6 +1377,64 @@ export interface DebugMetrics {
   image_generation_calls?: ImageGenerationCall[]; // Optional: paid image generations
   image_generation_summary?: ImageGenerationSummary; // Optional: image-gen aggregate
   voice?: VoiceMetrics; // Optional: TTS spend (via debug_metrics_update)
+  registers?: RegistersMetrics; // B8: ADR-263's two deferred registers
+}
+
+/**
+ * RegistersMetrics — the two DEFERRED registers of ADR-263 (B8).
+ *
+ * `agent_effects` is read back from the database after the fact
+ * (`performed_effects`); these two are read from the LIVE records instead,
+ * because both recorders write on exit and the payload is emitted inside them.
+ * A database read at that instant would answer « nothing » for a turn that
+ * consulted nine sources.
+ *
+ * A consultation records the CAPABILITY, never the call: no argument ever
+ * crosses this boundary.
+ */
+export interface TreatmentEntry {
+  tool_name: string;
+  mutation_policy: string | null;
+  outcome: string;
+  duration_ms: number;
+}
+
+export interface TurnDecisionMetrics {
+  run_id: string;
+  source: string; // user | scheduled | subagent
+  execution_mode: string;
+  route: string | null;
+  plan_step_count: number | null;
+  outcome: string; // « so far »: the row is written after this is emitted
+  stop_reason: string | null;
+  settled: boolean; // Always false here — the panel must not print a verdict
+}
+
+/**
+ * One silent correction the turn made to itself (B8).
+ *
+ * Each was already counted in Prometheus, where an operator reads a RATE. Here
+ * a person reads « did it happen in THIS exchange ». The detail is a BOUNDED
+ * label — a bound name, a shape, a level — never a value the person supplied.
+ */
+export interface TurnVerdictEntry {
+  kind: string;
+  detail: string | null;
+}
+
+export interface RegistersMetrics {
+  decision: TurnDecisionMetrics | null;
+  treatments: {
+    entries: TreatmentEntry[];
+    count: number;
+    failed_count: number;
+  };
+  verdicts?: {
+    entries: TurnVerdictEntry[];
+    count: number;
+    /** What the per-turn cap dropped: a capped list must say it is capped. */
+    dropped: number;
+  };
 }
 
 /**

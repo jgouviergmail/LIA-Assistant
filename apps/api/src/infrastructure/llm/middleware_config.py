@@ -474,14 +474,19 @@ def _create_summarization_middleware(agent_model: str | None = None) -> Any | No
 
         from src.core.llm_config_helper import (
             get_effective_context_window,
-            get_llm_config_for_agent,
+            get_effective_context_window_for_slot,
         )
 
-        # Determine context window based on agent's model
-        # The summarization trigger should be based on the agent's LLM context, not the summarizer's
-        # DB-backed catalogue first, hand-maintained table as safety net.
-        effective_model = agent_model or get_llm_config_for_agent(settings, "response").model
-        context_window = get_effective_context_window(effective_model)
+        # The summarization trigger is based on the AGENT's context, never the
+        # summarizer's. An explicit model belongs to no slot (a caller named
+        # one), so it keeps the per-model reader — DB-backed catalogue first,
+        # hand-maintained table as safety net; with no model named, the RESPONSE
+        # slot's own window, override included (ADR-278).
+        context_window = (
+            get_effective_context_window(agent_model)
+            if agent_model
+            else get_effective_context_window_for_slot("response")
+        )
 
         # Convert fraction-based trigger to absolute token count
         trigger_value = settings.summarization_trigger_fraction
@@ -514,7 +519,7 @@ def _create_summarization_middleware(agent_model: str | None = None) -> Any | No
         logger.info(
             "summarization_middleware_created",
             model=summarization_model_name,
-            agent_model=effective_model,
+            agent_model=agent_model,
             context_window=context_window,
             trigger_fraction=trigger_value,
             max_tokens_before_summary=max_tokens,

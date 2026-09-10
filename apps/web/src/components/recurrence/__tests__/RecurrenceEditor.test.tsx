@@ -384,6 +384,47 @@ describe('an end date the reader cleared says why the form is stuck', () => {
   });
 });
 
+describe('an end date before the first day says so, and the control publishes the bound', () => {
+  // The API refuses a series that ends before it starts (ADR-268 amendment):
+  // it fires nothing at all. A save button that goes quiet with no sentence is
+  // the defect the block above exists to prevent, so the rule needs a message
+  // of its own — and the date control carries `min` so the native picker
+  // refuses the day before it is ever typed (ADR-184: publish what you enforce).
+
+  it('names the reversed dates instead of only disabling the save', () => {
+    setup({
+      anchor_date: '2026-09-10',
+      end: { kind: 'on_date', on_date: '2026-09-01', after_count: null },
+    });
+    expect(screen.getByText('recurrence.error_end_before_start')).toBeInTheDocument();
+  });
+
+  it('says nothing when the end falls on the first day itself', () => {
+    setup({
+      anchor_date: '2026-09-10',
+      end: { kind: 'on_date', on_date: '2026-09-10', after_count: null },
+    });
+    expect(screen.queryByText('recurrence.error_end_before_start')).not.toBeInTheDocument();
+  });
+
+  it('keeps the empty-date message for an empty date', () => {
+    setup({
+      anchor_date: '2026-09-10',
+      end: { kind: 'on_date', on_date: '', after_count: null },
+    });
+    expect(screen.getByText('recurrence.error_no_end_date')).toBeInTheDocument();
+    expect(screen.queryByText('recurrence.error_end_before_start')).not.toBeInTheDocument();
+  });
+
+  it('the date control refuses an earlier day natively', () => {
+    setup({
+      anchor_date: '2026-09-10',
+      end: { kind: 'on_date', on_date: '2026-12-31', after_count: null },
+    });
+    expect(screen.getByLabelText('recurrence.date_label')).toHaveAttribute('min', '2026-09-10');
+  });
+});
+
 describe('the shape of the day and interval rows (owner arbitration 2026-09-06)', () => {
   it('breaks the weekday row after Friday so the weekend reads as a group', () => {
     setup({ freq: 'weekly', byweekday: [1, 2] });

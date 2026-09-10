@@ -72,6 +72,7 @@ JSON array only. No markdown, no comments. Use ONLY UUIDs from EXISTING MEMORIES
 ```json
 {{"action":"delete","memory_id":"<UUID>"}}
 ```
+NEVER emit `delete` on a `procedural` memory. A standing instruction was DICTATED by the user, not inferred by you: it is corrected with an `update`, never withdrawn. If the user now wants the opposite, `update` the rule to say the opposite. Only the user removes one, from their settings. A `delete` on a `procedural` memory is refused and dropped.
 
 ## EXAMPLES
 

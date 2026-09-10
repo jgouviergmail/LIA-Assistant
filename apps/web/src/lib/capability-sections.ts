@@ -37,7 +37,13 @@ export const CAPABILITY_SECTION: Readonly<Record<string, SettingsSectionToken>> 
   images: 'image-generation',
   interests: 'interests',
   routines: 'scheduled-actions',
-  relations: 'open-loops',
+  // The node that counts open loops points at the section that holds them.
+  // It was keyed « relations » and pointed here, so « Relationships » sent a
+  // reader to their unfinished threads.
+  open_loops: 'open-loops',
+  workboard: 'workboard',
+  reminders: 'reminders',
+  generated_files: 'generated-assets',
   habits: 'habits',
   peers: 'peer-connections',
   channels: 'channels',

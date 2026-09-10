@@ -18,6 +18,8 @@ from src.core.config import settings
 from src.core.dependencies import get_db
 from src.core.session_dependencies import get_current_active_session
 from src.domains.auth.dependencies import create_user_rate_limiter
+from src.domains.feature_switches.guard import capability_dependencies
+from src.domains.feature_switches.registry import PlatformCapability
 from src.domains.peers.notifications import dispatch_peer_events
 from src.domains.peers.repository import PeersRepository
 from src.domains.peers.schemas import (
@@ -42,7 +44,13 @@ from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/peers", tags=["Peers"])
+router = APIRouter(
+    prefix="/peers",
+    tags=["Peers"],
+    # The deployment ceiling already decides whether this router is
+    # mounted at all; this is the operator's switch inside it (B7).
+    dependencies=capability_dependencies(PlatformCapability.PEERS),
+)
 
 # Read once at import, like every settings-driven module constant: the limiter
 # closure holds the values for the process lifetime.

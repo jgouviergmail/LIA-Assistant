@@ -6,12 +6,17 @@ not fine for a living map of everything the assistant can do: a dozen requests
 fired at mount, a dozen loading states, and a dozen chances for one of them to
 disagree with another about whether voice is on.
 
-So this reads them server-side, in one pass, following the briefing doctrine:
-independent probes gathered with ``asyncio.gather``, **each on its own
-session** (an ``AsyncSession`` is not safe for concurrent use), and every probe
-failing SOFT — a capability whose probe raised is reported as not-ready rather
-than taking the page down. A map that refuses to draw because one node could
-not be counted is worse than a map with one dim node.
+So this reads them server-side, in one pass: independent probes run ONE AT A
+TIME, each on its own session, and every probe fails SOFT — a capability whose
+probe raised is reported as not-ready rather than taking the page down. A map
+that refuses to draw because one node could not be counted is worse than a map
+with one dim node.
+
+They used to be gathered. Measured 2026-09-10, that held EIGHTEEN session
+contexts at the same instant against a pool of 20 plus 10 overflow, so one page
+load took most of it; sequentially the same eighteen indexed counts cost 21 ms
+instead of 10 and hold one session. « For a handful of indexed queries, a plain
+sequential loop is fine and simpler » — the rule this module was breaking.
 
 Three states, and the difference between the last two is the whole point:
 
@@ -46,7 +51,6 @@ assert closes.
 
 from __future__ import annotations
 
-import asyncio
 import importlib
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
@@ -126,6 +130,7 @@ COUNTED_NODES: tuple[_CountedNode, ...] = (
     _CountedNode(
         "memory",
         lambda: _import("memories.models", "Memory"),
+        capability=PlatformCapability.MEMORY,
         # ADR-235: invalidated memories stay in the table (supersession
         # trail) — the node counts the ACTIVE set, the figure the panel shows.
         load_filters=lambda: {"invalidated_at": None},
@@ -133,12 +138,41 @@ COUNTED_NODES: tuple[_CountedNode, ...] = (
     _CountedNode(
         "interests",
         lambda: _import("interests.models", "UserInterest"),
+        capability=PlatformCapability.INTERESTS,
         load_filters=lambda: {"status": _import("interests.models", "InterestStatus").ACTIVE.value},
     ),
     _CountedNode("routines", lambda: _import("scheduled_actions.models", "ScheduledAction")),
-    _CountedNode("relations", lambda: _import("open_loops.models", "OpenLoop")),
+    # Measured 2026-09-10: this node was keyed « relations » and labelled
+    # « Relationships » while it counted OPEN LOOPS — a reader was told they had
+    # N relationships when the figure was N unfinished threads. The key now says
+    # what it counts; « relations » becomes a switch node below, because the
+    # Relations page is a LENS over contacts and messages with no rows of its
+    # own, and inventing a count there is exactly what ADR-185 forbids.
     _CountedNode(
-        "journals", lambda: _import("journals.models", "JournalEntry"), env_flag="journals_enabled"
+        "open_loops",
+        lambda: _import("open_loops.models", "OpenLoop"),
+        capability=PlatformCapability.OPEN_LOOPS,
+    ),
+    # The board (ADR-276). Counted through the predicate that OWNS « on this
+    # person's board » — owner OR holder — rather than by re-expressing it
+    # here: the ticket table carries `owner_user_id`, not `user_id`, and a
+    # second reading of that rule would eventually disagree with the board it
+    # describes (ADR-185).
+    _CountedNode(
+        "workboard",
+        capability=PlatformCapability.WORKBOARD,
+        count_with=lambda uid: _count_workboard(uid),
+    ),
+    # Reminders: discrete and chat-created, but a person who set twelve of them
+    # has a number worth seeing.
+    _CountedNode("reminders", lambda: _import("reminders.models", "Reminder")),
+    # What LIA produced and the person kept (ADR-279). The gallery is not gated
+    # on uploads, and neither is this tally.
+    _CountedNode("generated_files", count_with=lambda uid: _count_generated_files(uid)),
+    _CountedNode(
+        "journals",
+        lambda: _import("journals.models", "JournalEntry"),
+        capability=PlatformCapability.JOURNALS,
     ),
     _CountedNode(
         "spaces",
@@ -148,7 +182,7 @@ COUNTED_NODES: tuple[_CountedNode, ...] = (
     _CountedNode(
         "channels",
         lambda: _import("channels.models", "UserChannelBinding"),
-        env_flag="channels_enabled",
+        capability=PlatformCapability.CHANNELS,
     ),
     _CountedNode(
         "skills",
@@ -163,7 +197,9 @@ COUNTED_NODES: tuple[_CountedNode, ...] = (
     ),
     # Learned habits (ADR-214) — shipped v1.28.0, same omission.
     _CountedNode(
-        "habits", lambda: _import("habits.models", "UserHabit"), env_flag="habits_enabled"
+        "habits",
+        lambda: _import("habits.models", "UserHabit"),
+        capability=PlatformCapability.HABITS,
     ),
     _CountedNode(
         "mcp_servers",
@@ -184,7 +220,9 @@ COUNTED_NODES: tuple[_CountedNode, ...] = (
     ),
     # Counted through the repository that owns the "accepted, either
     # direction" rule rather than by re-expressing it here.
-    _CountedNode("peers", env_flag="peers_enabled", count_with=lambda uid: _count_peers(uid)),
+    _CountedNode(
+        "peers", capability=PlatformCapability.PEERS, count_with=lambda uid: _count_peers(uid)
+    ),
 )
 
 #: Capabilities the account switches on rather than fills: they carry no tally,
@@ -196,6 +234,11 @@ SWITCH_NODE_KEYS: tuple[str, ...] = (
     "personality",
     "images",
     "documents",
+    # The Relations page is a LENS over contacts and messages: it owns no rows,
+    # so it has nothing exact to count and says « Active » instead of inventing
+    # a number (ADR-185). What an operator switches here is the dated synthesis
+    # LIA writes about each relationship (ADR-269).
+    "relations",
 )
 
 #: Every node key the payload can carry. The client must be able to name each.
@@ -215,6 +258,19 @@ PLATFORM_CAPABILITY_NODES: dict[PlatformCapability, str] = {
     PlatformCapability.MCP: "mcp_servers",
     PlatformCapability.TELEPHONY: "telephony",
     PlatformCapability.MEETINGS: "meetings",
+    # B7 — the thirteen. Most ride a node the map already drew; the board and
+    # the open loops get their own, and two are ambient.
+    PlatformCapability.WORKBOARD: "workboard",
+    PlatformCapability.JOURNALS: "journals",
+    PlatformCapability.HABITS: "habits",
+    PlatformCapability.HEARTBEAT: "proactivity",
+    PlatformCapability.PEERS: "peers",
+    PlatformCapability.PSYCHE: "personality",
+    PlatformCapability.CHANNELS: "channels",
+    PlatformCapability.OPEN_LOOPS: "open_loops",
+    PlatformCapability.MEMORY: "memory",
+    PlatformCapability.INTERESTS: "interests",
+    PlatformCapability.RELATION_DEBRIEF: "relations",
 }
 
 #: Capabilities deliberately absent from the map, and why. The map's third
@@ -232,6 +288,14 @@ CAPABILITIES_OFF_THE_MAP: dict[PlatformCapability, str] = {
     PlatformCapability.BROWSER: (
         "Ambient, same as web search: an ability the planner uses on its own, "
         "with nothing for the reader to configure or verify."
+    ),
+    PlatformCapability.SUB_AGENTS: (
+        "Ambient: delegation happens inside the graph, has no REST surface and "
+        "no per-account state (ADR-083). A star for it could only ever be lit."
+    ),
+    PlatformCapability.PYTHON_SANDBOX: (
+        "Ambient, and deliberately admin-only: the code a model wrote is shown "
+        "in the debug panel and nowhere else (ADR-249). Nothing to set up."
     ),
 }
 
@@ -361,6 +425,61 @@ async def _counted(
     return CapabilityProbe(node.key, available=True, active=total > 0, detail=total)
 
 
+async def _count_workboard(user_id: UUID) -> int:
+    """Tickets on this person's board — owner OR holder (ADR-276).
+
+    Args:
+        user_id: Whose board.
+
+    Returns:
+        The count, or 0 when the read failed — like every other probe.
+    """
+    try:
+        from sqlalchemy import func, select
+
+        from src.domains.workboard.board_queries import visible_predicate
+        from src.domains.workboard.models import WorkboardTicket
+
+        async with get_db_context() as db:
+            statement = (
+                select(func.count()).select_from(WorkboardTicket).where(visible_predicate(user_id))
+            )
+            return int((await db.execute(statement)).scalar() or 0)
+    except Exception as exc:  # noqa: BLE001 - a probe degrades, it never fails
+        logger.debug("capability_probe_failed", model="workboard", error=str(exc))
+        return 0
+
+
+async def _count_generated_files(user_id: UUID) -> int:
+    """Files LIA produced and the account still holds (ADR-279).
+
+    Counted through the origin vocabulary that owns « what LIA produced »
+    rather than by re-listing the three origins here — a second list would
+    eventually disagree with the gallery it describes (ADR-185).
+
+    Args:
+        user_id: Owner.
+
+    Returns:
+        The count, or 0 when the read failed — like every other probe.
+    """
+    try:
+        from sqlalchemy import func, select
+
+        from src.domains.attachments.models import Attachment
+        from src.domains.attachments.origin import GENERATED_ORIGINS
+
+        async with get_db_context() as db:
+            statement = select(func.count()).where(
+                Attachment.user_id == user_id,
+                Attachment.origin.in_([origin.value for origin in GENERATED_ORIGINS]),
+            )
+            return int((await db.execute(statement)).scalar() or 0)
+    except Exception as exc:  # noqa: BLE001 - a probe degrades, it never fails
+        logger.debug("capability_probe_failed", model="generated_files", error=str(exc))
+        return 0
+
+
 async def _count_peers(user_id: UUID) -> int:
     """Accepted peer connections, counted by the repository that owns the rule.
 
@@ -404,22 +523,34 @@ def _from_user(user: User, disabled: frozenset[PlatformCapability]) -> list[Capa
     )
     images = _offers(PlatformCapability.IMAGE_GENERATION, None, disabled)
     documents = _offers(PlatformCapability.DOCUMENT_GENERATION, None, disabled)
+    heartbeat = _offers(PlatformCapability.HEARTBEAT, None, disabled)
+    psyche = _offers(PlatformCapability.PSYCHE, None, disabled)
+    debrief = _offers(PlatformCapability.RELATION_DEBRIEF, None, disabled)
     return [
         CapabilityProbe(
             "voice",
             available=speech,
             active=speech and (user.voice_enabled or user.voice_mode_enabled),
         ),
+        # Read through the capability rather than the raw flag since B7: an
+        # operator who switched proactivity off an hour ago must not see the
+        # map announce it as available.
         CapabilityProbe(
             "proactivity",
-            available=settings.heartbeat_enabled,
-            active=settings.heartbeat_enabled and user.heartbeat_enabled,
+            available=heartbeat,
+            active=heartbeat and user.heartbeat_enabled,
         ),
         CapabilityProbe(
             "personality",
-            available=True,
-            active=user.personality_id is not None,
+            available=psyche,
+            active=psyche and user.personality_id is not None,
         ),
+        # The Relations page is a LENS over contacts and messages: it owns no
+        # rows, so it has nothing exact to count (ADR-185). What an operator
+        # switches is the dated synthesis LIA writes (ADR-269), and what a
+        # person switches is on the page itself — hence a switch node whose
+        # « active » is its availability.
+        CapabilityProbe("relations", available=debrief, active=debrief),
         # Image generation is an explicit per-account opt-in; document
         # generation has none — an instance that offers it offers it to
         # everyone, so the node is live as soon as it is available. Claiming a
@@ -432,6 +563,36 @@ def _from_user(user: User, disabled: frozenset[PlatformCapability]) -> list[Capa
         ),
         CapabilityProbe("documents", available=documents, active=documents),
     ]
+
+
+async def _probe(
+    node: _CountedNode, user_id: UUID, disabled: frozenset[PlatformCapability]
+) -> CapabilityProbe:
+    """One counted probe, which never raises.
+
+    The module promises every probe fails SOFT. That held only because each
+    counting helper happened to carry its own ``try``: a helper written without
+    one would have taken the whole page down, since the gather this replaced
+    ran with ``return_exceptions=False``. The guarantee now lives where the
+    promise is written.
+
+    A failed read is reported as AVAILABLE and not active — never as
+    unavailable, which is the word for « the instance disabled it » and would
+    tell a reader the feature is off.
+
+    Args:
+        node: Its declaration.
+        user_id: Owner.
+        disabled: Capabilities currently off.
+
+    Returns:
+        Its probe.
+    """
+    try:
+        return await _counted(node, user_id, disabled)
+    except Exception as exc:  # noqa: BLE001 - a probe degrades, it never fails
+        logger.debug("capability_probe_failed", node=node.key, error=str(exc))
+        return CapabilityProbe(node.key, available=True, active=False, detail=0)
 
 
 async def resolve_capabilities(user: User) -> list[CapabilityProbe]:
@@ -448,8 +609,14 @@ async def resolve_capabilities(user: User) -> list[CapabilityProbe]:
     # One read for every switch, before any probe: the alternative is a Redis
     # round-trip per capability on a page-load path.
     disabled = await disabled_capabilities()
-    probes = await asyncio.gather(
-        *(_counted(node, user_id, disabled) for node in COUNTED_NODES),
-        return_exceptions=False,
-    )
+    # A LOOP, not a gather. Measured on 2026-09-10 with an instrumented session
+    # context: gathering the counted probes held EIGHTEEN sessions open at the
+    # same instant, against a pool of `database_pool_size` 20 plus
+    # `database_max_overflow` 10 — one page load took most of it and a second
+    # reader queued on the pool timeout. Sequentially the same eighteen indexed
+    # counts cost 21 ms instead of 10 and hold ONE session: eleven milliseconds
+    # buys back seventeen, on a page that already costs hundreds. This is the
+    # codebase's own rule — « for a handful of indexed queries, a plain
+    # sequential loop is fine and simpler ».
+    probes = [await _probe(node, user_id, disabled) for node in COUNTED_NODES]
     return [*probes, *_from_user(user, disabled)]

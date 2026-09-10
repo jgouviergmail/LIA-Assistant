@@ -149,6 +149,14 @@ const TokenBudgetSchema = z
     zone: z.enum(['safe', 'warning', 'critical', 'emergency']),
     strategy: z.string().optional(),
     fallback_active: z.boolean().optional(),
+    // B8 — the room the turn actually had (ADR-278) and when compaction fires.
+    context_window: z.number().min(1).optional(),
+    context_window_source: z.enum(['slot_override', 'catalogue', 'table']).optional(),
+    context_window_model: z.string().optional(),
+    context_used_percent: z.number().min(0).optional(),
+    compaction_threshold: z.number().min(0).optional(),
+    compaction_threshold_source: z.enum(['absolute', 'ratio']).optional(),
+    compaction_threshold_ratio: z.number().min(0).optional(),
   })
   .optional();
 
@@ -235,6 +243,18 @@ const LLMCallSchema = z.object({
   call_type: z.enum(['chat', 'embedding', 'image_generation']).optional(), // v3.3/v3.4
   sequence: z.number().optional(), // v3.3
   started_offset_ms: z.number().min(0).optional(), // v3.4 waterfall
+  // B8 — nullable AND optional: a payload persisted before this carries none
+  // of them, and a call that observed nothing carries them as null.
+  llm_type: z.string().nullable().optional(),
+  provider: z.string().nullable().optional(),
+  status: z.string().nullable().optional(),
+  failure_kind: z.string().nullable().optional(),
+  temperature: z.number().nullable().optional(),
+  top_p: z.number().nullable().optional(),
+  max_output_tokens: z.number().nullable().optional(),
+  reasoning_level: z.string().nullable().optional(),
+  reasoning_budget_tokens: z.number().nullable().optional(),
+  params_digest: z.string().nullable().optional(),
 });
 
 /**
@@ -430,6 +450,13 @@ export const ReactExecutionSchema = z.object({
   tool_budget_seconds: z.number().min(0).optional(),
   tool_names: z.array(z.string()),
   executed_tool_calls: z.number().min(0),
+  // B8 — the bound the loop actually stops at, and why it stopped.
+  iteration_budget: z.number().min(1).optional(),
+  iteration_ceiling: z.number().min(1).optional(),
+  starting_budget: z.number().min(1).optional(),
+  productive_iterations: z.number().min(0).optional(),
+  exit_reason: z.string().nullable().optional(),
+  abandoned_calls: z.array(z.string()).optional(),
 });
 
 /** Schema for the human-in-the-loop trace */
@@ -442,6 +469,48 @@ export const HitlSchema = z.object({
   clarification_field: z.string().nullable(),
   for_each_cancelled: z.boolean(),
   cancellation_reason: z.string().nullable(),
+  // B8 — the draft's identity. Never its content.
+  draft_type: z.string().nullable().optional(),
+  draft_id: z.string().nullable().optional(),
+  draft_action: z.string().nullable().optional(),
+  draft_digest: z.string().nullable().optional(),
+  draft_edit_iterations: z.number().min(0).optional(),
+  draft_clarification_question: z.string().nullable().optional(),
+});
+
+/** Schema for the two DEFERRED registers of ADR-263 (B8). */
+export const RegistersSchema = z.object({
+  decision: z
+    .object({
+      run_id: z.string(),
+      source: z.string(),
+      execution_mode: z.string(),
+      route: z.string().nullable(),
+      plan_step_count: z.number().nullable(),
+      outcome: z.string(),
+      stop_reason: z.string().nullable(),
+      settled: z.boolean(),
+    })
+    .nullable(),
+  treatments: z.object({
+    entries: z.array(
+      z.object({
+        tool_name: z.string(),
+        mutation_policy: z.string().nullable(),
+        outcome: z.string(),
+        duration_ms: z.number().min(0),
+      })
+    ),
+    count: z.number().min(0),
+    failed_count: z.number().min(0),
+  }),
+  verdicts: z
+    .object({
+      entries: z.array(z.object({ kind: z.string(), detail: z.string().nullable() })),
+      count: z.number().min(0),
+      dropped: z.number().min(0),
+    })
+    .optional(),
 });
 
 /** Schema for context-compaction details */

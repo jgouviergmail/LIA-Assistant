@@ -36,6 +36,12 @@ def raise_for_blocked_verdict(verdict: object, *, layer: str) -> NoReturn:
             the deployment itself is paused, the stable error code the frontend
             localizes on and the seconds until the UTC day rolls over.
     """
+    # « Refused by a ceiling » is not « the model failed », and the panel of
+    # this exchange is where the difference is read (B8, ADR-272).
+    from src.core.turn_verdicts import note_verdict
+
+    note_verdict("quota_refused", layer[:40])
+
     from src.core.exceptions_domains import raise_usage_limit_exceeded
     from src.domains.usage_limits.instance_budget import seconds_until_next_utc_day
     from src.infrastructure.observability.metrics_usage_limits import (

@@ -8,7 +8,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { renderWithProviders, screen } from '@/__tests__/test-utils';
+import { renderWithProviders, screen, userEvent } from '@/__tests__/test-utils';
 import { WorkboardPage } from '@/components/workboard/WorkboardPage';
 import type { TicketRow } from '@/types/workboard';
 
@@ -161,5 +161,71 @@ describe('the exact total', () => {
 
     expect(screen.getByText('workboard.filters.total')).toBeInTheDocument();
     expect(screen.getAllByTestId('ticket-card')).toHaveLength(1);
+  });
+});
+
+describe('the open panel is a place in the history, not a mode', () => {
+  /** One ticket on the board, enough to have a card to open. */
+  function ticket(): TicketRow {
+    return {
+      id: 't1',
+      owner_user_id: 'me',
+      parent_id: null,
+      title: 'Réserver la salle',
+      description: null,
+      status: 'todo',
+      priority: 'medium',
+      start_at: null,
+      due_at: null,
+      assignee_kind: 'human',
+      assignee_user_id: null,
+      effective_assignee_id: 'me',
+      position: 0,
+      follow_owner: false,
+      follow_assignee: false,
+      created_by: 'user',
+      status_changed_at: '2026-09-09T10:00:00Z',
+      run_count: 0,
+      run_claimed_at: null,
+      last_run_at: null,
+      last_run_outcome: null,
+      last_run_error: null,
+      last_run_tokens_in: null,
+      last_run_tokens_out: null,
+      last_run_cost_eur: null,
+      created_at: '2026-09-09T10:00:00Z',
+      execution_mode: 'react',
+    } as TicketRow;
+  }
+
+  beforeEach(() => {
+    const row = ticket();
+    Object.assign(board, {
+      tickets: [row],
+      total: 1,
+      countsByStatus: { todo: 1 },
+      column: (status: string) => (status === 'todo' ? [row] : []),
+    });
+  });
+
+  it('opening a ticket PUSHES, so the back button closes it', async () => {
+    // The panel is derived from the URL precisely so it can be linked and
+    // dismissed by the browser. `replace` writes no history entry, so back
+    // ejected the reader from the board instead of closing the panel — on
+    // Android, where back IS the dismiss gesture.
+    const user = userEvent.setup();
+    render();
+    await user.click(screen.getByRole('button', { name: 'Réserver la salle' }));
+    expect(router.push).toHaveBeenCalledWith('/fr/dashboard/workboard?ticket=t1', {
+      scroll: false,
+    });
+  });
+
+  it('closing it REPLACES, so a dismissed panel does not stack an entry', async () => {
+    const user = userEvent.setup();
+    render('t1');
+    await user.keyboard('{Escape}');
+    expect(router.replace).toHaveBeenCalledWith('/fr/dashboard/workboard', { scroll: false });
+    expect(router.push).not.toHaveBeenCalled();
   });
 });

@@ -412,6 +412,17 @@ def run_failfast_validations() -> None:
         logger.error("registry_trust_classification_incomplete", error=str(exc), exc_info=True)
         raise RuntimeError(f"Registry trust classification incomplete: {exc}") from exc
 
+    # Validate the plural key every registry type is filed under (ADR-085
+    # pattern: the readers fall back to `value.lower() + "s"`, which produced a
+    # key contradicting the domain taxonomy and made a step output invisible).
+    try:
+        from src.domains.agents.tools.output import assert_registry_key_completeness
+
+        assert_registry_key_completeness()
+    except AssertionError as exc:
+        logger.error("registry_result_key_incomplete", error=str(exc), exc_info=True)
+        raise RuntimeError(f"Registry result key mapping incomplete: {exc}") from exc
+
     # Validate the system-settings registry (ADR-085 pattern: fail-fast if a
     # SystemSettingKey has been added without declaring its codec, default and
     # cache — reading it would silently return a hardcoded fallback nobody

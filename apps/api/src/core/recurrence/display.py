@@ -13,7 +13,12 @@ from __future__ import annotations
 from datetime import date
 
 from src.core.i18n_recurrence import get_recurrence_part
-from src.core.recurrence.spec import RecurrenceSpec, TimeOfDay
+from src.core.recurrence.spec import (
+    LAST_DAY_MARKER,
+    RecurrenceSpec,
+    TimeOfDay,
+    day_sort_key,
+)
 
 
 def _join(parts: list[str], language: str) -> str:
@@ -40,15 +45,27 @@ def _day_numbers(days: tuple[int, ...], language: str) -> str:
     to the NUMBER: left in the sentence template they were applied once, after
     the whole list, so two days read "Am 1 und 15." with one ordinal for two.
 
+    :data:`LAST_DAY_MARKER` is a MARKER, not a number: it gets a word of its
+    own, and it keeps the canonical place the spec gives it. Measured
+    2026-09-10, this function did neither — a plain ``sorted`` put it first and
+    the day template rendered it raw, so "the 1st and the last day" read
+    "Le -1 et 1 de chaque mois" in all six languages while the engine fired
+    both days correctly.
+
     Args:
-        days: The days of month, in any order.
+        days: The days of month, canonically ordered by the spec.
         language: The reader's language.
 
     Returns:
         The joined list, each item marked.
     """
     template = get_recurrence_part("day_number", language)
-    return _join([template.format(day=day) for day in sorted(days)], language)
+    last_day = get_recurrence_part("day_last", language)
+    worded = [
+        last_day if day == LAST_DAY_MARKER else template.format(day=day)
+        for day in sorted(days, key=day_sort_key)
+    ]
+    return _join(worded, language)
 
 
 def _clock(moment: TimeOfDay) -> str:
@@ -101,9 +118,39 @@ def _calendar_clause(spec: RecurrenceSpec, language: str) -> str:
     # all of it (measured 2026-09-06 — "the 15th of January and July" read
     # "Tous les ans, le 15 janvier", and July arrived unannounced).
     months = _join([_month_name(month, language) for month in sorted(spec.bymonth)], language)
+    if LAST_DAY_MARKER in spec.bymonthday:
+        return _yearly_last_clause(spec, language, months=months, repeated=repeated)
     days = _day_numbers(spec.bymonthday, language)
     key = "yearly_n" if repeated else "yearly"
     return get_recurrence_part(key, language).format(n=spec.interval, day=days, month=months)
+
+
+def _yearly_last_clause(spec: RecurrenceSpec, language: str, *, months: str, repeated: bool) -> str:
+    """A yearly clause naming the last day of its months.
+
+    The marker gets its own template rather than a slot in the day list: three
+    languages juxtapose the day and the month ("le {day} {month}"), which reads
+    "le 15 et le dernier jour février" once a phrase lands in the day slot. The
+    template says "the last day" and the list carries real day numbers only —
+    the same split the monthly clause has always had.
+
+    Args:
+        spec: The recurrence (``freq == "yearly"``, marker present).
+        language: The reader's language.
+        months: The months, already joined.
+        repeated: Whether the interval exceeds one.
+
+    Returns:
+        The clause.
+    """
+    numbered = tuple(day for day in spec.bymonthday if day != LAST_DAY_MARKER)
+    if not numbered:
+        key = "yearly_last_n" if repeated else "yearly_last"
+        return get_recurrence_part(key, language).format(n=spec.interval, month=months)
+    key = "yearly_mixed_last_n" if repeated else "yearly_mixed_last"
+    return get_recurrence_part(key, language).format(
+        n=spec.interval, day=_day_numbers(numbered, language), month=months
+    )
 
 
 #: The three day sets that deserve a phrase instead of a list. Measured on the
@@ -156,7 +203,7 @@ def _monthly_clause(spec: RecurrenceSpec, language: str, *, repeated: bool) -> s
         return get_recurrence_part(key, language).format(
             n=spec.interval, nth=nth_word, weekday=_weekday_name(weekday, language)
         )
-    if spec.bymonthday == (-1,):
+    if spec.bymonthday == (LAST_DAY_MARKER,):
         key = "monthly_last_n" if repeated else "monthly_last"
         return get_recurrence_part(key, language).format(n=spec.interval)
     days = _day_numbers(spec.bymonthday, language)

@@ -118,6 +118,30 @@ alors qu'une clé OpenAI était disponible.
 | Détail : « Changer le format… » (remplacer / nouveau compte rendu), panneau d'attente d'une ligne sans compte rendu, fait « Format » et liens de filiation | `components/meetings/ReformatDialog.tsx`, `MeetingPendingPanel.tsx`, `MeetingDetailLinks.tsx` |
 | Section de réglages (préférences dont le format par défaut, lien vers la bibliothèque, réunions récentes) | `components/settings/MeetingsSettings.tsx` (jeton `meetings`) |
 | Carte du chat « compte rendu prêt » | `components/meetings/MeetingMinutesCard.tsx` (`proactive_meeting`) |
+| Retour contextuel : la porte utilisée voyage en jeton dans l'URL (`?from=`) | `lib/back-origin.ts`, `hooks/useBackOrigin.ts`, `components/ui/back-link.tsx` |
+
+**La liste des réunions sait d'où on vient** (2026-09-10). Six portes y mènent —
+l'en-tête, le menu du logo, une carte de compte rendu dans le chat, un toast du
+recorder, la section de réglages, la commande `/meetings` — et elle n'avait
+aucun retour ; le détail et la bibliothèque revenaient toujours à la liste,
+quelle que soit la porte. Trois décisions, dont la deuxième est une décision de
+sécurité :
+
+- **L'historique du navigateur n'est pas la réponse.** Il meurt au
+  rechargement, il est vide quand la page vient d'une notification, et après la
+  suppression d'une réunion il pointe vers une page qui n'existe plus.
+- **L'origine voyage en JETON, jamais en URL.** Un `?back=<url>` est une
+  redirection ouverte dès que quelqu'un en tape une ; un jeton est cherché dans
+  une table fermée et tout ce qui n'y figure pas retombe sur le chat — la valeur
+  par défaut arbitrée par le propriétaire.
+- **Le vocabulaire est la table des destinations du tableau de bord.** Ce n'est
+  pas une seconde liste à tenir, un jeton qui ne nomme pas un écran réel ne peut
+  pas exister, et le mot qu'affiche le bouton de retour est celui que l'en-tête
+  affiche pour cet écran.
+
+Une destination déclare `carriesOrigin` pour être estampillée : une origine que
+personne ne lit serait un paramètre de requête sur toutes les URL de
+l'application, et seul un écran qui dessine un retour en a l'usage.
 
 Le PWA : le verrou d'écran est demandé pendant la capture et la bannière rappelle de garder
 LIA au premier plan — un téléphone en arrière-plan coupe le micro sur les deux plateformes

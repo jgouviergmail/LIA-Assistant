@@ -49,11 +49,12 @@ from src.domains.chat.run_records import (
     run_offset_ms,
 )
 from src.domains.chat.schemas import TokenSummaryDTO, UserStatisticsResponse
-from src.domains.chat.tracking_records import (  # noqa: F401  (re-export)
+from src.domains.chat.tracking_records import (
     GoogleApiRecord,
     ImageGenerationRecord,
     TokenUsageRecord,
     TTSUsageRecord,
+    breakdown_entry,
 )
 from src.infrastructure.database import get_db_context
 
@@ -707,22 +708,21 @@ class TrackingContext:
                 - call_type: "chat" or "embedding" (v3.3)
                 - sequence: Chronological order number (v3.3)
                 - started_offset_ms: Start position on the run timeline (v3.4)
+                - llm_type: the configured SLOT this call ran for (B8) — the
+                  graph node says WHERE it ran, never WHICH configuration
+                - provider, temperature, top_p, max_output_tokens,
+                  reasoning_level, reasoning_budget_tokens, params_digest: the
+                  parameters actually SENT (ADR-263 lot 7), read from what
+                  LangChain handed the callback
+                - status, failure_kind: the call's verdict — a failed call and
+                  a successful one used to render identically
+
+        Every key is present on EVERY call, `None` where nothing was observed:
+        a key present on one row and absent on another makes the panel's rows
+        disagree about what a row is, and a DEFAULT printed where nothing was
+        measured would name a value the provider never saw.
         """
-        return [
-            {
-                "node_name": r.node_name,
-                "model_name": r.model_name,
-                "tokens_in": r.prompt_tokens,
-                "tokens_out": r.completion_tokens,
-                "tokens_cache": r.cached_tokens,
-                "cost_eur": float(r.cost_eur),
-                "duration_ms": r.duration_ms,
-                "call_type": r.call_type,
-                "sequence": r.sequence,
-                "started_offset_ms": r.started_offset_ms,
-            }
-            for r in self._get_all_run_records()
-        ]
+        return [breakdown_entry(record) for record in self._get_all_run_records()]
 
     def get_cumulative_tokens(self) -> int:
         """Get total tokens consumed (prompt + completion) across all recorded nodes.

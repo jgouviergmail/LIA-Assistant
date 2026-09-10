@@ -49,6 +49,11 @@ from typing import TYPE_CHECKING, Any
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.i18n_drafts import get_draft_preview_labels
+from src.domains.agents.drafts.markdown_grammar import (
+    labelled_block,
+    labelled_row,
+    plain_row,
+)
 from src.domains.agents.drafts.models import DraftType
 
 if TYPE_CHECKING:
@@ -73,37 +78,14 @@ _TOOL_CALL_MAX_VALUE_CHARS = 80
 # =============================================================================
 
 
-def _readable(value: object) -> str:
-    """One value, spelled for a person rather than for Python.
-
-    A row's value comes from a draft's stored content, and nothing guarantees
-    it is a string: a recipient list rendered ``['paul@example.org']`` — the
-    brackets, the quotes and all — on a card asking someone to approve sending
-    it. Same doctrine as :func:`_argument_value` for a tool's arguments: what
-    is shown is data, never a Python spelling.
-
-    Args:
-        value: Whatever the content held under that key.
-
-    Returns:
-        The value as text: a sequence joined, everything else stringified.
-    """
-    if isinstance(value, str):
-        return value
-    if isinstance(value, (list, tuple, set, frozenset)):
-        return ", ".join(_readable(item) for item in value)
-    return str(value)
-
-
 def _row(lbl: dict[str, str], key: str, value: object) -> str:
     """One field of a preview: a Markdown list item.
 
-    The whole preview speaks ONE vocabulary, and it is Markdown — not the
-    ``<br/>`` this used to emit. Two reasons, both measured on a real
-    confirmation: the chat renders Markdown with no hard-break plugin, so a
-    list is the shape that keeps one field per line without any markup of its
-    own; and a surface that renders NEITHER (a ticket comment) can flatten
-    Markdown to something readable, where ``<br/>`` was read out as typed.
+    Binds the shared grammar to this surface's labels — the label under
+    ``key`` and the language's own separator. The grammar itself lives in
+    :mod:`~src.domains.agents.drafts.markdown_grammar`, shared with the
+    execution-result renderer so a card and its outcome cannot speak two
+    vocabularies (they did until ADR-276 lot 13's rule reached the second one).
 
     Args:
         lbl: The localized labels, which carry their language's punctuation.
@@ -113,7 +95,7 @@ def _row(lbl: dict[str, str], key: str, value: object) -> str:
     Returns:
         The row.
     """
-    return f"- **{lbl[key]}**{lbl['separator']}{_readable(value)}"
+    return labelled_row(lbl[key], lbl["separator"], value)
 
 
 def _note(text: str) -> str:
@@ -125,16 +107,11 @@ def _note(text: str) -> str:
     Returns:
         The row, in the same list as the labelled ones.
     """
-    return f"- {text}"
+    return plain_row(text)
 
 
 def _block(lbl: dict[str, str], key: str, text: str) -> str:
     """A field whose value is a TEXT: its own paragraph under a bold lead.
-
-    An email body is not a field value — it carries its own paragraphs, and
-    folding it into a list item either loses them or breaks the list. It
-    therefore leaves the list and stands on its own, which is also how a
-    reader wants to read the words they are about to send.
 
     Args:
         lbl: The localized labels.
@@ -145,7 +122,7 @@ def _block(lbl: dict[str, str], key: str, text: str) -> str:
         The block, carrying the blank lines that separate it from its
         neighbours — so the join stays a plain newline for every row.
     """
-    return f"\n**{lbl[key]}**\n\n{text}\n"
+    return labelled_block(lbl[key], text)
 
 
 def _first_block_index(lines: list[str]) -> int:

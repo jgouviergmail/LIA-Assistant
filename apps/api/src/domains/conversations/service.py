@@ -287,17 +287,25 @@ class ConversationService:
         repo = ConversationRepository(db)
         await repo.delete_messages_for_conversation(conversation.id)
 
-        # Delete attachments for this user (evolution F4 — File Attachments)
-        # Files are linked to user lifecycle, not individual conversations
+        # Delete the user's UPLOADS (evolution F4 — File Attachments).
+        #
+        # Uploads alone since ADR-279: a file LIA produced — an image, a
+        # document, a browser screenshot — belongs to the person's gallery and
+        # outlives the conversation it was produced in (owner arbitration,
+        # 2026-09-10). Before that, resetting the conversation silently deleted
+        # every generated file the account had.
         from src.core.config import get_settings as _get_settings
 
         _settings = _get_settings()
         if getattr(_settings, "attachments_enabled", False):
             try:
+                from src.domains.attachments.models import AttachmentOrigin
                 from src.domains.attachments.service import AttachmentService
 
                 attachment_service = AttachmentService(db)
-                attachments_deleted = await attachment_service.delete_all_for_user(user_id)
+                attachments_deleted = await attachment_service.delete_all_for_user(
+                    user_id, origins={AttachmentOrigin.UPLOAD.value}
+                )
                 logger.info(
                     "attachments_purged",
                     user_id=str(user_id),

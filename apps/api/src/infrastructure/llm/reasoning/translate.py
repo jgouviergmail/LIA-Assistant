@@ -185,6 +185,12 @@ def _report_coercion(model: str, requested: str, applied: str) -> None:
         llm_reasoning_coerced_total.labels(
             model=model, from_level=requested, to_level=applied
         ).inc()
+    # The metric answers « how often »; the panel answers « did it happen in
+    # THIS exchange », which is the question a person debugging one turn has
+    # (B8). Silent outside a turn.
+    from src.core.turn_verdicts import note_verdict
+
+    note_verdict("reasoning_coerced", f"{requested}->{applied}")
     logger.info(
         "llm_reasoning_coerced",
         model=model,

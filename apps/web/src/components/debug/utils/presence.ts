@@ -73,6 +73,16 @@ function totalsPresence(metrics: DebugMetrics): SectionPresence {
     llm: hasLlmCalls,
     voice: Boolean(metrics.voice && metrics.voice.total_calls > 0),
     compaction: Boolean(metrics.compaction && metrics.compaction.count > 0),
+    // Both registers had NO predicate, so they fell to the falsy branch and
+    // were filed behind « N idle sections » even on a turn that acted and
+    // consulted nine sources (B8). A section with content belongs among the
+    // present ones.
+    performed_effects: Boolean(metrics.performed_effects?.count),
+    registers: Boolean(
+      metrics.registers?.decision ||
+        metrics.registers?.treatments.count ||
+        metrics.registers?.verdicts?.count
+    ),
   };
 }
 

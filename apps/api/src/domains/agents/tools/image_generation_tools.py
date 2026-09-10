@@ -240,9 +240,12 @@ async def generate_image(
 
         from src.domains.attachments.models import (
             AttachmentContentType,
+            AttachmentOrigin,
             AttachmentStatus,
         )
         from src.domains.attachments.repository import AttachmentRepository
+        from src.domains.attachments.thread_id import conversation_uuid
+        from src.domains.image_generation.image_store import sanitize_alt_text
 
         async with get_db_context() as db:
             repo = AttachmentRepository(db)
@@ -255,6 +258,11 @@ async def generate_image(
                     "file_size": len(image_bytes),
                     "file_path": relative_path,
                     "content_type": AttachmentContentType.IMAGE,
+                    # Named, so the person finds it again in their gallery
+                    # after the conversation is reset (ADR-279).
+                    "origin": AttachmentOrigin.GENERATED_IMAGE.value,
+                    "title": sanitize_alt_text(prompt),
+                    "conversation_id": conversation_uuid(configurable.get("thread_id")),
                     "status": AttachmentStatus.READY,
                     "expires_at": datetime.now(UTC)
                     + timedelta(
@@ -585,9 +593,12 @@ async def edit_image(
 
         from src.domains.attachments.models import (
             AttachmentContentType,
+            AttachmentOrigin,
             AttachmentStatus,
         )
         from src.domains.attachments.repository import AttachmentRepository
+        from src.domains.attachments.thread_id import conversation_uuid
+        from src.domains.image_generation.image_store import sanitize_alt_text
 
         async with get_db_context() as db:
             repo = AttachmentRepository(db)
@@ -600,6 +611,11 @@ async def edit_image(
                     "file_size": len(image_bytes),
                     "file_path": relative_path,
                     "content_type": AttachmentContentType.IMAGE,
+                    # Named, so the person finds it again in their gallery
+                    # after the conversation is reset (ADR-279).
+                    "origin": AttachmentOrigin.GENERATED_IMAGE.value,
+                    "title": sanitize_alt_text(prompt),
+                    "conversation_id": conversation_uuid(configurable.get("thread_id")),
                     "status": AttachmentStatus.READY,
                     "expires_at": datetime.now(UTC)
                     + timedelta(hours=settings.attachments_ttl_hours),

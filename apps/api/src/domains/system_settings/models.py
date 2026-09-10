@@ -71,6 +71,20 @@ class SystemSettingKey(str, enum.Enum):
     CAPABILITY_MCP_ENABLED = "capability_mcp_enabled"
     CAPABILITY_TELEPHONY_ENABLED = "capability_telephony_enabled"
     CAPABILITY_MEETINGS_ENABLED = "capability_meetings_enabled"
+    # B7 — thirteen features an operator could neither see nor switch off.
+    CAPABILITY_WORKBOARD_ENABLED = "capability_workboard_enabled"
+    CAPABILITY_JOURNALS_ENABLED = "capability_journals_enabled"
+    CAPABILITY_HABITS_ENABLED = "capability_habits_enabled"
+    CAPABILITY_HEARTBEAT_ENABLED = "capability_heartbeat_enabled"
+    CAPABILITY_PEERS_ENABLED = "capability_peers_enabled"
+    CAPABILITY_PSYCHE_ENABLED = "capability_psyche_enabled"
+    CAPABILITY_CHANNELS_ENABLED = "capability_channels_enabled"
+    CAPABILITY_OPEN_LOOPS_ENABLED = "capability_open_loops_enabled"
+    CAPABILITY_MEMORY_ENABLED = "capability_memory_enabled"
+    CAPABILITY_INTERESTS_ENABLED = "capability_interests_enabled"
+    CAPABILITY_RELATION_DEBRIEF_ENABLED = "capability_relation_debrief_enabled"
+    CAPABILITY_SUB_AGENTS_ENABLED = "capability_sub_agents_enabled"
+    CAPABILITY_PYTHON_SANDBOX_ENABLED = "capability_python_sandbox_enabled"
 
     # Whether the landing advertises the public demonstrator. Off by default:
     # a fresh instance never advertises a demonstrator it does not run. Read

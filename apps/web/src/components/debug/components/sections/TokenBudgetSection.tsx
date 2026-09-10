@@ -26,6 +26,18 @@ export interface TokenBudgetSectionProps {
   data: DebugMetrics['token_budget'];
 }
 
+/**
+ * Who answered when the window was resolved (ADR-278, B8).
+ *
+ * Named rather than shown raw because the three are not equally trustworthy:
+ * the table is a safety net, not a declaration.
+ */
+const WINDOW_SOURCE_LABELS: Record<string, string> = {
+  slot_override: 'Operator override',
+  catalogue: 'Model catalogue',
+  table: 'Fallback table',
+};
+
 /** English display labels for zones */
 const ZONE_LABELS: Record<string, string> = {
   safe: 'Safe',
@@ -33,6 +45,65 @@ const ZONE_LABELS: Record<string, string> = {
   critical: 'Critical',
   emergency: 'Emergency',
 };
+
+/**
+ * The room the turn actually had (ADR-278, B8).
+ *
+ * Its own component so the section stays under the complexity cap, and because
+ * this block answers a different question from the zones below it: the zones
+ * are instance-wide settings, this is the model's own bound.
+ *
+ * @param props.window - The effective context window, or undefined on a payload
+ *   persisted before B8 — in which case nothing is drawn rather than a zero.
+ * @param props.source - Which of the three sources answered.
+ * @param props.model - The model the window belongs to.
+ * @param props.usedPercent - How much of it the turn used.
+ * @param props.compactionThreshold - The instant compaction fires.
+ * @param props.compactionSource - Whether that instant was pinned or derived.
+ * @returns The block, or null.
+ */
+function ModelWindow({
+  window,
+  source,
+  model,
+  usedPercent,
+  compactionThreshold,
+  compactionSource,
+}: {
+  window: number | undefined;
+  source: string | undefined;
+  model: string | undefined;
+  usedPercent: number | undefined;
+  compactionThreshold: number | undefined;
+  compactionSource: string | undefined;
+}) {
+  if (window === undefined) return null;
+  return (
+    <div className="space-y-1">
+      <SubSectionHeader label="Model window" borderTop />
+      <MetricRow label="Context window" value={formatTokenCount(window)} highlight />
+      {model && <MetricRow label="Model" value={model} mono />}
+      {source && (
+        <MetricRow
+          label="Declared by"
+          value={WINDOW_SOURCE_LABELS[source] ?? source}
+          /* A window from the hand-maintained table is a DEFAULT, not a
+             measurement: that table is wrong on 10 of its 56 entries. */
+          valueClassName={source === 'table' ? TONE_TEXT.warning : undefined}
+        />
+      )}
+      {usedPercent !== undefined && <MetricRow label="Window used" value={`${usedPercent}%`} />}
+      {compactionThreshold !== undefined && compactionThreshold > 0 && (
+        <MetricRow
+          label="Compacts at"
+          value={`${formatTokenCount(compactionThreshold)}${
+            compactionSource === 'absolute' ? ' (pinned)' : ''
+          }`}
+        />
+      )}
+    </div>
+  );
+}
 
 /**
  * Section Token Budget
@@ -62,6 +133,16 @@ export const TokenBudgetSection = React.memo(function TokenBudgetSection({
     tokens_input,
     tokens_output,
     tokens_cache,
+    // B8 — the room the turn actually had. The four zone thresholds below are
+    // instance-wide settings, independent of the model configured: a turn
+    // could sit in a « safe » zone whose ceiling exceeded its model's whole
+    // window. Absent on payloads persisted before B8.
+    context_window,
+    context_window_source,
+    context_window_model,
+    context_used_percent,
+    compaction_threshold,
+    compaction_threshold_source,
   } = data;
   const progressPercentage =
     thresholds.max > 0 ? Math.min((current_tokens / thresholds.max) * 100, 100) : 0;
@@ -116,6 +197,17 @@ export const TokenBudgetSection = React.memo(function TokenBudgetSection({
           </div>
         </div>
       </div>
+
+      {/* The model's OWN window — the bound that actually truncates, as
+          opposed to the instance-wide zones below (ADR-278, B8). */}
+      <ModelWindow
+        window={context_window}
+        source={context_window_source}
+        model={context_window_model}
+        usedPercent={context_used_percent}
+        compactionThreshold={compaction_threshold}
+        compactionSource={compaction_threshold_source}
+      />
 
       {/* Zone thresholds */}
       <div>

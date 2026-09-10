@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from src.domains.memories.models import Memory, PurgeRiskLevel
+from src.domains.memories.protection import is_protected_from_deletion
 
 
 def calculate_retention_score(
@@ -80,8 +81,10 @@ def should_purge(
     """Determine if a memory should be purged.
 
     Protection rules (never purged):
-    1. pinned = True (user-locked)
-    2. Age < min_age_for_cleanup_days (grace period)
+    1. category in PROTECTED_CATEGORIES (a dictated directive, never deleted
+       automatically — owner arbitration 2026-09-10, see ``protection.py``)
+    2. pinned = True (user-locked)
+    3. Age < min_age_for_cleanup_days (grace period)
 
     If none of the above, purge if retention_score < purge_threshold.
 
@@ -99,11 +102,17 @@ def should_purge(
     Returns:
         Tuple of (should_purge, retention_score).
     """
-    # Protection 1: Pinned
+    # Protection 1: a dictated directive. Checked FIRST and independently of
+    # `pinned`: a person who wrote "never call after 8 pm" did not also have to
+    # pin it for the instruction to survive a sweep.
+    if is_protected_from_deletion(memory.category):
+        return False, 1.0
+
+    # Protection 2: Pinned
     if memory.pinned:
         return False, 1.0
 
-    # Protection 2: Grace period not yet elapsed
+    # Protection 3: Grace period not yet elapsed
     created_at = memory.created_at
     if created_at:
         age_days = (now - created_at).days
@@ -156,7 +165,7 @@ def classify_purge_risk(
     """Classify a memory's purge risk and return (risk, retention_score).
 
     States (evaluated in order):
-    - PROTECTED: pinned (never auto-purged) — score None.
+    - PROTECTED: a dictated directive, or pinned (never auto-purged) — score None.
     - SAFE (grace): age < min_age_for_cleanup_days — score None (not yet eligible).
     - IMMINENT: eligible and score < purge_threshold (would be deleted next run).
     - AT_RISK: eligible and purge_threshold <= score < purge_threshold + at_risk_margin.
@@ -174,7 +183,7 @@ def classify_purge_risk(
         Tuple of (purge_risk, retention_score). retention_score is None for
         pinned memories and for memories still within the grace period.
     """
-    if memory.pinned:
+    if is_protected_from_deletion(memory.category) or memory.pinned:
         return PurgeRiskLevel.PROTECTED, None
 
     created_at = memory.created_at

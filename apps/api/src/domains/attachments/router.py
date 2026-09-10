@@ -30,13 +30,14 @@ from src.domains.feature_switches.guard import capability_dependencies
 from src.domains.feature_switches.registry import PlatformCapability
 from src.domains.users.models import User
 
-router = APIRouter(
-    prefix="/attachments",
-    tags=["Attachments"],
-    # Administrable capability: a switched-off feature refuses at the
-    # door, not only in the planner catalogue.
-    dependencies=capability_dependencies(PlatformCapability.ATTACHMENTS),
-)
+router = APIRouter(prefix="/attachments", tags=["Attachments"])
+
+# The capability guards the UPLOAD alone (ADR-279). It used to sit on the
+# router, so switching uploads off ALSO closed reading and deleting — including
+# the files LIA produced, which the person can no longer create but can still
+# legitimately keep, open and remove. A switch that removes an ability must not
+# remove access to what that ability already produced.
+_UPLOAD_GUARD = capability_dependencies(PlatformCapability.ATTACHMENTS)
 
 
 @router.post(
@@ -44,6 +45,7 @@ router = APIRouter(
     response_model=AttachmentUploadResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Upload a file attachment (image or PDF)",
+    dependencies=_UPLOAD_GUARD,
 )
 async def upload_attachment(
     file: UploadFile,

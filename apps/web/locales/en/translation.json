@@ -2366,7 +2366,10 @@
         "ollama": {
           "live": "Connected to Ollama server",
           "fallback": "Ollama unreachable — showing known models",
-          "loading": "Loading Ollama models…"
+          "loading": "Loading Ollama models…",
+          "undescribed": "The server listed {{count}} model it described nothing about — it is not offered here; type its name to use it anyway.",
+          "undescribed_one": "The server listed {{count}} model it described nothing about — it is not offered here; type its name to use it anyway.",
+          "undescribed_other": "The server listed {{count}} models it described nothing about — they are not offered here; type a name to use one anyway."
         },
         "categories": {
           "pipeline": "Pipeline",
@@ -2392,7 +2395,11 @@
           "reasoningNone": "None (disabled)",
           "reasoningDefault": "Default (model)",
           "reasoningBudget": "Reasoning budget (tokens)",
-          "reasoningExclude": "Hide the reasoning from the response"
+          "reasoningExclude": "Hide the reasoning from the response",
+          "contextWindow": "Context window (k)",
+          "contextWindowCeiling": "Requested: {{requested}} k · this model goes up to {{max}} k.",
+          "contextWindowFollowsModel": "Leave empty to follow the model's own context window.",
+          "contextWindowLocalCap": "This model runs on your machine: a window larger than its memory holds pushes the model onto the CPU."
         },
         "constraints": {
           "reasoningTemp": "Reasoning models use a fixed temperature of 1.0. This parameter will be ignored by the API.",
@@ -2406,7 +2413,8 @@
           "presencePenalty": "Encourages topic diversity. Penalizes each token that has appeared, regardless of frequency. Positive = explores more topics. Range: -2 to 2.",
           "maxTokens": "Maximum number of output tokens. Limits the length of the generated response. Optimal value depends on the agent type.",
           "timeout": "Maximum wait time in seconds before aborting the API call. Leave empty to use the provider's default.",
-          "reasoningEffort": "Controls the model's internal thinking intensity. Higher = better accuracy but increased latency and cost. Lower = fast responses for simple tasks."
+          "reasoningEffort": "Controls the model's internal thinking intensity. Higher = better accuracy but increased latency and cost. Lower = fast responses for simple tasks.",
+          "contextWindow": "How much conversation this slot works with. Leave empty and LIA uses what the model itself declares. For Ollama this is also the window LIA asks the server for, so what LIA counts is what the server allocates."
         },
         "config": {
           "saved": "LLM configuration saved",
@@ -2483,7 +2491,16 @@
         "enforcedBoth": "Enforced both in the assistant's tools and on its routes.",
         "enabledSuccess": "Capability enabled.",
         "disabledSuccess": "Capability disabled.",
-        "error": "The capability could not be updated."
+        "error": "The capability could not be updated.",
+        "families": {
+          "media": "Media & voice",
+          "knowledge": "Memory & knowledge",
+          "reach": "Reach & tools",
+          "work": "Work & initiative",
+          "people": "People",
+          "assistant": "Assistant"
+        },
+        "enforcedService": "Enforced at an internal chokepoint: the ability stops, what it already produced stays."
       },
       "publicDemoLink": {
         "title": "Public demonstrator link",
@@ -3606,7 +3623,8 @@
         "meetings": "meeting, recording, minutes, transcription, report, microphone, notes, summary, actions, template, templates, template library, minutes format, default format, automatic format, change the format, sections, instructions, minutes email",
         "admin-registers": "registers, transparency, actions, consultations, export, journal, audit, admin, charts, statistics, figures, overview, initiative, proactive, article 12, complete extraction, turns",
         "reminders": "reminder, remind me, alert, notification, recurring reminder, repeat, snooze, post-it, recurrence, every day, time window",
-        "workboard": "workboard board tickets ticket kanban columns todo backlog"
+        "workboard": "workboard board tickets ticket kanban columns todo backlog",
+        "generated-assets": "files images documents screenshots downloads gallery generated expiry"
       }
     },
     "haptics": {
@@ -3691,6 +3709,73 @@
       "cost": "Cost of the runs",
       "runs_one": "{{count}} run",
       "runs_other": "{{count}} runs"
+    },
+    "generated_assets": {
+      "title": "My generated files",
+      "description": "The images, documents and screenshots LIA produced for you. Download them before they expire, or remove them now.",
+      "family": {
+        "images": "Images",
+        "documents": "Documents",
+        "screenshots": "Screenshots"
+      },
+      "filters": {
+        "title": "Filters",
+        "none": "No filter",
+        "search": "Search a name",
+        "created": "Produced",
+        "expiring": "Expiring",
+        "sort": "Sort by",
+        "reset": "Clear the filters",
+        "any_date": "Any time",
+        "any_expiry": "Any deadline",
+        "created_active": "Recent",
+        "expiring_active": "Expiring soon",
+        "sort_created_desc": "Newest first",
+        "sort_created_asc": "Oldest first",
+        "sort_expires_asc": "Expiring first",
+        "sort_name_asc": "By name",
+        "last_days": "Last {{count}} days",
+        "last_days_one": "Last {{count}} day",
+        "last_days_other": "Last {{count}} days",
+        "within_hours": "Within {{count}} hours",
+        "within_hours_one": "Within {{count}} hour",
+        "within_hours_other": "Within {{count}} hours"
+      },
+      "open": "Open {{name}}",
+      "open_short": "Open",
+      "download": "Download {{name}}",
+      "delete": "Delete {{name}}",
+      "select": "Select {{name}}",
+      "expires_at": "Expires on {{when}}",
+      "load_error": "Your files could not be read.",
+      "confirm_delete_one_title": "Delete this file?",
+      "confirm_delete_title": "Delete these files?",
+      "page_info": "Page {{current}} of {{total}}",
+      "empty": {
+        "filtered_title": "Nothing matches",
+        "filtered_description": "No file matches these filters. Clear them to see everything again.",
+        "images_title": "No image yet",
+        "images_description": "Ask LIA for an image in the chat and it will appear here.",
+        "documents_title": "No document yet",
+        "documents_description": "Ask LIA for a report, a spreadsheet or a deck and it will appear here.",
+        "screenshots_title": "No screenshot yet",
+        "screenshots_description": "LIA keeps the last frame of a browsing session here."
+      },
+      "total": "{{count}} files",
+      "total_one": "{{count}} file",
+      "total_other": "{{count}} files",
+      "delete_selected": "Delete {{count}} files",
+      "delete_selected_one": "Delete {{count}} file",
+      "delete_selected_other": "Delete {{count}} files",
+      "deleted": "{{count}} files deleted",
+      "deleted_one": "{{count}} file deleted",
+      "deleted_other": "{{count}} files deleted",
+      "skipped": "{{count}} files were already gone",
+      "skipped_one": "{{count}} file was already gone",
+      "skipped_other": "{{count}} files were already gone",
+      "confirm_delete_description": "{{count}} files will be removed from your account, now.",
+      "confirm_delete_description_one": "{{count}} file will be removed from your account, now.",
+      "confirm_delete_description_other": "{{count}} files will be removed from your account, now."
     }
   },
   "relations": {
@@ -4455,8 +4540,8 @@
           "description": "The full stack: Prometheus metrics (tokens, latency, errors, cost), 28 Grafana dashboards, Tempo tracing, Loki logs, and email alerting where every alert links its runbook. The 26th dashboard is a product cockpit counting validated outcomes — your explicit 👍, or an action left uncorrected for a full day — and derives activation, retention and cost per useful result from them. The counting lives in PostgreSQL, and Grafana reads it through a role that can only see aggregates."
         },
         "tools": {
-          "title": "🔧 90 Typed Tools",
-          "description": "90 native tools with JSON schemas generated from the Python types, extended without limit by MCP servers and skills. Each declares its manifest and its published bounds: whatever a validator can reject, the planner can read. The catalogue is filtered per domain — which is why every domain carries its read capabilities too, or a domain holding only write tools would push the planner to write."
+          "title": "🔧 114 Typed Tools",
+          "description": "114 native tools with JSON schemas generated from the Python types, extended without limit by MCP servers and skills. Each declares its manifest and its published bounds: whatever a validator can reject, the planner can read. The catalogue is filtered per domain — which is why every domain carries its read capabilities too, or a domain holding only write tools would push the planner to write."
         },
         "costTransparency": {
           "title": "💰 Cost Transparency",
@@ -4516,7 +4601,7 @@
         },
         "attachments": {
           "title": "📎 Photos & File Attachments",
-          "description": "Photos and PDFs added through the 📎 button, drag and drop, or a straight Ctrl+V from the clipboard, compressed in the browser before they leave. Images are read by a configurable vision model, PDFs have their text extracted, and thumbnails appear inline with an accessible lightbox. Strict per-user isolation and automatic cleanup — on conversation reset, and after 24 hours."
+          "description": "Photos and PDFs added through the 📎 button, drag and drop, or a straight Ctrl+V, compressed in the browser before they leave. Images are read by a vision model, PDFs have their text extracted, thumbnails open in an accessible lightbox. What LIA produces has a gallery of its own, with the expiry on each card. A reset removes what you uploaded; what LIA made stays."
         },
         "skills": {
           "title": "Skills (with interactive maps & mini-apps)",
@@ -4592,7 +4677,7 @@
         },
         "platformCapabilities": {
           "title": "🎛️ What this instance offers",
-          "description": "Not every LIA instance offers the same features, and that is deliberate. Ten capabilities — dictation, speech, images, uploads, document spaces, web search, browsing, skills, MCP, telephony — are switched on or off by the administrator from the settings, with no redeploy and no configuration file. A capability that is off also disappears from the catalogue the planner sees: LIA never promises an action it cannot perform, so you never get a refusal after the fact — the answer says so plainly, in your language."
+          "description": "Not every LIA instance offers the same features, and that is deliberate. Twenty-five capabilities, grouped into six families, are switched on or off by the administrator from the settings — no redeploy, no configuration file, effective at once. A switch removes the capability, never what it already produced: memory stops learning, every memory already learned stays readable. A capability that is off also disappears from the catalogue the planner sees, so LIA never promises an action it cannot perform."
         },
         "plugins": {
           "title": "🧩 Agent Plugins (open standard)",
@@ -4641,6 +4726,21 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_44_1": {
+          "title": "v1.44.1 — 🗂️ What LIA makes belongs to you",
+          "date": "September 2026",
+          "count": "8",
+          "items": {
+            "i1": "<b>🗂️ My generated files</b> — the images, documents and screenshots LIA produced for you finally have a place of their own, in Settings. Three galleries, one per family, with a search on the name, two date filters and four sort orders. Before, the only route to yesterday's report was finding the conversation that wrote it.",
+            "i2": "<b>⏳ You can see the expiry coming, and clearing a conversation no longer takes them with it</b> — every file shows its deadline, whose tone warms six hours before. And &quot;clear this conversation&quot; now removes only what <i>you</i> put there: the images and reports LIA produced stay, including those from other conversations.",
+            "i3": "<b>📌 Your standing instructions can no longer be deleted, only corrected</b> — &quot;call me by my first name&quot;, &quot;always answer in French&quot;: that kind of rule is protected from deletion, by you and by the automatic housekeeping alike. You can still edit it, which is the real way to change your mind.",
+            "i4": "<b>🎛️ An administrator can switch each feature off, one by one</b> — the panel offered twelve while the product shipped twenty-five: the ticket board, journals, habits, long-term memory, spontaneous notifications and eight more could only be turned off by redeploying. Switching a capability off stops it; everything it already produced stays readable and deletable.",
+            "i5": "<b>🧠 Context size is set model by model</b> — one setting fixed it for every Ollama model at once, so a small model was asked for the same window as a large one. Each slot now carries its own, pre-filled with what your server says about the model.",
+            "i6": "<b>🔬 The debug panel really tells the story of a turn</b> — one line per model call with its provider, its parameters and its reasoning effort, the bounds actually applied to the autonomous loop, the slot's window, and what LIA consulted, decided and checked during the exchange.",
+            "i7": "<b>🩹 Two outages fixed</b> — an internal value was reaching five providers out of seven and killing <i>every</i> call whatever the configuration; and a model its provider had retired told you to &quot;try again&quot; instead of sending you to pick another one.",
+            "i8": "<b>🖼️ Image thumbnails are back</b> — an image LIA produced no longer showed in the thread or in the gallery, while opening it displayed it perfectly. The browser was asking for the thumbnail <i>without</i> your session, the API refused, and an authentication failure read as a display bug."
+          }
+        },
         "v1_44_0": {
           "title": "v1.44.0 — 🗂️ A board for what you are actually doing",
           "date": "September 2026",
@@ -7033,7 +7133,7 @@
           },
           "q2": {
             "question": "How do I reset a conversation?",
-            "answer": "To clear everything and start over:<br><br>1. In the chat header, find the <strong>🗑️</strong> button<br>2. Click it<br>3. Confirm in the dialog<br><br><strong>⚠️ What is actually deleted:</strong><br>Every message, <strong>all your attachments — AI-generated images included</strong>, and the context LIA had built from this conversation. The action is <strong>irreversible</strong>.<br><br><strong>💡 When is it worth it?</strong><br>• You switch to a completely different topic<br>• LIA seems confused by earlier context<br>• You would rather not leave that history behind<br><br><strong>✅ What is NOT deleted:</strong><br>What LIA learned about you lives outside the conversation and stays: your long-term memory, the rhythm and recurring requests it observed, its mark of which emails it had already read, the thresholds it adjusted for you. To erase those, use <strong>Forget everything</strong> in the settings, or delete your account."
+            "answer": "To clear everything and start over:<br><br>1. In the chat header, find the <strong>🗑️</strong> button<br>2. Click it<br>3. Confirm in the dialog<br><br><strong>⚠️ What is actually deleted:</strong><br>Every message, <strong>the attachments you uploaded yourself</strong>, and the context LIA had built from this conversation. The action is <strong>irreversible</strong>.<br><br><strong>💡 When is it worth it?</strong><br>• You switch to a completely different topic<br>• LIA seems confused by earlier context<br>• You would rather not leave that history behind<br><br><strong>✅ What is NOT deleted:</strong><br><strong>The files LIA produced</strong> — images, documents, screenshots — stay in Settings › My generated files until their own deadline. What LIA learned about you lives outside the conversation and stays: your long-term memory, the rhythm and recurring requests it observed, its mark of which emails it had already read, the thresholds it adjusted for you. To erase those, use <strong>Forget everything</strong> in the settings, or delete your account."
           },
           "q3": {
             "question": "Are conversations saved?",
@@ -7132,7 +7232,7 @@
       "settings": {
         "title": "Settings",
         "description": "Account configuration and preferences",
-        "count": "24",
+        "count": "27",
         "questions": {
           "q1": {
             "question": "How do I change my timezone?",
@@ -7172,7 +7272,7 @@
           },
           "q10": {
             "question": "How do I manage my stored memories?",
-            "answer": "You have <strong>full control</strong> over what LIA remembers:<br><br><strong>📋 View your memories:</strong><br>Go to <strong>Settings > Long-term Memory</strong> to see everything LIA has remembered.<br><br><strong>✏️ Edit a memory:</strong><br>• Click the edit button<br>• Correct the content or category<br>• Adjust usage nuances<br><br><strong>📌 Pin a memory:</strong><br>Pinned memories are protected from automatic cleanup. Useful for important information.<br><br><strong>🗑️ Delete:</strong><br>• Delete individually or in bulk<br>• Option to keep pinned memories<br><br><strong>📤 Export:</strong><br>Export all your memories for backup (GDPR compliance).<br><br><strong>🔄 Automatic cleanup:</strong><br>Unpinned memories are automatically purged based on a retention score (importance, recency and actual usage) to keep the system relevant.<br><br><strong>⚠️ Forgetting risk:</strong><br>Memories close to being automatically forgotten are flagged in the list, so you can pin the ones that matter in time."
+            "answer": "You have <strong>full control</strong> over what LIA remembers:<br><br><strong>📋 View your memories:</strong><br>Go to <strong>Settings > Long-term Memory</strong> to see everything LIA has remembered.<br><br><strong>✏️ Edit a memory:</strong><br>• Click the edit button<br>• Correct the content or category<br>• Adjust usage nuances<br><br><strong>📌 Pin a memory:</strong><br>Pinned memories are protected from automatic cleanup. Useful for important information.<br><br><strong>🗑️ Delete:</strong><br>• Delete individually or in bulk<br>• Option to keep pinned memories<br><br><strong>🔒 Standing instructions cannot be deleted:</strong><br>A rule you set — &quot;call me by my first name&quot;, &quot;always answer in French&quot; — is protected from deletion, by you and by the automatic housekeeping alike. It stays <strong>editable</strong>: that is the real way to change a rule you gave yourself, and it stops an instruction from vanishing without anyone meaning it to.<br><br><strong>📤 Export:</strong><br>Export all your memories for backup (GDPR compliance).<br><br><strong>🔄 Automatic cleanup:</strong><br>Unpinned memories are automatically purged based on a retention score (importance, recency and actual usage) to keep the system relevant.<br><br><strong>⚠️ Forgetting risk:</strong><br>Memories close to being automatically forgotten are flagged in the list, so you can pin the ones that matter in time."
           },
           "q11": {
             "question": "How do I configure my geolocation and home address?",
@@ -7229,6 +7329,18 @@
           "q24": {
             "question": "What does the platform diagnostician read before it diagnoses an incident?",
             "answer": "Until recently, only the incident itself: a check, a value, its thresholds. The diagnoses said so — « insufficient evidence ».<br><br><strong>What it reads now, at the moment of the diagnosis:</strong><br>• <strong>Breakdown metrics</strong> over the incident's window — which outcome, status or refusal reason moved, and by how much<br>• <strong>A bounded log excerpt</strong> — recent error lines counted by event, personal data removed<br>• <strong>The running build</strong> and how long it has been up, so a recent deployment is visible<br>• <strong>The operations runbook</strong> written for that alert<br><br><strong>Each source stands on its own:</strong> if the log store cannot be reached, the diagnosis says that section was unavailable instead of pretending nothing happened.<br><br>Under every diagnosis in <strong>Settings › Platform health</strong>, « What the diagnostician read » shows exactly that pack, so an administrator can check the text against its evidence."
+          },
+          "q25": {
+            "question": "Where do I find everything LIA has made for me?",
+            "answer": "In <strong>Settings › My generated files</strong>. Three galleries, one per family: <strong>images</strong>, <strong>documents</strong> (reports, decks, workbooks) and the <strong>screenshots</strong> taken while browsing.<br><br><strong>🔎 What you can do:</strong><br>Search by name, narrow to a creation or expiry window, sort, open, download, and delete a selection. The count shown is the exact total, not the number of visible cards.<br><br><strong>⏳ The deadline is on the card:</strong><br>A generated file is an attachment with a retention period. The card shows when it ends, and the tone warms in the final hours — download what matters before then.<br><br><strong>Why this page exists:</strong><br>Before, the only route to yesterday's report was finding the conversation that wrote it."
+          },
+          "q26": {
+            "question": "How does an administrator switch a feature off?",
+            "answer": "In <strong>Settings › Administration › Capabilities</strong>. Twenty-five switches, grouped into six families — media and voice, memory and knowledge, reach and tools, work and initiative, people, assistant.<br><br><strong>🔌 A switch removes the capability, never the record:</strong><br>Switching memory off stops new facts being learned; every memory already learned stays readable and deletable. The same rule holds for interests, debriefs and uploads.<br><br><strong>⚡ Immediate effect:</strong><br>The switch is read at call time, not at boot: flipping a capability needs no restart.<br><br><strong>📍 The panel says where it bites:</strong><br>On the routes, at an internal chokepoint, or both — and the deployment ceiling stays above it: what the operator has not enabled in the environment cannot be turned on from the screen."
+          },
+          "q27": {
+            "question": "How do I set a model's context size?",
+            "answer": "In <strong>Settings › Administration › LLM Configuration</strong>, on each slot. The field is <strong>pre-filled</strong> with what your server declares about the model, and that model's maximum is shown right below it. You type in <strong>k</strong>.<br><br><strong>🎯 Why per slot:</strong><br>A frugal router and a generous responder can run on the same model and deserve different windows. A single instance-wide setting made that impossible — and asked a small model for the same window as a large one.<br><br><strong>↩️ Clearing the field:</strong><br>The slot goes back to what the model declares for itself. Nothing to memorise, nothing to copy.<br><br><strong>Why it matters:</strong><br>This number is the one LIA <em>asks</em> the server for and the one it <em>counts</em> with. When they differ, automatic summarisation fires at the wrong moment and the start of a long exchange can be cut without anyone seeing it."
           }
         }
       },
@@ -8202,7 +8314,7 @@
       "image_generation": {
         "title": "AI Image Generation",
         "description": "Generate and edit images using AI",
-        "count": "7",
+        "count": "8",
         "questions": {
           "q1": {
             "question": "How do I generate an image?",
@@ -8231,13 +8343,17 @@
           "q7": {
             "question": "How long does a generated image stay available?",
             "answer": "Not indefinitely. A generated image is an attachment with an expiry, and a scheduled cleanup removes expired attachments every few hours.<br><br><strong>🕒 What the card shows:</strong><br>The deadline returned by the server, and an alert tone in the final hours so downloading stays possible in time.<br><br><strong>Why not a hard-coded duration:</strong><br>The retention window is configurable by the administrator, so a value written into the interface would eventually be wrong. Images that predate this feature show nothing rather than guess.<br><br><strong>💡 Tip:</strong><br>Use the download button as soon as an image matters to you — that is the only way to keep it past the deadline."
+          },
+          "q8": {
+            "question": "Where do I find every image LIA has created?",
+            "answer": "In <strong>Settings › My generated files › Images</strong>: all your images, across every conversation, with a search on the name, two date filters and four sort orders.<br><br>The gallery does not push the deadline back — it makes it <strong>visible</strong>. Every card shows when it ends, and the tone warms in the final hours. Download what matters before then.<br><br>And from this version, <strong>clearing a conversation no longer takes the images it produced with it</strong>: a reset removes only the attachments you sent yourself."
           }
         }
       },
       "document_generation": {
         "title": "AI Document Generation",
         "description": "Create downloadable CSV, Excel, Word, PowerPoint, PDF, Markdown or text files directly from the conversation.",
-        "count": "6",
+        "count": "7",
         "questions": {
           "q1": {
             "question": "How do I create a document?",
@@ -8262,6 +8378,10 @@
           "q6": {
             "question": "What does the finished file look like?",
             "answer": "Each format is drawn with its own codes, not as plain text in a grey box. A <b>presentation</b> is 16:9, with a layout chosen per intent — a part opener, a two-column comparison, a native table — and a slide number on every slide. A <b>Word</b> file carries a table of contents, numbered headings, a running head and pagination, all computed by Word itself: they stay right when you add a paragraph. An <b>Excel</b> file has typed columns, a frozen header and a filterable Table. A <b>PDF</b> has a contents page with exact page numbers, plus bookmarks and links. Text is measured before it is placed: a crowded slide is shrunk, then split in two rather than clipped."
+          },
+          "q7": {
+            "question": "Where do I find every document LIA has produced?",
+            "answer": "In <strong>Settings › My generated files › Documents</strong>: reports, decks and workbooks, across every conversation. Every card carries the <strong>title LIA gave the document</strong> — &quot;Quarterly review&quot;, not an identifier — its size, its date and its deadline.<br><br>You can search by name, narrow to a period, sort, open, download and delete a selection. And <strong>clearing the conversation that produced a report no longer deletes it</strong>."
           }
         }
       },
@@ -8491,7 +8611,7 @@
       },
       "image_expiry": {
         "title": "Images that tell you upfront",
-        "desc": "Every generated image says how long it stays available."
+        "desc": "Every generated image says how long it stays available, and lives in a gallery of its own rather than inside the conversation that made it."
       },
       "attachment_limits": {
         "title": "A refusal that explains",
@@ -9111,7 +9231,8 @@
     "create_success": "Memory created",
     "create_error": "Error creating memory",
     "count_one": "{{count}} memory",
-    "count_other": "{{count}} memories"
+    "count_other": "{{count}} memories",
+    "procedural_never_deleted": "These instructions are yours: LIA never removes them on her own. She may correct one when you say something new, and you can delete them yourself."
   },
   "interests": {
     "dormant_section": "Dormant",
@@ -10842,7 +10963,7 @@
       "progressive-steps": {
         "title": "Real-Time Execution Steps: Watch LIA Work",
         "excerpt": "LIA progressively displays each execution step — routing, planning, tool calls — in real time while processing your request.",
-        "body": "<h2>Transparency in action</h2><p>When you send a complex request to LIA, several seconds may pass before the response arrives. What is the assistant doing during that time? With progressive step display, you know <strong>in real time</strong>: each node traversed, each tool called appears as it happens. And the display itself is alive: past steps dim, the current one breathes, the whole block fades into the first words of the reply, and a caret blinks while the answer is being written.</p><h2>How it works</h2><p>The backend uses LangGraph's <code>updates</code> stream mode to detect each graph node's completion. At each step, an SSE <code>execution_step</code> event is sent to the frontend with:</p><ul><li>The tool or node's <strong>i18n key</strong> (translated into the user's language)</li><li>A <strong>reasoning excerpt</strong> (truncated to 120 characters) in ReAct mode</li><li><strong>Fallback metadata</strong> for tools not listed in the catalogue</li></ul><h2>Frontend display</h2><p>Steps accumulate visually in the interface, line by line, capped at <strong>10 steps</strong> visible simultaneously. An <strong>i18n key deduplication</strong> mechanism prevents identical steps from repeating (via a reference Set). When the answer starts streaming, the steps fold into a collapsed “⚙ N steps · X s” line under the response — stored with the message, so the backstage is still there after a reload, on every device.</p><h2>Pipeline and ReAct</h2><p>In <strong>Pipeline</strong> mode, steps come from the ExecutionPlan: planner, semantic validator, approval gate, task orchestrator. In <strong>ReAct</strong> mode, each tool call generates a step with an excerpt of the LLM's reasoning.</p><h2>114 tools covered</h2><p>All <strong>90 catalogue tools</strong> have dedicated i18n keys across 6 languages. Texts were translated to provide natural messages in each language (\"Searching contacts...\", \"Reading emails...\") rather than technical identifiers.</p><h2>No more random messages</h2><p>The old system displayed amusing but random waiting phrases (\"LIA is thinking...\", \"Analysis in progress...\"). This system has been entirely replaced by <strong>real, contextual steps</strong> that reflect exactly what the assistant is doing at each moment.</p><h2>When the stream goes quiet</h2><p>A step display is only worth as much as the stream feeding it. When a phone suspends the tab, the connection dies announcing nothing — no end, no error — and the screen stays on the last step shown, indefinitely, while the answer is finished and saved on the server. Nothing told that state apart from a merely slow answer. LIA now recognises that silence: past a budget calibrated on the server's heartbeat rhythm, the dead connection is dropped and the turn still running in the background is picked back up automatically.</p>"
+        "body": "<h2>Transparency in action</h2><p>When you send a complex request to LIA, several seconds may pass before the response arrives. What is the assistant doing during that time? With progressive step display, you know <strong>in real time</strong>: each node traversed, each tool called appears as it happens. And the display itself is alive: past steps dim, the current one breathes, the whole block fades into the first words of the reply, and a caret blinks while the answer is being written.</p><h2>How it works</h2><p>The backend uses LangGraph's <code>updates</code> stream mode to detect each graph node's completion. At each step, an SSE <code>execution_step</code> event is sent to the frontend with:</p><ul><li>The tool or node's <strong>i18n key</strong> (translated into the user's language)</li><li>A <strong>reasoning excerpt</strong> (truncated to 120 characters) in ReAct mode</li><li><strong>Fallback metadata</strong> for tools not listed in the catalogue</li></ul><h2>Frontend display</h2><p>Steps accumulate visually in the interface, line by line, capped at <strong>10 steps</strong> visible simultaneously. An <strong>i18n key deduplication</strong> mechanism prevents identical steps from repeating (via a reference Set). When the answer starts streaming, the steps fold into a collapsed “⚙ N steps · X s” line under the response — stored with the message, so the backstage is still there after a reload, on every device.</p><h2>Pipeline and ReAct</h2><p>In <strong>Pipeline</strong> mode, steps come from the ExecutionPlan: planner, semantic validator, approval gate, task orchestrator. In <strong>ReAct</strong> mode, each tool call generates a step with an excerpt of the LLM's reasoning.</p><h2>114 tools covered</h2><p>All <strong>114 catalogue tools</strong> have dedicated i18n keys across 6 languages. Texts were translated to provide natural messages in each language (\"Searching contacts...\", \"Reading emails...\") rather than technical identifiers.</p><h2>No more random messages</h2><p>The old system displayed amusing but random waiting phrases (\"LIA is thinking...\", \"Analysis in progress...\"). This system has been entirely replaced by <strong>real, contextual steps</strong> that reflect exactly what the assistant is doing at each moment.</p><h2>When the stream goes quiet</h2><p>A step display is only worth as much as the stream feeding it. When a phone suspends the tab, the connection dies announcing nothing — no end, no error — and the screen stays on the last step shown, indefinitely, while the answer is finished and saved on the server. Nothing told that state apart from a merely slow answer. LIA now recognises that silence: past a budget calibrated on the server's heartbeat rhythm, the dead connection is dropped and the turn still running in the background is picked back up automatically.</p>"
       },
       "account-lifecycle": {
         "title": "Account Lifecycle: 4 States for Complete GDPR Compliance",
@@ -11462,7 +11583,10 @@
       "proactivity": "Proactivity",
       "interests": "Interests",
       "routines": "Routines",
+      "reminders": "Reminders",
       "relations": "Relationships",
+      "open_loops": "Open loops",
+      "workboard": "Workboard",
       "peers": "LIA connections",
       "channels": "Channels",
       "spaces": "Spaces",
@@ -11470,6 +11594,7 @@
       "skills": "Skills",
       "images": "Images",
       "documents": "Documents",
+      "generated_files": "Generated files",
       "plugins": "Plugins",
       "habits": "Habits",
       "mcp_servers": "MCP servers",
@@ -11500,7 +11625,33 @@
       "telephony": "Phone calls",
       "telephony_description": "Agentic outbound calls. Turning it off closes the telephony routes.",
       "meetings": "Meeting recording",
-      "meetings_description": "Recording meetings and producing minutes. Turning it off closes the meetings routes; nothing else changes."
+      "meetings_description": "Recording meetings and producing minutes. Turning it off closes the meetings routes; nothing else changes.",
+      "workboard": "Workboard",
+      "workboard_description": "The ticket board with a lifecycle, a holder and a result. Turning it off closes the board for everyone; nothing is deleted.",
+      "journals": "Personal journals",
+      "journals_description": "Dated entries LIA writes and reads back. Turning it off closes the journals surface.",
+      "habits": "Learned habits",
+      "habits_description": "What LIA infers about a person's rhythms. Turning it off closes the habits surface.",
+      "heartbeat": "Proactive notifications",
+      "heartbeat_description": "LIA reaching out on its own. Turning it off closes the proactivity surface and its history.",
+      "peers": "LIA connections",
+      "peers_description": "Account-to-account connections. Turning it off closes the connections surface; existing links are kept.",
+      "psyche": "Psychological profile",
+      "psyche_description": "The profile that adapts LIA's tone. Turning it off closes the profile surface.",
+      "channels": "External channels",
+      "channels_description": "Reaching LIA from Telegram and the like. Turning it off closes every channel binding surface.",
+      "open_loops": "Open loops",
+      "open_loops_description": "Unfinished threads LIA keeps track of. Turning it off closes the open-loops surface.",
+      "memory": "Long-term memory",
+      "memory_description": "Learning durable facts from conversations. Turning it off stops new memories; every existing memory stays readable and deletable.",
+      "interests": "Interest tracking",
+      "interests_description": "Learning what a person follows. Turning it off stops new interests; the profile stays readable.",
+      "relation_debrief": "Relationship debriefs",
+      "relation_debrief_description": "The dated synthesis LIA writes about a relationship. Turning it off stops writing them; the Relations page stays open.",
+      "sub_agents": "Delegated sub-agents",
+      "sub_agents_description": "Delegating research to a read-only sub-agent. Turning it off refuses the delegation at call time.",
+      "python_sandbox": "Ephemeral Python",
+      "python_sandbox_description": "Running a short script the model wrote, in the sandbox. Turning it off refuses it at call time."
     }
   },
   "showroom": {
@@ -12702,6 +12853,7 @@
     "error_too_many": "That is {{count}} times a day; the limit is {{limit}}.",
     "error_step_too_small": "The shortest interval is {{limit}} minutes.",
     "error_no_end_date": "Choose the last day, or pick another end rule.",
+    "error_end_before_start": "The last day cannot come before the first one.",
     "section_when": "When",
     "step_separator": "to",
     "advanced": "Advanced options"
@@ -12812,7 +12964,8 @@
       "reset": "Clear the filters",
       "total": "{{count}} ticket matches",
       "total_one": "{{count}} ticket matches",
-      "total_other": "{{count}} tickets match"
+      "total_other": "{{count}} tickets match",
+      "none": "No filter"
     },
     "actions": {
       "create": "New ticket",

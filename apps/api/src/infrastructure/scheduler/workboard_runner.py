@@ -93,7 +93,10 @@ from src.infrastructure.scheduler.out_of_turn_run import (
     resolve_run_context,
     stream_instruction,
 )
-from src.infrastructure.streaming.run_stream_broker import active_run_lease
+from src.infrastructure.streaming.run_stream_broker import (
+    ActiveRunLockLost,
+    active_run_lease,
+)
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -564,16 +567,29 @@ async def _run(prepared: ClaimedRun) -> RunResult | None:
     from src.infrastructure.cache.redis import get_redis_cache
 
     redis = await get_redis_cache()
-    async with active_run_lease(
-        redis,
-        str(prepared.conversation_id),
-        run_id=prepared.run_id,
-        stream_id=f"{RUN_ORIGIN_KIND}:{prepared.run_id}",
-    ) as acquired:
-        if not acquired:
-            return None
-        await _announce_start(prepared)
-        return await stream_instruction(request)
+    try:
+        async with active_run_lease(
+            redis,
+            str(prepared.conversation_id),
+            run_id=prepared.run_id,
+            stream_id=f"{RUN_ORIGIN_KIND}:{prepared.run_id}",
+        ) as acquired:
+            if not acquired:
+                return None
+            await _announce_start(prepared)
+            return await stream_instruction(request)
+    except ActiveRunLockLost:
+        # Another producer took the conversation while the turn was running —
+        # the person started talking, typically. `None` is the SAME answer the
+        # pre-checks give for a busy conversation: the claim goes back and the
+        # ticket retries, rather than spending one of its ten runs on a verdict
+        # about work that was never LIA's to finish.
+        logger.info(
+            "workboard_run_conversation_taken_over",
+            ticket_id=str(prepared.ticket_id),
+            run_id=prepared.run_id,
+        )
+        return None
 
 
 async def _clear_pending_question(prepared: ClaimedRun) -> None:
@@ -627,6 +643,24 @@ async def _settle(db: AsyncSession, prepared: ClaimedRun, result: RunResult) -> 
         None when the settle lost the ticket and nothing was written.
     """
     repository = WorkboardRepository(db)
+    if result.outcome is StreamOutcome.QUOTA_BLOCKED:
+        # A ceiling refused the call, so the turn generated nothing: the claim
+        # goes BACK the way the pre-check's own refusal returns it, with the
+        # same back-off. Settling it would burn one of the ticket's ten runs
+        # and tell the person LIA stumbled — a quota refusal is not a
+        # generation failure (ADR-272), and until 2026-09-10 this path read it
+        # as « LIA answered nothing » because the stream's error chunk was
+        # dropped before anyone could see it.
+        now = now_utc()
+        await _release(
+            repository,
+            ticket_id=prepared.ticket_id,
+            run_id=prepared.run_id,
+            outcome=RunOutcome.SKIPPED_QUOTA,
+            now=now,
+            retry_after=now + timedelta(minutes=settings.workboard_quota_retry_minutes),
+        )
+        return None
     plan = plan_settle(result, language=prepared.language, timezone=prepared.timezone)
     if plan.outcome in STOPPED_ON_A_QUESTION:
         await _clear_pending_question(prepared)

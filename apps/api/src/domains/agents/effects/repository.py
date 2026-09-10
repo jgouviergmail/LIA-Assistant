@@ -45,6 +45,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.config import settings
 from src.core.repository import BaseRepository
 from src.core.security.utils import decrypt_data, encrypt_data
+from src.core.turn_verdicts import note_verdict
 from src.domains.agents.effects.digest import payload_digest
 from src.domains.agents.effects.models import AgentEffect, EffectSource, EffectStatus
 from src.domains.agents.effects.origin import RegisterOrigin, origin_sources
@@ -239,6 +240,10 @@ class EffectLedgerRepository(BaseRepository[AgentEffect]):
         )
         self.db.add(row)
         await self.db.flush()
+        # The register keeps it for the record; the panel of THIS exchange needs
+        # it live, because a refusal is precisely what a reader is looking for
+        # when a turn « did nothing » (B8).
+        note_verdict("capability_refused", req.tool_name[:40])
         return row
 
     async def abandon_stale(self, effect_id: uuid.UUID, *, older_than: datetime) -> bool:

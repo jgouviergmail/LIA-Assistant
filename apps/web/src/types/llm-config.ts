@@ -78,6 +78,12 @@ export interface LLMAgentConfig {
   max_tokens: number;
   timeout_seconds: number | null;
   reasoning_effort: ReasoningEffortValue;
+  /**
+   * Context window THIS slot works with, in tokens (ADR-278). `null` = the
+   * model's own. For Ollama it is also the `num_ctx` requested on every call,
+   * because what LIA accounts with is what LIA asks for.
+   */
+  context_window: number | null;
 }
 
 // --- LLM Type Config ---
@@ -119,6 +125,8 @@ export interface LLMTypeConfigUpdate {
   timeout_seconds?: number | null;
   reasoning_effort?: ReasoningEffortValue;
   provider_config?: string | null;
+  /** `null` clears the override and returns the slot to the model's own. */
+  context_window?: number | null;
 }
 
 export interface LLMConfigListResponse {
@@ -192,11 +200,28 @@ export interface VoicesResponse {
 export interface OllamaModelCapabilities extends ModelCapabilities {
   size: string | null;
   family: string | null;
+  /**
+   * The model runs on Ollama's cloud — declared by the server (`remote_host`),
+   * never inferred from a `-cloud` suffix. A cloud tag keeps its whole window;
+   * a local one is capped, because the cap protects the HOST's VRAM.
+   */
+  is_cloud: boolean;
+  /** What LIA requests for this tag today — pre-fills the slot's own field. */
+  context_window: number;
+  /** The model's OWN maximum, shown as the ceiling. Null when unreported. */
+  max_context_window: number | null;
 }
 
 export interface OllamaModelsResponse {
   models: OllamaModelCapabilities[];
   source: 'live' | 'fallback';
+  /**
+   * Tags the server listed but described nothing about. They carry no
+   * capabilities rather than a guess (ADR-278: silence is not a declaration),
+   * so they are not offered in the picker — the model field still accepts one
+   * typed by hand.
+   */
+  undescribed: string[];
 }
 
 // --- UI helpers ---

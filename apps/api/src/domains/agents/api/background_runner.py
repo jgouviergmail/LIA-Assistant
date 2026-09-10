@@ -134,7 +134,11 @@ async def _produce(
     heartbeat_task: asyncio.Task | None = None
     if conversation_id is not None:
         heartbeat_task = asyncio.create_task(
-            heartbeat_active_run(redis, conversation_id, stream_id),
+            # `run_id` lets the heartbeat RE-TAKE a lock that merely expired —
+            # a Redis blip longer than the 30 s TTL, which a long turn easily
+            # outlives. Without it the producer would stream on with the
+            # conversation left unlocked behind it.
+            heartbeat_active_run(redis, conversation_id, stream_id, run_id=run_id),
             name=f"chat-run-heartbeat-{stream_id}",
         )
     # Lot 3: watch for a user cancellation signal (possibly set from another

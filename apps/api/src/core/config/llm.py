@@ -1516,27 +1516,13 @@ class LLMSettings(BaseSettings):
         ),
     )
 
-    # The context window LIA asks Ollama for on EVERY chat call (``num_ctx``,
-    # ADR-267). Ollama's own default depends on the host's VRAM (4k under
-    # 24 GiB) and it truncates the beginning of an oversized prompt in
-    # silence, so a value here is what makes LIA's context accounting and the
-    # server agree. None = Ollama decides. Mind the VRAM: a larger window
-    # costs memory, and an oversized one offloads the model to CPU.
-    ollama_num_ctx: int | None = Field(
-        default=None,
-        ge=1024,
-        description=(
-            "Context window (num_ctx) requested from Ollama on every chat call. "
-            "None = the server's VRAM-based default (which silently truncates "
-            "long prompts). Set e.g. 32768 to make LIA and Ollama agree."
-        ),
-    )
-
-    @field_validator("ollama_num_ctx", mode="before")
-    @classmethod
-    def _ollama_num_ctx_empty_to_none(cls, v: Any) -> Any:
-        """Treat an empty ``OLLAMA_NUM_CTX=`` as unset rather than as a parse error."""
-        return None if isinstance(v, str) and not v.strip() else v
+    # ``OLLAMA_NUM_CTX`` lived here until ADR-278. It was ONE instance-wide
+    # number handed to every Ollama tag whatever its size — a deployment set
+    # 128 000 and a 4 B model was asked to allocate the same window as a 27 B
+    # one. The window is now a property of the configured SLOT
+    # (``llm_config_overrides.context_window``, pre-filled from what the server
+    # says about that tag), so the operator sets it where they can SEE which
+    # model it applies to. Two authorities on one question is one too many.
 
     # ========================================================================
     # VALIDATORS - Empty String to None Conversion

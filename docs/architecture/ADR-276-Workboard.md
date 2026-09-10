@@ -1152,3 +1152,83 @@ Pas de tickets récurrents (une routine existe), pas de pièces jointes sur les
 commentaires, pas d'étiquettes, pas de tableaux multiples, pas de modèles de
 ticket, pas de synchronisation temps réel entre deux navigateurs, et pas de
 second niveau de hiérarchie.
+
+## Amendement, 2026-09-10 — le refus du flux était invisible, et le panneau n'était pas une place
+
+Revue à froid de tout le code modifié depuis la v1.41.0. Deux défauts sur le
+moteur hors tour et sa page.
+
+**Un chunk `error` était purement ignoré.** `_StreamReader` connaissait quatre
+types de chunks et laissait tomber les autres — or le flux annonce ses refus
+par un chunk `error` : un plafond de dépense (`stream_gates`), un échec de
+fournisseur, une question déjà en attente sur la conversation. Le lecteur
+rendait donc **aucun jeton et aucune interruption**, le run se soldait
+`SUCCESS` avec un texte vide, et `plan_settle` lit exactement cela comme
+`workboard_empty_answer`. Mesuré le 2026-09-10 de bout en bout : le ticket
+annonçait « LIA n'a rien répondu », consommait l'un de ses dix runs et ne
+programmait aucune reprise — un diagnostic inventé (ADR-182) sur la seule
+ligne que la personne lit pour savoir ce qui s'est passé.
+
+Le flux a désormais un verdict que le moteur lit : `StreamFailure`, dont le
+code vient de la **métadonnée** du chunk et jamais de sa phrase (celle-ci est
+localisée par le front et changerait sous nous). Un refus par plafond devient
+`RunOutcome.QUOTA_BLOCKED` et le ticket est **relâché** en « ignoré, quota »
+avec le même report que le pré-contrôle applique déjà — jamais soldé en échec,
+parce qu'un refus de quota n'est pas un échec de génération (ADR-272). Tout
+autre refus se solde en échec **en portant le message du flux**, au lieu de se
+faire passer pour une absence de réponse. Rien n'est réessayé : un plafond qui
+refuse cet appel refuse le suivant, et un flux qui a nommé son échec a déjà
+décidé. Une routine, elle, garde son chemin d'échec : `ScheduledRunOutcome`
+déclare cinq valeurs, une par sortie, et la grille hebdomadaire les colorie —
+un sixième verdict pour un cas que le ticket traite déjà coûterait la
+timeline et six locales sans rien apporter de visible.
+
+**Le panneau ouvert n'écrivait aucune entrée d'historique.** Le commentaire qui
+justifie de le DÉRIVER de l'URL promet trois choses : un lien qu'on peut
+envoyer, aucune seconde autorité, et « le bouton Précédent le ferme ».
+`router.replace` n'en écrit pas : Précédent faisait donc **sortir du tableau**
+au lieu de fermer le panneau — sur Android, où c'est le geste de rejet. L'ouverture
+`push`, la fermeture `replace` : l'asymétrie est le fond du sujet, un panneau
+refermé ne devant pas empiler une seconde entrée pour le même endroit.
+
+## Amendement, 2026-09-10 (2e passe) — un battement qui constate sans agir
+
+Seconde revue à froid, sur les surfaces que la première n'avait pas ouvertes.
+Le bail de conversation introduit ici (`active_run_lease`) tient les trois
+gestes qu'une revendication durable doit tenir — prendre, battre, relâcher au
+jeton. Il lui manquait la **conséquence**.
+
+`heartbeat_active_run` constatait la perte du verrou, écrivait
+`active_run_lock_lost` et **sortait**. Le bloc qu'il protégeait, lui, continuait
+de tourner. C'est exactement l'état que le verrou existe pour rendre
+impossible, et il est atteignable avec les valeurs livrées : le TTL est de
+30 secondes, le battement de 10, et un run de ticket dure des minutes — une
+coupure Redis d'une demi-minute suffit à laisser expirer la clé. La personne
+envoie alors un message, le routeur de chat prend la clé libre, et **deux
+producteurs écrivent dans une même conversation et un même fil LangGraph**.
+CLAUDE.md l'énonce sans détour : « A failed heartbeat immediately aborts all
+later effects. »
+
+Le refus n'est pourtant pas une situation mais deux, et les distinguer est tout
+le travail :
+
+- un verrou **simplement expiré** n'appartient à personne : le run le
+  **reprend** (`SET NX`, avec le `run_id` que la charge du verrou porte) et
+  poursuit. Interrompre un run sain pour un hoquet Redis serait un remède pire
+  que le mal — et le producteur de chat en bénéficie aussi, il connaissait son
+  `run_id` sans le passer ;
+- un verrou **repris par un autre** est la vraie collision. Le bloc est alors
+  interrompu par `ActiveRunLockLost` — une exception ordinaire, jamais un
+  `CancelledError` nu, parce que l'unique appelant est un tic d'ordonnanceur
+  dont le docstring promet qu'il ne lève jamais et dont l'`except Exception`
+  doit pouvoir la voir.
+
+Le mécanisme d'interruption n'est pas neuf : le producteur de chat capture déjà
+sa propre tâche et l'annule sur signal, avec un drapeau qui distingue son
+annulation de celle d'un tiers. Le bail reprend cette forme, `uncancel()`
+compris — sans quoi chaque `await` du démontage relèverait.
+
+Et le ticket, lui, **fait un pas de côté** plutôt que d'échouer : `_run` rend
+`None`, ce que le tic traduit déjà en « ignoré, occupé ». Le solder en échec
+aurait dépensé l'un de ses dix runs et annoncé à la personne que LIA a trébuché,
+alors qu'il s'est passé qu'elle s'est mise à parler.

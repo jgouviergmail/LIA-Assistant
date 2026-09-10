@@ -41,6 +41,13 @@ vi.mock('@/components/meetings/MeetingRecorderProvider', () => ({
   useMeetingRecorderContext: () => recorder.value,
 }));
 const push = vi.fn();
+// The origin travels in the URL, so the page's search params are part of
+// its input — the global setup mock answers an empty set.
+const searchParams = vi.hoisted(() => ({ value: new URLSearchParams() }));
+vi.mock('next/navigation', async importOriginal => ({
+  ...(await importOriginal<typeof import('next/navigation')>()),
+  useSearchParams: () => searchParams.value,
+}));
 vi.mock('@/hooks/useLocalizedRouter', () => ({
   useLocalizedRouter: () => ({ push, replace: vi.fn(), back: vi.fn() }),
 }));
@@ -260,5 +267,47 @@ describe('MeetingsPage — toolbar and format (ADR-259)', () => {
     list.total = 1;
     renderWithProviders(<MeetingsPage params={params} />);
     expect(screen.getByText(/Daily standup/)).toBeInTheDocument();
+  });
+});
+
+describe('the way back', () => {
+  beforeEach(() => {
+    push.mockClear();
+    list.meetings = [];
+    list.total = 0;
+  });
+
+  it('leads to the chat when no origin travelled', async () => {
+    // Owner's arbitration: « si pas possible alors retour chat par défaut ».
+    renderWithProviders(<MeetingsPage params={Promise.resolve({ lng: 'en' })} />);
+
+    const back = await screen.findByRole('button', { name: /navigation.chat/ });
+    back.click();
+
+    expect(push).toHaveBeenCalledWith('/dashboard/chat');
+  });
+
+  it('leads back to the screen the reader came from', async () => {
+    searchParams.value = new URLSearchParams('from=relations');
+    renderWithProviders(<MeetingsPage params={Promise.resolve({ lng: 'en' })} />);
+
+    const back = await screen.findByRole('button', { name: /navigation.relations/ });
+    back.click();
+
+    expect(push).toHaveBeenCalledWith('/dashboard/relations');
+    searchParams.value = new URLSearchParams();
+  });
+
+  it('leads to the chat rather than anywhere a token invented', async () => {
+    // The origin is a TOKEN looked up in a closed table, never a URL: a
+    // `?from=https://evil.example` must not become a redirect.
+    searchParams.value = new URLSearchParams('from=https://evil.example.com');
+    renderWithProviders(<MeetingsPage params={Promise.resolve({ lng: 'en' })} />);
+
+    const back = await screen.findByRole('button', { name: /navigation.chat/ });
+    back.click();
+
+    expect(push).toHaveBeenCalledWith('/dashboard/chat');
+    searchParams.value = new URLSearchParams();
   });
 });

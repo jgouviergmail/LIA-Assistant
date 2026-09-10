@@ -272,11 +272,14 @@ OLLAMA_OPENAI_COMPAT_PATH = "/v1"
 # one so the admin matrix has a bound to show (the slot's max_tokens is what is
 # actually sent, as num_predict).
 OLLAMA_DISCOVERED_MAX_OUTPUT_TOKENS = 8192
-# The context window LIA requests from Ollama (``num_ctx``) when OLLAMA_NUM_CTX is
-# not set: the model's own maximum (read at discovery), capped here. Ollama's
-# VRAM tiers allocate 4k under 24 GiB and 32k up to 48 GiB; a model asked for
-# more than the VRAM holds is offloaded, never truncated in silence -- and the
-# accounting (compaction threshold, ReAct budget) uses this same number.
+# The ceiling on the context window LIA requests from a LOCAL Ollama tag
+# (``num_ctx``): the model's own maximum, read at discovery and capped here.
+# Ollama's VRAM tiers allocate 4k under 24 GiB and 32k up to 48 GiB; a model
+# asked for more than the VRAM holds is offloaded, never truncated in silence
+# -- and the accounting (compaction threshold, ReAct budget) uses this same
+# number. A CLOUD tag keeps its whole window: the cap protects THIS machine's
+# memory, and there is none to protect on somebody else's (ADR-278). An
+# operator raises or lowers either one per slot, where they can see the model.
 OLLAMA_NUM_CTX_DEFAULT_CAP = 32768
 
 # ============================================================================

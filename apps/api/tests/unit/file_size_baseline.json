@@ -9,7 +9,7 @@
     "domains/agents/drafts/service.py": 935,
     "domains/agents/emails/catalogue_manifests.py": 753,
     "domains/agents/nodes/hitl_dispatch_node.py": 756,
-    "domains/agents/nodes/response_node.py": 2364,
+    "domains/agents/nodes/response_node.py": 2254,
     "domains/agents/nodes/task_orchestrator_node.py": 680,
     "domains/agents/orchestration/parallel_executor.py": 2157,
     "domains/agents/orchestration/semantic_validator.py": 832,

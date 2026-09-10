@@ -120,9 +120,20 @@ async def delegate_to_sub_agent_tool(
             )
 
         # ADR-083 Phase 2 cleanup: the per-user `sub_agents_enabled` preference
-        # toggle (Option B) was removed — the global `SUB_AGENTS_ENABLED` flag
-        # gates the whole subsystem (planner catalogue + this tool's
-        # registration) at startup. No need for a per-call DB lookup.
+        # toggle (Option B) was removed. The global flag gates the subsystem at
+        # STARTUP (planner catalogue + this tool's registration); since B7 the
+        # operator's switch is read HERE, at call time, because a switch flipped
+        # after boot must take effect without a restart.
+        from src.domains.feature_switches.registry import (
+            PlatformCapability,
+            is_capability_enabled,
+        )
+
+        if not await is_capability_enabled(PlatformCapability.SUB_AGENTS):
+            return UnifiedToolOutput.failure(
+                message="Sub-agent delegation is disabled on this instance.",
+                error_code="CONFIGURATION_ERROR",
+            )
 
         # Build the read-only toolset for the sub-agent.
         # `resolve_tools_for_subagent` filters out write tools AND excludes

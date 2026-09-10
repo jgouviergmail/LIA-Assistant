@@ -116,7 +116,12 @@ class CapabilitySwitchAdminService:
             # What the runtime actually enforces.
             effective_enabled=available and bool(switch),
             enforced_in_catalogue=bool(spec.agents),
-            enforced_on_routes=spec.route_enforced or spec.service_enforced,
+            # Split since B7: five capabilities are enforced at a SERVICE
+            # chokepoint, and folding them into « routes » told an operator
+            # something the code does not do.
+            enforced_on_routes=spec.route_enforced,
+            enforced_in_service=spec.service_enforced,
+            family=spec.family,
             updated_by=setting.updated_by if setting else None,
             updated_at=setting.updated_at if setting else None,
             is_default=setting is None,

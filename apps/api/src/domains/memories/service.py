@@ -25,6 +25,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domains.memories.models import Memory
+from src.domains.memories.protection import is_protected_from_deletion
 from src.domains.memories.repository import MemoryRepository
 from src.infrastructure.observability.logging import get_logger
 
@@ -203,11 +204,19 @@ class MemoryService:
             The invalidated memory.
 
         Raises:
-            ValueError: On a pinned (user-locked) memory — callers must
-                skip them; reaching here is a contract breach.
+            ValueError: On a pinned (user-locked) memory, or on a dictated
+                directive (``protection.PROTECTED_CATEGORIES``) — callers must
+                skip them; reaching here is a contract breach. A directive
+                leaves the active set only WITH a successor, which is
+                :meth:`supersede_with_update`, never this.
         """
         if memory.pinned:
             raise ValueError(f"memory {memory.id} is pinned (user-locked)")
+        if is_protected_from_deletion(memory.category):
+            raise ValueError(
+                f"memory {memory.id} is a dictated directive "
+                f"({memory.category}) — correct it, never retire it alone"
+            )
         memory.invalidated_at = datetime.now(UTC)
         updated = await self.repo.update(memory)
         logger.info(

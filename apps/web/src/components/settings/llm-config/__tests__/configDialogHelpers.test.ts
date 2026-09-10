@@ -87,6 +87,7 @@ function agentCfg(overrides: Partial<LLMAgentConfig> = {}): LLMAgentConfig {
     max_tokens: 1000,
     timeout_seconds: null,
     reasoning_effort: null,
+    context_window: null,
     ...overrides,
   };
 }

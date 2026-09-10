@@ -53,6 +53,7 @@ import { HabitsSettings } from './HabitsSettings';
 import { HapticsSettings } from './HapticsSettings';
 import { HealthMetricsSettings } from './HealthMetricsSettings';
 import { HeartbeatSettings } from './HeartbeatSettings';
+import { GeneratedAssetsSettings } from './GeneratedAssetsSettings';
 import { ImageGenerationSettings } from './ImageGenerationSettings';
 import { InterestsSettings } from './InterestsSettings';
 import { JournalsSettings } from './JournalsSettings';
@@ -116,6 +117,10 @@ export const SETTINGS_SECTION_REGISTRY: Readonly<
   'image-generation': {
     feature: 'image-generation',
     render: lng => <ImageGenerationSettings lng={lng} />,
+  },
+  'generated-assets': {
+    feature: 'generated-assets',
+    render: lng => <GeneratedAssetsSettings lng={lng} />,
   },
 
   // ---- Preferences / Connections & Integrations

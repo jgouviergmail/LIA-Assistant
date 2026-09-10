@@ -317,3 +317,99 @@ class TestADayNumberCarriesItsOwnSuffix:
             assert day in describe(spec, language)
             assert day in marks
         assert "{" not in describe(spec, language)
+
+
+class TestTheLastDayMarkerIsNeverShownRaw:
+    """`-1` is a MARKER, not a day number — the sentence must word it.
+
+    Measured 2026-09-10: the engine fires `bymonthday=(1, -1)` on the 1st and
+    the 31st, and on the last day of February for a yearly rule — correctly,
+    every time. The sentence said "Le -1 et 1 de chaque mois" and "Tous les
+    ans, le -1 février", in all six languages. Two defects in one line: the
+    marker rendered raw, and `sorted()` undoing the canonical order the spec
+    establishes ("negative markers sort LAST").
+
+    Same class as the yearly month the sentence used to drop: the engine is
+    right and the sentence is wrong, which is the only combination a reader
+    cannot detect.
+    """
+
+    @staticmethod
+    def _monthly(days: tuple[int, ...]) -> RecurrenceSpec:
+        return RecurrenceSpec(
+            freq="monthly", times=at((9, 0)), anchor_date=date(2026, 1, 1), bymonthday=days
+        )
+
+    @staticmethod
+    def _yearly(months: tuple[int, ...], days: tuple[int, ...]) -> RecurrenceSpec:
+        return RecurrenceSpec(
+            freq="yearly",
+            times=at((9, 0)),
+            anchor_date=date(2026, 1, 1),
+            bymonth=months,
+            bymonthday=days,
+        )
+
+    @pytest.mark.parametrize("language", LANGUAGES)
+    @pytest.mark.parametrize(
+        ("label", "months", "days"),
+        [
+            ("monthly first and last", (), (1, -1)),
+            ("monthly mid and last", (), (15, -1)),
+            ("yearly last of one month", (2,), (-1,)),
+            ("yearly last of two months", (2, 8), (-1,)),
+            ("yearly mid and last", (2,), (15, -1)),
+        ],
+    )
+    def test_no_sentence_ever_shows_the_raw_marker(
+        self, language: str, label: str, months: tuple[int, ...], days: tuple[int, ...]
+    ) -> None:
+        spec = self._yearly(months, days) if months else self._monthly(days)
+        sentence = describe(spec, language)
+        assert "-1" not in sentence, f"{label} / {language}: {sentence}"
+        assert "{" not in sentence, f"{label} / {language}: unfilled placeholder"
+
+    def test_the_marker_keeps_its_canonical_place_last(self) -> None:
+        """The spec sorts `-1` last; the sentence must not re-sort it first."""
+        sentence = describe(self._monthly((1, -1)), "fr")
+        assert sentence == "Le 1 et le dernier jour de chaque mois, à 09:00"
+
+    def test_a_yearly_last_day_names_its_month(self) -> None:
+        assert (
+            describe(self._yearly((2,), (-1,)), "fr")
+            == "Tous les ans, le dernier jour de février, à 09:00"
+        )
+
+    def test_the_pure_monthly_last_day_wording_is_unchanged(self) -> None:
+        """The nominal case keeps the phrase it always had."""
+        assert describe(self._monthly((-1,)), "fr") == "Le dernier jour du mois, à 09:00"
+
+    def test_a_yearly_rule_mixing_a_day_and_the_marker_reads_natively(self) -> None:
+        """The month must stay attached to BOTH halves of the sentence.
+
+        Composed into the plain yearly template, the marker landed after a
+        juxtaposed month name: "le 15 et le dernier jour février". The clause
+        is parallel to the pure one instead — the template says "the last
+        day", the list carries only real day numbers.
+        """
+        assert (
+            describe(self._yearly((2,), (15, -1)), "fr")
+            == "Tous les ans, le 15 et le dernier jour de février, à 09:00"
+        )
+        assert (
+            describe(self._yearly((2,), (15, -1)), "de")
+            == "Jährlich, am 15. und letzten Tag im Februar, um 09:00"
+        )
+
+    def test_a_mixed_yearly_rule_still_names_every_month(self) -> None:
+        sentence = describe(self._yearly((2, 8), (15, -1)), "fr")
+        assert "février" in sentence
+        assert "août" in sentence
+        assert "15" in sentence
+
+    @pytest.mark.parametrize("language", LANGUAGES)
+    def test_the_marker_reads_differently_from_a_day_number(self, language: str) -> None:
+        """ "The last day" and "the 1st" are two different things to say."""
+        marker = describe(self._monthly((15, -1)), language)
+        numbers = describe(self._monthly((15, 1)), language)
+        assert marker != numbers, f"{language}: the marker rendered as a plain day"

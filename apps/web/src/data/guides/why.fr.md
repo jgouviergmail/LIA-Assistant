@@ -4,7 +4,7 @@
 
 **Version** : 6.0
 **Date** : 2026-08-23
-**Application** : LIA v1.44.0
+**Application** : LIA v1.44.1
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -85,7 +85,7 @@ L'administrateur accède à un troisième onglet dédié à la gestion de l'inst
 - **Messages broadcast** : envoyer des messages importants à tous les utilisateurs ou à une sélection, avec date d'expiration optionnelle
 - **Export de consommation global** : exporter la consommation de tous les utilisateurs en CSV
 - **Budget quotidien de l'instance** : borner en euros ce que l'instance ENTIÈRE peut dépenser dans une journée — et pas seulement ce que consomme chaque compte. Le panneau affiche la dépense du jour, le plafond réellement appliqué et ce qu'il reste. Budget épuisé, les utilisateurs apprennent que le déploiement est en pause et reçoivent l'heure exacte de remise à zéro, pas un message trompeur sur leur quota personnel
-- **Capacités de plateforme** : activer ou couper dix capacités instantanément, sans redéploiement — dictée, synthèse vocale, images, téléversements, espaces documentaires, recherche web, navigation, compétences, MCP, téléphonie. Une capacité coupée disparaît aussi du catalogue offert au planificateur, donc LIA cesse de proposer ce que les routes refuseraient ; chaque ligne montre ce que le déploiement autorise, ce que tu as choisi, et ce qui s'applique réellement
+- **Capacités de plateforme** : activer ou couper vingt-cinq capacités instantanément, sans redéploiement — toutes les fonctions qu'une personne vit vraiment, de la dictée et des images au tableau de tickets, aux journaux, à la mémoire à long terme et aux notifications spontanées — groupées en six familles pour qu'un mur d'interrupteurs reste lisible. Un interrupteur retire la CAPACITÉ, jamais l'archive : couper la mémoire arrête l'apprentissage de nouveaux faits tandis que tout ce qui a déjà été appris reste lisible et supprimable. Une capacité coupée disparaît aussi du catalogue offert au planificateur, donc LIA cesse de proposer ce que les routes refuseraient ; chaque ligne montre ce que le déploiement autorise, ce que tu as choisi, ce qui s'applique réellement, et où l'interrupteur mord
 
 **IA et connecteurs :**
 

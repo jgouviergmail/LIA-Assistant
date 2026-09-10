@@ -95,6 +95,27 @@ class LLMAgentConfig(BaseModel):
         description="Timeout for LLM call (optional, inherits from agent default)",
     )
 
+    # The context window THIS slot works with (ADR-278). None = whatever the
+    # model itself declares (`get_effective_context_window_for_slot`).
+    #
+    # It is a property of the configured SLOT, not of the instance: the number
+    # it replaces was one environment variable handed to every Ollama tag
+    # whatever its size — a production deployment set 128 000 and a 4 B model
+    # got the same request as a 27 B one. Two slots may now run the same model
+    # with two windows, which is exactly what a cheap router and an expensive
+    # responder want.
+    #
+    # For Ollama it is ALSO what is sent (`num_ctx`), because ADR-267's
+    # invariant is that what LIA accounts with is what LIA requests.
+    context_window: int | None = Field(
+        default=None,
+        gt=0,
+        description=(
+            "Context window this slot works with, in tokens. None = the model's "
+            "own (discovered, then catalogue, then the table)."
+        ),
+    )
+
     # Reasoning override, in ONE shape whatever the provider (ADR-245). The
     # ladder is ordinal and provider-independent; each family's translator turns
     # it into that provider's kwargs, coercing to the nearest level the model

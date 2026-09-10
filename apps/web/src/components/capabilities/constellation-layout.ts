@@ -36,9 +36,18 @@ export const CAPABILITY_ORDER: readonly { key: string; ring: 'inner' | 'outer' }
   // conversation, not configured on the side.
   { key: 'images', ring: 'inner' },
   { key: 'documents', ring: 'inner' },
+  // What LIA produced and the person kept (ADR-279): on the inner ring with
+  // the rest of what the assistant makes.
+  { key: 'generated_files', ring: 'inner' },
   { key: 'interests', ring: 'outer' },
   { key: 'routines', ring: 'outer' },
+  { key: 'reminders', ring: 'outer' },
   { key: 'relations', ring: 'outer' },
+  // Measured 2026-09-10: the star labelled « Relationships » counted OPEN
+  // LOOPS. Two nodes now, each counting what it names — and « relations » is a
+  // switch node, because the Relations page is a lens with no rows of its own.
+  { key: 'open_loops', ring: 'outer' },
+  { key: 'workboard', ring: 'outer' },
   { key: 'habits', ring: 'outer' },
   { key: 'peers', ring: 'outer' },
   { key: 'channels', ring: 'outer' },

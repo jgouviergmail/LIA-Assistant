@@ -15,6 +15,7 @@ import { ClipboardList, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLocalizedRouter } from '@/hooks/useLocalizedRouter';
 import { useTranslation } from '@/i18n/client';
+import { withOrigin } from '@/lib/back-origin';
 import type { Language } from '@/i18n/settings';
 import { formatEuro } from '@/lib/format';
 import { formatElapsed } from '@/lib/meetings/format';
@@ -85,7 +86,9 @@ export function MeetingMinutesCard({ lng, metadata, showCosts = false }: Meeting
         type="button"
         size="sm"
         variant="default"
-        onClick={() => router.push(`/dashboard/meetings/${metadata.meeting_id}`)}
+        // This card only ever renders inside the chat, so the way back is
+        // the chat — the same screen the reader is looking at.
+        onClick={() => router.push(withOrigin(`/dashboard/meetings/${metadata.meeting_id}`, 'chat'))}
       >
         {t('meetings.card.open')}
         <ExternalLink className="ml-1 h-3.5 w-3.5" aria-hidden="true" />

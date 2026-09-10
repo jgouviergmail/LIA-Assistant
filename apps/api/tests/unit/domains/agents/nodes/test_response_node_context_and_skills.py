@@ -111,7 +111,7 @@ async def test_resolve_confirmed_draft_replaces_summary():
     draft_result = {"status": "success", "draft_id": "d1", "action": "confirm"}
     with (
         patch(f"{_RESP}._execute_draft_if_confirmed", AsyncMock(return_value=draft_result)),
-        patch(f"{_RESP}._format_draft_execution_result", Mock(return_value="  DRAFT DONE  ")),
+        patch(f"{_RESP}.render_execution_result", Mock(return_value="  DRAFT DONE  ")),
         patch(f"{_RESP}.format_agent_results_for_prompt", Mock(return_value="SUM")),
     ):
         summary, _rc, _turn, _rej = await _resolve_response_context_summary(

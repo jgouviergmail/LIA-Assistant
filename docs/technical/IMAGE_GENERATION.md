@@ -157,6 +157,25 @@ the TTL is configurable, so a "24 h" written into the UI would eventually lie �
 and a message with no `expires_at` (history predating the feature) renders
 nothing rather than guessing.
 
+## Where a generated image lives afterwards (ADR-279)
+
+Every image the tool produces is stored as an `Attachment` stamped
+`origin = generated_image`, with the prompt-derived `title` and the
+`conversation_id` it was produced in.
+
+Two consequences the chat card does not show:
+
+- **it survives a conversation reset** — the reset removes what the person
+  uploaded (`origins={upload}`) and nothing else;
+- **it is listed, searchable and downloadable** from Settings →
+  « My generated files », whose image gallery reads
+  `GET /generated-assets?family=images`.
+
+The TTL still applies: the expiry is written on each card, and the gallery makes
+it visible rather than pushing it back.
+
+---
+
 ## Configuration
 
 ### Environment Variables

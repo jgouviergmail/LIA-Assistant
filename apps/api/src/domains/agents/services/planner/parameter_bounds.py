@@ -30,6 +30,7 @@ from __future__ import annotations
 
 from typing import Any, Protocol
 
+from src.core.turn_verdicts import note_verdict
 from src.domains.agents.registry.catalogue import ParameterSchema, ToolManifest
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_agents import (
@@ -190,5 +191,9 @@ def clamp_parameters_to_manifest(
             ),
         )
         planner_parameter_bounds_corrections.labels(bound=bound).inc()
+        # A repair, deliberately not an error — but a repair the reader of one
+        # exchange must be able to see (B8). The BOUND travels, never the value
+        # the person asked for.
+        note_verdict("parameter_clamped", f"{name}.{bound}")
 
     return clamped

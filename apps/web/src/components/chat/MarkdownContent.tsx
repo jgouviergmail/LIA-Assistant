@@ -16,7 +16,7 @@ import { InlinePlaceCarousel } from '@/components/ui/inline-place-carousel';
 import { ReasoningScroll } from '@/components/chat/ReasoningScroll';
 import { formatPhonesInText } from '@/lib/format';
 import { isImageLoaded, markImageLoaded } from '@/lib/image-cache';
-import { apiResourceUrl } from '@/lib/utils/api-resource-url';
+import { apiImageProps } from '@/lib/utils/api-resource-url';
 import { logger } from '@/lib/logger';
 
 // MCP Apps widget — lazy loaded (only needed when MCP App sentinel divs are present)
@@ -98,6 +98,52 @@ const PlacePhotoWrapper = ({
 };
 
 /**
+ * Resolve a markdown image source: where it lives, and what it needs to load.
+ *
+ * A markdown image can be an API resource (`/api/v1/connectors/...` for a place
+ * photo, a static map, a Drive thumbnail), which must be resolved against the
+ * API origin AND asked for with credentials — an embedded cross-origin image is
+ * fetched without them under `COEP: credentialless`, and the API answers 401.
+ *
+ * @param srcProp - The `src` React hands the component (typed to allow a Blob).
+ * @returns The resolved source and its credentials, both absent when there is
+ *   no usable string source.
+ */
+function resolveMarkdownImage(srcProp: React.ImgHTMLAttributes<HTMLImageElement>['src']): {
+  src?: string;
+  crossOrigin?: 'use-credentials';
+} {
+  if (typeof srcProp !== 'string') return {};
+  return apiImageProps(srcProp);
+}
+
+/**
+ * Warm the browser cache with the request the rendered `<img>` will make.
+ *
+ * It must be the SAME request: a preload that omits the credentials 401s,
+ * never marks the image loaded, and leaves the rendered image behind its
+ * placeholder for good.
+ *
+ * @param src - The resolved source.
+ * @param crossOrigin - What {@link resolveMarkdownImage} asked for.
+ * @param onLoaded - Called once the image is in cache.
+ */
+function preloadImage(
+  src: string,
+  crossOrigin: 'use-credentials' | undefined,
+  onLoaded: () => void
+): void {
+  const img = new Image();
+  img.onload = onLoaded;
+  // SEC-027: this preload is a real network request and leaks the same
+  // Referer as the rendered <img>. Set BEFORE `src` — assigning the
+  // source is what starts the fetch.
+  img.referrerPolicy = 'no-referrer';
+  if (crossOrigin) img.crossOrigin = crossOrigin;
+  img.src = src;
+}
+
+/**
  * MarkdownImage - Renders images in markdown with smart detection
  *
  * Detects profile photos (Google Contacts) and uses Avatar component
@@ -118,11 +164,7 @@ const MarkdownImage = memo(
   ({ src: srcProp, alt, className }: React.ImgHTMLAttributes<HTMLImageElement>) => {
     const [isLightboxOpen, setIsLightboxOpen] = useState(false);
     const { t } = useTranslation();
-    // Normalize src to string (React 19 types allow Blob)
-    // A markdown image can be an API resource (`/api/v1/connectors/...` for a
-    // place photo, a static map, a Drive thumbnail): resolve it against the API
-    // origin like every other link the browser follows.
-    const src = typeof srcProp === 'string' ? apiResourceUrl(srcProp) : undefined;
+    const { src, crossOrigin } = resolveMarkdownImage(srcProp);
     // Use global cache to check if image already loaded
     const alreadyLoaded = src ? isImageLoaded(src) : false;
     const [loaded, setLoaded] = useState(alreadyLoaded);
@@ -130,18 +172,12 @@ const MarkdownImage = memo(
     // For Avatar component (no onLoad prop), preload image in background
     useEffect(() => {
       if (src && !alreadyLoaded) {
-        const img = new Image();
-        img.onload = () => {
+        preloadImage(src, crossOrigin, () => {
           markImageLoaded(src);
           setLoaded(true);
-        };
-        // SEC-027: this preload is a real network request and leaks the same
-        // Referer as the rendered <img>. Set BEFORE `src` — assigning the
-        // source is what starts the fetch.
-        img.referrerPolicy = 'no-referrer';
-        img.src = src;
+        });
       }
-    }, [src, alreadyLoaded]);
+    }, [src, alreadyLoaded, crossOrigin]);
 
     const handleLoad = () => {
       if (src) {
@@ -170,6 +206,7 @@ const MarkdownImage = memo(
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={src}
+          crossOrigin={crossOrigin}
           alt={alt || ''}
           className={className}
           referrerPolicy="no-referrer"
@@ -210,6 +247,7 @@ const MarkdownImage = memo(
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={src}
+              crossOrigin={crossOrigin}
               alt={alt || 'Photo du lieu'}
               className="place-photo"
               referrerPolicy="no-referrer"
@@ -226,6 +264,7 @@ const MarkdownImage = memo(
             createPortal(
               <ImageLightbox
                 src={src}
+                crossOrigin={crossOrigin}
                 alt={alt || 'Photo du lieu'}
                 isOpen={isLightboxOpen}
                 onClose={() => setIsLightboxOpen(false)}
@@ -240,7 +279,11 @@ const MarkdownImage = memo(
     // Profile photo (Google Contacts) - Single contact detail view
     // Uses contact-photo CSS class for consistent styling with vignette effect
     if (isProfilePhoto) {
-      const proxiedSrc = proxyGoogleImageUrl(src) || src;
+      // `proxyGoogleImageUrl` answers a RELATIVE `/api/v1/...` path,
+      // which resolves against the FRONTEND origin: it only works
+      // where a proxy re-routes the API, and it is embedded, so it
+      // needs its credentials like every other API image.
+      const proxied = apiImageProps(proxyGoogleImageUrl(src) || src);
       return (
         <>
           <span
@@ -258,7 +301,7 @@ const MarkdownImage = memo(
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={proxiedSrc}
+                {...proxied}
                 alt={alt || 'Photo de profil'}
                 className="contact-photo"
                 referrerPolicy="no-referrer"
@@ -272,7 +315,8 @@ const MarkdownImage = memo(
           {typeof document !== 'undefined' &&
             createPortal(
               <ImageLightbox
-                src={proxiedSrc}
+                src={proxied.src}
+                crossOrigin={proxied.crossOrigin}
                 alt={alt || 'Photo de profil'}
                 isOpen={isLightboxOpen}
                 onClose={() => setIsLightboxOpen(false)}
@@ -290,6 +334,7 @@ const MarkdownImage = memo(
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={src}
+          crossOrigin={crossOrigin}
           alt={alt || 'Image'}
           className="w-full h-full object-cover rounded-lg shadow-md"
           referrerPolicy="no-referrer"

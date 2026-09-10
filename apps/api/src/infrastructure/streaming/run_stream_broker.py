@@ -22,7 +22,7 @@ emit heartbeats.
 
 import asyncio
 import json
-from collections.abc import AsyncGenerator, AsyncIterator
+from collections.abc import AsyncGenerator, AsyncIterator, Callable
 from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass, replace
 from typing import Any, Literal, cast
@@ -362,22 +362,66 @@ async def release_active_run(redis: Redis, conversation_id: str, stream_id: str)
     )
 
 
-async def heartbeat_active_run(redis: Redis, conversation_id: str, stream_id: str) -> None:
+class ActiveRunLockLost(RuntimeError):
+    """Another producer holds the conversation this block was writing to.
+
+    A normal exception on purpose, never a bare ``CancelledError``: the only
+    caller is a scheduler tick whose docstring says it never raises, and its
+    ``except Exception`` has to be able to see this.
+    """
+
+
+async def heartbeat_active_run(
+    redis: Redis,
+    conversation_id: str,
+    stream_id: str,
+    *,
+    run_id: str | None = None,
+    on_lost: Callable[[], None] | None = None,
+) -> None:
     """Periodically re-arm the active-run lock TTL while the run is alive.
 
-    Stops by itself when the lock is lost (expired or taken over by a newer
-    run) — a zombie producer must never keep a conversation locked.
+    A refusal is not one situation but two, and telling them apart is the whole
+    job:
+
+    - the lock simply EXPIRED and nobody took it. On the shipped defaults that
+      needs a Redis blip of thirty seconds while a run lasts minutes, so it is
+      the likely case — and it is nobody's lock. The run RE-TAKES it and
+      carries on; aborting a healthy run over a hiccup would be a cure worse
+      than the illness. Re-taking needs ``run_id``, because that is what the
+      lock's payload carries.
+    - somebody else HOLDS it. That is the state the lock exists to prevent, and
+      it is reached: the key expires, the person sends a chat message, its
+      router acquires the free key, and two producers write to one conversation
+      and one LangGraph thread. Until 2026-09-10 this loop logged it and
+      returned, leaving the block it was guarding running — which is the one
+      thing CLAUDE.md forbids outright: « A failed heartbeat immediately aborts
+      all later effects. » ``on_lost`` is how it now does.
 
     Args:
         redis: Redis client.
         conversation_id: Conversation the lock scopes.
         stream_id: The owner token this producer holds.
+        run_id: Billing/correlation id, needed to re-take an expired lock.
+            Without it the loop cannot re-take and treats any refusal as a loss.
+        on_lost: Called once when the lock is genuinely somebody else's. Must
+            not raise — it runs inside the heartbeat task.
     """
     period = settings.background_runs_heartbeat_seconds
     while True:
         await asyncio.sleep(period)
         try:
             still_owner = await refresh_active_run(redis, conversation_id, stream_id)
+            if not still_owner and run_id is not None:
+                still_owner = await register_active_run(
+                    redis, conversation_id, run_id=run_id, stream_id=stream_id
+                )
+                if still_owner:
+                    logger.info(
+                        "active_run_lock_retaken",
+                        conversation_id=conversation_id,
+                        stream_id=stream_id,
+                    )
         except Exception as exc:  # noqa: BLE001 — transient Redis hiccup: keep trying
             logger.warning(
                 "active_run_heartbeat_failed",
@@ -392,6 +436,8 @@ async def heartbeat_active_run(redis: Redis, conversation_id: str, stream_id: st
                 conversation_id=conversation_id,
                 stream_id=stream_id,
             )
+            if on_lost is not None:
+                on_lost()
             return
 
 
@@ -424,9 +470,35 @@ async def active_run_lease(
     if not acquired:
         yield False
         return
-    heartbeat = asyncio.create_task(heartbeat_active_run(redis, conversation_id, stream_id))
+    # The block runs in OUR task, so cancelling it is how the heartbeat stops
+    # effects it can no longer protect. The flag is what tells our own
+    # cancellation from anybody else's — the same shape the chat producer's
+    # cancel watcher already uses, and the reason a `CancelledError` is not
+    # simply swallowed here.
+    body = asyncio.current_task()
+    taken_over = False
+
+    def _lock_taken() -> None:
+        nonlocal taken_over
+        taken_over = True
+        if body is not None:
+            body.cancel()
+
+    heartbeat = asyncio.create_task(
+        heartbeat_active_run(redis, conversation_id, stream_id, run_id=run_id, on_lost=_lock_taken)
+    )
     try:
         yield True
+    except asyncio.CancelledError:
+        if not taken_over:
+            raise
+        # Ours, and already delivered: clear it, or every await in the unwind
+        # below would raise again.
+        if body is not None:
+            body.uncancel()
+        raise ActiveRunLockLost(
+            f"conversation {conversation_id} was taken over while {stream_id} was running"
+        ) from None
     finally:
         heartbeat.cancel()
         with suppress(asyncio.CancelledError):

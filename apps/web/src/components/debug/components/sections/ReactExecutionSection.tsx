@@ -23,7 +23,7 @@ export interface ReactExecutionSectionProps {
   data: ReactExecutionMetrics | undefined;
 }
 
-/** One sandboxed script (ADR-249) — admin surface only. */
+/** One sandboxed script (ADR-249) — the debug panel, never the answer. */
 const ScriptCard = React.memo(function ScriptCard({ script }: { script: EphemeralScript }) {
   return (
     <div className="rounded border border-border p-2">
@@ -50,6 +50,119 @@ const ScriptCard = React.memo(function ScriptCard({ script }: { script: Ephemera
   );
 });
 
+/**
+ * The capabilities the turn asked for and never got (B8).
+ *
+ * The signal that says whether the budget is CALIBRATED, not merely that it was
+ * hit. These calls were answered with an explicit « never ran » so the history
+ * stays valid by construction (ADR-248, invariant 4); before B8 they reached a
+ * log line and nothing a person could read.
+ *
+ * @param props.names - The tool names.
+ * @returns The block, or null when the loop abandoned nothing.
+ */
+function AbandonedCalls({ names }: { names: string[] }) {
+  if (names.length === 0) return null;
+  return (
+    <div className="space-y-1">
+      <SubSectionHeader label="Asked for, never ran" borderTop />
+      <div className="flex flex-wrap gap-1">
+        {names.map((name, index) => (
+          <DebugChip key={`${name}-${index}`} tone="warning">
+            {name}
+          </DebugChip>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * What governed this loop, derived once (B8).
+ *
+ * The bound the loop ACTUALLY stops at is ADR-238's domain-span allowance,
+ * extended while the loop keeps producing (ADR-248). Drawing the ceiling
+ * instead made a turn narrowed to four iterations read as « 4/25 » — a model
+ * that gave up, when in fact it spent exactly the budget it was given. A
+ * payload persisted before B8 carries neither, so both fall back to the
+ * ceiling it did publish.
+ *
+ * @param data - The ReAct metrics.
+ * @returns The budget, the ceiling, whether the budget was spent, whether the
+ *   turn was narrowed, and the calls it never got to run.
+ */
+function loopBounds(data: ReactExecutionMetrics): {
+  budget: number;
+  ceiling: number;
+  atCeiling: boolean;
+  narrowed: boolean;
+  abandoned: string[];
+} {
+  const budget = data.iteration_budget ?? data.max_iterations;
+  const ceiling = data.iteration_ceiling ?? data.max_iterations;
+  return {
+    budget,
+    ceiling,
+    atCeiling: budget > 0 && data.iterations >= budget,
+    narrowed: budget > 0 && ceiling > budget,
+    abandoned: data.abandoned_calls ?? [],
+  };
+}
+
+/**
+ * What governed the loop, beside the iteration count (B8).
+ *
+ * Its own component so the section stays under the complexity cap: three rows
+ * that each exist only under a condition are three branches, and the section
+ * already carries the scripts, the budgets and the tool list.
+ *
+ * @param props.data - The ReAct metrics.
+ * @param props.budget - The bound the loop actually stops at.
+ * @param props.ceiling - The hard cap.
+ * @param props.narrowed - Whether ADR-238 gave this turn less than the cap.
+ * @returns The rows.
+ */
+function LoopBounds({
+  data,
+  budget,
+  ceiling,
+  narrowed,
+}: {
+  data: ReactExecutionMetrics;
+  budget: number;
+  ceiling: number;
+  narrowed: boolean;
+}) {
+  const earned =
+    typeof data.starting_budget === 'number' && budget > data.starting_budget
+      ? budget - data.starting_budget
+      : 0;
+  return (
+    <>
+      {/* The ceiling is a DIFFERENT number from the budget whenever ADR-238
+          narrowed the turn: showing only one of the two answers half the
+          question « did it have room? ». */}
+      {narrowed && (
+        <MetricRow label="Ceiling" value={ceiling} valueClassName="text-muted-foreground" />
+      )}
+      {earned > 0 && (
+        <MetricRow
+          label="Earned"
+          value={`+${earned} (from ${data.productive_iterations ?? 0} productive)`}
+        />
+      )}
+      {data.exit_reason && (
+        <MetricRow
+          label="Stopped because"
+          value={data.exit_reason}
+          mono
+          valueClassName={data.exit_reason === 'answered' ? TONE_TEXT.success : TONE_TEXT.warning}
+        />
+      )}
+    </>
+  );
+}
+
 export const ReactExecutionSection = React.memo(function ReactExecutionSection({
   data,
 }: ReactExecutionSectionProps) {
@@ -57,7 +170,7 @@ export const ReactExecutionSection = React.memo(function ReactExecutionSection({
   // section when the turn ran in ReAct mode.
   if (!data) return null;
 
-  const atCeiling = data.max_iterations > 0 && data.iterations >= data.max_iterations;
+  const { budget, ceiling, atCeiling, narrowed, abandoned } = loopBounds(data);
 
   // Absent on payloads persisted before ADR-256: that turn has no tool row at
   // all, rather than a zero it never measured.
@@ -76,18 +189,15 @@ export const ReactExecutionSection = React.memo(function ReactExecutionSection({
       anomaly={atCeiling || atToolBudget}
       badge={
         <DebugChip tone={atCeiling || atToolBudget ? 'warning' : 'info'}>
-          {data.iterations}/{data.max_iterations}
+          {data.iterations}/{budget}
         </DebugChip>
       }
     >
       {/* Loop metrics */}
       <div className="space-y-1">
         <SubSectionHeader label="Loop" />
-        <MetricRow
-          label="Iterations"
-          value={`${data.iterations}/${data.max_iterations}`}
-          highlight
-        />
+        <MetricRow label="Iterations" value={`${data.iterations}/${budget}`} highlight />
+        <LoopBounds data={data} budget={budget} ceiling={ceiling} narrowed={narrowed} />
         <MetricRow label="Reasoning" value={`${data.elapsed_seconds.toFixed(1)}s`} mono />
         {hasToolTime && (
           <MetricRow
@@ -105,10 +215,12 @@ export const ReactExecutionSection = React.memo(function ReactExecutionSection({
 
       <BudgetBar
         value={data.iterations}
-        max={data.max_iterations}
+        max={budget}
         label="Iteration budget"
-        exhaustedLabel="The loop hit its iteration ceiling — the answer may be a forced finalization."
+        exhaustedLabel="The loop spent its iteration budget — the answer may be a forced finalization."
       />
+
+      <AbandonedCalls names={abandoned} />
 
       {hasToolTime && (
         <BudgetBar
@@ -119,7 +231,7 @@ export const ReactExecutionSection = React.memo(function ReactExecutionSection({
         />
       )}
 
-      {/* Sandboxed scripts (ADR-249) — admin surface only: the code the model
+      {/* Sandboxed scripts (ADR-249) — the debug panel and nowhere else: the code the model
           wrote is shown here and nowhere else, because a computation nobody
           can read is exactly what the script was meant to replace. */}
       {scripts.length > 0 && (

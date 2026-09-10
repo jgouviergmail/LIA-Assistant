@@ -85,6 +85,33 @@ ReAct** (`react_execute_tools_node` → `tool_confirmation`).
 4. **Strategy-Driven** : 5 stratégies d'approbation composables
 5. **Multilingue** : Questions générées en 6 langues
 
+### Une seule grammaire, avant ET après (ADR-276 lot 13, étendu 2026-09-10)
+
+Un brouillon est montré **deux fois** : la carte qui demande, puis le résultat
+de ce qui a été approuvé. Le lot 13 avait donné une grammaire unique à la
+première — des items de liste Markdown, un séparateur porté par la LANGUE,
+aucun `<br/>` — et laissé la seconde en HTML : elle ouvrait chaque champ par
+`<br/>` **et** joignait les champs par `\n`, si bien que le chat, qui rend le
+Markdown sans greffon de saut dur et conserve les retours à la ligne, affichait
+une ligne vide entre chaque champ (mesuré en production le 2026-09-09), et
+toute surface qui ne rend aucun des deux vocabulaires — un commentaire de
+ticket est du texte échappé — lisait la balise telle quelle.
+
+La grammaire vit donc dans `agents/drafts/markdown_grammar.py`, partagée par
+`preview_renderer.py` (la carte) et `result_renderer.py` (le résultat). Quatre
+règles, chacune payée par un défaut :
+
+| Règle | Pourquoi |
+|---|---|
+| Un champ = un item de liste | garde un champ par ligne sans balisage propre |
+| Une valeur qui porte ses propres paragraphes = un BLOC | dans un item, le 2ᵉ paragraphe s'échappe et clôt la liste |
+| Une séquence passe par `readable` | le résultat affichait `['paul@example.org']` là où la carte épelait le destinataire |
+| Le rendu possède ses propres bords | il ouvrait sur `\n\n` et comptait sur le `.strip()` de son appelant |
+
+Le message d'en-tête est mis en emphase **sauf s'il en porte déjà** :
+`phone_call` embarque son propre `**nom**`, qu'une seconde paire aurait rendu
+en astérisques littéraux.
+
 ### Couche interactive one-click (ADR-132/133/134)
 
 Au-dessus du contrat de resume conversationnel décrit ci-dessous, une couche

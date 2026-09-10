@@ -111,3 +111,30 @@ the 2026-07 dashboard conventions.
 - Migration: `0ef84488b15c`, replay-from-zero check green (F007 gate).
 - Runtime: dev Docker boot + forced clustering run + selection dry-run
   (see plan T10).
+
+## Amendment, 2026-09-10 — the nightly re-cluster was never full
+
+Both sweeps read `.distinct().limit(interest_subject_recluster_batch_size)`
+with **no `ORDER BY`**. PostgreSQL then returns whatever the plan yields, and a
+table that is not moving yields the same rows every time: the job whose
+docstring promised "every user with active interests" served an arbitrary
+batch — the same batch, every night, for the life of the instance. Nothing
+anywhere could tell that apart from the truth.
+
+The two sweeps answer different questions, so they now order differently, and
+the difference is the point:
+
+- the **backlog** (`subject IS NULL`) DRAINS — labelling a user removes them
+  from it — so it is served oldest-first, `ORDER BY min(updated_at), user_id`:
+  deterministic, total, and the longest-waiting first;
+- the **refresh** never drains: every user with an active interest is a
+  candidate every night, forever. Any stable order starves everyone past the
+  cap, INCLUDING one by `updated_at` — re-clustering that assigns the same
+  labels writes nothing, so it bumps no timestamp and leaves the very users it
+  serves pinned at the front. It is therefore SAMPLED (`ORDER BY random()`),
+  which is what makes the cap a budget instead of a boundary.
+
+Proved on real PostgreSQL (`test_subject_sweep_candidates_db.py`): with six
+candidates and a cap of three, twenty draws of the fixed order returned one
+unchanging triple, and the sampled one covered all six. The docstrings no
+longer say "every user".

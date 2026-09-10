@@ -30,6 +30,7 @@ from src.core.field_names import (
     FIELD_RUN_ID,
 )
 from src.core.i18n import normalize_language
+from src.core.turn_verdicts import verdict_collector
 from src.domains.agents.api.archive_first import archive_user_message_first
 from src.domains.agents.api.archive_metadata import (
     build_assistant_metadata,
@@ -55,6 +56,7 @@ from src.domains.agents.expressivity.turn import attach_tone_to_done
 from src.domains.agents.services.orchestration.approval_decision import (
     HitlDecisionStaleError,
 )
+from src.domains.agents.services.streaming.deferred_debug import deferred_debug_chunks
 from src.domains.agents.services.streaming.followup_metadata import (
     pop_followups,
     pop_motivation,
@@ -784,6 +786,10 @@ class AgentService(
                     tracker,
                     treatment_recorder(run_id=run_id),
                     decision_recorder(turn),
+                    # The silent corrections the turn makes to itself (B8):
+                    # same scope as the two registers, so a turn that stops
+                    # mid-flight still publishes what it had to repair.
+                    verdict_collector(),
                 ):
                     # === Per-user MCP tools setup (evolution F2.1) ===
                     _user_mcp_token = await setup_user_mcp_tools(user_id, db)
@@ -1214,10 +1220,14 @@ class AgentService(
 
                                         from src.domains.attachments.models import (
                                             AttachmentContentType,
+                                            AttachmentOrigin,
                                             AttachmentStatus,
                                         )
                                         from src.domains.attachments.repository import (
                                             AttachmentRepository,
+                                        )
+                                        from src.domains.attachments.thread_id import (
+                                            conversation_uuid,
                                         )
                                         from src.infrastructure.database.session import (
                                             get_db_context,
@@ -1242,6 +1252,12 @@ class AgentService(
                                                     "file_size": len(last_screenshot_bytes),
                                                     "file_path": rel_path,
                                                     "content_type": AttachmentContentType.IMAGE,
+                                                    "origin": (
+                                                        AttachmentOrigin.BROWSER_SCREENSHOT.value
+                                                    ),
+                                                    "conversation_id": conversation_uuid(
+                                                        conversation_id
+                                                    ),
                                                     "status": AttachmentStatus.READY,
                                                     "expires_at": datetime.now(UTC)
                                                     + timedelta(
@@ -1526,23 +1542,13 @@ class AgentService(
                 # their pop-once debug caches are populated. One merge chunk
                 # per populated family (see streaming/extraction_debug.py).
                 if debug_panel_for_user:
-                    try:
-                        from src.domains.agents.services.streaming.extraction_debug import (
-                            pop_background_extraction_debug,
-                        )
-
-                        for dbg_key, dbg_payload in pop_background_extraction_debug(run_id):
-                            yield ChatStreamChunk(
-                                type="debug_metrics_update",
-                                content="",
-                                metadata={dbg_key: dbg_payload},
-                            )
-                    except Exception as extr_dbg_err:
-                        logger.debug(
-                            "debug_metrics_extraction_emit_failed",
-                            run_id=run_id,
-                            error=str(extr_dbg_err),
-                        )
+                    # The deferred half of the panel: the background
+                    # extractions just awaited, and ADR-263's two registers,
+                    # still in flight (B8). Assembled behind ONE door — every
+                    # `try` and every `for` written here is paid by this
+                    # function, which is the codebase's worst hotspot.
+                    for debug_chunk in deferred_debug_chunks(run_id):
+                        yield debug_chunk
 
                 # Yield done chunk with complete aggregated token metadata
                 # CRITICAL: Skip done chunk if HITL interrupt was emitted

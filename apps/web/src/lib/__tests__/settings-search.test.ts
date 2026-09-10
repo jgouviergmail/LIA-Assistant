@@ -100,7 +100,11 @@ describe('SETTINGS_SEARCH_META — describes the page it claims to describe', ()
     // 58 since « my shortcuts » joined Preferences / Personalization
     // (ADR-277, 2026-09-09): the picker of the sections the floating dock
     // shows on every screen.
-    expect(TOKENS).toHaveLength(58);
+    // 59 since « my generated files » joined Preferences / Voice & Media
+    // (ADR-279, 2026-09-10): the images, documents and screenshots LIA
+    // produced used to live in the conversation that produced them and
+    // nowhere else.
+    expect(TOKENS).toHaveLength(59);
   });
 
   it.each(Object.keys(LOCALES) as LocaleCode[])(

@@ -109,7 +109,39 @@ REGISTRY_TYPE_TO_KEY: dict[RegistryItemType, str] = {
     RegistryItemType.CALENDAR_SLOT: "slots",
     RegistryItemType.HUE_LIGHT: "hues",  # Philips Hue smart lights
     RegistryItemType.TICKET: "tickets",  # Workboard tickets (ADR-276)
+    RegistryItemType.BROWSER_PAGE: "browsers",  # Browser page snapshot (evolution F7)
 }
+
+
+def assert_registry_key_completeness(table: dict[RegistryItemType, str] | None = None) -> None:
+    """Assert every ``RegistryItemType`` declares the key its payload is filed under.
+
+    ADR-085 doctrine. The readers below fall back to ``value.lower() + "s"`` for
+    an undeclared type, and a fallback is exactly what hides the omission:
+    measured 2026-09-10, ``BROWSER_PAGE`` was missing and the fallback filed
+    its payload under ``browser_pages`` while ``DOMAIN_REGISTRY`` and
+    ``TYPE_TO_DOMAIN_MAP`` both declare ``browsers`` — so a plan referencing
+    ``$steps.step_N.browsers`` resolved to nothing, in silence.
+
+    Called from ``run_failfast_validations`` (startup) so a missing entry
+    refuses to boot, and from a unit test so CI catches it before merge.
+
+    Args:
+        table: The mapping to check; the shipped one by default (tests inject).
+
+    Raises:
+        AssertionError: If any ``RegistryItemType`` is missing, listing them.
+    """
+    checked = REGISTRY_TYPE_TO_KEY if table is None else table
+    missing = {item_type for item_type in RegistryItemType if item_type not in checked}
+    if missing:
+        names = ", ".join(sorted(item_type.value for item_type in missing))
+        raise AssertionError(
+            f"REGISTRY_TYPE_TO_KEY is missing {len(missing)} RegistryItemType(s): "
+            f"{names}. Every registry type must declare the plural key its payload "
+            "is filed under, and it must be the one the domain taxonomy declares — "
+            "see src/domains/agents/tools/output.py."
+        )
 
 
 class StandardToolOutput(BaseModel):

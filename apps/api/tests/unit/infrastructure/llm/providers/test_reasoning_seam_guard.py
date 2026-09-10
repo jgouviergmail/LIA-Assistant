@@ -1,4 +1,9 @@
-"""Every provider branch routes the stored reasoning intent through the seam.
+"""No provider branch ever hands a LIA-internal value to a provider SDK.
+
+Two instances of one rule live here. The reasoning intent was the first; the
+per-slot context window (ADR-278) was the second, and it broke FOUR providers
+at once — see the second half of this module.
+
 
 ADR-245 made ``kwargs_for(provider, model, stored)`` the ONE seam between a
 stored :class:`ReasoningIntent` and the kwargs a provider SDK accepts, and said
@@ -64,8 +69,19 @@ def _walk(value: Any):  # type: ignore[no-untyped-def]
         yield value
 
 
-def _constructor_kwargs(provider: str, model: str, stored: ReasoningIntent) -> dict[str, Any]:
-    """Create the LLM with every constructor mocked; return what the branch passed."""
+def _constructor_kwargs(provider: str, model: str, **passed: Any) -> dict[str, Any]:
+    """Create the LLM with every constructor mocked; return what the branch passed.
+
+    Args:
+        provider: Provider branch to drive.
+        model: Model identifier.
+        **passed: What ``create_llm`` receives beyond the fixed arguments — a
+            stored ``reasoning_effort``, a ``context_window``, whatever the
+            next internal notion turns out to be.
+
+    Returns:
+        The kwargs the ONE constructor that ran actually received.
+    """
     mock_llm = MagicMock(spec=BaseChatModel)
     with (
         patch(
@@ -99,7 +115,7 @@ def _constructor_kwargs(provider: str, model: str, stored: ReasoningIntent) -> d
             max_tokens=1000,
             streaming=True,
             llm_type="response",
-            reasoning_effort=stored,
+            **passed,
         )
         called = [m for m in (init_chat, responses, deepseek, gemini, ollama) if m.called]
     assert len(called) == 1, f"{provider}/{model}: exactly one constructor must be called"
@@ -111,7 +127,7 @@ def _constructor_kwargs(provider: str, model: str, stored: ReasoningIntent) -> d
 def test_no_constructor_ever_receives_the_intent_object(
     provider: str, model: str, level: str
 ) -> None:
-    kwargs = _constructor_kwargs(provider, model, ReasoningIntent(level=level))  # type: ignore[arg-type]
+    kwargs = _constructor_kwargs(provider, model, reasoning_effort=ReasoningIntent(level=level))
     for leaf in _walk(kwargs):
         assert not isinstance(leaf, ReasoningIntent), f"{provider}/{model}/{level}: {leaf!r}"
         assert not is_dataclass(leaf), f"{provider}/{model}/{level}: {leaf!r}"
@@ -122,6 +138,60 @@ def test_no_constructor_ever_receives_the_intent_object(
 
 @pytest.mark.parametrize(("provider", "model"), _MATRIX)
 def test_a_budget_intent_is_translated_too(provider: str, model: str) -> None:
-    kwargs = _constructor_kwargs(provider, model, ReasoningIntent(budget_tokens=2048))
+    kwargs = _constructor_kwargs(
+        provider, model, reasoning_effort=ReasoningIntent(budget_tokens=2048)
+    )
     assert not any(isinstance(leaf, ReasoningIntent) for leaf in _walk(kwargs))
     json.dumps(kwargs)
+
+
+# ---------------------------------------------------------------------------
+# The per-slot context window (ADR-278) — the same rule, the second instance.
+# ---------------------------------------------------------------------------
+#
+# `context_window` is a LIA notion, not a provider kwarg: only Ollama can
+# express it (`num_ctx`), and every other SDK rejects it. The factory passed it
+# through the generic `**kwargs` channel every branch forwards to its client,
+# and only the Ollama branch popped it — so DeepSeek, Anthropic, Gemini and
+# Perplexity received `context_window` in `model_kwargs` and died at REQUEST
+# time on `AsyncCompletions.create() got an unexpected keyword argument
+# 'context_window'`. Measured on the dev instance 2026-09-10, on every turn,
+# whether or not an operator had ever set a window: the factory always passes
+# the key, `None` included.
+#
+# The guard above could not see it: an int is JSON-serialisable and is not a
+# dataclass. What was missing is the check on the KEY.
+
+
+@pytest.mark.parametrize(("provider", "model"), _MATRIX)
+def test_no_constructor_ever_receives_the_context_window(provider: str, model: str) -> None:
+    """The window reaches the client as `num_ctx` or not at all."""
+    kwargs = _constructor_kwargs(provider, model, context_window=64000)
+
+    assert "context_window" not in kwargs, f"{provider}/{model}: {kwargs!r}"
+    nested = kwargs.get("model_kwargs") or {}
+    assert "context_window" not in nested, f"{provider}/{model}: model_kwargs={nested!r}"
+    extra = kwargs.get("extra_body") or {}
+    assert "context_window" not in extra, f"{provider}/{model}: extra_body={extra!r}"
+
+
+@pytest.mark.parametrize(("provider", "model"), _MATRIX)
+def test_an_unset_window_is_not_forwarded_either(provider: str, model: str) -> None:
+    """`None` is the common case — the factory always passes the key."""
+    kwargs = _constructor_kwargs(provider, model, context_window=None)
+
+    assert "context_window" not in kwargs, f"{provider}/{model}: {kwargs!r}"
+    assert "context_window" not in (kwargs.get("model_kwargs") or {})
+
+
+def test_ollama_still_receives_the_window_as_num_ctx() -> None:
+    """The one branch that CAN express it must keep doing so (ADR-267).
+
+    « What LIA accounts with is what LIA requests »: dropping the window for
+    every provider would be the opposite mistake, and the server would allocate
+    by VRAM tier while the compaction threshold read something else.
+    """
+    kwargs = _constructor_kwargs("ollama", "qwen3.8:27b", context_window=64000)
+
+    options = kwargs.get("model_kwargs") or kwargs
+    assert kwargs.get("num_ctx") == 64000 or options.get("num_ctx") == 64000, kwargs

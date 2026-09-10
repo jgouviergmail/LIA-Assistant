@@ -100,6 +100,34 @@ def test_an_impossible_calendar_date_is_refused() -> None:
         )
 
 
+def test_a_series_ending_before_it_starts_is_refused() -> None:
+    """`end < anchor` yields no instant at all — the dead-shape class (spec 4.8).
+
+    Measured 2026-09-10: accepted, stored, and `next_occurrence` answered
+    None — a routine the API files as ACTIVE with a null trigger, which is
+    the very "dead routine that does not say it is dead" the 30-February
+    refusal exists to prevent.
+    """
+    with pytest.raises((RecurrenceError, ValueError)):
+        RecurrenceSpec(
+            freq="daily",
+            times=at((9, 0)),
+            anchor_date=date(2026, 9, 10),
+            end=SeriesEnd(kind="on_date", on_date=date(2026, 9, 1)),
+        )
+
+
+def test_a_series_ending_on_its_own_anchor_day_is_accepted() -> None:
+    """One served day is a series; the boundary stays legal."""
+    spec = RecurrenceSpec(
+        freq="daily",
+        times=at((9, 0)),
+        anchor_date=date(2026, 9, 10),
+        end=SeriesEnd(kind="on_date", on_date=date(2026, 9, 10)),
+    )
+    assert spec.end.on_date == date(2026, 9, 10)
+
+
 def test_a_possible_pair_among_impossible_ones_is_accepted() -> None:
     """31 exists in March even though February has no 31st."""
     spec = RecurrenceSpec(

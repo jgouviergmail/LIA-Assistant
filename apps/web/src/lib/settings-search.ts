@@ -259,6 +259,13 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     group: 'voice_media',
     gate: { kind: 'always' },
   },
+  'generated-assets': {
+    titleKey: 'settings.generated_assets.title',
+    descriptionKey: 'settings.generated_assets.description',
+    keywordsKey: `${KEYWORDS_PREFIX}.generated-assets`,
+    group: 'voice_media',
+    gate: { kind: 'always' },
+  },
 
   // ---- Preferences / Connections & Integrations
   connectors: {

@@ -17,9 +17,9 @@ To clear history and start over:
 2. Click it
 3. Confirm in the dialog
 
-**⚠️ What is actually deleted:** Every message, **all your attachments — AI-generated images included** — and the context LIA had built from this conversation (`POST /conversations/me/reset` also clears the token summaries, the LangGraph checkpoints and the tool contexts). The action is **irreversible**.
+**⚠️ What is actually deleted:** Every message, **the attachments you uploaded yourself** — and the context LIA had built from this conversation (`POST /conversations/me/reset` also clears the token summaries, the LangGraph checkpoints and the tool contexts). The action is **irreversible**.
 
-**✅ What is NOT deleted:** what LIA learned about you lives outside the conversation and stays — your long-term memory, the rhythm and recurring requests it observed, its mark of which emails it had already read, the thresholds it adjusted for you. Each stored value declares what it is, and a reset only clears what a conversation created (a value whose family is unknown is kept, never guessed). To erase the learning too, use **Forget everything** in the settings, or delete your account.
+**✅ What is NOT deleted:** **the files LIA produced** — images, documents, browser screenshots — stay in Settings › My generated files until their own deadline: a file LIA made for you belongs to you, not to the conversation that happened to produce it. And what LIA learned about you lives outside the conversation and stays — your long-term memory, the rhythm and recurring requests it observed, its mark of which emails it had already read, the thresholds it adjusted for you. Each stored value declares what it is, and a reset only clears what a conversation created (a value whose family is unknown is kept, never guessed). To erase the learning too, use **Forget everything** in the settings, or delete your account.
 
 **💡 When to reset?**
 • When you completely change topics

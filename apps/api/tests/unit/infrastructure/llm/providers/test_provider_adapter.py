@@ -321,7 +321,6 @@ def test_create_llm_ollama_local(mock_settings_module, mock_chat_ollama, mock_se
     for attr in dir(mock_settings_class):
         if not attr.startswith("_"):
             setattr(mock_settings_module, attr, getattr(mock_settings_class, attr))
-    mock_settings_module.ollama_num_ctx = None
     mock_chat_ollama.return_value = MagicMock(spec=BaseChatModel)
 
     from src.domains.llm_config.cache import LLMConfigOverrideCache
@@ -358,7 +357,6 @@ def test_create_llm_ollama_custom_base_url(
     for attr in dir(mock_settings_class):
         if not attr.startswith("_"):
             setattr(mock_settings_module, attr, getattr(mock_settings_class, attr))
-    mock_settings_module.ollama_num_ctx = None
     mock_chat_ollama.return_value = MagicMock(spec=BaseChatModel)
 
     from src.domains.llm_config.cache import LLMConfigOverrideCache
@@ -401,7 +399,6 @@ def test_load_provider_config_json(mock_settings_module, mock_chat_ollama, mock_
     for attr in dir(mock_settings_class):
         if not attr.startswith("_"):
             setattr(mock_settings_module, attr, getattr(mock_settings_class, attr))
-    mock_settings_module.ollama_num_ctx = None
     mock_chat_ollama.return_value = MagicMock(spec=BaseChatModel)
     mock_chat_ollama.model_fields = _RealChatOllama.model_fields
 

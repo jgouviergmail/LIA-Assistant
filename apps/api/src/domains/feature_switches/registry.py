@@ -70,6 +70,25 @@ class PlatformCapability(str, Enum):
     MCP = "mcp"
     TELEPHONY = "telephony"
     MEETINGS = "meetings"
+    # B7 (2026-09-10) — thirteen features that shipped without a switch. The
+    # panel offered twelve capabilities while the product had a workboard,
+    # journals, habits, proactive notifications, peer connections, a
+    # psychological profile, external channels, open loops, long-term memory,
+    # interest tracking, relationship debriefs, delegated sub-agents and an
+    # ephemeral Python sandbox.
+    WORKBOARD = "workboard"
+    JOURNALS = "journals"
+    HABITS = "habits"
+    HEARTBEAT = "heartbeat"
+    PEERS = "peers"
+    PSYCHE = "psyche"
+    CHANNELS = "channels"
+    OPEN_LOOPS = "open_loops"
+    MEMORY = "memory"
+    INTERESTS = "interests"
+    RELATION_DEBRIEF = "relation_debrief"
+    SUB_AGENTS = "sub_agents"
+    PYTHON_SANDBOX = "python_sandbox"
 
 
 @dataclass(frozen=True)
@@ -82,21 +101,36 @@ class CapabilitySpec:
         setting_key: Settings-store key carrying the operator switch.
         agents: Agent names removed from the planner catalogue when off.
             Empty when the capability has no agent of its own.
+        tools: Tool names removed from the planner catalogue when off, for a
+            capability that owns NO agent — delegation lives in the graph
+            (ADR-083 removed its REST surface) and the sandbox is one tool
+            (ADR-249). A planner that SEES a tool it cannot run plans an
+            invented dead end, and the person reads a failure where they should
+            have read « I cannot do that ». Never declared beside ``agents``:
+            an agent's manifests already carry every tool it owns, and two
+            sources for one hiding is two authorities.
         route_enforced: Whether an HTTP/WebSocket router refuses it when off.
         service_enforced: Whether an internal service chokepoint refuses it
             when off. Speech synthesis has no route of its own — it is
             produced inside the chat stream — so a router dependency would
             enforce nothing.
         label_key: i18n key the frontend resolves for the switch label.
+        family: Which group the admin panel draws it in. Twenty-five switches
+            in one column is a wall an operator scrolls past; grouped, the
+            panel answers « what can this instance do » by section. Declared
+            here rather than in the frontend so the two cannot disagree about
+            where a capability belongs.
     """
 
     capability: PlatformCapability
     env_flag: str
     setting_key: SystemSettingKey
     agents: tuple[str, ...] = ()
+    tools: tuple[str, ...] = ()
     route_enforced: bool = False
     service_enforced: bool = False
     label_key: str = field(default="")
+    family: str = "assistant"
 
     def __post_init__(self) -> None:
         if not self.label_key:
@@ -106,6 +140,7 @@ class CapabilitySpec:
 CAPABILITY_SPECS: dict[PlatformCapability, CapabilitySpec] = {
     PlatformCapability.STT: CapabilitySpec(
         capability=PlatformCapability.STT,
+        family="media",
         env_flag="voice_stt_enabled",
         setting_key=SystemSettingKey.CAPABILITY_STT_ENABLED,
         # Speech has no agent: it is a transport (WebSocket) plus routes.
@@ -113,6 +148,7 @@ CAPABILITY_SPECS: dict[PlatformCapability, CapabilitySpec] = {
     ),
     PlatformCapability.TTS: CapabilitySpec(
         capability=PlatformCapability.TTS,
+        family="media",
         env_flag="voice_tts_enabled",
         setting_key=SystemSettingKey.CAPABILITY_TTS_ENABLED,
         # No route of its own: speech is synthesized inside the chat stream,
@@ -121,6 +157,7 @@ CAPABILITY_SPECS: dict[PlatformCapability, CapabilitySpec] = {
     ),
     PlatformCapability.IMAGE_GENERATION: CapabilitySpec(
         capability=PlatformCapability.IMAGE_GENERATION,
+        family="media",
         env_flag="image_generation_enabled",
         setting_key=SystemSettingKey.CAPABILITY_IMAGE_GENERATION_ENABLED,
         agents=("image_generation_agent",),
@@ -128,6 +165,7 @@ CAPABILITY_SPECS: dict[PlatformCapability, CapabilitySpec] = {
     ),
     PlatformCapability.DOCUMENT_GENERATION: CapabilitySpec(
         capability=PlatformCapability.DOCUMENT_GENERATION,
+        family="media",
         env_flag="document_generation_enabled",
         setting_key=SystemSettingKey.CAPABILITY_DOCUMENT_GENERATION_ENABLED,
         agents=("document_generation_agent",),
@@ -137,12 +175,14 @@ CAPABILITY_SPECS: dict[PlatformCapability, CapabilitySpec] = {
     ),
     PlatformCapability.ATTACHMENTS: CapabilitySpec(
         capability=PlatformCapability.ATTACHMENTS,
+        family="media",
         env_flag="attachments_enabled",
         setting_key=SystemSettingKey.CAPABILITY_ATTACHMENTS_ENABLED,
         route_enforced=True,
     ),
     PlatformCapability.RAG_SPACES: CapabilitySpec(
         capability=PlatformCapability.RAG_SPACES,
+        family="knowledge",
         env_flag="rag_spaces_enabled",
         setting_key=SystemSettingKey.CAPABILITY_RAG_SPACES_ENABLED,
         agents=("document_agent",),
@@ -150,6 +190,7 @@ CAPABILITY_SPECS: dict[PlatformCapability, CapabilitySpec] = {
     ),
     PlatformCapability.WEB_SEARCH: CapabilitySpec(
         capability=PlatformCapability.WEB_SEARCH,
+        family="reach",
         env_flag="web_search_enabled",
         setting_key=SystemSettingKey.CAPABILITY_WEB_SEARCH_ENABLED,
         agents=(
@@ -161,24 +202,28 @@ CAPABILITY_SPECS: dict[PlatformCapability, CapabilitySpec] = {
     ),
     PlatformCapability.BROWSER: CapabilitySpec(
         capability=PlatformCapability.BROWSER,
+        family="reach",
         env_flag="browser_enabled",
         setting_key=SystemSettingKey.CAPABILITY_BROWSER_ENABLED,
         agents=("browser_agent",),
     ),
     PlatformCapability.SKILLS: CapabilitySpec(
         capability=PlatformCapability.SKILLS,
+        family="reach",
         env_flag="skills_enabled",
         setting_key=SystemSettingKey.CAPABILITY_SKILLS_ENABLED,
         route_enforced=True,
     ),
     PlatformCapability.MCP: CapabilitySpec(
         capability=PlatformCapability.MCP,
+        family="reach",
         env_flag="mcp_enabled",
         setting_key=SystemSettingKey.CAPABILITY_MCP_ENABLED,
         route_enforced=True,
     ),
     PlatformCapability.TELEPHONY: CapabilitySpec(
         capability=PlatformCapability.TELEPHONY,
+        family="media",
         env_flag="telephony_enabled",
         setting_key=SystemSettingKey.CAPABILITY_TELEPHONY_ENABLED,
         agents=("telephony_agent",),
@@ -188,9 +233,120 @@ CAPABILITY_SPECS: dict[PlatformCapability, CapabilitySpec] = {
     # a recording lifecycle plus a processing job, reached through its router.
     PlatformCapability.MEETINGS: CapabilitySpec(
         capability=PlatformCapability.MEETINGS,
+        family="media",
         env_flag="meetings_enabled",
         setting_key=SystemSettingKey.CAPABILITY_MEETINGS_ENABLED,
         route_enforced=True,
+    ),
+    # ------------------------------------------------------------------ B7 --
+    # A switch removes the ABILITY, never the RECORD. Where the router IS the
+    # ability — a board, a set of connections, a live channel — the guard sits
+    # on the router. Where the ability is a BACKGROUND act that fills a record
+    # the person keeps reading — extracting a memory, learning an interest,
+    # writing a debrief — the guard sits at the act, and the record's own
+    # router stays open (the ADR-279 lesson, generalised).
+    PlatformCapability.WORKBOARD: CapabilitySpec(
+        capability=PlatformCapability.WORKBOARD,
+        family="work",
+        env_flag="workboard_enabled",
+        setting_key=SystemSettingKey.CAPABILITY_WORKBOARD_ENABLED,
+        route_enforced=True,
+    ),
+    PlatformCapability.JOURNALS: CapabilitySpec(
+        capability=PlatformCapability.JOURNALS,
+        family="knowledge",
+        env_flag="journals_enabled",
+        setting_key=SystemSettingKey.CAPABILITY_JOURNALS_ENABLED,
+        route_enforced=True,
+    ),
+    PlatformCapability.HABITS: CapabilitySpec(
+        capability=PlatformCapability.HABITS,
+        family="knowledge",
+        env_flag="habits_enabled",
+        setting_key=SystemSettingKey.CAPABILITY_HABITS_ENABLED,
+        route_enforced=True,
+    ),
+    PlatformCapability.HEARTBEAT: CapabilitySpec(
+        capability=PlatformCapability.HEARTBEAT,
+        family="work",
+        env_flag="heartbeat_enabled",
+        setting_key=SystemSettingKey.CAPABILITY_HEARTBEAT_ENABLED,
+        route_enforced=True,
+    ),
+    PlatformCapability.PEERS: CapabilitySpec(
+        capability=PlatformCapability.PEERS,
+        family="people",
+        env_flag="peers_enabled",
+        setting_key=SystemSettingKey.CAPABILITY_PEERS_ENABLED,
+        route_enforced=True,
+    ),
+    PlatformCapability.PSYCHE: CapabilitySpec(
+        capability=PlatformCapability.PSYCHE,
+        family="knowledge",
+        env_flag="psyche_enabled",
+        setting_key=SystemSettingKey.CAPABILITY_PSYCHE_ENABLED,
+        route_enforced=True,
+    ),
+    PlatformCapability.CHANNELS: CapabilitySpec(
+        capability=PlatformCapability.CHANNELS,
+        family="reach",
+        env_flag="channels_enabled",
+        setting_key=SystemSettingKey.CAPABILITY_CHANNELS_ENABLED,
+        route_enforced=True,
+    ),
+    PlatformCapability.OPEN_LOOPS: CapabilitySpec(
+        capability=PlatformCapability.OPEN_LOOPS,
+        family="work",
+        env_flag="open_loops_enabled",
+        setting_key=SystemSettingKey.CAPABILITY_OPEN_LOOPS_ENABLED,
+        route_enforced=True,
+    ),
+    # Extraction, not reading: switching memory off stops LIA learning new
+    # things, and leaves every memory the person already has readable and
+    # deletable.
+    PlatformCapability.MEMORY: CapabilitySpec(
+        capability=PlatformCapability.MEMORY,
+        family="knowledge",
+        env_flag="memory_extraction_enabled",
+        setting_key=SystemSettingKey.CAPABILITY_MEMORY_ENABLED,
+        service_enforced=True,
+    ),
+    PlatformCapability.INTERESTS: CapabilitySpec(
+        capability=PlatformCapability.INTERESTS,
+        family="knowledge",
+        env_flag="interest_extraction_enabled",
+        setting_key=SystemSettingKey.CAPABILITY_INTERESTS_ENABLED,
+        service_enforced=True,
+    ),
+    # ADR-269. The Relations page itself is always mounted — it is a LENS over
+    # contacts and messages, with no state of its own; what an operator
+    # switches is the dated synthesis LIA writes, which costs model calls.
+    PlatformCapability.RELATION_DEBRIEF: CapabilitySpec(
+        capability=PlatformCapability.RELATION_DEBRIEF,
+        family="people",
+        env_flag="relation_debrief_enabled",
+        setting_key=SystemSettingKey.CAPABILITY_RELATION_DEBRIEF_ENABLED,
+        service_enforced=True,
+    ),
+    # ADR-083: no REST router at all — the delegation runs inside the graph, so
+    # the switch lives at the tool's own entry.
+    PlatformCapability.SUB_AGENTS: CapabilitySpec(
+        capability=PlatformCapability.SUB_AGENTS,
+        tools=("delegate_to_sub_agent_tool",),
+        family="reach",
+        env_flag="sub_agents_enabled",
+        setting_key=SystemSettingKey.CAPABILITY_SUB_AGENTS_ENABLED,
+        service_enforced=True,
+    ),
+    # ADR-249 — code a model wrote, run in the SKILLS sandbox. An operator who
+    # wants that off should not have to redeploy.
+    PlatformCapability.PYTHON_SANDBOX: CapabilitySpec(
+        capability=PlatformCapability.PYTHON_SANDBOX,
+        tools=("run_python_tool",),
+        family="reach",
+        env_flag="python_sandbox_tool_enabled",
+        setting_key=SystemSettingKey.CAPABILITY_PYTHON_SANDBOX_ENABLED,
+        service_enforced=True,
     ),
 }
 
@@ -313,6 +469,56 @@ def disabled_agent_names(disabled: frozenset[PlatformCapability]) -> frozenset[s
     """
     return frozenset(
         agent for capability in disabled for agent in CAPABILITY_SPECS[capability].agents
+    )
+
+
+def disabled_tool_names(
+    disabled: frozenset[PlatformCapability] | set[PlatformCapability],
+) -> set[str]:
+    """Tool names to hide for capabilities that own NO agent (B7).
+
+    The agent walk covers every capability with an agent of its own; these two
+    have none, so their tools would stay in the planner catalogue while the
+    switch refused them at call time.
+
+    Args:
+        disabled: Capabilities currently off.
+
+    Returns:
+        The union of their directly declared tools.
+    """
+    return {tool for capability in disabled for tool in CAPABILITY_SPECS[capability].tools}
+
+
+def assert_capability_tools_exist(registry: AgentRegistry) -> None:
+    """Refuse to boot when a capability names a tool that does not exist.
+
+    The sibling of :func:`assert_capability_agents_exist`, for the two
+    capabilities that own no agent (delegation lives in the graph, the sandbox
+    is one tool). A misspelled name would hide NOTHING while looking like it
+    works: the planner would keep offering a tool an operator switched off, and
+    the only symptom would be a plan dying at call time (ADR-085 doctrine).
+
+    Flag-gated capabilities are skipped when their deployment flag is off,
+    exactly as the agent guard reasons: their manifests are legitimately absent
+    and demanding them would fail a valid configuration.
+
+    Args:
+        registry: The populated agent registry.
+
+    Raises:
+        AssertionError: Listing every capability/tool pair that is unknown.
+    """
+    known = {manifest.name for manifest in registry.list_tool_manifests()}
+    problems = [
+        f"{capability.value} -> unknown tool '{tool}'"
+        for capability, spec in CAPABILITY_SPECS.items()
+        if deployment_allows(capability)
+        for tool in spec.tools
+        if tool not in known
+    ]
+    assert not problems, "Capability registry names tools that are not registered: " + "; ".join(
+        sorted(problems)
     )
 
 

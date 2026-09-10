@@ -125,6 +125,25 @@ needs.
 The 54 measurements are the fixture of `test_fit.py`. **Stated limit**: these
 are Calibri metrics; Carlito is metric-compatible, other viewers substitute.
 
+## Where a generated document lives afterwards (ADR-279)
+
+A rendered document is stored as an `Attachment` stamped
+`origin = generated_document`, carrying the `title` the model gave it and the
+`conversation_id` it came from. It is listed by Settings → « My generated
+files », documents gallery (`GET /generated-assets?family=documents`), where it
+can be searched by name, downloaded and removed.
+
+**A document carries no marker of its own in its filename** — the generator
+names it after the person's request — so the migration that backfilled the
+column for pre-existing rows recognised documents from the MESSAGE METADATA
+pointing at them, never from a name. Anything neither pass proved stays
+`upload`, which is what the row already was.
+
+The retention is unchanged (24 h by default): the gallery states each deadline,
+it does not extend it.
+
+---
+
 ## Configuration
 
 | Variable | Default | Purpose |

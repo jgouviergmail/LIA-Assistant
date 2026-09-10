@@ -174,7 +174,9 @@ describe('MeetingsSettings', () => {
   it('opens the library page from the templates block', async () => {
     const { user } = renderWithProviders(<MeetingsSettings lng="en" />);
     await user.click(screen.getByRole('button', { name: 'meetings.settings.manage_templates' }));
-    expect(push).toHaveBeenCalledWith('/dashboard/meetings/templates');
+    // The settings section is a DOOR: the page it opens must be able to lead
+    // back here (`lib/back-origin.ts`, owner 2026-09-10).
+    expect(push).toHaveBeenCalledWith('/dashboard/meetings/templates?from=settings');
   });
 
   it('links each recent meeting to its page', async () => {
@@ -202,9 +204,9 @@ describe('MeetingsSettings', () => {
     list.total = 1;
     const { user } = renderWithProviders(<MeetingsSettings lng="en" />);
     await user.click(screen.getByRole('button', { name: 'Point projet' }));
-    expect(push).toHaveBeenCalledWith('/dashboard/meetings/m1');
+    expect(push).toHaveBeenCalledWith('/dashboard/meetings/m1?from=settings');
     await user.click(screen.getByRole('button', { name: /meetings\.settings\.view_all/ }));
-    expect(push).toHaveBeenCalledWith('/dashboard/meetings');
+    expect(push).toHaveBeenCalledWith('/dashboard/meetings?from=settings');
   });
 });
 

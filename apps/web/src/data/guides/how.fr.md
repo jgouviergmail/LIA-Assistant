@@ -6,7 +6,7 @@
 
 **Version** : 5.0
 **Date** : 2026-08-23
-**Application** : LIA v1.44.0
+**Application** : LIA v1.44.1
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -69,7 +69,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
 | Transparence totale | 547 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 276 ADRs, ~27 290 tests collectés par pytest sur 1 601 fichiers, observabilité native, HITL à 6 niveaux |
+| Fiabilité en production | 279 ADRs, ~27 863 tests collectés par pytest sur 1 629 fichiers, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -87,12 +87,12 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 
 | Métrique | Valeur |
 |----------|--------|
-| Tests | 27 290 collectés par pytest sur 1 601 fichiers de test + 8 014 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
-| Fixtures pytest | 755, dont 32 partagées via conftest |
-| Documents de documentation | 549 |
-| ADRs (Architecture Decision Records) | 276 |
-| Métriques Prometheus | 486 définitions |
-| Dashboards Grafana | 26 |
+| Tests | 27 863 collectés par pytest sur 1 629 fichiers de test + 8 183 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
+| Fixtures pytest | 957, dont 46 partagées via conftest |
+| Documents de documentation | 638 |
+| ADRs (Architecture Decision Records) | 279 |
+| Métriques Prometheus | 547 définitions |
+| Dashboards Grafana | 29 |
 | Langues supportées (i18n) | 6 (fr, en, de, es, it, zh) |
 
 ---
@@ -1381,7 +1381,7 @@ Une règle CSS gouverne les espacements du design system : les marges verticales
 
 ## 24. Architecture des décisions (ADR)
 
-276 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
+279 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
 
 | ADR | Décision | Problème résolu | Impact mesuré |
 |-----|----------|----------------|---------------|
@@ -1679,8 +1679,8 @@ Le visage du compagnon choisissait son expression de fin de tour dans l'émotion
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 276 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~27 290 tests sur 1 601 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 279 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~27 863 tests sur 1 629 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 276 ADRs, et du changelog (v1.0 à v1.44.0). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 279 ADRs, et du changelog (v1.0 à v1.44.1). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

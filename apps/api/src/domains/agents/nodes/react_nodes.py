@@ -404,13 +404,13 @@ def _observe_delivered_context(messages: list[BaseMessage]) -> None:
         delivered = count_messages_tokens_cached(messages)
         react_delivered_context_tokens.observe(delivered)
 
-        from src.core.llm_config_helper import (
-            get_effective_context_window,
-            get_llm_config_for_agent,
-        )
+        from src.core.llm_config_helper import get_effective_context_window_for_slot
 
-        model = get_llm_config_for_agent(settings, "react_agent").model
-        window = get_effective_context_window(model)
+        # The window THIS slot works with (ADR-278) — its own override when an
+        # operator set one, else what the model declares. Reading it from the
+        # slot rather than from the model name is what lets a cheap ReAct loop
+        # and an expensive responder run the same model with two windows.
+        window = get_effective_context_window_for_slot("react_agent")
         if window > 0:
             react_context_window_utilization.observe(delivered / window)
 
@@ -1084,6 +1084,11 @@ async def react_finalize_node(
     }
     if truncation is not None:
         react_result["truncation"] = truncation
+    if abandoned:
+        # The same list the log line carries, where a person reading the debug
+        # panel can see it: which capabilities the turn asked for and never got
+        # is what says whether the budget is calibrated (B8).
+        react_result["abandoned_calls"] = [m.name for m in abandoned if m.name]
     update: dict[str, Any] = {"react_agent_result": react_result}
     if abandoned:
         update["messages"] = abandoned

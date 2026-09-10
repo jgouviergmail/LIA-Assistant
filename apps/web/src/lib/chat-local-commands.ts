@@ -1,3 +1,4 @@
+import { withOrigin } from '@/lib/back-origin';
 /**
  * What a `local` slash command does to the application.
  *
@@ -24,7 +25,8 @@ export interface LocalCommandHandlers {
 const HANDLERS: Record<string, (h: LocalCommandHandlers) => void> = {
   briefing: h => h.navigate('/dashboard'),
   spaces: h => h.navigate('/dashboard/spaces'),
-  meetings: h => h.navigate('/dashboard/meetings'),
+  // Typed in the chat, so the chat is the way back.
+  meetings: h => h.navigate(withOrigin('/dashboard/meetings', 'chat')),
   search: h => h.openSearch(),
 };
 

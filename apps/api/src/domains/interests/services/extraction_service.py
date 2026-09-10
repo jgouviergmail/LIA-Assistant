@@ -580,8 +580,15 @@ async def _analyze_interests_core(
     Returns:
         InterestAnalysisResult with extracted interests and metadata
     """
-    # Check if interest extraction is enabled
-    if not settings.interest_extraction_enabled:
+    # The DEPLOYMENT ceiling and the operator's switch, composed (B7). The
+    # interests router stays open either way: switching this off stops LIA
+    # learning new interests, it does not hide the ones already learned.
+    from src.domains.feature_switches.registry import (
+        PlatformCapability,
+        is_capability_enabled,
+    )
+
+    if not await is_capability_enabled(PlatformCapability.INTERESTS):
         return InterestAnalysisResult(
             analyzed=False,
             analysis_skipped_reason="Feature disabled globally",

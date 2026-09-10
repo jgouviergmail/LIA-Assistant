@@ -26,6 +26,8 @@ from src.core.i18n_api_messages import APIMessages
 from src.core.session_dependencies import get_current_active_session
 from src.domains.connectors.models import CONNECTOR_FUNCTIONAL_CATEGORIES, ConnectorType
 from src.domains.connectors.repository import ConnectorRepository
+from src.domains.feature_switches.guard import capability_dependencies
+from src.domains.feature_switches.registry import PlatformCapability
 from src.domains.heartbeat.repository import HeartbeatNotificationRepository
 from src.domains.heartbeat.schemas import (
     HeartbeatFeedbackRequest,
@@ -45,7 +47,13 @@ from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/heartbeat", tags=["Heartbeat"])
+router = APIRouter(
+    prefix="/heartbeat",
+    tags=["Heartbeat"],
+    # The deployment ceiling already decides whether this router is
+    # mounted at all; this is the operator's switch inside it (B7).
+    dependencies=capability_dependencies(PlatformCapability.HEARTBEAT),
+)
 
 
 # ---------------------------------------------------------------------------

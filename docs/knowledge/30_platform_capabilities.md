@@ -4,16 +4,37 @@
 Because not every LIA instance offers the same features, and that is
 deliberate rather than a bug.
 
-An administrator can switch eleven capabilities on or off for the whole instance,
-from the settings panel, without redeploying and without editing a
-configuration file:
+An administrator can switch twenty-five capabilities on or off for the whole
+instance, from the settings panel, without redeploying and without editing a
+configuration file — every feature a person actually experiences, grouped into
+six families so a wall of switches stays readable:
 
-dictation · speech synthesis · image generation · document generation · file
-uploads · document spaces · web search · web browsing · skills · MCP servers ·
-telephony
+- **media and voice** — dictation · speech synthesis · image generation ·
+  document generation · file uploads
+- **memory and knowledge** — long-term memory · document spaces · personal
+  journals · learned habits · interest tracking
+- **reach and tools** — web search · web browsing · skills · MCP servers ·
+  telephony · external channels
+- **work and initiative** — the ticket board · reminders and scheduled actions ·
+  proactive notifications
+- **people** — connections between accounts · relationship debriefs · open
+  loops · the psychological profile
+- **assistant** — delegated sub-agents · the ephemeral Python sandbox
 
 If one of them is off on your instance, LIA says so by name, in your language,
 rather than failing without explanation.
+
+## Does switching a capability off delete what it already produced?
+No. **A switch removes the capability, never the record.**
+
+Switching long-term memory off stops LIA learning new facts about you; every
+memory it already learned stays readable, editable and deletable. The same rule
+holds for interests, relationship debriefs and file uploads: turning uploads off
+closes the door on sending new files, never on reading or removing the ones you
+already have.
+
+The switch is read at the moment of the call rather than at start-up, so an
+administrator's change takes effect without restarting anything.
 
 ## Will LIA still offer me something it cannot do?
 No, and this is the part that matters day to day. When a capability is off, its

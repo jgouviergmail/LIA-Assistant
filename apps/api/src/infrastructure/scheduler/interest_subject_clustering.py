@@ -15,10 +15,11 @@ Two triggers, registered in startup/schedulers.py (leader-elected):
 import json
 import re
 import uuid as uuid_module
+from collections.abc import Sequence
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import ColumnElement, Select, func, select
 
 from src.core.config import settings
 from src.core.i18n_types import get_language_name
@@ -203,38 +204,123 @@ async def _run_for_users(user_ids: list[UUID], trigger: str) -> dict[str, Any]:
     return stats
 
 
+def _batch_size(limit: int | None) -> int:
+    """The cap for one sweep — the setting unless a caller injects one.
+
+    Args:
+        limit: Explicit cap, or None to read the setting.
+
+    Returns:
+        The number of users one run may serve.
+    """
+    return settings.interest_subject_recluster_batch_size if limit is None else limit
+
+
+def _candidates(
+    *conditions: ColumnElement[bool],
+    order_by: Sequence[ColumnElement[Any]],
+    limit: int | None,
+) -> Select[tuple[UUID]]:
+    """The capped list of users one sweep serves, in a DECLARED order.
+
+    A ``LIMIT`` with nothing deciding which rows is the defect this exists to
+    remove: measured 2026-09-10, both sweeps read ``.distinct().limit(50)``
+    with no ``ORDER BY``, so PostgreSQL returned whatever the plan yielded —
+    and on a table that is not moving, that is the SAME fifty every night.
+
+    ``GROUP BY`` rather than ``DISTINCT`` because the order is an aggregate
+    over each candidate's own rows.
+
+    Args:
+        *conditions: What makes a row a candidate.
+        order_by: The ordering clauses, in order — never empty.
+        limit: Cap, or None to read the setting.
+
+    Returns:
+        The statement.
+    """
+    return (
+        select(UserInterest.user_id)
+        .where(*conditions)
+        .group_by(UserInterest.user_id)
+        .order_by(*order_by)
+        .limit(_batch_size(limit))
+    )
+
+
+def stale_candidates_statement(limit: int | None = None) -> Select[tuple[UUID]]:
+    """Users carrying an unlabelled active interest, longest-waiting first.
+
+    This backlog DRAINS — labelling a user's interests removes them from it —
+    so it is served oldest-first: a deterministic order, ending on the
+    grouping key so it is total and a cap can never split a tie at random.
+
+    Args:
+        limit: Cap, or None to read the setting.
+
+    Returns:
+        The statement.
+    """
+    return _candidates(
+        UserInterest.status == InterestStatus.ACTIVE.value,
+        UserInterest.subject.is_(None),
+        order_by=(func.min(UserInterest.updated_at).asc(), UserInterest.user_id.asc()),
+        limit=limit,
+    )
+
+
+def refresh_candidates_statement(limit: int | None = None) -> Select[tuple[UUID]]:
+    """A fair sample of users with active interests, for the nightly refresh.
+
+    Unlike the backlog, this set NEVER drains: every user with an active
+    interest is a candidate every night, forever. Any stable order therefore
+    starves everyone past the cap — including one by ``updated_at``, because
+    re-clustering that assigns the same labels writes nothing and so bumps no
+    timestamp, leaving the very users the refresh serves pinned at the front.
+
+    Sampling is what makes the cap a budget instead of a boundary.
+
+    Args:
+        limit: Cap, or None to read the setting.
+
+    Returns:
+        The statement.
+    """
+    return _candidates(
+        UserInterest.status == InterestStatus.ACTIVE.value,
+        order_by=(func.random(),),
+        limit=limit,
+    )
+
+
 async def run_subject_clustering_stale() -> dict[str, Any]:
     """Job: re-cluster users having any active interest with subject IS NULL.
+
+    Serves at most one batch, longest-waiting first; the backlog drains across
+    runs.
 
     Returns:
         Stats dict from the run.
     """
     async with get_db_context() as db:
-        rows = await db.execute(
-            select(UserInterest.user_id)
-            .where(
-                UserInterest.status == InterestStatus.ACTIVE.value,
-                UserInterest.subject.is_(None),
-            )
-            .distinct()
-            .limit(settings.interest_subject_recluster_batch_size)
-        )
+        rows = await db.execute(stale_candidates_statement())
         user_ids = [row[0] for row in rows.all()]
     return await _run_for_users(user_ids, trigger="stale")
 
 
 async def run_subject_clustering_full() -> dict[str, Any]:
-    """Job: nightly full re-cluster of every user with active interests.
+    """Job: nightly refresh of a fair sample of users with active interests.
+
+    Not "every user": the run is capped by
+    ``interest_subject_recluster_batch_size`` because each user costs one LLM
+    call. The sample is drawn at random so the cap starves nobody — the
+    docstring used to promise every user and the code served an arbitrary,
+    unchanging fifty.
 
     Returns:
         Stats dict from the run.
     """
     async with get_db_context() as db:
-        rows = await db.execute(
-            select(UserInterest.user_id)
-            .where(UserInterest.status == InterestStatus.ACTIVE.value)
-            .distinct()
-            .limit(settings.interest_subject_recluster_batch_size)
-        )
+        rows = await db.execute(refresh_candidates_statement())
         user_ids = [row[0] for row in rows.all()]
     return await _run_for_users(user_ids, trigger="full")

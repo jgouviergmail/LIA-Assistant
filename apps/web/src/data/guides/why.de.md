@@ -4,7 +4,7 @@
 
 **Version**: 6.0
 **Datum**: 2026-08-23
-**Anwendung**: LIA v1.44.0
+**Anwendung**: LIA v1.44.1
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -85,7 +85,7 @@ Der Administrator hat Zugriff auf eine dritte Registerkarte zur Verwaltung der I
 - **Broadcast-Nachrichten**: Wichtige Nachrichten an alle oder ausgewählte Benutzer senden, mit optionalem Ablaufdatum
 - **Globaler Verbrauchsexport**: Verbrauch aller Benutzer als CSV exportieren
 - **Tagesbudget der Instanz**: in Euro begrenzen, was die GESAMTE Instanz an einem Tag ausgeben darf — nicht nur, was jedes Konto verbraucht. Das Panel zeigt die Ausgaben des Tages, die tatsächlich angewandte Obergrenze und den Rest. Ist das Budget erschöpft, erfahren die Nutzer, dass die Installation pausiert ist, und erhalten die exakte Uhrzeit der Zurücksetzung — keine irreführende Meldung über ihr persönliches Kontingent
-- **Plattformfähigkeiten**: schalte zehn Fähigkeiten sofort ein oder aus, ohne neues Deployment — Diktat, Sprachausgabe, Bilder, Uploads, Dokumentenräume, Websuche, Browsen, Skills, MCP, Telefonie. Eine abgeschaltete Fähigkeit verschwindet auch aus dem Katalog, der dem Planer angeboten wird, sodass LIA nicht mehr vorschlägt, was die Routen ablehnen würden; jede Zeile zeigt, was das Deployment erlaubt, was du gewählt hast und was tatsächlich gilt
+- **Plattformfähigkeiten**: schalte fünfundzwanzig Fähigkeiten sofort ein oder aus, ohne neues Deployment — jede Funktion, die eine Person wirklich erlebt, von Diktat und Bildern bis zum Ticket-Board, den Journalen, dem Langzeitgedächtnis und den spontanen Benachrichtigungen — gruppiert in sechs Familien, damit eine Wand aus Schaltern lesbar bleibt. Ein Schalter nimmt die FÄHIGKEIT weg, nie den Bestand: das Gedächtnis abzuschalten stoppt das Lernen neuer Fakten, während alles bereits Gelernte lesbar und löschbar bleibt. Eine abgeschaltete Fähigkeit verschwindet auch aus dem Katalog, der dem Planer angeboten wird, sodass LIA nicht mehr vorschlägt, was die Routen ablehnen würden; jede Zeile zeigt, was das Deployment erlaubt, was du gewählt hast, was tatsächlich gilt und wo der Schalter greift
 
 **KI und Konnektoren:**
 

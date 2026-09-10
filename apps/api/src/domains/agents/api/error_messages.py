@@ -212,7 +212,8 @@ class SSEErrorMessages:
         - "transient": overload, rate limit, 5xx — retrying can help
         - "auth": key absent/invalid (401) or model not allowed (403)
         - "quota": provider credit/billing exhausted (402)
-        - "not_found": model name does not exist upstream (404)
+        - "not_found": model name does not exist upstream (404), or the
+          provider RETIRED the tag it once served (410)
         - "content_filter": provider safety/moderation blocks
         - "timeout": request or connection timeout (408 included)
         - "unknown": everything else
@@ -227,6 +228,13 @@ class SSEErrorMessages:
                 403: "auth",
                 402: "quota",
                 404: "not_found",
+                # 410 Gone is 404's permanent sibling: the tag EXISTED and the
+                # provider retired it. Measured 2026-09-10 on Ollama cloud —
+                # four of eight tags answer `... was retired at 2026-06-16`.
+                # Unnamed, it fell to "unknown", whose generic text ends on
+                # « veuillez réessayer » about a model that will never answer
+                # again. The advice a person needs is 404's: change the model.
+                410: "not_found",
                 408: "timeout",
             }
             if status in by_status:

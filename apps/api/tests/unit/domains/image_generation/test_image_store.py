@@ -9,32 +9,32 @@ import pytest
 
 from src.domains.image_generation.image_store import (
     _pending_images,
-    _sanitize_alt_text,
     get_and_clear_pending_images,
     peek_pending_images,
+    sanitize_alt_text,
     store_pending_image,
 )
 
 
 @pytest.mark.unit
 class TestSanitizeAltText:
-    """Tests for _sanitize_alt_text helper."""
+    """Tests for sanitize_alt_text helper."""
 
     def test_removes_brackets(self) -> None:
-        assert _sanitize_alt_text("a [test] image") == "a test image"
+        assert sanitize_alt_text("a [test] image") == "a test image"
 
     def test_removes_parens(self) -> None:
-        assert _sanitize_alt_text("hello (world)") == "hello world"
+        assert sanitize_alt_text("hello (world)") == "hello world"
 
     def test_removes_newlines(self) -> None:
-        assert _sanitize_alt_text("line1\nline2") == "line1 line2"
+        assert sanitize_alt_text("line1\nline2") == "line1 line2"
 
     def test_truncates_to_100_chars(self) -> None:
         long_text = "x" * 200
-        assert len(_sanitize_alt_text(long_text)) == 100
+        assert len(sanitize_alt_text(long_text)) == 100
 
     def test_empty_string(self) -> None:
-        assert _sanitize_alt_text("") == ""
+        assert sanitize_alt_text("") == ""
 
 
 @pytest.mark.unit

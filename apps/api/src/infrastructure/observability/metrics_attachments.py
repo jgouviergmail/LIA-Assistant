@@ -55,10 +55,27 @@ vision_llm_duration_seconds = Histogram(
 # Cleanup Metrics
 # ============================================================================
 
+#: Why an attachment was removed. A CLOSED vocabulary, because the dashboard
+#: groups the counter below by it: a second spelling of one reason draws two
+#: lines for one thing, and a reason nobody declared draws a line nobody can
+#: read. « user_deleted » is the gallery of ADR-279 — the person removing a file
+#: LIA produced, which used to be indistinguishable from a conversation reset.
+DELETION_REASON_EXPIRED = "expired"
+DELETION_REASON_CONVERSATION_RESET = "conversation_reset"
+DELETION_REASON_USER = "user_deleted"
+
+DELETION_REASONS: frozenset[str] = frozenset(
+    {
+        DELETION_REASON_EXPIRED,
+        DELETION_REASON_CONVERSATION_RESET,
+        DELETION_REASON_USER,
+    }
+)
+
 attachments_cleanup_deleted_total = Counter(
     "attachments_cleanup_deleted_total",
-    "Total attachments deleted by cleanup job",
-    ["reason"],  # reason: expired|conversation_reset
+    "Total attachments deleted, by why they went",
+    ["reason"],  # one of DELETION_REASONS
 )
 
 attachments_active_count = Gauge(

@@ -579,6 +579,20 @@ de personnes portent la couleur du thème (D82). Le
 tableau n'a pas de bouton « Rafraîchir » : il se relit seul. Ses filtres
 partent de l'URL (`?overdue=1&assignee=lia`) et l'URL les suit ensuite.
 
+**Sous `lg`, le bloc de filtres se replie** (2026-09-10). Cinq contrôles
+au-dessus d'UNE colonne de cartes prennent tout le premier écran, et le
+lecteur vient voir ses tickets. Replié, il reste un index : il dit le nombre
+EXACT de rétrécissements actifs et les nomme avec les mots de leurs propres
+contrôles — un résumé qui ne dit rien fait ouvrir le bloc pour savoir, ce que
+le repli existe précisément pour éviter. Fermé signifie **démonté** (le
+`<details>` natif de `components/ui/disclosure.tsx` ne rend ses enfants
+qu'ouvert) et l'état des filtres vit dans la PAGE, donc replier ne coûte ni ne
+perd rien. Au-dessus de `lg`, le bloc est inchangé. Le compte, la phrase et le
+prédicat « le tableau est-il rétréci ? » viennent du même module
+(`lib/workboard/active-filters.ts`) : l'état vide ne peut donc pas annoncer
+« aucune correspondance » pendant que le résumé annonce « aucun filtre ». Le
+**tri n'est pas un rétrécissement** — il change l'ORDRE, jamais l'ensemble.
+
 **Réglages › Workboard est le tableau en un coup d'œil** (lot 18) :
 `GET /workboard/summary` — total, en retard, chez LIA, à votre décision, un
 compte exact par colonne, chacun un lien vers le tableau réduit ; la

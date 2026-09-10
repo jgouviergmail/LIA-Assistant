@@ -30,7 +30,7 @@ describe('MeetingMinutesCard', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('meetings.detail.gaps_notice')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /meetings\.card\.open/ }));
-    expect(push).toHaveBeenCalledWith('/dashboard/meetings/m1');
+    expect(push).toHaveBeenCalledWith('/dashboard/meetings/m1?from=chat');
   });
 
   it('shows no gap notice for a clean recording', () => {

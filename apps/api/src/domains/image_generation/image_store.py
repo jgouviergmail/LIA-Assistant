@@ -43,8 +43,11 @@ _pending_images: dict[str, list[PendingImage]] = {}
 _lock = threading.Lock()
 
 
-def _sanitize_alt_text(text: str) -> str:
-    """Remove markdown-breaking characters from alt text.
+def sanitize_alt_text(text: str) -> str:
+    """Remove markdown-breaking characters from a generated image's label.
+
+    Public since ADR-279: the gallery's title and the chat card's alt text
+    are the same string, and a second sanitiser is how they come to differ.
 
     Args:
         text: Raw prompt text to use as alt.
@@ -77,7 +80,7 @@ def store_pending_image(
         alt_text: Raw prompt text (sanitized internally).
         expires_at: ISO-8601 UTC deadline after which the attachment is purged.
     """
-    sanitized_alt = _sanitize_alt_text(alt_text)
+    sanitized_alt = sanitize_alt_text(alt_text)
     image = PendingImage(url=url, alt_text=sanitized_alt, expires_at=expires_at)
 
     with _lock:

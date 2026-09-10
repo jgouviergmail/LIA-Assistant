@@ -69,6 +69,13 @@ export interface MobileNavMenuProps {
    * to the whole table. The layout passes the same list to the desktop nav.
    */
   destinations?: readonly DashboardDestination[];
+  /**
+   * Route of one destination, before localization. The layout passes the same
+   * builder to both renderers, so a link that carries the screen the reader is
+   * leaving (`?from=`, `lib/back-origin.ts`) does so from the phone menu too.
+   * Absent, a destination is linked plainly.
+   */
+  linkTo?: (destination: DashboardDestination) => string;
   /** An action rendered after the destinations, behind a separator. */
   action?: MobileNavAction;
   /**
@@ -84,6 +91,7 @@ export function MobileNavMenu({
   isActiveRoute,
   triggerLabel,
   destinations = DASHBOARD_DESTINATIONS,
+  linkTo,
   action,
   live,
 }: MobileNavMenuProps) {
@@ -114,10 +122,12 @@ export function MobileNavMenu({
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-48">
-        {destinations.map(({ segment, labelKey }) => (
+        {destinations.map(destination => {
+          const { segment, labelKey } = destination;
+          return (
           <DropdownMenuItem key={segment || 'home'} asChild>
             <Link
-              href={buildHref(destinationPath(segment))}
+              href={buildHref(linkTo ? linkTo(destination) : destinationPath(segment))}
               // `aria-current` states the active page; the tint alone would
               // convey it to sighted users only.
               aria-current={isActiveRoute(segment) ? 'page' : undefined}
@@ -129,7 +139,8 @@ export function MobileNavMenu({
               {translate(labelKey)}
             </Link>
           </DropdownMenuItem>
-        ))}
+          );
+        })}
         {action && ActionIcon && (
           <>
             <DropdownMenuSeparator />

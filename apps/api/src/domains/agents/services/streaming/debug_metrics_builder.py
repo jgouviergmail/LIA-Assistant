@@ -82,6 +82,7 @@ class DebugMetricsBuilder:
 
         stages.build_execution_mode(debug_metrics, state)
         self._build_token_budget(debug_metrics, state, settings)
+        stages.build_context_window(debug_metrics)
         self._build_planner_intelligence(debug_metrics, state)
         self._build_execution_timeline(debug_metrics, state, run_id)
         self._build_tool_selection(debug_metrics, run_id)

@@ -299,7 +299,17 @@ if [ -n "$PYTHON_FILES" ]; then
         # Extract setting names from .env.example (lines like KEY=value, ignoring comments)
         ENV_KEYS=$(grep -E "^[A-Z_]+=" .env.example | sed 's/=.*//' | sort -u)
 
-        # Search for os.environ / os.getenv references in staged Python files.
+        # A MIGRATION is not configuration. It runs once, during an upgrade,
+        # and the environment it reads is by construction a LEGACY one: ADR-278
+        # retired OLLAMA_NUM_CTX and its migration reads the variable only to
+        # carry a deployment's old value onto the new column. Declaring such a
+        # name in .env.example would tell a fresh self-hoster to set something
+        # that no longer does anything — the opposite of what this check is for.
+        # A variable a migration reads AND runtime code reads is still caught,
+        # because the runtime file stays in the scan.
+        SCANNED_PY=$(echo "$PYTHON_FILES" | grep -v "alembic/versions/" || true)
+
+        # Search for os.environ / os.getenv references in those files.
         # Two shapes reach this scan and only one names a variable directly:
         #   os.environ.get("OLLAMA_BASE_URL")   -> the literal IS the name
         #   os.environ.get(OLLAMA_BASE_URL_ENV) -> a CONSTANT holding the name
@@ -307,8 +317,8 @@ if [ -n "$PYTHON_FILES" ]; then
         # positive (it aborted a release commit on 2026-09-05); dropping the
         # unquoted shape instead would go blind to that call. So the identifier
         # is resolved to the literal the repository declares for it.
-        QUOTED_REFS=$(echo "$PYTHON_FILES" | xargs grep -ohE '(os\.environ\[|os\.getenv\(|environ\.get\()"([A-Z][A-Z_0-9]+)"' 2>/dev/null | grep -oE '"[A-Z][A-Z_0-9]+"' | tr -d '"' | sort -u || true)
-        CONST_REFS=$(echo "$PYTHON_FILES" | xargs grep -ohE '(os\.environ\[|os\.getenv\(|environ\.get\()[A-Z][A-Z_0-9]+' 2>/dev/null | grep -oE '[A-Z][A-Z_0-9]+$' | sort -u || true)
+        QUOTED_REFS=$(echo "$SCANNED_PY" | xargs -r grep -ohE '(os\.environ\[|os\.getenv\(|environ\.get\()"([A-Z][A-Z_0-9]+)"' 2>/dev/null | grep -oE '"[A-Z][A-Z_0-9]+"' | tr -d '"' | sort -u || true)
+        CONST_REFS=$(echo "$SCANNED_PY" | xargs -r grep -ohE '(os\.environ\[|os\.getenv\(|environ\.get\()[A-Z][A-Z_0-9]+' 2>/dev/null | grep -oE '[A-Z][A-Z_0-9]+$' | sort -u || true)
         RESOLVED_REFS=""
         for const in $CONST_REFS; do
             value=$(grep -rhoE "^${const}(: *[A-Za-z]+)? *= *\"[A-Z][A-Z_0-9]+\"" apps/api/src scripts 2>/dev/null | grep -oE '"[A-Z][A-Z_0-9]+"' | tr -d '"' | head -1)

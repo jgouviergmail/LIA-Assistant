@@ -26,10 +26,12 @@ import { BoardFilters } from '@/components/workboard/BoardFilters';
 import { TicketDetailPanel } from '@/components/workboard/TicketDetailPanel';
 import { TicketForm } from '@/components/workboard/TicketForm';
 import { useAuth } from '@/hooks/useAuth';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { usePeerRecipients } from '@/hooks/usePeerRecipients';
 import { useWorkboard } from '@/hooks/useWorkboard';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
+import { hasFilters } from '@/lib/workboard/active-filters';
 import { toastWorkboardError } from '@/lib/workboard/errors';
 import { filtersFromParams, writeFilters } from '@/lib/workboard/filters-url';
 import type { BoardFilters as Filters, TicketRow } from '@/types/workboard';
@@ -47,6 +49,9 @@ export function WorkboardPage({ lng, initialTicketId }: WorkboardPageProps) {
   const { user } = useAuth();
   const peers = usePeerRecipients(true);
   const { confirm, confirmDialog } = useConfirm();
+  // Below `lg` the board shows ONE column at a time and the controls would
+  // otherwise take the whole first screen: the filter block folds there.
+  const wide = useMediaQuery('(min-width: 1024px)');
 
   // The filters START from the URL — a settings figure links into a narrowed
   // board — and the URL then FOLLOWS them (below), never the reverse while a
@@ -83,7 +88,13 @@ export function WorkboardPage({ lng, initialTicketId }: WorkboardPageProps) {
       if (id) next.set('ticket', id);
       else next.delete('ticket');
       const query = next.toString();
-      router.replace(`/${lng}/dashboard/workboard${query ? `?${query}` : ''}`, { scroll: false });
+      const href = `/${lng}/dashboard/workboard${query ? `?${query}` : ''}`;
+      // OPENING pushes and CLOSING replaces, and the asymmetry is the whole
+      // point: without a history entry the back button does not close the
+      // panel, it leaves the board — and back IS the dismiss gesture on
+      // Android. Closing must not stack a second entry for the same place.
+      if (id) router.push(href, { scroll: false });
+      else router.replace(href, { scroll: false });
     },
     [lng, params, router]
   );
@@ -154,7 +165,7 @@ export function WorkboardPage({ lng, initialTicketId }: WorkboardPageProps) {
         menuLabel={t('common.more_actions')}
       />
 
-      <BoardFilters lng={lng} filters={filters} onChange={setFilters} />
+      <BoardFilters lng={lng} filters={filters} onChange={setFilters} collapsible={!wide} />
 
       {board.firstLoad ? (
         <>
@@ -255,16 +266,5 @@ export function WorkboardPage({ lng, initialTicketId }: WorkboardPageProps) {
 
       {confirmDialog}
     </div>
-  );
-}
-
-/** Whether the reader narrowed the board — « nothing yet » is not « no match ». */
-function hasFilters(filters: Filters): boolean {
-  return Boolean(
-    filters.q?.trim() ||
-    filters.overdue ||
-    filters.priority?.length ||
-    filters.status?.length ||
-    (filters.assignee && filters.assignee !== 'all')
   );
 }

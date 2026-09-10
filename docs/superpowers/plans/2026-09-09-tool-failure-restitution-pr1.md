@@ -12,7 +12,23 @@
 
 ## Global Constraints
 
-- Root `CLAUDE.md` en entier ; en particulier : i18n backend canonique `zh-CN` via `normalize_language` ; aucune chaîne utilisateur inline en Python ; aucun nombre réglable dans un prompt ; `structlog` seulement ; pas de PII en INFO/WARNING (domaine oui, URL non) ; pas d'`except: pass` ; fichiers < 600 SLOC logiques et ratchet de taille (`apps/api/tests/unit/file_size_baseline.json`) — `parallel_executor.py`, `response_node.py`, `mappers.py` sont **gelés à leur taille auditée +2 %** : chaque édition y est nette (retirer autant qu'ajouter, ou extraire).
+- Root `CLAUDE.md` en entier ; en particulier : i18n backend canonique `zh-CN` via `normalize_language` ; aucune chaîne utilisateur inline en Python ; aucun nombre réglable dans un prompt ; `structlog` seulement ; pas de PII en INFO/WARNING (domaine oui, URL non) ; pas d'`except: pass` ; pas d'action git.
+- **Marges de taille, mesurées le 2026-09-10** (`scripts/audit/measure_sloc.py` + `tests/unit/file_size_baseline.json` ; plafond global 600 SLOC logiques pour un fichier non gelé) — elles dictent où le code est écrit :
+
+| Fichier | Mesuré / plafond | Marge |
+|---|---|---|
+| `nodes/task_orchestrator_node.py` | 666 / 680 (gelé) | **14** → **non modifié par cette PR** |
+| `orchestration/adaptive_replanner.py` | 572 / 600 | **28** → la classification est **extraite** (tâche 11) |
+| `orchestration/parallel_executor.py` | 2125 / 2157 (gelé) | 32 → tâches 2 et 3, net ≈ +5 |
+| `nodes/response_node.py` | 2209 / 2254 (gelé) | 45 → une ligne (tâche 6) |
+| `orchestration/mappers.py` | 470 / 600 | **130** → c'est là que vit le calcul |
+| `formatters/agent_results.py` | 107 / 600 | 493 |
+| `tools/web_fetch_tools.py` | 383 / 600 | 217 |
+| `tools/common.py` | 227 / 600 | 373 |
+| `diagnostics/failure_context.py` | 85 / 600 | 515 |
+| `observability/decorators.py` | 291 / 600 | 309 |
+
+Vérifier après coup : `.venv/Scripts/python ../../scripts/audit/measure_sloc.py src` (le fichier ne doit pas dépasser son plafond).
 - Tests : `pytestmark = [pytest.mark.unit]` sur tout nouveau fichier sous `tests/unit/` (`--strict-markers`) ; un test double qui reçoit une coroutine l'attend ; jamais de faux objet à attributs pour simuler un `model_dump()` (D5).
 - Commandes (depuis `apps/api/`) : `.venv/Scripts/pytest <chemin> -v -p no:cacheprovider` ; gates depuis la racine : `task lint`, `task test:backend:unit:fast`, `task test:backend:agents` (hors hook — **obligatoire** après toute modification de `agents/api/service.py` ou d'une signature qu'il appelle), `task ci:fast` avant tout push.
 - `tests/agents/` n'est PAS exécutée par le hook : la lancer explicitement (`task test:backend:agents`).
@@ -35,7 +51,7 @@
 """Replay of production turn 514706d6 (2026-09-09, three fetch_web_page_tool 403s).
 
 What the executor wrote, what the mapper made of it, what the prompt received.
-Red before ADR-277: the prompt got « ❓ plan_executor: Statut inconnu (failed) »
+Red before ADR-281: the prompt got « ❓ plan_executor: Statut inconnu (failed) »
 and the runtime failures directive found nothing.
 """
 
@@ -130,7 +146,7 @@ Expected: 2 FAILED — `'Statut inconnu (failed)'` dans le prompt ; `extract_fai
 - [ ] **Step 1: Test rouge — le Literal est l'enum**
 
 ```python
-"""Vocabulary guard for agent result statuses (ADR-277) — part 1: the Literal IS the enum."""
+"""Vocabulary guard for agent result statuses (ADR-281) — part 1: the Literal IS the enum."""
 
 from __future__ import annotations
 
@@ -168,7 +184,7 @@ class AgentResultStatus(StrEnum):
     ``ERROR`` means every step of the agent's work failed; ``SUCCESS`` means at
     least one step produced something. A partial failure is ``SUCCESS`` with a
     non-empty ``AgentResult.failed_steps``: the field, not the status, states
-    the partial (ADR-277). ``failed``, ``pending`` and ``connector_disabled``
+    the partial (ADR-281). ``failed``, ``pending`` and ``connector_disabled``
     were declared here once — one had a single writer the readers ignored, the
     other two had no writer at all.
     """
@@ -188,7 +204,7 @@ Avant `class AgentResult(BaseModel):` :
 
 ```python
 class FailedStep(BaseModel):
-    """One step of a plan that did not succeed, exactly as the executor recorded it (ADR-277)."""
+    """One step of a plan that did not succeed, exactly as the executor recorded it (ADR-281)."""
 
     step_index: int = Field(description="Position of the step in the plan")
     tool_name: str = Field(description="Tool the step called")
@@ -211,7 +227,7 @@ et après `duration_ms` :
 ```python
     failed_steps: list[FailedStep] = Field(
         default_factory=list,
-        description="Every step that failed, whatever the aggregate status (ADR-277)",
+        description="Every step that failed, whatever the aggregate status (ADR-281)",
     )
 ```
 
@@ -235,22 +251,23 @@ Expected: PASS ; `grep -rn "STATUS_CONNECTOR_DISABLED\|ALL_AGENT_STATUSES\|creat
 **Files:**
 - Modify: `apps/api/src/domains/agents/tools/common.py` (ajouter `coerce_tool_error_code` après `ToolErrorCode`)
 - Modify: `apps/api/src/domains/agents/orchestration/parallel_executor.py:2456-2466` (remplacer le `try/except ValueError` par l'helper — net négatif en lignes)
-- Modify: `apps/api/src/domains/agents/nodes/task_orchestrator_node.py:866-907`
-- Modify: `apps/api/src/domains/agents/orchestration/mappers.py:842-850`
-- Modify: `apps/api/tests/unit/domains/agents/orchestration/test_mappers.py:809-829` (`"failed"` → `"error"`)
-- Modify: `apps/api/tests/agents/test_mappers.py:154,233` (`"failed"` → `"error"`)
+- Modify: `apps/api/src/domains/agents/orchestration/mappers.py` (deux helpers + la construction ligne 842-850)
+- **NON modifiés** : `task_orchestrator_node.py` et `initiative_node.py` — les deux producteurs d'`ExecutionResult`. Le calcul vit dans le mapper (spec §3.2) : les deux chemins sont corrigés sans être touchés, `all_steps_success` garde sa sémantique pour son second lecteur (`STATE_KEY_LAST_ACTION_TURN_ID`, ligne 952), et le fichier à 14 lignes de marge n'est pas sollicité.
+- Modify: `apps/api/tests/unit/domains/agents/orchestration/test_mappers.py:828` (`"failed"` → `"error"`)
+- Modify: `apps/api/tests/agents/test_mappers.py:154` (→ `"error"`) et `:233` (→ `"success"` + `failed_steps` : c'est D2 encodé)
+- Modify: `apps/api/tests/agents/test_execution_result_mapping.py` (D17 : le test qui réimplémente le mapping)
 - Create: `apps/api/tests/unit/domains/agents/orchestration/test_mappers_failed_steps.py`
 - Create: `apps/api/tests/unit/domains/agents/tools/test_tool_error_taxonomy.py` (partie 1 — `coerce_tool_error_code` ; `http_status_to_error_code` ajouté en tâche 9)
 
 **Interfaces:**
-- Produces: `coerce_tool_error_code(value: object) -> ToolErrorCode | None` ; `AgentResult.status == "error"` **ssi** tous les steps ont échoué ; `AgentResult.failed_steps` rempli dans tous les cas ; `ExecutionResult.error` = premier échec seulement quand `success` est faux.
+- Produces: `coerce_tool_error_code(value: object) -> ToolErrorCode | None` ; `_failed_steps_of(execution_result) -> list[FailedStep]` ; `_aggregate_status(execution_result, failed_count) -> str` ; `AgentResult.status == "error"` **ssi** tous les steps exécutés ont échoué (ou, sans aucun step, quand `execution_result.success` est faux) ; `AgentResult.failed_steps` rempli dans tous les cas ; `AgentResult.error` rempli seulement quand le statut est `ERROR`.
 
 - [ ] **Step 1: Tests rouges**
 
 `tests/unit/domains/agents/tools/test_tool_error_taxonomy.py` :
 
 ```python
-"""ToolErrorCode taxonomy helpers (ADR-277): coercion and HTTP classification are structural."""
+"""ToolErrorCode taxonomy helpers (ADR-281): coercion and HTTP classification are structural."""
 
 from __future__ import annotations
 
@@ -278,7 +295,7 @@ def test_coerce_tool_error_code(raw: object, expected: ToolErrorCode | None) -> 
 `tests/unit/domains/agents/orchestration/test_mappers_failed_steps.py` :
 
 ```python
-"""The plan aggregate is binary and always carries its failed steps (ADR-277)."""
+"""The plan aggregate is binary and always carries its failed steps (ADR-281)."""
 
 from __future__ import annotations
 
@@ -355,6 +372,34 @@ def test_clean_plan_has_no_failed_steps() -> None:
 def test_an_untyped_code_is_kept_as_none() -> None:
     entry = _map([_ko(0, "boom", code=None)], success=False)
     assert entry["failed_steps"][0]["error_code"] is None
+
+
+def test_the_code_is_read_from_the_raw_step_dict_when_the_typed_field_is_empty() -> None:
+    """The shape task_orchestrator_node and initiative_node build: result=step_data, error_code unset."""
+    step = StepResult(
+        step_index=0,
+        tool_name="fetch_web_page_tool",
+        args={},
+        result={"success": False, "error": "HTTP error 403 fetching https://x", "error_code": "FORBIDDEN"},
+        success=False,
+        error="HTTP error 403 fetching https://x",
+    )
+    entry = _map([step], success=False)
+    assert entry["failed_steps"][0]["error_code"] == "FORBIDDEN"
+
+
+def test_a_plan_that_failed_before_running_anything_is_an_error() -> None:
+    """No step at all: the plan's own verdict is the only one there is."""
+    execution_result = ExecutionResult(
+        success=False, step_results=[], total_steps=1, completed_steps=0,
+        error="Tool execution failed", total_execution_time_ms=0,
+    )
+    entry = map_execution_result_to_agent_result(
+        execution_result=execution_result, plan_id="p", turn_id=9
+    )["9:plan_executor"]
+    assert entry["status"] == AgentResultStatus.ERROR.value
+    assert entry["error"] == "Tool execution failed"
+    assert entry["failed_steps"] == []
 ```
 
 Run les deux → FAIL (`ImportError: coerce_tool_error_code` ; `KeyError: 'failed_steps'`).
@@ -368,7 +413,7 @@ def coerce_tool_error_code(value: object) -> ToolErrorCode | None:
     Tools emit free-form codes through ``UnifiedToolOutput.failure`` (measured
     in-tree: TOOL_ERROR, VALIDATION_ERROR, RATE_LIMITED…) and MCP servers emit
     their own: only members of the taxonomy are typed, the raw string stays in
-    the payload for the response LLM and the logs (ADR-277).
+    the payload for the response LLM and the logs (ADR-281).
 
     Args:
         value: Whatever the payload carried under ``error_code``.
@@ -398,79 +443,80 @@ def coerce_tool_error_code(value: object) -> ToolErrorCode | None:
 par
 
 ```python
-    # A non-member degrades to None; the raw string stays in `result` (ADR-277).
+    # A non-member degrades to None; the raw string stays in `result` (ADR-281).
     typed_error_code = coerce_tool_error_code(tool_result.get(FIELD_ERROR_CODE))
 ```
 
 (import : `from src.domains.agents.tools.common import ToolErrorCode, coerce_tool_error_code` — garder `ToolErrorCode` s'il est utilisé ailleurs dans le fichier, sinon le retirer.)
 
-- [ ] **Step 4: `task_orchestrator_node.py:866-907`** — remplacer la construction des résultats et le calcul du succès par :
+- [ ] **Step 4: `mappers.py` — le calcul, au seul endroit qui voit tous les steps**
+
+`task_orchestrator_node.py` et `initiative_node.py` ne sont **pas** modifiés (cf. spec §3.2 : deux producteurs corrigés d'un coup, `all_steps_success` et son second lecteur `STATE_KEY_LAST_ACTION_TURN_ID` préservés, et 14 lignes de marge sur le premier). Ajouter au-dessus de `map_execution_result_to_agent_result` :
 
 ```python
-        # Build ExecutionResult-like structure for mapper
-        legacy_step_results = []
-        for idx, step in enumerate(execution_plan.steps):
-            if step.step_id in completed_steps:
-                step_data = completed_steps[step.step_id]
-                is_dict = isinstance(step_data, dict)
-                legacy_step_results.append(
-                    LegacyStepResult(
-                        step_index=idx,
-                        tool_name=step.tool_name or step.step_id,
-                        args=step.parameters or {},
-                        result=step_data if is_dict else {"data": step_data},
-                        success=step_data.get(FIELD_SUCCESS, True) if is_dict else True,
-                        error=step_data.get(FIELD_ERROR) if is_dict else None,
-                        error_code=(
-                            coerce_tool_error_code(step_data.get(FIELD_ERROR_CODE))
-                            if is_dict
-                            else None
-                        ),
-                    )
-                )
+def _failed_steps_of(execution_result: ExecutionResult) -> list[FailedStep]:
+    """Every step that did not succeed, with the code its payload carried (ADR-281).
 
-        # ADR-277: the aggregate is an ERROR only when EVERY step failed. A plan
-        # that produced anything is a SUCCESS whose failed steps travel in
-        # AgentResult.failed_steps — the field, not the status, states the partial.
-        failed_results = [sr for sr in legacy_step_results if not sr.success]
-        plan_success = not failed_results or len(failed_results) < len(legacy_step_results)
-        first_failed = failed_results[0] if failed_results else None
+    The typed ``StepResult.error_code`` is filled by the parallel executor but
+    NOT by the two callers that rebuild an ``ExecutionResult`` from
+    ``completed_steps`` (``task_orchestrator_node``, ``initiative_node``), which
+    pass the raw step dict as ``result``. Reading the dict as a fallback fixes
+    both paths without touching either.
 
-        execution_result = ExecutionResult(
-            success=plan_success,
-            step_results=legacy_step_results,
-            total_steps=len(execution_plan.steps),
-            completed_steps=len(completed_steps),
-            failed_step_index=first_failed.step_index if first_failed else None,
-            error=first_failed.error if (first_failed and not plan_success) else None,
-            total_execution_time_ms=0,  # Already logged by parallel_executor
+    Args:
+        execution_result: The plan execution, whatever built it.
+
+    Returns:
+        One ``FailedStep`` per failed step, in plan order.
+    """
+    failed: list[FailedStep] = []
+    for step_result in execution_result.step_results:
+        if step_result.success:
+            continue
+        raw = step_result.result if isinstance(step_result.result, dict) else {}
+        code = step_result.error_code or coerce_tool_error_code(raw.get(FIELD_ERROR_CODE))
+        failed.append(
+            FailedStep(
+                step_index=getattr(step_result, "step_index", 0) or 0,
+                tool_name=str(getattr(step_result, "tool_name", "") or ""),
+                error=step_result.error or raw.get(FIELD_ERROR),
+                error_code=code.value if code else None,
+            )
         )
+    return failed
+
+
+def _aggregate_status(execution_result: ExecutionResult, failed_count: int) -> str:
+    """ERROR only when EVERY executed step failed (ADR-281).
+
+    A plan that produced anything is a SUCCESS carrying its failed steps — the
+    field states the partial, not the status. With NO step at all the plan
+    failed before running anything, and its own verdict is the only one there
+    is (measured on ``test_maps_failed_execution_result``: ``step_results=[]``
+    with ``success=False``).
+
+    Args:
+        execution_result: The plan execution.
+        failed_count: How many of its steps failed.
+
+    Returns:
+        ``AgentResultStatus.ERROR.value`` or ``AgentResultStatus.SUCCESS.value``.
+    """
+    total = len(execution_result.step_results)
+    all_failed = (failed_count == total) if total else (not execution_result.success)
+    return AgentResultStatus.ERROR.value if all_failed else AgentResultStatus.SUCCESS.value
 ```
 
-Imports à ajouter : `from src.core.field_names import FIELD_ERROR, FIELD_ERROR_CODE, FIELD_SUCCESS` (les deux premiers créés en tâche 3 — **exécuter la tâche 3 step 2 avant de lancer les tests de cette tâche**, ou créer ces deux constantes ici et les réutiliser en tâche 3) et `from src.domains.agents.tools.common import coerce_tool_error_code`. Mettre à jour la docstring de module (ligne 6 : « decision (kept in sync…) ») si elle décrit l'ancien « success only if ALL steps succeeded ».
-
-- [ ] **Step 5: `mappers.py:842-850`** — remplacer la construction de `AgentResult` par :
+- [ ] **Step 5: `mappers.py:842-850` — la construction de l'`AgentResult`**
 
 ```python
-    failed_steps = [
-        FailedStep(
-            step_index=getattr(sr, "step_index", 0),
-            tool_name=str(sr.tool_name),
-            error=sr.error,
-            error_code=sr.error_code.value if sr.error_code else None,
-        )
-        for sr in execution_result.step_results
-        if not sr.success
-    ]
+    failed_steps = _failed_steps_of(execution_result)
+    status = _aggregate_status(execution_result, len(failed_steps))
     agent_result = AgentResult(
         agent_name="plan_executor",
-        status=(
-            AgentResultStatus.SUCCESS.value
-            if execution_result.success
-            else AgentResultStatus.ERROR.value
-        ),
+        status=status,
         data=normalized_data,
-        error=execution_result.error if not execution_result.success else None,
+        error=execution_result.error if status == AgentResultStatus.ERROR.value else None,
         failed_steps=failed_steps,
         tokens_in=total_tokens_in,  # Aggregated from step results
         tokens_out=total_tokens_out,
@@ -479,18 +525,57 @@ Imports à ajouter : `from src.core.field_names import FIELD_ERROR, FIELD_ERROR_
     )
 ```
 
-Imports : `from src.domains.agents.constants import AgentResultStatus` ; `FailedStep` depuis `.schemas`. Corriger la docstring (ligne 579 : `"status": "success" | "failed"` → `"success" | "error"`, et ajouter `"failed_steps": list[FailedStep]`).
+Imports en tête de `mappers.py` : `from src.core.field_names import FIELD_ERROR, FIELD_ERROR_CODE` ; `from src.domains.agents.constants import AgentResultStatus` ; `FailedStep` depuis `.schemas` ; `coerce_tool_error_code` depuis `src.domains.agents.tools.common`. Corriger la docstring (ligne 579 : `"status": "success" | "failed"` → `"success" | "error"`, et ajouter `"failed_steps": list[FailedStep]`).
 
-- [ ] **Step 6: Tests existants qui encodaient le défaut**
+- [ ] **Step 6: Les trois tests existants qui encodaient le défaut**
 
-`tests/unit/domains/agents/orchestration/test_mappers.py:828` et `tests/agents/test_mappers.py:154,233` : `== "failed"` → `== "error"`. Docstring de ces tests : ajouter « (ADR-277: the aggregate vocabulary is success/error) ».
+1. `tests/unit/domains/agents/orchestration/test_mappers.py:828` — cas `step_results=[]`, `success=False` : `== "failed"` → `== "error"` (le verdict global s'applique). Ajouter au docstring : « (ADR-281: a plan that failed before running anything keeps its own verdict) ».
+2. `tests/agents/test_mappers.py:154` — un seul step, échoué : `== "failed"` → `== "error"`.
+3. `tests/agents/test_mappers.py:233` — **c'est le défaut D2 encodé** : deux steps, un réussi (contacts « Jean » normalisés dans `data`) et un échoué, et le test assert `"failed"`. Il devient :
 
-- [ ] **Step 7: Vérifier**
+```python
+        # Then: a plan that produced contacts is a SUCCESS carrying its failure
+        # (ADR-281 — before, the successful half was announced as a total failure)
+        agent_result = agent_results["2:plan_executor"]
+        assert agent_result["status"] == "success"
+        assert agent_result["error"] is None
+        assert len(agent_result["failed_steps"]) == 1
+        assert agent_result["failed_steps"][0]["error"] == "Step 'check' failed"
+        # Contacts are normalized from the successful step
+        assert agent_result["data"]["total_count"] == 1
+        assert agent_result["data"]["contacts"][0]["name"] == "Jean"
+```
 
-Run: `.venv/Scripts/pytest tests/unit/domains/agents/tools/test_tool_error_taxonomy.py tests/unit/domains/agents/orchestration/test_mappers_failed_steps.py tests/unit/domains/agents/orchestration/test_mappers.py tests/agents/test_mappers.py tests/unit/domains/agents/formatters/test_tool_failure_restitution_prod_replay.py -v -p no:cacheprovider`
+- [ ] **Step 7: Le faux témoin — `tests/agents/test_execution_result_mapping.py` (défaut D17)**
+
+Ce fichier prétend tester « the fragile mapping logic in task_orchestrator_node.py » mais **construit le dict `agent_result` à la main dans chaque test** et n'appelle jamais `map_execution_result_to_agent_result` — sa copie a divergé (elle écrit `"error"` là où le code écrit `"failed"`). Le rendre réel : dans chacun de ses tests, remplacer le bloc
+
+```python
+        agent_result = {
+            "agent_name": "plan_executor",
+            "status": "success" if execution_result.success else "error",
+            "data": {...},
+            "error": execution_result.error if not execution_result.success else None,
+        }
+```
+
+par
+
+```python
+        agent_result = map_execution_result_to_agent_result(
+            execution_result=execution_result, plan_id="planX", turn_id=1
+        )["1:plan_executor"]
+```
+
+et ajuster les assertions à ce que le mapper produit réellement (`data` est le `MultiDomainResultData`/dict normalisé, pas la structure retapée). Import à ajouter : `from src.domains.agents.orchestration.mappers import map_execution_result_to_agent_result`. Si une assertion ne peut pas être portée sans réécrire tout le fichier, la supprimer avec un commentaire nommant ce qu'elle prétendait vérifier — un test qui teste sa propre copie ne protège rien.
+
+- [ ] **Step 8: Vérifier**
+
+Run: `.venv/Scripts/pytest tests/unit/domains/agents/tools/test_tool_error_taxonomy.py tests/unit/domains/agents/orchestration/test_mappers_failed_steps.py tests/unit/domains/agents/orchestration/test_mappers.py tests/agents/test_mappers.py tests/agents/test_execution_result_mapping.py tests/unit/domains/agents/formatters/test_tool_failure_restitution_prod_replay.py -v -p no:cacheprovider`
 Expected: tout PASS sauf `test_the_prompt_never_says_unknown_status` (tâche 5) et `test_the_directive_lists_every_failed_fetch_with_its_code` (tâche 4).
+Puis: `.venv/Scripts/python ../../scripts/audit/measure_sloc.py src | grep mappers` → sous 600.
 
-- [ ] **Step 8: Point de contrôle.**
+- [ ] **Step 9: Point de contrôle.**
 
 ---
 
@@ -507,7 +592,7 @@ Expected: tout PASS sauf `test_the_prompt_never_says_unknown_status` (tâche 5) 
 - [ ] **Step 1: Test rouge**
 
 ```python
-"""A FOR_EACH aggregate says whether ANY item succeeded and how many failed (ADR-277)."""
+"""A FOR_EACH aggregate says whether ANY item succeeded and how many failed (ADR-281)."""
 
 from __future__ import annotations
 
@@ -558,7 +643,7 @@ Run → FAIL (`ImportError: FIELD_FOR_EACH_AGGREGATE`).
 - [ ] **Step 2: `core/field_names.py`** après `FIELD_ERROR_CODE = "error_code"` :
 
 ```python
-# ADR-277: the shape a failed step takes in ``completed_steps`` is written and
+# ADR-281: the shape a failed step takes in ``completed_steps`` is written and
 # read through these names — the reader that once looked for ``status`` found
 # nothing for the whole life of the pipeline.
 FIELD_SUCCESS = "success"
@@ -574,7 +659,7 @@ FIELD_FOR_EACH_AGGREGATE = "_for_each_aggregate"
 - [ ] **Step 4: `_aggregate_for_each_results`** — juste avant `completed_steps[original_step_id] = aggregated` (ligne ~3405) :
 
 ```python
-    # ADR-277: a loop of N items is N executions — the aggregate succeeded when
+    # ADR-281: a loop of N items is N executions — the aggregate succeeded when
     # ANY item did, and it says how many did not. Readers that list failures
     # skip the aggregate: its items are in completed_steps, one entry each.
     item_results = [completed_steps.get(step_id) for step_id in expanded_step_ids]
@@ -682,7 +767,7 @@ et pour la directive (dans la classe existante qui teste `build_runtime_failures
 `test_runtime_failure_directive_ungated.py` :
 
 ```python
-"""The failures half of the honesty block does not depend on the diagnostics flag (ADR-277, ADR-248 doctrine)."""
+"""The failures half of the honesty block does not depend on the diagnostics flag (ADR-281, ADR-248 doctrine)."""
 
 from __future__ import annotations
 
@@ -735,7 +820,7 @@ def extract_failures_from_steps(
     (``parallel_executor._merge_single_step_result``); reader and writer share
     the field constants so they cannot drift again — the previous reader looked
     for ``status == "error"``, a key nothing wrote, and found nothing while the
-    diagnostics flag was on in production (ADR-277). FOR_EACH aggregates are
+    diagnostics flag was on in production (ADR-281). FOR_EACH aggregates are
     skipped: their items are listed one by one.
 
     Args:
@@ -800,7 +885,7 @@ async def build_runtime_failures_directive(
         tool_names_by_step: ``step_id → tool_name`` so a failure names its capability.
         include_degradations: Consult the advisor for platform degradations. The
             failures render with or without it — the caller passes the
-            diagnostics flag here, never around the whole block (ADR-277).
+            diagnostics flag here, never around the whole block (ADR-281).
     """
     failures = extract_failures_from_steps(completed_steps, tool_names_by_step)
     react_failures = extract_failures_from_tool_messages(messages, limit=None)
@@ -832,7 +917,7 @@ async def build_run_honesty_block(state: dict[str, Any]) -> str:
 
     Two halves, joined here so the response node keeps ONE seam: what was cut
     short and what failed — both ALWAYS (an honesty directive never depends on
-    a diagnostics flag, ADR-248/ADR-277). Only the platform-degradation
+    a diagnostics flag, ADR-248/ADR-281). Only the platform-degradation
     paragraph waits for the diagnostics subsystem, which owns the advisor.
     …
     """
@@ -922,7 +1007,7 @@ Expected: PASS (dont le test de synchronisation `PromptName`/fichiers).
 - [ ] **Step 1: Tests rouges**
 
 ```python
-"""Every AgentResultStatus member is read; nothing is ever « unknown » (ADR-277)."""
+"""Every AgentResultStatus member is read; nothing is ever « unknown » (ADR-281)."""
 
 from __future__ import annotations
 
@@ -1000,7 +1085,7 @@ Run → FAIL.
     def agent_error_line(
         agent_name: str, error: str | None, language: SupportedLanguage = "fr"
     ) -> str:
-        """One prompt line for an agent whose whole work failed (ADR-277)."""
+        """One prompt line for an agent whose whole work failed (ADR-281)."""
         detail = error or APIMessages.agent_error_unspecified(language)
         messages = {
             "fr": f"❌ {agent_name} : échec — {detail}",
@@ -1048,7 +1133,7 @@ Dans `_format_status_messages`, ajouter `language = normalize_language(user_lang
         elif status == AgentResultStatus.ERROR.value:
             if result.get(FIELD_FAILED_STEPS):
                 # A plan aggregate: its failed steps reach the prompt through the
-                # runtime failures directive — one channel per fact (ADR-277).
+                # runtime failures directive — one channel per fact (ADR-281).
                 continue
             summaries.append(APIMessages.agent_error_line(agent_name, result.get("error"), language))
 
@@ -1122,7 +1207,7 @@ Run → FAIL (`error` lu comme `failed` ; dicts classés `success`).
     return entry.get(FIELD_STATUS) == AgentResultStatus.ERROR.value
 ```
 
-(imports `FIELD_STATUS` depuis `core.field_names`, `AgentResultStatus` depuis `agents.constants`), docstring : « its status is ERROR only when EVERY step failed (ADR-277: a partial plan is SUCCESS with failed_steps) ».
+(imports `FIELD_STATUS` depuis `core.field_names`, `AgentResultStatus` depuis `agents.constants`), docstring : « its status is ERROR only when EVERY step failed (ADR-281: a partial plan is SUCCESS with failed_steps) ».
 
 - [ ] **Step 3: `infer_conversation_outcome`** — remplacer la boucle `for result in results_iterable:` par :
 
@@ -1145,7 +1230,7 @@ et ajouter au niveau module :
 def _status_and_partial(result: Any) -> tuple[str | None, bool]:
     """Status and « carries failed steps » of one agent result — dict (the real
     ``model_dump`` shape) or object. Reading attributes on a dict classified every
-    pipeline turn as a success (ADR-277)."""
+    pipeline turn as a success (ADR-281)."""
     if isinstance(result, dict):
         return result.get(FIELD_STATUS), bool(result.get(FIELD_FAILED_STEPS))
     return getattr(result, "status", None), bool(getattr(result, "failed_steps", None))
@@ -1265,7 +1350,7 @@ def test_the_scan_detects_synthetic_violations() -> None:
 `tests/unit/core/test_tool_outcome.py` :
 
 ```python
-"""One reading of « did this tool call succeed? » for the register and the metrics (ADR-277)."""
+"""One reading of « did this tool call succeed? » for the register and the metrics (ADR-281)."""
 
 from __future__ import annotations
 
@@ -1316,7 +1401,7 @@ def test_core_module_imports_no_domain() -> None:
 
 ```python
 class TestReturnedFailureIsCounted:
-    """A tool that RETURNS a failure (the documented way) is counted and logged as one (ADR-277)."""
+    """A tool that RETURNS a failure (the documented way) is counted and logged as one (ADR-281)."""
 
     async def test_async_returned_failure_counts_false_and_logs_the_code(
         self, mock_framework_metrics, caplog: pytest.LogCaptureFixture
@@ -1362,7 +1447,7 @@ class TestReturnedFailureIsCounted:
 - [ ] **Step 2: `src/core/tool_outcome.py`**
 
 ```python
-"""The one reading of « did this tool call succeed? » (ADR-277).
+"""The one reading of « did this tool call succeed? » (ADR-281).
 
 Shared by the consultation register (``domains/agents/effects/outcome.py``)
 and the tool metrics decorator (``infrastructure/observability/decorators.py``)
@@ -1432,7 +1517,7 @@ def error_code_of(result: Any) -> str | None:
                     if not succeeded:
                         # A RETURNED failure is the documented way a tool fails
                         # (ToolErrorModel.to_response, UnifiedToolOutput.failure):
-                        # it is counted and said — without the payload (ADR-277).
+                        # it is counted and said — without the payload (ADR-281).
                         logger.warning(
                             "tool_returned_failure",
                             tool_name=tool_name,
@@ -1493,7 +1578,7 @@ def test_http_status_to_error_code(status: int, expected: ToolErrorCode) -> None
 `tests/unit/domains/agents/web_fetch/test_anti_bot.py` :
 
 ```python
-"""An anti-bot challenge is recognised from HEADERS, never worked around (ADR-277)."""
+"""An anti-bot challenge is recognised from HEADERS, never worked around (ADR-281)."""
 
 from __future__ import annotations
 
@@ -1546,7 +1631,7 @@ def test_an_ordinary_403_is_not_an_anti_bot() -> None:
 
 ```python
 def http_status_to_error_code(status: int) -> ToolErrorCode:
-    """Classify an HTTP error status STRUCTURALLY — never from the reason phrase (ADR-277).
+    """Classify an HTTP error status STRUCTURALLY — never from the reason phrase (ADR-281).
 
     401 → UNAUTHORIZED, 403 → FORBIDDEN (an anti-bot challenge answers 403),
     404/410 → NOT_FOUND, 429 → RATE_LIMIT_EXCEEDED, 408 and 5xx →
@@ -1578,7 +1663,7 @@ def http_status_to_error_code(status: int) -> ToolErrorCode:
 - [ ] **Step 3: `web_fetch/anti_bot.py`**
 
 ```python
-"""Recognise an anti-bot challenge from response HEADERS (ADR-277).
+"""Recognise an anti-bot challenge from response HEADERS (ADR-281).
 
 Structural and never a workaround: the tool NAMES the refusal so the answer
 can say « this site blocks automated reading » instead of « unknown status ».
@@ -1684,7 +1769,7 @@ Run: `.venv/Scripts/pytest tests/unit/domains/agents/tools/test_tool_error_taxon
   "id": 4208,
   "type": "timeseries",
   "title": "Tool failures (returned, per tool)",
-  "description": "Tools that RETURNED a failure payload (ADR-277). A 403 from a site, a timeout, a rate limit — counted since v1.44; before, every return was a success. `or vector(0)` keeps a green 0 when no failure has ever fired.",
+  "description": "Tools that RETURNED a failure payload (ADR-281). A 403 from a site, a timeout, a rate limit — counted since v1.44; before, every return was a success. `or vector(0)` keeps a green 0 when no failure has ever fired.",
   "datasource": {"type": "prometheus", "uid": "$datasource"},
   "gridPos": {"h": 8, "w": 8, "x": 8, "y": 52},
   "targets": [
@@ -1717,12 +1802,16 @@ Si un panneau occupe déjà `x: 8, y: 52`, prendre la première case libre de la
 ### Tâche 11 : Le replanner lit le code typé ; le message reste un repli
 
 **Files:**
-- Modify: `apps/api/src/domains/agents/orchestration/adaptive_replanner.py` (`StepAnalysis`, `_is_permanent_failure`, `_permanent_failure_decision`, `analyze_execution_results`, `_get_abort_message`, `_handle_partial_failure`)
-- Modify: `apps/api/src/domains/agents/nodes/task_orchestrator_node.py:779-806` (le TODO D4 : corriger la prémisse)
+- Create: `apps/api/src/domains/agents/orchestration/failure_permanence.py` — **la classification est extraite** : `adaptive_replanner.py` mesure 572/600 SLOC (28 de marge) et cette tâche y ajoutait ~30 lignes. Un module dédié la rend testable seule, et le replanner **descend** (il perd `_PERMANENT_FAILURE_MARKERS` et `_is_permanent_failure`).
+- Modify: `apps/api/src/domains/agents/orchestration/adaptive_replanner.py` (`StepAnalysis.error_code`, `_permanent_failure_decision`, `analyze_execution_results`, `_get_abort_message` ; suppression des deux symboles extraits et de leur commentaire)
+- Modify: `apps/api/src/domains/agents/nodes/task_orchestrator_node.py:779-806` — **commentaires seulement** (le TODO D4 : corriger la prémisse). Aucune ligne de code ajoutée : le fichier n'a que 14 lignes de marge.
 - Modify: `apps/api/tests/unit/domains/agents/orchestration/test_replanner_permanent_failures.py`
+- Create: `apps/api/tests/unit/domains/agents/orchestration/test_failure_permanence.py`
 
 **Interfaces:**
-- Produces: `StepAnalysis.error_code: str | None = None` ; `_is_permanent_failure(error: str | None, error_code: str | None = None) -> bool` (code final quand il existe).
+- Produces (`failure_permanence.py`) : `PERMANENT_ERROR_CODES: frozenset[str]` ; `TRANSIENT_ERROR_CODES: frozenset[str]` ; `PERMANENT_FAILURE_MARKERS: tuple[str, ...]` ; `is_permanent_failure(error: str | None, error_code: str | None = None) -> bool` (le code est **final** quand il existe ; les marqueurs de message ne servent que sans code).
+- Produces (`adaptive_replanner.py`) : `StepAnalysis.error_code: str | None = None`.
+- **Import** : `adaptive_replanner.py` fait `from src.domains.agents.orchestration.failure_permanence import is_permanent_failure` ; l'ancien `_is_permanent_failure` disparaît (vérifier ses importateurs : `grep -rn "_is_permanent_failure" src/ tests/`).
 
 - [ ] **Step 1: Tests rouges** — dans `test_replanner_permanent_failures.py`, étendre `_context(error, attempt=0, error_code=None)` (passer `error_code=error_code` au `StepAnalysis`) et ajouter :
 
@@ -1740,8 +1829,8 @@ def test_a_transient_code_wins_over_a_permanent_looking_message(replanner, code)
 
 
 def test_without_a_code_the_message_markers_still_apply(replanner):
-    assert _is_permanent_failure("Manifest not found for tool x", None) is True
-    assert _is_permanent_failure("HTTP error 403 fetching https://x", None) is False
+    assert is_permanent_failure("Manifest not found for tool x", None) is True
+    assert is_permanent_failure("HTTP error 403 fetching https://x", None) is False
 
 
 def test_analyze_execution_results_reads_the_typed_code():
@@ -1750,19 +1839,34 @@ def test_analyze_execution_results_reads_the_typed_code():
     assert analysis.step_analyses[0].error_code == "FORBIDDEN"
 ```
 
-(imports : `_is_permanent_failure`, `analyze_execution_results` depuis `adaptive_replanner` ; le builder de plan minimal : `ExecutionPlan(plan_id="p", steps=[ExecutionStep(step_id="step_1", step_type=StepType.TOOL, tool_name="fetch_web_page_tool", parameters={})])` — vérifier les champs obligatoires dans `orchestration/schemas.py`.) Run → FAIL.
+(imports : `is_permanent_failure` depuis `orchestration.failure_permanence`, `analyze_execution_results` depuis `adaptive_replanner` ; le builder de plan minimal : `ExecutionPlan(plan_id="p", steps=[ExecutionStep(step_id="step_1", step_type=StepType.TOOL, tool_name="fetch_web_page_tool", parameters={})])` — vérifier les champs obligatoires dans `orchestration/schemas.py`.) Run → FAIL.
 
-- [ ] **Step 2: `adaptive_replanner.py`**
+- [ ] **Step 2: Créer `orchestration/failure_permanence.py`**
 
-`StepAnalysis` : ajouter en dernier champ `error_code: str | None = None` (docstring : « ToolErrorCode value the step carried, when typed »).
+En-tête du module :
 
-Remplacer `_PERMANENT_FAILURE_MARKERS`/`_is_permanent_failure` par :
+```python
+"""Is this failure worth replaying? A code decides; the message is a fallback (ADR-281).
+
+Extracted from ``adaptive_replanner`` so the classification is testable on its
+own and the replanner stays under its size cap. The doctrine is ADR-254's:
+classify STRUCTURALLY. Substring matching on a message turns a vendor rewording
+into a wrong branch — production 2026-09-09, a DataDome 403 was reported
+« transient » because « forbidden » was not in the message the tool built.
+"""
+
+from __future__ import annotations
+
+from src.domains.agents.tools.common import ToolErrorCode
+```
+
+puis, dans ce module (renommés sans underscore de tête, puisqu'ils sont désormais publics) :
 
 ```python
 # Codes whose cause is the request or the world's refusal — a rerun reproduces
 # them exactly. A code, when present, is FINAL; the message markers below are the
-# fallback for a step that carried none (ADR-254 doctrine: classify structurally).
-_PERMANENT_ERROR_CODES: frozenset[str] = frozenset(
+# fallback for a step that carried none.
+PERMANENT_ERROR_CODES: frozenset[str] = frozenset(
     code.value
     for code in (
         ToolErrorCode.FORBIDDEN,
@@ -1776,7 +1880,7 @@ _PERMANENT_ERROR_CODES: frozenset[str] = frozenset(
         ToolErrorCode.CONFIGURATION_ERROR,
     )
 )
-_TRANSIENT_ERROR_CODES: frozenset[str] = frozenset(
+TRANSIENT_ERROR_CODES: frozenset[str] = frozenset(
     code.value
     for code in (
         ToolErrorCode.TIMEOUT,
@@ -1785,7 +1889,7 @@ _TRANSIENT_ERROR_CODES: frozenset[str] = frozenset(
         ToolErrorCode.DEPENDENCY_ERROR,
     )
 )
-_PERMANENT_FAILURE_MARKERS: tuple[str, ...] = (
+PERMANENT_FAILURE_MARKERS: tuple[str, ...] = (
     "manifest not found",
     "not found in catalogue",
     "missing required scopes",
@@ -1794,7 +1898,7 @@ _PERMANENT_FAILURE_MARKERS: tuple[str, ...] = (
 )
 
 
-def _is_permanent_failure(error: str | None, error_code: str | None = None) -> bool:
+def is_permanent_failure(error: str | None, error_code: str | None = None) -> bool:
     """Whether re-running the identical plan would reproduce this failure.
 
     Args:
@@ -1805,23 +1909,23 @@ def _is_permanent_failure(error: str | None, error_code: str | None = None) -> b
         True for a permanent code, False for a transient one; without a code,
         True when the message matches a known plan-caused failure.
     """
-    if error_code in _PERMANENT_ERROR_CODES:
+    if error_code in PERMANENT_ERROR_CODES:
         return True
-    if error_code in _TRANSIENT_ERROR_CODES:
+    if error_code in TRANSIENT_ERROR_CODES:
         return False
     if not error:
         return False
     lowered = error.lower()
-    return any(marker in lowered for marker in _PERMANENT_FAILURE_MARKERS)
+    return any(marker in lowered for marker in PERMANENT_FAILURE_MARKERS)
 ```
 
-`_permanent_failure_decision` : `if _is_permanent_failure(step.error, step.error_code)` ; raison : `f"Steps {names} failed for a reason a retry cannot change (refused access, missing resource, unknown tool or invalid request); the plan itself must differ."`.
+`_permanent_failure_decision` : `if is_permanent_failure(step.error, step.error_code)` ; raison : `f"Steps {names} failed for a reason a retry cannot change (refused access, missing resource, unknown tool or invalid request); the plan itself must differ."`.
 
 `analyze_execution_results` : dans la branche dict, `error_code = step_data.get(FIELD_ERROR_CODE)` (sinon `None`), et `StepAnalysis(..., error_code=str(error_code) if error_code else None)`.
 
 `_get_abort_message(self, context)` : `_("…", context.user_language)` sur les deux appels ; la raison (`reasoning`) de la branche ABORT porte le total exact : `f"Multiple retry attempts failed for steps {failed_names} ({len(context.accumulated_errors)} errors accumulated)."`. Imports : `from src.core.field_names import FIELD_ERROR_CODE` ; `from src.domains.agents.tools.common import ToolErrorCode`. Corriger le commentaire des lignes 150-157 (« Substring matching on the message is the only signal available here » est faux).
 
-- [ ] **Step 3: `task_orchestrator_node.py:779-806`** — dans le TODO D4, remplacer « (the failed-step results flow to response_node, which surfaces the failure) » par « (the failed steps reach the response prompt through the runtime failures directive, ADR-277) » et la phrase identique du bloc `RETRY_SAME`.
+- [ ] **Step 3: `task_orchestrator_node.py:779-806`** — dans le TODO D4, remplacer « (the failed-step results flow to response_node, which surfaces the failure) » par « (the failed steps reach the response prompt through the runtime failures directive, ADR-281) » et la phrase identique du bloc `RETRY_SAME`.
 
 - [ ] **Step 4: Vérifier**
 
@@ -1840,7 +1944,7 @@ Run: `.venv/Scripts/pytest tests/unit/domains/agents/orchestration/test_replanne
 - [ ] **Step 1: La garde**
 
 ```python
-"""Guard: an error is classified by a typed code, never by the words of its message (ADR-277).
+"""Guard: an error is classified by a typed code, never by the words of its message (ADR-281).
 
 ``if "forbidden" in str(e)`` turns a vendor rewording into a wrong branch, and
 made a DataDome 403 « transient » (production 2026-09-09). The baseline lists
@@ -1928,17 +2032,17 @@ def test_the_scan_detects_synthetic_violations() -> None:
 ### Tâche 13 : Documentation de la PR 1
 
 **Files:**
-- Create: `docs/architecture/ADR-277-Agent-Result-Vocabulary-And-Tool-Failure-Restitution.md`
-- Modify: `docs/architecture/ADR_INDEX.md` (entrée ADR-277 après ADR-276, même format : titre `### ADR-277 : …`, `**Fichier**`, `**Décision**`, `---`)
+- Create: `docs/architecture/ADR-281-Agent-Result-Vocabulary-And-Tool-Failure-Restitution.md`
+- Modify: `docs/architecture/ADR_INDEX.md` (entrée ADR-281 après ADR-276, même format : titre `### ADR-281 : …`, `**Fichier**`, `**Décision**`, `---`)
 - Modify: `docs/INDEX.md` (ligne 21 : le compte — via `task release:sync-counts`)
 - Modify: `docs/technical/RESPONSE.md` (sections « ❌ Error occurred » et « 🔧 Format Agent Results » : décrire le vocabulaire, la règle « failed_steps ⇒ directive », la directive d'échecs ; retirer le code périmé lignes 205-222)
-- Modify: `docs/ARCHITECTURE_LANGRAPH.md` (un paragraphe « Restitution des échecs (ADR-277) » près de la description du response node)
+- Modify: `docs/ARCHITECTURE_LANGRAPH.md` (un paragraphe « Restitution des échecs (ADR-281) » près de la description du response node)
 - Modify: `docs/guides/GUIDE_TOOL_CREATION.md` (« Errors » : `http_status_to_error_code`, le décorateur journalise un échec retourné, ne jamais classer par message — la garde G2)
 - Modify: `CLAUDE.md` (pointeur d'ADR dans « Useful Documentation Pointers » + une ligne dans « Registries & vocabulary » : *un statut est un enum, chaque membre est produit et lu, G1* ; et dans « Tools » : *un échec retourné est compté et journalisé par le décorateur*), puis `task docs:sync-agents`
 - CHANGELOG : **ne pas** écrire l'entrée ici — elle appartient au pipeline de release (`lia-release`) ; noter dans le rapport les faits à y porter (les mesures de la spec §1).
 
-- [ ] **Step 1: Écrire l'ADR-277** (titre : « Un statut d'agent, deux valeurs, un lecteur exhaustif — la restitution des échecs d'outils »). Contexte = spec §1-2 (avec les mesures : 88 caractères, 4 « succès » Prometheus = 4 `failed` du registre, drapeau `true` et lecteur aveugle) ; Décision = spec §3.1-3.8 numérotée **(1)**…**(8)** dans le style des ADR récents ; Conséquences = invariants §4 + gardes ; Amende ADR-128 (prémisse D9), ADR-247 (le bloc d'honnêteté n'est plus conditionné), ADR-184/185 (total exact).
-- [ ] **Step 2: ADR_INDEX + counts** — ajouter l'entrée ; `task release:sync-counts` ; vérifier `docs/INDEX.md` ligne 21 (« 276 ADR files (ADR-277 latest …) ») et la ligne équivalente de `CLAUDE.md` (« ADR index (… ADR-277 latest …) »).
+- [ ] **Step 1: Écrire l'ADR-281** (titre : « Un statut d'agent, deux valeurs, un lecteur exhaustif — la restitution des échecs d'outils »). Contexte = spec §1-2 (avec les mesures : 88 caractères, 4 « succès » Prometheus = 4 `failed` du registre, drapeau `true` et lecteur aveugle) ; Décision = spec §3.1-3.8 numérotée **(1)**…**(8)** dans le style des ADR récents ; Conséquences = invariants §4 + gardes ; Amende ADR-128 (prémisse D9), ADR-247 (le bloc d'honnêteté n'est plus conditionné), ADR-184/185 (total exact).
+- [ ] **Step 2: ADR_INDEX + counts** — ajouter l'entrée `### ADR-281 : …` **après** celle d'ADR-280 (dernière du fichier au 2026-09-10) ; `task release:sync-counts` ; vérifier `docs/INDEX.md` ligne 21 et la ligne équivalente de `CLAUDE.md` : elles passent de « **279** ADR files (ADR-**280** latest) » à « **280** ADR files (ADR-**281** latest) » — le décompte est dérivé, ne jamais le retaper à la main.
 - [ ] **Step 3: RESPONSE.md, ARCHITECTURE_LANGRAPH.md, GUIDE_TOOL_CREATION.md, CLAUDE.md** — éditer comme listé ; `task docs:sync-agents`.
 - [ ] **Step 4: Vérifier** — `task lint:docs` (ou `task lint:docs:preview` si des fichiers ne sont pas encore indexés) → 0 finding ; `task lint:i18n` inchangé (aucune locale front touchée par la PR 1).
 - [ ] **Step 5: Point de contrôle.**
@@ -1978,6 +2082,7 @@ Expected : une ligne `tool_returned_failure` avec `error_code=FORBIDDEN` (ou `IN
 ## Auto-revue du plan (faite à la rédaction)
 
 - **Couverture de la spec** : §3.1 → T1, T6, T7 ; §3.2 → T2 ; §3.3 → T4, T5 ; §3.4 → T6 ; §3.5 → T3, T4 ; §3.6 → T8, T9, T10 ; §3.7 → T11 ; §3.8 → T7, T12 ; §3.9-3.10 → PR 2 ; §4 invariants 1-6 → T7, T4, T5, T8, T6, T5.
-- **Noms cohérents entre tâches** : `AgentResultStatus.SUCCESS/ERROR`, `FailedStep`, `AgentResult.failed_steps`, `coerce_tool_error_code`, `http_status_to_error_code`, `detect_anti_bot`, `explicit_success`, `error_code_of`, `FIELD_SUCCESS/FIELD_ERROR/FIELD_FAILED_STEPS/FIELD_FOR_EACH_AGGREGATE`, `extract_failures_from_steps(completed_steps, tool_names_by_step)`, `count_failed_steps`, `build_runtime_failures_directive(..., tool_names_by_step, include_degradations)`, `_failures_block`, `_tool_names_by_step`, `APIMessages.agent_error_line/agent_error_unspecified`, `StepAnalysis.error_code`, `_is_permanent_failure(error, error_code)`.
+- **Noms cohérents entre tâches** : `AgentResultStatus.SUCCESS/ERROR`, `FailedStep`, `AgentResult.failed_steps`, `coerce_tool_error_code`, `http_status_to_error_code`, `detect_anti_bot`, `explicit_success`, `error_code_of`, `FIELD_SUCCESS/FIELD_ERROR/FIELD_FAILED_STEPS/FIELD_FOR_EACH_AGGREGATE`, `_failed_steps_of`, `_aggregate_status`, `extract_failures_from_steps(completed_steps, tool_names_by_step)`, `count_failed_steps`, `build_runtime_failures_directive(..., tool_names_by_step, include_degradations)`, `_failures_block`, `_tool_names_by_step`, `APIMessages.agent_error_line/agent_error_unspecified`, `StepAnalysis.error_code`, `is_permanent_failure(error, error_code)` + `PERMANENT_ERROR_CODES`/`TRANSIENT_ERROR_CODES`/`PERMANENT_FAILURE_MARKERS` (module `orchestration/failure_permanence.py`).
 - **Ordre** : T3 step 2 (constantes de champ) est requis par T2 step 4 — exécuter T3 step 2 en premier si T2 est lancée avant T3.
-- **Ratchet de taille** : T2/T3 touchent `parallel_executor.py` (net ≤ 0 lignes logiques : l'helper retire un `try/except`, le bloc FOR_EACH remplace un commentaire) ; T6 touche `response_node.py` (une ligne) ; T2 `mappers.py` (+9 lignes — vérifier la marge de +2 % avec `python scripts/audit/measure_sloc.py`, sinon extraire `_failed_steps_of(execution_result)` dans `orchestration/failed_steps.py`).
+- **Ratchet de taille** (mesures du 2026-09-10, cf. Global Constraints) : T2/T3 touchent `parallel_executor.py` (32 de marge ; l'helper retire un `try/except`, le bloc FOR_EACH compense) ; T2 met ~35 lignes dans `mappers.py` (130 de marge) ; T6 une ligne dans `response_node.py` (45) ; T11 **crée** `failure_permanence.py` et fait **baisser** `adaptive_replanner.py` (28 de marge, sinon dépassé) ; `task_orchestrator_node.py` (14 de marge) ne reçoit que des corrections de commentaires.
+- **Vérifié le 2026-09-10** : les ancrages du plan existent toujours après la v1.44.0 (`agent_results.py:129-164`, `mappers.py:844`, `schemas.py:279`, `constants.py:511-518`, `failure_context.py:54`, `runtime_failure_directive.py:72`, `decorators.py:391/428/485/522`, `web_fetch_tools.py:453-467`, `adaptive_replanner.py:158-179`, `business_metrics.py:529-533`, `orchestrator.py:112`, Grafana id max 4207). Deux fichiers du périmètre ont bougé pour d'autres raisons (`output.py` : garde de complétude de registre ; `debug_metrics_stages.py` : panneau des registres) — sans effet sur ce plan, et l'exemption G1 de `debug_metrics_stages.py` reste exacte (une seule comparaison, sur `EffectStatus`).

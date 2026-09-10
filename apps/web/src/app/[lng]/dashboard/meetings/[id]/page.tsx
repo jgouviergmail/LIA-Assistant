@@ -32,10 +32,12 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingAnnouncement } from '@/components/ui/loading-announcement';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useConfirm } from '@/components/ui/use-confirm';
+import { useBackOrigin } from '@/hooks/useBackOrigin';
 import { useLanguageParam } from '@/hooks/useLanguageParam';
 import { useLocalizedRouter } from '@/hooks/useLocalizedRouter';
 import { useMeeting } from '@/hooks/useMeetings';
 import { useTranslation } from '@/i18n/client';
+import { withOrigin } from '@/lib/back-origin';
 import type { MeetingDetail, MeetingReport } from '@/types/meetings';
 
 interface MeetingPageProps {
@@ -62,6 +64,11 @@ export default function MeetingPage({ params }: MeetingPageProps) {
   const lng = useLanguageParam(params);
   const { t } = useTranslation(lng);
   const router = useLocalizedRouter();
+  // The door that opened the LIST opened this page too: carrying the token
+  // back means one hop returns to the screen the reader actually came from,
+  // not to a list they never chose to visit.
+  const origin = useBackOrigin();
+  const listHref = withOrigin('/dashboard/meetings', origin);
   const { confirm, confirmDialog } = useConfirm();
   const [showTranscript, setShowTranscript] = useState(false);
   const [draft, setDraft] = useState<MeetingReport | null>(null);
@@ -70,7 +77,7 @@ export default function MeetingPage({ params }: MeetingPageProps) {
   const actions = useMeetingActions(state, {
     t,
     confirm,
-    navigateToList: () => router.push('/dashboard/meetings'),
+    navigateToList: () => router.push(listHref),
     navigateToMeeting: target => router.push(`/dashboard/meetings/${target}`),
     setDraft,
     setShowTranscript,
@@ -88,7 +95,7 @@ export default function MeetingPage({ params }: MeetingPageProps) {
         reason="no-data"
         action={{
           label: t('meetings.detail.back'),
-          onClick: () => router.push('/dashboard/meetings'),
+          onClick: () => router.push(listHref),
           icon: ArrowLeft,
         }}
       />
@@ -106,7 +113,7 @@ export default function MeetingPage({ params }: MeetingPageProps) {
           type="button"
           variant="ghost"
           size="sm"
-          onClick={() => router.push('/dashboard/meetings')}
+          onClick={() => router.push(listHref)}
         >
           <ArrowLeft className="mr-1 h-4 w-4" aria-hidden="true" />
           {t('meetings.detail.back')}

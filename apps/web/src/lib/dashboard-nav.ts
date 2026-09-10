@@ -34,6 +34,17 @@ export interface DashboardDestination {
    * both renderers read the table through `visibleDestinations`.
    */
   feature?: keyof DestinationFeatures;
+  /**
+   * Stamp the link with the screen the reader is leaving (`?from=`), so the
+   * destination can offer a way BACK to it (`lib/back-origin.ts`).
+   *
+   * Declared per destination rather than applied to all: an origin nobody
+   * reads is a query parameter on every URL of the app, and only a screen
+   * that draws a back button has any use for one. Meetings is that screen —
+   * six doors lead to it and its list had no way back at all (owner,
+   * 2026-09-10).
+   */
+  carriesOrigin?: boolean;
 }
 
 /**
@@ -56,7 +67,12 @@ export const DASHBOARD_DESTINATIONS: readonly DashboardDestination[] = [
   { segment: '', labelKey: 'navigation.dashboard' },
   { segment: 'chat', labelKey: 'navigation.chat' },
   { segment: 'relations', labelKey: 'navigation.relations' },
-  { segment: 'meetings', labelKey: 'navigation.meetings', feature: 'meetings_enabled' },
+  {
+    segment: 'meetings',
+    labelKey: 'navigation.meetings',
+    feature: 'meetings_enabled',
+    carriesOrigin: true,
+  },
   { segment: 'notifications', labelKey: 'navigation.notifications' },
   { segment: 'settings', labelKey: 'navigation.settings' },
   { segment: 'faq', labelKey: 'navigation.faq' },

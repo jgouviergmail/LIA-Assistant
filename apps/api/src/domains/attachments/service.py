@@ -23,9 +23,10 @@ from __future__ import annotations
 import asyncio
 import time
 import uuid
+from collections.abc import Collection
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import NoReturn
+from typing import TYPE_CHECKING, NoReturn
 
 import structlog
 from fastapi import UploadFile, status
@@ -33,9 +34,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import get_settings
 from src.core.exceptions import BaseAPIException
+from src.infrastructure.observability.metrics_attachments import (
+    DELETION_REASON_CONVERSATION_RESET,
+    DELETION_REASON_EXPIRED,
+    DELETION_REASON_USER,
+    attachments_cleanup_deleted_total,
+)
 
 from .models import Attachment, AttachmentContentType, AttachmentStatus
 from .repository import AttachmentRepository
+
+if TYPE_CHECKING:
+    from src.domains.attachments.gallery_queries import GalleryFilters
 
 logger = structlog.get_logger(__name__)
 
@@ -354,31 +364,37 @@ class AttachmentService:
         await self.repo.delete(attachment)
         await self.db.commit()
 
+        attachments_cleanup_deleted_total.labels(reason=DELETION_REASON_USER).inc()
+
         logger.info(
             "attachment_deleted",
             attachment_id=str(attachment_id),
             user_id=str(user_id),
         )
 
-    async def delete_all_for_user(self, user_id: uuid.UUID) -> int:
+    async def delete_all_for_user(
+        self, user_id: uuid.UUID, *, origins: Collection[str] | None = None
+    ) -> int:
         """
-        Delete all attachments for a user (conversation reset).
+        Delete a user's attachments, optionally narrowed to some origins.
 
         Args:
             user_id: User UUID.
+            origins: Producers to remove; None removes everything. A
+                conversation reset passes ``{upload}``: what LIA produced
+                belongs to the person's gallery and outlives the conversation
+                that produced it (ADR-279). The account purge does not come
+                through here — it deletes the rows in one statement and the
+                directory with them.
 
         Returns:
             Number of deleted attachments.
         """
-        from src.infrastructure.observability.metrics_attachments import (
-            attachments_cleanup_deleted_total,
-        )
-
         # Get file paths before DB delete
-        file_paths = await self.repo.get_file_paths_for_user(user_id)
+        file_paths = await self.repo.get_file_paths_for_user(user_id, origins=origins)
 
         # Delete DB records
-        count = await self.repo.delete_for_user(user_id)
+        count = await self.repo.delete_for_user(user_id, origins=origins)
         await self.db.commit()
 
         # Remove files from disk
@@ -391,7 +407,9 @@ class AttachmentService:
             user_dir.rmdir()
 
         if count > 0:
-            attachments_cleanup_deleted_total.labels(reason="conversation_reset").inc(count)
+            attachments_cleanup_deleted_total.labels(reason=DELETION_REASON_CONVERSATION_RESET).inc(
+                count
+            )
 
         logger.info(
             "attachments_deleted_all_for_user",
@@ -410,7 +428,6 @@ class AttachmentService:
         """
         from src.infrastructure.observability.metrics_attachments import (
             attachments_active_count,
-            attachments_cleanup_deleted_total,
         )
 
         now = datetime.now(UTC)
@@ -434,7 +451,7 @@ class AttachmentService:
 
         if deleted > 0:
             await self.db.commit()
-            attachments_cleanup_deleted_total.labels(reason="expired").inc(deleted)
+            attachments_cleanup_deleted_total.labels(reason=DELETION_REASON_EXPIRED).inc(deleted)
 
         # Update active gauge
         active_count = await self.repo.count()
@@ -580,3 +597,70 @@ class AttachmentService:
                 file_path=str(absolute_path),
                 error=str(exc),
             )
+
+    async def list_generated(
+        self, user_id: uuid.UUID, filters: GalleryFilters
+    ) -> tuple[list[Attachment], int, int]:
+        """One page of a gallery, its exact total and the bytes behind it.
+
+        Args:
+            user_id: Whose gallery.
+            filters: What it is narrowed to.
+
+        Returns:
+            ``(rows, total, total_bytes)``.
+        """
+        return await self.repo.list_generated(user_id, filters)
+
+    async def delete_generated_batch(
+        self, user_id: uuid.UUID, ids: list[uuid.UUID]
+    ) -> tuple[list[uuid.UUID], list[uuid.UUID]]:
+        """Remove a selection of the person's generated files.
+
+        Says EXACTLY what went: an id the caller does not own, or one the
+        cleanup removed between the listing and the click, is skipped rather
+        than counted as deleted (ADR-185 — a count shown to a person is exact
+        or it does not exist).
+
+        Args:
+            user_id: Owner.
+            ids: Candidate ids.
+
+        Returns:
+            ``(deleted, skipped)``.
+        """
+        from src.domains.attachments.origin import is_generated
+
+        # The same id twice is ONE file. Walking `ids` as given deleted the row
+        # twice, unlinked it twice, counted two removals and returned it twice
+        # — « 2 supprimés » for one file is the claim ADR-185 forbids. The
+        # first occurrence keeps its place: re-sorting would make a client
+        # match rows by luck (cold review, 2026-09-10).
+        wanted = list(dict.fromkeys(ids))
+        owned = await self.repo.get_owned_batch(wanted, user_id)
+        # An UPLOAD is not part of this gallery: deleting one from here would
+        # remove a file the person attached to a conversation, which this
+        # surface never showed them.
+        removable = {row.id: row for row in owned if is_generated(row.origin)}
+
+        deleted: list[uuid.UUID] = []
+        for candidate in wanted:
+            row = removable.get(candidate)
+            if row is None:
+                continue
+            self._remove_file_from_disk(row.file_path)
+            await self.repo.delete(row)
+            deleted.append(candidate)
+        if deleted:
+            await self.db.commit()
+            attachments_cleanup_deleted_total.labels(reason=DELETION_REASON_USER).inc(len(deleted))
+
+        removed = set(deleted)
+        skipped = [candidate for candidate in wanted if candidate not in removed]
+        logger.info(
+            "generated_assets_deleted",
+            user_id=str(user_id),
+            deleted=len(deleted),
+            skipped=len(skipped),
+        )
+        return deleted, skipped

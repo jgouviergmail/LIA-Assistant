@@ -70,6 +70,12 @@ def raise_truncated(raw_message: Any, provider: str, schema_name: str) -> NoRetu
         StructuredOutputTruncatedError: Always.
     """
     raw_text = coerce_content_to_text(getattr(raw_message, "content", None) or "")
+    # A refusal, not a failure of the model: the provider cut its own output at
+    # the budget. The panel of THIS exchange must say so, because the caller
+    # sees only an exception (B8).
+    from src.core.turn_verdicts import note_verdict
+
+    note_verdict("output_truncated", schema_name[:40])
     logger.warning(
         "structured_output_truncated",
         provider=provider,

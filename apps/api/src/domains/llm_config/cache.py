@@ -29,6 +29,7 @@ OVERRIDE_FIELDS = (
     "presence_penalty",
     "max_tokens",
     "timeout_seconds",
+    "context_window",
     "reasoning_effort",
     "provider_config",
 )

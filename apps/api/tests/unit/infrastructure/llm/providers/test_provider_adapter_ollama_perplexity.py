@@ -43,7 +43,6 @@ def _apply_settings(mock_settings_module: MagicMock, mock_settings_class: object
     for attr in dir(mock_settings_class):
         if not attr.startswith("_"):
             setattr(mock_settings_module, attr, getattr(mock_settings_class, attr))
-    mock_settings_module.ollama_num_ctx = None
 
 
 def _ollama_key(url: str | None):  # type: ignore[no-untyped-def]
@@ -232,15 +231,37 @@ class TestOllamaNative:
         kwargs = _create_ollama(mock_chat, provider_config=json.dumps({"num_ctx": 4096}))
         assert kwargs["num_ctx"] == 4096  # the escape hatch wins
 
-    def test_an_undiscovered_tag_falls_back_to_the_setting_then_to_nothing(
+    def test_an_undescribed_tag_requests_nothing_and_says_so(
         self, mock_settings_module: MagicMock, mock_chat: MagicMock, mock_settings_class: object
     ) -> None:
+        """No number is invented for a tag the server never described: the
+        server keeps its own choice, and the gap is NAMED rather than papered
+        over with a value nobody measured."""
         _apply_settings(mock_settings_module, mock_settings_class)
         with patch("src.infrastructure.llm.providers.ollama_chat.logger") as log:
             assert _create_ollama(mock_chat, model="unknown-tag:latest")["num_ctx"] is None
         assert any(c.args[0] == "ollama_context_window_unknown" for c in log.warning.call_args_list)
-        mock_settings_module.ollama_num_ctx = 16384
-        assert _create_ollama(mock_chat, model="unknown-tag:latest")["num_ctx"] == 16384
+
+    def test_the_slot_window_is_what_is_requested(
+        self, mock_settings_module: MagicMock, mock_chat: MagicMock, mock_settings_class: object
+    ) -> None:
+        """ADR-278: the number lives on the configured SLOT, so two slots on the
+        same tag may ask for two windows — and it wins over what the tag
+        declares, because an operator who set one meant it."""
+        _apply_settings(mock_settings_module, mock_settings_class)
+        assert (
+            _create_ollama(mock_chat, model="unknown-tag:latest", context_window=16384)["num_ctx"]
+            == 16384
+        )
+        assert _create_ollama(mock_chat, context_window=4096)["num_ctx"] == 4096
+
+    def test_the_slot_window_never_reaches_the_client_as_a_field(
+        self, mock_settings_module: MagicMock, mock_chat: MagicMock, mock_settings_class: object
+    ) -> None:
+        """`ChatOllama` has no `context_window` field and ignores unknown ones
+        in silence — the adapter must consume it, not forward it."""
+        _apply_settings(mock_settings_module, mock_settings_class)
+        assert "context_window" not in _create_ollama(mock_chat, context_window=4096)
 
     def test_the_slot_timeout_reaches_the_http_client(
         self, mock_settings_module: MagicMock, mock_chat: MagicMock, mock_settings_class: object

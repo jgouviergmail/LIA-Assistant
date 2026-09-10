@@ -36,12 +36,14 @@ import {
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { useLLMConfig } from '@/hooks/useLLMConfig';
 import { useApiQuery } from '@/hooks/useApiQuery';
+import { fromK, toK } from '@/lib/llm-config/context-window';
 import { useTranslation } from '@/i18n/client';
 import type { BaseSettingsProps } from '@/types/settings';
 import type {
   LLMTypeConfig,
   LLMTypeConfigUpdate,
   ModelCapabilities,
+  OllamaModelCapabilities,
   OllamaModelsResponse,
   ProviderKeyStatus,
   ReasoningEffortValue,
@@ -874,7 +876,8 @@ function ModelField({
   modified: boolean;
   onModelChange: (modelId: string) => void;
   onFreeTextModel: (raw: string) => void;
-  t: (key: string) => string;
+  /** Interpolating: the undescribed-tags notice carries a count. */
+  t: (key: string, options?: Record<string, unknown>) => string;
 }) {
   // Accessible name = the visible label (F012). The label names whichever
   // control this branch renders — the catalogue select or the free-text input.
@@ -917,16 +920,62 @@ function ModelField({
           placeholder="model-name"
         />
       )}
-      {form.provider === 'ollama' && !ollamaLoading && ollamaData && (
-        <p
-          className={`text-[11px] mt-1 ${ollamaData.source === 'live' ? 'text-emerald-500' : 'text-amber-500'}`}
-        >
-          {ollamaData.source === 'live'
-            ? t('settings.admin.llmConfig.ollama.live')
-            : t('settings.admin.llmConfig.ollama.fallback')}
+      <OllamaCatalogueNote
+        provider={form.provider}
+        loading={ollamaLoading}
+        data={ollamaData}
+        t={t}
+      />
+    </div>
+  );
+}
+
+/**
+ * What the Ollama server said about its OWN catalogue, under the picker.
+ *
+ * Two sentences that belong together — where the list came from, and what it
+ * could not describe — extracted from `ModelField` so the picker's four render
+ * branches stay readable. Both are drawn under ONE condition: a note saying
+ * « live » while a refresh is in flight, next to a silent second line, told two
+ * different stories about the same listing.
+ *
+ * @param props.provider - The configured provider; anything but Ollama draws
+ *   nothing at all.
+ * @param props.loading - True while the listing is being fetched.
+ * @param props.data - What the server answered, or null.
+ * @param props.t - The caller's translator; the second sentence interpolates a
+ *   count.
+ * @returns The notes, or null.
+ */
+function OllamaCatalogueNote({
+  provider,
+  loading,
+  data,
+  t,
+}: {
+  provider: string | null | undefined;
+  loading: boolean;
+  data: OllamaModelsResponse | null;
+  t: (key: string, options?: Record<string, unknown>) => string;
+}) {
+  if (provider !== 'ollama' || loading || !data) return null;
+  const live = data.source === 'live';
+  const undescribed = data.undescribed?.length ?? 0;
+  return (
+    <>
+      <p className={`text-[11px] mt-1 ${live ? 'text-emerald-500' : 'text-amber-500'}`}>
+        {t(`settings.admin.llmConfig.ollama.${live ? 'live' : 'fallback'}`)}
+      </p>
+      {/* Tags the server listed and described NOTHING about carry no
+          capabilities rather than a guess (ADR-278), so the picker cannot
+          offer them — but the field above still accepts a typed name, and a
+          silent absence would read as "the server does not have it". */}
+      {undescribed > 0 && (
+        <p className="text-[11px] mt-1 text-amber-500">
+          {t('settings.admin.llmConfig.ollama.undescribed', { count: undescribed })}
         </p>
       )}
-    </div>
+    </>
   );
 }
 
@@ -997,7 +1046,7 @@ function useLlmDialogQueries(
     '/admin/llm-config/providers/ollama/models',
     {
       componentName: 'LLMConfigDialog',
-      initialData: { models: [], source: 'fallback' as const },
+      initialData: { models: [], source: 'fallback' as const, undescribed: [] },
       enabled: form.provider === 'ollama' && open,
       deps: [form.provider, open],
     }
@@ -1036,13 +1085,16 @@ function SamplingFields({
   setForm,
   visibility,
   isModified,
+  discoveredWindow,
   t,
 }: {
   form: LLMTypeConfigUpdate;
   setForm: (form: LLMTypeConfigUpdate) => void;
   visibility: SamplingVisibility;
   isModified: (field: keyof LLMTypeConfigUpdate) => boolean;
-  t: (key: string) => string;
+  /** What the server said about the selected model, when it is an Ollama tag. */
+  discoveredWindow?: OllamaModelCapabilities;
+  t: (key: string, options?: Record<string, unknown>) => string;
 }) {
   return (
     <>
@@ -1132,6 +1184,39 @@ function SamplingFields({
         onValueChange={raw => setForm({ ...form, timeout_seconds: raw ? parseInt(raw) : null })}
         t={t}
       />
+
+      {/* The window THIS slot works with (ADR-278). It replaces an
+          instance-wide `OLLAMA_NUM_CTX` that gave a 4 B tag and a 27 B tag the
+          same number: set beside the model, two slots on one tag may now
+          differ. PRE-FILLED with what the server said — an operator stores a
+          value only when they mean to differ, and emptying the field returns
+          the slot to the model's own. */}
+      <div className="space-y-1">
+        <NumberField
+          labelKey="settings.admin.llmConfig.fields.contextWindow"
+          tooltipKey="settings.admin.llmConfig.tooltips.contextWindow"
+          modified={isModified('context_window')}
+          value={form.context_window ? toK(form.context_window) : null}
+          placeholder={discoveredWindow ? String(toK(discoveredWindow.context_window)) : undefined}
+          onValueChange={raw => setForm({ ...form, context_window: fromK(raw) })}
+          t={t}
+        />
+        <p className="text-[11px] text-muted-foreground">
+          {discoveredWindow?.max_context_window
+            ? t('settings.admin.llmConfig.fields.contextWindowCeiling', {
+                max: toK(discoveredWindow.max_context_window),
+                requested: toK(discoveredWindow.context_window),
+              })
+            : t('settings.admin.llmConfig.fields.contextWindowFollowsModel')}
+        </p>
+        {discoveredWindow && !discoveredWindow.is_cloud && (
+          // Said only for a LOCAL tag: the cap protects THIS machine's memory,
+          // and there is none of ours to protect on somebody else's.
+          <p className="text-[11px] text-amber-600 dark:text-amber-500">
+            {t('settings.admin.llmConfig.fields.contextWindowLocalCap')}
+          </p>
+        )}
+      </div>
     </>
   );
 }
@@ -1239,6 +1324,11 @@ function LLMConfigDialog({
   );
   // findModelCapabilities also probes the live Ollama catalogue — a dynamic
   // model's capabilities are not in the static metadata.
+  // The discovered Ollama tag behind the selected model, when there is one:
+  // it carries the window LIA requests today and the model's own ceiling.
+  const discoveredWindow = ollamaModels.find(
+    (candidate: OllamaModelCapabilities) => candidate.model_id === form.model
+  );
   const selectedModelCapabilities = findModelCapabilities(
     metadata.providers,
     ollamaModels,
@@ -1337,6 +1427,7 @@ function LLMConfigDialog({
             setForm={setForm}
             visibility={visibility}
             isModified={isModified}
+            discoveredWindow={discoveredWindow}
             t={t}
           />
 

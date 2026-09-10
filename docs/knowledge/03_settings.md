@@ -62,6 +62,16 @@ Unpinned memories are automatically purged based on a retention score (importanc
 **⚠️ Forgetting risk:**
 Memories close to being automatically forgotten are flagged in the list, so you can pin them in time.
 
+## Can I delete a standing instruction I gave LIA?
+You can change it; you cannot remove it. A rule you set — "call me by my first
+name", "always answer in French" — is protected from deletion, by you and by the
+automatic housekeeping alike.
+
+That sounds like a restriction and is the opposite of one. A directive is the
+one kind of memory whose disappearance you would not notice: LIA would simply
+stop doing the thing, with nothing to point at. Editing it is the real way to
+change your mind, and it leaves a rule in place rather than a silence.
+
 ## How do I configure my geolocation and home address?
 LIA can use your **geographic location** for contextual searches:
 
@@ -419,7 +429,7 @@ than eating into the reply.
 
 **📏 The context window is your machine's.** LIA asks your server explicitly for
 a window: the model's own maximum, capped at 32768, or the value of
-`OLLAMA_NUM_CTX` if you set one. That same number decides when a long
+the slot's own field if you set one. That same number decides when a long
 conversation gets summarised, so LIA's accounting and your server agree. Without
 it, Ollama picks a size from the available video memory and silently trims the
 beginning of an oversized prompt.
@@ -427,6 +437,23 @@ beginning of an oversized prompt.
 **💶 What it costs:** nothing. Local calls are recorded in your consumption
 history with exact token counts and a zero amount, so a local model and a remote
 one can be compared on the same page.
+
+## How is a model's context size set?
+Per slot, in **Settings › Administration › LLM Configuration**. The field is
+pre-filled with what your server declares about the model, the model's own
+maximum is shown right below it, and you type in **k**. Emptying the field hands
+the slot back to whatever the model declares for itself.
+
+Why per slot rather than once for the instance: a frugal router and a generous
+responder can run the same model and deserve different windows. A single
+instance-wide setting made that impossible, and asked a small model for the same
+window as a large one — measured on a real deployment, 128,000 tokens requested
+for a 4-billion-parameter model and a 27-billion one alike.
+
+The number matters beyond configuration hygiene: it is the one LIA *asks* the
+server for and the one it *counts* with. When those differ, the automatic
+summarisation fires at the wrong moment and the beginning of a long exchange can
+be cut with nobody seeing it.
 
 ## How does an administrator update the LLM model prices in bulk?
 

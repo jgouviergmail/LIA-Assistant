@@ -56,6 +56,7 @@ class TestStatusCodeFirst:
             (403, "auth"),
             (402, "quota"),
             (404, "not_found"),
+            (410, "not_found"),
             (408, "timeout"),
             (429, "transient"),
             (500, "transient"),
@@ -71,6 +72,42 @@ class TestStatusCodeFirst:
 
     def test_response_status_code_path(self) -> None:
         assert SSEErrorMessages._classify_error(_WithResponseStatus("x", 401)) == "auth"
+
+    def test_retired_model_is_not_transient(self) -> None:
+        """A tag the provider RETIRED must never advise a retry.
+
+        Measured 2026-09-10 against Ollama cloud: of eight tags, two answered
+        200, two 402 and four 410 — `<tag> was retired at <date>`, the dates
+        spread from 2026-06-16 to 2026-07-31. The ladder did not name 410, so
+        it fell to "unknown", whose generic text ends on « veuillez réessayer »
+        about a model that will never answer again. 410 is 404's permanent
+        sibling — the tag is gone upstream — so it takes the same category,
+        whose message already points at the screen where the name is changed.
+        """
+        exc = _WithStatus("deepseek-v3.2 was retired at 2026-07-15", 410)
+
+        assert SSEErrorMessages._classify_error(exc) == "not_found"
+        assert SSEErrorMessages.stream_error(exc, language="fr") == (
+            SSEErrorMessages._model_not_found_error("fr")
+        )
+
+    def test_real_ollama_response_error_exposes_its_status(self) -> None:
+        """The REAL exception, not a stand-in that already answers the question.
+
+        `_WithStatus` proves the ladder; it cannot prove that the object the
+        provider actually raises carries a status the extractor can read. The
+        installed `ollama.ResponseError` takes `(error, status_code)` and keeps
+        it on `status_code` — pinned here so an SDK upgrade that renames the
+        attribute fails a test instead of silently sending every retired tag
+        back to « please try again ». Verified end to end in the dev container
+        on 2026-09-10 against the live server (`ResponseError`, status 410).
+        """
+        from ollama import ResponseError
+
+        exc = ResponseError("deepseek-v3.2 was retired at 2026-07-15", 410)
+
+        assert SSEErrorMessages._extract_status_code(exc) == 410
+        assert SSEErrorMessages._classify_error(exc) == "not_found"
 
     def test_status_beats_misleading_text(self) -> None:
         """A 401 whose message mentions a timeout is still an auth failure."""

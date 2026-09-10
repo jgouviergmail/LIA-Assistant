@@ -1122,6 +1122,19 @@ def is_initiative_eligible(manifest: ToolManifest) -> bool:
     Returns:
         True if the tool can be used during initiative phase.
     """
+    # The MODE comes first, ahead of every preference: the initiative node runs
+    # inside the pipeline, so a tool the pipeline cannot execute has nothing to
+    # do in the catalogue it offers a model — proposing it is ADR-249's invented
+    # dead end. A capability outranks a flag, so an explicit `True` cannot grant
+    # what the pipeline is unable to run.
+    #
+    # Structural on purpose: `run_python_tool` already declared
+    # `initiative_eligible=False`, and that is a per-manifest MEMORY the second
+    # ReAct-only tool would have to repeat. The initiative node is one of four
+    # readers that do not apply `manifests_for_mode`; this is what makes that
+    # safe rather than lucky.
+    if not manifest_allows_mode(manifest, EXECUTION_MODE_PIPELINE):
+        return False
     # Explicit override takes priority
     if manifest.initiative_eligible is not None:
         return manifest.initiative_eligible
@@ -1185,12 +1198,28 @@ def manifests_for_mode(manifests: Iterable[Any], mode: str) -> list[Any]:
     Returns:
         The manifests this mode may use, in order.
     """
-    kept: list[Any] = []
-    for manifest in manifests:
-        modes = getattr(manifest, "execution_modes", None)
-        if not modes or mode in modes:
-            kept.append(manifest)
-    return kept
+    return [manifest for manifest in manifests if manifest_allows_mode(manifest, mode)]
+
+
+def manifest_allows_mode(manifest: Any, mode: str) -> bool:
+    """Whether ONE manifest may be used in one execution mode.
+
+    The single implementation of the rule, read by the list filter above and by
+    :func:`is_initiative_eligible` — two questions, one answer, so they cannot
+    drift apart.
+
+    Fails OPEN: a manifest with no declared modes (older, third-party) is
+    allowed everywhere.
+
+    Args:
+        manifest: The tool manifest.
+        mode: ``EXECUTION_MODE_PIPELINE`` or ``EXECUTION_MODE_REACT``.
+
+    Returns:
+        True when the mode may run it.
+    """
+    modes = getattr(manifest, "execution_modes", None)
+    return not modes or mode in modes
 
 
 class ToolManifestNotFound(CatalogueError):

@@ -19,7 +19,7 @@ import { formatTokenCount, formatCost, truncateText } from '../../utils/formatte
 import { TONE_TEXT } from '../../utils/tones';
 import { cn } from '@/lib/utils';
 import type { DebugTone } from '../../utils/tones';
-import type { DebugMetrics } from '@/types/chat';
+import type { DebugMetrics, LLMCall } from '@/types/chat';
 
 export interface LLMCallsSectionProps {
   /** List of LLM calls (can be undefined) */
@@ -33,6 +33,32 @@ const CALL_TYPE_CHIP: Record<string, { label: string; tone: DebugTone }> = {
   embedding: { label: 'EMB', tone: 'neutral' },
   image_generation: { label: 'IMG', tone: 'warning' },
 };
+
+/**
+ * The parameters a call actually carried, as one line.
+ *
+ * Only what was OBSERVED: a field the record never saw is left out entirely
+ * rather than printed at a default, because a temperature the provider never
+ * received is a fact nobody measured (B8).
+ *
+ * @param call - The call.
+ * @returns The line, or null when nothing was observed.
+ */
+function describeParams(call: LLMCall): string | null {
+  const parts: string[] = [];
+  if (call.provider) parts.push(call.provider);
+  if (call.temperature != null) parts.push(`temp ${call.temperature}`);
+  if (call.top_p != null) parts.push(`top_p ${call.top_p}`);
+  if (call.max_output_tokens != null) parts.push(`max_out ${call.max_output_tokens}`);
+  if (call.reasoning_level) {
+    parts.push(
+      call.reasoning_budget_tokens != null
+        ? `reasoning ${call.reasoning_level} (${call.reasoning_budget_tokens})`
+        : `reasoning ${call.reasoning_level}`
+    );
+  }
+  return parts.length > 0 ? parts.join(' · ') : null;
+}
 
 /**
  * Section LLM Calls
@@ -120,6 +146,13 @@ export const LLMCallsSection = React.memo(function LLMCallsSection({
             const callCachePercent =
               callInputTokens > 0 ? Math.round((call.tokens_cache / callInputTokens) * 100) : 0;
 
+            // What was actually SENT (B8). Recorded since ADR-263 lot 7, read
+            // by the panel since B8. Null means « not observed », never a
+            // default: printing a temperature the provider never saw would
+            // name a value nobody set.
+            const failed = call.status != null && call.status !== 'success';
+            const sent = describeParams(call);
+
             return (
               <div key={`${call.node_name}-${index}`} className="border-l-2 border-border pl-3 pb-1">
                 {/* Header: type chip + node + model */}
@@ -127,10 +160,13 @@ export const LLMCallsSection = React.memo(function LLMCallsSection({
                   <div className="flex items-center gap-1">
                     <DebugChip tone={typeChip.tone}>{typeChip.label}</DebugChip>
                     <NodeChip nodeName={call.node_name} />
+                    {/* A failed call and a successful one used to render
+                        identically, both with their tokens billed (B8). */}
+                    {failed && <DebugChip tone="destructive">{call.failure_kind ?? 'failed'}</DebugChip>}
                   </div>
                   <span
                     className="ml-2 truncate font-mono text-[10px] text-muted-foreground"
-                    title={call.model_name}
+                    title={`${call.provider ? `${call.provider} · ` : ''}${call.model_name}`}
                   >
                     {truncateText(call.model_name, MODEL_NAME_TRUNCATE_LENGTH)}
                   </span>
@@ -163,6 +199,33 @@ export const LLMCallsSection = React.memo(function LLMCallsSection({
                     <span>Cost:</span>
                     <span className="font-mono text-primary">{formatCost(call.cost_eur)}</span>
                   </div>
+                  {/* The slot an operator configured — `node_name` above is the
+                      GRAPH node, and reading one for the other sent people to
+                      the wrong row of the admin screen. */}
+                  {call.llm_type && (
+                    <div className="flex justify-between">
+                      <span>Slot:</span>
+                      <span className="font-mono">{call.llm_type}</span>
+                    </div>
+                  )}
+                  {sent && (
+                    <div className="flex justify-between gap-2">
+                      <span className="shrink-0">Sent:</span>
+                      <span className="truncate font-mono" title={sent}>
+                        {sent}
+                      </span>
+                    </div>
+                  )}
+                  {call.params_digest && (
+                    <div className="flex justify-between gap-2">
+                      {/* « These two calls were made the same way » — the
+                          handle to quote when reporting a behaviour change. */}
+                      <span className="shrink-0">Params:</span>
+                      <span className="truncate font-mono opacity-70" title={call.params_digest}>
+                        {call.params_digest.slice(0, 12)}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             );

@@ -43,7 +43,9 @@ from src.core.constants import (
     EXTERNAL_CONTENT_CLOSE_TAG,
     EXTERNAL_CONTENT_OPEN_TAG,
 )
-from src.core.llm_config_helper import get_effective_context_window, get_llm_config_for_agent
+from src.core.llm_config_helper import (
+    get_effective_context_window_for_slot,
+)
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.agents.services.token_counter_service import (
     TokenCounterService,
@@ -165,15 +167,14 @@ class CompactionService:
         if settings.compaction_token_threshold > 0:
             return settings.compaction_token_threshold
 
-        response_config = get_llm_config_for_agent(settings, "response")
-        # DB-backed catalogue first, hand-maintained table as safety net —
-        # keeps the trigger aligned with what the admin LLM catalogue declares.
-        context_window = get_effective_context_window(response_config.model)
+        # The window THIS slot works with (ADR-278): its own override when an
+        # operator set one, else what the model declares — DB-backed catalogue
+        # first, hand-maintained table as safety net.
+        context_window = get_effective_context_window_for_slot("response")
         effective = int(context_window * settings.compaction_threshold_ratio)
 
         logger.debug(
             "compaction_threshold_computed",
-            response_model=response_config.model,
             context_window=context_window,
             ratio=settings.compaction_threshold_ratio,
             effective_threshold=effective,

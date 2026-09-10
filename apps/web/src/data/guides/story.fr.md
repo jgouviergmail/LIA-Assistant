@@ -4,7 +4,7 @@
 
 **Version** : 2.1
 **Date** : 2026-08-23
-**Application** : LIA v1.44.0
+**Application** : LIA v1.44.1
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ La quasi-totalité du code a été écrite par une IA, sous direction humaine : 
 | Indicateur | Valeur |
 | --- | --- |
 | Code écrit par une IA — dirigée, encadrée, contrôlée | **≈ 100 %** |
-| Lignes de code (hors tests) — 47 domaines fonctionnels | **650 000** |
-| Tests automatisés, exécutés à chaque commit et livraison | **35 000+** |
-| Décisions d'architecture documentées (ADR) | **276** |
-| Versions livrées à rythme régulier | **253** |
+| Lignes de code (hors tests) — 47 domaines fonctionnels | **655 000** |
+| Tests automatisés, exécutés à chaque commit et livraison | **36 000+** |
+| Décisions d'architecture documentées (ADR) | **279** |
+| Versions livrées à rythme régulier | **254** |
 | Langues, parité vérifiée automatiquement | **6** |
 | Audit technique sur 24 périmètres | **8,3/10** |
 
@@ -50,7 +50,7 @@ Une IA qui code produit du volume ; elle ne produit de la qualité que sous cont
 
 ## 4. Les arbitrages
 
-Trois décisions structurantes, parmi les 276 documentées :
+Trois décisions structurantes, parmi les 279 documentées :
 
 **Souveraineté & réversibilité — aucune dépendance fournisseur irréversible.** Les modèles d'IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modèles locaux via Ollama) sont placés derrière une abstraction unique : chaque usage peut changer de fournisseur par configuration, avec comparaison de coût. Même principe côté métier : Google, Apple et Microsoft sont interchangeables par catégorie fonctionnelle. L'hébergement est intégralement maîtrisé ; les données personnelles sont chiffrées et restent sur l'infrastructure.
 

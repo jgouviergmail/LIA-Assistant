@@ -131,6 +131,7 @@ export function formFromConfig(config: LLMTypeConfig): LLMTypeConfigUpdate {
     max_tokens: config.effective.max_tokens,
     timeout_seconds: config.effective.timeout_seconds,
     reasoning_effort: config.effective.reasoning_effort,
+    context_window: config.effective.context_window,
   };
 }
 
@@ -195,6 +196,7 @@ const SCALAR_OVERRIDE_FIELDS = [
   'presence_penalty',
   'max_tokens',
   'timeout_seconds',
+  'context_window',
 ] as const;
 
 /** Build the PATCH payload: only fields differing from the type's DEFAULTS are

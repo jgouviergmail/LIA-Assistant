@@ -47,11 +47,15 @@ def _make_memory(
     age_days: int = 0,
     usage_count: int = 0,
     pinned: bool = False,
+    category: str = "preference",
 ) -> Memory:
     """Build a minimal Memory-like object for scoring tests.
 
-    The retention functions only read importance/created_at/usage_count/pinned,
-    so a typed SimpleNamespace stand-in is sufficient (cast to Memory).
+    The retention functions read importance/created_at/usage_count/pinned and,
+    since the protected-category rule (2026-09-10), ``category`` — which the
+    real column is NOT NULL for. A stand-in that omitted it would pass a test
+    the production row cannot reach, so it is set here rather than read
+    defensively in the module.
     """
     return cast(
         Memory,
@@ -59,6 +63,7 @@ def _make_memory(
             importance=importance,
             usage_count=usage_count,
             pinned=pinned,
+            category=category,
             created_at=datetime.now(UTC) - timedelta(days=age_days),
         ),
     )

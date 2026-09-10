@@ -97,11 +97,16 @@ test.describe('chat generated document cards', () => {
     expect(viewerHref).toContain('type=csv');
 
     // A sibling NAMED link downloads the file directly.
+    // The href ENDS with the wire path rather than equalling it: `apiResourceUrl`
+    // deliberately resolves against `NEXT_PUBLIC_API_URL` when one is configured
+    // (the dev API serves HTTPS only, and a Next rewrite refuses its self-signed
+    // certificate), so pinning the relative form made this case pass only where
+    // no API origin is set. What the rule guarantees is the resource it points at.
     const download = page.getByRole('link', { name: 'Download modeles-llm.csv' });
     await expect(download).toBeVisible();
     await expect(download).toHaveAttribute(
       'href',
-      '/api/v1/attachments/00000000-0000-4000-8000-00000000d001'
+      /\/api\/v1\/attachments\/00000000-0000-4000-8000-00000000d001$/
     );
     await expect(download).toHaveAttribute('download', 'modeles-llm.csv');
 
@@ -111,7 +116,7 @@ test.describe('chat generated document cards', () => {
     await expect(open).toHaveAttribute('target', '_blank');
     await expect(open).toHaveAttribute(
       'href',
-      '/api/v1/attachments/00000000-0000-4000-8000-00000000d002'
+      /\/api\/v1\/attachments\/00000000-0000-4000-8000-00000000d002$/
     );
 
     // Keyboard reachability: the link takes focus like any native anchor.

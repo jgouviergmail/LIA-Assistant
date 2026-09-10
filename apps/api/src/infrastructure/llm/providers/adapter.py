@@ -246,6 +246,16 @@ class ProviderAdapter:
             streaming=streaming,
         )
 
+        # The slot's context window (ADR-278) is a LIA notion, NOT a provider
+        # kwarg: only Ollama can express it (`num_ctx`), and every other SDK
+        # rejects it. Consumed HERE, like `provider_config` below, so no branch
+        # can forward it by accident — it reached `model_kwargs` on five
+        # providers and killed every call at request time with
+        # « AsyncCompletions.create() got an unexpected keyword argument
+        # 'context_window' », whether or not an operator had set one (the
+        # factory always passes the key, `None` included).
+        context_window = kwargs.pop("context_window", None)
+
         # Load advanced provider config (JSON string from LLMAgentConfig)
         provider_config_json = kwargs.pop("provider_config", None) or "{}"
         provider_config = ProviderAdapter._parse_provider_config(provider_config_json, llm_type)
@@ -267,6 +277,7 @@ class ProviderAdapter:
             temperature=temperature,
             max_tokens=max_tokens,
             streaming=streaming,
+            context_window=context_window,
             kwargs=kwargs,
         )
         if dedicated is not None:
@@ -350,6 +361,7 @@ class ProviderAdapter:
         temperature: float,
         max_tokens: int,
         streaming: bool,
+        context_window: int | None,
         kwargs: dict[str, Any],
     ) -> BaseChatModel | None:
         """Build the LLM for a provider LIA drives through its own SDK.
@@ -367,6 +379,10 @@ class ProviderAdapter:
             temperature: Temperature parameter.
             max_tokens: Output cap.
             streaming: Whether streaming is enabled.
+            context_window: The slot's window (ADR-278). Named explicitly rather
+                than left in ``kwargs``: only the Ollama branch can express it,
+                and a value travelling in the generic channel is a value every
+                other branch forwards to an SDK that refuses it.
             kwargs: The remaining provider parameters (consumed by the builders).
 
         Returns:
@@ -393,6 +409,7 @@ class ProviderAdapter:
                 model=model,
                 temperature=temperature,
                 max_tokens=max_tokens,
+                context_window=context_window,
                 **kwargs,
             )
         if provider == "openai" and is_responses_api_eligible(model):
@@ -471,7 +488,11 @@ class ProviderAdapter:
 
     @staticmethod
     def _create_ollama_llm(
-        model: str, temperature: float, max_tokens: int, **kwargs: Any
+        model: str,
+        temperature: float,
+        max_tokens: int,
+        context_window: int | None = None,
+        **kwargs: Any,
     ) -> BaseChatModel:
         """Create an Ollama LLM through the native client (ADR-267).
 
@@ -485,6 +506,9 @@ class ProviderAdapter:
             model: Ollama tag (e.g. ``qwen3.8:27b``).
             temperature: Sampling temperature.
             max_tokens: Output cap, sent as ``num_predict``.
+            context_window: The slot's window (ADR-278), sent as ``num_ctx`` —
+                what LIA accounts with is what LIA requests (ADR-267). None
+                falls back to what the server said about this tag.
             **kwargs: ``top_p``, ``timeout``, ``reasoning_effort`` and the
                 ``provider_config`` escape hatch.
 
@@ -514,7 +538,7 @@ class ProviderAdapter:
             base_url=ollama_native_root(_require_api_key("ollama")),
             temperature=temperature,
             max_tokens=max_tokens,
-            configured_num_ctx=settings.ollama_num_ctx,
+            configured_num_ctx=context_window,
             caps=ModelCapabilitiesCache.get(model),
             **kwargs,
         )

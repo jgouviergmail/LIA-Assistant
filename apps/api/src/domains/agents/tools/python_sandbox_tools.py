@@ -143,7 +143,14 @@ async def run_python_tool(
     context = getattr(runtime, "context", None)
     user_id = getattr(context, "user_id", None)
 
-    if not getattr(settings, "python_sandbox_tool_enabled", False):
+    # The deployment ceiling AND the operator's switch (B7): an administrator
+    # who wants model-written code off should not have to redeploy.
+    from src.domains.feature_switches.registry import (
+        PlatformCapability,
+        is_capability_enabled,
+    )
+
+    if not await is_capability_enabled(PlatformCapability.PYTHON_SANDBOX):
         return UnifiedToolOutput(
             success=False,
             message="Ephemeral Python execution is disabled on this instance.",

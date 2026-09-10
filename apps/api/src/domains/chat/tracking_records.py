@@ -10,7 +10,7 @@ that fills them has no business owning their shape.
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 
 class TokenUsageRecord(NamedTuple):
@@ -120,3 +120,48 @@ class TTSUsageRecord(NamedTuple):
     cost_eur: Decimal
     usd_to_eur_rate: Decimal
     duration_ms: float = 0.0
+
+
+def breakdown_entry(record: TokenUsageRecord) -> dict[str, Any]:
+    """One model call, as the debug panel reads it.
+
+    Beside the record rather than inside the tracking context: describing a
+    record is the record's own subject, and the context is at its size ceiling.
+
+    Every key is present on EVERY call, ``None`` where nothing was observed
+    (B8): a key present on one row and absent on another makes the panel's rows
+    disagree about what a row is, and a DEFAULT printed where nothing was
+    measured would name a value the provider never saw.
+
+    Args:
+        record: One committed call of the run.
+
+    Returns:
+        The entry, carrying what was billed, what was SENT and what came back.
+    """
+    return {
+        "node_name": record.node_name,
+        "model_name": record.model_name,
+        "tokens_in": record.prompt_tokens,
+        "tokens_out": record.completion_tokens,
+        "tokens_cache": record.cached_tokens,
+        "cost_eur": float(record.cost_eur),
+        "duration_ms": record.duration_ms,
+        "call_type": record.call_type,
+        "sequence": record.sequence,
+        "started_offset_ms": record.started_offset_ms,
+        # The configured SLOT — the graph node says WHERE it ran, never WHICH
+        # configuration.
+        "llm_type": record.llm_type,
+        "status": record.status,
+        "failure_kind": record.failure_kind,
+        # The parameters actually SENT (ADR-263 lot 7), read from what LangChain
+        # handed the callback.
+        "provider": record.provider,
+        "temperature": record.temperature,
+        "top_p": record.top_p,
+        "max_output_tokens": record.max_output_tokens,
+        "reasoning_level": record.reasoning_level,
+        "reasoning_budget_tokens": record.reasoning_budget_tokens,
+        "params_digest": record.params_digest,
+    }

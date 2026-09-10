@@ -31,6 +31,19 @@ class CapabilitySwitchResponse(BaseModel):
         default=False,
         description="Whether disabling it removes tools from the planner catalogue",
     )
+    enforced_in_service: bool = Field(
+        default=False,
+        description=(
+            "The switch is enforced at an internal chokepoint rather than at a "
+            "route — speech synthesis, memory extraction, the sandbox. Named "
+            "apart from `enforced_on_routes`, which used to carry both and told "
+            "an operator a service gate was a route (B7)."
+        ),
+    )
+    family: str = Field(
+        default="assistant",
+        description="Which group the admin panel draws this switch in.",
+    )
     enforced_on_routes: bool = Field(
         default=False,
         description="Whether disabling it makes routes or the voice pipeline refuse",

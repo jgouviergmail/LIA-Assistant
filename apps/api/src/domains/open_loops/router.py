@@ -14,6 +14,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.dependencies import get_db
 from src.core.exceptions import raise_not_found_or_unauthorized
 from src.core.session_dependencies import get_current_active_session
+from src.domains.feature_switches.guard import capability_dependencies
+from src.domains.feature_switches.registry import PlatformCapability
 from src.domains.open_loops.models import OpenLoopStatus
 from src.domains.open_loops.repository import OpenLoopRepository
 from src.domains.open_loops.schemas import (
@@ -27,7 +29,13 @@ from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/open-loops", tags=["Open Loops"])
+router = APIRouter(
+    prefix="/open-loops",
+    tags=["Open Loops"],
+    # The deployment ceiling already decides whether this router is
+    # mounted at all; this is the operator's switch inside it (B7).
+    dependencies=capability_dependencies(PlatformCapability.OPEN_LOOPS),
+)
 
 
 @router.get(

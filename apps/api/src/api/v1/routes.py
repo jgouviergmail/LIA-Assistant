@@ -186,10 +186,29 @@ if getattr(settings, "channels_enabled", False):
     from src.domains.channels.router import router as channels_router
 
     api_router.include_router(channels_router)
+
+
+def _include_generated_assets() -> None:
+    """Wire the generated-assets gallery (ADR-279).
+
+    A function so the import stays inside it: this module wires every router
+    conditionally and a module-level import here would be the only one at the
+    bottom of the file.
+    """
+    from src.domains.attachments.gallery_router import router as generated_assets_router
+
+    api_router.include_router(generated_assets_router)
+
+
 if getattr(settings, "attachments_enabled", False):
     from src.domains.attachments.router import router as attachments_router
 
     api_router.include_router(attachments_router)
+
+# The gallery of what LIA PRODUCED (ADR-279) is not gated on uploads: an
+# instance that offers image or document generation offers the files it
+# produced, and one that offers neither simply lists nothing.
+_include_generated_assets()
 if getattr(settings, "skills_enabled", False):
     from src.domains.skills.router import router as skills_router
 

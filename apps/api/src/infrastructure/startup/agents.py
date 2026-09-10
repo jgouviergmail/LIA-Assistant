@@ -294,13 +294,18 @@ async def init_agent_registry(
             logger.info("browser_agent_skipped_playwright_not_installed")
 
         # Validate the administrable capability registry (ADR-085 pattern):
-        # a capability that names a catalogue agent which does not exist would
-        # filter nothing while its switch looks like it works. Checked here,
-        # after both the catalogue and the agents are registered.
+        # a capability that names a catalogue agent — or, for the two that own
+        # no agent, a TOOL — which does not exist would filter nothing while its
+        # switch looks like it works. Checked here, after both the catalogue and
+        # the agents are registered.
         try:
-            from src.domains.feature_switches.registry import assert_capability_agents_exist
+            from src.domains.feature_switches.registry import (
+                assert_capability_agents_exist,
+                assert_capability_tools_exist,
+            )
 
             assert_capability_agents_exist(registry)
+            assert_capability_tools_exist(registry)
         except AssertionError as exc:
             logger.error("capability_registry_incomplete", error=str(exc), exc_info=True)
             raise StartupCompletenessError(f"Capability registry incomplete: {exc}") from exc

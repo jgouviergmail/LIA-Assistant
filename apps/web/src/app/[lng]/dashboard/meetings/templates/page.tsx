@@ -23,10 +23,12 @@ import { Button } from '@/components/ui/button';
 import { LoadingAnnouncement } from '@/components/ui/loading-announcement';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useConfirm } from '@/components/ui/use-confirm';
+import { useBackOrigin } from '@/hooks/useBackOrigin';
 import { useLanguageParam } from '@/hooks/useLanguageParam';
 import { useLocalizedRouter } from '@/hooks/useLocalizedRouter';
 import { useMeetingTemplates, type UseMeetingTemplatesReturn } from '@/hooks/useMeetingTemplates';
 import { useTranslation } from '@/i18n/client';
+import { withOrigin } from '@/lib/back-origin';
 import { skippedSentence, type Translate } from '@/lib/batch-report';
 import { rederiveSectionKeys, uniqueSectionKey } from '@/lib/meetings/template-keys';
 import { userTemplateCount } from '@/lib/meetings/templates';
@@ -121,6 +123,8 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
   const lng = useLanguageParam(params);
   const { t } = useTranslation(lng);
   const router = useLocalizedRouter();
+  // Carried forward so the list keeps the way back the reader arrived with.
+  const listHref = withOrigin('/dashboard/meetings', useBackOrigin());
   const library = useMeetingTemplates();
   const { addToMine, remove, confirmDialog } = useLibraryBatches(library, t);
   const [view, setView] = useState<View>({ kind: 'list' });
@@ -179,7 +183,7 @@ export default function TemplatesPage({ params }: TemplatesPageProps) {
           variant="ghost"
           size="sm"
           className="-ml-2"
-          onClick={() => router.push('/dashboard/meetings')}
+          onClick={() => router.push(listHref)}
         >
           <ArrowLeft className="mr-1 h-4 w-4" aria-hidden="true" />
           {t('meetings.detail.back')}

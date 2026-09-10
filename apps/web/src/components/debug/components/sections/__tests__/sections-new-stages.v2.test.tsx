@@ -81,7 +81,11 @@ describe('ReactExecutionSection', () => {
     expect(screen.getByText('get_emails_tool')).toBeInTheDocument();
   });
 
-  it('warns when the loop hit its iteration ceiling', () => {
+  // B8 renamed what is drawn: the loop stops at its BUDGET (ADR-238's narrowed
+  // allowance, extended by ADR-248), and the ceiling is a separate number. A
+  // payload from before B8 carries neither, so the budget falls back to
+  // `max_iterations` and the warning still fires — which is what this pins.
+  it('warns when the loop spent its iteration budget', () => {
     open(
       ['react_execution'],
       <ReactExecutionSection
@@ -94,7 +98,7 @@ describe('ReactExecutionSection', () => {
         }}
       />
     );
-    expect(screen.getByText(/ceiling/i)).toBeInTheDocument();
+    expect(screen.getByText(/spent its iteration budget/i)).toBeInTheDocument();
   });
 
   // ADR-256: "Elapsed" counted the model's reasoning alone, so a delegated

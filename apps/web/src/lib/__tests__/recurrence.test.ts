@@ -170,4 +170,20 @@ describe('completeness', () => {
   it('accepts the default a reader starts from', () => {
     expect(recurrenceIsComplete(emptyRecurrence('2026-09-07'))).toBe(true);
   });
+
+  it('refuses an end date that precedes the anchor, as the API now would', () => {
+    const spec: RecurrenceSpec = {
+      ...emptyRecurrence('2026-09-10'),
+      end: { kind: 'on_date', on_date: '2026-09-01', after_count: null },
+    };
+    expect(recurrenceIsComplete(spec)).toBe(false);
+  });
+
+  it('accepts an end date on the anchor day itself', () => {
+    const spec: RecurrenceSpec = {
+      ...emptyRecurrence('2026-09-10'),
+      end: { kind: 'on_date', on_date: '2026-09-10', after_count: null },
+    };
+    expect(recurrenceIsComplete(spec)).toBe(true);
+  });
 });

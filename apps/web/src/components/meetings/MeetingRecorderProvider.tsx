@@ -21,12 +21,14 @@ import {
   useRef,
   type ReactNode,
 } from 'react';
+import { usePathname } from 'next/navigation';
 import { toast } from 'sonner';
 
 import { MeetingRecordingBanner } from '@/components/meetings/MeetingRecordingBanner';
 import { useMeetingRecorder, type UseMeetingRecorderReturn } from '@/hooks/useMeetingRecorder';
 import { useLocalizedRouter } from '@/hooks/useLocalizedRouter';
 import { useTranslation } from '@/i18n/client';
+import { originFromPathname, withOrigin } from '@/lib/back-origin';
 import type { Language } from '@/i18n/settings';
 import { isBannerPhase } from '@/lib/meetings/format';
 import { useMeetingRecorderStore } from '@/stores/meetingRecorderStore';
@@ -75,6 +77,9 @@ interface MeetingRecorderProviderProps {
 function RecorderShell({ lng, children }: { lng: Language; children: ReactNode }) {
   const { t } = useTranslation(lng);
   const router = useLocalizedRouter();
+  // The banner and its toasts float over EVERY page, so the way back is
+  // wherever the reader happened to be when the minutes landed.
+  const origin = originFromPathname(usePathname());
 
   const onProcessed = useCallback(
     (detail: MeetingDetail) => {
@@ -84,7 +89,7 @@ function RecorderShell({ lng, children }: { lng: Language; children: ReactNode }
           description: title,
           action: {
             label: t('meetings.banner.open_minutes'),
-            onClick: () => router.push(`/dashboard/meetings/${detail.id}`),
+            onClick: () => router.push(withOrigin(`/dashboard/meetings/${detail.id}`, origin)),
           },
         });
       } else {
@@ -96,12 +101,12 @@ function RecorderShell({ lng, children }: { lng: Language; children: ReactNode }
             : undefined,
           action: {
             label: t('meetings.banner.open_minutes'),
-            onClick: () => router.push(`/dashboard/meetings/${detail.id}`),
+            onClick: () => router.push(withOrigin(`/dashboard/meetings/${detail.id}`, origin)),
           },
         });
       }
     },
-    [router, t]
+    [origin, router, t]
   );
 
   const recorder = useMeetingRecorder(onProcessed);

@@ -23,6 +23,8 @@ from src.core.dependencies import get_db
 from src.core.exceptions import ResourceNotFoundError, raise_rate_limit_exceeded
 from src.core.session_dependencies import get_current_active_session
 from src.core.time_utils import resolve_user_timezone
+from src.domains.feature_switches.guard import capability_dependencies
+from src.domains.feature_switches.registry import PlatformCapability
 from src.domains.habits.candidates import (
     list_recurrence_candidates,
     observed_days_for_signature,
@@ -55,7 +57,13 @@ from src.infrastructure.rate_limiting.redis_limiter import get_rate_limiter
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/habits", tags=["Habits"])
+router = APIRouter(
+    prefix="/habits",
+    tags=["Habits"],
+    # The deployment ceiling already decides whether this router is
+    # mounted at all; this is the operator's switch inside it (B7).
+    dependencies=capability_dependencies(PlatformCapability.HABITS),
+)
 
 
 def _profile_to_schema(profile: UserHabitProfile | None) -> HabitsProfileSchema:

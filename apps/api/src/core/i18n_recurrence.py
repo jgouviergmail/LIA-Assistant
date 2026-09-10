@@ -30,6 +30,13 @@ from __future__ import annotations
 #: are joined. German marks an ordinal and Chinese appends a classifier, and
 #: both belong to the NUMBER: carried by the sentence instead, they landed once
 #: after a whole list — "Am 1 und 15. jedes Monats" (measured 2026-09-06).
+#:
+#: ``day_last`` is the same slot for the LAST-DAY MARKER, which is not a number
+#: and must never reach ``day_number`` (measured 2026-09-10: "Le -1 et 1 de
+#: chaque mois", in all six languages, while the engine fired both days). A
+#: yearly rule naming it takes ``yearly_last`` — or ``yearly_mixed_last``
+#: beside real day numbers — because three languages juxtapose the day and the
+#: month, and a phrase in the day slot reads "le 15 et le dernier jour février".
 RECURRENCE_PARTS: dict[str, dict[str, str]] = {
     "fr": {
         "once": "Une seule fois, le {date}",
@@ -51,7 +58,12 @@ RECURRENCE_PARTS: dict[str, dict[str, str]] = {
         "monthly_nth_n": "Le {nth} {weekday}, tous les {n} mois",
         "yearly": "Tous les ans, le {day} {month}",
         "yearly_n": "Tous les {n} ans, le {day} {month}",
+        "yearly_last": "Tous les ans, le dernier jour de {month}",
+        "yearly_last_n": "Tous les {n} ans, le dernier jour de {month}",
+        "yearly_mixed_last": "Tous les ans, le {day} et le dernier jour de {month}",
+        "yearly_mixed_last_n": "Tous les {n} ans, le {day} et le dernier jour de {month}",
         "day_number": "{day}",
+        "day_last": "le dernier jour",
         "at_times": "à {times}",
         "every_step": "toutes les {step}, de {from} à {to}",
         "end_on_date": "jusqu'au {date}",
@@ -89,7 +101,12 @@ RECURRENCE_PARTS: dict[str, dict[str, str]] = {
         "monthly_nth_n": "On the {nth} {weekday}, every {n} months",
         "yearly": "Every year, on {month} {day}",
         "yearly_n": "Every {n} years, on {month} {day}",
+        "yearly_last": "Every year, on the last day of {month}",
+        "yearly_last_n": "Every {n} years, on the last day of {month}",
+        "yearly_mixed_last": "Every year, on {month} {day} and the last day",
+        "yearly_mixed_last_n": "Every {n} years, on {month} {day} and the last day",
         "day_number": "{day}",
+        "day_last": "the last day",
         "at_times": "at {times}",
         "every_step": "every {step}, from {from} to {to}",
         "end_on_date": "until {date}",
@@ -127,7 +144,12 @@ RECURRENCE_PARTS: dict[str, dict[str, str]] = {
         "monthly_nth_n": "El {nth} {weekday}, cada {n} meses",
         "yearly": "Cada año, el {day} de {month}",
         "yearly_n": "Cada {n} años, el {day} de {month}",
+        "yearly_last": "Cada año, el último día de {month}",
+        "yearly_last_n": "Cada {n} años, el último día de {month}",
+        "yearly_mixed_last": "Cada año, el {day} y el último día de {month}",
+        "yearly_mixed_last_n": "Cada {n} años, el {day} y el último día de {month}",
         "day_number": "{day}",
+        "day_last": "el último día",
         "at_times": "a las {times}",
         "every_step": "cada {step}, de {from} a {to}",
         "end_on_date": "hasta el {date}",
@@ -165,7 +187,12 @@ RECURRENCE_PARTS: dict[str, dict[str, str]] = {
         "monthly_nth_n": "Am {nth} {weekday}, alle {n} Monate",
         "yearly": "Jährlich, am {day} {month}",
         "yearly_n": "Alle {n} Jahre, am {day} {month}",
+        "yearly_last": "Jährlich, am letzten Tag im {month}",
+        "yearly_last_n": "Alle {n} Jahre, am letzten Tag im {month}",
+        "yearly_mixed_last": "Jährlich, am {day} und letzten Tag im {month}",
+        "yearly_mixed_last_n": "Alle {n} Jahre, am {day} und letzten Tag im {month}",
         "day_number": "{day}.",
+        "day_last": "letzten Tag",
         "at_times": "um {times}",
         "every_step": "alle {step}, von {from} bis {to}",
         "end_on_date": "bis zum {date}",
@@ -203,7 +230,12 @@ RECURRENCE_PARTS: dict[str, dict[str, str]] = {
         "monthly_nth_n": "Il {nth} {weekday}, ogni {n} mesi",
         "yearly": "Ogni anno, il {day} {month}",
         "yearly_n": "Ogni {n} anni, il {day} {month}",
+        "yearly_last": "Ogni anno, l'ultimo giorno di {month}",
+        "yearly_last_n": "Ogni {n} anni, l'ultimo giorno di {month}",
+        "yearly_mixed_last": "Ogni anno, il {day} e l'ultimo giorno di {month}",
+        "yearly_mixed_last_n": "Ogni {n} anni, il {day} e l'ultimo giorno di {month}",
         "day_number": "{day}",
+        "day_last": "l'ultimo giorno",
         "at_times": "alle {times}",
         "every_step": "ogni {step}, dalle {from} alle {to}",
         "end_on_date": "fino al {date}",
@@ -241,7 +273,12 @@ RECURRENCE_PARTS: dict[str, dict[str, str]] = {
         "monthly_nth_n": "每 {n} 个月的第 {nth} 个{weekday}",
         "yearly": "每年 {month}{day}",
         "yearly_n": "每 {n} 年的 {month}{day}",
+        "yearly_last": "每年 {month}最后一天",
+        "yearly_last_n": "每 {n} 年的 {month}最后一天",
+        "yearly_mixed_last": "每年 {month}{day}和最后一天",
+        "yearly_mixed_last_n": "每 {n} 年的 {month}{day}和最后一天",
         "day_number": "{day} 日",
+        "day_last": "最后一天",
         "at_times": "{times}",
         "every_step": "每 {step}，从 {from} 到 {to}",
         "end_on_date": "直到 {date}",

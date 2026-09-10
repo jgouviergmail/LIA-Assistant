@@ -4,7 +4,7 @@
 
 **Version**: 6.0
 **Date**: 2026-08-23
-**Application**: LIA v1.44.0
+**Application**: LIA v1.44.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -85,7 +85,7 @@ The administrator accesses a third tab dedicated to instance management:
 - **Broadcast messages**: send important messages to all users or a selection, with optional expiration date
 - **Global consumption export**: export all-users consumption in CSV
 - **Instance daily budget**: bound in euros what the WHOLE instance may spend in a day — not only what each account consumes. The panel shows the day's spend, the ceiling actually applied and what is left. Once the budget is exhausted, users learn that the deployment is paused and are given the exact reset time, not a misleading message about their personal quota
-- **Platform capabilities**: turn ten capabilities on or off instantly, with no redeploy — dictation, speech synthesis, images, uploads, document spaces, web search, browsing, skills, MCP, telephony. A disabled capability also disappears from the catalogue offered to the planner, so LIA stops proposing what the routes would refuse; each row shows what the deployment allows, what you chose, and what is actually enforced
+- **Platform capabilities**: turn twenty-five capabilities on or off instantly, with no redeploy — every feature a person actually experiences, from dictation and images to the ticket board, journals, long-term memory and proactive notifications — grouped into six families so a panel of switches stays readable. A switch removes the CAPABILITY, never the record: turning memory off stops new facts being learned while everything already learned stays readable and deletable. A disabled capability also disappears from the catalogue offered to the planner, so LIA stops proposing what the routes would refuse; each row shows what the deployment allows, what you chose, what is actually enforced, and where the switch bites
 
 **AI and connectors:**
 

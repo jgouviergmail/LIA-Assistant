@@ -290,7 +290,7 @@ class RelationDebriefService:
                 # them), and NOT "disabled": that would offer a switch which
                 # could not do anything. Nothing is known, so say nothing.
                 return RelationDebriefRead(status=DebriefStatus.ABSENT, person=name.strip())
-            if not self._enabled(user):
+            if not await self._enabled(user):
                 return RelationDebriefRead(status=DebriefStatus.DISABLED, person=name.strip())
             key = await self._identity_key(db, name)
             row = await RelationDebriefRepository(db).get(self.user_id, key) if key else None
@@ -299,10 +299,21 @@ class RelationDebriefService:
         return self._to_read(row)
 
     @staticmethod
-    def _enabled(user: User) -> bool:
-        """Both switches: the instance's, and the account's own."""
+    async def _enabled(user: User) -> bool:
+        """Every switch: the deployment ceiling, the operator's, the account's.
+
+        Async since B7: the operator's switch lives in the settings store, and
+        reading the raw environment flag would announce a capability an
+        administrator turned off an hour ago.
+        """
+        from src.domains.feature_switches.registry import (
+            PlatformCapability,
+            is_capability_enabled,
+        )
+
         return bool(
-            settings.relation_debrief_enabled and getattr(user, "relation_debrief_enabled", True)
+            await is_capability_enabled(PlatformCapability.RELATION_DEBRIEF)
+            and getattr(user, "relation_debrief_enabled", True)
         )
 
     def _to_read(self, row: RelationDebrief) -> RelationDebriefRead:
@@ -329,7 +340,7 @@ class RelationDebriefService:
             user = await db.get(User, self.user_id)
             if user is None:
                 return RelationDebriefRead(status=DebriefStatus.ABSENT, person=name.strip())
-            if not self._enabled(user):
+            if not await self._enabled(user):
                 return RelationDebriefRead(status=DebriefStatus.DISABLED, person=name.strip())
             key = await self._identity_key(db, name)
             if not key:

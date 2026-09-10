@@ -36,6 +36,7 @@ import { useMeetingList } from '@/hooks/useMeetings';
 import { useMeetingPreferences } from '@/hooks/useMeetingPreferences';
 import { useMeetingTemplates } from '@/hooks/useMeetingTemplates';
 import { useTranslation } from '@/i18n/client';
+import { withOrigin } from '@/lib/back-origin';
 import type { Language } from '@/i18n/settings';
 import { formatElapsed } from '@/lib/meetings/format';
 import { userTemplateCount } from '@/lib/meetings/templates';
@@ -257,7 +258,7 @@ function TemplatesBlock({
         type="button"
         size="sm"
         variant="outline"
-        onClick={() => router.push('/dashboard/meetings/templates')}
+        onClick={() => router.push(withOrigin('/dashboard/meetings/templates', 'settings'))}
       >
         <LibraryBig className="mr-1 h-4 w-4" aria-hidden="true" />
         {t('meetings.settings.manage_templates')}
@@ -282,7 +283,7 @@ function RecentMeetings({ lng }: { lng: Language }) {
               <button
                 type="button"
                 className="min-w-0 flex-1 truncate text-left text-sm font-medium hover:underline"
-                onClick={() => router.push(`/dashboard/meetings/${meeting.id}`)}
+                onClick={() => router.push(withOrigin(`/dashboard/meetings/${meeting.id}`, 'settings'))}
               >
                 {meeting.title ?? t('meetings.list.untitled')}
               </button>
@@ -301,7 +302,7 @@ function RecentMeetings({ lng }: { lng: Language }) {
         type="button"
         size="sm"
         variant="outline"
-        onClick={() => router.push('/dashboard/meetings')}
+        onClick={() => router.push(withOrigin('/dashboard/meetings', 'settings'))}
       >
         <ExternalLink className="mr-1 h-4 w-4" aria-hidden="true" />
         {t('meetings.settings.view_all', { count: total })}

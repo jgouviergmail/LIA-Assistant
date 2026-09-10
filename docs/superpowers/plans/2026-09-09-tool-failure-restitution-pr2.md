@@ -14,7 +14,8 @@
 
 - Root `CLAUDE.md` + `apps/web/CLAUDE.md` : jamais de chaîne `aria-label` en dur (locale), parité stricte des 6 locales (`zh` sans pluriel → dupliquer `_one`), builders de tests en `Partial<Props>` sans `as any`, oracle comportemental (rôle/nom accessible), ratchets front shrink-only, aucune validation runtime hors du conteneur `lia-web-dev`.
 - Commandes front (depuis `apps/web/`) : `pnpm test`, `pnpm exec tsc --noEmit --incremental false`, `pnpm a11y:ratchet && pnpm react-hooks:ratchet && pnpm cc:ratchet` ; depuis la racine : `task lint:frontend`, `task test:frontend:coverage`, `task lint:i18n`.
-- Backend : mêmes règles que la PR 1 (`pytestmark = [pytest.mark.unit]`, ratchet de taille — `streaming/service.py` est gelé : chaque ajout y est compensé ou extrait dans `streaming/tool_step_outcomes.py`).
+- Backend : mêmes règles que la PR 1 (`pytestmark = [pytest.mark.unit]`, pas d'action git).
+- **Marge de taille, mesurée le 2026-09-10** : `services/streaming/service.py` est à **1310 / 1326 SLOC (gelé) — 16 lignes de marge**. C'est la contrainte structurante du lot D : la construction des chunks vit dans `tool_step_outcomes.py` (fichier neuf) et le service ne gagne que **~6 lignes** au total. `trace_capture.py` (64/600) et le frontend n'ont aucune contrainte. Vérifier après coup : `.venv/Scripts/python ../../scripts/audit/measure_sloc.py src | grep "streaming.service"`.
 - Rétro-compatibilité : une trace persistée sans `outcome` (toutes celles d'avant) se rend exactement comme aujourd'hui ; un client front ancien ignore le champ.
 
 ---
@@ -36,7 +37,7 @@
 - [ ] **Step 1: Tests rouges**
 
 ```python
-"""Tool step outcomes are derived from what the executor recorded (ADR-277, lot D)."""
+"""Tool step outcomes are derived from what the executor recorded (ADR-281, lot D)."""
 
 from __future__ import annotations
 
@@ -102,7 +103,7 @@ Run → FAIL (module absent).
 - [ ] **Step 2: `tool_step_outcomes.py`**
 
 ```python
-"""Outcome of each tool of a turn, derived from what was recorded (ADR-277, lot D).
+"""Outcome of each tool of a turn, derived from what was recorded (ADR-281, lot D).
 
 The SSE ``execution_step`` event always declared ``completed`` and ``failed``
 and only ever emitted ``started`` — the trace showed a refused fetch exactly
@@ -193,48 +194,72 @@ def _tool_message_failed(message: ToolMessage) -> bool:
     return isinstance(payload, dict) and payload.get(FIELD_SUCCESS) is False and not payload.get(FIELD_FOR_EACH_AGGREGATE)
 ```
 
-- [ ] **Step 3: `streaming/service.py`**
+- [ ] **Step 3: Le constructeur de chunks, dans le module (pas dans le service)**
 
-`_emit_tool_execution_step(self, tool_name, status="started", additional_data=None)` : passer `status=status, additional_data=additional_data` à `build_execution_step_event`.
+`service.py` n'a que **16 lignes** de marge : la boucle qui fabrique les chunks vit dans `tool_step_outcomes.py` et reçoit la méthode d'émission en paramètre. Ajouter à la fin du module :
 
-`_extract_pipeline_tool_steps(self, accumulated_state)` : remplacer la boucle sur `steps` par
+```python
+def outcome_steps(
+    outcomes: Mapping[str, OutcomeCounts],
+    emit: Callable[..., Any],
+) -> list[tuple[Any, str]]:
+    """Build the SSE chunks announcing each tool's outcome.
+
+    Lives here rather than in the streaming service so the service keeps its
+    size budget; ``emit`` is the service's own
+    ``_emit_tool_execution_step(tool_name, status=..., additional_data=...)``.
+
+    Args:
+        outcomes: What :func:`pipeline_tool_outcomes` or :func:`react_tool_outcomes` returned.
+        emit: The chunk factory; a falsy return is skipped (tool absent from the catalogue).
+
+    Returns:
+        ``(chunk, "")`` pairs, in the order the outcomes were computed.
+    """
+    steps: list[tuple[Any, str]] = []
+    for tool_name, (outcome, failed_count, total_count) in outcomes.items():
+        chunk = emit(
+            tool_name,
+            status=outcome,
+            additional_data={"failed_count": failed_count, "total_count": total_count},
+        )
+        if chunk:
+            steps.append((chunk, ""))
+    return steps
+```
+
+(imports du module : `from collections.abc import Callable, Mapping, Sequence`.)
+
+- [ ] **Step 4: `streaming/service.py` — six lignes**
+
+`_emit_tool_execution_step(self, tool_name, status="started", additional_data=None)` : passer `status=status, additional_data=additional_data` à `build_execution_step_event` (2 lignes de signature + 2 d'appel, **net +2**).
+
+`_extract_pipeline_tool_steps(self, accumulated_state)` : remplacer la boucle sur `steps` (et les variables `seen_tools`/`steps`) par **deux** lignes — **net négatif** :
 
 ```python
         outcomes = pipeline_tool_outcomes(execution_plan, accumulated_state.get("completed_steps"))
-        for tool_name, (outcome, failed_count, total_count) in outcomes.items():
-            tool_chunk = self._emit_tool_execution_step(
-                tool_name,
-                status=outcome,
-                additional_data={"failed_count": failed_count, "total_count": total_count},
-            )
-            if tool_chunk:
-                tool_steps.append((tool_chunk, ""))
+        tool_steps = outcome_steps(outcomes, self._emit_tool_execution_step)
 ```
 
-(les variables `seen_tools`/`steps` disparaissent — net négatif). Docstring : « Emitted when task_orchestrator completes, with the outcome the executor recorded (ADR-277) ».
+Docstring : « Emitted when task_orchestrator completes, with the outcome the executor recorded (ADR-281) ».
 
-Dispatch (~1525-1535) : ajouter après la branche `react_call_model`
+Dispatch (~1527) : ajouter après la branche `react_call_model` — **net +4** :
 
 ```python
         elif node_name == "react_execute_tools":
-            # ADR-277: the outcome of the calls announced at react_call_model,
+            # ADR-281: the outcome of the calls announced at react_call_model,
             # read from the ToolMessages this node produced.
-            for tool_name, (outcome, failed_count, total_count) in react_tool_outcomes(
-                (state_delta or {}).get("messages") or []
-            ).items():
-                chunk = self._emit_tool_execution_step(
-                    tool_name, status=outcome,
-                    additional_data={"failed_count": failed_count, "total_count": total_count},
-                )
-                if chunk:
-                    sse_chunks.append((chunk, ""))
+            outcomes = react_tool_outcomes((state_delta or {}).get("messages") or [])
+            sse_chunks.extend(outcome_steps(outcomes, self._emit_tool_execution_step))
 ```
 
-(vérifier le nom exact de la variable de delta et la forme de `sse_chunks` sur les lignes 1515-1535 ; `_extract_react_tool_steps` reste tel quel — il annonce les appels avec `started`.) Import : `from src.domains.agents.services.streaming.tool_step_outcomes import pipeline_tool_outcomes, react_tool_outcomes`.
+(vérifier le nom exact de la variable de delta et la forme de `sse_chunks` autour de la ligne 1527 ; `_extract_react_tool_steps` reste tel quel — il annonce les appels avec `started`.) Import : `from src.domains.agents.services.streaming.tool_step_outcomes import outcome_steps, pipeline_tool_outcomes, react_tool_outcomes`.
 
-- [ ] **Step 4: Vérifier** — `.venv/Scripts/pytest tests/unit/domains/agents/services/streaming/ tests/agents/test_agent_service_stream_characterization.py -v -p no:cacheprovider` → PASS (la caractérisation lit les chunks : si elle pinnait `status: "started"` sur les steps pipeline, mettre à jour l'attendu avec justification ADR-277). `python scripts/audit/measure_sloc.py apps/api/src/domains/agents/services/streaming/service.py` sous plafond.
+Vérifier immédiatement : `.venv/Scripts/python ../../scripts/audit/measure_sloc.py src | grep "streaming.service"` → **≤ 1326**.
 
-- [ ] **Step 5: Point de contrôle.**
+- [ ] **Step 5: Vérifier** — `.venv/Scripts/pytest tests/unit/domains/agents/services/streaming/ tests/agents/test_agent_service_stream_characterization.py -v -p no:cacheprovider` → PASS (la caractérisation lit les chunks : si elle pinnait `status: "started"` sur les steps pipeline, mettre à jour l'attendu avec justification ADR-281).
+
+- [ ] **Step 6: Point de contrôle.**
 
 ---
 
@@ -275,7 +300,7 @@ Run → FAIL.
         failed = metadata.get("status") == "failed"
         if key in self._seen_keys:
             if failed:
-                # ADR-277: the outcome arrives after the announcement — mark the
+                # ADR-281: the outcome arrives after the announcement — mark the
                 # step already captured instead of adding a second one.
                 for step in self._steps:
                     if step["i18n_key"] == key:
@@ -317,7 +342,7 @@ Run → FAIL.
 
 - [ ] **Step 1: Tests rouges**
 
-`handlers.progress.test.ts` — nouveau `describe('handleExecutionStep — outcomes (ADR-277)')` :
+`handlers.progress.test.ts` — nouveau `describe('handleExecutionStep — outcomes (ADR-281)')` :
 
 ```ts
   it('marks the trace step failed when the outcome event arrives for a key already shown', () => {
@@ -381,14 +406,14 @@ export interface ExecutionTraceStep {
   label: string;
   category: TraceStepCategory;
   /**
-   * Outcome the backend recorded for the step (ADR-277). Present only when the
+   * Outcome the backend recorded for the step (ADR-281). Present only when the
    * step FAILED — an older trace, or a step that succeeded, carries nothing.
    */
   outcome?: 'failed';
 }
 ```
 
-`sse-handlers/types.ts` (`ProgressMessageMetadata`) : `status?: string; failed_count?: number; total_count?: number;` avec un commentaire « execution_step outcome (ADR-277) ».
+`sse-handlers/types.ts` (`ProgressMessageMetadata`) : `status?: string; failed_count?: number; total_count?: number;` avec un commentaire « execution_step outcome (ADR-281) ».
 
 - [ ] **Step 3: `handlers.ts`**
 
@@ -397,7 +422,7 @@ export interface ExecutionTraceStep {
 Ajouter et exporter :
 
 ```ts
-/** Mark the already-captured trace step (same translated label) as failed (ADR-277). */
+/** Mark the already-captured trace step (same translated label) as failed (ADR-281). */
 export function markTraceStepFailed(steps: ExecutionTraceStep[], label: string): void {
   for (const step of steps) {
     if (step.label === label) step.outcome = 'failed';
@@ -478,7 +503,7 @@ Expected : vert ; seuils de couverture tenus (les trois fichiers touchés gagnen
 - Produces (`errors.py`) :
 
 ```python
-class BrowserError(Exception): """Base of the browser layer's typed failures (ADR-277)."""
+class BrowserError(Exception): """Base of the browser layer's typed failures (ADR-281)."""
 class BrowserUrlBlockedError(BrowserError): """The URL failed SSRF/Web-Risk screening."""
 class BrowserSessionLimitError(BrowserError): """Max concurrent sessions or navigations reached."""
 class BrowserNoPageError(BrowserError): """The session has no open page."""
@@ -505,7 +530,7 @@ class BrowserHttpError(BrowserError):
 ```python
             response = await self.page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
             if response is not None and response.status >= 400:
-                # ADR-277: an interstitial (anti-bot, login wall, 404 page) is a
+                # ADR-281: an interstitial (anti-bot, login wall, 404 page) is a
                 # refusal, not content — never hand it to the model as a page.
                 browser_actions_total.labels(action_type="navigate", status="http_error").inc()
                 raise BrowserHttpError(response.status, url, detect_anti_bot(response.headers))
@@ -529,7 +554,7 @@ class BrowserHttpError(BrowserError):
 
 - [ ] **Step 1** — `grep -rln "execution_trace\|backstage\|ExecutionTraceDisclosure" docs/` → mettre à jour le document qui décrit la trace (ADR-133 V2 / « Lot 2 P2-V1 ») : le champ `outcome`, sa rétro-compatibilité, la règle « failed = tous les steps de l'outil ont échoué ».
 - [ ] **Step 2** — `grep -rln "browser_navigate_tool\|BrowserSession" docs/` → mettre à jour (statut HTTP lu, exceptions typées, `http_error`).
-- [ ] **Step 3** — ADR-277 : section « Amendements » (lot D : la trace ; lot E : le navigateur) plutôt qu'un nouvel ADR — même décision, deux surfaces de plus.
+- [ ] **Step 3** — ADR-281 : section « Amendements » (lot D : la trace ; lot E : le navigateur) plutôt qu'un nouvel ADR — même décision, deux surfaces de plus.
 - [ ] **Step 4** — `task docs:sync-agents` si `CLAUDE.md` a bougé ; `task lint:docs` → 0.
 - [ ] **Step 5: Point de contrôle.**
 
@@ -545,6 +570,7 @@ class BrowserHttpError(BrowserError):
 ## Auto-revue du plan
 
 - **Couverture** : §3.9 → D1-D4 ; §3.10 → E1 ; docs → E2 ; gates → E3.
-- **Noms** : `pipeline_tool_outcomes`, `react_tool_outcomes`, `ToolOutcome`, `_emit_tool_execution_step(tool_name, status, additional_data)`, `outcome: 'failed'`, `markTraceStepFailed`, `chat.trace.step_failed`, `BrowserHttpError(status, url, anti_bot)`, `core/anti_bot.detect_anti_bot`, label `http_error`.
+- **Noms** : `pipeline_tool_outcomes`, `react_tool_outcomes`, `outcome_steps(outcomes, emit)`, `ToolOutcome`, `OutcomeCounts`, `_emit_tool_execution_step(tool_name, status, additional_data)`, `outcome: 'failed'`, `markTraceStepFailed`, `chat.trace.step_failed`, `BrowserHttpError(status, url, anti_bot)`, `core/anti_bot.detect_anti_bot`, label `http_error`.
+- **Vérifié le 2026-09-10** (post-v1.44.0) : les ancrages tiennent — `service.py` (`_emit_tool_execution_step` 1691, `_extract_pipeline_tool_steps` 1608, `_extract_react_tool_steps` 1571, dispatch 1527), `trace_capture.py` (`observe` 70, dédup 94-99), `execution_metadata.py:279` (le `Literal` à trois valeurs, toujours deux jamais émises), `session.py:121` (`goto` sans lecture de statut), `browser_tools.py` (7 classifications par message), et côté front `execution-trace.ts` sans `outcome`, `buildTraceStep` ligne 156, `chat.trace` sans `step_failed`. Deux fichiers voisins ont bougé pour le panneau des registres (`deferred_debug.py`, `register_debug.py`, `debug_metrics_stages.py`) — hors périmètre.
 - **Rétro-compatibilité** : trace sans `outcome` (D3 hydratation testée), clients anciens (champ ignoré), `browser_actions_total` (label ajouté, métrique existante).
-- **Risque restant nommé** : la caractérisation `tests/agents/test_agent_service_stream_characterization.py` peut pinner `status: "started"` sur les steps pipeline — c'est attendu, la mise à jour est justifiée par ADR-277 et se fait avec le test, jamais en affaiblissant l'oracle.
+- **Risque restant nommé** : la caractérisation `tests/agents/test_agent_service_stream_characterization.py` peut pinner `status: "started"` sur les steps pipeline — c'est attendu, la mise à jour est justifiée par ADR-281 et se fait avec le test, jamais en affaiblissant l'oracle.

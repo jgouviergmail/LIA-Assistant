@@ -113,6 +113,20 @@ def collected_treatments() -> Sequence[Treatment]:
     return () if collector is None else tuple(collector.rows)
 
 
+def is_collecting() -> bool:
+    """Whether a turn is currently collecting consultations.
+
+    ``collected_treatments`` answers ``()`` both inside a turn that consulted
+    nothing and outside any turn at all, and a reader that has to tell the two
+    apart cannot: « consulted nothing » is a fact about a turn, « no turn » is
+    not. The debug panel needs exactly this distinction (B8).
+
+    Returns:
+        True while a collector is installed.
+    """
+    return _COLLECTOR.get() is not None
+
+
 def observe(treatment: Treatment) -> None:
     """Append one consultation to the turn's live list.
 

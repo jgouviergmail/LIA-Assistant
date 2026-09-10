@@ -24,6 +24,7 @@ from src.core.constants import (
     CONTEXT_PRIOR_ANSWER_UNFORMATTED_MARKER,
     CONTEXT_RESULTS_DISPLAYED_PLACEHOLDER,
 )
+from src.core.turn_verdicts import note_verdict
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_langgraph import langgraph_history_repairs_total
@@ -386,6 +387,7 @@ def _repaired_carrier(msg: AIMessage, answered_ids: set[str]) -> AIMessage | Non
         missing = call_ids - answered_ids
         if missing:
             langgraph_history_repairs_total.labels(shape="tool_calls", action="removal").inc()
+            note_verdict("history_repaired", "tool_calls:removal")
             logger.warning(
                 "unanswered_tool_calls_carrier_removed",
                 missing_tool_call_ids=sorted(missing),
@@ -403,10 +405,12 @@ def _repaired_carrier(msg: AIMessage, answered_ids: set[str]) -> AIMessage | Non
     if not coerce_content_to_text(content).strip() and not msg.tool_calls:
         # Nothing readable and nothing left to answer: history, not a message.
         langgraph_history_repairs_total.labels(shape="call_block", action="removal").inc()
+        note_verdict("history_repaired", "call_block:removal")
         logger.warning("unanswered_call_blocks_carrier_removed", dangling_blocks=dangling_blocks)
         return None
 
     langgraph_history_repairs_total.labels(shape="call_block", action="replacement").inc()
+    note_verdict("history_repaired", "call_block:replacement")
     logger.warning("unanswered_call_blocks_purged", dangling_blocks=dangling_blocks)
     # Answered ``tool_calls`` are carried over explicitly; ``additional_kwargs``
     # is NOT, for the same measured reason as the turn-start repair — the

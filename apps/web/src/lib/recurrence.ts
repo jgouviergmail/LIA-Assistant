@@ -13,12 +13,7 @@
  * answer replaces it.
  */
 
-import type {
-  DailyTimes,
-  RecurrenceFreq,
-  RecurrenceSpec,
-  TimeOfDay,
-} from '@/types/recurrence';
+import type { DailyTimes, RecurrenceFreq, RecurrenceSpec, TimeOfDay } from '@/types/recurrence';
 
 /** ISO weekdays, Monday first — the picker and the grid agree on this. */
 export const ISO_WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const;
@@ -175,11 +170,7 @@ export function withFreq(spec: RecurrenceSpec, freq: RecurrenceFreq): Recurrence
       ? spec.bymonthday
       : [anchorDay]
     : [];
-  const bymonth = kept('bymonth')
-    ? spec.bymonth.length > 0
-      ? spec.bymonth
-      : [anchorMonth]
-    : [];
+  const bymonth = kept('bymonth') ? (spec.bymonth.length > 0 ? spec.bymonth : [anchorMonth]) : [];
 
   const base: RecurrenceSpec = { ...spec, freq, byweekday, bymonthday, bymonth, nth_weekday };
   if (freq === 'once') {
@@ -203,23 +194,54 @@ export function isoWeekdayOf(isoDate: string): number {
 }
 
 /**
+ * Whether the day selector this frequency reads carries a value.
+ *
+ * Mirrors the server's `_validate_selectors`: each frequency needs its own,
+ * and `once`/`daily` read none.
+ */
+function daySelectorIsComplete(spec: RecurrenceSpec): boolean {
+  if (spec.freq === 'weekly') return spec.byweekday.length > 0;
+  if (spec.freq === 'monthly') return spec.bymonthday.length > 0 || spec.nth_weekday !== null;
+  if (spec.freq === 'yearly') return spec.bymonth.length > 0 && spec.bymonthday.length > 0;
+  return true;
+}
+
+/**
+ * Whether the end rule carries its own value, and one the series can reach.
+ *
+ * Mirrors `SeriesEnd.validate_kind` and `_validate_end_after_anchor`: a series
+ * ending before it starts fires nothing at all. The two days are compared as
+ * ISO STRINGS — `YYYY-MM-DD` orders lexicographically, where `new Date(iso)`
+ * is midnight UTC and would misjudge the boundary day west of Greenwich.
+ */
+function endRuleIsComplete(spec: RecurrenceSpec): boolean {
+  if (spec.end.kind === 'on_date') {
+    const lastDay = spec.end.on_date;
+    // Narrowed by truthiness rather than asserted: `on_date` is nullable AND
+    // optional, and the guard has to exclude an empty string anyway.
+    if (!lastDay) return false;
+    return lastDay >= spec.anchor_date;
+  }
+  if (spec.end.kind === 'after_count') return Boolean(spec.end.after_count);
+  return true;
+}
+
+/**
  * Whether a recurrence is complete enough for the API to accept it.
  *
  * Mirrors the server's structural rules so the Save button states what will
  * happen instead of letting a request fail. It does NOT mirror the caps —
  * those are injected per consumer and checked by the editor itself.
+ *
+ * Split the way the server splits it, one predicate per rule family: as a
+ * single guard chain this crossed the complexity ratchet the moment the
+ * end-before-anchor rule joined it.
  */
 export function recurrenceIsComplete(spec: RecurrenceSpec): boolean {
-  if (runsPerDay(spec.times) === 0) return false;
-  if (spec.interval < 1) return false;
-  if (spec.freq === 'weekly' && spec.byweekday.length === 0) return false;
-  if (spec.freq === 'monthly' && spec.bymonthday.length === 0 && spec.nth_weekday === null) {
-    return false;
-  }
-  if (spec.freq === 'yearly' && (spec.bymonth.length === 0 || spec.bymonthday.length === 0)) {
-    return false;
-  }
-  if (spec.end.kind === 'on_date' && !spec.end.on_date) return false;
-  if (spec.end.kind === 'after_count' && !spec.end.after_count) return false;
-  return true;
+  return (
+    runsPerDay(spec.times) > 0 &&
+    spec.interval >= 1 &&
+    daySelectorIsComplete(spec) &&
+    endRuleIsComplete(spec)
+  );
 }

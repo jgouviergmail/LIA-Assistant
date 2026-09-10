@@ -2192,7 +2192,10 @@
         "ollama": {
           "live": "已连接到 Ollama 服务器",
           "fallback": "Ollama 不可达 — 显示已知模型",
-          "loading": "正在加载 Ollama 模型…"
+          "loading": "正在加载 Ollama 模型…",
+          "undescribed": "服务器列出了 {{count}} 个未作任何说明的模型 — 此处不予提供；可直接输入名称使用。",
+          "undescribed_one": "服务器列出了 {{count}} 个未作任何说明的模型 — 此处不予提供；可直接输入名称使用。",
+          "undescribed_other": "服务器列出了 {{count}} 个未作任何说明的模型 — 此处不予提供；可直接输入名称使用。"
         },
         "categories": {
           "pipeline": "管道",
@@ -2218,7 +2221,11 @@
           "reasoningNone": "无（已禁用）",
           "reasoningDefault": "默认（模型）",
           "reasoningBudget": "推理预算（tokens）",
-          "reasoningExclude": "在回复中隐藏推理过程"
+          "reasoningExclude": "在回复中隐藏推理过程",
+          "contextWindow": "上下文窗口（k）",
+          "contextWindowCeiling": "已请求：{{requested}} k · 该模型最高可达 {{max}} k。",
+          "contextWindowFollowsModel": "留空则沿用模型自身的上下文窗口。",
+          "contextWindowLocalCap": "该模型在您的机器上运行：窗口若超出其显存，模型会被移到 CPU 上运行。"
         },
         "constraints": {
           "reasoningTemp": "推理模型使用固定温度 1.0。此参数将被 API 忽略。",
@@ -2232,7 +2239,8 @@
           "presencePenalty": "鼓励主题多样性。惩罚已经出现过的每个标记，与频率无关。正值 = 探索更多主题。范围：-2 到 2。",
           "maxTokens": "最大输出标记数。限制生成回答的长度。最佳值取决于代理类型。",
           "timeout": "中止 API 调用前的最大等待时间（秒）。留空使用提供商默认值。",
-          "reasoningEffort": "控制模型内部思考的强度。更高 = 更好的准确性但更高的延迟和成本。更低 = 简单任务的快速回答。"
+          "reasoningEffort": "控制模型内部思考的强度。更高 = 更好的准确性但更高的延迟和成本。更低 = 简单任务的快速回答。",
+          "contextWindow": "此槽位处理多少对话内容。留空则由 LIA 采用模型自身声明的值。对 Ollama 而言，这同时是 LIA 向服务器请求的窗口，因此 LIA 计算的正是服务器分配的。"
         },
         "config": {
           "saved": "LLM 配置已保存",
@@ -2309,7 +2317,16 @@
         "enforcedBoth": "同时作用于助手的工具与其路由。",
         "enabledSuccess": "能力已启用。",
         "disabledSuccess": "能力已停用。",
-        "error": "无法更新该能力。"
+        "error": "无法更新该能力。",
+        "families": {
+          "media": "媒体与语音",
+          "knowledge": "记忆与知识",
+          "reach": "触达与工具",
+          "work": "工作与主动性",
+          "people": "人际",
+          "assistant": "助手"
+        },
+        "enforcedService": "在内部关卡处执行：能力停止，已经产出的内容保留。"
       },
       "publicDemoLink": {
         "title": "公开演示链接",
@@ -3591,7 +3608,8 @@
         "meetings": "会议, 录音, 纪要, 转写, 报告, 麦克风, 笔记, 摘要, 行动项, 模板, 模板库, 纪要格式, 默认格式, 自动格式, 更改格式, 章节, 指令, 纪要邮件",
         "admin-registers": "记录, 透明度, 操作, 查阅, 导出, 日志, 审计, 管理，图表，统计，数字，总览, 主动, 主动行动, 第 12 条, 完整导出, 回合",
         "reminders": "提醒, 提醒我, 警报, 通知, 重复提醒, 重复, 便签，重复，每天，时间段",
-        "workboard": "workboard 工单板 工单 看板 列 待办 待处理"
+        "workboard": "workboard 工单板 工单 看板 列 待办 待处理",
+        "generated-assets": "文件 图片 文档 截图 下载 图库 生成 过期"
       },
       "results_count_other": "找到 {{count}} 项设置"
     },
@@ -3677,6 +3695,73 @@
       "cost": "执行成本",
       "runs_one": "{{count}} 次执行",
       "runs_other": "{{count}} 次执行"
+    },
+    "generated_assets": {
+      "title": "我生成的文件",
+      "description": "LIA 为您生成的图片、文档与截图。请在它们过期前下载，或立即删除。",
+      "family": {
+        "images": "图片",
+        "documents": "文档",
+        "screenshots": "截图"
+      },
+      "filters": {
+        "title": "筛选",
+        "none": "无筛选",
+        "search": "搜索名称",
+        "created": "生成时间",
+        "expiring": "过期时间",
+        "sort": "排序方式",
+        "reset": "清除筛选",
+        "any_date": "不限时间",
+        "any_expiry": "不限期限",
+        "created_active": "最近",
+        "expiring_active": "即将过期",
+        "sort_created_desc": "最新优先",
+        "sort_created_asc": "最早优先",
+        "sort_expires_asc": "即将过期优先",
+        "sort_name_asc": "按名称",
+        "last_days": "最近 {{count}} 天",
+        "last_days_one": "最近 {{count}} 天",
+        "last_days_other": "最近 {{count}} 天",
+        "within_hours": "{{count}} 小时内",
+        "within_hours_one": "{{count}} 小时内",
+        "within_hours_other": "{{count}} 小时内"
+      },
+      "open": "打开 {{name}}",
+      "open_short": "打开",
+      "download": "下载 {{name}}",
+      "delete": "删除 {{name}}",
+      "select": "选择 {{name}}",
+      "expires_at": "将于 {{when}} 过期",
+      "load_error": "无法读取您的文件。",
+      "confirm_delete_one_title": "删除此文件？",
+      "confirm_delete_title": "删除这些文件？",
+      "page_info": "第 {{current}} 页，共 {{total}} 页",
+      "empty": {
+        "filtered_title": "没有匹配项",
+        "filtered_description": "没有文件符合这些筛选条件。清除后即可重新查看全部。",
+        "images_title": "暂无图片",
+        "images_description": "在聊天中向 LIA 索取一张图片，它就会出现在这里。",
+        "documents_title": "暂无文档",
+        "documents_description": "向 LIA 索取报告、表格或演示文稿，它就会出现在这里。",
+        "screenshots_title": "暂无截图",
+        "screenshots_description": "LIA 会在此保留浏览会话的最后一帧画面。"
+      },
+      "total": "{{count}} 个文件",
+      "total_one": "{{count}} 个文件",
+      "total_other": "{{count}} 个文件",
+      "delete_selected": "删除 {{count}} 个文件",
+      "delete_selected_one": "删除 {{count}} 个文件",
+      "delete_selected_other": "删除 {{count}} 个文件",
+      "deleted": "已删除 {{count}} 个文件",
+      "deleted_one": "已删除 {{count}} 个文件",
+      "deleted_other": "已删除 {{count}} 个文件",
+      "skipped": "{{count}} 个文件此前已消失",
+      "skipped_one": "{{count}} 个文件此前已消失",
+      "skipped_other": "{{count}} 个文件此前已消失",
+      "confirm_delete_description": "将立即从您的账户中移除 {{count}} 个文件。",
+      "confirm_delete_description_one": "将立即从您的账户中移除 {{count}} 个文件。",
+      "confirm_delete_description_other": "将立即从您的账户中移除 {{count}} 个文件。"
     }
   },
   "relations": {
@@ -4441,8 +4526,8 @@
           "description": "完整的一套：Prometheus 指标（token、延迟、错误、成本）、26 块 Grafana 面板、Tempo 链路追踪、Loki 日志，以及每条告警都链到对应处置手册的邮件告警。第 26 块是产品驾驶舱：统计经过验证的成果——你明确点的 👍，或者整整一天没被纠正的一次操作——并据此推导激活率、留存率和每个有效成果的成本。计数存在 PostgreSQL 里，Grafana 通过只能看到聚合视图的角色读取。"
         },
         "tools": {
-          "title": "🔧 90 个类型化工具",
-          "description": "90 个原生工具，JSON 模式由 Python 类型生成，并可通过 MCP 服务器和技能无限扩展。每个工具都声明自己的清单和公开的边界：校验器能拒绝什么，规划器就能读到什么。目录按领域过滤——所以每个领域也必须带上自己的读取能力，否则一个只有写工具的领域会把规划器往「写」上推。"
+          "title": "🔧 114 个类型化工具",
+          "description": "114 个原生工具，JSON 模式由 Python 类型生成，并可通过 MCP 服务器和技能无限扩展。每个工具都声明自己的清单和公开的边界：校验器能拒绝什么，规划器就能读到什么。目录按领域过滤——所以每个领域也必须带上自己的读取能力，否则一个只有写工具的领域会把规划器往「写」上推。"
         },
         "costTransparency": {
           "title": "💰 成本透明度",
@@ -4502,7 +4587,7 @@
         },
         "attachments": {
           "title": "📎 照片与文件附件",
-          "description": "照片和 PDF 可以通过 📎 按钮、拖放，或直接 Ctrl+V 从剪贴板粘贴，上传前先在浏览器里压缩。图片由可配置的视觉模型解读，PDF 会被提取文字，缩略图内嵌在消息中并配有无障碍灯箱。按用户严格隔离，自动清理——重置对话时清一次，24 小时后再清一次。"
+          "description": "通过 📎 按钮、拖放或 Ctrl+V 添加照片和 PDF，在离开浏览器前先压缩。图片由视觉模型读取，PDF 会被提取文字，缩略图在无障碍查看器中打开。LIA 生成的文件有自己的图库，卡片上写明期限。重置只移除你上传的内容；LIA 做出来的会留下。"
         },
         "skills": {
           "title": "Skills（带地图和交互式迷你应用）",
@@ -4578,7 +4663,7 @@
         },
         "platformCapabilities": {
           "title": "🎛️ 这个实例提供什么",
-          "description": "并非每个 LIA 实例都提供相同的功能，这是有意为之。十项能力——听写、语音合成、图片、文件上传、文档空间、网页搜索、自主浏览、技能、MCP、电话——由管理员在设置里开关，无需重新部署，也不用改配置文件。关掉的能力同时会从规划器看到的目录里消失：LIA 绝不承诺它做不到的事，所以你不会事后才被拒绝——回答会用你的语言把话说清楚。"
+          "description": "并非每个 LIA 实例都提供相同的功能，这是有意为之。二十五项能力，分成六组，管理员可以直接在设置里开启或关闭——无需重新部署，无需改配置文件，且立即生效。开关关掉的是能力，从不是它已经产生的东西：记忆会停止学习，已经学到的每一条仍然可读。被关闭的能力也会从规划器看到的目录里消失，因此 LIA 从不承诺自己做不到的事。"
         },
         "plugins": {
           "title": "🧩 Agent Plugins（开放标准）",
@@ -4627,6 +4712,21 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_44_1": {
+          "title": "v1.44.1 — 🗂️ LIA 做出来的东西属于你",
+          "date": "2026 年 9 月",
+          "count": "8",
+          "items": {
+            "i1": "<b>🗂️ 我生成的文件</b> —— LIA 为你生成的图片、文档和网页截图，终于在设置里有了自己的位置。三个图库，每类一个，支持按名称搜索、两个日期筛选和四种排序。在此之前，找回昨天那份报告的唯一办法，是先找回写出它的那段对话。",
+            "i2": "<b>⏳ 你能提前看到过期时间，清空对话也不再把它们一起带走</b> —— 每个文件都会显示自己的期限，到期前六小时颜色会转暖。而且「清空这段对话」现在只会移除<i>你</i>放进去的东西：LIA 生成的图片和报告会留下，包括其他对话里的那些。",
+            "i3": "<b>📌 你定下的规矩不再能被删除，只能被修改</b> —— 「叫我的名字」「始终用中文回答」这类规则，无论是你还是自动清理，都不能删掉它。你依然可以修改它，而这才是改变主意的真正方式。",
+            "i4": "<b>🎛️ 管理员可以逐项关闭每一个功能</b> —— 面板里只有十二项，产品实际交付的却有二十五项：工单板、日记、习惯、长期记忆、主动通知，以及另外八项，过去只能靠重新部署才能关掉。关闭一项能力只是让它停下来；它已经产生的一切依然可读、可删。",
+            "i5": "<b>🧠 上下文大小按模型分别设置</b> —— 过去一个设置同时决定了所有 Ollama 模型的上下文，小模型和大模型被要求同样大的窗口。现在每个位置都有自己的设置，并会用你的服务器对该模型的描述预先填好。",
+            "i6": "<b>🔬 调试面板真正讲清了一次对话</b> —— 每次模型调用一行，写明供应商、参数和思考强度，自主循环真正被施加的上限，该位置的上下文窗口，以及 LIA 在这次交流中查阅了什么、决定了什么、核对了什么。",
+            "i7": "<b>🩹 修好了两处故障</b> —— 一个内部数值会传到七家供应商中的五家，让<i>所有</i>调用都失败，无论怎么配置；另外，被供应商下架的模型会让你「再试一次」，而不是提示你换一个模型。",
+            "i8": "<b>🖼️ 图片缩略图回来了</b> —— LIA 生成的图片在对话里和图库里都不再显示，但打开它却能正常看到。浏览器在请求缩略图时<i>没有</i>带上你的会话，API 因此拒绝，于是一次认证失败看上去像是显示故障。"
+          }
+        },
         "v1_44_0": {
           "title": "v1.44.0 — 🗂️ 一块真正对应你手头事情的工作板",
           "date": "2026 年 9 月",
@@ -7019,7 +7119,7 @@
           },
           "q2": {
             "question": "如何重置对话？",
-            "answer": "要清空并重新开始：<br><br>1. 在聊天标题栏中找到 <strong>🗑️</strong> 按钮<br>2. 点击它<br>3. 在对话框中确认<br><br><strong>⚠️ 实际会被删除的内容：</strong><br>所有消息、<strong>你的全部附件（包括 AI 生成的图片）</strong>，以及 LIA 从这段对话中建立的上下文。此操作<strong>不可撤销</strong>。<br><br><strong>💡 什么时候值得这么做？</strong><br>• 你要转向一个完全不同的话题<br>• LIA 似乎被此前的上下文干扰了<br>• 你不希望把这段历史留在身后<br><br><strong>✅ 不会被删除的内容：</strong><br>LIA 关于你的学习成果存放在对话之外并会保留：长期记忆、它观察到的作息与重复请求、它记录哪些邮件已读的标记、为你调整过的阈值。若要清除这些，请在设置中使用<strong>「全部忘记」</strong>，或删除你的账户。"
+            "answer": "要清空并重新开始：<br><br>1. 在聊天标题栏中找到 <strong>🗑️</strong> 按钮<br>2. 点击它<br>3. 在对话框中确认<br><br><strong>⚠️ 实际会被删除的内容：</strong><br>所有消息、<strong>你自己上传的附件</strong>，以及 LIA 从这段对话中建立的上下文。此操作<strong>不可撤销</strong>。<br><br><strong>💡 什么时候值得这么做？</strong><br>• 你要转向一个完全不同的话题<br>• LIA 似乎被此前的上下文干扰了<br>• 你不希望把这段历史留在身后<br><br><strong>✅ 不会被删除的内容：</strong><br><strong>LIA 生成的文件</strong>——图片、文档、截图——会留在「设置 › 我生成的文件」中，直到它们各自到期。LIA 关于你的学习成果存放在对话之外并会保留：长期记忆、它观察到的作息与重复请求、它记录哪些邮件已读的标记、为你调整过的阈值。若要清除这些，请在设置中使用<strong>「全部忘记」</strong>，或删除你的账户。"
           },
           "q3": {
             "question": "对话会被保存吗？",
@@ -7118,7 +7218,7 @@
       "settings": {
         "title": "设置",
         "description": "账户配置和偏好设置",
-        "count": "24",
+        "count": "27",
         "questions": {
           "q1": {
             "question": "如何更改时区？",
@@ -7158,7 +7258,7 @@
           },
           "q10": {
             "question": "如何管理我的记忆？",
-            "answer": "你可以完全控制LIA的记忆：<br><br>转到<strong>设置 > 个人资料 > 长期记忆</strong>：<br><br>• <strong>查看</strong>所有存储的记忆<br>• <strong>编辑</strong>记忆以更正或细化<br>• <strong>删除</strong>单个记忆或全部<br>• <strong>固定</strong>重要记忆以防止自动清理<br>• <strong>导出</strong>你的数据（GDPR合规）<br><br>你也可以通过主屏幕上头像下方的<strong>🧠记忆图标</strong>临时禁用记忆。<br><br><strong>⚠️ 遗忘风险：</strong>接近被自动遗忘的记忆会在列表中标注，以便你及时置顶重要的记忆。"
+            "answer": "你可以完全控制LIA的记忆：<br><br>转到<strong>设置 > 个人资料 > 长期记忆</strong>：<br><br>• <strong>查看</strong>所有存储的记忆<br>• <strong>编辑</strong>记忆以更正或细化<br>• <strong>删除</strong>单个记忆或全部<br>• <strong>固定</strong>重要记忆以防止自动清理<br>• <strong>导出</strong>你的数据（GDPR合规）<br><br>你也可以通过主屏幕上头像下方的<strong>🧠记忆图标</strong>临时禁用记忆。<br><br><strong>🔒 你定下的规矩不能被删除：</strong><br>你立下的规则——比如「叫我的名字」「始终用中文回答」——无论是你还是自动清理，都不能删掉它。它依然<strong>可以修改</strong>：这才是改变一条自己定下的规则的真正方式。<br><br><strong>⚠️ 遗忘风险：</strong>接近被自动遗忘的记忆会在列表中标注，以便你及时置顶重要的记忆。"
           },
           "q11": {
             "question": "地理定位是如何工作的？",
@@ -7215,6 +7315,18 @@
           "q24": {
             "question": "平台诊断器在诊断事件之前会读取什么？",
             "answer": "不久前还只有事件本身：一项检查、一个数值、它的阈值。诊断也这样说——「证据不足」。<br><br><strong>现在它在诊断时读取：</strong><br>• <strong>细分指标</strong>——在事件窗口内，哪个结果、状态或拒绝原因发生了变化，变化多少<br>• <strong>有界的日志摘录</strong>——按事件计数的最近错误行，已去除个人数据<br>• <strong>正在运行的版本</strong>及其运行时长，让最近的部署一目了然<br>• <strong>为该告警编写的运维手册</strong><br><br><strong>每个来源各自独立：</strong>若日志存储无法访问，诊断会说明该部分不可用，而不是假装什么都没发生。<br><br>在<strong>设置 › 平台健康</strong>的每条诊断下方，「诊断器读取的内容」会完整展示这份证据包，管理员可以据此核对结论。"
+          },
+          "q25": {
+            "question": "在哪里能找到 LIA 为我做的所有文件？",
+            "answer": "在<strong>设置 › 我生成的文件</strong>里。三个图库，每类一个：<strong>图片</strong>、<strong>文档</strong>（报告、演示文稿、表格）和浏览过程中拍下的<strong>网页截图</strong>。<br><br><strong>🔎 你可以做什么：</strong><br>按名称搜索，按创建时间或过期时间筛选，排序，打开，下载，以及批量删除。页面显示的数字是精确总数，而不是当前可见的卡片数。<br><br><strong>⏳ 期限就写在卡片上：</strong><br>生成的文件是带保存期限的附件。卡片会显示它何时到期，最后几个小时颜色会转暖——重要的文件请提前下载。<br><br><strong>为什么会有这个页面：</strong><br>在此之前，找回昨天那份报告的唯一办法，是先找回写出它的那段对话。"
+          },
+          "q26": {
+            "question": "管理员如何关闭某个功能？",
+            "answer": "在<strong>设置 › 管理 › 能力</strong>里。二十五个开关，分成六组——媒体与语音、记忆与知识、触达与工具、工作与主动性、人际、助手本身。<br><br><strong>🔌 开关关掉的是能力，从不是已有的记录：</strong><br>关掉记忆会停止学习新的事实；已经学到的每一条记忆仍然可读、可删。兴趣、关系回顾和文件上传也遵循同一条规则。<br><br><strong>⚡ 立即生效：</strong><br>开关是在调用时读取的，不是在启动时读取的，因此切换某项能力不需要重启。<br><br><strong>📍 面板会说明它在哪里生效：</strong><br>在路由上、在内部的某个关卡上，或者两者都有——而部署层面的上限仍然在其之上：运维没有在环境里开启的东西，无法从这个界面打开。"
+          },
+          "q27": {
+            "question": "怎样设置一个模型的上下文大小？",
+            "answer": "在<strong>设置 › 管理 › LLM 配置</strong>里，逐个位置设置。该字段会用你的服务器对这个模型的描述<strong>预先填好</strong>，模型的上限就写在下面一行。填写单位是<strong>k</strong>。<br><br><strong>🎯 为什么按位置设置：</strong><br>一个节俭的路由和一个慷慨的应答可以跑在同一个模型上，却值得不同大小的窗口。过去只有一个全实例的设置，做不到这一点——而且会向小模型索要和大模型一样大的窗口。<br><br><strong>↩️ 清空这个字段：</strong><br>该位置会回到模型自己声明的值。不用记，也不用抄。<br><br><strong>为什么这很重要：</strong><br>这个数字既是 LIA 向服务器<em>索要</em>的，也是它用来<em>计算</em>的。两者不一致时，自动摘要会在错误的时刻触发，一段长对话的开头可能被悄悄截掉。"
           }
         }
       },
@@ -8188,7 +8300,7 @@
       "image_generation": {
         "title": "AI图像生成",
         "description": "使用AI生成和编辑图像",
-        "count": "7",
+        "count": "8",
         "questions": {
           "q1": {
             "question": "如何生成图像？",
@@ -8217,13 +8329,17 @@
           "q7": {
             "question": "生成的图片能保留多久？",
             "answer": "并非永久。生成的图片是带有到期时间的附件，定时清理任务每隔数小时就会删除已过期的附件。<br><br><strong>🕒 卡片会显示什么：</strong><br>服务端返回的到期时间，以及在最后几小时切换为警示色，让你还来得及下载。<br><br><strong>为什么不把时长写死：</strong><br>保留时长由管理员配置，写死在界面里的数值迟早会变成谎言。早于该功能生成的图片则宁可什么都不显示，也不去猜测。<br><br><strong>💡 建议：</strong><br>只要某张图片对你重要，就尽快使用下载按钮——这是让它超过到期时间仍然保留下来的唯一办法。"
+          },
+          "q8": {
+            "question": "在哪里能找到 LIA 生成过的所有图片？",
+            "answer": "在<strong>设置 › 我生成的文件 › 图片</strong>里：你所有的图片，跨越全部对话，支持按名称搜索、两个日期筛选和四种排序。<br><br>图库不会延长保存期限，它只是把期限<strong>显示出来</strong>。每张卡片都会写明何时到期，最后几个小时颜色会转暖。重要的请提前下载。<br><br>而且从这个版本起，<strong>清空一段对话不会再把它生成的图片一起删掉</strong>：重置只会移除你自己上传的附件。"
           }
         }
       },
       "document_generation": {
         "title": "AI 文档生成",
         "description": "直接在对话中创建可下载的 CSV、Excel、Word、PowerPoint、PDF、Markdown 或文本文件。",
-        "count": "6",
+        "count": "7",
         "questions": {
           "q1": {
             "question": "如何创建文档？",
@@ -8248,6 +8364,10 @@
           "q6": {
             "question": "生成的文件长什么样？",
             "answer": "每种格式都按自己的规矩绘制，而不是灰盒子里的一段文字。<b>演示文稿</b>为 16:9，版面按用意选择——章节开场、双栏对比、原生表格——每页都带页码。<b>Word</b> 文档带有目录、编号标题、页眉与页码，全部由 Word 自己计算：你新增一个段落，它们依然正确。<b>Excel</b> 文档有类型化的列、冻结的表头和可筛选的表格。<b>PDF</b> 的目录页码准确，并附书签与链接。文字在排布前先被度量：过密的幻灯片先缩小，再拆成两页，而不是被裁掉。"
+          },
+          "q7": {
+            "question": "在哪里能找到 LIA 生成过的所有文档？",
+            "answer": "在<strong>设置 › 我生成的文件 › 文档</strong>里：报告、演示文稿和表格，跨越全部对话。每张卡片都带着 <strong>LIA 给这份文档起的标题</strong>——比如「季度总结」，而不是一串标识符——以及它的大小、日期和期限。<br><br>你可以按名称搜索、按时间段筛选、排序、打开、下载和批量删除。而且<strong>清空那段生成报告的对话，不会再把报告删掉</strong>。"
           }
         }
       },
@@ -8477,7 +8597,7 @@
       },
       "image_expiry": {
         "title": "图片自报有效期",
-        "desc": "每张生成的图片都会注明可用到什么时候。"
+        "desc": "每张生成的图片都会说明自己还能保留多久，并且住在属于它自己的图库里，而不是留在生成它的那段对话中。"
       },
       "attachment_limits": {
         "title": "拒绝也讲清楚",
@@ -9018,7 +9138,8 @@
     "confirm_delete_pinned_description": "此记忆已被固定。您确定要永久删除它吗？",
     "confirm_delete_pinned_title": "删除此固定记忆？",
     "count_one": "{{count}} 条记忆",
-    "count_other": "{{count}} 条记忆"
+    "count_other": "{{count}} 条记忆",
+    "procedural_never_deleted": "这些指令属于您：LIA 从不自行删除它们。当您说了新的内容，她可以更正其中一条，而您随时可以自行删除。"
   },
   "designSystem": {
     "cards": {
@@ -11456,7 +11577,10 @@
       "proactivity": "主动性",
       "interests": "兴趣",
       "routines": "例程",
+      "reminders": "提醒",
       "relations": "人际关系",
+      "open_loops": "未了事项",
+      "workboard": "工作板",
       "peers": "LIA 连接",
       "channels": "渠道",
       "spaces": "Spaces",
@@ -11464,6 +11588,7 @@
       "skills": "技能",
       "images": "图像",
       "documents": "文档",
+      "generated_files": "生成的文件",
       "plugins": "插件",
       "habits": "习惯",
       "mcp_servers": "MCP 服务器",
@@ -11494,7 +11619,33 @@
       "telephony": "电话呼叫",
       "telephony_description": "由智能体发起的外呼。关闭后将关闭电话路由。",
       "meetings": "会议录音",
-      "meetings_description": "录制会议并生成纪要。关闭后会议相关路由将被关闭；其他不受影响。"
+      "meetings_description": "录制会议并生成纪要。关闭后会议相关路由将被关闭；其他不受影响。",
+      "workboard": "工作板",
+      "workboard_description": "带生命周期、承担人和结果的工单。关闭后对所有人关闭工作板；不会删除任何内容。",
+      "journals": "个人日志",
+      "journals_description": "LIA 撰写并回读的带日期条目。关闭后关闭日志界面。",
+      "habits": "习得的习惯",
+      "habits_description": "LIA 从个人节奏中推断出的内容。关闭后关闭习惯界面。",
+      "heartbeat": "主动通知",
+      "heartbeat_description": "LIA 主动联系您。关闭后关闭主动性界面及其历史。",
+      "peers": "LIA 连接",
+      "peers_description": "账户之间的连接。关闭后关闭连接界面；已有连接保留。",
+      "psyche": "心理画像",
+      "psyche_description": "调整 LIA 语气的画像。关闭后关闭画像界面。",
+      "channels": "外部渠道",
+      "channels_description": "通过 Telegram 等渠道联系 LIA。关闭后关闭所有渠道绑定界面。",
+      "open_loops": "未了事项",
+      "open_loops_description": "LIA 跟踪的未完成事项。关闭后关闭未了事项界面。",
+      "memory": "长期记忆",
+      "memory_description": "从对话中学习持久事实。关闭后不再产生新记忆；已有记忆仍可阅读和删除。",
+      "interests": "兴趣跟踪",
+      "interests_description": "学习一个人关注的内容。关闭后不再产生新兴趣；画像仍可阅读。",
+      "relation_debrief": "关系简报",
+      "relation_debrief_description": "LIA 就一段关系撰写的带日期综述。关闭后停止撰写；关系页面仍然开放。",
+      "sub_agents": "委派子代理",
+      "sub_agents_description": "将研究委派给只读子代理。关闭后在调用时拒绝委派。",
+      "python_sandbox": "临时 Python",
+      "python_sandbox_description": "在沙箱中运行模型编写的短脚本。关闭后在调用时拒绝。"
     }
   },
   "showroom": {
@@ -12696,6 +12847,7 @@
     "error_too_many": "这是每天 {{count}} 次；上限为 {{limit}}。",
     "error_step_too_small": "最小间隔为 {{limit}} 分钟。",
     "error_no_end_date": "请选择最后一天，或改用其他结束方式。",
+    "error_end_before_start": "结束日期不能早于开始日期。",
     "section_when": "时间",
     "step_separator": "至",
     "advanced": "高级选项"
@@ -12806,7 +12958,8 @@
       "reset": "清除筛选",
       "total": "{{count}} 个工单匹配",
       "total_one": "{{count}} 个工单匹配",
-      "total_other": "{{count}} 个工单匹配"
+      "total_other": "{{count}} 个工单匹配",
+      "none": "无筛选"
     },
     "actions": {
       "create": "新建工单",

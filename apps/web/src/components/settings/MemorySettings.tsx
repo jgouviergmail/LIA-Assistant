@@ -484,6 +484,15 @@ export function MemorySettings({ lng }: BaseSettingsProps) {
                   </AccordionTrigger>
                   <AccordionContent>
                     <div className="space-y-2">
+                      {/* A directive was DICTATED, not inferred: nothing
+                          automated takes it back (owner, 2026-09-10). Said
+                          here because the guarantee is invisible otherwise —
+                          the reader would have to notice an absence. */}
+                      {category === 'procedural' && (
+                        <p className="text-xs text-muted-foreground">
+                          {t('memories.procedural_never_deleted')}
+                        </p>
+                      )}
                       {categoryMemories.map(memory => (
                         <div
                           key={memory.id}

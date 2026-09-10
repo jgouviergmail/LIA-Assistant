@@ -88,30 +88,35 @@ def _client_kwargs(kwargs: dict[str, Any]) -> dict[str, Any]:
 def _context_window(model: str, caps: ModelProfile | None, configured: int | None) -> int | None:
     """The ``num_ctx`` to request: what LIA accounts with is what LIA requests.
 
-    The discovered profile's ``max_input_tokens`` IS the window the discovery
-    decided (``OLLAMA_NUM_CTX``, else the model's maximum capped) -- the number
-    ``get_effective_context_window`` hands the compaction threshold and the
-    ReAct budget. A tag nobody discovered gets no request: the server picks its
-    VRAM tier and truncates a longer prompt in silence, so the gap is logged.
+    The SLOT's own window comes first (ADR-278): an operator who set one on this
+    configured model meant it, and it is the same number every reader of the
+    window uses (compaction threshold, ReAct budget, meetings synthesis). With
+    none, the discovered profile's ``max_input_tokens`` — the model's own
+    maximum, capped for a local tag and whole for a cloud one.
+
+    A tag nobody described gets no request: the server picks its VRAM tier and
+    truncates a longer prompt in silence, so the gap is named rather than
+    papered over with a number nobody measured.
 
     Args:
         model: The Ollama tag.
-        caps: Its profile, when one is known.
-        configured: ``settings.ollama_num_ctx``, the fallback for an unknown tag.
+        caps: Its profile, when the server described one.
+        configured: The slot's ``context_window`` override, if any.
 
     Returns:
         The window to request, or None to leave the choice to the server.
     """
+    if configured:
+        return configured
     if caps is not None and caps.capability_provenance == CAPABILITY_PROVENANCE_DISCOVERED:
         return caps.max_input_tokens
-    if configured is None:
-        logger.warning(
-            "ollama_context_window_unknown",
-            model=model,
-            msg="Tag not discovered and OLLAMA_NUM_CTX unset: the server picks its VRAM "
-            "tier and LIA accounts with its generic default",
-        )
-    return configured
+    logger.warning(
+        "ollama_context_window_unknown",
+        model=model,
+        msg="the server described no window for this tag and the slot sets none: "
+        "the server picks its VRAM tier and LIA accounts with a generic default",
+    )
+    return None
 
 
 def _reasoning_kwargs(model: str, stored: Any, caps: ModelProfile | None) -> dict[str, Any]:
@@ -182,7 +187,7 @@ def create_ollama_llm(
         base_url: The server root, already normalised by the caller.
         temperature: Sampling temperature.
         max_tokens: Output cap, sent as ``num_predict``.
-        configured_num_ctx: ``settings.ollama_num_ctx``.
+        configured_num_ctx: The slot's own ``context_window``, if any.
         caps: What the server said about this tag, when it was discovered.
         **kwargs: ``top_p``, ``timeout`` and the ``provider_config`` escape
             hatch (``num_ctx``, ``keep_alive``, ``top_k``, ``seed``, ...).

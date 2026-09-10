@@ -26,8 +26,13 @@ from src.core.constants import (
 )
 from src.core.i18n_types import get_language_name
 from src.core.llm_config_helper import get_llm_config_for_agent
-from src.domains.attachments.models import AttachmentContentType, AttachmentStatus
+from src.domains.attachments.models import (
+    AttachmentContentType,
+    AttachmentOrigin,
+    AttachmentStatus,
+)
 from src.domains.attachments.repository import AttachmentRepository
+from src.domains.attachments.thread_id import conversation_uuid
 from src.domains.document_generation.context import build_render_context
 from src.domains.document_generation.document_store import (
     PendingDocument,
@@ -271,6 +276,11 @@ async def generate_document_for_user(
                 "file_size": len(data),
                 "file_path": relative_path,
                 "content_type": AttachmentContentType.DOCUMENT,
+                # Named, so the person finds it again in their gallery
+                # after the conversation is reset (ADR-279).
+                "origin": AttachmentOrigin.GENERATED_DOCUMENT.value,
+                "title": download_filename,
+                "conversation_id": conversation_uuid(conversation_id),
                 "status": AttachmentStatus.READY,
                 "expires_at": datetime.now(UTC) + timedelta(hours=settings.attachments_ttl_hours),
             }

@@ -22,6 +22,7 @@ from src.core.exceptions import (
 )
 from src.core.field_names import FIELD_IS_ACTIVE, FIELD_USER_ID
 from src.core.i18n import _
+from src.core.sql_search import LIKE_ESCAPE, escape_like
 from src.domains.users.models import User
 from src.domains.users.repository import UserRepository
 from src.domains.users.schemas import (
@@ -519,12 +520,21 @@ class UserService:
         filters = []
 
         if params.q:
-            # Search in email and full_name (case and accent insensitive)
-            search_pattern = f"%{params.q}%"
+            # Search in email and full_name (case and accent insensitive).
+            # The needle is a LITERAL: `_` is what a person writes in
+            # `jean_dupont` and `%` what they write in a rate. Unescaped, an
+            # admin searching for `_` was handed the whole directory (measured
+            # on real PostgreSQL, 2026-09-10) — the same defect the workboard
+            # search closed, and the debt that review named.
+            search_pattern = f"%{escape_like(params.q)}%"
             filters.append(
                 or_(
-                    func.unaccent(User.email).ilike(func.unaccent(search_pattern)),
-                    func.unaccent(User.full_name).ilike(func.unaccent(search_pattern)),
+                    func.unaccent(User.email).ilike(
+                        func.unaccent(search_pattern), escape=LIKE_ESCAPE
+                    ),
+                    func.unaccent(User.full_name).ilike(
+                        func.unaccent(search_pattern), escape=LIKE_ESCAPE
+                    ),
                 )
             )
 

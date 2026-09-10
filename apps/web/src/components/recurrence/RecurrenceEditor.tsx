@@ -167,5 +167,12 @@ function validationError(
   if (spec.end.kind === 'on_date' && !spec.end.on_date) {
     return { key: 'recurrence.error_no_end_date' };
   }
+  // A series ending before it starts fires nothing, and the API refuses it at
+  // construction. The date control publishes the bound (`min`), but a typed or
+  // pasted value walks past that — and a save button that goes quiet with no
+  // sentence is the very thing the message above exists to prevent.
+  if (spec.end.kind === 'on_date' && spec.end.on_date && spec.end.on_date < spec.anchor_date) {
+    return { key: 'recurrence.error_end_before_start' };
+  }
   return null;
 }

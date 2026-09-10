@@ -48,16 +48,22 @@ async def tools_hidden_by_capabilities(registry: AgentRegistry) -> set[str]:
         if not disabled:
             # The common case is free: no switch off, no catalogue walk.
             return set()
+        # Two sources, unioned. A capability with an agent hides every manifest
+        # that agent carries; one WITHOUT an agent names its tools directly
+        # (delegation, the sandbox) — and the early return on « no disabled
+        # agent » used to send the planner exactly those, for a capability an
+        # operator had switched off.
+        hidden = capability_registry.disabled_tool_names(disabled)
         agents = capability_registry.disabled_agent_names(disabled)
-        if not agents:
-            # Route-enforced capabilities (speech, uploads) own no catalogue
-            # entry; switching them off must not blank anything here.
-            return set()
-        hidden = {
+        hidden |= {
             manifest.name
             for agent in agents
             for manifest in registry.list_tool_manifests(agent=agent)
         }
+        if not hidden:
+            # Route- and service-enforced capabilities (speech, uploads) own no
+            # catalogue entry; switching them off must not blank anything here.
+            return set()
         logger.info(
             "planner_capability_tools_hidden",
             capabilities=sorted(capability.value for capability in disabled),

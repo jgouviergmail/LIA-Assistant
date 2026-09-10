@@ -15,6 +15,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.dependencies import get_db
 from src.core.session_dependencies import get_current_active_session
+from src.domains.feature_switches.guard import capability_dependencies
+from src.domains.feature_switches.registry import PlatformCapability
 from src.domains.psyche.engine import PsycheEngine
 from src.domains.psyche.schemas import (
     PsycheExpressionResponse,
@@ -32,7 +34,13 @@ from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/psyche", tags=["Psyche"])
+router = APIRouter(
+    prefix="/psyche",
+    tags=["Psyche"],
+    # The deployment ceiling already decides whether this router is
+    # mounted at all; this is the operator's switch inside it (B7).
+    dependencies=capability_dependencies(PlatformCapability.PSYCHE),
+)
 
 
 # =============================================================================

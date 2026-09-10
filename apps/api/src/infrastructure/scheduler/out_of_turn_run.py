@@ -50,7 +50,11 @@ from uuid import UUID
 import structlog
 
 from src.core.config import settings
-from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.constants import (
+    DEFAULT_USER_DISPLAY_TIMEZONE,
+    INSTANCE_BUDGET_EXHAUSTED_ERROR_CODE,
+    USAGE_LIMIT_EXCEEDED_ERROR_CODE,
+)
 from src.core.user_display import resolve_user_display_name
 from src.domains.agents.api.run_origin import RunOrigin, out_of_turn_origin_ctx
 from src.domains.agents.services.hitl.protocols import HitlInteractionType
@@ -66,11 +70,44 @@ class RunOutcome(str, Enum):
 
     ``WAITING`` is not a failure: the turn ran, and what it found needs the
     person. ``FAILED`` is, and it says so with a typed message.
+
+    ``QUOTA_BLOCKED`` is neither: a ceiling refused the call, so nothing was
+    generated and nothing went wrong. Its caller decides what to write —
+    a ticket is RELEASED as « skipped », never settled as a failure, because
+    a quota refusal is not a generation failure (ADR-272).
     """
 
     SUCCESS = "success"
     WAITING = "waiting"
     FAILED = "failed"
+    QUOTA_BLOCKED = "quota_blocked"
+
+
+#: The error codes a refusal by a spend ceiling arrives under. Read
+#: STRUCTURALLY from the chunk's metadata, never matched on its prose: the
+#: sentence is localized by the frontend and would change under us.
+_QUOTA_ERROR_CODES = frozenset(
+    {USAGE_LIMIT_EXCEEDED_ERROR_CODE, INSTANCE_BUDGET_EXHAUSTED_ERROR_CODE}
+)
+
+
+@dataclass(frozen=True)
+class StreamFailure:
+    """What the stream itself said went wrong, read from its error chunk.
+
+    Attributes:
+        code: The stable ``error_code`` of the chunk's metadata, when it
+            carried one.
+        message: The technical sentence the chunk carried, for the row.
+    """
+
+    code: str | None
+    message: str
+
+    @property
+    def is_quota(self) -> bool:
+        """Whether a spend ceiling is what refused the call."""
+        return self.code in _QUOTA_ERROR_CODES
 
 
 @dataclass(frozen=True)
@@ -285,7 +322,7 @@ async def _attempt_until_settled(request: StreamRequest) -> RunResult:
 
     for attempt in range(1, request.max_attempts + 1):
         try:
-            text, interrupt = await asyncio.wait_for(
+            text, interrupt, failure = await asyncio.wait_for(
                 _one_attempt(request, attempt), timeout=request.timeout_seconds
             )
         except _TRANSIENT_ERRORS as transient:
@@ -318,6 +355,18 @@ async def _attempt_until_settled(request: StreamRequest) -> RunResult:
             return _settled(
                 request, RunOutcome.WAITING, attempt=attempt, text=text, interrupt=interrupt
             )
+        if failure is not None:
+            # NOT retried: a ceiling that refused this call refuses the next
+            # one too, and a stream that named its own failure has already
+            # decided. Retrying would spend the caller's attempts on a verdict
+            # that will not change.
+            return _settled(
+                request,
+                RunOutcome.QUOTA_BLOCKED if failure.is_quota else RunOutcome.FAILED,
+                attempt=attempt,
+                text=text,
+                error=failure.message or failure.code or "the run was refused",
+            )
         # A refusal collected by the gate means the turn met something only the
         # person can allow — the answer is real, but the work is not finished.
         outcome = (
@@ -335,7 +384,9 @@ async def _attempt_until_settled(request: StreamRequest) -> RunResult:
     )
 
 
-async def _one_attempt(request: StreamRequest, attempt: int) -> tuple[str, TurnInterrupt | None]:
+async def _one_attempt(
+    request: StreamRequest, attempt: int
+) -> tuple[str, TurnInterrupt | None, StreamFailure | None]:
     """Consume one full generation.
 
     The generator is consumed to its end even when it announces a question:
@@ -347,8 +398,9 @@ async def _one_attempt(request: StreamRequest, attempt: int) -> tuple[str, TurnI
         attempt: 1-based attempt number.
 
     Returns:
-        ``(text, interrupt)`` — the post-processed answer, and the question the
-        turn stopped on, or None when it ran to its end.
+        ``(text, interrupt, failure)`` — the post-processed answer, the
+        question the turn stopped on, and the refusal the stream announced;
+        each None when the turn had none.
     """
     # A fresh session per retry: attempt one may have half-run the graph, and
     # attempt two must start clean rather than resume a broken checkpoint.
@@ -378,7 +430,7 @@ async def _one_attempt(request: StreamRequest, attempt: int) -> tuple[str, TurnI
         run_id=request.run_id,
     ):
         reader.feed(chunk)
-    return reader.text, reader.interrupt
+    return reader.text, reader.interrupt, reader.failure
 
 
 @dataclass
@@ -391,6 +443,7 @@ class _StreamReader:
         asked: The first action request of an interrupt, when one arrived.
         question_tokens: The question's own deltas.
         question: The question the stream settled on, when it said so.
+        failure: The refusal the stream announced, when it announced one.
     """
 
     tokens: list[str] = field(default_factory=list)
@@ -398,6 +451,7 @@ class _StreamReader:
     asked: Mapping[str, Any] | None = None
     question_tokens: list[str] = field(default_factory=list)
     question: str | None = None
+    failure: StreamFailure | None = None
 
     def feed(self, chunk: Any) -> None:
         """Read one chunk.
@@ -419,6 +473,15 @@ class _StreamReader:
             self.question_tokens.append(text)
         elif chunk.type == "hitl_interrupt_complete":
             self.question = _generated_question(chunk)
+        elif chunk.type == "error":
+            # The stream's OWN verdict. Dropping it is how every refusal — a
+            # spend ceiling, a provider failure, a pending question on the
+            # conversation — reached the ticket as « LIA answered nothing »:
+            # measured 2026-09-10, an error chunk left the reader with no
+            # token and no interrupt, and `plan_settle` reads that as
+            # `workboard_empty_answer`. An invented diagnosis (ADR-182), on
+            # the one line the person reads to know what happened.
+            self.failure = StreamFailure(code=_error_code(chunk), message=text or "")
 
     @property
     def text(self) -> str:
@@ -431,6 +494,22 @@ class _StreamReader:
         if self.asked is None and self.question is None:
             return None
         return _interrupt_of(self.asked, self.question or "".join(self.question_tokens))
+
+
+def _error_code(chunk: Any) -> str | None:
+    """The stable code an error chunk carries, or None when it carries none.
+
+    Args:
+        chunk: The error chunk.
+
+    Returns:
+        Its ``error_code``, when the metadata is a mapping that has one.
+    """
+    metadata = getattr(chunk, "metadata", None)
+    if not isinstance(metadata, Mapping):
+        return None
+    code = metadata.get("error_code")
+    return code if isinstance(code, str) else None
 
 
 def _first_action_request(chunk: Any) -> Mapping[str, Any]:

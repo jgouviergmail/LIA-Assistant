@@ -27,6 +27,8 @@ from src.core.config import settings
 from src.core.dependencies import get_db
 from src.core.session_dependencies import get_current_active_session
 from src.core.time_utils import now_utc
+from src.domains.feature_switches.guard import capability_dependencies
+from src.domains.feature_switches.registry import PlatformCapability
 from src.domains.users.models import User
 from src.domains.workboard.board_queries import BoardFilters
 from src.domains.workboard.schemas import (
@@ -45,7 +47,13 @@ from src.domains.workboard.schemas import (
 )
 from src.domains.workboard.service import WorkboardService
 
-router = APIRouter(prefix="/workboard", tags=["Workboard"])
+router = APIRouter(
+    prefix="/workboard",
+    tags=["Workboard"],
+    # The deployment ceiling already decides whether this router is
+    # mounted at all; this is the operator's switch inside it (B7).
+    dependencies=capability_dependencies(PlatformCapability.WORKBOARD),
+)
 
 
 @router.get(

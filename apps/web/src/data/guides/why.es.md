@@ -4,7 +4,7 @@
 
 **Versión**: 6.0
 **Fecha**: 2026-08-23
-**Aplicación**: LIA v1.44.0
+**Aplicación**: LIA v1.44.1
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -85,7 +85,7 @@ El administrador accede a una tercera pestaña dedicada a la gestión de la inst
 - **Mensajes broadcast**: enviar mensajes importantes a todos los usuarios o a una selección, con fecha de expiración opcional
 - **Exportación de consumo global**: exportar el consumo de todos los usuarios en CSV
 - **Presupuesto diario de la instancia**: acotar en euros lo que la instancia ENTERA puede gastar en un día — y no solo lo que consume cada cuenta. El panel muestra el gasto del día, el techo realmente aplicado y lo que queda. Agotado el presupuesto, los usuarios saben que el despliegue está en pausa y reciben la hora exacta de reinicio, no un mensaje engañoso sobre su cuota personal
-- **Capacidades de la plataforma**: activa o desactiva diez capacidades al instante, sin volver a desplegar — dictado, síntesis de voz, imágenes, subidas, espacios documentales, búsqueda web, navegación, habilidades, MCP, telefonía. Una capacidad desactivada desaparece también del catálogo ofrecido al planificador, así que LIA deja de proponer lo que las rutas rechazarían; cada fila muestra lo que permite el despliegue, lo que has elegido tú y lo que se aplica realmente
+- **Capacidades de la plataforma**: activa o desactiva veinticinco capacidades al instante, sin volver a desplegar — todas las funciones que una persona vive de verdad, del dictado y las imágenes al tablero de tickets, los diarios, la memoria a largo plazo y las notificaciones espontáneas — agrupadas en seis familias para que un muro de interruptores siga siendo legible. Un interruptor retira la CAPACIDAD, nunca el archivo: apagar la memoria detiene el aprendizaje de nuevos hechos mientras todo lo ya aprendido sigue siendo legible y borrable. Una capacidad desactivada desaparece también del catálogo ofrecido al planificador, así que LIA deja de proponer lo que las rutas rechazarían; cada fila muestra lo que permite el despliegue, lo que has elegido tú, lo que se aplica realmente y dónde muerde el interruptor
 
 **IA y conectores:**
 

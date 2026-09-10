@@ -35,6 +35,7 @@ from src.infrastructure.scheduler import workboard_runner
 from src.infrastructure.scheduler.out_of_turn_run import RunOutcome as StreamOutcome
 from src.infrastructure.scheduler.out_of_turn_run import RunResult, TurnInterrupt
 from src.infrastructure.scheduler.workboard_runner import plan_settle, sweep_workboard_runs
+from src.infrastructure.streaming.run_stream_broker import ActiveRunLockLost
 
 pytestmark = pytest.mark.unit
 
@@ -1182,3 +1183,98 @@ class TestTheCommentFitsItsColumn:
         assert plan.comment.startswith("📧 **s**")
         assert plan.comment.rstrip().endswith("ou dis-moi ce qu'il faut changer.")
         assert "…" in plan.comment
+
+
+class TestACeilingRefusalIsNotAFailedRun:
+    """A quota refusal gives the claim BACK; it never settles the ticket.
+
+    The pre-check already released a ticket whose holder had no budget left.
+    What had no path was the ceiling crossed AFTER the claim: the stream
+    answered with an error chunk, the reader dropped it, and the ticket was
+    settled `workboard_empty_answer` — one of its ten runs spent, no
+    `retry_after`, and the person told LIA had nothing to say. ADR-272: a
+    background path degrades and says « skipped », never « failed ».
+    """
+
+    async def test_the_claim_goes_back_as_skipped_quota(self) -> None:
+        env = _Env(_repository(_ticket()))
+        env.stream = AsyncMock(
+            return_value=RunResult(outcome=StreamOutcome.QUOTA_BLOCKED, error="Limit reached")
+        )
+        async with _running(env):
+            await sweep_workboard_runs()
+
+        env.repository.settle_run.assert_not_awaited()
+        env.repository.release_claim.assert_awaited_once()
+        released = env.repository.release_claim.await_args.kwargs
+        assert released["outcome"] == RunOutcome.SKIPPED_QUOTA.value
+
+    async def test_it_carries_a_back_off_so_the_next_tick_waits(self) -> None:
+        env = _Env(_repository(_ticket()))
+        env.stream = AsyncMock(
+            return_value=RunResult(outcome=StreamOutcome.QUOTA_BLOCKED, error="Limit reached")
+        )
+        async with _running(env):
+            await sweep_workboard_runs()
+
+        released = env.repository.release_claim.await_args.kwargs
+        assert released["retry_after"] is not None
+        assert released["retry_after"] > released["now"]
+
+    async def test_nothing_is_written_on_the_ticket(self) -> None:
+        """A skip is not news, and a comment about it would be noise.
+
+        The « started » notification has already gone out — the ceiling was
+        crossed after the claim — and nothing follows it: the ticket keeps its
+        column and its back-off, and the next tick is the answer. The
+        pre-check's own refusal comments nothing either.
+        """
+        env = _Env(_repository(_ticket()))
+        env.stream = AsyncMock(
+            return_value=RunResult(outcome=StreamOutcome.QUOTA_BLOCKED, error="Limit reached")
+        )
+        async with _running(env):
+            await sweep_workboard_runs()
+
+        env.repository.add_comment.assert_not_awaited()
+        # One event and one notification, both the « started » pair the claim
+        # already emitted — never a verdict about a run that never ran.
+        assert env.repository.add_event.await_count == 1
+        assert env.notify.await_count == 1
+        assert env.notify.await_args.args[2] is WorkboardEvent.RUN_STARTED
+
+
+class TestAConversationTakenOverMidRun:
+    """A ticket run that loses its conversation steps aside, it does not fail.
+
+    The lease aborts the block when another producer takes the conversation
+    (ADR-117's lock, ADR-276's lease). What reaches the tick is
+    ``ActiveRunLockLost`` — and the honest answer is the one the pre-checks
+    already give when the conversation is busy: give the claim back, retry
+    later. Settling it FAILED would spend one of the ticket's ten runs and tell
+    the person LIA stumbled, when what happened is that they started talking.
+    """
+
+    def _env(self) -> Any:
+        env = _Env(_repository(_ticket()))
+        env.stream = AsyncMock(side_effect=ActiveRunLockLost("taken over"))
+        return env
+
+    async def test_the_claim_goes_back_as_busy(self) -> None:
+        env = self._env()
+        async with _running(env):
+            await sweep_workboard_runs()
+
+        env.repository.settle_run.assert_not_awaited()
+        env.repository.release_claim.assert_awaited_once()
+        assert (
+            env.repository.release_claim.await_args.kwargs["outcome"]
+            == RunOutcome.SKIPPED_BUSY.value
+        )
+
+    async def test_nothing_is_said_about_a_run_that_stepped_aside(self) -> None:
+        env = self._env()
+        async with _running(env):
+            await sweep_workboard_runs()
+
+        env.repository.add_comment.assert_not_awaited()

@@ -501,3 +501,47 @@ sits outside a named group.
 One line moved with it: the sentence explaining what the trigger does with the
 chosen time used to sit BETWEEN the two groups, the last element outside the
 template. It explains the trigger, so it belongs beside it.
+
+## Amendment, 2026-09-10 — a shape that cannot fire, and a marker read aloud
+
+A cold review of everything changed since v1.41.0, on the two halves this ADR
+separates: what the model refuses, and what the sentence says.
+
+**A series ending before it starts was accepted.** `end.kind="on_date"` with a
+date earlier than `anchor_date` passed every check: the engine walks days from
+the anchor and returns at the first one past the end, so it yields nothing at
+all. That is the 30-February shape reached from the other side, and it had the
+same measured consequence — the routine surface stored it ACTIVE with a null
+trigger, which is precisely the "dead routine that does not say it is dead"
+the structural refusals exist to prevent. `_validate_end_after_anchor` refuses
+it at construction, so every consumer inherits the rule: the API, both chat
+tools, and the dictation, which surfaces it as one readable `RecurrenceError`
+like every other structural refusal. The rule is structural and never
+chronological: a series entirely in the past is a legitimate shape this model
+has no clock to judge, and its consumer refuses it where it knows the instant
+(`ReminderService.create` already did). The two migrations write
+`end.kind="never"` and can emit nothing else, so no stored row meets the new
+rule; the frontend publishes the bound it now enforces (`min` on the date
+control, and the Save button reads the same rule) rather than letting a request
+come back 422 — ADR-184, applied to a rule this amendment adds. It carries its
+own SENTENCE too, in the six languages: a rule that only disables the save is a
+form that stops responding for no stated reason, which is exactly what the
+cleared-date message beside it already existed to prevent.
+
+**The last-day marker was rendered raw, in all six languages.** `bymonthday`
+carries `-1` for "the last day of the month", and `describe` sent it through
+the day-number template: "Le -1 et 1 de chaque mois", "Am -1. und 1. jedes
+Monats", "每年 2月-1 日". Two defects in one line — the marker had no word, and
+a plain `sorted()` undid the canonical order this ADR's own repair
+establishes ("negative markers sort LAST"). The engine was right throughout: it
+fires the 1st and the 31st, and the last day of February in a leap year. That
+combination — a correct engine and a wrong sentence — is the only one a reader
+cannot detect, and it is the same class as the yearly month the sentence used
+to drop.
+
+The vocabulary grew by three keys rather than by a shape matrix: `day_last` (the
+marker as one item of a day list), and `yearly_last` / `yearly_mixed_last` for a
+yearly rule naming it — because three languages juxtapose the day and the month
+("le {day} {month}"), so a phrase in the day slot reads "le 15 et le dernier
+jour février". `day_sort_key` is now the package's single ordering rule, read by
+the canonical repair and by the sentence, so the two cannot disagree again.

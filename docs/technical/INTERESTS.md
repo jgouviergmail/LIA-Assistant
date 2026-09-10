@@ -320,8 +320,15 @@ inter-runs. Deux declencheurs (jobs APScheduler, leader-elected) :
 
 - **Scan stale** (toutes les `INTEREST_SUBJECT_RECLUSTER_INTERVAL_MINUTES`, 30 min) :
   utilisateurs ayant un interet actif avec `subject IS NULL` (creation, rename, merge)
-- **Re-clustering nocturne complet** (`INTEREST_SUBJECT_RECLUSTER_FULL_HOUR`, 04h15,
-  apres le cleanup+merge de 03h00) : auto-reparation de la derive residuelle
+- **Re-clustering nocturne** (`INTEREST_SUBJECT_RECLUSTER_FULL_HOUR`, 04h15,
+  apres le cleanup+merge de 03h00) : auto-reparation de la derive residuelle.
+  Pas « tous les utilisateurs » : la passe est plafonnee par
+  `INTEREST_SUBJECT_RECLUSTER_BATCH_SIZE` (un appel LLM par utilisateur) et
+  l'echantillon est tire **au hasard** (`ORDER BY random()`). Le scan stale, lui,
+  se vide — labelliser un utilisateur l'en retire — donc il est servi du plus
+  ancien au plus recent (`ORDER BY min(updated_at), user_id`). Une lecture
+  plafonnee sans tri rendait les memes lignes chaque nuit : ceux au-dela du
+  plafond n'etaient jamais revus (amendement ADR-131, 2026-09-10)
 
 Un appel LLM par utilisateur (`interest_extraction` LLM type, prompt versionne
 `interest_subject_clustering_prompt`, reponse JSON indexee) ; parsing defensif

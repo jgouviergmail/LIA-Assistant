@@ -67,8 +67,17 @@ import {
   VoiceSection,
   CompactionSection,
   PerformedEffectsSection,
+  RegistersSection,
 } from './components/sections';
-import { Repeat2, UserCheck, Volume2, Archive, ListChecks, Image as ImageIcon } from 'lucide-react';
+import {
+  Repeat2,
+  UserCheck,
+  Volume2,
+  Archive,
+  BookMarked,
+  ListChecks,
+  Image as ImageIcon,
+} from 'lucide-react';
 
 import { DEFAULT_OPEN_SECTIONS } from './utils/constants';
 
@@ -354,6 +363,21 @@ function MetricsSections({ metrics }: { metrics: DebugMetrics }) {
               title="Performed Effects"
               icon={ListChecks}
               message="This turn changed nothing in the outside world."
+            />
+          ),
+        },
+        {
+          // ADR-263's two DEFERRED registers (B8): what the turn CONSULTED and
+          // the turn's own record, next to what it PERFORMED. The three never
+          // add up, and the panel shows all three rather than one.
+          value: 'registers',
+          node: <RegistersSection data={metrics.registers} />,
+          idleNode: (
+            <EmptySection
+              value="registers"
+              title="Registers"
+              icon={BookMarked}
+              message="No register row for this turn."
             />
           ),
         },

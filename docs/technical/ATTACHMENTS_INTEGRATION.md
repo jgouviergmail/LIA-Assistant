@@ -195,6 +195,60 @@ Supprime la piece jointe (fichier disque + metadonnee DB).
 
 ---
 
+## Ce que LIA a produit : la galerie (ADR-279)
+
+Trois familles de fichiers sont ecrites dans la meme table que les
+televersements — images generees, documents generes, captures de navigateur —
+et la colonne `origin` les distingue. Le vocabulaire est **clos** : `upload`
+plus `GENERATED_ORIGINS` partitionnent l'enumeration (verifie par un test), et
+une valeur que personne n'a declaree n'est **jamais** lue comme « generee ».
+
+Deux colonnes accompagnent l'origine : `title` (le nom qu'un producteur
+connait — « Bilan du trimestre » — `NULL` renvoyant a `original_filename`) et
+`conversation_id` en `SET NULL` (supprimer une conversation ne detruit pas ce
+qu'elle a produit).
+
+### `GET /api/v1/generated-assets`
+
+Une page d'une famille, et le total EXACT derriere elle.
+
+**Query** : `family` (`images` | `documents` | `screenshots`), `q`,
+`created_after`, `created_before`, `expires_before`, `sort`
+(`created_desc` | `created_asc` | `expires_asc` | `name_asc`), `limit`, `offset`.
+
+**Response** : `items`, `total`, `total_bytes`, `limit`, `offset`, `max_limit`.
+
+Trois regles portent l'enonce :
+
+- **la page et son total sortent du MEME `WHERE`** (ADR-185) — construits
+  separement, ils decriraient deux ensembles differents des le premier filtre
+  ajoute d'un seul cote ;
+- **tout tri se termine sur la cle primaire** — sans ordre total, deux fichiers
+  crees dans la meme milliseconde se repetent ou disparaissent a la frontiere
+  d'une page ;
+- **un besoin de recherche est une DONNEE**, passee par `escape_like` : un `_`
+  non echappe matche toutes les lignes.
+
+`max_limit` est **publie** parce qu'il est impose (ADR-184). `upload` n'est pas
+listable : `GalleryFilters` le refuse a la construction.
+
+### `DELETE /api/v1/generated-assets/{asset_id}` et `POST /api/v1/generated-assets/delete`
+
+La suppression unitaire (`204`) et la suppression en lot, qui repond
+`{deleted, skipped}`. Un identifiant que l'appelant ne possede pas, un qui
+designe un televersement, et un que le nettoyage a retire entre le listing et
+le clic sont **ecartes**, jamais comptes comme supprimes (ADR-185).
+
+### La garde de capacite
+
+`capability_dependencies(ATTACHMENTS)` est posee sur **`POST /attachments/upload`
+seule**, pas sur le routeur. Televerser et consulter sont deux capacites qui
+partagent une table : couper la premiere ne doit pas fermer la porte sur des
+fichiers que la personne garde legitimement, ni l'empecher de les supprimer. Le
+routeur `generated-assets` est inclus **sans condition**.
+
+---
+
 ## LLM Vision Integration
 
 ### 35e Type LLM : `vision_analysis`
@@ -305,10 +359,20 @@ Deux mecanismes complementaires pour eviter l'accumulation de fichiers :
 
 #### 1. Reset Conversation
 
-Quand un utilisateur reset sa conversation (`POST /api/v1/conversations/me/reset`), tous les attachments associes sont supprimes :
+Quand un utilisateur reinitialise sa conversation
+(`POST /api/v1/conversations/me/reset`), les pieces jointes **qu'il a
+televersees lui-meme** sont supprimees :
 - Suppression des fichiers sur disque
 - Suppression des metadonnees en DB
 - Synchrone dans le flow de reset
+
+**Ce que LIA a produit n'est PAS supprime** (ADR-279) : le service recoit
+`origins={upload}` et retire ce que la personne a mis, rien d'autre. Avant ce
+lot, la reinitialisation appelait `delete_all_for_user(user_id)` sans filtre :
+« effacer cette conversation » effacait aussi les images generees la semaine
+precedente, dans d'autres conversations. C'est la doctrine d'ADR-260 appliquee
+aux fichiers — une purge retire ce que sa famille declare, jamais ce qui lui
+ressemble.
 
 #### 2. Scheduler TTL
 
@@ -317,6 +381,9 @@ Job APScheduler periodique (toutes les 6h) :
 - Supprime fichiers disque + metadonnees DB
 - Log le nombre de fichiers nettoyes
 - TTL par defaut : 24h (`ATTACHMENTS_TTL_HOURS`)
+- **S'applique aussi aux fichiers generes.** La galerie d'ADR-279 rend
+  l'echeance VISIBLE (elle est ecrite sur chaque carte) ; elle ne la repousse
+  pas. Une personne qui veut garder un fichier le telecharge.
 
 ```python
 # cleanup.py — enregistre dans le scheduler (main.py lifespan)

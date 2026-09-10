@@ -1,6 +1,6 @@
 # Restitution honnête des échecs d'outils — spécification
 
-**Date** : 2026-09-09 · **Statut** : validé par le propriétaire (sémantique binaire + `failed_steps`, deux PR, gardes G1/G2) · **Plans** : `../plans/2026-09-09-tool-failure-restitution-pr1.md` (lots A, B, C, G1, G2) et `../plans/2026-09-09-tool-failure-restitution-pr2.md` (lots D, E).
+**Date** : 2026-09-09 · **Re-vérifiée contre le code le 2026-09-10** (après la release v1.44.0 ; ADR attribué : **ADR-281**, 277-280 étant pris) · **Statut** : validé par le propriétaire (sémantique binaire + `failed_steps`, deux PR, gardes G1/G2) · **Plans** : `../plans/2026-09-09-tool-failure-restitution-pr1.md` (lots A, B, C, G1, G2) et `../plans/2026-09-09-tool-failure-restitution-pr2.md` (lots D, E).
 
 ## 1. Le fait déclencheur, et ce qu'il a révélé
 
@@ -18,12 +18,27 @@ Trois surfaces de preuve se contredisaient sur le même événement :
 
 Et sur 30 jours de registre, `fetch_web_page_tool` compte **4 issues, toutes `failed`, zéro succès** — un trou que personne ne pouvait voir.
 
+### Ce n'est pas un incident isolé (mesuré le 2026-09-10)
+
+Le registre ADR-263 ne remonte qu'au 2026-09-05 ; sur ces cinq jours de production :
+
+| Mesure | Valeur |
+|---|---|
+| Échecs d'outils, tous modes | **61** (dont **21 sur les seules 24 dernières heures**) |
+| Par mode | `direct` 34 (surfaces de lecture hors pipeline), `react` 19 (**chemin sain**, contre-vérifié), `pipeline` **8** |
+| Tours pipeline **totalement** échoués | **2** → « Statut inconnu » garanti |
+| Tours pipeline **partiellement** échoués | **3** → succès perdus (défaut D2) |
+| Part des tours pipeline touchés | **5 sur 46 = 10,9 %**, soit ~1 tour sur 9 |
+| Outil le plus en échec | `get_route_tool`, **10 fois** — invisible partout sauf dans le registre |
+
+Le défaut n'est donc pas une curiosité du 09/09 : il se produit tous les jours, et sa moitié la plus coûteuse (les 3 tours partiels, où un succès réel a été effacé) est celle que personne ne peut détecter depuis une réponse.
+
 ## 2. Les défauts, chacun prouvé
 
 | # | Défaut | Preuve | Portée |
 |---|---|---|---|
 | D1 | Le mapper écrit `status="failed"` ; le formateur ne connaît que `success`/`connector_disabled`/`error` ; `failed` tombe dans le `else` « Statut inconnu » qui **ne lit jamais le champ `error`** | rejeu prod dans le conteneur | tout échec d'outil en mode pipeline |
-| D2 | Plan **mixte** (rappel créé + fetch 403) : `status="failed"` dès qu'UN step échoue ⇒ la confirmation du rappel est perdue elle aussi | simulation H1b | tout plan multi-étapes partiellement échoué |
+| D2 | Plan **mixte** (rappel créé + fetch 403) : `status="failed"` dès qu'UN step échoue ⇒ la confirmation du rappel est perdue elle aussi. **Deux producteurs** construisent l'`ExecutionResult` de la même façon — `task_orchestrator_node.py:899` et `initiative_node.py:814` (initiatives proactives) — donc les deux chemins ont le défaut | simulation H1b ; 3 tours partiels en prod sur 5 jours ; **le test `tests/agents/test_mappers.py:233` l'encode** (« contacts normalisés depuis le step réussi » + `status == "failed"`) | tout plan multi-étapes partiellement échoué, pipeline **et** initiatives |
 | D3 | Seul le **premier** échec survit (`first_error`) | simulation H5 | plans à N échecs |
 | D4 | Garde D3 de `response_node` : docstring « failed seulement si TOUS les steps échouent », code « dès qu'un échoue » ⇒ skill non activé sur succès partiel | simulation H1b | skills + planner |
 | D5 | `infer_conversation_outcome` lit des **attributs** sur des **dicts** (`hasattr(result, "status")` est faux pour un `model_dump()`) ⇒ tout plan, échoué ou non, est classé `success` ; son test unitaire utilise un faux objet à attributs qui contourne la frontière | simulation + lecture du test | `agent_success_rate_total`, `cost_per_successful_conversation_usd` |
@@ -38,6 +53,7 @@ Et sur 30 jours de registre, `fetch_web_page_tool` compte **4 issues, toutes `fa
 | D14 | `docs/technical/RESPONSE.md` : copie périmée du code | lecture | docs |
 | **D15** | **Le mécanisme d'honnêteté existe déjà et est aveugle** : `runtime_failures_directive` est alimentée par `extract_failures_from_steps`, qui lit `step["status"] == "error"` et `result.error.code` — **aucun écrivain de `completed_steps` n'écrit `status`** ; l'executor écrit `{"success": False, "error", "error_code"}`. Son test encode la forme fictive. En prod `DIAGNOSTICS_ENABLED=true` : le bloc a tourné et n'a rien trouvé. Et la moitié « échecs » est conditionnée au drapeau diagnostics, contrairement à la doctrine ADR-248 | code + valeur prod du drapeau | même classe que D1, sur le correctif lui-même |
 | D16 | Agrégat FOR_EACH : `success` fusionne en « dernier gagne » ⇒ un item échoué au milieu est invisible | `_aggregate_for_each_results` | plans FOR_EACH |
+| **D17** | **Un test de caractérisation qui teste sa propre copie** : `tests/agents/test_execution_result_mapping.py` construit le dict `agent_result` **à la main dans le test** et n'appelle jamais `map_execution_result_to_agent_result`. Sa copie a déjà divergé du code réel — elle écrit `"error"` là où le mapper écrit `"failed"` — et le fichier prétend tester « the fragile mapping logic in task_orchestrator_node.py » | lecture, 2026-09-10 | faux témoin sur la zone même du correctif |
 
 Ce qui n'est **pas** un défaut (contre-vérifié) : ReAct transmet `result.message` au modèle ; le registre ADR-263 est juste ; les décorateurs de nœuds sont justes (un nœud lève) ; `EffectStatus` a tous ses membres écrits et lus ; les deux tours « Remember this » sans réponse ont été **annulés par le bouton Stop** (`POST /runs/active/cancel` à +2 s, seule origine possible) — conséquence produit : aucune mémoire créée, extraction planifiée par le response node ; hors périmètre, ticket séparé.
 
@@ -48,6 +64,14 @@ Ce qui n'est **pas** un défaut (contre-vérifié) : ReAct transmet `result.mess
 
 ### 3.2 Sémantique de l'agrégat : binaire, et `failed_steps` toujours présent
 `ERROR` seulement quand **tous** les steps ont échoué ; `SUCCESS` sinon (au moins un step a produit). `AgentResult.failed_steps: list[FailedStep]` (`step_index`, `tool_name`, `error`, `error_code`) est rempli depuis les steps échoués dans les deux cas. C'est ce champ, pas le statut, qui porte la vérité du partiel — et la garde G1 teste chaque lecteur avec un cas partiel.
+
+**La règle vit dans le mapper, pas chez les producteurs** (décidé le 2026-09-10, après mesure). `map_execution_result_to_agent_result` reçoit déjà tous les `step_results`, y compris échoués, et le code d'erreur est lisible dans le dict brut du step (`sr.result["error_code"]`) à défaut de `sr.error_code`. Trois raisons de calculer là :
+
+1. **Les deux producteurs sont corrigés d'un coup** sans être touchés (`task_orchestrator_node.py`, `initiative_node.py`).
+2. **`ExecutionResult.success` garde son sens** (« tous ont réussi ») et n'est plus lu que par le mapper — vérifié : aucun autre lecteur. Or `task_orchestrator` en dérive `all_steps_success`, qui a un **second lecteur** : `STATE_KEY_LAST_ACTION_TURN_ID` (la résolution de références « le détail du premier »). Changer sa sémantique modifierait ce comportement sans que personne l'ait demandé.
+3. **Les ratchets de taille** : `task_orchestrator_node.py` n'a que **14 lignes** de marge (666/680) et `mappers.py` en a **130** (470/600).
+
+Cas limite mesuré sur un test existant : un `ExecutionResult(success=False, step_results=[])` — un plan qui échoue **avant** d'exécuter quoi que ce soit. La règle « tous les steps ont échoué » donnerait `SUCCESS` sur une liste vide ; la règle complète est donc : *s'il y a des steps, `ERROR` ssi tous ont échoué ; s'il n'y en a aucun, conserver `execution_result.success`* (le verdict global).
 
 ### 3.3 Chaque fait a UN canal vers le prompt
 - **Échecs de steps pipeline** → `runtime_failures_directive` (`diagnostics/failure_context.py`), qui lit `completed_steps` sous la forme que l'executor écrit (`FIELD_SUCCESS`, `FIELD_ERROR`, `FIELD_ERROR_CODE`, constantes partagées écrivain/lecteur), liste **tous** les échecs (borne `MAX_FAILURES`, **total exact** publié), nomme l'outil, et n'est **plus conditionnée au drapeau diagnostics** — seule la moitié « dégradations de plateforme » l'est encore (elle a besoin de l'advisor).
@@ -87,6 +111,10 @@ L'agrégat porte `_for_each_aggregate: True` (marqueur structurel), `success = a
 
 ## 5. Coût, quotas, registres, responsive
 Aucun appel LLM ajouté, aucun retry ajouté, quotas inchangés ; la directive existait déjà (zéro jeton sur un tour propre) : +≤ ~200 jetons sur les seuls tours échoués, réponse plus courte en pratique. Registres ADR-263 inchangés (ils sont la référence). Aucune migration, aucun schéma. Lot D : un événement SSE par step outil, un glyphe de 1 caractère.
+
+## 5bis. Un vocabulaire voisin qu'il ne faut PAS toucher
+
+`draft_executor.to_agent_result()` produit un **dict** (jamais un `AgentResult` Pydantic) avec son propre vocabulaire — `success`, `error`, `cancelled`, `partial_error` — lu par `_format_draft_execution_result` dans le response node, sur un canal séparé (`state["draft_action_result"]`, qui **remplace** le résumé au lieu de passer par le formateur). Ce vocabulaire est hors périmètre : il n'entre pas dans `AgentResultStatus`, et la garde G1 ne le voit pas (ses valeurs interdites sont `failed`, `pending`, `connector_disabled`, `failure` — aucune n'y figure). Vérifié le 2026-09-10 pour écarter une régression sur le chemin HITL.
 
 ## 6. Hors périmètre (tickets)
 Mémoire perdue quand l'utilisateur clique Stop avant la synthèse ; `data_prefix` inline du response node ; échec `unified_web_search_tool` du 07/09 ; les 55 autres sites de classification par message hors `browser_tools.py` (la baseline G2 les tient).

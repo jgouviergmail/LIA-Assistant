@@ -665,8 +665,15 @@ class LLMConfigService:
 
         if discovered:
             models = []
+            undescribed: list[str] = []
             for info in discovered:
                 profile = build_discovered_profile(info)
+                if profile is None:
+                    # The server listed the tag and said nothing about it.
+                    # Publishing invented capabilities is what made four cloud
+                    # tags read as tool-less and thought-less (ADR-278).
+                    undescribed.append(info.name)
+                    continue
                 models.append(
                     OllamaModelCapabilities(
                         model_id=info.name,
@@ -686,13 +693,18 @@ class LLMConfigService:
                         # declares: full for a thinking model, ``none`` alone
                         # for the others. Same resolution as the runtime.
                         **LLMConfigService._reasoning_metadata("ollama", profile),
-                        cost_input=0.0,  # Local = free
+                        cost_input=0.0 if not info.is_cloud else 0.0,
                         cost_output=0.0,
                         size=info.size,
                         family=info.family,
+                        is_cloud=info.is_cloud,
+                        # What the slot's field is PRE-FILLED with, and the
+                        # ceiling beside it.
+                        context_window=profile.max_input_tokens,
+                        max_context_window=info.context_length,
                     )
                 )
-            return OllamaModelsResponse(models=models, source="live")
+            return OllamaModelsResponse(models=models, source="live", undescribed=undescribed)
 
         # Fallback: Ollama unreachable — list whatever Ollama models the cache
         # knows about (populated from llm_models at boot).
@@ -724,6 +736,11 @@ class LLMConfigService:
                     cost_output=0.0,
                     size=None,
                     family=None,
+                    # The cache holds no cloud marker: a catalogue row says
+                    # nothing about where the tag runs.
+                    is_cloud=False,
+                    context_window=cached.max_input_tokens,
+                    max_context_window=cached.max_input_tokens,
                 )
             )
         return OllamaModelsResponse(models=models, source="fallback")

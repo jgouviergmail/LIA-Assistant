@@ -138,6 +138,53 @@ async def test_search_users_case_insensitive(
     assert any(user["email"] == "bob@example.com" for user in data["users"])
 
 
+@pytest.mark.asyncio
+@pytest.mark.integration
+async def test_a_wildcard_is_searched_as_a_literal(
+    admin_client: tuple[AsyncClient, User], multiple_test_users: list[User]
+):
+    """`_` and `%` are text to whoever typed them, not LIKE metacharacters.
+
+    Measured on real PostgreSQL: `'Alice Anderson' ILIKE '%_%'` is TRUE, so a
+    search for an underscore returned the whole directory — an admin looking
+    for `jean_dupont` was handed every account instead of none. Same class as
+    the workboard search fixed on 2026-09-10; this surface was the debt that
+    review left behind.
+    """
+    client, _ = admin_client
+
+    for needle in ("_", "%"):
+        response = await client.get(f"/api/v1/users/admin/search?q={needle}")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 0, f"{needle!r} matched {data['total']} users as a wildcard"
+
+
+@pytest.mark.asyncio
+@pytest.mark.integration
+async def test_a_literal_wildcard_still_finds_the_name_that_carries_it(
+    admin_client: tuple[AsyncClient, User], async_session: AsyncSession
+):
+    """Escaping must not make a real underscore unfindable."""
+    from src.core.security import get_password_hash
+
+    user = User(
+        email="jean_dupont@example.com",
+        full_name="Jean_Dupont",
+        hashed_password=get_password_hash("TestPass123!!"),
+        is_active=True,
+        is_verified=True,
+    )
+    async_session.add(user)
+    await async_session.commit()
+
+    client, _ = admin_client
+    response = await client.get("/api/v1/users/admin/search?q=jean_dupont")
+    assert response.status_code == 200
+    data = response.json()
+    assert any(row["email"] == "jean_dupont@example.com" for row in data["users"])
+
+
 # ============================================================================
 # FILTER TESTS
 # ============================================================================

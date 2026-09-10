@@ -597,3 +597,98 @@ class TestTheOriginTravelsWithTheTurn:
         with patch("src.domains.agents.api.service.AgentService", return_value=service):
             await stream_instruction(_request())
         assert seen == [None]
+
+
+class TestTheStreamsOwnRefusalIsRead:
+    """An error chunk is a VERDICT, not silence.
+
+    Measured 2026-09-10: the reader knew four chunk types and dropped every
+    other, so a stream that refused — a spend ceiling, a provider failure, a
+    question already pending on the conversation — left it with no token and
+    no interrupt. The run then settled SUCCESS with an empty answer, which
+    `plan_settle` reads as `workboard_empty_answer`: the ticket told the
+    person LIA had nothing to say, burnt one of its ten runs, and scheduled
+    no retry. An invented diagnosis (ADR-182) on the one line they read.
+
+    The code is read from the chunk's METADATA, never from its sentence: that
+    sentence is localized by the frontend and would change under us.
+    """
+
+    async def test_a_spend_ceiling_settles_as_quota_blocked(self) -> None:
+        service = _service_yielding(
+            [
+                _chunk(
+                    "error",
+                    "Daily budget exhausted",
+                    {"error_code": "instance_budget_exhausted", "limit": "instance_daily_budget"},
+                )
+            ]
+        )
+        with patch("src.domains.agents.api.service.AgentService", return_value=service):
+            result = await stream_instruction(_request())
+        assert result.outcome is RunOutcome.QUOTA_BLOCKED
+        assert result.outcome is not RunOutcome.SUCCESS
+
+    async def test_a_per_account_ceiling_is_the_same_verdict(self) -> None:
+        service = _service_yielding(
+            [_chunk("error", "Limit reached", {"error_code": "usage_limit_exceeded"})]
+        )
+        with patch("src.domains.agents.api.service.AgentService", return_value=service):
+            result = await stream_instruction(_request())
+        assert result.outcome is RunOutcome.QUOTA_BLOCKED
+
+    async def test_a_refusal_is_never_retried(self) -> None:
+        """A ceiling that refused this call refuses the next one too."""
+        service = _service_yielding(
+            [_chunk("error", "Limit reached", {"error_code": "usage_limit_exceeded"})]
+        )
+        with patch("src.domains.agents.api.service.AgentService", return_value=service):
+            result = await stream_instruction(_request())
+        assert result.attempts == 1
+        assert len(service.calls) == 1
+
+    async def test_any_other_error_settles_as_a_failure_carrying_its_message(self) -> None:
+        service = _service_yielding([_chunk("error", "provider unavailable", {})])
+        with patch("src.domains.agents.api.service.AgentService", return_value=service):
+            result = await stream_instruction(_request())
+        assert result.outcome is RunOutcome.FAILED
+        assert result.error is not None
+        assert "provider unavailable" in result.error
+
+    async def test_an_error_with_no_metadata_is_still_a_failure(self) -> None:
+        """A chunk that carries no mapping must not crash the reader."""
+        service = _service_yielding([_chunk("error", "boom")])
+        with patch("src.domains.agents.api.service.AgentService", return_value=service):
+            result = await stream_instruction(_request())
+        assert result.outcome is RunOutcome.FAILED
+
+    async def test_a_refusal_no_longer_reads_as_an_empty_answer(self) -> None:
+        """The defect itself, stated as the property that closes it."""
+        service = _service_yielding(
+            [_chunk("error", "Limit reached", {"error_code": "usage_limit_exceeded"})]
+        )
+        with patch("src.domains.agents.api.service.AgentService", return_value=service):
+            result = await stream_instruction(_request())
+        assert not (result.outcome is RunOutcome.SUCCESS and result.text == "")
+
+    async def test_tokens_streamed_before_the_refusal_are_kept(self) -> None:
+        """Whatever was said still travels — the verdict decides, not the text."""
+        service = _service_yielding(
+            [
+                _chunk("token", "Je regarde"),
+                _chunk("error", "Limit reached", {"error_code": "usage_limit_exceeded"}),
+            ]
+        )
+        with patch("src.domains.agents.api.service.AgentService", return_value=service):
+            result = await stream_instruction(_request())
+        assert result.outcome is RunOutcome.QUOTA_BLOCKED
+        assert result.text == "Je regarde"
+
+    async def test_a_question_already_asked_still_wins(self) -> None:
+        """A turn that delivered its question stopped ON the question."""
+        service = _service_yielding(
+            [*_asked(kind="clarification"), _chunk("error", "late", {"error_code": "whatever"})]
+        )
+        with patch("src.domains.agents.api.service.AgentService", return_value=service):
+            result = await stream_instruction(_request())
+        assert result.outcome is RunOutcome.WAITING

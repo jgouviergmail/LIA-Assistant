@@ -363,6 +363,42 @@ test.describe('the workboard', () => {
     expect(readBack.lateAtMidday).toBe(false);
   });
 
+  test('folds the filters on a phone and says what they hold', async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    // Owner, 2026-09-10: five controls above ONE column of cards is a wall,
+    // and the reader came for their tickets. Folded, the block still has to
+    // say what it narrows — otherwise it is opened to find out, which is the
+    // scanning the fold exists to spare.
+    await authenticate({ language: 'fr' });
+    await mockApi(boardRoutes([]));
+    await page.setViewportSize({ width: 390, height: 844 });
+
+    await page.goto('/fr/dashboard/workboard?assignee=me&overdue=1');
+    await waitForHydration(page, CARD);
+
+    // Closed, and its content really absent from the DOM (a `<details>` that
+    // merely HIDES its children would still run their hooks and fetch).
+    const summary = page.getByText('Filtres', { exact: true });
+    await expect(summary).toBeVisible();
+    await expect(page.getByLabel('Chercher un titre')).toHaveCount(0);
+
+    // The exact number of narrowings, and their own words.
+    await expect(page.getByText('2', { exact: true })).toBeVisible();
+    await expect(page.getByText(/Moi.*En retard/)).toBeVisible();
+
+    await summary.click();
+    await expect(page.getByLabel('Chercher un titre')).toBeVisible();
+
+    // Nothing overflows once the block is open either.
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth
+    );
+    expect(overflow).toBeLessThanOrEqual(1);
+  });
+
   test('moves a ticket from the list on its card, on a phone', async ({
     page,
     authenticate,

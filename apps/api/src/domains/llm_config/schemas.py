@@ -120,6 +120,10 @@ class LLMTypeConfigUpdate(BaseModel):
     presence_penalty: float | None = Field(None, ge=-2.0, le=2.0)
     max_tokens: int | None = Field(None, gt=0)
     timeout_seconds: int | None = Field(None, gt=0)
+    # ADR-278: a property of THIS slot, not of the instance. Pre-filled from
+    # what the model declares; an operator only stores a value they meant to
+    # differ. `None` clears the override.
+    context_window: int | None = Field(None, gt=0)
     # ``None`` = clear the override. One shape for every provider (ADR-245),
     # with strict validation at the service layer
     # (``domains/llm_config/reasoning_validation.py``). The Literal on
@@ -243,6 +247,30 @@ class OllamaModelCapabilities(ModelCapabilities):
 
     size: str | None = None  # e.g. "8B", "70B"
     family: str | None = None  # e.g. "llama", "qwen2"
+    is_cloud: bool = Field(
+        default=False,
+        description=(
+            "The model runs on Ollama's cloud rather than on this machine — "
+            "declared by the server (``remote_host``), never inferred from a "
+            "``-cloud`` suffix. A cloud tag keeps its whole context window; a "
+            "local one is capped, because the cap protects THIS machine's VRAM."
+        ),
+    )
+    context_window: int = Field(
+        description=(
+            "The window LIA requests from the server for this tag and accounts "
+            "with (ADR-267/278). Pre-fills the slot's own field, which an "
+            "operator may override."
+        ),
+    )
+    max_context_window: int | None = Field(
+        default=None,
+        description=(
+            "The model's OWN maximum, as the server reported it — shown beside "
+            "the requested window so an operator raising it knows the ceiling. "
+            "None when the server reported none."
+        ),
+    )
 
 
 class OllamaModelsResponse(BaseModel):
@@ -254,3 +282,12 @@ class OllamaModelsResponse(BaseModel):
 
     models: list[OllamaModelCapabilities]
     source: Literal["live", "fallback"]
+    undescribed: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Tags the server listed but described nothing about. They carry no "
+            "capabilities here rather than a guess (ADR-278: silence is not a "
+            "declaration), so they are not offered in the picker — the model "
+            "field still accepts one typed by hand."
+        ),
+    )

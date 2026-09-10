@@ -58,8 +58,12 @@ const tokenZoneRule: AnomalyRule = metrics => {
 
 const reactCeilingRule: AnomalyRule = metrics => {
   const react = metrics.react_execution;
-  return react && react.max_iterations > 0 && react.iterations >= react.max_iterations
-    ? [{ section: 'react_execution', label: 'ReAct loop hit its iteration ceiling' }]
+  // The EFFECTIVE budget (B8), never the ceiling: a turn narrowed by ADR-238
+  // to four iterations and stopping at four IS exhausted, and reading the
+  // ceiling there reported nothing at all.
+  const budget = react?.iteration_budget ?? react?.max_iterations ?? 0
+  return react && budget > 0 && react.iterations >= budget
+    ? [{ section: 'react_execution', label: 'ReAct loop spent its iteration budget' }]
     : [];
 };
 

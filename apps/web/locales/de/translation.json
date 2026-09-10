@@ -2184,7 +2184,10 @@
         "ollama": {
           "live": "Verbunden mit Ollama-Server",
           "fallback": "Ollama nicht erreichbar — bekannte Modelle werden angezeigt",
-          "loading": "Ollama-Modelle werden geladen…"
+          "loading": "Ollama-Modelle werden geladen…",
+          "undescribed": "Der Server hat {{count}} Modell aufgeführt, zu dem er nichts gesagt hat — es wird hier nicht angeboten; geben Sie seinen Namen ein, um es dennoch zu nutzen.",
+          "undescribed_one": "Der Server hat {{count}} Modell aufgeführt, zu dem er nichts gesagt hat — es wird hier nicht angeboten; geben Sie seinen Namen ein, um es dennoch zu nutzen.",
+          "undescribed_other": "Der Server hat {{count}} Modelle aufgeführt, zu denen er nichts gesagt hat — sie werden hier nicht angeboten; geben Sie einen Namen ein, um eines dennoch zu nutzen."
         },
         "categories": {
           "pipeline": "Pipeline",
@@ -2210,7 +2213,11 @@
           "reasoningNone": "Keiner (deaktiviert)",
           "reasoningDefault": "Standard (Modell)",
           "reasoningBudget": "Denk-Budget (Tokens)",
-          "reasoningExclude": "Denkprozess aus der Antwort ausblenden"
+          "reasoningExclude": "Denkprozess aus der Antwort ausblenden",
+          "contextWindow": "Kontextfenster (k)",
+          "contextWindowCeiling": "Angefordert: {{requested}} k · dieses Modell reicht bis {{max}} k.",
+          "contextWindowFollowsModel": "Leer lassen, um dem Kontextfenster des Modells zu folgen.",
+          "contextWindowLocalCap": "Dieses Modell läuft auf Ihrem Rechner: ein Fenster, das größer ist als sein Speicher, verlagert das Modell auf die CPU."
         },
         "constraints": {
           "reasoningTemp": "Reasoning-Modelle verwenden eine feste Temperatur von 1.0. Dieser Parameter wird von der API ignoriert.",
@@ -2224,7 +2231,8 @@
           "presencePenalty": "Fördert thematische Vielfalt. Bestraft jedes bereits erschienene Token unabhängig von der Häufigkeit. Positiv = mehr Themen erkunden. Bereich: -2 bis 2.",
           "maxTokens": "Maximale Anzahl von Ausgabe-Tokens. Begrenzt die Länge der generierten Antwort. Der optimale Wert hängt vom Agententyp ab.",
           "timeout": "Maximale Wartezeit in Sekunden vor Abbruch des API-Aufrufs. Leer lassen für den Standard des Anbieters.",
-          "reasoningEffort": "Steuert die Intensität des internen Denkprozesses des Modells. Höher = bessere Genauigkeit bei höherer Latenz und Kosten. Niedriger = schnelle Antworten für einfache Aufgaben."
+          "reasoningEffort": "Steuert die Intensität des internen Denkprozesses des Modells. Höher = bessere Genauigkeit bei höherer Latenz und Kosten. Niedriger = schnelle Antworten für einfache Aufgaben.",
+          "contextWindow": "Wie viel Konversation dieser Platz verarbeitet. Leer lassen, dann nutzt LIA das, was das Modell selbst angibt. Bei Ollama ist dies zugleich das Fenster, das LIA beim Server anfordert — was LIA zählt, ist also das, was der Server bereitstellt."
         },
         "config": {
           "saved": "LLM-Konfiguration gespeichert",
@@ -2301,7 +2309,16 @@
         "enforcedBoth": "Sowohl bei den Werkzeugen des Assistenten als auch auf seinen Routen durchgesetzt.",
         "enabledSuccess": "Funktion aktiviert.",
         "disabledSuccess": "Funktion deaktiviert.",
-        "error": "Die Funktion konnte nicht aktualisiert werden."
+        "error": "Die Funktion konnte nicht aktualisiert werden.",
+        "families": {
+          "media": "Medien und Stimme",
+          "knowledge": "Gedächtnis und Wissen",
+          "reach": "Reichweite und Werkzeuge",
+          "work": "Arbeit und Initiative",
+          "people": "Personen",
+          "assistant": "Assistent"
+        },
+        "enforcedService": "An einem internen Engpass durchgesetzt: die Fähigkeit stoppt, das bereits Erzeugte bleibt."
       },
       "publicDemoLink": {
         "title": "Link zur öffentlichen Demo",
@@ -3584,7 +3601,8 @@
         "meetings": "besprechung, aufnahme, protokoll, transkription, bericht, mikrofon, notizen, zusammenfassung, aktionen, vorlage, vorlagen, vorlagenbibliothek, protokollformat, standardformat, automatisches format, format ändern, abschnitte, anweisungen, protokoll-e-mail",
         "admin-registers": "register, transparenz, aktionen, abrufe, export, protokoll, audit, admin, Diagramme, Statistiken, Zahlen, Überblick, Initiative, proaktiv, Artikel 12, vollständiger Auszug, Züge",
         "reminders": "Erinnerung, erinnere mich, Warnung, Benachrichtigung, wiederkehrende Erinnerung, wiederholen, Merkzettel, Wiederholung, täglich, Zeitfenster",
-        "workboard": "workboard board tickets ticket kanban spalten zu erledigen backlog"
+        "workboard": "workboard board tickets ticket kanban spalten zu erledigen backlog",
+        "generated-assets": "dateien bilder dokumente aufnahmen downloads galerie erzeugt ablauf"
       }
     },
     "haptics": {
@@ -3669,6 +3687,73 @@
       "cost": "Kosten der Läufe",
       "runs_one": "{{count}} Lauf",
       "runs_other": "{{count}} Läufe"
+    },
+    "generated_assets": {
+      "title": "Meine erzeugten Dateien",
+      "description": "Die Bilder, Dokumente und Aufnahmen, die LIA für Sie erstellt hat. Laden Sie sie herunter, bevor sie ablaufen, oder löschen Sie sie jetzt.",
+      "family": {
+        "images": "Bilder",
+        "documents": "Dokumente",
+        "screenshots": "Aufnahmen"
+      },
+      "filters": {
+        "title": "Filter",
+        "none": "Kein Filter",
+        "search": "Namen suchen",
+        "created": "Erstellt",
+        "expiring": "Ablauf",
+        "sort": "Sortieren nach",
+        "reset": "Filter löschen",
+        "any_date": "Jederzeit",
+        "any_expiry": "Jede Frist",
+        "created_active": "Neu",
+        "expiring_active": "Läuft bald ab",
+        "sort_created_desc": "Neueste zuerst",
+        "sort_created_asc": "Älteste zuerst",
+        "sort_expires_asc": "Ablaufende zuerst",
+        "sort_name_asc": "Nach Name",
+        "last_days": "Letzte {{count}} Tage",
+        "last_days_one": "Letzter Tag",
+        "last_days_other": "Letzte {{count}} Tage",
+        "within_hours": "Innerhalb von {{count}} Stunden",
+        "within_hours_one": "Innerhalb einer Stunde",
+        "within_hours_other": "Innerhalb von {{count}} Stunden"
+      },
+      "open": "{{name}} öffnen",
+      "open_short": "Öffnen",
+      "download": "{{name}} herunterladen",
+      "delete": "{{name}} löschen",
+      "select": "{{name}} auswählen",
+      "expires_at": "Läuft ab am {{when}}",
+      "load_error": "Ihre Dateien konnten nicht gelesen werden.",
+      "confirm_delete_one_title": "Diese Datei löschen?",
+      "confirm_delete_title": "Diese Dateien löschen?",
+      "page_info": "Seite {{current}} von {{total}}",
+      "empty": {
+        "filtered_title": "Keine Treffer",
+        "filtered_description": "Keine Datei passt zu diesen Filtern. Löschen Sie sie, um wieder alles zu sehen.",
+        "images_title": "Noch kein Bild",
+        "images_description": "Bitten Sie LIA im Chat um ein Bild, und es erscheint hier.",
+        "documents_title": "Noch kein Dokument",
+        "documents_description": "Bitten Sie LIA um einen Bericht, eine Tabelle oder eine Präsentation, und sie erscheint hier.",
+        "screenshots_title": "Noch keine Aufnahme",
+        "screenshots_description": "LIA bewahrt hier das letzte Bild einer Browsersitzung auf."
+      },
+      "total": "{{count}} Dateien",
+      "total_one": "{{count}} Datei",
+      "total_other": "{{count}} Dateien",
+      "delete_selected": "{{count}} Dateien löschen",
+      "delete_selected_one": "{{count}} Datei löschen",
+      "delete_selected_other": "{{count}} Dateien löschen",
+      "deleted": "{{count}} Dateien gelöscht",
+      "deleted_one": "{{count}} Datei gelöscht",
+      "deleted_other": "{{count}} Dateien gelöscht",
+      "skipped": "{{count}} Dateien waren bereits verschwunden",
+      "skipped_one": "{{count}} Datei war bereits verschwunden",
+      "skipped_other": "{{count}} Dateien waren bereits verschwunden",
+      "confirm_delete_description": "{{count}} Dateien werden jetzt aus Ihrem Konto entfernt.",
+      "confirm_delete_description_one": "{{count}} Datei wird jetzt aus Ihrem Konto entfernt.",
+      "confirm_delete_description_other": "{{count}} Dateien werden jetzt aus Ihrem Konto entfernt."
     }
   },
   "relations": {
@@ -4446,8 +4531,8 @@
           "description": "Der volle Stack: Prometheus-Metriken (Token, Latenz, Fehler, Kosten), 28 Grafana-Dashboards, Tempo-Tracing, Loki-Logs und E-Mail-Alarmierung, bei der jede Warnung ihr Runbook verlinkt. Das 26. Dashboard ist ein Produkt-Cockpit: Es zählt bestätigte Ergebnisse — dein ausdrückliches 👍 oder eine einen ganzen Tag unkorrigiert gebliebene Aktion — und leitet daraus Aktivierung, Bindung und Kosten je nützlichem Ergebnis ab. Gezählt wird in PostgreSQL, und Grafana liest über eine Rolle, die nur Aggregate sieht."
         },
         "tools": {
-          "title": "🔧 90 typisierte Werkzeuge",
-          "description": "90 native Werkzeuge mit JSON-Schemata aus den Python-Typen, unbegrenzt erweiterbar durch MCP-Server und Skills. Jedes deklariert sein Manifest und seine veröffentlichten Grenzen: Was ein Validator ablehnen kann, kann der Planer lesen. Der Katalog wird je Domäne gefiltert — deshalb trägt jede Domäne auch ihre Lesefähigkeiten, sonst würde eine Domäne mit nur schreibenden Werkzeugen den Planer zum Schreiben drängen."
+          "title": "🔧 114 typisierte Werkzeuge",
+          "description": "114 native Werkzeuge mit JSON-Schemata aus den Python-Typen, unbegrenzt erweiterbar durch MCP-Server und Skills. Jedes deklariert sein Manifest und seine veröffentlichten Grenzen: Was ein Validator ablehnen kann, kann der Planer lesen. Der Katalog wird je Domäne gefiltert — deshalb trägt jede Domäne auch ihre Lesefähigkeiten, sonst würde eine Domäne mit nur schreibenden Werkzeugen den Planer zum Schreiben drängen."
         },
         "costTransparency": {
           "title": "💰 Kostentransparenz",
@@ -4507,7 +4592,7 @@
         },
         "attachments": {
           "title": "📎 Fotos & Dateianhänge",
-          "description": "Fotos und PDFs über die 📎-Schaltfläche, per Ziehen und Ablegen oder mit einem schlichten Strg+V aus der Zwischenablage, im Browser komprimiert, bevor sie den Rechner verlassen. Bilder liest ein konfigurierbares Sichtmodell, aus PDFs wird der Text extrahiert, und Vorschaubilder erscheinen in der Nachricht mit barrierefreier Lightbox. Strenge Trennung je Nutzer und automatische Bereinigung — beim Zurücksetzen des Gesprächs und nach 24 Stunden."
+          "description": "Fotos und PDFs über die 📎-Schaltfläche, per Drag-and-drop oder mit einem einfachen Strg+V aus der Zwischenablage, im Browser komprimiert, bevor sie den Rechner verlassen. Bilder liest ein Vision-Modell, aus PDFs wird der Text gezogen, Vorschaubilder öffnen sich in einer barrierefreien Lightbox. Was LIA erzeugt, hat eine eigene Galerie mit der Frist auf jeder Karte. Ein Reset entfernt, was du hochgeladen hast; was LIA gemacht hat, bleibt."
         },
         "skills": {
           "title": "Skills (mit interaktiven Karten und Mini-Apps)",
@@ -4583,7 +4668,7 @@
         },
         "platformCapabilities": {
           "title": "🎛️ Was diese Instanz anbietet",
-          "description": "Nicht jede LIA-Instanz bietet dieselben Funktionen, und das ist Absicht. Zehn Fähigkeiten — Diktat, Sprachausgabe, Bilder, Uploads, Dokumenträume, Websuche, Surfen, Skills, MCP, Telefonie — schaltet die Administration in den Einstellungen ein oder aus, ohne Neuausrollen und ohne Konfigurationsdatei. Eine abgeschaltete Fähigkeit verschwindet auch aus dem Katalog, den der Planer sieht: LIA verspricht nie eine Aktion, die sie nicht ausführen kann, du kassierst also nie eine nachträgliche Absage — die Antwort sagt es klar, in deiner Sprache."
+          "description": "Nicht jede LIA-Instanz bietet dieselben Funktionen, und das ist Absicht. Fünfundzwanzig Fähigkeiten, gruppiert in sechs Familien, schaltet die Administratorin in den Einstellungen ein oder aus — ohne Deployment, ohne Konfigurationsdatei, sofort wirksam. Ein Schalter nimmt die Fähigkeit weg, nie das bereits Erzeugte: das Gedächtnis lernt nichts Neues mehr, jede gelernte Erinnerung bleibt lesbar. Eine abgeschaltete Fähigkeit verschwindet auch aus dem Katalog des Planers, sodass LIA nie eine Aktion verspricht, die sie nicht ausführen kann."
         },
         "plugins": {
           "title": "🧩 Agent Plugins (offener Standard)",
@@ -4632,6 +4717,21 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_44_1": {
+          "title": "v1.44.1 — 🗂️ Was LIA erstellt, gehört dir",
+          "date": "September 2026",
+          "count": "8",
+          "items": {
+            "i1": "<b>🗂️ Meine erzeugten Dateien</b> — die Bilder, Dokumente und Screenshots, die LIA für dich erstellt hat, haben endlich einen eigenen Ort in den Einstellungen. Drei Galerien, eine je Familie, mit Suche über den Namen, zwei Datumsfiltern und vier Sortierungen. Bisher führte der einzige Weg zum Bericht von gestern über die Unterhaltung, die ihn geschrieben hatte.",
+            "i2": "<b>⏳ Du siehst das Ablaufdatum kommen, und eine geleerte Unterhaltung nimmt sie nicht mehr mit</b> — jede Datei zeigt ihre Frist an, deren Ton sechs Stunden vorher warm wird. Und „diese Unterhaltung leeren“ entfernt jetzt nur noch, was <i>du</i> abgelegt hast: die Bilder und Berichte von LIA bleiben, auch die aus anderen Unterhaltungen.",
+            "i3": "<b>📌 Deine Vorgaben lassen sich nicht mehr löschen, sondern nur korrigieren</b> — „nenn mich beim Vornamen“, „antworte immer auf Deutsch“: solche Regeln sind vor dem Löschen geschützt, durch dich wie durch den automatischen Hausputz. Ändern kannst du sie weiterhin — das ist der eigentliche Weg, es sich anders zu überlegen.",
+            "i4": "<b>🎛️ Eine Administratorin kann jede Funktion einzeln abschalten</b> — das Panel bot zwölf, während das Produkt fünfundzwanzig auslieferte: das Ticket-Board, die Journale, die Gewohnheiten, das Langzeitgedächtnis, die spontanen Benachrichtigungen und acht weitere ließen sich nur durch ein erneutes Deployment abschalten. Eine abgeschaltete Fähigkeit hört auf zu arbeiten; alles, was sie bereits erzeugt hat, bleibt lesbar und löschbar.",
+            "i5": "<b>🧠 Die Kontextgröße wird pro Modell eingestellt</b> — eine einzige Einstellung legte sie für alle Ollama-Modelle zugleich fest, sodass ein kleines Modell dasselbe Fenster angefordert bekam wie ein großes. Jeder Platz trägt jetzt seine eigene, vorbelegt mit dem, was dein Server über das Modell sagt.",
+            "i6": "<b>🔬 Das Debug-Panel erzählt den Zug wirklich</b> — eine Zeile je Modellaufruf mit Anbieter, Parametern und Denkaufwand, die tatsächlich angewandten Grenzen der autonomen Schleife, das Fenster des Platzes und das, was LIA während des Austauschs nachgeschlagen, entschieden und geprüft hat.",
+            "i7": "<b>🩹 Zwei Ausfälle behoben</b> — ein interner Wert erreichte fünf von sieben Anbietern und ließ <i>jeden</i> Aufruf scheitern, unabhängig von der Konfiguration; und ein vom Anbieter zurückgezogenes Modell sagte dir „versuch es noch einmal“, statt dich ein anderes wählen zu lassen.",
+            "i8": "<b>🖼️ Die Bildvorschauen sind zurück</b> — ein von LIA erzeugtes Bild wurde weder im Verlauf noch in der Galerie angezeigt, während es sich beim Öffnen einwandfrei zeigte. Der Browser forderte die Vorschau <i>ohne</i> deine Sitzung an, die API lehnte ab, und ein Authentifizierungsfehler las sich wie ein Anzeigefehler."
+          }
+        },
         "v1_44_0": {
           "title": "v1.44.0 — 🗂️ Ein Board für das, woran du wirklich arbeitest",
           "date": "September 2026",
@@ -7024,7 +7124,7 @@
           },
           "q2": {
             "question": "Wie setze ich eine Unterhaltung zurück?",
-            "answer": "Um alles zu löschen und neu zu beginnen:<br><br>1. Suche in der Kopfzeile des Chats die Schaltfläche <strong>🗑️</strong><br>2. Klicke darauf<br>3. Bestätige im Dialog<br><br><strong>⚠️ Was tatsächlich gelöscht wird:</strong><br>Alle Nachrichten, <strong>sämtliche Anhänge – einschließlich der KI-generierten Bilder</strong>, und der Kontext, den LIA aus dieser Unterhaltung aufgebaut hatte. Die Aktion ist <strong>unwiderruflich</strong>.<br><br><strong>💡 Wann lohnt sich das?</strong><br>• du wechselst zu einem völlig anderen Thema<br>• LIA wirkt vom bisherigen Kontext verwirrt<br>• du möchtest diesen Verlauf lieber nicht zurücklassen<br><br><strong>✅ Was NICHT gelöscht wird:</strong><br>Was LIA über Sie gelernt hat, lebt außerhalb der Unterhaltung und bleibt: Ihr Langzeitgedächtnis, der beobachtete Rhythmus und die wiederkehrenden Anfragen, die Marke dafür, welche E-Mails bereits gelesen waren, die für Sie angepassten Schwellen. Um das zu löschen, nutzen Sie <strong>Alles vergessen</strong> in den Einstellungen oder löschen Sie Ihr Konto."
+            "answer": "Um alles zu löschen und neu zu beginnen:<br><br>1. Suche in der Kopfzeile des Chats die Schaltfläche <strong>🗑️</strong><br>2. Klicke darauf<br>3. Bestätige im Dialog<br><br><strong>⚠️ Was tatsächlich gelöscht wird:</strong><br>Alle Nachrichten, <strong>die Anhänge, die du selbst hochgeladen hast</strong>, und der Kontext, den LIA aus dieser Unterhaltung aufgebaut hatte. Die Aktion ist <strong>unwiderruflich</strong>.<br><br><strong>💡 Wann lohnt sich das?</strong><br>• du wechselst zu einem völlig anderen Thema<br>• LIA wirkt vom bisherigen Kontext verwirrt<br>• du möchtest diesen Verlauf lieber nicht zurücklassen<br><br><strong>✅ Was NICHT gelöscht wird:</strong><br><strong>Die von LIA erzeugten Dateien</strong> – Bilder, Dokumente, Screenshots – bleiben unter Einstellungen › Meine erzeugten Dateien bis zu ihrer eigenen Frist. Was LIA über Sie gelernt hat, lebt außerhalb der Unterhaltung und bleibt: Ihr Langzeitgedächtnis, der beobachtete Rhythmus und die wiederkehrenden Anfragen, die Marke dafür, welche E-Mails bereits gelesen waren, die für Sie angepassten Schwellen. Um das zu löschen, nutzen Sie <strong>Alles vergessen</strong> in den Einstellungen oder löschen Sie Ihr Konto."
           },
           "q3": {
             "question": "Werden Unterhaltungen gespeichert?",
@@ -7123,7 +7223,7 @@
       "settings": {
         "title": "Einstellungen",
         "description": "Kontokonfiguration und Einstellungen",
-        "count": "24",
+        "count": "27",
         "questions": {
           "q1": {
             "question": "Wie ändere ich meine Zeitzone?",
@@ -7163,7 +7263,7 @@
           },
           "q10": {
             "question": "Wie verwalte ich meine Erinnerungen?",
-            "answer": "Du hast vollständige Kontrolle über LIAs Erinnerungen über dich. Geh zu <strong>Einstellungen > Erscheinungsbild > Langzeitgedächtnis</strong>:<br><br><strong>Verfügbare Aktionen:</strong><br>• <strong>Anzeigen</strong>: Liste aller Erinnerungen mit Kategorie und Datum<br>• <strong>Bearbeiten</strong>: Eine Erinnerung korrigieren oder verfeinern<br>• <strong>Löschen</strong>: Einzelne oder alle Erinnerungen löschen<br>• <strong>Anheften</strong>: Wichtige Erinnerungen vor automatischem Löschen schützen<br>• <strong>Exportieren</strong>: Alle deine Daten herunterladen (DSGVO)<br><br><strong>📝 Kategorien:</strong> Vorlieben, Persönlich, Beziehungen, Ereignisse, Muster, Sensibel<br><br><strong>🛡️ Datenschutz:</strong> deine Erinnerungen werden verschlüsselt und sind nur für dich zugänglich.<br><br><strong>⚠️ Vergessensrisiko:</strong> Erinnerungen, die bald automatisch vergessen werden, werden in der Liste markiert, damit Sie die wichtigen rechtzeitig anheften können."
+            "answer": "Du hast vollständige Kontrolle über LIAs Erinnerungen über dich. Geh zu <strong>Einstellungen > Erscheinungsbild > Langzeitgedächtnis</strong>:<br><br><strong>Verfügbare Aktionen:</strong><br>• <strong>Anzeigen</strong>: Liste aller Erinnerungen mit Kategorie und Datum<br>• <strong>Bearbeiten</strong>: Eine Erinnerung korrigieren oder verfeinern<br>• <strong>Löschen</strong>: Einzelne oder alle Erinnerungen löschen<br>• <strong>Anheften</strong>: Wichtige Erinnerungen vor automatischem Löschen schützen<br>• <strong>Exportieren</strong>: Alle deine Daten herunterladen (DSGVO)<br><br><strong>📝 Kategorien:</strong> Vorlieben, Persönlich, Beziehungen, Ereignisse, Muster, Sensibel<br><br><strong>🛡️ Datenschutz:</strong> deine Erinnerungen werden verschlüsselt und sind nur für dich zugänglich.<br><br><strong>🔒 Vorgaben lassen sich nicht löschen:</strong><br>Eine Regel, die du aufgestellt hast – „nenn mich beim Vornamen“, „antworte immer auf Deutsch“ – ist vor dem Löschen geschützt, durch dich wie durch den automatischen Hausputz. Sie bleibt <strong>änderbar</strong>: das ist der eigentliche Weg, eine selbst gegebene Regel zu ändern.<br><br><strong>⚠️ Vergessensrisiko:</strong> Erinnerungen, die bald automatisch vergessen werden, werden in der Liste markiert, damit Sie die wichtigen rechtzeitig anheften können."
           },
           "q11": {
             "question": "Wie konfiguriere ich meinen Standort für standortbezogene Anfragen?",
@@ -7220,6 +7320,18 @@
           "q24": {
             "question": "Was liest der Plattform-Diagnostiker, bevor er einen Vorfall diagnostiziert?",
             "answer": "Bis vor Kurzem nur den Vorfall selbst: eine Prüfung, einen Wert, seine Schwellen. Die Diagnosen sagten es auch — „unzureichende Beweise“.<br><br><strong>Was er jetzt liest, im Moment der Diagnose:</strong><br>• <strong>Aufgeschlüsselte Metriken</strong> über das Fenster des Vorfalls — welches Ergebnis, welcher Status oder welcher Ablehnungsgrund sich bewegt hat, und um wie viel<br>• <strong>Einen begrenzten Logauszug</strong> — aktuelle Fehlerzeilen, nach Ereignis gezählt, personenbezogene Daten entfernt<br>• <strong>Den laufenden Build</strong> und wie lange er schon läuft, damit ein frisches Deployment sichtbar wird<br>• <strong>Das Betriebs-Runbook</strong>, das für diesen Alarm geschrieben wurde<br><br><strong>Jede Quelle steht für sich:</strong> Ist der Logspeicher nicht erreichbar, sagt die Diagnose, dass dieser Abschnitt nicht verfügbar war, statt zu tun, als sei nichts geschehen.<br><br>Unter jeder Diagnose in <strong>Einstellungen › Plattformzustand</strong> zeigt „Was der Diagnostiker gelesen hat“ genau dieses Paket, damit ein Administrator den Text an seinen Beweisen prüfen kann."
+          },
+          "q25": {
+            "question": "Wo finde ich alles, was LIA für mich erstellt hat?",
+            "answer": "Unter <strong>Einstellungen › Meine erzeugten Dateien</strong>. Drei Galerien, eine je Familie: <strong>Bilder</strong>, <strong>Dokumente</strong> (Berichte, Präsentationen, Tabellen) und die <strong>Screenshots</strong>, die beim Surfen entstanden sind.<br><br><strong>🔎 Was du tun kannst:</strong><br>Nach Namen suchen, auf einen Erstellungs- oder Ablaufzeitraum eingrenzen, sortieren, öffnen, herunterladen und eine Auswahl löschen. Die angezeigte Zahl ist die exakte Gesamtzahl, nicht die Zahl der sichtbaren Karten.<br><br><strong>⏳ Die Frist steht auf der Karte:</strong><br>Eine erzeugte Datei ist ein Anhang mit einer Aufbewahrungsdauer. Die Karte zeigt ihr Ende, und in den letzten Stunden wird der Ton warm — lade rechtzeitig herunter, was dir wichtig ist.<br><br><strong>Warum es diese Seite gibt:</strong><br>Bisher führte der einzige Weg zum Bericht von gestern über die Unterhaltung, die ihn geschrieben hatte."
+          },
+          "q26": {
+            "question": "Wie schaltet eine Administratorin eine Funktion ab?",
+            "answer": "Unter <strong>Einstellungen › Verwaltung › Fähigkeiten</strong>. Fünfundzwanzig Schalter, gruppiert in sechs Familien — Medien und Stimme, Gedächtnis und Wissen, Reichweite und Werkzeuge, Arbeit und Initiative, Menschen, Assistentin.<br><br><strong>🔌 Ein Schalter nimmt die Fähigkeit weg, nie den Bestand:</strong><br>Wer das Gedächtnis abschaltet, stoppt das Lernen neuer Fakten; jede bereits gelernte Erinnerung bleibt lesbar und löschbar. Dieselbe Regel gilt für Interessen, Debriefings und Uploads.<br><br><strong>⚡ Sofort wirksam:</strong><br>Der Schalter wird beim Aufruf gelesen, nicht beim Start: das Umlegen braucht keinen Neustart.<br><br><strong>📍 Das Panel sagt, wo es greift:</strong><br>Auf den Routen, an einem internen Engpass oder beidem — und die Deployment-Grenze bleibt darüber: was die Betreiberin in der Umgebung nicht freigegeben hat, lässt sich über den Bildschirm nicht einschalten."
+          },
+          "q27": {
+            "question": "Wie stelle ich die Kontextgröße eines Modells ein?",
+            "answer": "Unter <strong>Einstellungen › Verwaltung › LLM-Konfiguration</strong>, je Platz. Das Feld ist mit dem <strong>vorbelegt</strong>, was dein Server über das Modell sagt, und das Maximum dieses Modells steht direkt darunter. Eingegeben wird in <strong>k</strong>.<br><br><strong>🎯 Warum je Platz:</strong><br>Ein sparsamer Router und eine großzügige Antwortinstanz können auf demselben Modell laufen und unterschiedliche Fenster verdienen. Eine einzige instanzweite Einstellung machte das unmöglich — und forderte von einem kleinen Modell dasselbe Fenster wie von einem großen.<br><br><strong>↩️ Feld leeren:</strong><br>Der Platz fällt auf das zurück, was das Modell selbst angibt. Nichts zu merken, nichts abzuschreiben.<br><br><strong>Warum das zählt:</strong><br>Diese Zahl fordert LIA beim Server an und mit ihr rechnet sie. Weichen beide voneinander ab, greift die automatische Zusammenfassung zum falschen Zeitpunkt, und der Anfang eines langen Austauschs kann abgeschnitten werden, ohne dass es jemand sieht."
           }
         }
       },
@@ -8193,7 +8305,7 @@
       "image_generation": {
         "title": "KI-Bildgenerierung",
         "description": "Bilder mit KI generieren und bearbeiten",
-        "count": "7",
+        "count": "8",
         "questions": {
           "q1": {
             "question": "Wie generiere ich ein Bild?",
@@ -8222,13 +8334,17 @@
           "q7": {
             "question": "Wie lange bleibt ein erzeugtes Bild verfügbar?",
             "answer": "Nicht unbegrenzt. Ein erzeugtes Bild ist ein Anhang mit Ablaufdatum, und eine geplante Bereinigung entfernt abgelaufene Anhänge alle paar Stunden.<br><br><strong>🕒 Was die Karte anzeigt:</strong><br>Die vom Server gelieferte Frist und in den letzten Stunden einen Warnton, damit der Download rechtzeitig möglich bleibt.<br><br><strong>Warum keine fest verdrahtete Dauer:</strong><br>Die Aufbewahrungszeit ist von der Administration konfigurierbar; ein in die Oberfläche geschriebener Wert wäre irgendwann falsch. Bilder von vor dieser Funktion zeigen lieber nichts an, als zu raten.<br><br><strong>💡 Tipp:</strong><br>Nutze die Download-Schaltfläche, sobald dir ein Bild wichtig ist — nur so behalte es über die Frist hinaus."
+          },
+          "q8": {
+            "question": "Wo finde ich alle Bilder, die LIA erstellt hat?",
+            "answer": "Unter <strong>Einstellungen › Meine erzeugten Dateien › Bilder</strong>: alle deine Bilder, über sämtliche Unterhaltungen hinweg, mit Suche über den Namen, zwei Datumsfiltern und vier Sortierungen.<br><br>Die Galerie schiebt die Frist nicht hinaus — sie macht sie <strong>sichtbar</strong>. Jede Karte zeigt ihr Ende, und in den letzten Stunden wird der Ton warm. Lade vorher herunter, was dir wichtig ist.<br><br>Und seit dieser Version <strong>nimmt das Leeren einer Unterhaltung die darin erzeugten Bilder nicht mehr mit</strong>: ein Reset entfernt nur die Anhänge, die du selbst gesendet hast."
           }
         }
       },
       "document_generation": {
         "title": "KI-Dokumenterstellung",
         "description": "Erstellen Sie herunterladbare CSV-, Excel-, Word-, PowerPoint-, PDF-, Markdown- oder Textdateien direkt aus der Unterhaltung.",
-        "count": "6",
+        "count": "7",
         "questions": {
           "q1": {
             "question": "Wie erstelle ich ein Dokument?",
@@ -8253,6 +8369,10 @@
           "q6": {
             "question": "Wie sieht die fertige Datei aus?",
             "answer": "Jedes Format wird mit seinen eigenen Regeln gesetzt, nicht als Text in einem grauen Kasten. Eine <b>Präsentation</b> ist 16:9, mit einem Layout je Absicht — Kapitelauftakt, zweispaltiger Vergleich, native Tabelle — und einer Foliennummer auf jeder Folie. Eine <b>Word</b>-Datei trägt Inhaltsverzeichnis, nummerierte Überschriften, eine Kopfzeile und Seitenzahlen, alle von Word selbst berechnet: sie bleiben richtig, wenn du einen Absatz hinzufügst. Eine <b>Excel</b>-Datei hat typisierte Spalten, eine fixierte Kopfzeile und eine filterbare Tabelle. Ein <b>PDF</b> hat ein Inhaltsverzeichnis mit exakten Seitenzahlen sowie Lesezeichen und Links. Text wird gemessen, bevor er gesetzt wird: eine überfüllte Folie wird verkleinert und dann geteilt statt abgeschnitten."
+          },
+          "q7": {
+            "question": "Wo finde ich alle Dokumente, die LIA erstellt hat?",
+            "answer": "Unter <strong>Einstellungen › Meine erzeugten Dateien › Dokumente</strong>: Berichte, Präsentationen und Tabellen, über sämtliche Unterhaltungen hinweg. Jede Karte trägt den <strong>Titel, den LIA dem Dokument gegeben hat</strong> — „Quartalsbilanz“, keine Kennung — dazu Größe, Datum und Frist.<br><br>Du kannst nach Namen suchen, auf einen Zeitraum eingrenzen, sortieren, öffnen, herunterladen und eine Auswahl löschen. Und <strong>das Leeren der Unterhaltung, die einen Bericht erzeugt hat, löscht ihn nicht mehr</strong>."
           }
         }
       },
@@ -8482,7 +8602,7 @@
       },
       "image_expiry": {
         "title": "Bilder mit klarer Ansage",
-        "desc": "Jedes generierte Bild sagt dir, wie lange es verfügbar bleibt."
+        "desc": "Jedes erzeugte Bild sagt, wie lange es verfügbar bleibt, und lebt in einer eigenen Galerie statt in der Unterhaltung, die es erzeugt hat."
       },
       "attachment_limits": {
         "title": "Eine Absage, die erklärt",
@@ -9023,7 +9143,8 @@
     "confirm_delete_pinned_description": "Diese Erinnerung ist angepinnt. Möchten Sie sie wirklich dauerhaft löschen?",
     "confirm_delete_pinned_title": "Diese angepinnte Erinnerung löschen?",
     "count_one": "{{count}} Erinnerung",
-    "count_other": "{{count}} Erinnerungen"
+    "count_other": "{{count}} Erinnerungen",
+    "procedural_never_deleted": "Diese Anweisungen gehören Ihnen: LIA entfernt sie nie von sich aus. Sie kann eine korrigieren, wenn Sie etwas anderes sagen, und Sie können sie selbst löschen."
   },
   "designSystem": {
     "cards": {
@@ -11461,7 +11582,10 @@
       "proactivity": "Proaktivität",
       "interests": "Interessen",
       "routines": "Routinen",
+      "reminders": "Erinnerungen",
       "relations": "Beziehungen",
+      "open_loops": "Offene Fäden",
+      "workboard": "Arbeitstafel",
       "peers": "LIA-Verbindungen",
       "channels": "Kanäle",
       "spaces": "Spaces",
@@ -11469,6 +11593,7 @@
       "skills": "Fähigkeiten",
       "images": "Bilder",
       "documents": "Dokumente",
+      "generated_files": "Erzeugte Dateien",
       "plugins": "Plugins",
       "habits": "Gewohnheiten",
       "mcp_servers": "MCP-Server",
@@ -11499,7 +11624,33 @@
       "telephony": "Telefonanrufe",
       "telephony_description": "Vom Agenten gesteuerte ausgehende Anrufe. Ausschalten schließt die Telefonie-Routen.",
       "meetings": "Besprechungsaufnahme",
-      "meetings_description": "Besprechungen aufnehmen und Protokolle erstellen. Ausgeschaltet werden die Besprechungsrouten geschlossen; sonst ändert sich nichts."
+      "meetings_description": "Besprechungen aufnehmen und Protokolle erstellen. Ausgeschaltet werden die Besprechungsrouten geschlossen; sonst ändert sich nichts.",
+      "workboard": "Arbeitstafel",
+      "workboard_description": "Die Tickets mit Lebenszyklus, Halter und Ergebnis. Abschalten schließt die Tafel für alle; nichts wird gelöscht.",
+      "journals": "Persönliche Journale",
+      "journals_description": "Datierte Einträge, die LIA schreibt und wieder liest. Abschalten schließt die Journal-Oberfläche.",
+      "habits": "Gelernte Gewohnheiten",
+      "habits_description": "Was LIA über die Rhythmen einer Person ableitet. Abschalten schließt die Gewohnheiten-Oberfläche.",
+      "heartbeat": "Proaktive Benachrichtigungen",
+      "heartbeat_description": "LIA ergreift von sich aus die Initiative. Abschalten schließt die Proaktivität und ihren Verlauf.",
+      "peers": "LIA-Verbindungen",
+      "peers_description": "Verbindungen zwischen Konten. Abschalten schließt die Oberfläche; bestehende Verbindungen bleiben.",
+      "psyche": "Psychologisches Profil",
+      "psyche_description": "Das Profil, das LIAs Ton anpasst. Abschalten schließt die Profil-Oberfläche.",
+      "channels": "Externe Kanäle",
+      "channels_description": "LIA über Telegram und Ähnliches erreichen. Abschalten schließt alle Kanalbindungen.",
+      "open_loops": "Offene Fäden",
+      "open_loops_description": "Unerledigte Fäden, die LIA verfolgt. Abschalten schließt die Oberfläche der offenen Fäden.",
+      "memory": "Langzeitgedächtnis",
+      "memory_description": "Dauerhafte Fakten aus Gesprächen lernen. Abschalten stoppt neue Erinnerungen; bestehende bleiben lesbar und löschbar.",
+      "interests": "Interessenverfolgung",
+      "interests_description": "Lernen, was eine Person verfolgt. Abschalten stoppt neue Interessen; das Profil bleibt lesbar.",
+      "relation_debrief": "Beziehungs-Debriefings",
+      "relation_debrief_description": "Die datierte Zusammenfassung, die LIA über eine Beziehung schreibt. Abschalten stoppt das Schreiben; die Beziehungsseite bleibt offen.",
+      "sub_agents": "Delegierte Unteragenten",
+      "sub_agents_description": "Recherche an einen nur lesenden Unteragenten delegieren. Abschalten verweigert die Delegation beim Aufruf.",
+      "python_sandbox": "Flüchtiges Python",
+      "python_sandbox_description": "Ein kurzes vom Modell geschriebenes Skript in der Sandbox ausführen. Abschalten verweigert es beim Aufruf."
     }
   },
   "showroom": {
@@ -12701,6 +12852,7 @@
     "error_too_many": "Das sind {{count}}-mal täglich; die Grenze liegt bei {{limit}}.",
     "error_step_too_small": "Der kürzeste Abstand beträgt {{limit}} Minuten.",
     "error_no_end_date": "Wählen Sie den letzten Tag oder eine andere Endregel.",
+    "error_end_before_start": "Der letzte Tag kann nicht vor dem ersten liegen.",
     "section_when": "Wann",
     "step_separator": "bis",
     "advanced": "Erweiterte Optionen"
@@ -12811,7 +12963,8 @@
       "reset": "Filter zurücksetzen",
       "total": "{{count}} Ticket passt",
       "total_one": "{{count}} Ticket passt",
-      "total_other": "{{count}} Tickets passen"
+      "total_other": "{{count}} Tickets passen",
+      "none": "Kein Filter"
     },
     "actions": {
       "create": "Neues Ticket",

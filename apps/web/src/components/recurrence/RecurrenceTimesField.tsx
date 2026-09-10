@@ -330,6 +330,10 @@ export function RecurrenceEndField({
             <Input
               type="date"
               aria-label={t('recurrence.date_label')}
+              // The server refuses a series that ends before it starts, so the
+              // control publishes the bound it enforces rather than letting the
+              // request come back 422 (ADR-184).
+              min={value.anchor_date}
               value={value.end.on_date ?? ''}
               onChange={e => onChange({ ...value, end: { ...value.end, on_date: e.target.value } })}
               className="w-full"
