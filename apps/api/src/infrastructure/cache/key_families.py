@@ -64,6 +64,7 @@ KEY_FAMILIES: dict[str, KeyScope] = {
     "briefing:v2": KeyScope.USER_CACHE,
     "heartbeat:birthdays": KeyScope.USER_CACHE,
     "heartbeat:departure": KeyScope.USER_CACHE,
+    "moments:agenda": KeyScope.USER_CACHE,
     "user_connectors": KeyScope.USER_CACHE,
     "interest_analysis": KeyScope.USER_CACHE,
     "usage_limit": KeyScope.USER_CACHE,

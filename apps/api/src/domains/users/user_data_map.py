@@ -267,6 +267,23 @@ TABLE_RULES: dict[str, TableRule] = {
     # by design, purged with the account and by "forget everything".
     "user_activity_days": _PURGED_FULL,
     "heartbeat_notifications": _PURGED_FULL,
+    # Anticipated moments (ADR-281): scheduling bookkeeping, not a record.
+    # A row says « at this instant there will be something to say about this
+    # calendar event » and holds a title, two instants and a score — no
+    # attendee, no address, no body. It is EXCLUDED from the export because it
+    # is not a trace of what LIA did: a settled row is purged after
+    # ``MOMENTS_RETENTION_DAYS``, while the notification it produced lives in
+    # ``heartbeat_notifications`` and in ``agent_effects``, both exported.
+    # Exporting it would hand someone rows about meetings LIA never mentioned.
+    "proactive_moments": TableRule(
+        data_class=TableDataClass.USER_PURGED,
+        export=ExportPolicy.EXCLUDED,
+        reason=(
+            "Scheduling bookkeeping for the proactive sweep, self-purging after "
+            "the retention. What LIA actually said is exported through "
+            "heartbeat_notifications and agent_effects (ADR-281)."
+        ),
+    ),
     "reminders": _PURGED_FULL,
     "scheduled_actions": _PURGED_FULL,
     "open_loops": _PURGED_FULL,
@@ -635,6 +652,7 @@ USER_COLUMNS: dict[str, UserColumnClass] = {
     # content — nothing personal to scrub, and resetting it would silently
     # re-enable interruptions the user refused.
     "heartbeat_disabled_sources": _PREFERENCE,
+    "moment_kinds_disabled": _PREFERENCE,
     "journals_enabled": _PREFERENCE,
     "journal_consolidation_enabled": _PREFERENCE,
     "journal_consolidation_with_history": _PREFERENCE,

@@ -37,6 +37,7 @@ CONSULTATION_RECORDERS: Final[dict[str, str]] = {
     "space": "domains/rag_spaces/consultations.py",
     "wake": "infrastructure/scheduler/heartbeat_wake_sweep.py",
     "profile": "domains/users/geocoding.py",
+    "moment": "infrastructure/scheduler/moment_sweep.py",
 }
 
 #: Surfaces that spend out of turn WITHOUT opening the person's sources, and

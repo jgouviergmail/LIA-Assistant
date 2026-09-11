@@ -60,7 +60,7 @@ def raise_template_not_found(ref: str) -> NoReturn:
 def raise_template_ref_invalid(ref: str) -> NoReturn:
     """422 — the reference has neither of the two legal shapes."""
     raise BaseAPIException(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         detail={"code": "template_ref_invalid"},
         log_event="meeting_template_ref_invalid",
         ref=ref,

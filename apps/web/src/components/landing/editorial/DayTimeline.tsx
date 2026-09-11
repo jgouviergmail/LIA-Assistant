@@ -17,7 +17,7 @@ export const STOPS = ['s1', 's2', 's3', 's4'] as const;
 function Day({ profile }: { profile: (typeof PROFILES)[number] }) {
   const { t } = useTranslation();
   return (
-    <ol className="relative grid list-none gap-8 pt-2 md:grid-cols-4 md:gap-0">
+    <ol className="relative grid list-none grid-cols-1 gap-8 pt-2 md:grid-cols-4 md:gap-0">
       <span
         aria-hidden="true"
         className="absolute left-[7px] top-2 h-full w-px bg-border md:left-[6%] md:right-[6%] md:top-[9px] md:h-px md:w-auto"

@@ -55,6 +55,44 @@ class ScheduledActionRepository(BaseRepository[ScheduledAction]):
         result = await self.db.execute(stmt)
         return result.scalar_one()
 
+    async def close_finished(self) -> int:
+        """Close the routines that have no future left (ADR-281, lot 5).
+
+        A series ends three ways — a ``SeriesEnd`` date reached, an
+        ``after_count`` exhausted, a single occurrence consumed — and all three
+        land on the SAME state: ``next_trigger_at`` NULL, which the model
+        already defines as « nothing follows ». Nothing closed such a routine,
+        so it sat enabled and « active » for ever, indistinguishable from one
+        the person had paused.
+
+        Reading the end from ``next_trigger_at`` rather than from a column of
+        its own is what keeps ONE authority on when a routine stops: the
+        recurrence engine that arms it. An ``expires_at`` beside the series end
+        would be a second answer to a question that has one — and only one of
+        the two would be shown, edited and told in six languages.
+
+        DISABLED, never deleted: the person must be able to see what they had
+        posted. Idempotent by construction — the statement only matches rows
+        still enabled and active, so the next tick finds nothing.
+
+        Returns:
+            How many routines were closed.
+        """
+        statement = (
+            update(ScheduledAction)
+            .where(
+                ScheduledAction.is_enabled.is_(True),
+                ScheduledAction.status == ScheduledActionStatus.ACTIVE.value,
+                ScheduledAction.next_trigger_at.is_(None),
+            )
+            .values(
+                is_enabled=False,
+                status=ScheduledActionStatus.COMPLETED.value,
+            )
+            .returning(ScheduledAction.id)
+        )
+        return len((await self.db.execute(statement)).scalars().all())
+
     async def get_and_lock_due_actions(
         self,
         limit: int = 50,
@@ -76,6 +114,9 @@ class ScheduledActionRepository(BaseRepository[ScheduledAction]):
             select(ScheduledAction)
             .where(ScheduledAction.is_enabled.is_(True))
             .where(ScheduledAction.status == ScheduledActionStatus.ACTIVE.value)
+            # A finished series carries a NULL trigger, and `NULL <= now()` is
+            # UNKNOWN in SQL — so it is excluded here by construction rather
+            # than by a filter someone must remember to write.
             .where(ScheduledAction.next_trigger_at <= current_time)
             .order_by(ScheduledAction.next_trigger_at.asc())
             .limit(limit)

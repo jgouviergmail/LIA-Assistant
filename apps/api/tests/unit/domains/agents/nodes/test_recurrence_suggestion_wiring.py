@@ -12,20 +12,48 @@ import pytest
 from langchain_core.messages import HumanMessage
 
 from src.core.constants import STATE_KEY_INITIATIVE_SUGGESTION
+from src.domains.agents.analysis.query_intelligence import QueryIntelligence, UserGoal
+from src.domains.agents.domain_schemas import RouterOutput
 from src.domains.agents.nodes.initiative_recurrence import initiative_node
 from tests.helpers.runtime_context import installed_runtime_context
 
 
-def _state():
+def _state(intention: str = "action"):
+    """The state as the ROUTER actually writes it.
+
+    Built by the real producers — ``QueryIntelligence.to_serializable_dict``
+    and ``RouterOutput`` — never by hand: the hand-written shape used here
+    until 2026-09-11 carried an ``intent`` key the producer has never
+    emitted, so the gate read ``None`` in production while 40 tests stayed
+    green (see ``tests/unit/test_qi_attr_contract_guard.py``).
+    """
+    intelligence = QueryIntelligence(
+        original_query="fais-moi la revue de presse IA",
+        english_query="do the AI press review",
+        # The producer's own vocabulary: search | detail | create | update |
+        # delete | send | chat | list — never "action", which belongs to the
+        # ROUTER's decision below.
+        immediate_intent="search",
+        immediate_confidence=0.9,
+        user_goal=UserGoal.FIND_INFORMATION,
+        goal_reasoning="press review",
+        domains=["web_search"],
+        primary_domain="web_search",
+    )
     return {
         "messages": [HumanMessage(content="fais-moi la revue de presse IA")],
         "user_timezone": "Europe/Paris",
         "user_language": "fr",
-        "query_intelligence": {
-            "intent": "action",
-            "primary_domain": "web_search",
-            "secondary_domains": [],
-        },
+        "query_intelligence": intelligence.to_serializable_dict(),
+        "routing_history": [
+            RouterOutput(
+                intention=intention,
+                confidence=0.95,
+                context_label="general",
+                next_node="planner",
+                domains=["web_search"],
+            )
+        ],
     }
 
 
@@ -123,8 +151,7 @@ class TestInitiativeRecurrenceWrapper:
         eval_mock.assert_not_awaited()
 
     async def test_conversation_intent_never_checks(self):
-        state = _state()
-        state["query_intelligence"]["intent"] = "conversation"
+        state = _state(intention="conversation")
         with (
             patch(
                 "src.domains.agents.nodes.initiative_recurrence.settings",
@@ -205,8 +232,7 @@ class TestRecurrenceRecordWiring:
         assert not any(n.startswith("recurrence_record_") for n in names)
 
     def test_not_recorded_for_conversation_intent(self):
-        state = _state()
-        state["query_intelligence"]["intent"] = "conversation"
+        state = _state(intention="conversation")
         names = self._run(state=state, config=_CONFIG, settings=self._extraction_settings())
         assert not any(n.startswith("recurrence_record_") for n in names)
 

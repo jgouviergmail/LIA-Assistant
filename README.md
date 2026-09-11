@@ -41,7 +41,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.44.1</strong> — <strong>What LIA makes belongs to the person, not to the conversation.</strong> Generated images, reports, decks and browser screenshots were written to the attachments table, <strong>indistinguishable from an upload</strong>: nothing listed them, the only route to yesterday's report was the conversation that produced it, and clearing that conversation also cleared last week's images in other conversations. Three galleries hold them now, the retention deadline is stated <em>before</em> it falls, and a reset removes only what the person put there. Beside it, <strong>an operator can switch off every feature a person experiences</strong>: the panel offered twelve capabilities while the product shipped twenty-five — the workboard, journals, habits, long-term memory, proactive notifications and eight more could only be turned off by redeploying — and the partition is now checked both ways, so a feature shipped without a switch refuses to boot. And <strong>the context window belongs to the configured slot</strong>: one environment variable used to fix it for every Ollama model at once, asking a 4-billion-parameter model for the same window as a 27-billion one. — 10 September 2026.
+  <strong>Version 1.44.2</strong> — <strong>The heartbeat is periodic; a moment is an instant.</strong> A meeting ends at 15:00 and the next pass falls at 15:22, on a batch the person may not be in — and the context's calendar window starts at <em>now</em> and looks forward, so a meeting that has <strong>ended</strong> is invisible to the decision. <strong>Anticipated moments</strong> keep a table of instants: one per account and per source, claimed under a lock, <strong>revalidated</strong> before being served (the meeting may have been cancelled or declined, the person may already have written), and served under the heartbeat's full eligibility while bypassing only the probabilistic smoothing — because an instant does not defer. Beside it, <strong>an awaited mail is served within a minute or two instead of two hours</strong>: the push-driven wake already holds the Gmail delta, and now serves the mail watches from it before the pre-filter's verdict, without running the routine itself. And <strong>the recurrence ledger had never recorded anything</strong>: measured in production, zero habit rows five weeks after go-live, because two readers read an attribute the query-intelligence model does not declare and forty green tests built exactly the key the reader expected. The gate now reads the router's own decision, a guard forbids the fifth dead read, and the silence became an alert. — 11 September 2026.
 </p>
 
 ---
@@ -116,8 +116,8 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **47** functional domains | **655,000** lines of code (excl. tests) | **36,000+** automated tests | **279** ADRs                                                           |
-| **254** versions shipped  | **6 languages**, parity enforced in CI  | **547** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **48** functional domains | **660,000** lines of code (excl. tests) | **36,000+** automated tests | **280** ADRs                                                           |
+| **255** versions shipped  | **6 languages**, parity enforced in CI  | **550** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, 7 open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -314,6 +314,57 @@ that produced it, and clearing that conversation cleared last week's images too.
   cleanup removed between the listing and the click, and the same id sent twice
   are all **skipped**, never counted as removals.
 
+### Anticipated Moments & Mail Watches Served to the Minute ([ADR-281](docs/architecture/ADR-281-Anticipated-Moments-And-Mail-Watches.md), [ADR-214](docs/architecture/ADR-214-Habitudes-Utilisateur-Apprentissage-Deterministe.md))
+
+The heartbeat is **periodic**, so it cannot serve an **instant**: a meeting ends
+at 15:00 and the next pass falls at 15:22, on a batch the person may not be in,
+while the context's calendar window starts at `now` and looks forward — a
+finished meeting is invisible to the decision.
+
+- **A `proactive_moments` row is one instant for one account**, unique on
+  `(user, kind, source)` so a meeting never produces two, claimed by
+  `FOR UPDATE SKIP LOCKED` plus a conditional `UPDATE` in the same transaction
+  with an owner token, and **revalidated** before it is served — cancelled,
+  declined, or already written about, it is dropped. A claim nobody settled is
+  **reclaimed** after its lease (`MOMENTS_CLAIM_LEASE_MINUTES`), never left
+  immortal.
+- **It bypasses the deferrals, never the guards**: the full eligibility checker
+  runs, only the probabilistic smoothing and the learned rhythm are skipped —
+  the same exception as a push-driven wake, for the same reason. The question is
+  **asked, never the evaluation**: one open question, at most two facts, no
+  judgement, never twice.
+- **The in-meeting guard** reads the calendar behind a Redis verdict cache and
+  **records no consultation on a cache hit** (Redis answered; the mailbox was
+  never opened); a failed read declares `failed` rather than reading as silence.
+- **Control ships with the capability**: one switch per kind in the settings,
+  the capability's own switch in the admin panel, `task moments:preflight` to
+  say what an account would be offered right now without writing anything, and
+  the counter and latency drawn on the heartbeat dashboard.
+- **A watch is served to the minute**: the push-driven wake already holds the
+  Gmail delta and serves `mail_match` watches from it **before** the pre-filter's
+  verdict — it advances `next_trigger_at` and never runs the routine; the
+  executor stays the sole judge. It arms past the published Gmail search-cache
+  TTL, because a cache filled before the mail arrived would answer "not met" and
+  that verdict consumes the arming.
+- **A finished routine closes** (`is_enabled = false`, `status = completed`):
+  `SeriesEnd` already ended a series three ways, but nothing closed the row,
+  which stayed "active" for ever and indistinguishable from a pause.
+- **The briefing's "Watch" chip writes a condition routine** keyed on the
+  sender, never the subject — and reads what the account already holds before
+  writing, so two mails from one sender never announce one awaited reply twice.
+- **The recurrence ledger records again, and says when it does not.** Measured
+  in production: zero `user_habits` rows five weeks after go-live — two gate
+  readers read `get_qi_attr(state, "intent")`, an attribute the model does not
+  declare, and forty green tests built exactly that key. The gate reads the
+  router's own closed-vocabulary decision (`resolve_actionable_domain`), a
+  contract guard forbids any literal read of an undeclared attribute, and
+  `RecurrenceLedgerSilent` fires on actionable human turns without a landed
+  write. A fourth habit shape, `intermittent` ("several times a week around
+  {hour}"), replaces the "every day" a 3×/week rhythm used to be promised;
+  the thresholds were recalibrated on a durable harness
+  (`task habits:calibration:measure`, 300 trials per cell) and the relaxations
+  the harness refused are kept in its tables.
+
 ### Pinned Settings Sections in a Floating Dock ([ADR-277](docs/architecture/ADR-277-Settings-Shortcuts-Dock.md))
 
 - **What is pinned belongs to the account, where the dock sits belongs to the device**: the list travels in one nullable JSONB column and follows the person to every browser they sign in from; the dock's position and folded state stay in that device's `localStorage`, outside the purge registry for the same reason the eyes' position is.
@@ -425,7 +476,7 @@ ExecutionStep(
 
 ### Enterprise Observability
 
-- **Prometheus**: 547 custom metrics (agents, LLM, infrastructure)
+- **Prometheus**: 550 custom metrics (agents, LLM, infrastructure)
 - **Grafana**: 28 production-ready dashboards
 - **Langfuse**: LLM-specific tracing with prompt versions
 - **Loki**: Structured JSON logs with PII filtering
@@ -1109,12 +1160,12 @@ OpenAI compatibility layer, which is what makes the difference:
 | [GUIDE_DEVELOPPEMENT](./docs/guides/GUIDE_DEVELOPPEMENT.md)   | Complete development workflow                             |
 | [GUIDE_AGENT_CREATION](./docs/guides/GUIDE_AGENT_CREATION.md) | How to create a new agent                                 |
 | [GUIDE_TOOL_CREATION](./docs/guides/GUIDE_TOOL_CREATION.md)   | How to create a new tool                                  |
-| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md)               | Testing strategy (24,042 backend tests across 1,451 files)       |
+| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md)               | Testing strategy (28,233 backend tests across 1,652 files)       |
 | [GUIDE_DEBUGGING](./docs/guides/GUIDE_DEBUGGING.md)           | LangGraph and log debugging                               |
 
 ### Architecture Decision Records (ADR)
 
-279 ADR files (ADR-001 through ADR-280 — ADR-008 has no separate file) documenting major architectural decisions:
+280 ADR files (ADR-001 through ADR-281 — ADR-008 has no separate file) documenting major architectural decisions:
 
 - [ADR-007: Service Layer Pattern for Node Complexity](./docs/architecture/ADR-007-Service-Layer-Pattern-For-Node-Complexity.md)
 - [ADR-048: Semantic Tool Router](./docs/architecture/ADR-048-Semantic-Tool-Router.md)
@@ -1148,9 +1199,9 @@ pytest --cov=src --cov-report=html -v
 
 | Metric                  | Value                                                                                         |
 | ----------------------- | --------------------------------------------------------------------------------------------- |
-| Total backend tests     | 20,468 collected (`pytest tests/unit tests/agents --collect-only`, 2026-08-27)                |
-| Frontend tests (vitest) | 6,327 across 496 files (+ hermetic Playwright E2E specs incl. axe/dark/zoom)                   |
-| Coverage floor          | 71% backend enforced, 71.37% measured (shrink-only ratchet) · frontend thresholds per glob     |
+| Total backend tests     | 28,233 collected over `tests/` (`pytest --collect-only -q`, 1,652 files, 2026-09-11)        |
+| Frontend tests (vitest) | 8,246 across 644 files (+ 216 hermetic Playwright E2E specs incl. axe/dark/zoom)             |
+| Coverage floor          | 72% backend enforced, 71.37% measured (shrink-only ratchet) · frontend thresholds per glob     |
 | CI Workflows            | 3 (CI, Security, Release)                                                                     |
 | Technical audit         | **8.3/10** across 24 normalized areas — [full public report & protocol](docs/audit/README.md) |
 
@@ -1167,7 +1218,7 @@ Pre-commit (local)              GitHub Actions CI
 ===================             ==================
 .bak files check                Lint Backend (Ruff + Black + MyPy)
 Secrets grep                    Lint Frontend (ESLint + TypeScript)
-Ruff + Black + MyPy             Fast unit tests + coverage (71%)
+Ruff + Black + MyPy             Fast unit tests + coverage (72%)
 Fast unit tests                 Integration tests (PostgreSQL + Redis)
 Critical pattern detection      Agents suite
 i18n keys sync                  Code Hygiene (i18n, Alembic, lockfiles, patterns)
@@ -1191,7 +1242,7 @@ ESLint + TypeScript check       ────────────────
 | **Branch protection**         | PR required (external contributors), 7 status checks, force push forbidden                                                                                                                                                          |
 | **Dependabot**                | Weekly updates for pip, npm, Docker, Actions — minor/patch grouped                                                                                                                                                                  |
 | **Pre-commit / CI alignment** | CI covers everything the pre-commit does (and more)                                                                                                                                                                                 |
-| **Coverage threshold**        | 71% enforced in CI, 71.37% measured — a shrink-only ratchet: never lowered, raised only while at least 2 points of margin remain against the measurement            |
+| **Coverage threshold**        | 72% enforced in CI, 71.37% measured — a shrink-only ratchet: never lowered, raised only while at least 2 points of margin remain against the measurement            |
 | **Documentation gate**        | Every version and threshold a document states is recomputed from the code that owns it and a mismatch fails the build; links, code paths and unreachable documents too       |
 
 ### Workflows

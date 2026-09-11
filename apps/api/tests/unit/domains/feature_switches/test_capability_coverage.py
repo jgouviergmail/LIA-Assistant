@@ -67,6 +67,10 @@ EXPECTED_CAPABILITIES: frozenset[str] = frozenset(
         "relation_debrief",
         "sub_agents",
         "python_sandbox",
+        # ADR-281 — LIA comes back at an INSTANT (a meeting that just ended)
+        # rather than at a tick. It adds a scheduler job and a new way to be
+        # interrupted, so an operator must be able to switch it off.
+        "moments",
     }
 )
 

@@ -4,22 +4,29 @@ A processed Google push notification queues ``(user, provider)`` (see
 ``domains/push_channels/wake.py``); this leader-elected sweep runs every
 couple of minutes and, for each queued user:
 
+0. what the person ASKED for, before any gate: a Gmail wake feeds the label
+   sources (``rag_spaces/mail_sync.py``, ADR-262) and brings their mail
+   watches forward (``scheduled_actions/mail_watches.py``, ADR-281). Neither
+   is a decision of LIA, so neither answers to a cooldown, a switch or a
+   refusal — a watch is a standing instruction the person wrote;
 1. wake cooldown (``SET NX``) — one served wake per user per window;
 2. the user's source preference — a refused source never wakes;
 3. the fresh delta: Gmail ``history.list`` from the heartbeat's consumption
    anchor (never advanced here — a refused wake must not swallow mail the
-   next tick would have seen) or the calendar changes since the push;
+   next tick would have seen) or the calendar changes since the push. Read
+   ONCE per wake: when step 0 already opened the mailbox, the messages are
+   handed down rather than fetched again;
 4. the deterministic pre-filter (published rules, no LLM);
 5. the heartbeat task for THIS user only, under the FULL eligibility
    checker (window, quota, cooldowns, activity) — only the "guaranteed
    minimum" smoothing is skipped, because a wake answers an event;
 6. Drive wakes are not a decision at all: they reindex the changed files of
-   linked folders (``rag_spaces/drive_ingest.py``); a Gmail wake first feeds
-   the user's label sources (``rag_spaces/mail_sync.py``, ADR-262), which
-   answer to no gate either.
+   linked folders (``rag_spaces/drive_ingest.py``).
 
 Every wake ends in exactly one counted outcome; latency is measured from
-the push to the decision. Nothing here bypasses a gate.
+the push to the decision. Nothing here bypasses a gate that applies to it —
+and step 0 is not an exception to that, because none of those gates were ever
+about the person's own instructions.
 """
 
 from __future__ import annotations
@@ -51,6 +58,10 @@ from src.infrastructure.observability.metrics_push_channels import (
 )
 
 logger = structlog.get_logger(__name__)
+
+#: What one mailbox read yields: the metadata, and the history id to store if
+#: the wake is served. Named because three functions now pass it between them.
+MailDelta = tuple[list[dict[str, Any]], str | None]
 
 _PROVIDERS: tuple[str, ...] = tuple(p.value for p in PushChannelProvider)
 _SOURCE_OF_PROVIDER: dict[str, str] = {
@@ -95,25 +106,35 @@ async def _load_user(user_id: UUID) -> Any:
         return await db.get(User, user_id)
 
 
-async def _gmail_signal(payload: WakePayload) -> tuple[str, WakePayload]:
-    """Read the delta and the metadata; return the outcome and the enriched payload."""
+async def _gmail_delta(payload: WakePayload) -> MailDelta | None:
+    """The new INBOX messages since the consumption anchor, read ONCE.
+
+    Extracted so the two readers of the same mailbox share one implementation
+    and one consultation row: the watch arming needs these messages BEFORE the
+    heartbeat gates, and the wake decision needs them after.
+
+    The anchor is never advanced here — a refused wake must not swallow mail
+    the next tick would have seen.
+
+    Args:
+        payload: The queued wake.
+
+    Returns:
+        ``(messages, new_history_id)``, or None when there is nothing to read:
+        no anchor yet, no credentials, or an empty delta.
+    """
     from src.domains.connectors.clients.google_gmail_client import GoogleGmailClient
     from src.domains.connectors.models import ConnectorType
     from src.domains.connectors.service import ConnectorService
     from src.domains.heartbeat.gmail_delta import _anchor_key
-    from src.domains.heartbeat.wake_context import (
-        fetch_mail_metadata,
-        gmail_delta_preview,
-        mail_verdict,
-    )
-    from src.domains.push_channels.wake_filter import mail_rules_from_settings
+    from src.domains.heartbeat.wake_context import fetch_mail_metadata, gmail_delta_preview
     from src.infrastructure.database.session import get_db_context
 
     redis = await get_redis_cache()
     anchor = await redis.get(_anchor_key(payload.user_id))
     if not anchor:
         # No consumption anchor yet: the next tick anchors; nothing to serve.
-        return "no_signal", payload
+        return None
     anchor_str = anchor.decode() if isinstance(anchor, bytes) else str(anchor)
 
     async with get_db_context() as db:
@@ -122,20 +143,82 @@ async def _gmail_signal(payload: WakePayload) -> tuple[str, WakePayload]:
             payload.user_id, ConnectorType.GOOGLE_GMAIL
         )
         if credentials is None:
-            return "source_disabled", payload
+            return None
         client = GoogleGmailClient(payload.user_id, credentials, connector_service)
         try:
             # ONE row per wake and per source probed, never one per message:
-            # the register names the capability, never the mail. Nobody asked
-            # for this read, and when the verdict is « not worth waking them »
-            # there is nothing else the person could ever consult about it.
+            # the register names the capability, never the mail.
             async with _wake_read(payload.user_id, "emails"):
                 ids, new_history_id = await gmail_delta_preview(client, anchor_str)
                 if not ids:
-                    return "no_signal", payload
+                    return None
                 messages = await fetch_mail_metadata(client, ids)
         finally:
             await client.close()
+    return messages, new_history_id
+
+
+async def _serve_mail_watches(payload: WakePayload) -> MailDelta | None:
+    """Bring this account mail watches forward, BEFORE any heartbeat gate.
+
+    A watch is a standing instruction the person wrote — « tell me when Marie
+    replies » — not a decision LIA takes. It therefore answers to none of the
+    heartbeat controls, exactly like the label-source indexing beside it: not
+    the wake cooldown (mail arrives in bursts, so a watch would routinely be
+    dropped because LIA spoke a quarter of an hour ago), not
+    ``heartbeat_enabled``, and not a refusal of the ``emails`` source, which
+    says « do not interrupt me ABOUT my mail », never « stop watching for the
+    reply I asked for ».
+
+    The mailbox is opened only for an account that HOLDS a watch: a Gmail read
+    spends the person own quota, and one indexed row lookup answers first.
+
+    Args:
+        payload: The queued wake.
+
+    Returns:
+        The delta it read, so the wake decision below reuses it instead of
+        opening the mailbox a second time. None when nothing was read.
+    """
+    from src.domains.scheduled_actions.mail_watches import arm_mail_watches, has_mail_watches
+
+    try:
+        if not await has_mail_watches(payload.user_id):
+            return None
+        delta = await _gmail_delta(payload)
+        if delta is None:
+            return None
+        await arm_mail_watches(payload.user_id, delta[0])
+        return delta
+    except Exception as exc:  # noqa: BLE001 — a watch never costs the wake
+        logger.warning(
+            "push_wake_mail_watch_failed",
+            user_id=str(payload.user_id),
+            error_type=type(exc).__name__,
+        )
+        return None
+
+
+async def _gmail_signal(
+    payload: WakePayload,
+    delta: MailDelta | None = None,
+) -> tuple[str, WakePayload]:
+    """Decide whether this delta is worth waking the heartbeat.
+
+    Args:
+        payload: The queued wake.
+        delta: What the watch pass already read, when it read anything. Handed
+            down rather than re-read: one wake opens the mailbox once.
+    """
+    from src.domains.heartbeat.wake_context import mail_verdict
+    from src.domains.push_channels.wake_filter import mail_rules_from_settings
+
+    if delta is None:
+        delta = await _gmail_delta(payload)
+    if delta is None:
+        return "no_signal", payload
+    messages, new_history_id = delta
+
     verdict = mail_verdict(messages, mail_rules_from_settings(settings))
     if not verdict.passes:
         logger.debug("push_wake_mail_refused", reason=verdict.reason)
@@ -249,8 +332,12 @@ async def _serve_one(redis: Any, payload: WakePayload) -> str:
         return "stale"
     if payload.provider == PushChannelProvider.GOOGLE_DRIVE.value:
         return await _serve_drive(payload)
+    delta: MailDelta | None = None
     if payload.provider == PushChannelProvider.GOOGLE_GMAIL.value:
         await _serve_mail_sources(payload)
+        # Before every gate below, and for the same reason indexing is: a watch
+        # is an instruction the person wrote, not a decision of LIA (ADR-281).
+        delta = await _serve_mail_watches(payload)
     if not await try_acquire_wake_cooldown(
         redis, payload.user_id, settings.push_wake_cooldown_minutes
     ):
@@ -264,7 +351,7 @@ async def _serve_one(redis: Any, payload: WakePayload) -> str:
     if source is None or not is_source_enabled(user, source):
         return "source_disabled"
     if payload.provider == PushChannelProvider.GOOGLE_GMAIL.value:
-        outcome, enriched = await _gmail_signal(payload)
+        outcome, enriched = await _gmail_signal(payload, delta)
     else:
         outcome, enriched = await _calendar_signal(payload, user)
     if outcome != "signal":

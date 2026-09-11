@@ -50,6 +50,7 @@ import {
   Palette,
   Radio,
   HeartPulse,
+  Hourglass,
   Globe2,
   Newspaper,
   RefreshCw,
@@ -174,6 +175,7 @@ export const featureIcons = {
   richResponses: LayoutTemplate,
   multichannel: Radio,
   heartbeatAutonome: HeartPulse,
+  anticipatedMoments: Hourglass,
   webFetch: Globe2,
   geolocation: MapPin,
   knowledgeEnrichment: Newspaper,
@@ -247,6 +249,8 @@ export const featureKeys = [
   'excalidraw',
   'multichannel',
   'heartbeatAutonome',
+  // v1.44.2, ADR-281: the heartbeat is periodic, a moment is an instant.
+  'anticipatedMoments',
   'webFetch',
   // Wired at v1.30.0 alongside ADR-219: the card existed in the six locales
   // since the dual-source days and was part of the pre-featureKeys curation;

@@ -7,9 +7,12 @@
  * 1. **One gallery is fetched, not three.** The three tabs each own a query;
  *    mounted together they would open three pages nobody is looking at. This
  *    spec counts the requests that actually left.
- * 2. **At 320 px nothing scrolls sideways** and the filters are FOLDED behind a
- *    summary that says what they hold. A component test can assert the fold; it
- *    cannot measure a document that overflows.
+ * 2. **At 320 px no card reaches past the screen** and the filters are FOLDED
+ *    behind a summary that says what they hold. A component test can assert
+ *    the fold; it cannot measure a card that overflows — and neither can the
+ *    document's `scrollWidth`: the section clips, so the page never scrolled
+ *    while every card was 665 px wide (measured 2026-09-11, an implicit grid
+ *    track sized to a nowrap title). The oracle is each card's own right edge.
  * 3. **The expiry is on every card.** A file that vanishes with nothing said is
  *    the defect the deadline exists for.
  * 4. **A bulk delete asks the server exactly what was selected**, and reports
@@ -44,9 +47,14 @@ function asset(overrides: Record<string, unknown> = {}) {
  *
  * @param asked - Collector for the query strings that left the browser.
  * @param deletes - Collector for the bulk-delete payloads.
+ * @param items - The page to serve; two short-named files by default.
  * @returns The mock routes.
  */
-function galleryRoutes(asked: string[], deletes: unknown[] = []): MockRoute[] {
+function galleryRoutes(
+  asked: string[],
+  deletes: unknown[] = [],
+  items: Record<string, unknown>[] = [asset(), asset({ id: OTHER_ID, title: 'Plan de la salle' })]
+): MockRoute[] {
   return [
     {
       url: /\/api\/v1\/generated-assets\/delete$/,
@@ -68,8 +76,8 @@ function galleryRoutes(asked: string[], deletes: unknown[] = []): MockRoute[] {
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify({
-            items: [asset(), asset({ id: OTHER_ID, title: 'Plan de la salle' })],
-            total: 2,
+            items,
+            total: items.length,
             total_bytes: 4096,
             limit: 24,
             offset: 0,
@@ -141,7 +149,7 @@ test.describe('the generated files gallery', () => {
     await expect.poll(() => asked.includes('documents')).toBe(true);
   });
 
-  test('folds the filters on a phone and never scrolls sideways', async ({
+  test('folds the filters on a phone and keeps every card inside the screen', async ({
     page,
     authenticate,
     mockApi,
@@ -149,10 +157,45 @@ test.describe('the generated files gallery', () => {
     // 320 px is the narrowest phone this app claims to serve.
     await page.setViewportSize({ width: 320, height: 720 });
     await authenticate({ language: 'fr' });
-    await mockApi(galleryRoutes([]));
+    // A FULL page of files named the way LIA names them — the person's own
+    // request, and a filename with no space to break on. One short card
+    // never reproduced the defect.
+    const page24 = Array.from({ length: 24 }, (_, i) =>
+      asset({
+        id: `a1b2c3d4-0000-4000-8000-0000000000${String(i + 10).padStart(2, '0')}`,
+        title:
+          "Modifier uniquement l'apparence du chat : le rendre noir et blanc, avec un pelage tigré",
+        original_filename: 'generated_analyse_trimestrielle_ventes_2026_Q3_version_finale.png',
+      })
+    );
+    await mockApi(galleryRoutes([], [], page24));
 
     await page.goto('/fr/dashboard/settings?section=generated-assets');
     await waitForHydration(page, CARD);
+
+    // Every card ends before the screen does, and the grid's single track is
+    // the width of its container — not of its widest title.
+    const layout = await page.evaluate(selector => {
+      const cards = Array.from(document.querySelectorAll(selector));
+      const grid = cards[0]?.parentElement;
+      return {
+        cards: cards.length,
+        widest: Math.max(...cards.map(card => card.getBoundingClientRect().right)),
+        track: grid ? getComputedStyle(grid).gridTemplateColumns : '',
+        gridWidth: grid?.getBoundingClientRect().width ?? 0,
+        parentWidth: grid?.parentElement?.getBoundingClientRect().width ?? 0,
+      };
+    }, CARD);
+    expect(layout.cards).toBe(24);
+    expect(layout.widest).toBeLessThanOrEqual(320);
+    expect(layout.gridWidth).toBe(layout.parentWidth);
+    expect(layout.track).toBe(`${layout.gridWidth}px`);
+
+    // The three family tabs still say their whole word.
+    for (const name of ['Images', 'Documents', 'Captures']) {
+      const label = page.getByRole('tab', { name }).locator('span');
+      expect(await label.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+    }
 
     // Folded, the search field is UNMOUNTED — not merely hidden — and the
     // summary still says what the block holds.

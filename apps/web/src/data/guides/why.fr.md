@@ -4,7 +4,7 @@
 
 **Version** : 6.0
 **Date** : 2026-08-23
-**Application** : LIA v1.44.1
+**Application** : LIA v1.44.2
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -164,6 +164,7 @@ LIA ne se contente pas de répondre — elle anticipe :
 - **Centres d'intérêt** : LIA retient ce à quoi tu tiens vraiment, pas ce que tu as demandé une fois — poser une question est une tâche, pas un goût, et il faut une passion déclarée, une pratique, une connaissance ou un approfondissement réel pour qu'un sujet compte. Les thèmes alternent (jamais deux fois le même d'affilée), chaque notification cite ses sources, et un sujet que tu refuses ne revient pas : le blocage est comparé à tout nouveau sujet, y compris sous un autre nom
 - **Un travail qu'on confie, et qui revient** : un ticket a un cycle de vie, un porteur et un résultat. Confies-en un à LIA et elle le prend à son rythme, le fait, commente ce qu'elle a trouvé et te rend le résultat à accepter — et quand elle rencontre quelque chose qu'elle n'a pas le droit de faire seule, elle demande sur le ticket, en montrant exactement ce qu'elle s'apprête à faire, plutôt que de décider à ta place ou de renoncer
 - **Sous-agents** : pour les tâches complexes, LIA délègue à des agents éphémères spécialisés qui travaillent en parallèle
+- **Revenir à l'instant qui compte** : une réunion se termine, et LIA te demande comment ça s'est passé — à la fin, pas au prochain passage deux heures plus tard. Une question ouverte, jamais une évaluation, jamais pendant la réunion suivante ; chaque genre de moment se coupe seul dans les réglages. Et un courrier que tu attends est servi à la minute : « Surveiller » depuis le briefing crée la veille, qui prend fin d'elle-même une fois la réponse arrivée
 - **Réagir, pas seulement vérifier** : quand la boîte aux lettres ou l'agenda signale quelque chose, LIA peut décider en quelques minutes au lieu d'attendre son prochain passage — sous exactement la même plage horaire, le même plafond et les mêmes pauses, et seulement pour un e-mail portant le libellé que tu juges important ou un événement qui te concerne bientôt. Une rafale d'arrivées ne fait qu'un réveil, et un moment jugé inopportun rend simplement le message au passage régulier
 
 ### 3.7. Navigation web autonome

@@ -407,6 +407,16 @@ class User(BaseModel):
         comment="Heartbeat sources the user refused; NULL = all enabled.",
     )
 
+    # Kinds of anticipated moment the person refuses (ADR-281). Same doctrine
+    # as the sources above: the REFUSAL set, so NULL keeps every existing
+    # account exactly as it was and a kind shipped later is on until refused.
+    # Vocabulary + read/write rules live in `domains/moments/preferences.py`.
+    moment_kinds_disabled: Mapped[list[str] | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="Anticipated-moment kinds the user refused; NULL = all enabled.",
+    )
+
     # Journal settings (Personal Journals — Carnets de Bord)
     journals_enabled: Mapped[bool] = mapped_column(
         default=True,

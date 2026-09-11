@@ -62,7 +62,7 @@ export async function TransparencySection({
           </p>
         </FadeInOnScroll>
 
-        <div className="mt-10 grid gap-4 text-left sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-10 grid grid-cols-1 gap-4 text-left sm:grid-cols-2 lg:grid-cols-4">
           {proofs.map(({ key, href }, i) => (
             <FadeInOnScroll key={key} delay={i * 80}>
               <div className="h-full rounded-2xl border border-border bg-background p-5 transition-colors hover:border-primary/30">

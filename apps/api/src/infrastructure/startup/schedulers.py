@@ -39,6 +39,7 @@ from src.core.constants import (
     SCHEDULER_JOB_LEADER_LOCK_RENEWAL,
     SCHEDULER_JOB_MEMORY_CLEANUP,
     SCHEDULER_JOB_MEMORY_CONSOLIDATION,
+    SCHEDULER_JOB_MOMENT_SWEEP,
     SCHEDULER_JOB_OAUTH_HEALTH,
     SCHEDULER_JOB_PRODUCT_ROLLUP,
     SCHEDULER_JOB_PSYCHE_DREAM_CYCLE,
@@ -504,6 +505,32 @@ async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
             logger.info(
                 "heartbeat_notification_job_scheduled",
                 interval_minutes=settings.heartbeat_notification_interval_minutes,
+            )
+
+        # Schedule the anticipated-moments sweep (ADR-281). Registered under the
+        # heartbeat flag as well as its own: a moment is SERVED by the heartbeat
+        # task, so a deployment with the heartbeat off has nothing to serve it
+        # with. The capability itself is re-read at every tick, so an operator
+        # switching it off is obeyed without a restart.
+        if getattr(settings, "heartbeat_enabled", False) and getattr(
+            settings, "moments_enabled", False
+        ):
+            from src.infrastructure.scheduler.moment_sweep import run_moment_sweep
+
+            scheduler.add_job(
+                run_moment_sweep,
+                trigger="interval",
+                minutes=settings.moments_sweep_interval_minutes,
+                jitter=jitter_seconds_for(minutes=settings.moments_sweep_interval_minutes),
+                id=SCHEDULER_JOB_MOMENT_SWEEP,
+                name="Anticipated moments sweep",
+                replace_existing=True,
+                max_instances=1,
+                misfire_grace_time=60,
+            )
+            logger.info(
+                "moment_sweep_job_scheduled",
+                interval_minutes=settings.moments_sweep_interval_minutes,
             )
 
         # Schedule journal consolidation (Personal Journals — Carnets de Bord)

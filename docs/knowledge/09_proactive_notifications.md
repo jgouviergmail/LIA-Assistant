@@ -192,3 +192,14 @@ Yes, when the administrator has switched the capability on. Instead of waiting f
 
 In the notification history, the ones that answered an email or an invitation are marked as such, next to those that came from the regular pass.
 
+
+## Can LIA come back to me right after a meeting?
+Yes. The regular proactive pass is periodic, so it could not return to a precise instant: a meeting ending at 3 pm was only seen at the next pass, if at all. **Anticipated moments** fix that — shortly after an important meeting ends, LIA asks how it went.
+
+**How it behaves:**
+• one open question, grounded in at most two facts — never a judgement, never an evaluation
+• the moment is re-checked just before it is served: a meeting that was cancelled or declined, or one you already wrote about, says nothing
+• two back-to-back meetings earn one question, at the end of the block, never in the middle of the next one
+• your notification hours, daily limit and pauses still apply — only the "spread over the day" smoothing is bypassed, because an instant does not defer
+
+**Where to control it:** Settings → *Proactive Notifications* → *Anticipated moments*. Each kind has its own switch ("After a meeting" needs a connected calendar), and your administrator can switch the whole capability off.

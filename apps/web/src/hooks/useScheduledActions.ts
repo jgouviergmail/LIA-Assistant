@@ -12,8 +12,14 @@ export const EXECUTING_REFRESH_INTERVAL_MS = 10_000;
 
 /**
  * Scheduled action status types.
+ *
+ * `completed` is a routine whose series has nothing left — end date reached,
+ * `after_count` exhausted, single occurrence consumed (ADR-281). It is closed
+ * by the executor (`is_enabled = false`), which is why it must be read BEFORE
+ * the disabled flag: otherwise a finished routine reads as paused, and "it
+ * finished" and "you stopped it" are different things to tell someone.
  */
-export type ScheduledActionStatus = 'active' | 'executing' | 'error';
+export type ScheduledActionStatus = 'active' | 'executing' | 'error' | 'completed';
 
 /** N-07: how a routine decides to run at its cron tick. */
 export type TriggerKind = 'time' | 'condition';

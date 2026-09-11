@@ -207,46 +207,32 @@ async def fetch_agenda(
         ConnectorNotConfiguredError: if no active calendar connector for the user.
         ConnectorAccessError: on credential resolution failure or HTTP error.
     """
-    from src.domains.connectors.preferences.owner_defaults import resolve_owner_calendar_id
+    from src.domains.connectors.calendar_access import (
+        CalendarUnavailable,
+        open_active_calendar,
+    )
 
-    async with get_db_context() as db:
-        connector_service = ConnectorService(db)
-        resolved_type = await resolve_active_connector(user.id, "calendar", connector_service)
-        if resolved_type is None:
-            raise ConnectorNotConfiguredError("calendar")
-
-        credentials: Any = (
-            await connector_service.get_apple_credentials(user.id, resolved_type)
-            if resolved_type.is_apple
-            else await connector_service.get_connector_credentials(user.id, resolved_type)
-        )
-        if not credentials:
+    async with get_db_context() as db, open_active_calendar(db, user.id) as access:
+        # The refusal is NAMED, so the two sentences a reader may need stay
+        # distinct: "connect a calendar" and "your connection expired".
+        if access is CalendarUnavailable.NO_CREDENTIALS:
             raise ConnectorAccessError(
                 "calendar",
                 ERROR_CODE_CONNECTOR_OAUTH_EXPIRED,
                 "Credentials missing or refresh failed",
             )
-
-        client_class = ClientRegistry.get_client_class(resolved_type)
-        if client_class is None:
+        if isinstance(access, CalendarUnavailable):
             raise ConnectorNotConfiguredError("calendar")
-        client = client_class(user.id, credentials, connector_service)
-
-        # The user's preferred default calendar (falls back to "primary"),
-        # through the shared owner-default resolver.
-        calendar_id: str = await resolve_owner_calendar_id(
-            db=db, client=client, owner_id=user.id, connector_type=resolved_type
-        )
 
         now = datetime.now(UTC)
         try:
-            result = await client.list_events(
+            result = await access.client.list_events(
                 time_min=now.isoformat(),
                 time_max=(
                     now + timedelta(hours=settings.briefing_agenda_lookahead_hours)
                 ).isoformat(),
                 max_results=settings.briefing_max_agenda_items,
-                calendar_id=calendar_id,
+                calendar_id=access.calendar_id,
                 fields=["id", "summary", "start", "end", "location"],
             )
         except (TimeoutError, httpx.HTTPError) as exc:

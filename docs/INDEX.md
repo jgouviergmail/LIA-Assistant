@@ -17,9 +17,9 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents totaux | 400+ |
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
-| Runbooks | 44 |
-| ADRs | 279 ADR files (ADR-280 latest — ADR-008 n'a pas de fichier séparé, d'où le numéro un cran au-dessus du décompte) |
-| Fiches knowledge (RAG système) | 37 |
+| Runbooks | 45 |
+| ADRs | 280 ADR files (ADR-281 latest — ADR-008 n'a pas de fichier séparé, d'où le numéro un cran au-dessus du décompte) |
+| Fiches knowledge (RAG système) | 39 |
 
 ---
 
@@ -49,7 +49,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [PROVENANCE_AND_CAPABILITIES.md](./technical/PROVENANCE_AND_CAPABILITIES.md) | Provenance bornée des conclusions et carte des capacités (ADR-201, ADR-204) |
 | [DEMO_INSTANCE.md](./technical/DEMO_INSTANCE.md) | Démonstrateur libre : image standard isolée, plafond, capacités, purge nocturne, surface vérifiée (ADR-216→218) |
 | [DEBUG_PANEL.md](./technical/DEBUG_PANEL.md) | Panneau de debug : trace en ordre d'exécution, chronologie ancrée au run, waterfall LLM (ADR-209) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (279 ADR files) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (280 ADR files) |
 
 ### Pour les Product Managers
 
@@ -290,7 +290,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [GUIDE_SCHEDULED_ACTIONS.md](./guides/GUIDE_SCHEDULED_ACTIONS.md) | Guide pratique Actions Planifiees (recurrentes, timezone, retry) | ✅ |
 | [GUIDE_RAG_SPACES.md](./guides/GUIDE_RAG_SPACES.md) | Guide RAG Spaces (espaces de connaissances, upload, hybrid search) | ✅ |
 | [GUIDE_DEVOPS_CLAUDE_CLI.md](./guides/GUIDE_DEVOPS_CLAUDE_CLI.md) | Guide DevOps Claude CLI (remote server management, setup, security) | ✅ |
-| [docs/knowledge/](./knowledge/) | System Knowledge: FAQ Markdown files for system RAG indexation (38 files, 200+ Q/A) | ✅ |
+| [docs/knowledge/](./knowledge/) | System Knowledge: FAQ Markdown files for system RAG indexation (39 files, 200+ Q/A) | ✅ |
 
 ### Operations
 
@@ -476,6 +476,7 @@ Les ADR-001 à ADR-008 n'ont pas de fichier dédié : ils sont documentés inlin
 | [RedisRateLimitHighHitRate.md](./runbooks/alerts/RedisRateLimitHighHitRate.md) | Rate limit hits élevés |
 | [RedisRateLimitCheckLatencyHigh.md](./runbooks/alerts/RedisRateLimitCheckLatencyHigh.md) | Latence rate limit |
 | [RedisRateLimitErrors.md](./runbooks/alerts/RedisRateLimitErrors.md) | Erreurs rate limiter Redis |
+| [RecurrenceLedgerSilent.md](./runbooks/alerts/RecurrenceLedgerSilent.md) | Ledger des récurrences muet malgré des tours actionnables (ADR-214) |
 
 ### Runbooks LangGraph
 
@@ -610,7 +611,7 @@ LIA/
 │   ├── technical/              # Docs techniques détaillées (80+)
 │   ├── guides/                 # Guides pratiques (20+)
 │   ├── architecture/           # ADRs (119) + schémas Mermaid (.mmd)
-│   ├── knowledge/              # Fiches FAQ pour le RAG système (38)
+│   ├── knowledge/              # Fiches FAQ pour le RAG système (39)
 │   ├── runbooks/               # Procédures opérationnelles (40)
 │   ├── audit/                  # Audit technique 360° public + protocole
 │   └── readme/                 # README spécialisés (15)

@@ -4,7 +4,7 @@
 
 **Version**: 6.0
 **Date**: 2026-08-23
-**Application**: LIA v1.44.1
+**Application**: LIA v1.44.2
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -164,6 +164,7 @@ LIA doesn't just respond — it anticipates:
 - **Interests**: LIA keeps what you actually care about, not what you asked once — asking a question is a task, not a taste, and it takes a stated passion, a practice, real prior knowledge or genuine digging for a subject to count. Themes rotate (never the same subject twice in a row), every notification includes clickable links to its sources, and a subject you refuse does not come back: the block is compared against every new subject, including under another name
 - **Work you hand over, and get back**: a ticket has a lifecycle, a holder and a result. Give one to LIA and it takes it in its own time, does it, comments what it found and returns the result for you to accept — and when it meets something it may not do alone, it asks on the ticket, showing exactly what it is about to do, rather than deciding for you or giving up
 - **Sub-agents**: for complex tasks, LIA delegates to ephemeral specialized agents working in parallel
+- **Coming back to the instant that matters**: a meeting ends, and LIA asks you how it went — at the end, not on the next pass two hours later. An open question, never an evaluation, never during the next meeting; each kind of moment switches off on its own in the settings. And a mail you are waiting for is served to the minute: "Watch" from the briefing creates the watch, which ends by itself once the reply has arrived
 - **Reacting, not just checking**: when the mailbox or the calendar signals something, LIA can decide within minutes instead of waiting for its next pass — under exactly the same time window, the same ceiling and the same cooldowns, and only for an email carrying the label you consider important or an event that concerns you soon. A burst of arrivals makes a single wake-up, and a moment judged inopportune simply hands the message back to the regular pass
 
 ### 3.7. Autonomous web browsing

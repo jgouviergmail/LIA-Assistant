@@ -42,6 +42,7 @@ def import_all_models() -> None:
     import src.domains.llm_config.models  # noqa: F401
     import src.domains.meetings.models  # noqa: F401
     import src.domains.memories.models  # noqa: F401
+    import src.domains.moments.models  # noqa: F401
     import src.domains.notifications.models  # noqa: F401
     import src.domains.open_loops.models  # noqa: F401
     import src.domains.peers.models  # noqa: F401

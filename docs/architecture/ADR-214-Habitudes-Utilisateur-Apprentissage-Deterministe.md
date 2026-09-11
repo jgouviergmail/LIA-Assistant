@@ -237,3 +237,182 @@ pu voir :
 
 Ce qui ne change pas : les seuils calibrés, l'unité statistique (le jour), la
 règle « le rythme priorise, n'élargit jamais ».
+
+## Amendement 2026-09-11 — le ledger de récurrences n'avait jamais rien enregistré
+
+**Constat, mesuré en production** : `user_habits` = 0 ligne pour l'instance
+entière, cinq semaines après la mise en service. Le rythme, lui, tournait et
+répondait honnêtement `none` (voir plus bas). La moitié « récurrences »
+d'ADR-214 n'a jamais reçu une occurrence : sur 14 jours, 227 tours
+actionnables, 0 écriture, compteur `post_response_extraction_scheduled_total`
+à `not_applicable` seul.
+
+**Cause** : les deux lecteurs de la porte (`post_response_extractions.py`,
+`initiative_recurrence.py`) lisaient `get_qi_attr(state, "intent")`. Or
+`QueryIntelligence` ne déclare pas d'attribut `intent` — le champ s'appelle
+`immediate_intent`, et son vocabulaire (`search | detail | create | …`) ne
+contient de toute façon pas `action`. `getattr(obj, "intent", None)` rend
+`None` sans rien signaler ; `None != "action"` est vrai pour tout tour. Le
+même mécanisme lisait `secondary_domains`, lui aussi inexistant. Preuve sur un
+blob de checkpoint réel : `immediate_intent` et `primary_domain` présents,
+`"intent"` absent.
+
+**Pourquoi la CI était verte** : les 40 tests couvrant la porte
+construisaient `"query_intelligence": {"intent": "action"}` — la clé que le
+lecteur attendait, jamais la forme que le producteur émet. Un test bâti sur
+l'hypothèse du lecteur valide le lecteur contre lui-même.
+
+**Décisions** :
+
+1. **Une seule déclaration, deux lecteurs** :
+   `resolve_actionable_domain(state)` lit `routing_history[-1].intention ==
+   INTENTION_ACTION` — la décision du routeur, en vocabulaire fermé, et la
+   valeur même dont `product_outcomes.result_type` dérive, si bien qu'un tour
+   que le tableau de bord compte comme une action est un tour que le ledger
+   enregistre. Lecture tolérante objet **ou** dict (aller-retour msgpack).
+2. **La signature reste le domaine primaire seul** : la production n'a
+   jamais stocké que des clés mono-domaine ; composer les domaines
+   secondaires fragmenterait chaque clé (moins d'occurrences par signature,
+   verrous plus lointains). Décision séparée, à mesurer avant d'être prise.
+3. **Garde de classe** (`tests/unit/test_qi_attr_contract_guard.py`) : toute
+   lecture littérale `get_qi_attr(state, "x")` doit nommer un attribut déclaré
+   de `QueryIntelligence`. Elle attrape les quatre lectures mortes et interdit
+   la cinquième.
+4. **Le silence devient visible** : alerte `RecurrenceLedgerSilent` dans le
+   cœur chargé (`alerts-core.yml`, tests promtool, runbook), et la métrique
+   quitte le référentiel des métriques aveugles. Le fichier `alert_rules.yml`
+   n'est pas chargé par Prometheus (ADR-119) — une alerte posée là serait
+   « câblée » sur le papier et jamais évaluée. **Revue à froid du même
+   jour** : la première expression lisait « `not_applicable` > N et
+   `scheduled` = 0 » — juste sur la forme du bug, fausse dès le correctif
+   (`not_applicable` devient le sort normal des tours de conversation : une
+   semaine sans demande actionnable aurait tiré) et aveugle à un Redis qui
+   avale chaque écriture (`scheduled` est compté à la remise au fond, pas à
+   l'atterrissage). Elle lit désormais trois compteurs : les tours
+   actionnables **humains** du routeur (`product_outcomes_total{action,E3}`,
+   la valeur dont le tableau de bord dérive), les écritures **atterries**
+   (`recurrence_ledger_writes_total{written}`, incrémenté par l'écriture
+   elle-même, `redis_unavailable`/`failed` sinon), et `feature_disabled`
+   pour taire un ledger coupé par configuration. Les deux échecs du ledger
+   sont loggués aux niveaux que la production expédie (warning à l'écriture,
+   error à la planification, comme ses frères) — une ligne `debug` était une
+   trace que personne ne pouvait lire (prod : `LOG_LEVEL=INFO`).
+5. **Résidu purgé avant correctif** : le ledger contenait 25 clés (3 comptes)
+   écrites par un seed antérieur défectueux, figées au 2 septembre,
+   indiscernables du vivant (`origin` par défaut), dont un verrou
+   `web_search daily@3.1h` sans cooldown — promu au premier tour du domaine
+   dès le correctif déployé. Purgées (sauvegarde conservée) ; le recalcul
+   nocturne re-sème depuis les vrais tours avec `origin=seed`.
+
+**Calibration, rejouée sur un harnais durable**
+(`scripts/habits/measure_calibration.py`, `task habits:calibration:measure`,
+protégé par `test_calibration_harness.py`) : l'ancien harnais était un
+scratchpad perdu. Sous les seuils actuels (capture 0,6 / sélectivité 1,9 ;
+R 0,8) le nouveau reproduit l'ancrage publié — 0 % de FP sur usage sans
+structure, 100 % de détection à 15 % de bruit. La série réelle du compte
+principal rend `none` **à chaque point de la grille**, jusqu'à 0,3 / 1,1 (77 %
+de FP), et aucune de ses signatures ne verrouille jusqu'à R 0,4 (52 % de faux
+verrous) : sa meilleure fenêtre capte 26 % de son activité, ses heures de
+demande ont R ≤ 0,39. **Aucune recalibration défendable ne produit une
+habitude pour cet usage** — le silence est la réponse exacte. Mesure annexe,
+non appliquée : sélectivité 1,6 domine 1,9 sur cette grille (+12,6 pts de
+détection à 35 % de bruit, FP inchangé à 0 %, 300 essais) ; un changement de
+seuil est une décision produit, prise sur cette mesure, jamais à l'estime.
+
+## Amendement 2026-09-11 (b) — recalibration deux profils : le modéré ciblé est servi par les récurrences
+
+**Direction produit** (propriétaire) : les réglages doivent servir aussi bien
+un utilisateur hyperactif qu'un utilisateur modéré dont les interactions sont
+« peu nombreuses mais assez ciblées » — l'assistant est proactif, les tâches
+planifiées tournent, la présence humaine peut être rare sans être informe.
+
+**Le harnais a été étendu** pour mesurer cette exigence : populations modérées
+ciblées (2-3 soirs/semaine toujours 20-22h ; une demande 3×/semaine à heure
+fixe ; un rituel hebdomadaire fiable à 90 %) chacune avec son contrôle
+dispersé **à volume égal** (le risque de faux positif d'un seuil assoupli vit
+à faible volume), et une métrique de **délai** : taux de détection à J+14,
+21, 28, 35/42, 56 depuis la première activité. 300 essais par case.
+
+**Rythme : la relaxation est refusée par la mesure.** Les barres de présence
+absolue (dénominateur calendaire, plancher Wilson) ne peuvent pas servir le
+rare-mais-ciblé sans fabriquer des fenêtres chez le dense : abaisser
+présence/Wilson/sparse à 0,45/0,22/0,20 ne détecte que 34,7 % du « 3
+soirs/semaine » en coûtant **8-17 % de revendications permanentes sur
+l'utilisateur uniforme sans structure** ; à 0,35/0,15/0,12 : 74,3 % contre
+18-37 % de FP. C'est un verdict de mécanisme, pas de seuil — et la réponse
+honnête au profil rare est ailleurs (les récurrences, ci-dessous). Un seul
+changement appliqué : **sélectivité 1,9 → 1,6** (détection à 35 % de bruit
+84,7 → 97,3 %, coût ~1 % de FP week-end au pire horizon transitoire), l'exit
+d'hystérésis suit (1,6 → 1,36 = ×0,85, le ratio d'origine).
+
+**Récurrences : c'est ici que le modéré ciblé apprend, et quatre défauts
+mesurés le bloquaient.**
+
+1. **La fenêtre de 28 jours contient exactement 4 créneaux hebdomadaires** :
+   le verrou weekly exigeait un mois parfait, et *mourait* sur la semaine
+   manquée (71 % à J+28 retombant à 64 % à J+42 pour un rituel fiable à
+   90 %). → `RECURRENCE_WINDOW_DAYS` 28 → **35** (5 créneaux : 91,3 %
+   stable), le cap du ledger suit (35 = jours de fenêtre).
+2. **Le time-lock exigeait 8 occurrences et 14 jours *distincts*** : un
+   3×/semaine n'atteint jamais 14 jours distincts sur 28 — indétectable pour
+   toujours ; et un quotidien n'était nommable qu'à J+21+ (4 % à J+14). →
+   `RECURRENCE_LOCK_MIN_OCCURRENCES` 8 → **6**, et l'étiquetage attend un
+   **empan calendaire** (premier→dernier jour) de 10 j, plus jamais 14 jours
+   distincts : le quotidien est reconnu à J+14 (98 %), le 3×/semaine à
+   J+21-35 (93-100 %). Un sens qui change prend un **nom nouveau** :
+   `RECURRENCE_SHAPE_MIN_SPAN_DAYS` remplace `RECURRENCE_SHAPE_MIN_DAYS`, et
+   l'ancienne clé — que le `.env` de production pinne à 14 — est ignorée
+   plutôt que réinterprétée. Même doctrine pour le couple fenêtre/cap :
+   `RECURRENCE_LEDGER_MAX_ENTRIES < RECURRENCE_WINDOW_DAYS` tronquerait
+   chaque fenêtre (le cap v1 avait affamé le verrou d'étalement ainsi) — le
+   démarrage le **refuse** (`model_validator`, comme les validateurs voisins).
+3. **L'étiquette mentait** : détecté sous les anciens seuils abaissés, le
+   3×/semaine sortait « daily » — « tous les jours vers 9h » promis à
+   quelqu'un qui le fait trois fois par semaine. → Quatrième forme
+   **`intermittent`** : la *densité* de jours distincts sur l'empan
+   **éligible** (jours ouvrés seuls pour un candidat workdays — un Lun-Ven
+   fiable n'est jamais dégradé : 300/300 étiquetés workdays) décide de
+   l'étiquette, jamais du verrou ; sous `RECURRENCE_DAILY_DENSITY_MIN` (0,6 ;
+   un quotidien à 80 % de présence est à ~0,8, un 3×/semaine à ~0,43)
+   l'habitude est « plusieurs fois par semaine vers {heure} » (6 langues,
+   suggestion + libellé). `days_of_week()` rend `[]` — aucun calendrier
+   promis, et le heartbeat n'en fabrique pas de créneau (exclusion
+   documentée).
+4. **L'arc de veille a une concentration intrinsèque** : des heures uniformes
+   8-22h portent R≈0,53 et franchissent la barre 0,8 par chance dans 3 % des
+   contrôles légers — le harnais l'a montré du premier coup. → Une heure
+   promise *sans calendrier* doit être plus serrée :
+   `RECURRENCE_INTERMITTENT_R_MIN` = **0,9** (un vrai rendez-vous horaire à
+   σ 0,75 h est à R≈0,98). Résidu : 3,0 % → **0,3 %**, détection inchangée.
+
+Le weekly assoupli (3 jours modaux / fraction 0,6) a été **mesuré et refusé** :
+il n'apporte rien au rituel fiable (l'existence exige déjà 4 jours distincts)
+et pose des verrous hebdomadaires chanceux sur le contrôle clairsemé.
+
+**Ce que le déploiement doit savoir.** Le `.env` de production pinne
+explicitement chaque seuil de cette section à sa valeur d'août (vérifié le
+2026-09-11 : `RECURRENCE_WINDOW_DAYS=28`, `RECURRENCE_LEDGER_MAX_ENTRIES=28`,
+`RECURRENCE_LOCK_MIN_OCCURRENCES=8`, `HABITS_SELECTIVITY_MIN=1.9`,
+`HABITS_EXIT_SELECTIVITY=1.6`) : les défauts du code ne s'y appliquent pas.
+Sans alignement de ces cinq lignes sur `.env.example`, la production
+tournerait la recalibration à moitié (étiquetage nouveau, volumes anciens).
+La clé retirée `RECURRENCE_SHAPE_MIN_DAYS=14` est inerte et peut rester ; les
+deux nouvelles (`RECURRENCE_DAILY_DENSITY_MIN`, `RECURRENCE_INTERMITTENT_R_MIN`)
+prennent leurs défauts. Le harnais, lui, mesure les **constantes** — jamais
+le `settings` vivant : sous `task` le `.env` racine s'injecte dans chaque
+commande, et une mesure qui change selon le lanceur n'est pas une mesure.
+
+**Table finale (jeu expédié, 300 essais, taux de verrou à J+14 / J+42 +
+formes)** : quotidien 98 % / 100 % (daily:299) ; Lun-Ven 96,7 % / 100 %
+(workdays:300) ; 3×/semaine 50,7 % / 100 % (intermittent:273, daily:26 —
+tirages réellement denses) ; rituel hebdo 0 % / 91,3 % (weekly:274) ;
+contrôles : aléatoire dense 0,0 %, aléatoire léger 0,3 %. Les ancrages sont
+pinnés à 20 essais déterministes dans `test_calibration_harness.py` ; les
+contre-exemples (relaxed_*, wk_relaxed, floor) restent dans le balayage pour
+que les tables montrent le coût refusé.
+
+**Sur la série réelle du compte principal** : toujours aucun verrou sous le
+jeu expédié (`weekly` du domaine route à 3 jours modaux — sous la barre de 4,
+visible dans la ligne wk_relaxed) ; le rythme reste `none` (honnête). Le
+mécanisme est prêt pour les données que le correctif (a) laissera enfin
+s'accumuler.

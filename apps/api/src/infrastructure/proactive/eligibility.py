@@ -34,6 +34,31 @@ logger = get_logger(__name__)
 ActivityProbe = Callable[[UUID, AsyncSession, datetime], Awaitable[datetime | None]]
 
 
+def is_within_hour_window(current_hour: int, start_hour: int, end_hour: int) -> bool:
+    """Whether an hour falls inside a daily notification window.
+
+    Extracted from ``EligibilityChecker._check_time_window`` when the moment
+    sweep needed the same answer BEFORE spending a calendar read: an account
+    outside its window will not be served whatever is detected, so detecting for
+    it costs an API call to file a row that expires unread.
+
+    The overnight case is why this is one function rather than two: a window of
+    22 to 9 wraps midnight, and a second implementation of that wrap is a second
+    chance to get it wrong.
+
+    Args:
+        current_hour: Hour of the day in the person's own timezone (0-23).
+        start_hour: Window start, inclusive.
+        end_hour: Window end, exclusive.
+
+    Returns:
+        True when the hour is inside the window.
+    """
+    if start_hour <= end_hour:
+        return start_hour <= current_hour < end_hour
+    return current_hour >= start_hour or current_hour < end_hour
+
+
 class EligibilityReason(str, Enum):
     """Reasons for eligibility check results."""
 
@@ -277,13 +302,9 @@ class EligibilityChecker:
         start_hour = getattr(user, self.start_hour_field, self.default_start_hour)
         end_hour = getattr(user, self.end_hour_field, self.default_end_hour)
 
-        # Check if current hour is within window
-        if start_hour <= end_hour:
-            # Normal case: e.g., 9-22
-            in_window = start_hour <= current_hour < end_hour
-        else:
-            # Overnight case: e.g., 22-9 (crosses midnight)
-            in_window = current_hour >= start_hour or current_hour < end_hour
+        # One implementation of the window, shared with the moment sweep: the
+        # overnight wrap is subtle enough that a second copy would drift.
+        in_window = is_within_hour_window(current_hour, start_hour, end_hour)
 
         if not in_window:
             logger.debug(

@@ -39,6 +39,12 @@ class ScheduledActionStatus(str, Enum):
     ACTIVE = "active"  # Ready for execution
     EXECUTING = "executing"  # Currently running (locked by scheduler)
     ERROR = "error"  # Auto-disabled after max consecutive failures
+    # A routine with no future left: its `SeriesEnd` date passed, its
+    # `after_count` ran out, or its single occurrence was consumed (ADR-281,
+    # lot 5). Distinct from ERROR on purpose — « it finished » and « it
+    # failed » are different things to tell someone — and distinct from a
+    # pause, which somebody chose.
+    COMPLETED = "completed"
 
 
 class TriggerKind(str, Enum):

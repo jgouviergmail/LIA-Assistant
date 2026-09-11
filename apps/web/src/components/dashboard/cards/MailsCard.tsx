@@ -1,12 +1,14 @@
 'use client';
 
-import { Mail, Reply, Sparkles } from 'lucide-react';
+import { Eye, Mail, Reply, Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { BriefingCard } from '../BriefingCard';
 import { CardItemRow } from './CardItemRow';
 import { chatDraftHref, chatIntentHref } from '@/lib/briefing-utils';
 import { openChatDeepLink } from '@/lib/chat-deep-link';
+import { canWatch } from '@/lib/mail-watch';
+import { useMailWatch } from '@/hooks/useMailWatch';
 import type { CardSection, MailsData } from '@/types/briefing';
 
 interface MailsCardProps {
@@ -52,6 +54,11 @@ function MailsContent({
   onExecute: (intent: string) => void;
 }) {
   const { t } = useTranslation();
+  // A watch is a CONDITION routine the chat cannot author (ADR-281, lot 5):
+  // `create_scheduled_action_tool` creates `time` routines only, by a written
+  // decision, so this chip is the one gesture here that writes rather than
+  // opening a prefilled conversation.
+  const { watch, loading: watching } = useMailWatch();
   return (
     <div className="space-y-3">
       <div className="flex items-baseline gap-2">
@@ -97,6 +104,20 @@ function MailsContent({
                   onSelect: () => onExecute(summarizeIntent),
                 },
                 { icon: Reply, label: replyIntent, onSelect: () => onExecute(replyIntent) },
+                // Offered only when a sender came through: a mail with neither
+                // an address nor a name gives nothing to watch FOR, and a chip
+                // whose only outcome is an error is worse than no chip.
+                ...(canWatch(mail)
+                  ? [
+                      {
+                        icon: Eye,
+                        label: t('dashboard.briefing.watch.action', { sender }),
+                        onSelect: () => {
+                          if (!watching) void watch(mail, sender);
+                        },
+                      },
+                    ]
+                  : []),
               ]}
             >
               <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 tabular-nums">

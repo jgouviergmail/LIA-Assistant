@@ -205,6 +205,11 @@ def build_purge_statements(user_id: UUID) -> list[tuple[str, Delete]]:
         by_user("psyche_states"),
         by_user("user_interests"),
         by_user("heartbeat_notifications"),
+        # Anticipated moments (ADR-281). Explicit despite the ON DELETE CASCADE
+        # on its user_id: account deletion SCRUBS the users row rather than
+        # deleting it, so no FK action ever fires — the same trap open_loops
+        # and the peers tables are named for.
+        by_user("proactive_moments"),
         by_user("reminders"),
         by_user("scheduled_actions"),
         # Workboard (ADR-276): the tickets the account OWNS. Comments and the

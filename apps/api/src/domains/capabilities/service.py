@@ -297,6 +297,13 @@ CAPABILITIES_OFF_THE_MAP: dict[PlatformCapability, str] = {
         "Ambient, and deliberately admin-only: the code a model wrote is shown "
         "in the debug panel and nowhere else (ADR-249). Nothing to set up."
     ),
+    PlatformCapability.MOMENTS: (
+        "A facet of proactivity, not a thing of its own: a moment is served by "
+        "the heartbeat, under its window, its quota and its cooldowns, and it "
+        "is configured in the very section the 'proactivity' node already "
+        "points at (ADR-281). A second node onto the same settings would tell "
+        "the reader there are two things to set up where there is one."
+    ),
 }
 
 

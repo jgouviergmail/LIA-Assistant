@@ -89,6 +89,18 @@ async def _run(disabled: list[str] | None) -> set[str]:
             "src.domains.heartbeat.context_aggregator.fetch_open_loops_context",
             new=_spy("open_loops"),
         ),
+        # Both were left unstubbed until 2026-09-11: the REAL fetchers ran
+        # without a session, failed on their signature, and the aggregator
+        # swallowed the failure as `heartbeat_source_failed` — two sources the
+        # gating tests silently never covered, with a warning on every run.
+        patch(
+            "src.domains.heartbeat.context_aggregator.fetch_habits_context",
+            new=_spy("habits"),
+        ),
+        patch(
+            "src.domains.heartbeat.context_aggregator.fetch_workboard_context",
+            new=_spy("workboard"),
+        ),
         patch(
             "src.domains.heartbeat.context_aggregator.fetch_departure_advice",
             new=_spy("departure"),
@@ -106,17 +118,28 @@ class TestGating:
     async def test_every_source_runs_when_nothing_is_refused(self) -> None:
         called = await _run(None)
 
-        for expected in ("calendar", "emails", "tasks", "weather", "interests", "birthdays"):
+        for expected in (
+            "calendar",
+            "emails",
+            "tasks",
+            "weather",
+            "interests",
+            "birthdays",
+            "habits",
+            "workboard",
+        ):
             assert expected in called, expected
         # Second-pass sources too.
         for expected in ("journals", "memories", "departure"):
             assert expected in called, expected
 
     async def test_a_refused_source_is_not_even_fetched(self) -> None:
-        called = await _run(["emails", "weather"])
+        called = await _run(["emails", "weather", "habits", "workboard"])
 
         assert "emails" not in called
         assert "weather" not in called
+        assert "habits" not in called
+        assert "workboard" not in called
         assert "calendar" in called
 
     async def test_refusing_a_second_pass_source_skips_its_fetch_too(self) -> None:

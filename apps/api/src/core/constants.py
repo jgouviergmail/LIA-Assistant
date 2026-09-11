@@ -2221,20 +2221,34 @@ OPEN_LOOPS_EXPIRY_DAYS_DEFAULT = 21
 # spread>=10d lock unreachable), and a user-facing suggestion fires only
 # when a shape LOCK holds (0% false suggestions measured on spread/sporadic
 # usage — simulation harness of the habits plan §4.2).
-RECURRENCE_WINDOW_DAYS_DEFAULT = 28
+RECURRENCE_WINDOW_DAYS_DEFAULT = 35  # 5 weekly slots: one missed week no longer kills the lock
 RECURRENCE_MIN_DISTINCT_DAYS_DEFAULT = 4
 RECURRENCE_SUGGESTION_COOLDOWN_DAYS_DEFAULT = 30
-RECURRENCE_LEDGER_MAX_ENTRIES_DEFAULT = 28  # day entries (= window days)
+RECURRENCE_LEDGER_MAX_ENTRIES_DEFAULT = 35  # day entries (= window days)
 RECURRENCE_DAY_HOURS_CAP_DEFAULT = 5
-RECURRENCE_LOCK_MIN_OCCURRENCES_DEFAULT = 8
+RECURRENCE_LOCK_MIN_OCCURRENCES_DEFAULT = 6
 RECURRENCE_LOCK_MIN_SPREAD_DAYS_DEFAULT = 10
 RECURRENCE_LOCK_R_MIN_DEFAULT = 0.8
 RECURRENCE_LOCK_HALF_R_MIN_DEFAULT = 0.7
 RECURRENCE_LOCK_HALF_AGREE_HOURS_DEFAULT = 2.0
-RECURRENCE_SHAPE_MIN_DAYS_DEFAULT = 14
+# Calendar SPAN (first to last occurrence day) before a time lock is LABELED.
+# Renamed from RECURRENCE_SHAPE_MIN_DAYS on 2026-09-11 when the rule moved
+# from distinct days to span: a changed meaning gets a new name, so a
+# deployment still carrying the old key feeds nothing into the new rule.
+RECURRENCE_SHAPE_MIN_SPAN_DAYS_DEFAULT = 10
 RECURRENCE_WEEKEND_TOLERANCE_DEFAULT = 1
 RECURRENCE_WEEKLY_MIN_SAME_DOW_DEFAULT = 4
 RECURRENCE_WEEKLY_DOW_FRACTION_DEFAULT = 0.75
+# Distinct-day density (over the ELIGIBLE calendar span) below which a proven
+# time lock is labeled "intermittent" instead of daily/workdays — measured
+# 2026-09-11: daily at 80 % presence sits at ~0.8, a 3x/week user at ~0.43.
+RECURRENCE_DAILY_DENSITY_MIN_DEFAULT = 0.6
+# R required to LABEL a lock "intermittent" (an hour promised without a
+# calendar): waking-arc uniform hours (8-22h) sit at R~0.53 intrinsically
+# and reach the 0.8 gate by luck 3 % of the time at light volumes
+# (measured 2026-09-11, 300 trials) — a tighter hour kills that residual
+# while a real steady hour (sigma 0.75 h) sits at R~0.98.
+RECURRENCE_INTERMITTENT_R_MIN_DEFAULT = 0.9
 
 # ---------------------------------------------------------------------------
 # Habits — learned user rhythm and recurring requests (ADR-214)
@@ -2249,12 +2263,12 @@ HABITS_PRESENCE_MIN_DEFAULT = 0.55
 HABITS_WILSON_FLOOR_DEFAULT = 0.35
 HABITS_HALF_PRESENCE_MIN_DEFAULT = 0.45
 HABITS_CAPTURE_MIN_DEFAULT = 0.60
-HABITS_SELECTIVITY_MIN_DEFAULT = 1.9
+HABITS_SELECTIVITY_MIN_DEFAULT = 1.6
 # Hysteresis exit thresholds: a previously claimed window is RETAINED at these
 # relaxed values (anti-flapping — 0.18% claim loss measured vs 5.5% without).
 HABITS_EXIT_PRESENCE_DEFAULT = 0.45
 HABITS_EXIT_CAPTURE_DEFAULT = 0.50
-HABITS_EXIT_SELECTIVITY_DEFAULT = 1.6
+HABITS_EXIT_SELECTIVITY_DEFAULT = 1.36
 HABITS_MIN_NEFF_WEEKDAY_DEFAULT = 12.0
 HABITS_MIN_NEFF_WEEKEND_DEFAULT = 6.0
 HABITS_RECENT_DAYS_DEFAULT = 14
@@ -2376,6 +2390,45 @@ PROACTIVE_NOTIFICATION_MAX_LENGTH_DEFAULT = 150
 # graph state so the LLM has context about what the user is replying to.
 PROACTIVE_INJECT_MAX_MESSAGES_DEFAULT = 5  # Max proactive messages to inject per turn
 PROACTIVE_INJECT_LOOKBACK_HOURS_DEFAULT = 24  # Lookback window when no checkpoint exists
+
+# ---------------------------------------------------------------------------
+# Anticipated moments (proactive moments)
+# ---------------------------------------------------------------------------
+# A moment is "at this instant there will be something to say to this person
+# about this thing". The heartbeat tick answers a clock; a moment answers an
+# instant. See docs/superpowers/specs/2026-09-11-anticipated-moments-design.md.
+SCHEDULER_JOB_MOMENT_SWEEP = "moment_sweep"
+MOMENTS_SWEEP_INTERVAL_MINUTES_DEFAULT = 5
+MOMENTS_SWEEP_BATCH_SIZE_DEFAULT = 50
+MOMENTS_RETENTION_DAYS_DEFAULT = 30
+# How long a claim may legitimately take before the sweep gives it back. A
+# serve is a revalidation plus a heartbeat decision — seconds, not minutes — so
+# this is deliberately generous: too SHORT a lease hands the same moment to a
+# second worker while the first is still speaking, which is worse than the leak
+# it closes. Measured 2026-09-11: a claim never given back was immortal.
+MOMENTS_CLAIM_LEASE_MINUTES_DEFAULT = 15
+# How far back the detector reads the calendar. Must exceed the follow-up
+# window, or an event that ended inside the window would stop being visible
+# before its moment could be created.
+MOMENTS_DETECT_LOOKBACK_MINUTES_DEFAULT = 240
+# event_followup: when a moment falls due after the event ends, and how long it
+# stays worth serving.
+MOMENTS_EVENT_FOLLOWUP_DELAY_MINUTES_DEFAULT = 15
+MOMENTS_EVENT_FOLLOWUP_WINDOW_MINUTES_DEFAULT = 180
+# What makes an event worth a debrief (published bounds, ADR-184).
+MOMENTS_EVENT_MIN_DURATION_MINUTES_DEFAULT = 30
+MOMENTS_EVENT_FOLLOWUP_MIN_SCORE_DEFAULT = 2
+# Two meetings less than this apart are ONE block: only the last one earns a
+# moment. Without it three meetings in a row would spend three decisions and
+# three quota slots to say one thing.
+MOMENTS_EVENT_CHAIN_GAP_MINUTES_DEFAULT = 15
+# Short cache of the detector's calendar read (USER_CACHE family, ADR-260).
+REDIS_KEY_MOMENTS_AGENDA_PREFIX = "moments:agenda:"  # + {user_id}
+# Do-not-disturb guard: the window read around ``now`` and how long a verdict
+# is trusted. Short, because a tick per account every thirty minutes must not
+# become a calendar call every thirty minutes for a verdict that barely moves.
+MOMENTS_BUSY_GUARD_WINDOW_HOURS_DEFAULT = 2
+MOMENTS_BUSY_GUARD_CACHE_SECONDS_DEFAULT = 600
 
 # Raw content max length (source content before LLM presentation)
 # Used by Brave Search, Perplexity, Wikipedia sources for truncation

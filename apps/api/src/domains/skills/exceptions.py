@@ -172,7 +172,7 @@ def raise_skill_translation_invalid(skill_name: str) -> NoReturn:
         BaseAPIException: 422 Unprocessable Entity.
     """
     raise BaseAPIException(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         detail="LLM returned invalid JSON for translations",
         log_event="skill_translation_invalid",
         skill_name=skill_name,

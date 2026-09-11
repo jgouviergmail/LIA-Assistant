@@ -1520,7 +1520,7 @@ class ConnectorValidationError(BaseAPIException):
         detail_dict = {"errors": errors}
 
         super().__init__(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(detail_dict),  # BaseAPIException expects str
             log_level="warning",
             log_event="connector_validation_failed",

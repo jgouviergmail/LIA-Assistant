@@ -578,11 +578,16 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
 
   // Status label
   const getStatusLabel = (action: ScheduledAction) => {
+    // BEFORE the disabled flag: the executor closes a finished routine
+    // (ADR-281), so reading `is_enabled` first would report every ended series
+    // as paused — and "it finished" is not "you stopped it".
+    if (action.status === 'completed') return t('scheduled_actions.status.finished');
     if (!action.is_enabled) return t('scheduled_actions.status.paused');
     if (action.status === 'error') return t('scheduled_actions.status.error');
     if (action.status === 'executing') return t('scheduled_actions.status.executing');
     // A null trigger means the series is over: saying "active" would be a
-    // claim the routine cannot honour — it will never run again.
+    // claim the routine cannot honour. Still needed between the last run and
+    // the executor tick that closes the row.
     if (action.next_trigger_at === null) return t('scheduled_actions.status.finished');
     return t('scheduled_actions.status.active');
   };

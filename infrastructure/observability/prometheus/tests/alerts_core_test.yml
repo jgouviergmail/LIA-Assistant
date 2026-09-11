@@ -754,3 +754,84 @@ tests:
       - eval_time: 25m
         alertname: LedgerNotaryStalled
         exp_alerts: []
+
+  # ===== RecurrenceLedgerSilent: human actionable turns, zero ledger writes (ADR-214) =====
+  # 1h sampling aligned on the 7d window so `increase()` is exact (a boundary
+  # sample on both ends — no extrapolation artefact in the pinned summary).
+  # The `written` series is ABSENT on purpose: that is the production shape
+  # measured 2026-09-11 (a gate refusing every turn writes nothing, so the
+  # counter never fires), and `or vector(0)` is what lets the rule see it.
+  - interval: 1h
+    input_series:
+      - series: 'product_outcomes_total{result_type="action", evidence="E3", domain="unknown"}'
+        values: '0+0x40 30+0x260'
+    alert_rule_test:
+      - eval_time: 200h
+        alertname: RecurrenceLedgerSilent
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              component: habits
+              tier: core
+            exp_annotations:
+              summary: "Recurrence ledger recorded nothing in 7 days (30 human actionable turns)"
+              description: "Over 7 days more than 20 human actionable turns were produced and the recurrence ledger wrote none of them, while the feature is not switched off. Recurring-request habits cannot form: the ledger is starved. Read recurrence_ledger_writes_total by outcome (redis_unavailable / failed = the store; nothing at all = the gate) and post_response_extraction_scheduled_total{kind=\"recurrence\"} by outcome — a not_applicable-only distribution means resolve_actionable_domain no longer matches what the router writes to state."
+              runbook: "docs/runbooks/alerts/RecurrenceLedgerSilent.md"
+
+  # ===== …a gate that SCHEDULES but a store that never lands is still silent — and FIRES =====
+  # The gate's own `scheduled` outcome must not exonerate a broken Redis: the
+  # write counter, not the gate, is what the rule reads.
+  - interval: 1h
+    input_series:
+      - series: 'product_outcomes_total{result_type="action", evidence="E3", domain="unknown"}'
+        values: '0+0x40 30+0x260'
+      - series: 'post_response_extraction_scheduled_total{kind="recurrence", outcome="scheduled"}'
+        values: '0+0x40 30+0x260'
+      - series: 'recurrence_ledger_writes_total{outcome="failed"}'
+        values: '0+0x40 30+0x260'
+    alert_rule_test:
+      - eval_time: 200h
+        alertname: RecurrenceLedgerSilent
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              component: habits
+              tier: core
+            exp_annotations:
+              summary: "Recurrence ledger recorded nothing in 7 days (30 human actionable turns)"
+              description: "Over 7 days more than 20 human actionable turns were produced and the recurrence ledger wrote none of them, while the feature is not switched off. Recurring-request habits cannot form: the ledger is starved. Read recurrence_ledger_writes_total by outcome (redis_unavailable / failed = the store; nothing at all = the gate) and post_response_extraction_scheduled_total{kind=\"recurrence\"} by outcome — a not_applicable-only distribution means resolve_actionable_domain no longer matches what the router writes to state."
+              runbook: "docs/runbooks/alerts/RecurrenceLedgerSilent.md"
+
+  # ===== …and a ledger that DOES write stays silent =====
+  - interval: 1h
+    input_series:
+      - series: 'product_outcomes_total{result_type="action", evidence="E3", domain="unknown"}'
+        values: '0+0x40 30+0x260'
+      - series: 'recurrence_ledger_writes_total{outcome="written"}'
+        values: '0+0x40 3+0x260'
+    alert_rule_test:
+      - eval_time: 200h
+        alertname: RecurrenceLedgerSilent
+        exp_alerts: []
+
+  # ===== …a ledger switched OFF by configuration is not a broken one =====
+  - interval: 1h
+    input_series:
+      - series: 'product_outcomes_total{result_type="action", evidence="E3", domain="unknown"}'
+        values: '0+0x40 30+0x260'
+      - series: 'post_response_extraction_scheduled_total{kind="recurrence", outcome="feature_disabled"}'
+        values: '0+0x40 30+0x260'
+    alert_rule_test:
+      - eval_time: 200h
+        alertname: RecurrenceLedgerSilent
+        exp_alerts: []
+
+  # ===== …and a quiet instance (no human actionable traffic) never fires =====
+  - interval: 1h
+    input_series:
+      - series: 'product_outcomes_total{result_type="action", evidence="E3", domain="unknown"}'
+        values: '0+0x300'
+    alert_rule_test:
+      - eval_time: 200h
+        alertname: RecurrenceLedgerSilent
+        exp_alerts: []

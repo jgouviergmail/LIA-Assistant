@@ -668,6 +668,29 @@ describe('ScheduledActionsSettings — a finished series says so', () => {
     render();
     expect(screen.queryByText('scheduled_actions.status.finished')).not.toBeInTheDocument();
   });
+
+  it('a routine the executor CLOSED says finished, never paused', () => {
+    // Since ADR-281 the executor closes a series with nothing left, which
+    // disables the row. Reading `is_enabled` first would report every ended
+    // routine as paused — and "it finished" is not "you stopped it". That is
+    // the very confusion the closing was added to remove.
+    useScheduledActions.mockReturnValue(
+      hook({
+        actions: [
+          action({
+            next_trigger_at: null,
+            is_enabled: false,
+            status: 'completed',
+            next_occurrences: [],
+          }),
+        ],
+        total: 1,
+      })
+    );
+    render();
+    expect(screen.getByText('scheduled_actions.status.finished')).toBeInTheDocument();
+    expect(screen.queryByText('scheduled_actions.status.paused')).not.toBeInTheDocument();
+  });
 });
 
 describe('the routine form fits a phone', () => {

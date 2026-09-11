@@ -15,9 +15,10 @@ Honesty bounds, in order of importance:
   through the previous summary-based whitelist, again on 2026-09-03;
 - seed ONLY when the user's ledger is empty — live data always wins; the
   per-key NX write is belt-and-braces against a concurrent first record;
-- signatures rebuild as single domains (``product_outcomes`` stores the
-  primary domain only): composite signatures ("email+contact") re-learn
-  live — a stated limit, not a silent one;
+- signatures are the primary domain alone, through the store's ONE key
+  producer (``recurrence_store.build_signature``): the live gate writes the
+  same key for the same domain (``resolve_actionable_domain`` documents the
+  decision), so a seeded key and a live key never diverge for one shape;
 - best-effort everywhere: the ledger is advisory, a failed seed logs and
   returns 0.
 
@@ -109,7 +110,8 @@ async def seed_ledger_from_outcomes(
 
         per_signature: dict[str, dict[str, list[float]]] = {}
         for domain, local_date, local_hour in result.all():
-            hours = per_signature.setdefault(str(domain), {}).setdefault(str(local_date), [])
+            signature = recurrence_store.build_signature(str(domain))
+            hours = per_signature.setdefault(signature, {}).setdefault(str(local_date), [])
             if len(hours) < int(settings.recurrence_day_hours_cap):
                 hours.append(round(float(local_hour), 2))
 

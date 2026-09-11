@@ -27,7 +27,7 @@ APScheduler (30 min, configurable)
 |        Tasks, Emails,      |
 |        Interests, Memories, |
 |        Activity, Time]     |
-|    2. LLM Decision         |  <-- Structured output (gpt-4.1-mini)
+|    2. LLM Decision         |  <-- Structured output (configured slot)
 |       -> skip | notify     |
 |  generate_content() ->     |
 |    LLM Message             |  <-- Personality + message_draft input
@@ -54,7 +54,7 @@ APScheduler (30 min, configurable)
 | `HEARTBEAT_ENABLED` | `false` | Global feature flag |
 | `HEARTBEAT_NOTIFICATION_INTERVAL_MINUTES` | `30` | Scheduler interval (10-120) |
 | `HEARTBEAT_NOTIFICATION_BATCH_SIZE` | `50` | Users per batch |
-| `HEARTBEAT_GLOBAL_COOLDOWN_HOURS` | `2` | Min hours between notifications |
+| `HEARTBEAT_GLOBAL_COOLDOWN_HOURS` | `1` | Min hours between notifications |
 | `HEARTBEAT_ACTIVITY_COOLDOWN_MINUTES` | `15` | Skip if user active recently |
 | `HEARTBEAT_INTEREST_SAMPLE_SIZE` | `5` | Varied interests injected into the context (ADR-135) |
 | `HEARTBEAT_RECENT_WINDOW_COUNT` | `10` | Anti-redundancy window size (notifications) |
@@ -62,10 +62,10 @@ APScheduler (30 min, configurable)
 | `HEARTBEAT_INTEREST_ENRICHMENT_ENABLED` | `true` | Fetch real facts for interest-centered heartbeats |
 | `HEARTBEAT_ENRICHMENT_TIMEOUT_SECONDS` | `45` | Enrichment hard timeout (fail-open) |
 | `HEARTBEAT_DECISION_LLM_PROVIDER` | `openai` | LLM provider for decision |
-| `HEARTBEAT_DECISION_LLM_MODEL` | `gpt-4.1-mini` | LLM model for decision |
+| `HEARTBEAT_DECISION_LLM_MODEL` | *(seed only)* | Seed for the decision slot; the model actually used is the one `llm_config_overrides` holds for it (ADR-244) |
 | `HEARTBEAT_MESSAGE_LLM_PROVIDER` | `openai` | LLM provider for message |
-| `HEARTBEAT_MESSAGE_LLM_MODEL` | `gpt-4.1-mini` | LLM model for message |
-| `HEARTBEAT_CONTEXT_CALENDAR_HOURS` | `6` | Hours ahead for calendar |
+| `HEARTBEAT_MESSAGE_LLM_MODEL` | *(seed only)* | Seed for the message slot; same rule |
+| `HEARTBEAT_CONTEXT_CALENDAR_HOURS` | `4` | Hours ahead for calendar |
 | `HEARTBEAT_CONTEXT_MEMORY_LIMIT` | `5` | Max memories to fetch |
 | `HEARTBEAT_CONTEXT_TASKS_DAYS` | `2` | Days ahead for pending tasks (1-7) |
 | `HEARTBEAT_WEATHER_RAIN_THRESHOLD_HIGH` | `0.6` | pop above = rain likely |
@@ -178,7 +178,7 @@ Privacy: the persisted coordinates are encrypted (Fernet), non-historized (overw
 ## Two-Phase LLM Approach
 
 ### Phase 1: Decision (structured output)
-- Model: `gpt-4.1-mini` (cheap, fast)
+- Model: the decision slot's, read from `llm_config_overrides` — never a constant (ADR-244)
 - Temperature: 0.3 (deterministic)
 - Output: `HeartbeatDecision` (action, reason, message_draft, priority, sources_used, `interest_topic`)
 - `sources_used` uses the canonical `HeartbeatSourceLabel` enum (ADR-135: free-text labels had drifted, e.g. "USER_MEMORIES" vs "USER MEMORIES")
@@ -191,12 +191,52 @@ Privacy: the persisted coordinates are encrypted (Fernet), non-historized (overw
 - Fail-open: disabled flag, timeout, failure or empty result → the message is generated from the plain draft
 
 ### Phase 2: Message Generation (if action="notify")
-- Model: `gpt-4.1-mini`
+- Model: the message slot's, read the same way
 - Temperature: 0.7 (creative)
 - Rewrites `message_draft` with user's personality and language
 - When facts were fetched, a VERIFIED FACTS block is appended to the system prompt with a strict contract: center the message on 1-2 **named** items, never invent, never paste raw URLs
 - Source links are appended deterministically afterwards (`build_sources_block`, ADR-131)
 - Output: 2-4 sentences, natural tone
+
+## Anticipated moments (ADR-281)
+
+A THIRD way a decision starts, beside the tick and the push wake — and the one
+that answers an **instant** rather than an event or a schedule. A
+`proactive_moments` row is one instant for one account: a kind, a source
+reference, a due time. Today's only kind is `event_followup` — coming back
+after an important meeting has ended, which the periodic tick structurally
+cannot do: its calendar window starts at `now` and looks FORWARD, so a finished
+meeting is invisible to it, and a tick draws a random batch rather than
+targeting a person.
+
+The moment sweep (`MOMENTS_SWEEP_INTERVAL_MINUTES`, jittered, its lock TTL tied
+to its own interval) detects, claims, revalidates and serves. Like a wake it
+runs the SAME `HeartbeatProactiveTask` for that account only, under the SAME
+`EligibilityChecker`, and skips only the probabilistic smoothing and the
+learned rhythm: **an instant does not defer**. It is additionally held back
+while the person is IN a meeting (`MOMENTS_BUSY_GUARD_ENABLED`), a verdict
+cached in Redis — and a cache hit records no consultation, because Redis
+answered and the calendar was never opened (ADR-263).
+
+A moment is **revalidated** before it is served: the meeting may have been
+cancelled, the person may already have written about it. One that no longer
+holds settles `revalidation_failed` and is never sent.
+
+What the decision sees: `HeartbeatContext.moment` renders a FRESH section
+naming the moment and at most two facts. The audit row persists
+`trigger = moment`.
+
+Control ships with it: each kind switches off on its own
+(`moment_kinds_disabled` on the user), and the whole capability has its
+administrator switch (ADR-280).
+
+**Why nothing fired** is the only question an operator asks about this, and it
+has a read-only answer: `task moments:preflight` prints, per account with the
+heartbeat on, the local hour against their own window, what the calendar really
+returned over the detector's window, and why each finished meeting was kept or
+dropped (chained, already recorded by LIA, declined, score too low). It uses the
+detector directly rather than the sweep's path, so it writes nothing and records
+no consultation.
 
 ## Push-driven wake (ADR-261)
 

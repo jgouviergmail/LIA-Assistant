@@ -380,13 +380,21 @@ class HabitsService:
             Bounded explanation payload for the API.
         """
         if habit.kind == HabitKind.RECURRING_REQUEST.value:
+            # Every bar ``evaluate_locks`` applies, the labeling ones included
+            # (2026-09-11): a threshold the reader cannot see is a trap.
             thresholds: dict[str, float | int] = {
                 "min_distinct_days": settings.recurrence_min_distinct_days,
                 "lock_min_occurrences": settings.recurrence_lock_min_occurrences,
                 "lock_min_spread_days": settings.recurrence_lock_min_spread_days,
                 "lock_r_min": settings.recurrence_lock_r_min,
+                "lock_half_r_min": settings.recurrence_lock_half_r_min,
+                "lock_half_agree_hours": settings.recurrence_lock_half_agree_hours,
                 "weekly_min_same_dow": settings.recurrence_weekly_min_same_dow,
                 "weekly_dow_fraction": settings.recurrence_weekly_dow_fraction,
+                "shape_min_span_days": settings.recurrence_shape_min_span_days,
+                "daily_density_min": settings.recurrence_daily_density_min,
+                "intermittent_r_min": settings.recurrence_intermittent_r_min,
+                "weekend_tolerance": settings.recurrence_weekend_tolerance,
                 "window_days": settings.recurrence_window_days,
             }
         else:

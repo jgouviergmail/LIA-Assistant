@@ -469,49 +469,28 @@ class ContextAggregator:
         Returns:
             List of event dicts or None if unavailable.
         """
-        from src.domains.connectors.clients.registry import ClientRegistry
-        from src.domains.connectors.preferences.owner_defaults import resolve_owner_calendar_id
-        from src.domains.connectors.provider_resolver import resolve_active_connector
+        from src.domains.connectors.calendar_access import (
+            CalendarAccess,
+            open_active_calendar,
+        )
 
-        connector_service = ConnectorService(db)
-
-        # Dynamically resolve the active calendar provider (Google, Apple, or Microsoft)
-        resolved_type = await resolve_active_connector(user_id, "calendar", connector_service)
-        if resolved_type is None:
-            return None
-
-        # Get credentials based on provider type
-        credentials: Any = None
-        if resolved_type.is_apple:
-            credentials = await connector_service.get_apple_credentials(user_id, resolved_type)
-        else:
-            credentials = await connector_service.get_connector_credentials(user_id, resolved_type)
-        if not credentials:
-            return None
-
-        # Instantiate the appropriate client
-        client_class = ClientRegistry.get_client_class(resolved_type)
-        if client_class is None:
-            return None
-        client = client_class(user_id, credentials, connector_service)
-        try:
-
-            # The user's preferred default calendar, through the shared
-            # owner-default resolver (falls back to "primary").
-            calendar_id = await resolve_owner_calendar_id(
-                db=db, client=client, owner_id=user_id, connector_type=resolved_type
-            )
+        # Provider resolution, credentials, client and the deterministic
+        # transport close all live in ``open_active_calendar`` (C8 leak class):
+        # this surface, the briefing and the moment detector share one door.
+        async with open_active_calendar(db, user_id) as access:
+            if not isinstance(access, CalendarAccess):
+                return None
 
             hours = settings.heartbeat_context_calendar_hours
             now = datetime.now(UTC)
             time_min = now.isoformat()
             time_max = (now + timedelta(hours=hours)).isoformat()
 
-            result = await client.list_events(
+            result = await access.client.list_events(
                 time_min=time_min,
                 time_max=time_max,
                 max_results=10,
-                calendar_id=calendar_id,
+                calendar_id=access.calendar_id,
                 fields=["id", "summary", "start", "end", "location"],
             )
 
@@ -537,10 +516,6 @@ class ContextAggregator:
                 }
                 for e in events
             ]
-        finally:
-            # Deterministic transport close every cycle (C8 leak class;
-            # same doctrine as briefing/fetchers and person_tools).
-            await client.close()
 
     # ------------------------------------------------------------------
     # Tasks source (Google Tasks or Microsoft To Do)

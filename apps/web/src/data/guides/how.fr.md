@@ -6,7 +6,7 @@
 
 **Version** : 5.0
 **Date** : 2026-08-23
-**Application** : LIA v1.44.1
+**Application** : LIA v1.44.2
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -68,8 +68,8 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Auto-hébergement ARM64 | Docker multi-arch, embeddings sémantiques (multilingues), Playwright chromium cross-platform |
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
-| Transparence totale | 547 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 279 ADRs, ~27 863 tests collectés par pytest sur 1 629 fichiers, observabilité native, HITL à 6 niveaux |
+| Transparence totale | 550 métriques Prometheus, debug panel embarqué, suivi token par token |
+| Fiabilité en production | 280 ADRs, ~28 233 tests collectés par pytest sur 1 652 fichiers, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -87,11 +87,11 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 
 | Métrique | Valeur |
 |----------|--------|
-| Tests | 27 863 collectés par pytest sur 1 629 fichiers de test + 8 183 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
-| Fixtures pytest | 957, dont 46 partagées via conftest |
-| Documents de documentation | 638 |
-| ADRs (Architecture Decision Records) | 279 |
-| Métriques Prometheus | 547 définitions |
+| Tests | 28 233 collectés par pytest sur 1 652 fichiers de test + 8 246 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
+| Fixtures pytest | 961, dont 46 partagées via conftest |
+| Documents de documentation | 647 |
+| ADRs (Architecture Decision Records) | 280 |
+| Métriques Prometheus | 550 définitions |
 | Dashboards Grafana | 29 |
 | Langues supportées (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -811,7 +811,7 @@ Factory **catalogue-driven** (ADR-081) : `factory.get_tts_client()` lit l'overri
 
 ### 16.1. Heartbeat : architecture en 2 phases
 
-**Phase 1 — Décision** (coût-effective, gpt-4.1-mini) :
+**Phase 1 — Décision** (le poste `heartbeat_decision`, un modèle économe choisi dans le catalogue d'administration) :
 1. `EligibilityChecker` : opt-in, fenêtre horaire, cooldown (1h global, 30 min par type), activité récente — les filtres optionnels `notification_filter`/`cross_type_filters` séparent le budget d'éligibilité de chaque flux du livre de comptes partagé
 2. `ContextAggregator` : 12 sources en parallèle (`asyncio.gather`) : Calendar, Weather (détection de changements), Tasks, Emails, Interests, Activité, notifications heartbeat/intérêts récentes, autres surfaces proactives (rappels déclenchés, résultats d'automatisations, comptes rendus d'appels — la fenêtre anti-redondance étendue), Health, Anniversaires à venir et Boucles ouvertes (le registre d'engagements, ADR-139). Une **seconde passe** dérive ensuite une requête sémantique dynamique du contexte agrégé pour sélectionner Journaux et Mémoires (symétrie ADR-135) et calcule le conseil de départ tenant compte du trafic (ETA Routes, sous flag). Les intérêts arrivent sous forme d'**échantillon varié** (`pick_varied_sample` : un intérêt par sujet, sujets les moins récemment servis d'abord) — le modèle ne peut mentionner que ce qu'on lui montre, donc la rotation est mécanique
 
@@ -851,6 +851,14 @@ Les canaux push de Google étaient vivants et fonctionnellement inertes : leur u
 Le delta du courrier est **prévisualisé, jamais consommé** tant que le réveil n'est pas servi : un réveil refusé laisse le message au tour suivant — les deux ancres Gmail restent distinctes à dessein (celle du canal est le dernier événement *vu*, celle du heartbeat le dernier courrier *consommé*). Le pré-filtre est déterministe et publié en réglages : libellé requis, catégories exclues, courrier de liste écarté ; événement démarrant dans l'horizon, modifié par un tiers ou dont la réponse est en attente. Et la décision sait pourquoi elle a été réveillée : une ligne FRESH ouvre son contexte, et la ligne d'audit persiste `trigger = push | tick`, que l'historique affiche.
 
 Un changement Drive n'est pas une décision : il draine le flux de changements depuis le jeton du canal et réindexe exactement les fichiers situés sous un dossier lié, par l'ingestion par fichier que la synchronisation complète partage désormais.
+
+### 16.5. Moments anticipés et veilles servies à la minute (ADR-281)
+
+Le heartbeat est **périodique** : il ne sait pas revenir à un instant. Une réunion se termine à 15 h, la passe suivante tombe à 15 h 22 sur un lot où le compte n'est peut-être pas, et la fenêtre de calendrier du contexte commence à `now` en regardant devant elle — une réunion terminée est invisible à la décision. Une table `proactive_moments` tient donc les instants : une ligne par compte et par source, unique sur `(compte, genre, source)` pour qu'une réunion ne produise jamais deux moments, déposée par un détecteur et servie par un balayage unique — gigué, sous un verrou de planificateur dont le TTL est lié à l'intervalle. La revendication est un `FOR UPDATE SKIP LOCKED` suivi d'un `UPDATE` conditionnel dans la même transaction, avec un jeton de propriétaire ; une revendication que personne n'a soldée est **reprise** après son bail, jamais laissée immortelle. Avant d'être servi, un moment est **revalidé** : réunion annulée, déclinée, ou personne qui a déjà écrit — il est abandonné.
+
+Un moment tourne sous le vérificateur d'éligibilité **complet** et ne contourne que le lissage probabiliste et le rythme appris — exactement comme un réveil poussé, et pour la même raison : un instant ne se reporte pas. La question est **posée, jamais l'évaluation** : une question ouverte, au plus deux faits, aucun jugement, jamais deux moments empilés ni la même question deux fois. La garde « en réunion » lit le calendrier derrière un cache Redis de verdict et n'enregistre aucune consultation sur un hit ; une lecture en échec se déclare `failed`. Le contrôle est livré avec la capacité : un interrupteur par genre, le commutateur de la capacité, un compteur par genre et issue et une latence « échéance → notification » sur le tableau de bord du heartbeat, et `task moments:preflight` qui dit ce qu'un compte se verrait proposer, sans rien écrire.
+
+Le même réveil sert les **veilles** : une routine à condition « courrier de cet expéditeur » attendait jusqu'à deux heures le passage de l'exécuteur ; le réveil, qui tient déjà le delta Gmail, la sert avant le verdict du pré-filtre — le pré-filtre répond « est-ce que ça vaut un réveil », une veille répond « est-ce ce que j'attends ». Il n'exécute jamais la routine : il avance son échéance, l'exécuteur reste seul juge, et il arme au-delà du TTL publié du cache de recherche, parce qu'un cache rempli avant l'arrivée du courrier répondrait « non satisfait » et que ce verdict consomme l'armement. Une routine finie se **ferme** (`is_enabled = false`, `status = completed`) — sa fin a une seule autorité, la `SeriesEnd` déjà stockée. Et la puce « Surveiller » du briefing écrit cette routine, clé sur l'expéditeur et jamais sur le sujet, après avoir lu ce que le compte tient déjà.
 
 ---
 
@@ -965,15 +973,15 @@ La provenance est donc une propriété de la **donnée** : les 24 types du regis
 
 | Technologie | Rôle |
 |-------------|------|
-| Prometheus | 547 métriques custom (RED pattern) |
-| Grafana | 28 dashboards production-ready |
+| Prometheus | 550 métriques custom (RED pattern) |
+| Grafana | 29 dashboards production-ready |
 | Loki | Logs structurés JSON agrégés |
 | Tempo | Traces distribuées cross-service (OTLP gRPC) |
 | Langfuse | LLM-specific tracing (prompt versions, token usage) |
 | Alertmanager | Noyau de 14 alertes vitales notifiées par e-mail (runbooks liés, seuils par environnement) + webhook vers LIA : chaque alerte devient un incident dans le produit (ADR-247) |
 | structlog | Logging structuré avec PII filtering |
 
-**Une métrique qui n'atteint aucun tableau de bord est une métrique sur laquelle personne n'agit.** L'écart entre ce que le code émet et ce qu'un opérateur peut voir est mesuré, jamais supposé : `scripts/audit/measure_metric_coverage.py` analyse chaque définition de métrique (par AST et non par expression régulière — une regex lit `ZoneInfo("UTC")` comme une métrique `Info`) et confronte chaque nom à tous les panels, règles d'enregistrement et expressions d'alerte. 547 définies ; les 57 qui n'atteignent rien sont listées explicitement dans une base **shrink-only**, si bien qu'une métrique nouvellement aveugle fait rougir le build et qu'une métrique devenue visible doit quitter la liste — sinon la prochaine aveugle prend sa place en silence. Le prix de ne pas l'avoir eu : une source de heartbeat tombant en panne ouverte a supprimé les signaux de santé sur 46,5 % des ticks pendant une semaine, sans aucune métrique pour s'en apercevoir (ADR-148). Deux pièges que la garde ferme par construction — un compteur à labels qui n'a jamais été incrémenté n'expose **aucune série**, donc un panel qui guette une panne rare a besoin de `or vector(0)`, faute de quoi il affiche « No data » là où l'opérateur attend un zéro vert ; et la couverture est lue dans les **expressions** de panels et de règles uniquement, car une métrique citée dans un commentaire n'est pas câblée.
+**Une métrique qui n'atteint aucun tableau de bord est une métrique sur laquelle personne n'agit.** L'écart entre ce que le code émet et ce qu'un opérateur peut voir est mesuré, jamais supposé : `scripts/audit/measure_metric_coverage.py` analyse chaque définition de métrique (par AST et non par expression régulière — une regex lit `ZoneInfo("UTC")` comme une métrique `Info`) et confronte chaque nom à tous les panels, règles d'enregistrement et expressions d'alerte. 550 définies ; les 57 qui n'atteignent rien sont listées explicitement dans une base **shrink-only**, si bien qu'une métrique nouvellement aveugle fait rougir le build et qu'une métrique devenue visible doit quitter la liste — sinon la prochaine aveugle prend sa place en silence. Le prix de ne pas l'avoir eu : une source de heartbeat tombant en panne ouverte a supprimé les signaux de santé sur 46,5 % des ticks pendant une semaine, sans aucune métrique pour s'en apercevoir (ADR-148). Deux pièges que la garde ferme par construction — un compteur à labels qui n'a jamais été incrémenté n'expose **aucune série**, donc un panel qui guette une panne rare a besoin de `or vector(0)`, faute de quoi il affiche « No data » là où l'opérateur attend un zéro vert ; et la couverture est lue dans les **expressions** de panels et de règles uniquement, car une métrique citée dans un commentaire n'est pas câblée.
 
 ### 20.2. Debug Panel embarqué
 
@@ -1381,7 +1389,7 @@ Une règle CSS gouverne les espacements du design system : les marges verticales
 
 ## 24. Architecture des décisions (ADR)
 
-279 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
+280 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
 
 | ADR | Décision | Problème résolu | Impact mesuré |
 |-----|----------|----------------|---------------|
@@ -1482,6 +1490,8 @@ L'unité statistique est le **jour**, jamais le message — le comptage par mess
 Le problème le plus dur n'était pas le détecteur mais les **données** : la conversation est éphémère par conception (réinitialisable à volonté), l'activité s'agrège donc sur quatre sources durables fusionnées par maximum horaire — messages vivants, résumés par run, journal d'audit des réinitialisations (un geste humain par construction) et banque quotidienne d'activité. Chaque source passe une **liste blanche de sessions humaines** : à sa première exécution sur les données réelles de production, le détecteur a revendiqué le message de 07:00 d'une action programmée quotidienne — le propre planning du planificateur — comme habitude d'un utilisateur. La liste blanche échoue vers un apprentissage plus lent (visible), jamais vers une habitude fabriquée (invisible).
 
 La consommation est volontairement retenue : contexte ambiant pour les réponses et le briefing, au plus une offre de routine manquée par jour avec arrêt définitif après deux offres ignorées, et un scoring du minutage des notifications qui préfère les fenêtres apprises sans jamais élargir les bornes configurées par l'utilisateur — une règle anti-famine garantit qu'une intersection vide ne change rien. Chaque seuil appliqué par les détecteurs est publié dans le panneau : une habitude affichée est prouvée, ou elle n'existe pas.
+
+La seconde moitié — les **demandes récurrentes** — lit la décision du routeur, en vocabulaire fermé : la valeur même dont le tableau de bord produit dérive, si bien qu'un tour compté comme une action est un tour que le ledger enregistre. La signature reste le domaine primaire seul. Quatre formes sont nommées : quotidienne, jours ouvrés, hebdomadaire et **intermittente** — « plusieurs fois par semaine vers 9 h » — décidée par la densité de jours distincts sur l'empan éligible, jamais par le verrou : un 3×/semaine n'est plus promis « tous les jours ». Les seuils sont mesurés sur un harnais durable (`task habits:calibration:measure`, 300 essais par case, populations denses et modérées avec leur contrôle dispersé à volume égal) : un quotidien est reconnu à J+14, un 3×/semaine entre J+21 et J+35, un rituel hebdomadaire fiable à 90 % à J+42 — sur cinq créneaux, pour qu'une semaine manquée ne tue plus le verrou — avec 0-0,3 % de faux verrous sur un usage sans structure ; les relaxations que le harnais a refusées restent dans ses tables. Et le silence est une alerte : `RecurrenceLedgerSilent` compare les tours actionnables humains aux écritures atterries — un ledger qui n'écrit rien pendant qu'on lui parle n'est pas un ledger discret, c'est un ledger cassé.
 
 ## 28. Gouverner une instance : dépense, capacités, installation
 
@@ -1679,8 +1689,8 @@ Le visage du compagnon choisissait son expression de fin de tour dans l'émotion
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 279 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~27 863 tests sur 1 629 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 280 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~28 233 tests sur 1 652 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 279 ADRs, et du changelog (v1.0 à v1.44.1). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 280 ADRs, et du changelog (v1.0 à v1.44.2). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

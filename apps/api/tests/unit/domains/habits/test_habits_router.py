@@ -271,8 +271,25 @@ def test_explanation_thresholds_match_the_kind(
     row.key = "email"
     _StubRepo.owned = row
     thresholds = client.get(f"/habits/{row.id}/explanation").json()["thresholds"]
-    for key in ("min_distinct_days", "lock_r_min", "weekly_min_same_dow", "window_days"):
-        assert key in thresholds
+    # Every bar ``evaluate_locks`` applies — the labeling ones included since
+    # 2026-09-11 (span, density, the intermittent R bar): a threshold the
+    # evaluator enforces and the reader cannot see is exactly the trap.
+    for key in (
+        "min_distinct_days",
+        "lock_min_occurrences",
+        "lock_min_spread_days",
+        "lock_r_min",
+        "lock_half_r_min",
+        "lock_half_agree_hours",
+        "weekly_min_same_dow",
+        "weekly_dow_fraction",
+        "shape_min_span_days",
+        "daily_density_min",
+        "intermittent_r_min",
+        "weekend_tolerance",
+        "window_days",
+    ):
+        assert key in thresholds, key
     assert "presence_min" not in thresholds  # rhythm numbers never leak here
 
 

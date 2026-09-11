@@ -188,6 +188,18 @@ CONSULTATION_SURFACES: Final[Mapping[str, ConsultationSurface]] = {
             "calendar": "event",
         },
     ),
+    # Nobody asked, and nobody was watching: the sweep reads the calendar on
+    # LIA's own schedule to find out whether a meeting just ended. The section
+    # name is the KIND of moment, so a kind added later declares its own read
+    # rather than borrowing this one's.
+    "moment": ConsultationSurface(
+        key="moment",
+        prefix="moment:",
+        source="proactive",
+        domains={
+            "event_followup": "event",
+        },
+    ),
     # Geocoding the address the person is setting: their own action, their own
     # data, and a paid Maps call on the deployment's key.
     "profile": ConsultationSurface(

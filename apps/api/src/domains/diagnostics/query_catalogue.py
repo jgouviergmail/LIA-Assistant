@@ -229,6 +229,29 @@ QUERY_CATALOGUE: dict[str, NamedQuery] = {
             external_metrics=(),
         ),
         NamedQuery(
+            query_id="recurrence_ledger_writes_by_outcome",
+            title="Recurrence ledger writes by outcome",
+            promql_template=(
+                "sum by (outcome) (increase(recurrence_ledger_writes_total[{window_minutes}m]))"
+            ),
+            params=(_WINDOW,),
+            unit="count",
+            lia_metrics=("recurrence_ledger_writes_total",),
+            external_metrics=(),
+        ),
+        NamedQuery(
+            query_id="recurrence_extraction_by_outcome",
+            title="Recurrence ledger gate decisions by outcome",
+            promql_template=(
+                "sum by (outcome) (increase(post_response_extraction_scheduled_total"
+                '{kind="recurrence"}[{window_minutes}m]))'
+            ),
+            params=(_WINDOW,),
+            unit="count",
+            lia_metrics=("post_response_extraction_scheduled_total",),
+            external_metrics=(),
+        ),
+        NamedQuery(
             query_id="background_job_errors",
             title="Background job errors by job",
             promql_template=(

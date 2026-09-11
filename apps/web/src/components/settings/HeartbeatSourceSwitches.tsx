@@ -16,9 +16,7 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { cn } from '@/lib/utils';
+import { RefusalSwitches } from '@/components/settings/RefusalSwitches';
 
 /**
  * Which sources may INTERRUPT the reader — distinct from which are connected.
@@ -28,15 +26,11 @@ import { cn } from '@/lib/utils';
  * also removes the tool the user asks with. These switches separate
  * "LIA may use this service when I ask" from "LIA may interrupt me from it".
  *
- * Two rules the UI must not blur:
- *
- * - **Unavailable is not refused.** A source nobody connected still reads as
- *   permitted, because the reader has decided nothing about it. Showing it off
- *   would state a decision they never made — and connecting the service later
- *   would then silently require a second trip here.
- * - **Busy is not removed.** While a write is in flight the switches carry
- *   `aria-disabled` and the handler guards; `disabled` would blur the focused
- *   control and drop it from the tab order.
+ * The list itself is `RefusalSwitches` (shared with the moment kinds since
+ * ADR-281): what is specific here is the vocabulary, the icons, and — the one
+ * thing that could not be shared — what "missing" MEANS. For a source it is a
+ * SIBLING the reader refused, so the narrowing happens here; for a kind it is
+ * an absent connector, which only the server can know.
  *
  * The vocabulary and its order come from the SERVER (`all_sources`): the
  * client never re-declares the list it does not enforce.
@@ -95,94 +89,27 @@ export function HeartbeatSourceSwitches({
    * Empty when the source is refused too: they turned it off themselves, so
    * there is no surprise left to explain and the warning would be noise.
    */
-  const missingFor = (source: string): string[] => {
-    if (refused.has(source)) return [];
-    return (sourceDependencies?.[source] ?? []).filter(required => refused.has(required));
-  };
-
-  const toggle = (source: string) => {
-    // The guard, not the attribute, is what prevents the double submit.
-    if (updating) return;
-    const next = new Set(refused);
-    if (next.has(source)) next.delete(source);
-    else next.add(source);
-    // Full replacement, sorted: the API replaces the set wholesale, and a
-    // stable order keeps two equivalent requests identical.
-    onChange([...next].sort());
-  };
+  const unmet: Record<string, string[]> = {};
+  for (const [source, requires] of Object.entries(sourceDependencies ?? {})) {
+    if (refused.has(source)) continue;
+    const missing = requires.filter(required => refused.has(required));
+    if (missing.length > 0) unmet[source] = missing;
+  }
 
   return (
-    <div className="space-y-2">
-      {allSources.map(source => {
-        const Icon = SOURCE_ICONS[source] ?? Sparkles;
-        const permitted = !refused.has(source);
-        const id = `heartbeat-source-${source}`;
-        const missing = missingFor(source);
-        // Both notes are facts ABOUT the source, never part of the control's
-        // name — and a source can carry both at once, so the attribute is
-        // built from the notes actually rendered rather than from one test.
-        const describedBy =
-          [
-            connected.has(source) ? null : `${id}-note`,
-            missing.length > 0 ? `${id}-requires` : null,
-          ]
-            .filter(Boolean)
-            .join(' ') || undefined;
-        return (
-          <div
-            key={source}
-            className={cn(
-              'flex items-center gap-3 rounded-lg border border-border/40 bg-card/40 px-3 py-2',
-              'transition-colors',
-              permitted ? 'text-foreground' : 'text-muted-foreground'
-            )}
-          >
-            <span
-              className={cn(
-                'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
-                permitted ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
-              )}
-            >
-              <Icon className="h-4 w-4" aria-hidden="true" />
-            </span>
-            {/* `min-w-0` so a long localized label truncates instead of
-                pushing the switch off a 320 px screen.
-
-                The availability note sits OUTSIDE the label and is attached
-                through `aria-describedby`: inside it, it would become part of
-                the control's accessible NAME ("Tasks Not connected"), which
-                reads as a state of the switch rather than a fact about the
-                account. */}
-            <div className="min-w-0 flex-1">
-              <Label htmlFor={id} className="block cursor-pointer truncate text-sm">
-                {t(`heartbeat.source_${source}`)}
-              </Label>
-              {!connected.has(source) && (
-                <span id={`${id}-note`} className="block truncate text-xs text-muted-foreground">
-                  {t('heartbeat.source_not_connected')}
-                </span>
-              )}
-              {missing.length > 0 && (
-                // Not truncated: this one names OTHER switches on the same
-                // screen, and a reader who cannot read which ones is left
-                // exactly where they started.
-                <span id={`${id}-requires`} className="block text-xs text-warning">
-                  {t('heartbeat.source_requires', {
-                    sources: missing.map(name => t(`heartbeat.source_${name}`)).join(', '),
-                  })}
-                </span>
-              )}
-            </div>
-            <Switch
-              id={id}
-              checked={permitted}
-              onCheckedChange={() => toggle(source)}
-              aria-disabled={updating || undefined}
-              aria-describedby={describedBy}
-            />
-          </div>
-        );
-      })}
-    </div>
+    <RefusalSwitches
+      items={allSources}
+      refused={disabledSources}
+      unavailable={allSources.filter(source => !connected.has(source))}
+      unmetRequirements={unmet}
+      labelFor={source => t(`heartbeat.source_${source}`)}
+      requirementLabelFor={source => t(`heartbeat.source_${source}`)}
+      unavailableNote={t('heartbeat.source_not_connected')}
+      requiresNote={sources => t('heartbeat.source_requires', { sources: sources.join(', ') })}
+      icons={SOURCE_ICONS}
+      idPrefix="heartbeat-source"
+      updating={updating}
+      onChange={onChange}
+    />
   );
 }

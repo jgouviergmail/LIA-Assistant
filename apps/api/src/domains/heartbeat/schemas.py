@@ -38,6 +38,7 @@ HeartbeatSourceLabel = Literal[
     "DEPARTURE_ADVICE",
     "HABITS",
     "WORKBOARD",
+    "ANTICIPATED_MOMENT",
 ]
 """Canonical source labels for the decision structured output (ADR-135).
 
@@ -116,6 +117,9 @@ class HeartbeatContext:
 
     # ADR-261: the push provider that woke this decision (None = periodic tick).
     wake_trigger: str | None = None
+    # Why the decision is being taken at THIS instant (ADR-281). Not a
+    # fetched source: the sweep places it, exactly like ``wake_trigger``.
+    moment: Any | None = None
 
     # Calendar
     calendar_events: list[dict[str, Any]] | None = None
@@ -214,6 +218,9 @@ class HeartbeatContext:
                 # Rhythm alone is context, not news: only a missed routine
                 # makes the habits block a reason to notify by itself.
                 (self.habits or {}).get("missed_routine"),
+                # A moment IS the reason this decision is being taken now: it
+                # must never be dropped by the « nothing to say » shortcut.
+                self.moment,
             )
         )
 
@@ -231,6 +238,11 @@ class HeartbeatContext:
                 f"{self.user_local_time.strftime('%d/%m/%Y %H:%M')} "
                 f"({self.time_of_day})"
             )
+
+        if self.moment is not None:
+            from src.domains.moments.rendering import render_moment_section
+
+            sections.append(render_moment_section(self.moment))
 
         if self.wake_trigger:
             from src.domains.heartbeat.wake_context import fresh_section
@@ -529,6 +541,27 @@ class HeartbeatSettingsResponse(BaseModel):
             "can say so instead of leaving a live control that does nothing."
         ),
     )
+    moment_kinds_disabled: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Kinds of anticipated moment the user refuses. The refusal set, so an "
+            "empty list means every kind is allowed (ADR-281)."
+        ),
+    )
+    all_moment_kinds: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Every kind of moment, in display order. Published so the panel never "
+            "re-declares a vocabulary it does not enforce."
+        ),
+    )
+    moment_kind_dependencies: dict[str, list[str]] = Field(
+        default_factory=dict,
+        description=(
+            "Kinds that would yield nothing on this account, and the connector "
+            "category each is waiting for (ADR-184)."
+        ),
+    )
 
 
 class HeartbeatSettingsUpdate(BaseModel):
@@ -544,6 +577,13 @@ class HeartbeatSettingsUpdate(BaseModel):
     # nothing", which is a different, storable answer.
     heartbeat_disabled_sources: list[str] | None = Field(
         None, description="Full replacement of the refused-source set."
+    )
+    moment_kinds_disabled: list[str] | None = Field(
+        None,
+        description=(
+            "Full replacement of the refused moment kinds. Unknown values are "
+            "dropped rather than stored."
+        ),
     )
 
 

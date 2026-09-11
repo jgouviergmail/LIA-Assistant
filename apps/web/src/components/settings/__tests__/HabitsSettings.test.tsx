@@ -32,6 +32,18 @@ vi.mock('@/hooks/useAppConfig', () => ({
     config: { features: { habits_enabled: state.flagOn } },
   }),
 }));
+// The global stub echoes keys; this one ALSO records every key asked for, so
+// a row's schedule wording can be asserted without interpolating anything.
+const { tCalls } = vi.hoisted(() => ({ tCalls: [] as string[] }));
+vi.mock('@/i18n/client', () => ({
+  useTranslation: () => ({
+    t: (key: string) => {
+      tCalls.push(key);
+      return key;
+    },
+    i18n: { language: 'fr', changeLanguage: vi.fn() },
+  }),
+}));
 // A PARTIAL hook mock is its own defect: the component would call an
 // undefined action and the suite would blame the component.
 vi.mock('@/hooks/useHabits', async importOriginal => {
@@ -113,6 +125,7 @@ function overview(over: Partial<HabitsOverview> = {}): HabitsOverview {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  tCalls.length = 0;
   state.flagOn = true;
   state.unavailable = false;
   state.loadError = false;
@@ -142,6 +155,27 @@ describe('HabitsSettings', () => {
     expect(screen.getByText('21:00–23:00')).toBeInTheDocument();
     // The weekend class states its honest verdict instead of fake windows.
     expect(screen.getByText('settings.habits.verdict.none')).toBeInTheDocument();
+  });
+
+  it('an intermittent recurring habit promises the hour, never a calendar', () => {
+    // ADR-214 (2026-09-11): a steady hour proven a few times a week is
+    // labeled `intermittent` — the row must say "several times a week",
+    // never fall into the weekly branch (`days_of_week` is empty) nor
+    // default to "every day".
+    state.overview = overview({
+      habits: [
+        habit({
+          kind: 'recurring_request',
+          key: 'email',
+          payload: { version: 1, shape: 'intermittent', trigger_hour: 9, days_of_week: [] },
+        }),
+      ],
+    });
+    renderSection();
+    expect(screen.getByText('settings.habits.row.recurring_request')).toBeInTheDocument();
+    expect(tCalls).toContain('settings.habits.shape.intermittent');
+    expect(tCalls).not.toContain('settings.habits.shape.weekly');
+    expect(tCalls).not.toContain('settings.habits.shape.daily');
   });
 
   it('states the sparse verdict for occasional users', () => {

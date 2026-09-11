@@ -122,3 +122,10 @@ Yes — in one sentence: "give me an AI press review every weekday at 8am". LIA 
 **💡 Bonus:** when you ask the same kind of thing at the same hour on several distinct days, LIA can spontaneously offer: "Want me to turn this into a recurring automation?" (deterministic detection, one suggestion max per month per pattern, off by default — `RECURRENCE_SUGGESTION_ENABLED`).
 
 Deleting an automation remains a Settings action.
+
+## Can LIA watch for a reply and tell me the minute it arrives?
+Yes. On the Today briefing, a mail card offers *Watch for a reply from …*: one tap creates a condition routine keyed on that **sender** (never on the subject), valid for two weeks, and LIA already checks that you are not watching that person twice.
+
+**Served to the minute:** a condition routine used to be checked only when the executor passed by, up to two hours later. Now the same wake-up that reacts to your mailbox serves the watch as soon as the reply lands — it only brings the routine's next check forward; the routine itself still runs where it always did, under your usual limits.
+
+**And it ends by itself:** a routine that reaches the end of its series is now *closed*, not left "active" forever. In Settings → Scheduled actions it reads as completed, and you can delete it or set it up again.

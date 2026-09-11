@@ -173,6 +173,83 @@ En cas d'erreur transitoire (`TimeoutError`, `ConnectionError`, `OSError`), l'ex
 
 Apres **5 echecs consecutifs** (`SCHEDULED_ACTIONS_MAX_CONSECUTIVE_FAILURES`), l'action est automatiquement desactivee (`is_enabled=False`, `status='error'`). Le re-enable via toggle reset les compteurs et recalcule le prochain declenchement.
 
+### Cloture d'une routine finie (ADR-281)
+
+Une serie se termine de **trois** facons : la date de son `SeriesEnd` est
+atteinte, son `after_count` est epuise, ou son occurrence unique est consommee.
+Les trois aboutissent au **meme** etat — `next_trigger_at` NULL, ce que le
+modele definit deja comme « rien ne suit » — et la requete des routines dues
+l'exclut par construction, `NULL <= now()` valant UNKNOWN en SQL.
+
+Ce que rien ne faisait, c'etait **fermer** la ligne : elle restait `is_enabled`
+et `status='active'` pour toujours, indiscernable d'une routine mise en pause.
+L'etape 0b du tick de l'executeur (`_close_finished_routines`, sa propre
+session, jamais fatale) la passe a `is_enabled=False` et
+`status='completed'` — **desactivee, jamais supprimee** : la personne doit
+pouvoir voir ce qu'elle avait pose.
+
+`completed` est distinct de `error` a dessein : « c'est fini » et « ca a
+echoue » ne se disent pas pareil, et tous deux sont distincts d'une pause, qui
+est une decision.
+
+La fin d'une routine a **une seule autorite**, le `SeriesEnd` de sa recurrence.
+Une colonne `expires_at` a ete ecrite puis retiree avant livraison : elle
+aurait double une fin deja stockee, validee, editable dans le studio et
+racontee en six langues.
+
+### Veilles courriel servies par le reveil (ADR-281)
+
+Une « veille » est une routine `trigger_kind=condition` de type `mail_match` :
+« previens-moi quand Marie repond ». Sa condition n'etait evaluee qu'au tick de
+sa propre recurrence, plafonnee a douze par jour (ADR-268) — donc jusqu'a deux
+heures de retard — alors que le balayage des reveils (ADR-261) tient deja le
+delta Gmail **a la minute**.
+
+`domains/scheduled_actions/mail_watches.py` evalue les veilles du compte contre
+ce delta, **avant toute porte du battement** : ni le cooldown de reveil, ni
+`heartbeat_enabled`, ni un refus de la source « emails » ne s'appliquent. Une
+veille est une consigne que la personne a ecrite, pas une decision de LIA — le
+meme raisonnement que pour l'indexation des sources courriel, qui tourne au meme
+endroit et pour la meme raison.
+
+La boite n'est ouverte que pour un compte qui detient une veille
+(`has_mail_watches`, une recherche indexee), et elle est lue une seule fois : le
+delta est passe a la decision du reveil plutot que relu.
+
+Quatre regles :
+
+- **le reveil ne fait pas tourner la routine** : il avance `next_trigger_at` et
+  s'arrete la. L'executeur reste le seul a savoir executer une routine ;
+- **aucune seconde deduplication** : l'empreinte `condition_state` decide deja
+  si un fait est neuf ;
+- **on avance une echeance, on ne ressuscite pas une serie** : un
+  `next_trigger_at` NULL veut dire que la serie est finie, et l'armement ne peut
+  que **rapprocher** un passage ;
+- **l'armement depasse le cache qu'il fait lire** : l'executeur reevalue via
+  `fetch_mails`, dont la recherche Gmail est cachee pendant
+  `EMAILS_CACHE_SEARCH_TTL_SECONDS` ; un cache rempli avant l'arrivee du
+  courriel repondrait « non remplie », et ce verdict **consomme** l'armement.
+
+La lecture SQL prend `SKIP LOCKED` : une ligne que l'executeur detient verra son
+echeance reecrite a la fin de son passage, donc l'armer serait une ecriture que
+personne ne lit — et attendre mettrait le reveil derriere la transaction de
+quelqu'un d'autre.
+
+**Deux lectures d'une meme question**, inevitables (le reveil tient une
+ressource Gmail brute, l'executeur une projection d'affichage) et donc epinglees
+par `tests/unit/domains/scheduled_actions/test_mail_match_agreement.py`.
+
+### Puce « Surveiller » (ADR-281)
+
+Sur les cartes de courriel du briefing. Elle **ecrit** la ou ses deux voisines
+ouvrent le chat pre-rempli : le chat ne peut pas composer une veille,
+`create_scheduled_action_tool` ne creant que des routines `time` par decision
+ecrite. La forme vit dans `lib/mail-watch.ts` — l'**expediteur** comme requete
+et jamais le sujet, la fin portee par le `SeriesEnd`, deux evaluations par jour
+comme filet pour un compte sans canal de poussee — et la puce **lit ce que le
+compte detient avant d'ecrire** : deux veilles identiques annonceraient une
+seule reponse attendue deux fois.
+
 ### Historique des executions et semaine en cours (ADR-265)
 
 `scheduled_action_runs` : une ligne par tick, ecrite par l'executeur AU RESULTAT dans la transaction du marquage (`runs.py::record_run`, savepoint, jamais bloquante) — cinq issues (`success`, `failure`, `skipped_condition`, `proposed`, `skipped_hitl`) et le creneau SERVI (`served_slot` : un run du sert son instant du, un « Tester » apres le creneau du jour le sert, avant ne sert rien). `GET /scheduled-actions/week` (`week.py::build_week`) calcule les sept instants de la semaine de chaque routine avec `week_slots()` depuis le lundi local de SON fuseau, et une cellule prend le DERNIER run dont `slot_at` est EGAL a l'instant : un changement d'horaire remet la grille a blanc par construction. Retention `SCHEDULED_ACTIONS_RUNS_RETENTION_DAYS` (90 j), purge a l'etape 0 du tick, dans sa propre session, jamais fatale.

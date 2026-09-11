@@ -460,3 +460,43 @@ groups:
           summary: "The oldest unsealed register row is {{ $value | humanizeDuration }} old"
           description: "The notary has not sealed the registers for longer than <<<ALERT_CORE_LEDGER_CHAIN_LAG_SECONDS>>> seconds. The registers are still complete and readable; what is suspended is the ability to PROVE they were not altered since."
           runbook: "docs/runbooks/alerts/LedgerNotaryStalled.md"
+
+  # ===== LEARNING — a habit path that records nothing is a broken path (ADR-214) =====
+  - name: core_learning
+    interval: 1m
+    rules:
+      # Three counters, three questions. product_outcomes_total{action, E3} is
+      # the ROUTER's own count of human actionable turns (the same value the
+      # dashboard derives from; automated runs write none) — "was there
+      # traffic the ledger should have learned from?". recurrence_ledger_writes
+      # _total{written} is counted by the WRITE itself, not by the gate that
+      # hands it to the background — so a gate refusing every turn AND a Redis
+      # swallowing every write both read as zero (measured 2026-09-11: the
+      # gate read an attribute the producer never declared and recorded
+      # nothing for weeks under green dashboards). The feature_disabled outcome
+      # keeps a deliberately switched-off ledger silent. `or vector(0)` is
+      # load-bearing: a labelled counter that never fired exposes NO series,
+      # and without the fallback the comparison is empty and the alert can
+      # never fire — the exact silence it exists to break.
+      - alert: RecurrenceLedgerSilent
+        expr: |
+          (
+            sum(increase(product_outcomes_total{result_type="action", evidence="E3"}[7d])) > <<<ALERT_CORE_RECURRENCE_ACTIONS_7D>>>
+          )
+          and
+          (
+            (sum(increase(recurrence_ledger_writes_total{outcome="written"}[7d])) or vector(0)) == 0
+          )
+          and
+          (
+            (sum(increase(post_response_extraction_scheduled_total{kind="recurrence", outcome="feature_disabled"}[7d])) or vector(0)) == 0
+          )
+        for: 1h
+        labels:
+          severity: warning
+          component: habits
+          tier: core
+        annotations:
+          summary: "Recurrence ledger recorded nothing in 7 days ({{ $value | humanize }} human actionable turns)"
+          description: "Over 7 days more than <<<ALERT_CORE_RECURRENCE_ACTIONS_7D>>> human actionable turns were produced and the recurrence ledger wrote none of them, while the feature is not switched off. Recurring-request habits cannot form: the ledger is starved. Read recurrence_ledger_writes_total by outcome (redis_unavailable / failed = the store; nothing at all = the gate) and post_response_extraction_scheduled_total{kind=\"recurrence\"} by outcome — a not_applicable-only distribution means resolve_actionable_domain no longer matches what the router writes to state."
+          runbook: "docs/runbooks/alerts/RecurrenceLedgerSilent.md"

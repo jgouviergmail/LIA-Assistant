@@ -188,6 +188,22 @@ EVIDENCE_RECIPES: dict[str, EvidenceRecipe] = {
                 )
             ),
         ),
+        # A ledger that records nothing: the write census says whether the
+        # store failed (redis_unavailable / failed) or nothing reached it, and
+        # the gate's decision census says which branch swallows every turn.
+        # The two events are the only trace a failure leaves (the ledger is
+        # advisory and never raises) — at warning / error, the levels
+        # production ships; a debug line here was a trace nobody could read.
+        EvidenceRecipe(
+            "RecurrenceLedgerSilent",
+            prom_queries=(
+                "recurrence_ledger_writes_by_outcome",
+                "recurrence_extraction_by_outcome",
+            ),
+            logs=LogRecipe(
+                events=("recurrence_record_scheduling_failed", "recurrence_record_failed"),
+            ),
+        ),
         # ---- schedulers -------------------------------------------------
         EvidenceRecipe(
             "scheduler_tick",

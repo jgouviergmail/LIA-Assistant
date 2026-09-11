@@ -481,14 +481,16 @@ def _schedule_post_response_extractions(
     # ===================================================================
     # RECURRENCE LEDGER (Background) — P12, ADR-140
     # ===================================================================
-    # Deterministic, no LLM: append one occurrence of the request shape
-    # (primary+secondary domains @ local-hour bucket) so the initiative
-    # suggestion can detect "same ask, same moment, day after day".
+    # Deterministic, no LLM: append one occurrence of the request shape (the
+    # primary domain — the local date and hour are DATA, never part of the
+    # key) so the initiative suggestion can detect "same ask, same moment,
+    # day after day".
     try:
-        from src.domains.agents.analysis.query_intelligence_helpers import get_qi_attr
+        from src.domains.agents.analysis.query_intelligence_helpers import (
+            resolve_actionable_domain,
+        )
 
-        qi_intent = get_qi_attr(state, "intent", default=None)
-        qi_primary = get_qi_attr(state, "primary_domain", default=None)
+        qi_primary = resolve_actionable_domain(state)
         if _is_automated_source or user_msg_is_trivial:
             # same exclusions as the sibling extractions
             _record_either(
@@ -499,10 +501,14 @@ def _schedule_post_response_extractions(
             )
         elif not settings.recurrence_suggestion_enabled:
             _record_extraction(KIND_RECURRENCE, OUTCOME_FEATURE_DISABLED)  # no ledger writes
-        elif qi_intent != "action" or not qi_primary:
+        elif not qi_primary:
             # only actionable domain queries can recur into automations
             _record_extraction(KIND_RECURRENCE, OUTCOME_NOT_APPLICABLE)
-        elif user_id := runtime_user_id_str(None):
+        elif not (user_id := runtime_user_id_str(None)):
+            # No runtime identity: nothing can be attributed. Counted rather
+            # than dropped — this branch used to end the chain in silence.
+            _record_extraction(KIND_RECURRENCE, OUTCOME_NO_USER)
+        else:
             from zoneinfo import ZoneInfo
 
             from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
@@ -517,13 +523,10 @@ def _schedule_post_response_extractions(
                 user_tz = ZoneInfo(DEFAULT_USER_DISPLAY_TIMEZONE)
             from datetime import datetime
 
-            # v2 (ADR-214): the signature is the domains only — the local
-            # date and hour are recorded as DATA for the shape locks.
+            # v2 (ADR-214): the signature is the domain only — the local date
+            # and hour are recorded as DATA for the shape locks.
             now_local = datetime.now(user_tz)
-            signature = build_signature(
-                str(qi_primary),
-                list(get_qi_attr(state, "secondary_domains", default=[]) or []),
-            )
+            signature = build_signature(qi_primary)
             safe_fire_and_forget(
                 record_occurrence(
                     user_id,
@@ -537,10 +540,14 @@ def _schedule_post_response_extractions(
             )
             _record_extraction(KIND_RECURRENCE, OUTCOME_SCHEDULED)
     except Exception as e:
-        # Graceful degradation — the ledger is advisory
+        # Graceful degradation — the ledger is advisory, but a scheduling
+        # failure is a defect on the turn's own path (like its siblings
+        # above), not a Redis hiccup: logged at error so production sees it.
         _record_extraction(KIND_RECURRENCE, OUTCOME_ERROR)
-        logger.debug(
+        logger.error(
             "recurrence_record_scheduling_failed",
             run_id=run_id,
             error=str(e),
+            error_type=type(e).__name__,
+            exc_info=True,
         )

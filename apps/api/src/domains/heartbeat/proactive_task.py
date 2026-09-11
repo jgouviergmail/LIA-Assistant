@@ -31,8 +31,11 @@ from src.domains.heartbeat.prompts import (
     get_heartbeat_decision,
 )
 from src.domains.heartbeat.schemas import HeartbeatTarget
+from src.domains.moments.busy_gate import should_defer_for_meeting
+from src.domains.moments.schemas import ServedMoment
 from src.domains.push_channels.wake import WakePayload
 from src.infrastructure.database import get_db_context
+from src.infrastructure.observability.metrics_habits import heartbeat_ticks_deferred_total
 from src.infrastructure.observability.metrics_registry import heartbeat_enrichment_total
 from src.infrastructure.proactive.base import ContentSource, ProactiveTaskResult
 
@@ -78,11 +81,19 @@ class HeartbeatProactiveTask:
 
     task_type: str = "heartbeat"
 
-    def __init__(self, wake: WakePayload | None = None) -> None:
+    def __init__(
+        self,
+        wake: WakePayload | None = None,
+        moment: ServedMoment | None = None,
+    ) -> None:
         """Args:
         wake: The push wake being served (ADR-261), or None for a tick.
+        moment: The anticipated moment being served (ADR-281), or None. Never
+            both: a wake answers « something changed », a moment answers « this
+            instant arrived », and one decision cannot be taken for two reasons.
         """
         self.wake = wake
+        self.moment = moment
 
     async def check_eligibility(
         self,
@@ -101,6 +112,19 @@ class HeartbeatProactiveTask:
         fails open to the current behavior.
         """
         if not user_settings.get("heartbeat_enabled", False):
+            return False
+        if self.moment is not None:
+            # A moment carries a short validity window, and every deferral here
+            # answers « not now, later today ». A tick deferred comes back; a
+            # moment deferred expires unserved, so the deferrals are bypassed —
+            # and ONLY they. The window, the daily quota and the three cooldowns
+            # live in EligibilityChecker and are applied in full (ADR-281).
+            return True
+        # Before the rhythm, and before any model call: someone in a meeting is
+        # the one person the activity cooldown reads as MOST available, because
+        # they are precisely not typing.
+        if await should_defer_for_meeting(user_id, now):
+            heartbeat_ticks_deferred_total.labels(day_class="unknown", reason="in_meeting").inc()
             return False
         if await should_defer_tick_for_rhythm(user_id, user_settings, get_settings()):
             return False
@@ -145,6 +169,8 @@ class HeartbeatProactiveTask:
                 context = await aggregator.aggregate(user_id, user)
                 if self.wake is not None:
                     context.wake_trigger = self.wake.provider
+                if self.moment is not None:
+                    context.moment = self.moment
 
             if not context.has_meaningful_context():
                 logger.debug(
@@ -457,7 +483,13 @@ class HeartbeatProactiveTask:
         """
 
     def _trigger(self) -> str:
-        """What woke this decision (ADR-261): a push notification or the tick."""
+        """What woke this decision: an anticipated instant, a push, or the tick.
+
+        Persisted on the audit row and published by the API, so the history can
+        say a notification answered a meeting rather than a clock.
+        """
+        if self.moment is not None:
+            return "moment"
         return "push" if self.wake is not None else "tick"
 
     async def on_notification_sent(

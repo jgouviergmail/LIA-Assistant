@@ -35,25 +35,31 @@ import structlog
 
 from src.core.i18n_automation import get_recurrence_schedule_suggestion_text
 from src.infrastructure.cache import recurrence_store
+from src.infrastructure.observability.metrics_agents import recurrence_ledger_writes_total
 
 logger = structlog.get_logger(__name__)
 
 SHAPE_DAILY = "daily"
 SHAPE_WORKDAYS = "workdays"
 SHAPE_WEEKLY = "weekly"
+# A steady hour proven a few times a week, on no particular weekday: the
+# honest label for the owner's "rare but targeted" usage (2026-09-11). The
+# lock is as proven as a daily one (same R, split-half, spread and volume
+# gates); only the CALENDAR promise is withheld.
+SHAPE_INTERMITTENT = "intermittent"
+#: The closed vocabulary every reader of a lock's shape is pinned to (the
+#: suggestion text, the settings row, the heartbeat, ``days_of_week``).
+RECURRENCE_SHAPES: tuple[str, ...] = (
+    SHAPE_DAILY,
+    SHAPE_WORKDAYS,
+    SHAPE_WEEKLY,
+    SHAPE_INTERMITTENT,
+)
 
-
-def build_signature(primary_domain: str, secondary_domains: list[str]) -> str:
-    """Stable shape signature of an actionable request — domains only.
-
-    Args:
-        primary_domain: Detected primary domain (query intelligence).
-        secondary_domains: Detected secondary domains (order-insensitive).
-
-    Returns:
-        Signature like ``"email+contact"``.
-    """
-    return "+".join([primary_domain, *sorted(secondary_domains)])
+#: Ledger write outcomes (``recurrence_ledger_writes_total``).
+WRITE_WRITTEN = "written"
+WRITE_REDIS_UNAVAILABLE = "redis_unavailable"
+WRITE_FAILED = "failed"
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,7 +67,7 @@ class RecurrenceLock:
     """A proven temporal shape for a recurring request.
 
     Attributes:
-        shape: ``daily`` | ``workdays`` | ``weekly``.
+        shape: ``daily`` | ``workdays`` | ``weekly`` | ``intermittent``.
         trigger_hour: Learned circular-mean hour (None when the weekly lock
             held without hour concentration).
         modal_weekday: 0=Monday..6=Sunday for weekly locks, else None.
@@ -81,12 +87,17 @@ class RecurrenceLock:
             return [self.modal_weekday]
         if self.shape == SHAPE_WORKDAYS:
             return [0, 1, 2, 3, 4]
+        if self.shape == SHAPE_INTERMITTENT:
+            return []  # no calendar is implied — the hour is the habit
         return [0, 1, 2, 3, 4, 5, 6]
 
 
 # Storage format extracted to infrastructure (three domains share the keys);
 # thin aliases keep this module the semantic API and the existing contract
-# tests meaningful.
+# tests meaningful. ``build_signature`` lives there too: the seed (habits)
+# needs it and habits importing agents would close the cycle the coupling
+# ratchet forbids.
+build_signature = recurrence_store.build_signature
 _redis_key = recurrence_store.redis_key
 _convert_legacy = recurrence_store.convert_legacy
 _load = recurrence_store.load
@@ -105,8 +116,10 @@ async def record_occurrence(
 ) -> None:
     """Append one occurrence for (user, signature) — per-day, capped.
 
-    Best-effort: any Redis failure is logged at debug and swallowed — the
-    ledger is advisory.
+    Best-effort: the ledger is advisory, so a failure never reaches the turn
+    — but it is COUNTED (``recurrence_ledger_writes_total``) and logged at
+    warning, because production ships INFO and above and a debug line was a
+    trace nobody could read (2026-09-11).
 
     Args:
         user_id: Owner user id (string form).
@@ -120,6 +133,7 @@ async def record_occurrence(
 
         redis = await get_redis_cache()
         if not redis:
+            recurrence_ledger_writes_total.labels(outcome=WRITE_REDIS_UNAVAILABLE).inc()
             return
         key = _redis_key(user_id, signature)
         data = await _load(redis, key)
@@ -131,8 +145,10 @@ async def record_occurrence(
         data["origin"] = recurrence_store.ORIGIN_LIVE
         _trim(data, settings.recurrence_ledger_max_entries)
         await _store(redis, key, data, settings.recurrence_window_days)
+        recurrence_ledger_writes_total.labels(outcome=WRITE_WRITTEN).inc()
     except Exception as exc:  # noqa: BLE001 — advisory ledger, never blocks
-        logger.debug("recurrence_record_failed", error=str(exc))
+        recurrence_ledger_writes_total.labels(outcome=WRITE_FAILED).inc()
+        logger.warning("recurrence_record_failed", error=str(exc), error_type=type(exc).__name__)
 
 
 def circular_r(hours: list[float]) -> tuple[float, float]:
@@ -165,9 +181,13 @@ def evaluate_locks(
       ``recurrence_lock_r_min`` AND split-half consistency (both interleaved
       halves R ≥ half_r_min, means within half_agree_hours) — the split-half
       test is what keeps sporadic usage at 0% false locks;
-    - daily/workdays labeling deferred to ≥ ``recurrence_shape_min_days``
-      distinct days, 'workdays' when ≤ ``recurrence_weekend_tolerance``
-      weekend days (early labeling mislabeled daily as workdays — measured).
+    - shape labeling (``_label_shape``) deferred to a calendar SPAN of ≥
+      ``recurrence_shape_min_span_days``; 'workdays' when ≤
+      ``recurrence_weekend_tolerance`` weekend days, else 'daily' — and either
+      only when the distinct-day density over the eligible span reaches
+      ``recurrence_daily_density_min``; below it the lock is 'intermittent'
+      (a steady hour, no calendar promised) provided R ≥
+      ``recurrence_intermittent_r_min``.
 
     Args:
         days: Per-local-date occurrence hours inside (or beyond) the window.
@@ -232,6 +252,52 @@ def _split_halves_agree(
     )
 
 
+def _label_shape(distinct: list[date], r_all: float, settings: Any) -> str | None:
+    """Name the temporal shape of a PROVEN time lock, or None to defer.
+
+    Labeling is deferred until the CALENDAR has spoken (early labeling
+    mislabeled daily habits as workdays — measured). Counting DISTINCT days
+    here made a light-but-steady user unlabelable forever: 3x/week never
+    reaches 14 distinct days, however long the pattern holds (measured
+    2026-09-11 — 31 % of such users locked, every one labeled "daily").
+
+    Density over the ELIGIBLE span (weekdays only for a workdays candidate)
+    decides the LABEL, never the lock: a steady hour proven a few times a
+    week is a real habit, and calling it "daily" would put a false promise
+    in the suggestion text.
+
+    Args:
+        distinct: Sorted distinct occurrence days inside the window.
+        r_all: Circular concentration of every occurrence hour.
+        settings: Settings view (span, density, intermittent-R thresholds).
+
+    Returns:
+        A ``SHAPE_*`` value, or None (span still building, or an
+        under-concentrated hour on the intermittent path).
+    """
+    span_days = (distinct[-1] - distinct[0]).days + 1
+    if span_days < settings.recurrence_shape_min_span_days:
+        return None
+    weekend_days = sum(1 for d in distinct if d.weekday() >= 5)
+    if weekend_days <= settings.recurrence_weekend_tolerance:
+        candidate = SHAPE_WORKDAYS
+        eligible = sum(
+            1 for k in range(span_days) if (distinct[0] + timedelta(days=k)).weekday() < 5
+        )
+    else:
+        candidate = SHAPE_DAILY
+        eligible = span_days
+    density = len(distinct) / eligible if eligible else 0.0
+    if density >= settings.recurrence_daily_density_min:
+        return candidate
+    # An hour promised WITHOUT a calendar must be tighter still: waking-arc
+    # uniform hours carry R~0.53 intrinsically and clear the 0.8 gate by
+    # luck 3 % of the time at light volumes (measured 2026-09-11).
+    if r_all < settings.recurrence_intermittent_r_min:
+        return None
+    return SHAPE_INTERMITTENT
+
+
 def _time_lock(
     recent: dict[date, list[float]],
     distinct: list[date],
@@ -249,12 +315,9 @@ def _time_lock(
         return None
     if not _split_halves_agree(recent, distinct, settings):
         return None
-    # Shape labeling deferred until enough distinct days are seen (early
-    # labeling mislabeled daily habits as workdays — measured).
-    if len(distinct) < settings.recurrence_shape_min_days:
+    shape = _label_shape(distinct, r_all, settings)
+    if shape is None:
         return None
-    weekend_days = sum(1 for d in distinct if d.weekday() >= 5)
-    shape = SHAPE_WORKDAYS if weekend_days <= settings.recurrence_weekend_tolerance else SHAPE_DAILY
     return RecurrenceLock(
         shape=shape,
         trigger_hour=mean_hour,

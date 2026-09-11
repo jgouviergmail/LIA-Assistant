@@ -401,7 +401,15 @@
       "not_configured_intro_other": "{{count}} cards are waiting to be set up:",
       "not_configured_cta": "Set up the {{card}} card",
       "all_hidden": "Every card is hidden.",
-      "all_hidden_cta": "Choose cards in the settings"
+      "all_hidden_cta": "Choose cards in the settings",
+      "watch": {
+        "action": "Watch for a reply from {{sender}}",
+        "title": "Watch: {{sender}}",
+        "prompt": "Tell me as soon as {{sender}} writes back, and remind me what the exchange was about.",
+        "created": "Watching for a reply from {{sender}} for the next two weeks.",
+        "already": "You are already watching for a reply from {{sender}}.",
+        "failed": "The watch could not be created."
+      }
     },
     "portrait_hint": {
       "text": "I refined my understanding of you.",
@@ -3358,6 +3366,7 @@
       },
       "shape": {
         "daily": "every day",
+        "intermittent": "several times a week",
         "workdays": "Mon–Fri",
         "weekly": "every {{day}}"
       },
@@ -3576,7 +3585,7 @@
         "chat-shortcuts": "slash, shortcut, command, quick request, macro, /command, snippet, edit, rename",
         "my-shortcuts": "shortcut, pin, favorite, floating menu, dock, quick access, sections",
         "open-loops": "commitments, open loops, pending, follow-up, promises, unfinished, nudges",
-        "habits": "habits, rhythm, routines, schedule, learned, activity windows, recurring requests, automation suggestions, detection bar, why no habit detected, streak, days in a row, milestone, record, reading presence, app opening, thumbs count, presence",
+        "habits": "habits, rhythm, routines, schedule, learned, activity windows, recurring requests, automation suggestions, detection bar, why no habit detected, streak, days in a row, milestone, record, reading presence, app opening, thumbs count, presence, several times a week, intermittent, recalibration",
         "notifications": "push, alerts, banners, mobile, reminders, FCM, native app, Android app, iOS app, wake relay, APNs",
         "channels": "whatsapp, telegram, sms, email, messaging, integrations",
         "security-auth": "2FA, MFA, TOTP, passkey, password, security, login, authenticator, two-factor",
@@ -3594,8 +3603,8 @@
         "memories": "memory, remember, forget, facts, recollection, provenance, why, source, signal, origin, correct, export, rules, directives, standing instructions, procedural",
         "interests": "topics, tastes, subjects, curiosity, preferences, history, recent notifications, provenance, why, weight, explanation, decay, source, export",
         "peer-connections": "contacts, friends, family, network, share calendar, availability, block, discover users, connect, my name, copy my name, connection request, access log, relay message, blocked users, peers, social network, discovery, loved ones, relatives, share my address, email visible, my email, 360 overview, visibility, requests",
-        "heartbeat": "proactive, spontaneous, initiative, check-in, autonomous messages, notification topics, sources, history, recent notifications, priority, urgency, high, medium, low, colour, weather, frequency, time window, proposals, offers, missed routine, push wake, react to an email, react to an invitation, trigger, wake-up",
-        "scheduled-actions": "cron, schedule, recurring, automation, timer, planned, week view, timeline, weekly grid, every three days, 2nd Tuesday, interval, end of series, advanced options",
+        "heartbeat": "proactive, spontaneous, initiative, check-in, autonomous messages, notification topics, sources, history, recent notifications, priority, urgency, high, medium, low, colour, weather, frequency, time window, proposals, offers, missed routine, push wake, react to an email, react to an invitation, trigger, wake-up, anticipated moments, after a meeting, how did it go, instant, moment",
+        "scheduled-actions": "cron, schedule, recurring, automation, timer, planned, week view, timeline, weekly grid, every three days, 2nd Tuesday, interval, end of series, advanced options, watch, watch for a reply, finished, tell me when, closes on its own",
         "journals": "diary, logbook, portrait, reflections, notes, provenance, why, source, signal, origin, correct, configuration, consolidation, export",
         "health-metrics": "heart rate, steps, sleep, iPhone, Apple Health, fitness, activity",
         "skills": "skills, capabilities, abilities, plugins, extensions",
@@ -4481,7 +4490,7 @@
         },
         "habits": {
           "title": "🧭 Habit Learning",
-          "description": "LIA learns your rhythm — active hours, weekday against weekend, recurring requests — with calibrated statistics rather than an opaque model, and publishes all of it: the thresholds applied, the days observed, the progress left. Off by default, and when nothing is detected it tells you the exact bar that was not met. Reading counts too: opening the app or giving a notification a thumb feeds the rhythm; a notification LIA sends never does."
+          "description": "LIA learns your rhythm — active hours, weekday against weekend, recurring requests — with calibrated statistics rather than an opaque model, and publishes all of it: the thresholds applied, the days observed, the progress left. Off by default, and when nothing is detected it tells you the exact bar that was not met. Reading counts too: opening the app or giving a notification a thumb feeds the rhythm; a notification LIA sends never does. A habit that comes several times a week is named as such, with no day promised."
         },
         "summarization": {
           "title": "📝 Automatic Summarization",
@@ -4509,7 +4518,7 @@
         },
         "security": {
           "title": "🔐 Multi-Layer Security",
-          "description": "Defence in depth, from sign-in to storage: passkeys, TOTP with backup codes, step-up re-authentication for sensitive actions, and every active session visible and revocable. Underneath, OAuth 2.1 with PKCE, PII filtered out of the logs, isolation between users, encryption at rest, a GDPR export where secret material is unexportable by construction, and daily backups whose restore is tested. A skill runs in a throwaway container with no socket and no network. And any text written by a third party — email, invitation, web page, MCP server — reaches the model tagged as data to analyse, never as instruction."
+          "description": "Defence in depth, from sign-in to storage: passkeys, TOTP with backup codes, step-up re-authentication for sensitive actions, and every active session visible and revocable. Underneath, OAuth 2.1 with PKCE, PII filtered out of the logs, isolation between users, encryption at rest, a GDPR export where secret material is unexportable by construction. A skill runs in a throwaway container with no socket and no network. And any text written by a third party — email, invitation, web page, MCP server — reaches the model tagged as data to analyse, never as instruction."
         },
         "resilience": {
           "title": "🛡️ Performance & Token Optimization",
@@ -4537,7 +4546,7 @@
         },
         "observability": {
           "title": "📊 Production-Ready Observability",
-          "description": "The full stack: Prometheus metrics (tokens, latency, errors, cost), 28 Grafana dashboards, Tempo tracing, Loki logs, and email alerting where every alert links its runbook. The 26th dashboard is a product cockpit counting validated outcomes — your explicit 👍, or an action left uncorrected for a full day — and derives activation, retention and cost per useful result from them. The counting lives in PostgreSQL, and Grafana reads it through a role that can only see aggregates."
+          "description": "The full stack: Prometheus metrics (tokens, latency, errors, cost), 29 Grafana dashboards, Tempo tracing, Loki logs, and email alerting where every alert links its runbook. The 26th dashboard is a product cockpit counting validated outcomes — your explicit 👍, or an action left uncorrected for a full day — and derives activation, retention and cost per useful result from them. The counting lives in PostgreSQL, and Grafana reads it through a role that can only see aggregates."
         },
         "tools": {
           "title": "🔧 114 Typed Tools",
@@ -4549,7 +4558,7 @@
         },
         "scheduledActions": {
           "title": "📅 Scheduled Actions",
-          "description": "Recurring actions the assistant runs on its own: say the rhythm — every three days, every other Tuesday, the 2nd Tuesday, the last day, every two hours between 9 and 5, until a date or N times — attach an instruction, and LIA runs it. Days are enumerated, never handed to a cron: the previous engine skipped the day at a clock change. Results archived in the conversation and pushed to you, auto-disabled after five failures. A week view draws them hours down and days across, each cell coloured by what happened."
+          "description": "Recurring actions the assistant runs on its own: say the rhythm — every three days, every other Tuesday, the 2nd Tuesday, the last day, every two hours between 9 and 5, until a date or N times — attach an instruction, and LIA runs it. Days are enumerated, never handed to a cron: the previous engine skipped the day at a clock change. Results archived in the conversation and pushed to you, auto-disabled after five failures. A week view draws them hours down and days across, each cell coloured by what happened. A routine whose series is over closes on its own, and a « Watch » gesture on a briefing e-mail posts a watch for the reply."
         },
         "mcp": {
           "title": "🔌 MCP (Model Context Protocol)",
@@ -4570,6 +4579,10 @@
         "heartbeatAutonome": {
           "title": "💓 Autonomous Heartbeat",
           "description": "Proactive notifications from eleven live sources, in two phases: a cheap model decides whether to speak at all, then the message is rewritten in the active personality. Topics rotate with an anti-repetition window, and a notification about an interest fetches real facts with clickable sources. One switch per source — being connected to a service and being interrupted by it are two decisions — a dropped source is counted and timed, never silently missing, and a push can trigger a decision in minutes."
+        },
+        "anticipatedMoments": {
+          "title": "⏱️ Anticipated moments",
+          "description": "LIA comes back at the instant that matters rather than at its next periodic pass. Fifteen minutes after an important meeting ends, it asks how it went — one open question, grounded in at most two facts, never a judgement. The moment is re-checked just before it is served: a cancelled or declined meeting says nothing, two back-to-back meetings earn one question, and the heartbeat's own quota and cooldowns still apply. Each kind switches off on its own."
         },
         "webFetch": {
           "title": "🌐 Intelligent Web Fetch",
@@ -4609,7 +4622,7 @@
         },
         "ragSpaces": {
           "title": "📚 RAG Knowledge Spaces",
-          "description": "Create knowledge spaces and upload your own documents (PDF, TXT, MD, DOCX): text is extracted, chunked and embedded, and an active space enriches the answers through a hybrid search that combines semantic similarity with keyword matching. Costs are tracked per document and per query. The built-in corpus that lets LIA answer about itself is rebuilt by one process at a time and checked at every start against both the source files and what is stored — and embeddings are computed before anything is deleted, so a provider rejection costs nothing and the previous corpus keeps answering. A space can also follow a Gmail label."
+          "description": "Create knowledge spaces and upload your own documents (PDF, TXT, MD, DOCX): text is extracted, chunked and embedded, and an active space enriches the answers through a hybrid search that combines semantic similarity with keyword matching. The built-in corpus that lets LIA answer about itself is rebuilt by one process at a time — and embeddings are computed before anything is deleted, so a provider rejection costs nothing and the previous corpus keeps answering. A space can also follow a Gmail label."
         },
         "subAgents": {
           "title": "Sub-Agents",
@@ -4625,7 +4638,7 @@
         },
         "personalJournals": {
           "title": "📓 Personal Journals (stratified consciousness)",
-          "description": "LIA keeps journals of its own, on four levels — raw observation, operational directive, transversal pattern, portrait facet — each with a confidence and its evidence and contradiction counters. A deferred loop re-evaluates at the next turn whether an injected directive was confirmed or contradicted by you, at no added LLM cost, and the same pass compiles the user portrait that reaches the eight flows where LIA speaks. You keep control: read by theme or level, edit, flag a problem, trigger a consolidation. Counters are incremented by the system, never by the model, and no directive reaches high confidence without real evidence."
+          "description": "LIA keeps journals of its own, on four levels — raw observation, operational directive, transversal pattern, portrait facet — each with a confidence. A deferred loop re-evaluates at the next turn whether an injected directive was confirmed or contradicted by you, and the same pass compiles the user portrait that reaches the eight flows where LIA speaks. You keep control: read by theme or level, edit, flag a problem, trigger a consolidation. Counters are incremented by the system, never by the model, and no directive reaches high confidence without real evidence."
         },
         "healthMetrics": {
           "title": "🩺 iPhone health data (polymorphic batch upsert)",
@@ -4649,7 +4662,7 @@
         },
         "telephony": {
           "title": "📞 Agentic Telephony",
-          "description": "LIA can place outbound calls through a goal-directed voice agent, driven by your own credentials. Data protection is enforced by capability, not by prompt: the call agent gets a single read-only availability tool returning free/busy slots — never titles, attendees or locations. Nothing is recorded and no transcript is kept; a signed webhook posts a short summary back into the chat when the call ends. You confirm every call before it dials, and the agent works under a strict mandate: no expense or commitment beyond the objective, and anything offered outside it is surfaced in the recap."
+          "description": "LIA can place outbound calls through a goal-directed voice agent, driven by your own credentials. Data protection is enforced by capability, not by prompt: the call agent gets a single read-only availability tool returning free/busy slots. Nothing is recorded and no transcript is kept; a signed webhook posts a short summary back into the chat when the call ends. You confirm every call before it dials, and the agent works under a strict mandate: no expense or commitment beyond the objective."
         },
         "todayBriefing": {
           "title": "🌅 Today Briefing",
@@ -4665,7 +4678,7 @@
         },
         "provenance": {
           "title": "🔍 Provenance of conclusions",
-          "description": "A memory claims you prefer morning meetings; a journal entry concludes on a mood. Each carries a bounded reference to the signals behind it: conversation, turn, date, and one of three roles — origin, evidence, contradiction. What is stored is a pointer and a timestamp, never the words: a copy would be a second permanent home for content you can delete elsewhere, and your deletion would stop being one. Deleting a conversation therefore empties the reference and leaves a dated row — a marker saying a signal existed, without bringing it back. The trail is capped at five references, and the cap is published in the response."
+          "description": "A memory claims you prefer morning meetings; a journal entry concludes on a mood. Each carries a bounded reference to the signals behind it: conversation, turn, date, and one of three roles — origin, evidence, contradiction. What is stored is a pointer and a timestamp, never the words: a copy would be a second permanent home for content you can delete elsewhere, and your deletion would stop being one. Deleting a conversation therefore empties the reference and leaves a dated row. The trail is capped at five references, and the cap is published in the response."
         },
         "capabilityMap": {
           "title": "🌌 Capability map",
@@ -4673,7 +4686,7 @@
         },
         "selfHosting": {
           "title": "🏠 LIA on your own machine",
-          "description": "LIA is free software (AGPL-3.0) you can run on your own machine, depending on nobody. A guided installer asks a short questionnaire in your language — how you want to reach it, which provider keys you hold — builds the images from the source you cloned, applies the reference data in a single transaction, creates your administrator account, then checks the installation genuinely works: one migration head, reference data present, keys decryptable. A server that answers is not a successful installation. No secret travels through the command line, and a failed step resumes exactly where it stopped."
+          "description": "LIA is free software (AGPL-3.0) you can run on your own machine, depending on nobody. A guided installer asks a short questionnaire in your language builds the images from the source you cloned, applies the reference data in a single transaction, creates your administrator account, then checks the installation genuinely works: one migration head, reference data present, keys decryptable. A server that answers is not a successful installation. No secret travels through the command line, and a failed step resumes exactly where it stopped."
         },
         "platformCapabilities": {
           "title": "🎛️ What this instance offers",
@@ -4689,7 +4702,7 @@
         },
         "adaptiveThresholds": {
           "title": "🎚️ Per-user adaptive thresholds",
-          "description": "A fixed similarity threshold is structurally unfair: the score distribution depends on each user's vocabulary and stock. A controller therefore learns a per-user threshold under four non-negotiable rails: hard bounds, hysteresis (one small step per day at most, whatever the error), observability (every adjustment counted, the effective value published in the debug panel), and a kill switch that freezes everything back to the static defaults. The state is advisory — a read failure falls back to the default, never to an error — and convergence was simulated on the real production distribution before activation."
+          "description": "A fixed similarity threshold is structurally unfair: the score distribution depends on each user's vocabulary and stock. A controller therefore learns a per-user threshold under four non-negotiable rails: hard bounds, hysteresis, observability, and a kill switch that freezes everything back to the static defaults. The state is advisory — a read failure falls back to the default, never to an error — and convergence was simulated on the real production distribution before activation."
         },
         "expressiveEyes": {
           "title": "Expressive eyes",
@@ -4705,7 +4718,7 @@
         },
         "ephemeralScripts": {
           "title": "🧮 Computed answers, not guessed ones",
-          "description": "Ask how long your layovers add up to, which people appear in two lists, or what a set of figures comes to across timezones, and an AI answers plausibly — with nothing in the reply to tell you it is wrong. In its autonomous mode LIA now writes a few lines of Python and runs them in a locked-down sandbox instead: no network, no database, nothing beyond the data the turn already collected, a throwaway container each time. The answer was computed, not estimated. It stays a complement — most questions never need it — and administrators can read every script that ran, with its purpose and its output."
+          "description": "Ask how long your layovers add up to, which people appear in two lists, and an AI answers plausibly — with nothing in the reply to tell you it is wrong. In its autonomous mode LIA now writes a few lines of Python and runs them in a locked-down sandbox instead: no network, no database, nothing beyond the data the turn already collected. The answer was computed, not estimated. It stays a complement — most questions never need it — and administrators can read every script that ran, with its purpose and its output."
         },
         "meetings": {
           "title": "🎙️ Meeting minutes",
@@ -4726,6 +4739,21 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_44_2": {
+          "title": "v1.44.2 — ⏱️ Back at the instant that matters",
+          "date": "September 2026",
+          "items": {
+            "i1": "<b>⏱️ Anticipated moments</b> — fifteen minutes after an important meeting ends, LIA asks how it went: one open question, at most two facts, never a judgement. The moment is re-checked before it is served, two back-to-back meetings earn one question, and the heartbeat's quota still applies.",
+            "i2": "<b>🎛️ One switch per kind of moment</b> — in the proactive notifications settings, beside the source switches. Nothing is offered that your account cannot produce: a kind waiting on a calendar you have not connected says so.",
+            "i3": "<b>🤫 No interruption during a meeting</b> — an ordinary proactive pass now reads your calendar first and stands aside while a meeting you attend is in progress. Being silent is exactly when the old activity rule believed you most available.",
+            "i4": "<b>📅 A finished routine closes on its own</b> — a routine whose series is over (end date reached, occurrences exhausted, single run consumed) used to stay &quot;active&quot; for ever, indistinguishable from one you had paused. It now reads &quot;Finished&quot;; extending its schedule restarts it.",
+            "i5": "<b>👁️ « Watch » on a briefing e-mail</b> — one gesture on a mail card posts a watch for that sender's reply, for two weeks. It refuses to create a second one for the same person, so an awaited reply is never announced twice.",
+            "i6": "<b>🧭 Habit learning finally learns</b> — the ledger of recurring requests had never recorded a single one, in five weeks: two readers looked up a field that did not exist. It records now, an alert would notice if it stopped, and the thresholds were recalibrated on a durable harness: a habit coming several times a week is named as such, a daily one is recognised after two weeks, and every bar you must clear is published in the &quot;why no habit&quot; explanation.",
+            "i7": "<b>🖼️ Gallery thumbnails show the whole image</b> — a portrait picture no longer arrives cropped, and a document card carries the mark of its type instead of a bare line of text.",
+            "i8": "<b>🔧 Also fixed</b> — a routine the system closed no longer reads &quot;Paused&quot;; a note about a missing connector no longer claims you switched it off; the heartbeat guide named a model and two wrong defaults, now corrected."
+          },
+          "count": "8"
+        },
         "v1_44_1": {
           "title": "v1.44.1 — 🗂️ What LIA makes belongs to you",
           "date": "September 2026",
@@ -7799,7 +7827,7 @@
       "heartbeat": {
         "title": "Proactive Notifications",
         "description": "LIA takes the initiative to keep you informed",
-        "count": "11",
+        "count": "12",
         "questions": {
           "q1": {
             "question": "What are proactive notifications?",
@@ -7844,13 +7872,17 @@
           "q11": {
             "question": "Can LIA react to an email or an invitation right away? (v1.40.0)",
             "answer": "Yes, when your administrator has switched the capability on. Instead of waiting for its next scheduled pass, LIA can decide within minutes of a message or a calendar change arriving.<br><br><strong>What it looks at — and nothing else:</strong><br>• an email carrying the label you treat as important, never promotions, social or mailing lists<br>• an event starting soon that someone else changed, or one still waiting for your answer<br><br><strong>What does not change:</strong> your notification window, your daily cap, the pauses between two messages, and your choice of sources. A burst of arrivals still produces a single wake-up, and if the moment is not right the message simply waits for the regular pass.<br><br>In your notification history, the ones that answered an email or an invitation are marked as such — so you can tell at a glance whether LIA spoke because something happened or because the clock said so."
+          },
+          "q12": {
+            "question": "Can LIA come back to me right after a meeting? (v1.44.2)",
+            "answer": "Yes. The regular proactive pass is periodic, so it could not return to a precise instant: a meeting ending at 3 pm was only seen at the next pass, if at all. <strong>Anticipated moments</strong> fix that — shortly after an important meeting ends, LIA asks how it went.<br><br><strong>How it behaves:</strong><br>• one open question, grounded in at most two facts — never a judgement, never an evaluation<br>• the moment is re-checked just before it is served: a meeting that was cancelled or declined, or one you already wrote about, says nothing<br>• two back-to-back meetings earn one question, at the end of the block, never in the middle of the next one<br>• your notification hours, daily limit and pauses still apply — only the \"spread over the day\" smoothing is bypassed, because an instant does not defer<br><br><strong>Where to control it:</strong> Settings → <em>Proactive notifications</em> → <em>Anticipated moments</em>. Each kind has its own switch (\"After a meeting\" needs a connected calendar), and your administrator can switch the whole capability off."
           }
         }
       },
       "scheduled_actions": {
         "title": "Scheduled Actions",
         "description": "Automate recurring tasks with LIA",
-        "count": "8",
+        "count": "9",
         "questions": {
           "q1": {
             "question": "What is a scheduled action?",
@@ -7883,6 +7915,10 @@
           "q8": {
             "question": "How do I read the week view? (v1.42.2)",
             "answer": "Above the list, the <strong>Week view</strong> draws your routines on a grid: hours down, days across (Monday first), in the time zone named beside it. Routines are listed by trigger time and <strong>numbered</strong> in that order — the same number sits on the card and on the grid; a paused routine keeps its number, creating or rescheduling one renumbers the later ones.<br><br><strong>🎨 This week's colours:</strong> white not executed (not yet due, or nothing ran), green executed, red failed, amber proposed and waiting for your approval in the chat, grey paused. A ring marks a routine whose condition is checked at that time; a routine running right now pulses.<br><br><strong>🔁 Reset:</strong> the colours cover the current week only and start over every Monday; changing a routine's days or time clears them, since they belonged to the old slots. Pressing <strong>Test</strong> after today's slot recolours it; before, it does not.<br><br><strong>⌨️ Navigation:</strong> click a number to jump to the routine's card; the grid is one tab stop and the arrow keys walk it."
+          },
+          "q9": {
+            "question": "Can LIA watch for a reply and tell me the minute it arrives? (v1.44.2)",
+            "answer": "Yes. On the Today briefing, a mail card offers <em>Watch for a reply from …</em>: one tap creates a condition routine keyed on that <strong>sender</strong> (never on the subject), valid for two weeks, and LIA already checks that you are not watching that person twice.<br><br><strong>Served to the minute:</strong> a condition routine used to be checked only when the executor passed by, up to two hours later. Now the same wake-up that reacts to your mailbox serves the watch as soon as the reply lands — it only brings the routine's next check forward; the routine itself still runs where it always did, under your usual limits.<br><br><strong>And it ends by itself:</strong> a routine that reaches the end of its series is now <em>closed</em>, not left \"active\" forever. In Settings → Scheduled actions it reads as completed, and you can delete it or set it up again."
           }
         }
       },
@@ -9423,7 +9459,8 @@
       "source_UPCOMING_BIRTHDAYS": "Birthdays",
       "source_OPEN_LOOPS": "Commitments",
       "source_DEPARTURE_ADVICE": "Leave-by advice",
-      "trigger_push": "Answered a push"
+      "trigger_push": "Answered a push",
+      "trigger_moment": "Answered a moment"
     },
     "source_requires": "Needs {{sources}}, which you have switched off"
   },
@@ -9991,7 +10028,7 @@
       },
       "proactive": {
         "title": "Proactive intelligence",
-        "description": "Push notifications at the right time (weather, meetings, tasks). Themes rotate so the same topic never comes back day after day, and when a notification builds on one of your interests it names real, fresh facts with clickable sources. During conversations, LIA proactively cross-references related information: rain forecast + outdoor event, email with meeting proposal + calendar conflict. Fully configurable. When something can wait, it becomes a proposal on your dashboard instead of a ping — nothing runs until you accept — and an activity feed shows everything LIA did for you in the background. And a notification no longer has to wait for its turn of the clock: when the mailbox or the calendar signals something, LIA can decide within minutes — under exactly the same budget, window and pauses you set, and only for a message carrying the label you treat as important or an event that concerns you soon."
+        "description": "Push notifications at the right time (weather, meetings, tasks). Themes rotate so the same topic never comes back day after day, and when a notification builds on one of your interests it names real, fresh facts with clickable sources. During conversations, LIA proactively cross-references related information: rain forecast + outdoor event, email with meeting proposal + calendar conflict. Fully configurable. When something can wait, it becomes a proposal on your dashboard instead of a ping — nothing runs until you accept — and an activity feed shows everything LIA did for you in the background. And a notification no longer has to wait for its turn of the clock: when the mailbox or the calendar signals something, LIA can decide within minutes — under exactly the same budget, window and pauses you set, and only for a message carrying the label you treat as important or an event that concerns you soon. And a meeting that ends no longer goes unnoticed: LIA comes back at that very instant — an open question about how it went, never an evaluation, never during the next meeting — and each kind of moment switches off separately in your settings."
       },
       "interests": {
         "title": "Interest tracking",
@@ -10926,9 +10963,9 @@
         "body": "<h2>Privacy by design</h2><p>LIA is designed from the ground up with data protection as a founding principle, not an afterthought.</p><h2>Fernet symmetric encryption</h2><p>All sensitive data is encrypted with <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256) via the <code>encrypt_data()</code> function. This covers OAuth tokens, connector credentials, PII, and MCP server credentials. OAuth credentials are encrypted before database writes and decrypted on-the-fly during retrieval. Encryption keys are managed separately from data.</p><h2>Collection minimization</h2><p>LIA only collects data strictly necessary for its operation:</p><ul><li>Profile information (name, email, preferences)</li><li>Conversation history (encrypted)</li><li>Service connection tokens (encrypted)</li><li>Anonymized usage metrics</li></ul><h2>Deletion and cascading</h2><p>Deleting a user account triggers a complete <strong>cascading delete</strong>: connectors, conversations, settings, sessions, memories, and all associated data are irreversibly deleted. No orphaned data persists in the database.</p><h2>Secure sessions and cookies</h2><p>Session cookies are configured with <code>HttpOnly</code>, <code>Secure</code> (in production), and <code>SameSite=lax</code> attributes. Session duration is 7 days by default, extendable to 30 days with the \"Remember me\" option. Single-use tokens are invalidated after first use via a Redis blacklist.</p><h2>External content protection</h2><p>Content retrieved from external sources (emails, web pages, documents) is tagged as <code>UNTRUSTED</code> with configurable wrapping before injection into prompts. The web_fetch tool is rate limited to 10 calls per 60-second window per user to prevent abuse.</p><h2>PII filtering in logs</h2><p>The logging system applies <strong>OWASP Logging Cheat Sheet</strong> recommendations to automatically filter personal data from application logs. No sensitive data appears in logs.</p><h2>Data portability (v1.9.1)</h2><p>LIA allows each user to <strong>export their own consumption data</strong> as CSV from Settings > Features. Three export types: LLM consumption (tokens and costs per call), Google API consumption, and aggregated summary. Security: the <code>user_id</code> is forced server-side — no parameter is exposed, preventing access to other users' data (IDOR protection).</p><h2>Backups with a proven restore</h2><p>Protecting data also means making sure it survives incidents. The production database is backed up automatically every night, with 7 days, 4 weeks and 6 months of history kept, in a dedicated directory with restrictive permissions. And because a backup only counts once a restore has been proven, the procedure is tested for real: the latest dump is restored into a disposable container and compared against the live database (schema revision, row counts) — a drill that ships with the stack.</p><h2>A complete record, not a sample</h2><p>Three registers kept automatically say what LIA <strong>did</strong> for you, what it <strong>consulted</strong> to answer you, and what it undertook <strong>on its own initiative</strong>. They carry no content: a consultation keeps the capability — \"your calendar\" — and never what was searched for, because writing it down would copy the very data the register exists to make accountable.</p><p>The record you download from <strong>Settings &gt; Registers</strong> is <strong>complete</strong>. It used to carry a row ceiling: a real protection, since the whole document was assembled in memory on a Raspberry Pi, but applied to the wrong variable. What was scarce was memory; what was bounded was the truth. A server-side cursor now bounds the buffer: whatever the volume, the file carries everything your filters name, the exact count is stated in the header alongside the instant of generation, and the download is compressed on the fly when your browser accepts it.</p>"
       },
       "observability": {
-        "title": "547 Prometheus Metrics, 28 Grafana Dashboards, and Langfuse Tracing",
-        "excerpt": "LIA offers enterprise-grade observability with 547 metrics, dedicated Grafana dashboards, LLM tracing via Langfuse, and email alerting with runbooks.",
-        "body": "<h2>The three pillars of observability</h2><p>LIA implements the three pillars of modern observability:</p><ul><li><strong>Metrics</strong> — 547 Prometheus metrics covering HTTP, agents, tokens, costs, OAuth, and performance</li><li><strong>Logs</strong> — Structured JSON logging via structlog, centralized in Loki with PII filtering</li><li><strong>Traces</strong> — Distributed tracing via OpenTelemetry (Tempo) and LLM tracing via Langfuse</li></ul><h2>23 specialized metrics files</h2><p>Each domain has its own declarative metrics file. The 23 modules cover: HTTP, agents (SSE/router/LLM/HITL/planner), database, LangGraph, Langfuse, voice, RAG spaces, OAuth, channels, errors, sub-agents, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, health metrics, journals, telephony, and usage limits. Each file defines domain-specific Prometheus Counter, Histogram, and Gauge metrics.</p><h2>Prometheus metrics definition</h2><p>Each domain defines its metrics declaratively:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>28 Grafana dashboards</h2><p>LIA provides 28 Grafana dashboards numbered 01 to 28: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony, briefing, product-value, meetings, and effect-ledger. Each dashboard offers views filterable by user, time period, and environment. The 26th is a product cockpit: validated outcomes (explicit 👍 or an action left uncorrected), activation funnel, retention and cost per useful result — the exact counting lives in PostgreSQL and Grafana reads it through a read-only role restricted to aggregate views.</p><h2>Target KPIs from code</h2><p>LIA monitors precise indicators defined in source code: streaming TTFT (Time To First Token), router latency between 0.1 and 2 seconds, agent tool execution duration between 0.1 and 10 seconds, router confidence p50 &gt; 0.8, LLM cost per request &lt; €0.05, HTTP 5xx error rate &lt; 1%.</p><h2>Email alerts with runbooks</h2><p>Supervision doesn't stop at dashboards: a core of 14 vital alerts — API, PostgreSQL or Redis down, disk, container memory, 5xx error rate, streaming latency, failed nightly backup, unreachable public URL, TLS certificate close to expiry, rate limiting running blind — is continuously evaluated by Prometheus and delivered by email through Alertmanager. Every alert references its runbook (step-by-step resolution procedure), thresholds are set per environment in .env files, and promtool unit tests guarantee that the thresholds displayed in notifications match the firing expressions exactly. A blackbox probe even tests the whole chain end to end, from the Cloudflare edge to the frontend, exactly like a user would.</p><h2>Langfuse: dedicated LLM tracing</h2><p>The Langfuse integration has 8 dedicated metrics to trace every LLM call: consumed tokens (input/output/cache), response time, model used, estimated cost, and request context. This identifies inefficient prompts, compares LLM models against each other, and optimizes token consumption over time.</p><h2>DevOps Claude CLI: Natural Language Diagnostics (v1.13.0)</h2><p>Latest evolution of the observability stack: administrators can now diagnose servers directly from the LIA conversation. By simply asking \"Check the logs to see if everything is working\", Claude Code CLI — installed in the API Docker container — independently inspects logs, checks container health, analyzes resource usage and reports its findings. Persistent sessions for multi-turn investigations, configurable permissions per environment (prod read-only, dev full access), and real-time streaming of investigation steps via SSE.</p><h2>And since v1.34: the assistant reads its own telemetry</h2><p>All of the above existed for humans; the assistant itself read none of it. ADR-247 closed that loop: a periodic self-check turns the golden signals plus direct probes into health snapshots with exact values; alerts and critical verdicts converge into one incident per outage, diagnosed by a budget-capped LLM grounded on the operations runbooks; administrators get a Platform health panel, proactive notifications and read-only chat tools. And a known outage now shapes answers — degraded capabilities are routed around at planning time, and failed steps are explained from typed error codes, never raw logs. Since then the diagnosis is no longer written from a number alone: a recipe declared per kind of incident says which breakdowns and which log events to read, the pack is collected at the moment of the diagnosis with personal data removed, a source it could not reach is stated as unavailable rather than read as silence, and what the model read is shown under its verdict.</p><h2>Counting outcomes, not attempts</h2><p>One counter had to be rethought in v1.38.3. Counting the calls that reach a provider is the truth about the provider — and the wrong denominator the moment those calls are retried, because a failure that was recovered inflates the error rate while nothing was actually lost. A second counter now records one row per logical operation, retries collapsed, and answers the only question an operator acts on: did the caller get its result? A third says what the rate shaper did with each attempt, because “the budget is too small” and “Redis is down” look identical in a boolean and call for opposite actions.</p><p>The most recent lesson is about choosing what to measure. The autonomous loop had counters for its iterations and its duration — and none for the thing that actually grows: the prompt delivered to the model at each step. Measured on production code, that is 2.3k tokens at the first iteration and 112k at the ninetieth, because every tool result stays in the conversation the model re-reads. Two histograms now record the delivered size and its share of the model's context window, fed by the same memoized counter the state reducer already maintains, so the measurement costs nothing on the hot path. No compression policy shipped with them, deliberately: a system that acts on a quantity it has never observed is optimising a guess.</p>"
+        "title": "550 Prometheus Metrics, 29 Grafana Dashboards, and Langfuse Tracing",
+        "excerpt": "LIA offers enterprise-grade observability with 550 metrics, dedicated Grafana dashboards, LLM tracing via Langfuse, and email alerting with runbooks.",
+        "body": "<h2>The three pillars of observability</h2><p>LIA implements the three pillars of modern observability:</p><ul><li><strong>Metrics</strong> — 550 Prometheus metrics covering HTTP, agents, tokens, costs, OAuth, and performance</li><li><strong>Logs</strong> — Structured JSON logging via structlog, centralized in Loki with PII filtering</li><li><strong>Traces</strong> — Distributed tracing via OpenTelemetry (Tempo) and LLM tracing via Langfuse</li></ul><h2>23 specialized metrics files</h2><p>Each domain has its own declarative metrics file. The 23 modules cover: HTTP, agents (SSE/router/LLM/HITL/planner), database, LangGraph, Langfuse, voice, RAG spaces, OAuth, channels, errors, sub-agents, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, health metrics, journals, telephony, and usage limits. Each file defines domain-specific Prometheus Counter, Histogram, and Gauge metrics.</p><h2>Prometheus metrics definition</h2><p>Each domain defines its metrics declaratively:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>29 Grafana dashboards</h2><p>LIA provides 29 Grafana dashboards numbered 01 to 29: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony, briefing, product-value, meetings, effect-ledger, and workboard. Each dashboard offers views filterable by user, time period, and environment. The 26th is a product cockpit: validated outcomes (explicit 👍 or an action left uncorrected), activation funnel, retention and cost per useful result — the exact counting lives in PostgreSQL and Grafana reads it through a read-only role restricted to aggregate views.</p><h2>Target KPIs from code</h2><p>LIA monitors precise indicators defined in source code: streaming TTFT (Time To First Token), router latency between 0.1 and 2 seconds, agent tool execution duration between 0.1 and 10 seconds, router confidence p50 &gt; 0.8, LLM cost per request &lt; €0.05, HTTP 5xx error rate &lt; 1%.</p><h2>Email alerts with runbooks</h2><p>Supervision doesn't stop at dashboards: a core of 14 vital alerts — API, PostgreSQL or Redis down, disk, container memory, 5xx error rate, streaming latency, failed nightly backup, unreachable public URL, TLS certificate close to expiry, rate limiting running blind — is continuously evaluated by Prometheus and delivered by email through Alertmanager. Every alert references its runbook (step-by-step resolution procedure), thresholds are set per environment in .env files, and promtool unit tests guarantee that the thresholds displayed in notifications match the firing expressions exactly. A blackbox probe even tests the whole chain end to end, from the Cloudflare edge to the frontend, exactly like a user would.</p><h2>Langfuse: dedicated LLM tracing</h2><p>The Langfuse integration has 8 dedicated metrics to trace every LLM call: consumed tokens (input/output/cache), response time, model used, estimated cost, and request context. This identifies inefficient prompts, compares LLM models against each other, and optimizes token consumption over time.</p><h2>DevOps Claude CLI: Natural Language Diagnostics (v1.13.0)</h2><p>Latest evolution of the observability stack: administrators can now diagnose servers directly from the LIA conversation. By simply asking \"Check the logs to see if everything is working\", Claude Code CLI — installed in the API Docker container — independently inspects logs, checks container health, analyzes resource usage and reports its findings. Persistent sessions for multi-turn investigations, configurable permissions per environment (prod read-only, dev full access), and real-time streaming of investigation steps via SSE.</p><h2>And since v1.34: the assistant reads its own telemetry</h2><p>All of the above existed for humans; the assistant itself read none of it. ADR-247 closed that loop: a periodic self-check turns the golden signals plus direct probes into health snapshots with exact values; alerts and critical verdicts converge into one incident per outage, diagnosed by a budget-capped LLM grounded on the operations runbooks; administrators get a Platform health panel, proactive notifications and read-only chat tools. And a known outage now shapes answers — degraded capabilities are routed around at planning time, and failed steps are explained from typed error codes, never raw logs. Since then the diagnosis is no longer written from a number alone: a recipe declared per kind of incident says which breakdowns and which log events to read, the pack is collected at the moment of the diagnosis with personal data removed, a source it could not reach is stated as unavailable rather than read as silence, and what the model read is shown under its verdict.</p><h2>Counting outcomes, not attempts</h2><p>One counter had to be rethought in v1.38.3. Counting the calls that reach a provider is the truth about the provider — and the wrong denominator the moment those calls are retried, because a failure that was recovered inflates the error rate while nothing was actually lost. A second counter now records one row per logical operation, retries collapsed, and answers the only question an operator acts on: did the caller get its result? A third says what the rate shaper did with each attempt, because “the budget is too small” and “Redis is down” look identical in a boolean and call for opposite actions.</p><p>The most recent lesson is about choosing what to measure. The autonomous loop had counters for its iterations and its duration — and none for the thing that actually grows: the prompt delivered to the model at each step. Measured on production code, that is 2.3k tokens at the first iteration and 112k at the ninetieth, because every tool result stays in the conversation the model re-reads. Two histograms now record the delivered size and its share of the model's context window, fed by the same memoized counter the state reducer already maintains, so the measurement costs nothing on the hot path. No compression policy shipped with them, deliberately: a system that acts on a quantity it has never observed is optimising a guess.</p>"
       },
       "prompt-engineering": {
         "title": "Versioned Prompt System: 78 Prompts Managed as Code",
@@ -11651,7 +11688,9 @@
       "sub_agents": "Delegated sub-agents",
       "sub_agents_description": "Delegating research to a read-only sub-agent. Turning it off refuses the delegation at call time.",
       "python_sandbox": "Ephemeral Python",
-      "python_sandbox_description": "Running a short script the model wrote, in the sandbox. Turning it off refuses it at call time."
+      "python_sandbox_description": "Running a short script the model wrote, in the sandbox. Turning it off refuses it at call time.",
+      "moments": "Anticipated moments",
+      "moments_description": "LIA comes back at an instant that matters — right after an important meeting, for instance — instead of waiting for its next scheduled pass. It stays inside the proactive quota and window."
     }
   },
   "showroom": {
@@ -13105,5 +13144,12 @@
       "react": "ReAct mode",
       "pipeline": "Pipeline mode"
     }
+  },
+  "moments": {
+    "kind_event_followup": "After a meeting",
+    "kind_event_followup_help": "LIA asks how an important meeting went, shortly after it ends.",
+    "requires_connector": "Needs {{sources}}, which is not connected on this account.",
+    "settings_title": "Anticipated moments",
+    "settings_description": "At which moments LIA may come back to you. It stays inside the hours and the daily limit set above."
   }
 }

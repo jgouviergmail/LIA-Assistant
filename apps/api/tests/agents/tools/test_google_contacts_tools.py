@@ -120,8 +120,11 @@ def create_mock_runtime(
     mock_store.aget = AsyncMock(return_value=None)
     mock_store.aput = AsyncMock()
 
+    # The typed context declares a UUID: handing it the string form made
+    # LangChain's args validation serialise a `str` through a `uuid` field —
+    # eleven Pydantic warnings per run, from the test alone.
     return make_tool_runtime(
-        user_id=user_id,
+        user_id=UUID(user_id),
         configurable=configurable,
         store=mock_store,
         state={},

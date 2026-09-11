@@ -89,6 +89,7 @@ class PlatformCapability(str, Enum):
     RELATION_DEBRIEF = "relation_debrief"
     SUB_AGENTS = "sub_agents"
     PYTHON_SANDBOX = "python_sandbox"
+    MOMENTS = "moments"
 
 
 @dataclass(frozen=True)
@@ -272,6 +273,18 @@ CAPABILITY_SPECS: dict[PlatformCapability, CapabilitySpec] = {
         env_flag="heartbeat_enabled",
         setting_key=SystemSettingKey.CAPABILITY_HEARTBEAT_ENABLED,
         route_enforced=True,
+    ),
+    # The moment sweep is the whole ability: there is no route of its own to
+    # guard, and no record to protect — a settled moment row is bookkeeping,
+    # while what LIA actually said lives in heartbeat_notifications and
+    # agent_effects, which stay readable whatever this switch says (ADR-280's
+    # rule: a switch removes the CAPABILITY, never the RECORD).
+    PlatformCapability.MOMENTS: CapabilitySpec(
+        capability=PlatformCapability.MOMENTS,
+        family="work",
+        env_flag="moments_enabled",
+        setting_key=SystemSettingKey.CAPABILITY_MOMENTS_ENABLED,
+        service_enforced=True,
     ),
     PlatformCapability.PEERS: CapabilitySpec(
         capability=PlatformCapability.PEERS,

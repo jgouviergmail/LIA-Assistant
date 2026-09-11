@@ -134,7 +134,7 @@ export function MyShortcutsSettings({ lng }: BaseSettingsProps) {
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                     {t(`settings.groups.${group.key}`)}
                   </p>
-                  <ul className="mt-1 grid gap-1 sm:grid-cols-2" role="list">
+                  <ul className="mt-1 grid grid-cols-1 gap-1 sm:grid-cols-2" role="list">
                     {sections.map(section => {
                       const checked = shortcuts.includes(section.token);
                       return (

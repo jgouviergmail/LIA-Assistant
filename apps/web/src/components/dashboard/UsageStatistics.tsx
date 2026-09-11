@@ -39,7 +39,7 @@ export function UsageStatistics() {
           aria-hidden="true"
         />
       </summary>
-      <div className="mt-4 grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
+      <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
         <StatCard
           title={t('dashboard.statistics.messages.title')}
           icon={<MessageSquare className="h-5 w-5 text-primary" />}

@@ -142,7 +142,7 @@ function Glance({ lng, summary }: { lng: BaseSettingsProps['lng']; summary: Boar
         <h4 className="text-xs font-bold uppercase tracking-wider text-primary">
           {t('settings.workboard.glance')}
         </h4>
-        <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
           <FigureTile
             href={boardHref(lng)}
             icon={LayoutGrid}

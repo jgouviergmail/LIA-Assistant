@@ -53,11 +53,12 @@ async def _resolve_recurrence_suggestion(
     if run_context is not None and run_context.is_automated_source:
         recurrence_evaluation_skipped_total.labels(reason="automated_source").inc()
         return None
-    from src.domains.agents.analysis.query_intelligence_helpers import get_qi_attr
+    from src.domains.agents.analysis.query_intelligence_helpers import (
+        resolve_actionable_domain,
+    )
 
-    qi_intent = get_qi_attr(state, "intent", default=None)
-    qi_primary = get_qi_attr(state, "primary_domain", default=None)
-    if qi_intent != "action" or not qi_primary:
+    qi_primary = resolve_actionable_domain(state)
+    if not qi_primary:
         return None
     user_id = runtime_user_id_str(None)
     if not user_id:
@@ -76,12 +77,9 @@ async def _resolve_recurrence_suggestion(
         user_tz = ZoneInfo(state.get("user_timezone", DEFAULT_USER_DISPLAY_TIMEZONE))
     except KeyError, ValueError, TypeError:
         user_tz = ZoneInfo(DEFAULT_USER_DISPLAY_TIMEZONE)
-    # v2 (ADR-214): domain-only signature; the user's local date anchors the
-    # observation window for the shape locks.
-    signature = build_signature(
-        str(qi_primary),
-        list(get_qi_attr(state, "secondary_domains", default=[]) or []),
-    )
+    # v2 (ADR-214): domain-only signature (see resolve_actionable_domain);
+    # the user's local date anchors the observation window for the locks.
+    signature = build_signature(qi_primary)
     return await evaluate_suggestion(
         user_id,
         signature,

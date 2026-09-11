@@ -6,7 +6,7 @@
 
 **Version**: 5.0
 **Date**: 2026-08-23
-**Application**: LIA v1.44.1
+**Application**: LIA v1.44.2
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -68,8 +68,8 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | ARM64 self-hosting | Multi-arch Docker, semantic embeddings (multilingual), Playwright chromium cross-platform |
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
-| Full transparency | 547 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 279 ADRs, ~27,863 pytest-collected tests across 1,629 files, native observability, 6-level HITL |
+| Full transparency | 550 Prometheus metrics, embedded debug panel, token-by-token tracking |
+| Production reliability | 280 ADRs, ~28,233 pytest-collected tests across 1,652 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -87,11 +87,11 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | 27,863 collected by pytest across 1,629 test files + 8,183 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
-| pytest fixtures | 957, 46 of them shared through conftest |
-| Documentation documents | 638 |
-| ADRs (Architecture Decision Records) | 279 |
-| Prometheus metrics | 547 definitions |
+| Tests | 28,233 collected by pytest across 1,652 test files + 8,246 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| pytest fixtures | 961, 46 of them shared through conftest |
+| Documentation documents | 647 |
+| ADRs (Architecture Decision Records) | 280 |
+| Prometheus metrics | 550 definitions |
 | Grafana dashboards | 29 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -811,7 +811,7 @@ Wake word ("OK Guy") via Sherpa-onnx WASM in the browser (zero external transmis
 
 ### 16.1. Heartbeat: 2-phase architecture
 
-**Phase 1 — Decision** (cost-effective, gpt-4.1-mini):
+**Phase 1 — Decision** (the `heartbeat_decision` slot, a frugal model chosen in the admin catalogue):
 1. `EligibilityChecker`: opt-in, time window, cooldown (1h global, 30 min per type), recent activity — optional `notification_filter`/`cross_type_filters` keep each flow's eligibility budget separate from the shared ledger
 2. `ContextAggregator`: 12 sources in parallel (`asyncio.gather`): Calendar, Weather (change detection), Tasks, Emails, Interests, Activity, recent heartbeat/interest notifications, other proactive surfaces (fired reminders, automation results, call reports — the extended anti-redundancy window), Health, upcoming Birthdays and Open loops (the commitments ledger, ADR-139). A **second pass** then derives a dynamic semantic query from the aggregated context to select Journals and Memories (ADR-135 symmetry) and computes the traffic-aware departure advice (Routes ETA, flag-gated). Interests arrive as a **varied sample** (`pick_varied_sample`: one interest per subject, least recently served subjects first) — the model can only mention what it is shown, so the rotation is mechanical
 
@@ -851,6 +851,14 @@ Google's push channels were alive and functionally inert: their only consumer in
 The mail delta is **previewed, never consumed** until the wake is served, so a refused wake leaves the message for the next tick — the two Gmail anchors stay distinct on purpose (the channel's is the last event *seen*, the heartbeat's the last mail *consumed*). The pre-filter is deterministic and published as settings: a required label, excluded categories, list mail out; an event starting within the lookahead, changed by someone else or awaiting the user's answer. And the decision knows why it was woken: a FRESH line opens its context, and the audit row persists `trigger = push | tick`, which the history renders.
 
 A Drive change is not a decision at all: it drains the changes feed from the channel's token and reindexes exactly the files sitting under a linked folder, through the per-file ingestion the full sync now shares.
+
+### 16.5. Anticipated moments, and watches served to the minute (ADR-281)
+
+The heartbeat is **periodic**: it cannot return to an instant. A meeting ends at 15:00, the next pass falls at 15:22 on a batch the account may not be in, and the context's calendar window starts at `now` and looks forward — a finished meeting is invisible to the decision. A `proactive_moments` table therefore holds the instants: one row per account and per source, unique on `(account, kind, source)` so a meeting never produces two moments, filed by a detector and served by a single sweep — jittered, under a scheduler lock whose TTL is tied to the interval. The claim is a `FOR UPDATE SKIP LOCKED` followed by a conditional `UPDATE` in the same transaction, with an owner token; a claim nobody settled is **reclaimed** after its lease, never left immortal. Before it is served, a moment is **revalidated**: a cancelled meeting, a declined one, or a person who has already written — it is dropped.
+
+A moment runs under the **full** eligibility checker and bypasses only the probabilistic smoothing and the learned rhythm — exactly like a push-driven wake, and for the same reason: an instant does not defer. The question is **asked, never the evaluation**: one open question, at most two facts, no judgement, never two moments stacked nor the same question twice. The in-meeting guard reads the calendar behind a Redis verdict cache and records no consultation on a hit; a failed read declares itself `failed`. Control ships with the capability: one switch per kind, the capability's own switch, a counter per kind and outcome and a "due → notified" latency on the heartbeat dashboard, and `task moments:preflight`, which says what an account would be offered, without writing anything.
+
+The same wake serves the **watches**: a condition routine "mail from this sender" used to wait up to two hours for the executor's pass; the wake, which already holds the Gmail delta, serves it before the pre-filter's verdict — the pre-filter answers "is this worth a wake", a watch answers "is this what I am waiting for". It never runs the routine: it advances its due time, the executor stays the sole judge, and it arms past the published search-cache TTL, because a cache filled before the mail arrived would answer "not met" and that verdict consumes the arming. A finished routine **closes** (`is_enabled = false`, `status = completed`) — its end has one authority, the `SeriesEnd` already stored. And the briefing's "Watch" chip writes that routine, keyed on the sender and never the subject, after reading what the account already holds.
 
 ---
 
@@ -962,15 +970,15 @@ Provenance is therefore a property of the **data**: the registry's 24 types are 
 
 | Technology | Role |
 |------------|------|
-| Prometheus | 547 custom metrics (RED pattern) |
-| Grafana | 28 production-ready dashboards |
+| Prometheus | 550 custom metrics (RED pattern) |
+| Grafana | 29 production-ready dashboards |
 | Loki | Aggregated structured JSON logs |
 | Tempo | Cross-service distributed traces (OTLP gRPC) |
 | Langfuse | LLM-specific tracing (prompt versions, token usage) |
 | Alertmanager | 14-alert vital core delivered by email (linked runbooks, per-environment thresholds) + webhook to LIA: every alert becomes an in-product incident (ADR-247) |
 | structlog | Structured logging with PII filtering |
 
-**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 547 defined; the 57 that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. The price of not having had this: a heartbeat source failing open dropped the health signals on 46.5 % of ticks for a week, with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
+**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 550 defined; the 57 that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. The price of not having had this: a heartbeat source failing open dropped the health signals on 46.5 % of ticks for a week, with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
 
 ### 20.2. Embedded Debug Panel
 
@@ -1368,7 +1376,7 @@ One CSS rule governs the design system's spacing: vertical margins on an `inline
 
 ## 24. Architecture Decision Records (ADR)
 
-279 ADRs in MADR format document the major architectural decisions. Some representative examples:
+280 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1462,6 +1470,8 @@ The statistical unit is the **day**, never the message — per-message counting 
 The hardest problem was not the detector but the **data**: conversations are ephemeral by design (resettable at will), so activity aggregates over four durable sources merged by per-hour maximum — live messages, per-run summaries, the reset audit trail (a human gesture by construction), and a daily activity bank. Every source passes a **human-session whitelist**: when the detector first ran against real production data, it claimed a daily scheduled action's 07:00 message — the scheduler's own timetable — as a user habit. The whitelist fails toward slower learning (visible), never toward a fabricated habit (invisible).
 
 Consumption is deliberately restrained: ambient context for responses and briefings, at most one missed-routine offer per day with a hard stop after two ignored ones, and notification tick scoring that prefers learned windows without ever widening the user's configured bounds — an anti-starvation rule guarantees an empty intersection changes nothing. Every threshold the detectors apply is published in the panel: a displayed habit is proven, or it does not exist.
+
+The second half — **recurring requests** — reads the router's decision, in a closed vocabulary: the very value the product dashboard derives from, so a turn counted as an action is a turn the ledger records. The signature stays the primary domain alone. Four shapes are named: daily, workdays, weekly and **intermittent** — "several times a week around 9 am" — decided by the density of distinct days over the eligible span, never by the lock: a 3×/week is no longer promised "every day". The thresholds are measured on a durable harness (`task habits:calibration:measure`, 300 trials per cell, dense and moderate populations each with a scattered control at equal volume): a daily rhythm is recognised at D+14, a 3×/week between D+21 and D+35, a weekly ritual kept 90 % of the time at D+42 — over five slots, so a missed week no longer kills the lock — with 0-0.3 % false locks on structureless usage; the relaxations the harness refused stay in its tables. And silence is an alert: `RecurrenceLedgerSilent` compares actionable human turns with landed writes — a ledger that writes nothing while it is being spoken to is not a discreet ledger, it is a broken one.
 
 ## 28. Governing an instance: spend, capabilities, installation
 
@@ -1659,8 +1669,8 @@ The companion's face used to pick its end-of-turn expression from the psyche's d
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 279 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~27,863 tests across 1,629 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 280 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~28,233 tests across 1,652 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 279 ADRs, and the changelog (v1.0 to v1.44.1). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 280 ADRs, and the changelog (v1.0 to v1.44.2). All metrics, versions, and patterns cited are verifiable in the codebase.*

@@ -202,7 +202,7 @@ function TicketFields({
   // caller's own flag from `follow` — one control, never two.
   const followed = ticket.owner_user_id === meId ? ticket.follow_owner : ticket.follow_assignee;
   return (
-    <div className="mt-2 grid gap-3 sm:grid-cols-2">
+    <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
       <div className="space-y-2">
         {/* The select renders its OWN label: a second `<Label htmlFor>` beside
             it would give the control two accessible names. */}

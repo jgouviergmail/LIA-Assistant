@@ -1448,6 +1448,23 @@ class TestProviderClientLifecycle:
                 "src.domains.connectors.repository.ConnectorRepository",
                 return_value=repo,
             ),
+            # The calendar path resolves its provider through the shared door
+            # (``connectors.calendar_access``), which imports these at module
+            # level — so patching them at their source would not reach it. The
+            # other two fetchers keep their own resolution; these patches are
+            # inert for them.
+            patch(
+                "src.domains.connectors.calendar_access.ConnectorService",
+                return_value=connector_service,
+            ),
+            patch(
+                "src.domains.connectors.calendar_access.resolve_active_connector",
+                AsyncMock(return_value=MagicMock(value="google", is_apple=False)),
+            ),
+            patch(
+                "src.domains.connectors.calendar_access.resolve_owner_calendar_id",
+                AsyncMock(return_value="primary"),
+            ),
         ):
             fetcher = getattr(aggregator, fetcher_name)
             await fetcher(MagicMock(), uuid4(), user, settings_view)

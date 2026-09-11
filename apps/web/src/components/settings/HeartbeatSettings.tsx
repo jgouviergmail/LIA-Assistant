@@ -18,6 +18,7 @@ import { useHeartbeatHistory } from '@/hooks/useHeartbeatHistory';
 import { useHeartbeatSettings } from '@/hooks/useHeartbeatSettings';
 import { HeartbeatHistory } from '@/components/settings/HeartbeatHistory';
 import { HeartbeatSourceSwitches } from '@/components/settings/HeartbeatSourceSwitches';
+import { MomentKindsSection } from '@/components/settings/MomentKindSwitches';
 import { Disclosure } from '@/components/ui/disclosure';
 import { toast } from 'sonner';
 import type { BaseSettingsProps } from '@/types/settings';
@@ -82,6 +83,15 @@ export function HeartbeatSettings({ lng }: BaseSettingsProps) {
    */
   const handleSourcesChange = async (disabled: string[]) => {
     const result = await updateSettings({ heartbeat_disabled_sources: disabled });
+    if (result) {
+      toast.success(t('heartbeat.settings_updated'));
+    } else {
+      toast.error(t('heartbeat.settings_error'));
+    }
+  };
+
+  const handleMomentKindsChange = async (disabled: string[]) => {
+    const result = await updateSettings({ moment_kinds_disabled: disabled });
     if (result) {
       toast.success(t('heartbeat.settings_updated'));
     } else {
@@ -193,6 +203,14 @@ export function HeartbeatSettings({ lng }: BaseSettingsProps) {
               />
             </Disclosure>
           </div>
+
+          <MomentKindsSection
+            allKinds={settings.all_moment_kinds ?? []}
+            disabledKinds={settings.moment_kinds_disabled ?? []}
+            kindDependencies={settings.moment_kind_dependencies}
+            updating={updating}
+            onChange={handleMomentKindsChange}
+          />
 
           <div className="border-t pt-4">
             <Disclosure

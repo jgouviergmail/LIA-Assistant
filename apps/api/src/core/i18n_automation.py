@@ -20,12 +20,42 @@ _DEFAULT = "en"
 #:
 #: Keyed on the backend-canonical language (``zh-CN``, never ``zh``).
 SCHEDULE_DAY_SETS: dict[str, dict[str, str]] = {
-    "fr": {"every_day": "Tous les jours", "weekdays": "Lun-Ven", "weekend": "Sam-Dim"},
-    "en": {"every_day": "Every day", "weekdays": "Mon-Fri", "weekend": "Sat-Sun"},
-    "es": {"every_day": "Todos los días", "weekdays": "Lun-Vie", "weekend": "Sáb-Dom"},
-    "de": {"every_day": "Täglich", "weekdays": "Mo-Fr", "weekend": "Sa-So"},
-    "it": {"every_day": "Tutti i giorni", "weekdays": "Lun-Ven", "weekend": "Sab-Dom"},
-    "zh-CN": {"every_day": "每天", "weekdays": "周一至周五", "weekend": "周末"},
+    "fr": {
+        "several_week": "Plusieurs fois par semaine",
+        "every_day": "Tous les jours",
+        "weekdays": "Lun-Ven",
+        "weekend": "Sam-Dim",
+    },
+    "en": {
+        "several_week": "Several times a week",
+        "every_day": "Every day",
+        "weekdays": "Mon-Fri",
+        "weekend": "Sat-Sun",
+    },
+    "es": {
+        "several_week": "Varias veces por semana",
+        "every_day": "Todos los días",
+        "weekdays": "Lun-Vie",
+        "weekend": "Sáb-Dom",
+    },
+    "de": {
+        "several_week": "Mehrmals pro Woche",
+        "every_day": "Täglich",
+        "weekdays": "Mo-Fr",
+        "weekend": "Sa-So",
+    },
+    "it": {
+        "several_week": "Più volte a settimana",
+        "every_day": "Tutti i giorni",
+        "weekdays": "Lun-Ven",
+        "weekend": "Sab-Dom",
+    },
+    "zh-CN": {
+        "several_week": "每周数次",
+        "every_day": "每天",
+        "weekdays": "周一至周五",
+        "weekend": "周末",
+    },
 }
 
 
@@ -33,7 +63,7 @@ def get_schedule_day_set(kind: str, language: str | None) -> str:
     """Localized wording for a recognised day set.
 
     Args:
-        kind: ``every_day`` | ``weekdays`` | ``weekend``.
+        kind: ``every_day`` | ``weekdays`` | ``weekend`` | ``several_week``.
         language: Any raw locale — normalized through the single chokepoint.
 
     Returns:
@@ -127,6 +157,9 @@ def get_recurrence_schedule_suggestion_text(language: str | None, lock: object) 
         days = wording["weekly_prefix"] + get_day_name(modal_weekday, language or _DEFAULT)
     elif shape == "workdays":
         days = get_schedule_day_set("weekdays", language)
+    elif shape == "intermittent":
+        # No calendar is promised: the habit is the HOUR, a few times a week.
+        days = get_schedule_day_set("several_week", language)
     else:
         days = get_schedule_day_set("every_day", language)
 

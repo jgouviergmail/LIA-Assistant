@@ -1,7 +1,8 @@
 """Redis storage format of the recurrence ledger (ADR-140 v2, ADR-214).
 
-The STORAGE layer only — key shape, per-day payload, caps, TTL. The
-SEMANTICS (signatures, shape locks, suggestion, promotion) stay in
+The STORAGE layer only — key shape (signature included, since 2026-09-11:
+the seed produces keys too and must produce the SAME ones), per-day payload,
+caps, TTL. The SEMANTICS (shape locks, suggestion, promotion) stay in
 ``domains.agents.services.recurrence_ledger``. Extracted here because three
 domains touch the same keys and duplicating the literal in each of them was
 the previous, weaker contract (pinned by tests instead of shared code):
@@ -23,6 +24,7 @@ pre-amendment payloads keep their meaning.
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from datetime import UTC, date, datetime
 from typing import Any
 
@@ -32,6 +34,27 @@ KEY_PREFIX = "recurrence"
 #: from ``product_outcomes`` by the habits recompute (ADR-214 amendment).
 ORIGIN_LIVE = "live"
 ORIGIN_SEED = "seed"
+
+
+def build_signature(primary_domain: str, secondary_domains: Sequence[str] = ()) -> str:
+    """Stable shape signature of a request — the ONE producer of the key's tail.
+
+    The live gate (agents) and the nightly seed (habits) write the primary
+    domain ALONE: ``resolve_actionable_domain`` documents the decision, and
+    ``product_outcomes`` stores no secondary domain, so the seed could not
+    compose one anyway. Domain-only is therefore the DEFAULT here rather
+    than a ``[]`` repeated at every call site — two producers of one key
+    format is how a seeded key and a live key drift apart for one shape.
+
+    Args:
+        primary_domain: Detected primary domain (query intelligence).
+        secondary_domains: Secondary domains, order-insensitive — empty on
+            every current producer.
+
+    Returns:
+        Signature like ``"email"`` (or ``"email+contact"`` when composed).
+    """
+    return "+".join([primary_domain, *sorted(secondary_domains)])
 
 
 def redis_key(user_id: str, signature: str) -> str:

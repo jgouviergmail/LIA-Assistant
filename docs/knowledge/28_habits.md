@@ -5,7 +5,7 @@ Two things, and only if you enable it (**Settings → Learn my habits**, off by 
 
 **🧭 Your activity rhythm** — the time windows (2-4 hours) when you are usually active, learned separately for weekdays and weekends.
 
-**🔁 Your recurring requests** — the kinds of things you ask regularly ("every Monday morning, the emails"), with their shape: daily, workdays, or weekly.
+**🔁 Your recurring requests** — the kinds of things you ask regularly ("every Monday morning, the emails"), with their shape: daily, workdays, weekly — or *intermittent* ("several times a week around 9 am") when the days are too few for a calendar promise but the hour is steady.
 
 Nothing leaves your account: the learning runs on your own instance, from your own activity.
 
@@ -15,7 +15,7 @@ No. Habits are learned by **transparent, deterministic statistics** — never an
 • The statistical unit is the **day**, never the message (bursts of messages in one evening do not fabricate a habit)
 • A time window is only claimed when presence, a 99% confidence bound, split-half consistency and recency ALL hold
 • Hysteresis prevents a habit from flickering in and out
-• Calibration was measured by simulation: 0-0.3% false positives on patternless usage, detection within 21-28 days, unlearning in about 9 days
+• Calibration was measured by simulation (`task habits:calibration:measure`, 300 trials per cell): 0-0.3% false positives on patternless usage; a daily rhythm is recognised in about 14 days, a three-times-a-week one in 21-35 days, a weekly ritual kept 90% of the time in about 42 days; unlearning in about 9 days
 
 A displayed habit is proven, or it does not exist: when your activity has no stable pattern, the panel says so honestly instead of inventing one.
 

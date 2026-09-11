@@ -623,3 +623,71 @@ seuils du RYTHME pour toutes les habitudes, y compris récurrentes — dont
 les seuils réellement appliqués sont ceux des verrous. Les seuils sont
 désormais publiés PAR KIND (figé par test : les nombres du rythme ne
 fuient jamais sous une habitude récurrente).
+
+## 12. Diagnostic prod du 2026-09-11 — « toujours pas d'apprentissage »
+
+Cinq semaines après la mise en service, `user_habits` = 0 ligne. Deux
+histoires distinctes, toutes deux mesurées (détail : ADR-214, amendement du
+2026-09-11) :
+
+- **Rythme : fonctionne, verdict honnête `none`.** Recalcul nocturne actif,
+  50 jours en fenêtre, 94 % de jours actifs, n_eff 25,5. Meilleure fenêtre
+  18h-22h : présence 0,78 mais capture 0,26 (min 0,60) et sélectivité 1,03
+  (min 1,9). L'activité est réellement étalée sur 24 h (23 % entre minuit et
+  6 h). Sources prouvées propres par présence : les tours sans résumé de
+  tokens portent la signature de nœuds d'un vrai tour de chat.
+- **Récurrences : n'avaient jamais rien enregistré.** Lecture
+  `get_qi_attr(state, "intent")` d'un attribut inexistant → `None` →
+  `not_applicable` pour tout tour ; 40 tests verts parce que leurs fixtures
+  fabriquaient la clé attendue. Corrigé par une déclaration unique
+  (`resolve_actionable_domain`), garde de classe, alerte dans le cœur chargé,
+  résidu de seed purgé avant correctif.
+- **Calibration rejouée sur un harnais durable** (`task
+  habits:calibration:measure`) : aucune recalibration défendable ne produit
+  une habitude pour cet usage ; sélectivité 1,6 mesurée dominante (non
+  appliquée à ce stade — appliquée le jour même par l'arbitrage du §13).
+
+Enseignement de méthode : une revendication « validé sur données réelles »
+faite en août portait sur le **rythme** ; la moitié récurrences n'avait été
+validée que sur des fixtures. Une fonctionnalité à deux détecteurs se prouve
+deux fois.
+
+## 13. Recalibration deux profils (2026-09-11, arbitrage propriétaire)
+
+Direction : servir l'hyperactif ET le modéré « peu d'interactions mais
+ciblées » (assistant proactif — la présence humaine peut être rare sans être
+informe). Détail et tables : ADR-214, amendement 2026-09-11 (b). L'essentiel :
+
+- **Rythme : relaxation refusée par la mesure** (8-37 % de fenêtres fabriquées
+  chez le dense uniforme pour 35-74 % de détection du rare-ciblé — verdict de
+  mécanisme : présence absolue calendaire). Appliqué : sélectivité 1,9 → 1,6
+  (+12,6 pts sur l'habituel bruité, ~1 % de FP week-end), exit 1,36.
+- **Récurrences = la voie du modéré ciblé**, quatre corrections mesurées :
+  fenêtre 35 j (5 créneaux hebdo — le rituel survit à une semaine manquée :
+  64 → 91,3 %), 6 occurrences + empan calendaire 10 j (quotidien reconnu à
+  J+14 : 4 → 98 %), **forme `intermittent`** (densité sur l'empan éligible ;
+  « plusieurs fois par semaine vers 9h », jamais un faux « tous les jours » ;
+  3×/semaine : 31 % mal étiqueté → 100 % dont 91 % intermittent), barre
+  R 0,9 pour l'étiquette sans calendrier (l'arc de veille porte R≈0,53
+  intrinsèque : FP léger 3,0 → 0,3 %).
+- **Refusés avec les chiffres** : weekly assoupli 3/0,6 (rien au rituel, des
+  verrous chanceux au clairsemé), tous les jeux presence/Wilson/sparse.
+- **Revue à froid du même jour** (huit constats, tous corrigés) : l'alerte
+  réécrite sur trois compteurs (tours actionnables humains, écritures
+  atterries, fonctionnalité coupée) parce que sa première forme tirait sur
+  une semaine sans demande et ne voyait pas un Redis muet ; la clé
+  d'étiquetage renommée (`RECURRENCE_SHAPE_MIN_SPAN_DAYS`) parce que son sens
+  avait changé et que la prod pinne l'ancienne ; le cap du ledger validé au
+  boot contre la fenêtre ; les échecs du ledger loggués à un niveau que la
+  prod expédie ; le format de clé réduit à UN producteur
+  (`recurrence_store.build_signature`, le seed y compris) ; le vocabulaire
+  des formes fermé et testé chez ses cinq lecteurs ; le harnais rendu
+  indépendant du lanceur (constantes, pas `settings`) ; les seuils
+  d'étiquetage publiés par l'endpoint d'explication (ADR-184).
+
+**Enseignement** : quand un profil d'usage échappe à un détecteur, la réponse
+n'est pas d'assouplir ce détecteur jusqu'à ce qu'il « voie » (il fabrique
+alors des habitudes chez les autres) — c'est de trouver le détecteur dont ce
+profil est le cas nominal, et d'y créer le vocabulaire honnête qui manquait.
+Le harnais borne les deux côtés : chaque population ciblée a son contrôle
+dispersé à volume égal, et les jeux refusés RESTENT dans le balayage.

@@ -506,6 +506,37 @@ async def _purge_run_history() -> int:
         return 0
 
 
+async def _close_finished_routines() -> int:
+    """Close the routines with no future left; best effort, never raises.
+
+    A series ends three ways — its ``SeriesEnd`` date reached, its
+    ``after_count`` exhausted, its single occurrence consumed — and all three
+    leave the same state: a NULL trigger. Nothing closed those rows, so they
+    stayed enabled and « active » for good, indistinguishable from a pause.
+
+    Disabled, never deleted: the person must be able to see what they had
+    posted. In its OWN session so a failure cannot poison the batch that
+    follows.
+
+    Returns:
+        How many were closed (0 when none were due or the sweep failed).
+    """
+    from src.domains.scheduled_actions.repository import ScheduledActionRepository
+    from src.infrastructure.database.session import get_db_context
+
+    try:
+        async with get_db_context() as db:
+            closed = await ScheduledActionRepository(db).close_finished()
+            await db.commit()
+            return closed
+    except Exception as exc:  # noqa: BLE001 — housekeeping never costs the tick
+        logger.warning(
+            "scheduled_action_close_finished_failed",
+            error_type=type(exc).__name__,
+        )
+        return 0
+
+
 async def process_scheduled_actions() -> dict[str, Any]:
     """
     Scheduler job: process all due scheduled actions.
@@ -539,6 +570,7 @@ async def process_scheduled_actions() -> dict[str, Any]:
         "skipped": 0,
         "recovered": 0,
         "runs_purged": 0,
+        "finished_closed": 0,
     }
 
     try:
@@ -550,6 +582,11 @@ async def process_scheduled_actions() -> dict[str, Any]:
         # its OWN session so a failed DELETE cannot poison the batch, and
         # BEFORE the empty-batch early return, which is the common tick.
         stats["runs_purged"] = await _purge_run_history()
+        # 0b. Close the routines with no future left (ADR-281, lot 5). Beside
+        # the retention for the same reasons — no new interval, no new lock —
+        # and in the same place: a routine that will never fire again must stop
+        # LOOKING active on the person's screen.
+        stats["finished_closed"] = await _close_finished_routines()
 
         async with get_db_context() as db:
             repo = ScheduledActionRepository(db)

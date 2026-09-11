@@ -1,5 +1,5 @@
 {
-  "_doc": "Metrics defined in code that no dashboard, recording rule or alert references. Enforced by tests/unit/test_metric_coverage_ratchet_guard.py. SHRINK-ONLY: wire a metric to a panel and remove it here (run `task ratchet:metrics`). Adding an entry means shipping a metric nobody can see \u2014 justify it in review.",
+  "_doc": "Metrics defined in code that no dashboard, recording rule or alert references. Enforced by tests/unit/test_metric_coverage_ratchet_guard.py. SHRINK-ONLY: wire a metric to a panel and remove it here (run `task ratchet:metrics`). Adding an entry means shipping a metric nobody can see — justify it in review.",
   "uncovered": [
     "account_export_jobs_total",
     "adaptive_candidate_top_score",
@@ -11,7 +11,6 @@
     "habit_profile_users_total",
     "habit_window_rejected_total",
     "heartbeat_enrichment_total",
-    "heartbeat_ticks_deferred_total",
     "http_request_body_rejected_total",
     "initiative_actions_rejected_total",
     "initiative_followups_total",
@@ -37,7 +36,6 @@
     "peers_messages_total",
     "planner_fabricated_parameters_restored_total",
     "planner_parameter_bounds_corrections_total",
-    "post_response_extraction_scheduled_total",
     "prompt_injection_patterns_total",
     "rag_reindex_space_flips_total",
     "react_repeated_calls_total",

@@ -43,6 +43,14 @@ from src.infrastructure.cache import recurrence_store
 logger = structlog.get_logger(__name__)
 
 
+#: Shapes that promise a calendar slot the heartbeat can find MISSED. Literal
+#: on purpose — importing the ledger's tuple would add a heartbeat→agents
+#: edge; ``test_recurrence_ledger.py`` holds the two vocabularies together.
+#: ``intermittent`` is deliberately absent: it promises no calendar day, so
+#: there is no slot to miss and nothing to offer.
+SLOTTED_SHAPES: tuple[str, ...] = ("daily", "workdays", "weekly")
+
+
 def rhythm_summary(profile_payload: dict[str, Any] | None) -> dict[str, list[str]] | None:
     """Compact per-class window labels from a stored profile payload.
 
@@ -111,7 +119,7 @@ def detect_missed_routine(
     shape = payload.get("shape")
     trigger_hour = payload.get("trigger_hour")
     days_of_week = payload.get("days_of_week") or []
-    if shape not in ("daily", "workdays", "weekly") or trigger_hour is None:
+    if shape not in SLOTTED_SHAPES or trigger_hour is None:
         return None
 
     today = now_local.date()
@@ -283,7 +291,7 @@ async def should_defer_tick_for_rhythm(
                 heartbeat_ticks_deferred_total,
             )
 
-            heartbeat_ticks_deferred_total.labels(day_class=day_class).inc()
+            heartbeat_ticks_deferred_total.labels(day_class=day_class, reason="rhythm").inc()
             logger.debug(
                 "heartbeat_tick_deferred_rhythm",
                 user_id=str(user_id),

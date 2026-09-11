@@ -4,7 +4,7 @@
 
 **Versione**: 6.0
 **Data**: 2026-08-23
-**Applicazione**: LIA v1.44.1
+**Applicazione**: LIA v1.44.2
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -164,6 +164,7 @@ LIA non si limita a rispondere — anticipa:
 - **Interessi**: LIA conserva ciò che ti sta davvero a cuore, non ciò che hai chiesto una volta — fare una domanda è un compito, non un gusto, e servono una passione dichiarata, una pratica, una conoscenza reale o un approfondimento autentico perché un argomento conti. I temi si alternano (mai due volte di seguito lo stesso argomento), ogni notifica include link cliccabili alle sue fonti, e un argomento che rifiuti non torna: il blocco viene confrontato con ogni nuovo argomento, anche sotto un altro nome
 - **Lavoro che affidi e che torna**: un ticket ha un ciclo di vita, un responsabile e un risultato. Affidane uno a LIA e lo prende con i suoi tempi, lo fa, commenta ciò che ha trovato e ti restituisce il risultato da accettare — e quando incontra qualcosa che non può fare da sola, chiede sul ticket mostrando esattamente cosa sta per fare, invece di decidere al posto tuo o rinunciare
 - **Sotto-agenti**: per le attività complesse, LIA delega ad agenti effimeri specializzati che lavorano in parallelo
+- **Tornare all'istante che conta**: una riunione finisce, e LIA ti chiede com'è andata — alla fine, non al passaggio successivo due ore dopo. Una domanda aperta, mai una valutazione, mai durante la riunione successiva; ogni tipo di momento si spegne da solo nelle impostazioni. E una mail che aspetti è servita al minuto: «Sorveglia» dal briefing crea la vigilanza, che finisce da sé una volta arrivata la risposta
 - **Reagire, non solo verificare**: quando la casella di posta o l'agenda segnalano qualcosa, LIA può decidere in pochi minuti invece di aspettare il passaggio successivo — nella stessa identica fascia oraria, con lo stesso tetto e le stesse pause, e solo per un'e-mail che porta l'etichetta che ritieni importante o un evento che ti riguarda a breve. Una raffica di arrivi produce un solo risveglio, e un momento giudicato inopportuno restituisce semplicemente il messaggio al passaggio regolare
 
 ### 3.7. Navigazione web autonoma

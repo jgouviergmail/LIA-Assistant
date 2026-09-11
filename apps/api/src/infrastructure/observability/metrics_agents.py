@@ -696,6 +696,16 @@ recurrence_evaluation_skipped_total = Counter(
     ["reason"],  # automated_source
 )
 
+# ADR-214 amendment (2026-09-11): the gate counts ``scheduled`` when it HANDS
+# the write to the background; only the write can say it landed. The
+# RecurrenceLedgerSilent alert reads this counter, so a broken Redis cannot
+# hide behind a green gate (the advisory ledger swallows every failure).
+recurrence_ledger_writes_total = Counter(
+    "recurrence_ledger_writes_total",
+    "Recurrence ledger occurrence writes by outcome",
+    ["outcome"],  # written | redis_unavailable | failed
+)
+
 initiative_duration_seconds = Histogram(
     "initiative_duration_seconds",
     "Initiative phase total duration",

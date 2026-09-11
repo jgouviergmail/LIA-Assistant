@@ -17,7 +17,9 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.core.recurrence import DailyTimes, RecurrenceSpec, TimeOfDay
+from src.core.recurrence import DailyTimes, RecurrenceSpec, SeriesEnd, TimeOfDay
+from src.domains.scheduled_actions.models import ScheduledActionStatus
+from src.domains.scheduled_actions.schemas import ScheduledActionUpdate
 from src.domains.scheduled_actions.service import ScheduledActionService
 
 pytestmark = pytest.mark.unit
@@ -107,3 +109,112 @@ class TestTimezoneMove:
             __import__("zoneinfo").ZoneInfo("America/New_York")
         )
         assert (local.hour, local.minute) == (8, 0)
+
+
+# A series with a future, and one whose end has already passed.
+_LIVE = RecurrenceSpec(
+    freq="daily",
+    times=DailyTimes(mode="at", at=(TimeOfDay(hour=8, minute=0),)),
+    anchor_date=date(2026, 1, 5),
+)
+_OVER = RecurrenceSpec(
+    freq="daily",
+    times=DailyTimes(mode="at", at=(TimeOfDay(hour=8, minute=0),)),
+    anchor_date=date(2020, 1, 1),
+    end=SeriesEnd(kind="on_date", on_date=date(2020, 1, 10)),
+)
+
+
+class TestRevivingAClosedRoutine:
+    """Extending a finished routine must actually restart it (ADR-281, lot 5).
+
+    The executor closes a routine with no future (`is_enabled = False`,
+    `status = COMPLETED`). Giving it a future again — a later `SeriesEnd`, a
+    bigger `after_count` — recomputes its trigger, but the row stayed closed:
+    the person edited their routine and it silently never ran again.
+
+    The rule is about WHO closed it. The system closed a finished routine, so
+    the system reopens it once the reason is gone. A PAUSE is the person's own
+    decision, and an edit is not a request to resume.
+    """
+
+    @staticmethod
+    def _closed(**over: Any) -> SimpleNamespace:
+        base = {
+            "id": uuid.uuid4(),
+            "user_id": uuid.uuid4(),
+            "recurrence": _LIVE.model_dump(mode="json"),
+            "recurrence_spec": _LIVE,
+            "user_timezone": "Europe/Paris",
+            "is_enabled": False,
+            "status": ScheduledActionStatus.COMPLETED.value,
+            "next_trigger_at": None,
+            "trigger_kind": "time",
+            "condition_config": None,
+        }
+        base.update(over)
+        return SimpleNamespace(**base)
+
+    @staticmethod
+    def _with(action: SimpleNamespace) -> ScheduledActionService:
+        """A service whose repository writes straight onto the row."""
+
+        def _apply(row: SimpleNamespace, data: dict[str, Any]) -> SimpleNamespace:
+            for key, value in data.items():
+                setattr(row, key, value)
+            return row
+
+        service = ScheduledActionService(MagicMock())
+        service.get_with_ownership_check = AsyncMock(return_value=action)  # type: ignore[method-assign]
+        service.repository = MagicMock()
+        service.repository.update = AsyncMock(side_effect=_apply)
+        return service
+
+    async def test_a_new_schedule_puts_a_closed_routine_back_to_work(self) -> None:
+        action = self._closed()
+        service = self._with(action)
+
+        await service.update(action.id, action.user_id, ScheduledActionUpdate(recurrence=_LIVE))
+
+        assert action.is_enabled is True
+        assert action.status == ScheduledActionStatus.ACTIVE.value
+        assert action.next_trigger_at is not None
+
+    async def test_a_routine_the_person_paused_stays_paused(self) -> None:
+        """A pause is a decision; editing the schedule does not undo it."""
+        action = self._closed(status=ScheduledActionStatus.ACTIVE.value)
+        service = self._with(action)
+
+        await service.update(action.id, action.user_id, ScheduledActionUpdate(recurrence=_LIVE))
+
+        assert action.is_enabled is False
+        assert action.status == ScheduledActionStatus.ACTIVE.value
+
+    async def test_an_edit_that_leaves_the_series_over_changes_nothing(self) -> None:
+        """No future, no revival: reopening would promise a run it does not have."""
+        action = self._closed(recurrence=_OVER.model_dump(mode="json"), recurrence_spec=_OVER)
+        service = self._with(action)
+
+        await service.update(action.id, action.user_id, ScheduledActionUpdate(recurrence=_OVER))
+
+        assert action.is_enabled is False
+        assert action.status == ScheduledActionStatus.COMPLETED.value
+        assert action.next_trigger_at is None
+
+    async def test_an_edit_that_does_not_touch_the_schedule_leaves_it_closed(self) -> None:
+        action = self._closed()
+        service = self._with(action)
+
+        await service.update(action.id, action.user_id, ScheduledActionUpdate(title="Autre"))
+
+        assert action.is_enabled is False
+        assert action.status == ScheduledActionStatus.COMPLETED.value
+
+    async def test_an_active_routine_is_not_touched_by_the_rule(self) -> None:
+        action = self._closed(is_enabled=True, status=ScheduledActionStatus.ACTIVE.value)
+        service = self._with(action)
+
+        await service.update(action.id, action.user_id, ScheduledActionUpdate(recurrence=_LIVE))
+
+        assert action.is_enabled is True
+        assert action.status == ScheduledActionStatus.ACTIVE.value

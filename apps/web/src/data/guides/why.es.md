@@ -4,7 +4,7 @@
 
 **Versión**: 6.0
 **Fecha**: 2026-08-23
-**Aplicación**: LIA v1.44.1
+**Aplicación**: LIA v1.44.2
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -164,6 +164,7 @@ LIA no se limita a responder — anticipa:
 - **Centros de interés**: LIA retiene lo que de verdad te importa, no lo que preguntaste una vez — hacer una pregunta es una tarea, no un gusto, y hace falta una pasión declarada, una práctica, un conocimiento real o una profundización auténtica para que un tema cuente. Los temas se alternan (nunca el mismo tema dos veces seguidas), cada notificación incluye enlaces clicables a sus fuentes, y un tema que rechazas no vuelve: el bloqueo se compara con cada tema nuevo, incluso bajo otro nombre
 - **Trabajo que confías y que vuelve**: un ticket tiene ciclo de vida, responsable y resultado. Dale uno a LIA y lo toma a su ritmo, lo hace, comenta lo que ha encontrado y te devuelve el resultado para aceptarlo — y cuando se topa con algo que no puede hacer sola, pregunta en el ticket mostrando exactamente lo que va a hacer, en lugar de decidir por ti o rendirse
 - **Subagentes**: para tareas complejas, LIA delega en agentes efímeros especializados que trabajan en paralelo
+- **Volver al instante que cuenta**: una reunión termina, y LIA te pregunta cómo ha ido — al final, no en la siguiente pasada dos horas después. Una pregunta abierta, nunca una evaluación, nunca durante la reunión siguiente; cada tipo de momento se apaga por sí solo en los ajustes. Y un correo que esperas se sirve al minuto: «Vigilar» desde el briefing crea la vigilancia, que termina sola en cuanto llega la respuesta
 - **Reaccionar, no solo comprobar**: cuando el buzón o la agenda señalan algo, LIA puede decidir en unos minutos en lugar de esperar a su siguiente pasada — bajo exactamente la misma franja horaria, el mismo techo y las mismas pausas, y solo para un correo con la etiqueta que consideras importante o un evento que te concierne pronto. Una ráfaga de llegadas produce un único despertar, y un momento juzgado inoportuno simplemente devuelve el mensaje a la pasada regular
 
 ### 3.7. Navegación web autónoma

@@ -34,6 +34,22 @@ export interface HeartbeatSettings {
    * field simply carries no warning.
    */
   source_dependencies?: Record<string, string[]>;
+  /**
+   * Kinds of anticipated moment the reader refuses (ADR-281).
+   *
+   * Optional throughout, so a response predating the feature renders exactly
+   * as before rather than as "everything refused".
+   */
+  moment_kinds_disabled?: string[];
+  /** Every kind, in display order — published, never re-declared here. */
+  all_moment_kinds?: string[];
+  /**
+   * Kinds that would yield nothing on this account, and what each waits for.
+   *
+   * Already NARROWED to what is missing: for a kind, "missing" means an absent
+   * connector, which only the server can know.
+   */
+  moment_kind_dependencies?: Record<string, string[]>;
 }
 
 /**
@@ -48,6 +64,8 @@ export interface HeartbeatSettingsUpdate {
   heartbeat_notify_end_hour?: number;
   /** FULL replacement of the refusal set — never a partial diff. */
   heartbeat_disabled_sources?: string[];
+  /** FULL replacement of the refused moment kinds — never a partial diff. */
+  moment_kinds_disabled?: string[];
 }
 
 /**

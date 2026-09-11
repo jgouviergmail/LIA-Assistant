@@ -73,9 +73,12 @@ export function GeneratedAssetsSettings({ lng }: GeneratedAssetsSettingsProps) {
     >
       <Tabs value={family} onValueChange={value => setFamily(value as GeneratedAssetFamily)}>
         <TabsList className="grid w-full grid-cols-3">
+          {/* Three equal columns are ~80 px each at 320 px: the mark yields to
+              the word below `sm` (the `SkillGuideModal` precedent), because a
+              tab reading « Docu… » names nothing. */}
           {FAMILIES.map(({ key, icon: Icon }) => (
-            <TabsTrigger key={key} value={key} className="gap-1.5">
-              <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <TabsTrigger key={key} value={key} className="gap-1.5 px-2 text-xs sm:px-3 sm:text-sm">
+              <Icon className="hidden h-4 w-4 shrink-0 sm:block" aria-hidden="true" />
               <span className="truncate">{t(`settings.generated_assets.family.${key}`)}</span>
             </TabsTrigger>
           ))}
@@ -182,7 +185,7 @@ function Gallery({
       {gallery.firstLoad ? (
         <>
           <LoadingAnnouncement />
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {[0, 1, 2].map(index => (
               <Skeleton key={index} className="h-40 w-full" />
             ))}

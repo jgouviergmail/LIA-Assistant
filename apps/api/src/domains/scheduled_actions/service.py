@@ -5,6 +5,7 @@ Handles CRUD operations, schedule recalculation, and timezone cascade updates.
 """
 
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 import structlog
@@ -164,7 +165,22 @@ class ScheduledActionService:
             next_trigger_at = next_occurrence(
                 action.recurrence_spec, action.user_timezone, after=now_utc()
             )
-            action = await self.repository.update(action, {"next_trigger_at": next_trigger_at})
+            revived: dict[str, Any] = {"next_trigger_at": next_trigger_at}
+            # Giving a CLOSED routine a future again puts it back to work
+            # (ADR-281, lot 5). The executor closed it because its series had
+            # nothing left; extend the series and that reason is gone, so the
+            # same authority reopens it. Without this, someone pushing their
+            # watch's end date back got a recomputed trigger on a row still
+            # disabled — an edit that silently never runs.
+            #
+            # The rule is about WHO closed it: a PAUSE is the person's own
+            # decision, and an edit is not a request to resume.
+            if next_trigger_at is not None and action.status == (
+                ScheduledActionStatus.COMPLETED.value
+            ):
+                revived["is_enabled"] = True
+                revived["status"] = ScheduledActionStatus.ACTIVE.value
+            action = await self.repository.update(action, revived)
 
             logger.info(
                 "scheduled_action_trigger_recalculated",

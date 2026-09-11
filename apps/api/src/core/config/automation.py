@@ -10,11 +10,13 @@ Created: 2026-07-22
 
 from __future__ import annotations
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
 
 from src.core.constants import (
+    RECURRENCE_DAILY_DENSITY_MIN_DEFAULT,
     RECURRENCE_DAY_HOURS_CAP_DEFAULT,
+    RECURRENCE_INTERMITTENT_R_MIN_DEFAULT,
     RECURRENCE_LEDGER_MAX_ENTRIES_DEFAULT,
     RECURRENCE_LOCK_HALF_AGREE_HOURS_DEFAULT,
     RECURRENCE_LOCK_HALF_R_MIN_DEFAULT,
@@ -22,7 +24,7 @@ from src.core.constants import (
     RECURRENCE_LOCK_MIN_SPREAD_DAYS_DEFAULT,
     RECURRENCE_LOCK_R_MIN_DEFAULT,
     RECURRENCE_MIN_DISTINCT_DAYS_DEFAULT,
-    RECURRENCE_SHAPE_MIN_DAYS_DEFAULT,
+    RECURRENCE_SHAPE_MIN_SPAN_DAYS_DEFAULT,
     RECURRENCE_SUGGESTION_COOLDOWN_DAYS_DEFAULT,
     RECURRENCE_WEEKEND_TOLERANCE_DEFAULT,
     RECURRENCE_WEEKLY_DOW_FRACTION_DEFAULT,
@@ -106,12 +108,29 @@ class AutomationSettings(BaseSettings):
         le=12.0,
         description="Split-half consistency: max circular distance between half means.",
     )
-    recurrence_shape_min_days: int = Field(
-        default=RECURRENCE_SHAPE_MIN_DAYS_DEFAULT,
+    recurrence_shape_min_span_days: int = Field(
+        default=RECURRENCE_SHAPE_MIN_SPAN_DAYS_DEFAULT,
         ge=7,
         le=60,
-        description="Distinct days before the daily/workdays shape is labeled "
-        "(too early mislabels a daily habit as workdays — measured).",
+        description="Calendar SPAN (days, first to last occurrence) before a "
+        "time-lock shape is labeled (too early mislabels daily as workdays — "
+        "measured). Replaces RECURRENCE_SHAPE_MIN_DAYS (distinct days) since "
+        "2026-09-11; the old key is ignored.",
+    )
+    recurrence_daily_density_min: float = Field(
+        default=RECURRENCE_DAILY_DENSITY_MIN_DEFAULT,
+        ge=0.0,
+        le=1.0,
+        description="Distinct-day density over the eligible span below which "
+        "a proven time lock is labeled 'intermittent' (never 'daily').",
+    )
+    recurrence_intermittent_r_min: float = Field(
+        default=RECURRENCE_INTERMITTENT_R_MIN_DEFAULT,
+        ge=0.0,
+        le=1.0,
+        description="Circular R required for the 'intermittent' label — an "
+        "hour promised without a calendar must beat the waking-arc's own "
+        "concentration (uniform 8-22h reaches R 0.8 by luck at light volume).",
     )
     recurrence_weekend_tolerance: int = Field(
         default=RECURRENCE_WEEKEND_TOLERANCE_DEFAULT,
@@ -131,3 +150,22 @@ class AutomationSettings(BaseSettings):
         le=1.0,
         description="Fraction of distinct days on the modal weekday for a weekly lock.",
     )
+
+    @model_validator(mode="after")
+    def _ledger_cap_covers_the_window(self) -> AutomationSettings:
+        """Refuse a day-entry cap below the observation window.
+
+        The ledger stores one entry per day and trims to the cap; the locks
+        read the window. A cap below the window silently shortens EVERY
+        window — a weekly ritual needs its fifth slot, and the v1 occurrence
+        cap starved the spread lock exactly this way (ADR-214). Loud, like
+        the sibling settings validators: learning on a truncated ledger is
+        the silent failure this subsystem has already paid for once.
+        """
+        if self.recurrence_ledger_max_entries < self.recurrence_window_days:
+            raise ValueError(
+                "RECURRENCE_LEDGER_MAX_ENTRIES must be >= RECURRENCE_WINDOW_DAYS "
+                f"(got entries={self.recurrence_ledger_max_entries}, "
+                f"window={self.recurrence_window_days})"
+            )
+        return self

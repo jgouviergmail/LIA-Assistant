@@ -92,6 +92,11 @@ export function HeartbeatHistory({
       ...(item.trigger === 'push'
         ? [{ key: 'trigger_push', label: t('heartbeat.history.trigger_push') }]
         : []),
+      // Same rule for an anticipated instant (ADR-281): the reader can tell a
+      // meeting that just ended from the clock.
+      ...(item.trigger === 'moment'
+        ? [{ key: 'trigger_moment', label: t('heartbeat.history.trigger_moment') }]
+        : []),
       ...item.sources_used.map(source => ({
         key: source,
         // An unknown label renders RAW rather than as a missing i18n key: a new

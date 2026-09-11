@@ -83,7 +83,14 @@ export function GeneratedAssetGrid({
   return (
     <div className="space-y-3">
       {confirmDialog}
-      <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      {/* `grid-cols-1` is not decoration: without an explicit template the
+          phone column is an IMPLICIT `auto` track, sized to the cards'
+          min-content — a nowrap title made it 665 px on a 320 px screen,
+          inside a section that clips, so the page itself never scrolled
+          (measured 2026-09-11). `grid-cols-1` is `repeat(1, minmax(0, 1fr))`:
+          the 0 minimum is what lets the track — and the card, whose automatic
+          minimum only applies against an `auto` minimum — shrink to fit. */}
+      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {items.map(asset => {
           const label = assetLabel(asset);
           const isImage = asset.mime_type.startsWith('image/');
@@ -105,7 +112,15 @@ export function GeneratedAssetGrid({
                   aria-label={t('settings.generated_assets.select', { name: label })}
                   className="mt-0.5 shrink-0"
                 />
-                <span className="min-w-0 flex-1 truncate text-sm font-medium" title={label}>
+                {/* Two lines, not one: on a phone the title IS the identification
+                    of a document, and a single `truncate` line kept ~30 characters
+                    of a request that starts with the words every request shares.
+                    `break-words` lets a filename with no space wrap instead of
+                    being clipped. The full text stays in `title`. */}
+                <span
+                  className="line-clamp-2 min-w-0 flex-1 break-words text-sm font-medium"
+                  title={label}
+                >
                   {label}
                 </span>
               </div>

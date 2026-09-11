@@ -130,7 +130,7 @@ export function LiveDemoInvitation({ lng }: LiveDemoInvitationProps) {
         {t('showroom.live_invitation.intro')}
       </p>
 
-      <ul className="mt-4 grid gap-2.5 sm:grid-cols-2 sm:gap-x-8">
+      <ul className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-x-8">
         {limits.map(({ key, icon: Icon }) => (
           <li key={key} className="flex items-start gap-2.5 text-sm">
             <Icon className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />

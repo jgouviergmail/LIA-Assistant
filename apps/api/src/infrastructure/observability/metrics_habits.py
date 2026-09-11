@@ -36,11 +36,15 @@ user_habits_synced_total = Counter(
 
 heartbeat_ticks_deferred_total = Counter(
     "heartbeat_ticks_deferred_total",
-    "Proactive heartbeat ticks deferred toward a learned rhythm window "
-    "(ADR-214 tick scoring, own flag). A sustained surge with no matching "
-    "in-window deliveries would mean the anti-starvation rule is broken.",
-    ["day_class"],
-    # day_class: weekday | weekend
+    "Proactive heartbeat ticks that stood aside, and why. Extended rather than "
+    "duplicated when the in-meeting guard landed (ADR-281): two metrics for "
+    "« this tick did not speak » would be two places to read the same thing. "
+    "A sustained rhythm surge with no matching in-window deliveries would mean "
+    "the anti-starvation rule is broken.",
+    ["day_class", "reason"],
+    # day_class: weekday | weekend | unknown (the in-meeting guard runs before
+    #   any day classification, and inventing one would be a false label)
+    # reason: rhythm | in_meeting
 )
 
 habit_window_rejected_total = Counter(

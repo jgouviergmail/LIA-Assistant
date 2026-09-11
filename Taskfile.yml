@@ -138,6 +138,21 @@ tasks:
       - cmd: .venv/bin/python scripts/llm_catalogue/preflight.py
         platforms: [linux, darwin]
 
+  moments:preflight:
+    desc: "Read-only: would an anticipated moment be produced right now? (reads the real calendar, writes nothing)"
+    dir: "{{.API_DIR}}"
+    # A DIAGNOSTIC, never a gate. It answers the only question an operator
+    # actually asks — « why did nothing fire? » — by printing the three things
+    # that decide it: the hour window in the person's own zone, what the
+    # calendar really returned, and why each finished meeting was kept or
+    # dropped. It uses the detector directly rather than the sweep's own path,
+    # so it records no consultation and leaves the register untouched.
+    cmds:
+      - cmd: .venv/Scripts/python scripts/moments/preflight.py
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/moments/preflight.py
+        platforms: [linux, darwin]
+
   # ============================================================================
   # Development
   # ============================================================================
@@ -346,6 +361,20 @@ tasks:
       - cmd: .venv/Scripts/python scripts/recurrence/measure_transcription.py {{.CLI_ARGS}}
         platforms: [windows]
       - cmd: .venv/bin/python scripts/recurrence/measure_transcription.py {{.CLI_ARGS}}
+        platforms: [linux, darwin]
+
+  habits:calibration:measure:
+    desc: Replay the habit detectors' calibration harness (deterministic, no network)
+    dir: "{{.API_DIR}}"
+    # A MEASUREMENT, never a gate: it sweeps the rhythm and recurrence
+    # thresholds over seeded synthetic populations and, with --real, over a
+    # series exported from an instance (counts only). ADR-214 says the
+    # thresholds may only be recalibrated by replaying this harness — it is
+    # what makes a lowered threshold's false-positive cost VISIBLE.
+    cmds:
+      - cmd: .venv/Scripts/python scripts/habits/measure_calibration.py {{.CLI_ARGS}}
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/habits/measure_calibration.py {{.CLI_ARGS}}
         platforms: [linux, darwin]
 
   workboard:corpus:measure:
@@ -899,9 +928,9 @@ tasks:
     desc: Backend unit tests with coverage and the CI floor (mirrors the CI job step)
     dir: "{{.API_DIR}}"
     cmds:
-      - cmd: .venv/Scripts/pytest tests/unit/ -v --tb=short -m "not integration and not slow and not e2e and not benchmark and not multiprocess" --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=71
+      - cmd: .venv/Scripts/pytest tests/unit/ -v --tb=short -m "not integration and not slow and not e2e and not benchmark and not multiprocess" --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=72
         platforms: [windows]
-      - cmd: .venv/bin/pytest tests/unit/ -v --tb=short -m "not integration and not slow and not e2e and not benchmark and not multiprocess" --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=71
+      - cmd: .venv/bin/pytest tests/unit/ -v --tb=short -m "not integration and not slow and not e2e and not benchmark and not multiprocess" --cov=src --cov-report=xml --cov-report=term-missing --cov-fail-under=72
         platforms: [linux, darwin]
 
   test:backend:agents:

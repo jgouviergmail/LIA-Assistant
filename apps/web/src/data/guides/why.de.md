@@ -4,7 +4,7 @@
 
 **Version**: 6.0
 **Datum**: 2026-08-23
-**Anwendung**: LIA v1.44.1
+**Anwendung**: LIA v1.44.2
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -164,6 +164,7 @@ LIA beschränkt sich nicht aufs Antworten — LIA antizipiert:
 - **Interessengebiete**: LIA behält, was dir wirklich am Herzen liegt, nicht das, wonach du einmal gefragt hast — eine Frage zu stellen ist eine Aufgabe, keine Vorliebe, und es braucht erklärte Begeisterung, eigene Praxis, echtes Vorwissen oder tatsächliches Vertiefen, damit ein Thema zählt. Die Themen wechseln sich ab (nie zweimal hintereinander dasselbe Thema), jede Benachrichtigung enthält klickbare Links zu ihren Quellen, und ein Thema, das du ablehnst, kommt nicht zurück: Die Blockade wird mit jedem neuen Thema abgeglichen, auch unter anderem Namen
 - **Arbeit, die du übergibst und zurückbekommst**: Ein Ticket hat einen Lebenszyklus, einen Inhaber und ein Ergebnis. Gib eines an LIA, und sie nimmt es in ihrem Takt, erledigt es, kommentiert, was sie gefunden hat, und gibt dir das Ergebnis zur Annahme zurück — und trifft sie auf etwas, das sie nicht allein tun darf, fragt sie auf dem Ticket und zeigt genau, was sie vorhat, statt für dich zu entscheiden oder aufzugeben
 - **Unteragenten**: Für komplexe Aufgaben delegiert LIA an spezialisierte, kurzlebige Agenten, die parallel arbeiten
+- **Zum Zeitpunkt zurückkehren, der zählt**: Ein Meeting endet, und LIA fragt dich, wie es gelaufen ist — am Ende, nicht beim nächsten Durchlauf zwei Stunden später. Eine offene Frage, nie eine Bewertung, nie während des nächsten Meetings; jede Art von Moment lässt sich in den Einstellungen einzeln abschalten. Und eine Mail, auf die du wartest, wird minutengenau bedient: „Beobachten“ im Briefing legt die Wache an, die von selbst endet, sobald die Antwort da ist
 - **Reagieren, nicht nur prüfen**: Meldet das Postfach oder der Kalender etwas, kann LIA binnen Minuten entscheiden, statt auf den nächsten Durchlauf zu warten — im exakt gleichen Zeitfenster, mit derselben Obergrenze und denselben Pausen, und nur für eine E-Mail mit dem Label, das du für wichtig hältst, oder einen Termin, der dich bald betrifft. Ein Schwall von Eingängen ergibt genau eine Weckung, und ein als ungünstig eingeschätzter Moment gibt die Nachricht einfach an den regulären Durchlauf zurück
 
 ### 3.7. Autonomes Web-Browsing

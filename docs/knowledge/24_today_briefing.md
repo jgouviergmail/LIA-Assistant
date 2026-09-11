@@ -110,3 +110,6 @@ Yes. The daily synthesis card has a **Listen** button that reads the briefing al
 **🌍 In your language:** the readout uses your interface language and your configured voice provider (Edge TTS, OpenAI or ElevenLabs, set by the administrator).
 
 If synthesis fails (for example when the voice provider is unavailable), the card says so explicitly instead of playing silence.
+
+## Can I ask LIA to watch for a reply from the briefing?
+Yes. A mail card carries a *Watch for a reply from …* action: it creates a condition routine keyed on that sender, valid for two weeks, without opening the chat — the chat cannot write a condition routine. If you are already watching that sender, LIA says so instead of creating a second watch, because two identical watches would announce one awaited reply twice. The watch is served the minute the reply lands (see *Scheduled actions*).

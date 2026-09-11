@@ -51,14 +51,39 @@ def _counter(kind: str, outcome: str) -> float:
     )
 
 
-def _state(*, intent: str = "action", primary: str = "email"):
+def _state(*, intention: str = "action", primary: str = "email"):
+    """The state as the ROUTER writes it — built by the real producers.
+
+    ``intention`` is the ROUTER's decision (``action`` | ``conversation``),
+    which is what the recurrence gate reads; the query intelligence carries
+    its own vocabulary (``search``…) and never an ``intent`` key. Hand-writing
+    that key is what kept this suite green over a dead path until 2026-09-11.
+    """
+    from src.domains.agents.analysis.query_intelligence import QueryIntelligence, UserGoal
+    from src.domains.agents.domain_schemas import RouterOutput
+
+    intelligence = QueryIntelligence(
+        original_query="je déménage à Lyon en septembre",
+        english_query="I am moving to Lyon in September",
+        immediate_intent="search",
+        immediate_confidence=0.9,
+        user_goal=UserGoal.FIND_INFORMATION,
+        goal_reasoning="move",
+        domains=[primary],
+        primary_domain=primary,
+    )
     return {
         "messages": [HumanMessage(content="je déménage à Lyon en septembre")],
-        "query_intelligence": {
-            "intent": intent,
-            "primary_domain": primary,
-            "secondary_domains": [],
-        },
+        "query_intelligence": intelligence.to_serializable_dict(),
+        "routing_history": [
+            RouterOutput(
+                intention=intention,
+                confidence=0.9,
+                context_label="general",
+                next_node="planner",
+                domains=[primary],
+            )
+        ],
         "user_timezone": "Europe/Paris",
     }
 
@@ -252,7 +277,7 @@ class TestExtractionMetrics:
         """Only actionable domain queries can recur into automations."""
         before = _counter(KIND_RECURRENCE, OUTCOME_NOT_APPLICABLE)
 
-        _run(_state(intent="conversation"), _config(), _settings())
+        _run(_state(intention="conversation"), _config(), _settings())
 
         assert _counter(KIND_RECURRENCE, OUTCOME_NOT_APPLICABLE) == before + 1
 

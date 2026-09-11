@@ -30,6 +30,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from src.core.config import settings
+from src.domains.agents.constants import INTENTION_ACTION, STATE_KEY_ROUTING_HISTORY
 
 if TYPE_CHECKING:
     from src.domains.agents.analysis.query_intelligence import QueryIntelligence
@@ -224,7 +225,53 @@ def reconstruct_query_intelligence(data: dict[str, Any]) -> QueryIntelligence:
     )
 
 
+def resolve_actionable_domain(state: dict[str, Any]) -> str | None:
+    """The turn's primary domain, when the ROUTER classified it actionable.
+
+    The single declaration of "an actionable domain turn" for every consumer
+    that must recognise one (the recurrence ledger write and the initiative
+    suggestion). Two wordings of it always diverge (ADR-255) — and one of them
+    silently did: both callers used to read ``get_qi_attr(state, "intent")``,
+    an attribute ``QueryIntelligence`` has never declared, so the read
+    returned ``None`` for every turn and the ledger recorded nothing against
+    227 actionable turns in production (measured 2026-09-11).
+
+    The intention comes from ``routing_history`` — the router's own decision,
+    in the closed vocabulary ``action`` | ``conversation`` | ``unknown``, and
+    the SAME value ``product_outcomes.result_type`` is derived from, so a turn
+    the dashboard counts as an action is a turn the ledger records. Entries are
+    read tolerantly: LangGraph checkpoints round-trip through msgpack, so the
+    last route may arrive as an object or as a dict.
+
+    The recurrence SIGNATURE is the primary domain alone: production has only
+    ever stored single-domain keys, and composing the secondary domains would
+    fragment every stored key (fewer occurrences per signature, locks further
+    out of reach) — a separate decision, to be measured before it is taken.
+
+    Args:
+        state: LangGraph state dict.
+
+    Returns:
+        The primary domain when the router routed this turn as an action and
+        a domain was resolved; None otherwise.
+    """
+    history = state.get(STATE_KEY_ROUTING_HISTORY) or []
+    if not history:
+        return None
+    last_route = history[-1]
+    intention = (
+        last_route.get("intention")
+        if isinstance(last_route, dict)
+        else getattr(last_route, "intention", None)
+    )
+    if intention != INTENTION_ACTION:
+        return None
+    primary = get_qi_attr(state, "primary_domain", default=None)
+    return str(primary) if primary else None
+
+
 __all__ = [
+    "resolve_actionable_domain",
     "get_qi_attr",
     "get_query_intelligence_from_state",
     "reconstruct_query_intelligence",
