@@ -16,8 +16,32 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from src.domains.habits.models import HabitKind
+from src.domains.habits.recurrence_sync import RecurringSyncOutcome
 from src.domains.habits.rhythm import PROFILE_PAYLOAD_VERSION
 from src.domains.habits.service import HabitsService, part_of_day
+
+
+@pytest.fixture(autouse=True)
+def _ledger_side_neutralised():
+    """The ledger seed and the recurring sync have their own suites
+    (``test_ledger_seed``, ``test_recurrence_sync``) and read Redis: here
+    they are steps the orchestration must CALL, nothing more. Left real,
+    the sync reached the dev Redis from a host run (loopback is not
+    « external » to the network guard) and then the stub repository — an
+    environment-dependent verdict — and the seed, now ahead of every skip,
+    synthesised un-awaited coroutines on an ``AsyncMock`` session. A test
+    asserting either call nests its own patch, which wins."""
+    with (
+        patch(
+            "src.domains.habits.service.seed_ledger_from_outcomes",
+            AsyncMock(return_value=0),
+        ),
+        patch(
+            "src.domains.habits.service.sync_recurring_habits",
+            AsyncMock(return_value=RecurringSyncOutcome()),
+        ),
+    ):
+        yield
 
 
 class _StubRepo:
@@ -112,6 +136,22 @@ class TestRecompute:
         outcome = await service.recompute_user_profile(_user())
         assert outcome == "skipped_no_activity"
         assert repo.upserted_profiles == []
+
+    async def test_the_recurring_sync_runs_for_a_silent_account_too(self) -> None:
+        """The sync follows the LEDGER, not the activity sources: an account
+        that reset its conversations and went quiet past the rollup window
+        has no timestamped source left, yet its ledger may have expired —
+        the one case a demotion exists for (cold review, 2026-09-11)."""
+        repo = _StubRepo()
+        service = _service_with(repo)
+        with patch(
+            "src.domains.habits.service.sync_recurring_habits",
+            AsyncMock(return_value=RecurringSyncOutcome(demoted=1)),
+        ) as sync:
+            outcome = await service.recompute_user_profile(_user())
+        assert outcome == "skipped_no_activity"
+        sync.assert_awaited_once()
+        assert sync.await_args.args[0] is repo
 
     async def test_computes_and_syncs_window_habits(self) -> None:
         repo = _StubRepo()
@@ -549,3 +589,54 @@ class TestPresenceOnlyAccount:
         service.repository.upsert_profile.assert_awaited_once()
         # No timestamped source: the delta marker stays NULL rather than a lie.
         assert service.repository.upsert_profile.await_args.kwargs["source_max_created_at"] is None
+
+
+@pytest.mark.unit
+class TestRecurringSyncWiring:
+    """The nightly recompute owns the recurring rows' life (ADR-214 amendment c):
+    the sync runs BEFORE the delta skip, like the seed, and its outcome is
+    counted."""
+
+    async def test_sync_runs_before_the_delta_skip(self) -> None:
+        repo = _StubRepo()
+        now = datetime.now(UTC)
+        repo.bounds = (now - timedelta(days=100), now - timedelta(hours=3))
+        repo.day_activity = _regular_days()
+        service = _service_with(repo)
+        # A stored profile with nothing to decay and nothing new → the rhythm
+        # skips; the recurring sync must have run anyway.
+        repo.profile = MagicMock(
+            payload={
+                "version": 1,
+                "sparse": False,
+                "active_days_fraction": 0.5,
+                "classes": {
+                    "weekday": {
+                        "verdict": "none",
+                        "windows": [],
+                        "n_eff": 20.0,
+                        "bin_presence": [0.0] * 24,
+                    },
+                    "weekend": {
+                        "verdict": "none",
+                        "windows": [],
+                        "n_eff": 8.0,
+                        "bin_presence": [0.0] * 24,
+                    },
+                },
+            },
+            source_max_created_at=now,
+        )
+        with (
+            patch(
+                "src.domains.habits.service.seed_ledger_from_outcomes", AsyncMock(return_value=0)
+            ),
+            patch(
+                "src.domains.habits.service.sync_recurring_habits",
+                AsyncMock(return_value=RecurringSyncOutcome(created=1, demoted=2)),
+            ) as sync,
+        ):
+            outcome = await service.recompute_user_profile(_user())
+        assert outcome == "skipped_no_delta"
+        sync.assert_awaited_once()
+        assert sync.await_args.args[0] is repo

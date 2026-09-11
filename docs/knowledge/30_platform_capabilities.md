@@ -29,9 +29,12 @@ No. **A switch removes the capability, never the record.**
 
 Switching long-term memory off stops LIA learning new facts about you; every
 memory it already learned stays readable, editable and deletable. The same rule
-holds for interests, relationship debriefs and file uploads: turning uploads off
-closes the door on sending new files, never on reading or removing the ones you
-already have.
+holds for interests, relationship debriefs, file uploads, learned habits and
+proactive notifications: turning uploads off closes the door on sending new
+files, never on reading or removing the ones you already have; turning habits
+or proactive notifications off stops the learning and the sending, while the
+habits panel, the notification settings, the history and your feedback stay
+readable and editable.
 
 The switch is read at the moment of the call rather than at start-up, so an
 administrator's change takes effect without restarting anything.

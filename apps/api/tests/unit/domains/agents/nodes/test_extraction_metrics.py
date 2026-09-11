@@ -13,7 +13,7 @@ couple this module to test ordering.
 
 from contextlib import nullcontext
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 from uuid import UUID
 
 import pytest
@@ -125,7 +125,7 @@ def _settings(
         open_loops_enabled=open_loops,
         journals_enabled=True,
         psyche_enabled=psyche,
-        recurrence_suggestion_enabled=recurrence,
+        habits_enabled=recurrence,
     )
 
 
@@ -272,6 +272,30 @@ class TestExtractionMetrics:
             assert _counter(kind, OUTCOME_NO_USER) == before[kind] + 1, kind
         for kind, was in before_disabled.items():
             assert _counter(kind, OUTCOME_USER_DISABLED) == was + 1, kind
+
+    def test_the_ledger_write_carries_the_analyzers_intent(self):
+        """Q4: the request descriptor reaches the ledger as DATA — the
+        signature stays the domain the router resolved."""
+        captured: dict = {}
+
+        async def _closed(*args, **kwargs):
+            return None
+
+        def _record(*args, **kwargs):
+            captured["args"] = args
+            captured["kwargs"] = kwargs
+            return _closed()
+
+        # A plain MagicMock on purpose: ``patch`` would build an AsyncMock for
+        # an ``async def`` target, whose side effect only runs when the
+        # coroutine is awaited — and the scheduler's double closes it unawaited.
+        with patch(
+            "src.domains.agents.services.recurrence_ledger.record_occurrence_if_allowed",
+            new=MagicMock(side_effect=_record),
+        ):
+            _run(_state(primary="email"), _config(), _settings())
+        assert captured["args"][1] == "email"
+        assert captured["kwargs"]["intent"] == "search"
 
     def test_non_actionable_query_is_not_applicable_for_recurrence(self):
         """Only actionable domain queries can recur into automations."""

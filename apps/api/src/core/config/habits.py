@@ -218,10 +218,12 @@ class HabitsSettings(BaseSettings):
         description="Floor below which a gap is never an 'absence'.",
     )
     habits_presence_enabled: bool = Field(
-        default=False,
+        default=True,
         description="Bank an activity hour when the user OPENS the app (visibility "
         "ping). Thumbs on notifications always count; a sent notification never does. "
-        "Requires habits_enabled.",
+        "Requires habits_enabled. ON by default since 2026-09-11 (Q5): a person who "
+        "reads without typing is present, and a rhythm learned from typed turns "
+        "alone silenced two accounts that only read.",
     )
     habits_presence_client_throttle_minutes: int = Field(
         default=HABITS_PRESENCE_CLIENT_THROTTLE_MINUTES_DEFAULT,

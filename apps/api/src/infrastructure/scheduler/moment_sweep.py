@@ -60,6 +60,7 @@ from src.domains.shared.consultation_surfaces import record_surface_consultation
 from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.database import get_db_context
 from src.infrastructure.locks import SchedulerLock
+from src.infrastructure.locks.scheduler_lock import ttl_for_interval
 from src.infrastructure.observability.metrics_moments import (
     proactive_moment_latency_seconds,
     proactive_moments_total,
@@ -341,17 +342,8 @@ async def _serve_one(user: Any, now: datetime) -> str:
 
 
 def _lock_ttl() -> int:
-    """How long the sweep's lock outlives its holder.
-
-    Short enough that the NEXT tick can always take it, long enough to still
-    protect against a crashed holder: ninety percent of the interval, with a
-    floor so a one-minute interval keeps some protection at all.
-
-    Returns:
-        The TTL in seconds.
-    """
-    interval_seconds = settings.moments_sweep_interval_minutes * 60
-    return max(int(interval_seconds * 0.9), 30)
+    """How long the sweep's lock outlives its holder — the shared rule."""
+    return ttl_for_interval(settings.moments_sweep_interval_minutes * 60)
 
 
 async def run_moment_sweep() -> dict[str, Any]:
@@ -362,6 +354,10 @@ async def run_moment_sweep() -> dict[str, Any]:
     """
     if not await is_capability_enabled(PlatformCapability.MOMENTS):
         return {"skipped": "capability_off"}
+    # A moment is served by the heartbeat task: the heartbeat's own switch
+    # governs it too (ADR-280 amendment 2026-09-11).
+    if not await is_capability_enabled(PlatformCapability.HEARTBEAT):
+        return {"skipped": "heartbeat_capability_off"}
 
     redis = await get_redis_cache()
     # The lock is deliberately NOT released on exit — it expires by TTL, so

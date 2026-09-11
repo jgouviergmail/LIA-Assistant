@@ -87,7 +87,10 @@ async def seed_ledger_from_outcomes(
         Number of signatures seeded; 0 when the flag is off, the ledger is
         alive, there is nothing to seed, or anything failed (best-effort).
     """
-    if not getattr(settings, "recurrence_suggestion_enabled", False):
+    # Habit learning is gated by the habits capability (the recompute that
+    # calls this already is); the chat suggestion's own flag never decides
+    # what the ledger holds.
+    if not getattr(settings, "habits_enabled", False):
         return 0
     try:
         from src.infrastructure.cache.redis import get_redis_cache

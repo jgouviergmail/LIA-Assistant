@@ -140,9 +140,12 @@ class TestTheVocabularyIsReadable:
             WikipediaContentSource.source_name,
             LLMReflectionContentSource.source_name,
         }
-        assert running == declared, (
-            "the sweep runs sources nothing declares (or declares sources it " "never runs)"
-        )
+        # The in-meeting guard (A11, 2026-09-11) reads the calendar under this
+        # surface too — a read the sweep makes BEFORE it picks a source.
+        guard_sections = {"calendar"}
+        assert (
+            running | guard_sections == declared
+        ), "the sweep runs sources nothing declares (or declares sources it never runs)"
 
     def test_each_engine_reads_as_the_capability_it_used(self) -> None:
         from src.domains.agents.effects.treatment_labels import UNKNOWN_DOMAIN, treatment_domain

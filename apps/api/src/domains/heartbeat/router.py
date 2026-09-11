@@ -24,10 +24,6 @@ from src.core.exceptions import (
 from src.core.i18n import normalize_language
 from src.core.i18n_api_messages import APIMessages
 from src.core.session_dependencies import get_current_active_session
-from src.domains.connectors.models import CONNECTOR_FUNCTIONAL_CATEGORIES, ConnectorType
-from src.domains.connectors.repository import ConnectorRepository
-from src.domains.feature_switches.guard import capability_dependencies
-from src.domains.feature_switches.registry import PlatformCapability
 from src.domains.heartbeat.repository import HeartbeatNotificationRepository
 from src.domains.heartbeat.schemas import (
     HeartbeatFeedbackRequest,
@@ -36,6 +32,7 @@ from src.domains.heartbeat.schemas import (
     HeartbeatSettingsResponse,
     HeartbeatSettingsUpdate,
 )
+from src.domains.heartbeat.source_availability import compute_available_sources
 from src.domains.heartbeat.source_policy import (
     HEARTBEAT_SOURCE_DEPENDENCIES,
     HEARTBEAT_SOURCE_ORDER,
@@ -56,83 +53,18 @@ logger = get_logger(__name__)
 router = APIRouter(
     prefix="/heartbeat",
     tags=["Heartbeat"],
-    # The deployment ceiling already decides whether this router is
-    # mounted at all; this is the operator's switch inside it (B7).
-    dependencies=capability_dependencies(PlatformCapability.HEARTBEAT),
+    # The deployment ceiling decides whether this router is mounted at all.
+    # The operator's switch guards the ACTS — the three sweeps read it at
+    # call time — never this router: settings, history, offers and feedback
+    # are the record the person keeps reading and changing whatever the
+    # switch says (ADR-280 amendment, 2026-09-11; measured on docker dev, the
+    # router still answered 403 with the switch off).
 )
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-
-async def _compute_available_sources(
-    user: User,
-    db: AsyncSession,
-) -> list[str]:
-    """Compute which data sources are connected for this user.
-
-    Returns a list of source names for the UI to display availability indicators.
-    """
-    sources: list[str] = []
-
-    repo = ConnectorRepository(db)
-
-    # Calendar: any active calendar connector (Google Calendar, Apple Calendar, future Microsoft...)
-    for ct in CONNECTOR_FUNCTIONAL_CATEGORIES.get("calendar", frozenset()):
-        connector = await repo.get_by_user_and_type(user.id, ct)
-        if connector and connector.status.value == "active":
-            sources.append("calendar")
-            break
-
-    # Tasks: any active tasks connector (Google Tasks, Microsoft To Do)
-    for ct in CONNECTOR_FUNCTIONAL_CATEGORIES.get("tasks", frozenset()):
-        connector = await repo.get_by_user_and_type(user.id, ct)
-        if connector and connector.status.value == "active":
-            sources.append("tasks")
-            break
-
-    # Emails: any active email connector (Gmail, Apple Email, Microsoft Outlook)
-    for ct in CONNECTOR_FUNCTIONAL_CATEGORIES.get("email", frozenset()):
-        connector = await repo.get_by_user_and_type(user.id, ct)
-        if connector and connector.status.value == "active":
-            sources.append("emails")
-            break
-
-    # Weather: OpenWeatherMap connector active + home location configured
-    weather_connector = await repo.get_by_user_and_type(user.id, ConnectorType.OPENWEATHERMAP)
-    if (
-        weather_connector
-        and weather_connector.status.value == "active"
-        and user.home_location_encrypted
-    ):
-        sources.append("weather")
-
-    # Interests: at least one active interest
-    if user.interests_enabled:
-        from src.domains.interests.repository import InterestRepository
-
-        interest_repo = InterestRepository(db)
-        active_interests = await interest_repo.get_active_for_user(user.id)
-        if active_interests:
-            sources.append("interests")
-
-    # Memories: memory_enabled
-    if user.memory_enabled:
-        sources.append("memories")
-
-    # Journals: journals_enabled
-    if getattr(user, "journals_enabled", settings.journals_enabled):
-        sources.append("journals")
-
-    # Health signals (v1.17.2): feature flag + per-user opt-in
-    if getattr(settings, "health_metrics_enabled", False) and getattr(
-        user, "health_metrics_agents_enabled", False
-    ):
-        sources.append("health_signals")
-
-    return sources
 
 
 # ---------------------------------------------------------------------------
@@ -189,7 +121,7 @@ async def get_heartbeat_settings(
     db: AsyncSession = Depends(get_db),
 ) -> HeartbeatSettingsResponse:
     """Get user's heartbeat notification settings."""
-    available_sources = await _compute_available_sources(user, db)
+    available_sources = await compute_available_sources(user, db)
 
     return _settings_response(user, available_sources)
 
@@ -251,7 +183,7 @@ async def update_heartbeat_settings(
                 updated_fields=list(update_data.keys()),
             )
 
-        available_sources = await _compute_available_sources(user, db)
+        available_sources = await compute_available_sources(user, db)
 
         return _settings_response(user, available_sources)
 

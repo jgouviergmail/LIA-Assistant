@@ -106,6 +106,33 @@ def _wire(redis: _FakeRedis, repo: MagicMock, monkeypatch: pytest.MonkeyPatch) -
     monkeypatch.setattr(presence, "_redis_or_none", AsyncMock(return_value=redis))
 
 
+class TestPresenceIsOnByDefault:
+    """Q5 (2026-09-11): a person who reads without typing is present. The
+    rhythm learned from typed turns alone read two accounts as absent, so the
+    visibility ping is banked unless an operator switches it off."""
+
+    def test_the_setting_defaults_to_on(self) -> None:
+        from src.core.config.habits import HabitsSettings
+
+        assert HabitsSettings.model_fields["habits_presence_enabled"].default is True
+
+    def test_both_env_templates_ship_it_on(self) -> None:
+        from tests._repo_paths import repo_root_or_skip
+
+        root = repo_root_or_skip()
+        for name in (".env.example", ".env.prod.example"):
+            path = root / name
+            if not path.exists():  # pragma: no cover - the templates are absent
+                pytest.skip(f"{name} is not checked out beside apps/api")
+            lines = [
+                line
+                for line in path.read_text(encoding="utf-8").splitlines()
+                if line.startswith("HABITS_PRESENCE_ENABLED=")
+            ]
+            assert lines, name
+            assert lines[0].split("#", 1)[0].strip() == "HABITS_PRESENCE_ENABLED=true", name
+
+
 class TestGates:
     def test_visibility_needs_all_three_switches(self, monkeypatch: pytest.MonkeyPatch) -> None:
         assert presence_allowed(_user(), "visibility") is True

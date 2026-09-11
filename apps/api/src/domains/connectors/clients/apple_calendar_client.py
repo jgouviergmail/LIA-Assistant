@@ -72,15 +72,35 @@ class AppleCalendarClient(BaseAppleClient):
                 raise
         return self._principal
 
+    @staticmethod
+    async def _display_name(cal: Any) -> str | None:
+        """Read a calendar's display name through caldav's ONE awaitable door.
+
+        On an async client ``get_display_name()`` returns a coroutine even when
+        the value already sits in the props cache (``get_calendars()`` fills it,
+        so this never opens a request), and the deprecated ``name`` property
+        delegates to it: ``getattr(cal, "name", ...)`` yields a coroutine, not a
+        string. Measured on production 2026-09-11: every calendar listing of an
+        Apple connector answered 500 (``input_type=coroutine``) and a default
+        calendar chosen by name could never be matched. ``str(cal)`` is trapped
+        the same way — never stringify an async DAV object.
+        """
+        name = await cal.get_display_name()
+        return str(name) if name else None
+
     async def _get_calendar(self, calendar_id: str = "primary") -> Any:
         """Get a specific calendar by ID or the default (primary)."""
         principal = await self._get_principal()
         calendars = await principal.get_calendars()
+        names = [await self._display_name(c) for c in calendars]
 
         logger.debug(
             "caldav_calendars_found",
             count=len(calendars),
-            calendars=[{"name": getattr(c, "name", "?"), "url": str(c.url)} for c in calendars],
+            calendars=[
+                {"name": name or "?", "url": str(c.url)}
+                for c, name in zip(calendars, names, strict=True)
+            ],
         )
 
         if not calendars:
@@ -90,10 +110,8 @@ class AppleCalendarClient(BaseAppleClient):
             return calendars[0]  # First calendar is default
 
         # Match by URL or display name
-        for cal in calendars:
-            cal_url = str(cal.url)
-            cal_name = getattr(cal, "name", "")
-            if calendar_id in (cal_url, cal_name):
+        for cal, cal_name in zip(calendars, names, strict=True):
+            if calendar_id in (str(cal.url), cal_name):
                 return cal
 
         raise ValueError(f"Calendar '{calendar_id}' not found")
@@ -281,7 +299,7 @@ class AppleCalendarClient(BaseAppleClient):
 
         items = []
         for i, cal in enumerate(calendars[:max_results]):
-            normalized = normalize_calendar(cal)
+            normalized = normalize_calendar(cal, await self._display_name(cal))
             if i == 0:
                 normalized["primary"] = True
             items.append(normalized)
@@ -319,7 +337,7 @@ class AppleCalendarClient(BaseAppleClient):
         logger.debug(
             "caldav_search_params",
             calendar_url=str(calendar.url),
-            calendar_name=getattr(calendar, "name", "unknown"),
+            calendar_name=await self._display_name(calendar) or "unknown",
             search_kwargs={k: str(v) for k, v in search_kwargs.items()},
         )
         events = await calendar.search(**search_kwargs)

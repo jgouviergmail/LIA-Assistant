@@ -48,7 +48,7 @@ def _user(kinds_disabled: list[str] | None = None) -> SimpleNamespace:
 
 def _patch_availability(sources: list[str] | None = None) -> object:
     return patch(
-        "src.domains.heartbeat.router._compute_available_sources",
+        "src.domains.heartbeat.router.compute_available_sources",
         new=AsyncMock(return_value=sources if sources is not None else ["calendar", "emails"]),
     )
 

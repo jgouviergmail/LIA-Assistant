@@ -8,7 +8,7 @@
   ],
   "timezone": "browser",
   "schemaVersion": 38,
-  "version": 1,
+  "version": 2,
   "refresh": "1m",
   "editable": true,
   "fiscalYearStartMonth": 0,
@@ -1558,8 +1558,8 @@
       },
       "targets": [
         {
-          "expr": "sum by (reason) (increase(heartbeat_ticks_deferred_total[24h])) or vector(0)",
-          "legendFormat": "{{reason}}",
+          "expr": "sum by (task_type, reason) (increase(heartbeat_ticks_deferred_total[24h])) or vector(0)",
+          "legendFormat": "{{task_type}} · {{reason}}",
           "refId": "A"
         }
       ],
@@ -1585,6 +1585,347 @@
         }
       },
       "description": "Why a proactive tick said nothing: 'rhythm' defers toward a learned window (ADR-214), 'in_meeting' stands aside while a meeting is in progress (ADR-281). A sustained rhythm surge with no matching in-window deliveries would mean the anti-starvation rule is broken."
+    },
+    {
+      "id": 50,
+      "title": "Habits — what the nightly job learned (ADR-214)",
+      "type": "row",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 80
+      },
+      "panels": []
+    },
+    {
+      "id": 51,
+      "title": "Nightly recompute outcomes (24h)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 81
+      },
+      "targets": [
+        {
+          "expr": "sum by (outcome) (increase(habit_profile_users_total[24h])) or vector(0)",
+          "legendFormat": "{{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "Per-account outcome of the nightly rhythm recompute: computed, skipped_no_delta (nothing new, nothing to decay), skipped_no_activity, skipped_user_disabled, error. A night with only errors is a night nobody learned."
+    },
+    {
+      "id": 52,
+      "title": "Nightly job duration P95 (s)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 81
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(habit_profile_job_seconds_bucket[1d]))) or vector(0)",
+          "legendFormat": "p95",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 0,
+          "noValue": "0",
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "Wall-clock of one full nightly pass over every enabled account (RPi5 budget: one aggregate + one upsert per account)."
+    },
+    {
+      "id": 53,
+      "title": "Windows rejected by gate (24h)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 81
+      },
+      "targets": [
+        {
+          "expr": "sum by (day_class, gate) (increase(habit_window_rejected_total[24h])) or vector(0)",
+          "legendFormat": "{{day_class}}/{{gate}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "Why no window was claimed: the detector's gate census (presence, wilson, recent, halves, capture, selectivity). 'Why zero habits' is answered here, not by an offline ledger replay."
+    },
+    {
+      "id": 54,
+      "title": "Window rows synced (24h)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 89
+      },
+      "targets": [
+        {
+          "expr": "sum by (action) (increase(user_habits_synced_total[24h])) or vector(0)",
+          "legendFormat": "{{action}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "Mirror rows of the learned windows: created, updated, blocked (the person's tombstone held), removed (the window decayed)."
+    },
+    {
+      "id": 55,
+      "title": "Recurring rows synced (24h)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 89
+      },
+      "targets": [
+        {
+          "expr": "sum by (action) (increase(recurring_habits_synced_total[24h])) or vector(0)",
+          "legendFormat": "{{action}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "The nightly sync owns the life of a recurring-request habit (ADR-214 amendment c): created, updated, kept (lock wavered, evidence remains), demoted (the request stopped), blocked, capped, skipped (ledger unreadable: nothing changed)."
+    },
+    {
+      "id": 56,
+      "title": "Ambient rhythm block served (24h)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 89
+      },
+      "targets": [
+        {
+          "expr": "sum by (flow, kind) (increase(habit_ambient_block_total[24h])) or vector(0)",
+          "legendFormat": "{{flow}}/{{kind}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "How often the conversation received the learned-rhythm block, by flow and cue (rhythm, unusual_hour, unusual_absence)."
+    },
+    {
+      "id": 57,
+      "title": "Rhythm deferral let through for the calendar (24h)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 97
+      },
+      "targets": [
+        {
+          "expr": "sum by (task_type, reason) (increase(heartbeat_rhythm_escapes_total[24h])) or vector(0)",
+          "legendFormat": "{{task_type}} · {{reason}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "Ticks the learned-rhythm deferral let through because an event of the person's starts inside the busy guard's window (the rhythm prioritises, it never hides an appointment)."
+    },
+    {
+      "id": 58,
+      "title": "Habit offers — declared vs labelled only (24h)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 97
+      },
+      "targets": [
+        {
+          "expr": "sum by (outcome) (increase(heartbeat_habit_offers_total[24h])) or vector(0)",
+          "legendFormat": "{{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "What the decision did with the missed-routine candidate it was shown. Only a DECLARED offer (habit_offered=true, rule 24) charges the offer budget; a HABITS label without the declaration is observed here and never charged. A sustained label_only share means the model ignores the rule (ADR-214 amendment c)."
     }
   ]
 }

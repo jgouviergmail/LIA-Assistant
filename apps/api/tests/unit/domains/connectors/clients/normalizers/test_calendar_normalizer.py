@@ -132,10 +132,9 @@ class TestNormalizeCalendar:
         """Normalize a calendar with name and URL."""
         cal = MagicMock()
         cal.url = "https://caldav.example.com/calendars/personal/"
-        cal.name = "Personal"
         cal.get_supported_components = MagicMock()
 
-        result = normalize_calendar(cal)
+        result = normalize_calendar(cal, "Personal")
 
         assert result["id"] == "https://caldav.example.com/calendars/personal/"
         assert result["summary"] == "Personal"
@@ -146,10 +145,9 @@ class TestNormalizeCalendar:
         """Calendar with no name falls back to URL as summary."""
         cal = MagicMock()
         cal.url = "https://caldav.example.com/cal/work/"
-        cal.name = None
         cal.get_supported_components = None
 
-        result = normalize_calendar(cal)
+        result = normalize_calendar(cal, None)
 
         assert result["summary"] == str(cal.url)
         assert "timeZone" not in result

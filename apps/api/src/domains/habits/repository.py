@@ -161,6 +161,11 @@ _ACTIVITY_BOUNDS_SQL = text(f"""
     """)
 
 
+#: Payload keys the heartbeat writes on a row and every refresh must keep:
+#: the offer bookkeeping of the ADR-214 stop rule.
+PRESERVED_PAYLOAD_KEYS: frozenset[str] = frozenset({"offer_dates"})
+
+
 class HabitsRepository:
     """Data access for habit profiles and discrete habits."""
 
@@ -431,12 +436,17 @@ class HabitsRepository:
         key: str,
         payload: dict[str, Any],
         last_observed_at: datetime,
+        *,
+        reset_mute: bool = True,
     ) -> str:
         """Create or refresh one habit, respecting user-set statuses.
 
         A BLOCKED row is the user's tombstone: it is never updated nor
         reactivated. A PAUSED row keeps its status but its payload follows
-        the data. A fresh occurrence resets the deviation stop-rule mute.
+        the data. The offer bookkeeping the heartbeat stamps
+        (``PRESERVED_PAYLOAD_KEYS``) survives a refresh — a promotion used to
+        overwrite the whole payload and erase the 7-day cooldown and the
+        stop-rule memory every time it fired (measured 2026-09-11).
 
         Args:
             user_id: Owner.
@@ -444,6 +454,10 @@ class HabitsRepository:
             key: Stable habit identity within the kind.
             payload: Kind-specific versioned payload (NEW dict — JSONB rule).
             last_observed_at: When the behaviour was last seen.
+            reset_mute: Whether this refresh proves a fresh occurrence and
+                may lift the deviation stop-rule mute. The chat-side
+                promotion fires on a live turn (True); the nightly sync
+                decides from the ledger (``occurrence_after_last_offer``).
 
         Returns:
             ``"created"`` | ``"updated"`` | ``"blocked"`` (skipped).
@@ -469,10 +483,21 @@ class HabitsRepository:
             return "created"
         if row.status == HabitStatus.BLOCKED.value:
             return "blocked"
-        row.payload = dict(payload)  # new dict — never mutate JSONB in place
+        preserved = {k: v for k, v in (row.payload or {}).items() if k in PRESERVED_PAYLOAD_KEYS}
+        row.payload = {**preserved, **payload}  # new dict — never mutate JSONB in place
         row.last_observed_at = last_observed_at
-        row.muted_until_reproof = False
+        if reset_mute:
+            row.muted_until_reproof = False
         return "updated"
+
+    async def touch_habit(self, habit: UserHabit, last_observed_at: datetime) -> None:
+        """Refresh when the behaviour was last seen, nothing else.
+
+        The nightly sync's answer to a lock that wavers while its evidence
+        remains: the payload keeps the last proven shape, the date says the
+        request is still alive.
+        """
+        habit.last_observed_at = last_observed_at
 
     async def remove_stale_active_habits(
         self, user_id: UUID, kind: str, live_keys: set[str]

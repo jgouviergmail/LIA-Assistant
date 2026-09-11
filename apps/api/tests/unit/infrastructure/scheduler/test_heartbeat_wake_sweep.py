@@ -37,6 +37,7 @@ def _settings(**overrides: object) -> SimpleNamespace:
         "push_wake_payload_ttl_seconds": 3600,
         "push_wake_cooldown_minutes": 20,
         "push_wake_max_users_per_sweep": 10,
+        "push_wake_sweep_interval_seconds": 120,
     }
     base.update(overrides)
     return SimpleNamespace(**base)
@@ -214,6 +215,23 @@ class TestSweep:
             sweep.push_wakes_total.labels(provider="google_drive", outcome="reindexed")._value.get()
             == before["reindexed"] + 1
         )
+
+    async def test_the_lock_is_sized_on_the_sweeps_own_period(self) -> None:
+        """A 120 s sweep under the default 300 s TTL found its previous lock
+        still held on every other tick (2026-09-11): the TTL follows the period."""
+        lock = MagicMock()
+        lock.acquired = False
+        lock_cm = MagicMock()
+        lock_cm.__aenter__ = AsyncMock(return_value=lock)
+        lock_cm.__aexit__ = AsyncMock(return_value=False)
+        with (
+            patch.object(sweep, "get_redis_cache", AsyncMock(return_value=MagicMock())),
+            patch.object(sweep, "SchedulerLock", MagicMock(return_value=lock_cm)) as lock_cls,
+            patch.object(sweep, "pop_wakes", AsyncMock()),
+        ):
+            await sweep.run_heartbeat_wake_sweep()
+        assert lock_cls.call_args.kwargs["ttl_seconds"] == sweep.ttl_for_interval(120)
+        assert lock_cls.call_args.kwargs["ttl_seconds"] < 120
 
     async def test_lock_busy_serves_nothing(self) -> None:
         lock = MagicMock()

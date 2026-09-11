@@ -39,6 +39,13 @@ async def run_habit_profile_job() -> None:
     """Recompute every enabled user's rhythm profile (nightly)."""
     if not getattr(settings, "habits_enabled", False):
         return
+    # The operator's switch, read at call time (ADR-280 amendment): a
+    # capability switched off after boot must stop learning without a restart.
+    from src.domains.habits.capability import habits_capability_enabled
+
+    if not await habits_capability_enabled():
+        logger.info("habit_profile_job_skipped", reason="capability_disabled")
+        return
 
     from src.domains.users.models import User
 

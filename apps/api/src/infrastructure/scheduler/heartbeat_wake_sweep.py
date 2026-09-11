@@ -43,6 +43,7 @@ import structlog
 
 from src.core.config import settings
 from src.core.constants import SCHEDULER_JOB_HEARTBEAT_WAKE_SWEEP
+from src.domains.feature_switches.registry import PlatformCapability, is_capability_enabled
 from src.domains.push_channels.models import PushChannelProvider
 from src.domains.push_channels.wake import (
     WakePayload,
@@ -52,6 +53,7 @@ from src.domains.push_channels.wake import (
 from src.domains.shared.consultation_surfaces import record_surface_consultations
 from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.locks import SchedulerLock
+from src.infrastructure.locks.scheduler_lock import ttl_for_interval
 from src.infrastructure.observability.metrics_push_channels import (
     push_wake_latency_seconds,
     push_wakes_total,
@@ -367,8 +369,16 @@ async def run_heartbeat_wake_sweep() -> dict[str, int]:
         and getattr(settings, "heartbeat_enabled", False)
     ):
         return {"served": 0, "skipped": 0}
+    if not await is_capability_enabled(PlatformCapability.HEARTBEAT):
+        return {"served": 0, "skipped": 0, "capability_disabled": 1}
     redis = await get_redis_cache()
-    async with SchedulerLock(redis, SCHEDULER_JOB_HEARTBEAT_WAKE_SWEEP) as lock:
+    # Sized for the sweep's own period: at the default five-minute TTL a
+    # 120 s sweep found its previous lock still held on every other tick.
+    async with SchedulerLock(
+        redis,
+        SCHEDULER_JOB_HEARTBEAT_WAKE_SWEEP,
+        ttl_seconds=ttl_for_interval(settings.push_wake_sweep_interval_seconds),
+    ) as lock:
         if not lock.acquired:
             return {"served": 0, "skipped": 0, "lock_busy": 1}
         served = skipped = 0

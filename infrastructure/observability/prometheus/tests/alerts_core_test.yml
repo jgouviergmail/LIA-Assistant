@@ -826,6 +826,32 @@ tests:
         alertname: RecurrenceLedgerSilent
         exp_alerts: []
 
+  # ===== …and an account that switched learning OFF is a refusal, not a starved ledger =====
+  - interval: 1h
+    input_series:
+      - series: 'product_outcomes_total{result_type="action", evidence="E3", domain="unknown"}'
+        values: '0+0x40 30+0x260'
+      - series: 'post_response_extraction_scheduled_total{kind="recurrence", outcome="scheduled"}'
+        values: '0+0x40 30+0x260'
+      - series: 'recurrence_ledger_writes_total{outcome="user_disabled"}'
+        values: '0+0x40 30+0x260'
+    alert_rule_test:
+      - eval_time: 200h
+        alertname: RecurrenceLedgerSilent
+        exp_alerts: []
+
+  # ===== …and an operator switch flipped after boot is a refusal too =====
+  - interval: 1h
+    input_series:
+      - series: 'product_outcomes_total{result_type="action", evidence="E3", domain="unknown"}'
+        values: '0+0x40 30+0x260'
+      - series: 'recurrence_ledger_writes_total{outcome="feature_disabled"}'
+        values: '0+0x40 30+0x260'
+    alert_rule_test:
+      - eval_time: 200h
+        alertname: RecurrenceLedgerSilent
+        exp_alerts: []
+
   # ===== …and a quiet instance (no human actionable traffic) never fires =====
   - interval: 1h
     input_series:

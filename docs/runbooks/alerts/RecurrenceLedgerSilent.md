@@ -20,18 +20,24 @@ and
 ((sum(increase(recurrence_ledger_writes_total{outcome="written"}[7d])) or vector(0)) == 0)
 and
 ((sum(increase(post_response_extraction_scheduled_total{kind="recurrence", outcome="feature_disabled"}[7d])) or vector(0)) == 0)
+and
+((sum(increase(recurrence_ledger_writes_total{outcome="user_disabled"}[7d])) or vector(0)) == 0)
+and
+((sum(increase(recurrence_ledger_writes_total{outcome="feature_disabled"}[7d])) or vector(0)) == 0)
 ```
 
-Trois compteurs, trois questions :
+Trois compteurs, cinq questions :
 
 | compteur | question | qui l'incrémente |
 |---|---|---|
 | `product_outcomes_total{action, E3}` | y a-t-il eu du trafic actionnable **humain** ? | le routeur, une fois par tour humain (les runs automatisés n'écrivent rien) — la même valeur dont le tableau de bord produit dérive |
 | `recurrence_ledger_writes_total{written}` | le ledger a-t-il **écrit** ? | l'écriture elle-même (`record_occurrence`), pas la porte qui la remet au fond |
-| `post_response_extraction_scheduled_total{recurrence, feature_disabled}` | la fonctionnalité est-elle coupée ? | la porte, quand `RECURRENCE_SUGGESTION_ENABLED=false` |
+| `post_response_extraction_scheduled_total{recurrence, feature_disabled}` | la fonctionnalité est-elle coupée au déploiement ? | la porte, quand `HABITS_ENABLED=false` — le ledger est de l'**apprentissage** (ADR-214), jamais gouverné par `RECURRENCE_SUGGESTION_ENABLED`, qui ne décide que de l'offre dans le chat |
+| `recurrence_ledger_writes_total{user_disabled}` | la personne a-t-elle coupé « Apprendre mes habitudes » ? | la tâche de fond, quand la porte d'apprentissage (`habits/learning_gate.py`) refuse — un refus de la personne, jamais un ledger affamé |
+| `recurrence_ledger_writes_total{feature_disabled}` | l'opérateur a-t-il coupé la capacité après le démarrage ? | la tâche de fond, quand l'interrupteur ADR-280 `habits` est fermé (lu à l'acte, sans redémarrage) |
 
 Plus de 20 tours actionnables humains sur 7 jours, **zéro écriture atterrie**,
-fonctionnalité active = le ledger est affamé. La règle lit le compteur
+et aucune des trois portes n'a dit non = le ledger est affamé. La règle lit le compteur
 d'**écriture** et non l'outcome `scheduled` de la porte : une porte qui
 planifie vers un Redis qui avale chaque écriture compterait `scheduled` toute
 la semaine sans qu'une seule occurrence existe.
@@ -71,6 +77,8 @@ sum by (outcome) (increase(recurrence_ledger_writes_total[7d]))
 | aucune série | rien n'a atteint `record_occurrence` : la porte refuse tout → aller en 2 |
 | `redis_unavailable` | `get_redis_cache()` rend None — Redis ou sa configuration, pas la porte |
 | `failed` | l'écriture lève — lire les logs `recurrence_record_failed` (warning, avec `error_type`) |
+| `user_disabled` | la personne a coupé l'apprentissage : l'alerte ne tire pas par construction, rien à réparer |
+| `feature_disabled` | l'interrupteur de capacité `habits` est fermé (panneau admin, ADR-280) : idem |
 | `written > 0` | l'alerte ne tire pas ; si elle tire quand même, le fenêtrage Prometheus est en cause |
 
 ### 2. La distribution des décisions de la porte
@@ -82,7 +90,7 @@ sum by (outcome) (increase(post_response_extraction_scheduled_total{kind="recurr
 | outcomes présents | signification |
 |---|---|
 | `not_applicable` seul (ou avec `automated_source`) alors que des tours `action` existent | la porte ne reconnaît plus un tour actionnable → aller en 3. **Après le correctif du 2026-09-11, `not_applicable` est le sort normal des tours de conversation** : sa seule présence ne prouve rien, c'est son exclusivité face à des `product_outcomes` `action` qui accuse |
-| `feature_disabled` | `RECURRENCE_SUGGESTION_ENABLED=false` : l'alerte ne tire pas par construction ; si le ledger doit vivre, vérifier l'env |
+| `feature_disabled` | `HABITS_ENABLED=false` : l'alerte ne tire pas par construction ; si le ledger doit vivre, vérifier l'env (depuis le 2026-09-11 le ledger ne dépend plus de `RECURRENCE_SUGGESTION_ENABLED`) |
 | `no_user` | l'identité runtime manque au nœud de réponse (ADR-231) → contexte runtime non installé sur ce chemin |
 | `error` | la planification a levé — lire les logs `recurrence_record_scheduling_failed` (error, avec traceback) |
 | `scheduled > 0` et `written = 0` | la porte planifie, le store n'atterrit pas → étape 1 |
@@ -157,6 +165,7 @@ familles de clés ADR-260) — pas la porte.
 ## Références
 
 - ADR-214 — Habitudes utilisateur (apprentissage déterministe), amendements
-  du 2026-09-11
+  du 2026-09-11 (a, b, c)
+- ADR-280 — l'interrupteur `habits` est lu à l'acte (amendement 2026-09-11)
 - ADR-255 — deux lectures d'une déclaration divergent toujours
 - `apps/api/tests/unit/test_qi_attr_contract_guard.py` — garde de classe

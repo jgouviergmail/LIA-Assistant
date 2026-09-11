@@ -39,6 +39,7 @@ import { useAppConfig } from '@/hooks/useAppConfig';
 import { useConfirm } from '@/components/ui/use-confirm';
 import {
   formatWindow,
+  habitIntentOf,
   useHabits,
   type Habit,
   type HabitCandidate,
@@ -129,8 +130,6 @@ export function HabitsSettings({ lng }: BaseSettingsProps) {
 
   const content = (
     <div className="space-y-4">
-      <p className="text-xs text-muted-foreground">{t('settings.habits.description')}</p>
-
       <div className="flex items-center justify-between gap-4">
         <div className="min-w-0 space-y-1">
           <Label htmlFor="habits-enabled" className="text-sm font-medium">
@@ -289,6 +288,15 @@ function HabitsOverviewBody({
         </div>
       )}
 
+      {/* The chat suggestion depends on an instance flag the learning does
+          not (ADR-184): say so rather than let the person wait for an
+          offer that cannot come. */}
+      {overview.chat_suggestions_enabled === false && (
+        <p className="text-[11px] text-muted-foreground">
+          {t('settings.habits.chat_suggestions_off')}
+        </p>
+      )}
+
       {(overview.candidates.length > 0 || overview.candidates_more > 0) && (
         <div className="space-y-1">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -339,6 +347,17 @@ function HabitsOverviewBody({
   );
 }
 
+/** A recurrence signature is one or more domain keys joined by "+"; the
+ * person reads them in their language through the register's own domain
+ * vocabulary (`treatments.domains.*`, ADR-263), never as raw keys. A key the
+ * vocabulary does not carry falls back to itself rather than to nothing. */
+function domainsLabel(t: ReturnType<typeof useTranslation>['t'], key: string): string {
+  return key
+    .split('+')
+    .map(domain => t(`treatments.domains.${domain}`, { defaultValue: domain }))
+    .join(' + ');
+}
+
 /** One recurrence signature under observation: the domains, then either the
  * quantified progress toward the ENFORCED existence gate (published by the
  * backend — ADR-184) or, once volume is there, the consistency-forming state
@@ -349,7 +368,7 @@ function CandidateRow({ lng, candidate }: { lng: Language; candidate: HabitCandi
   return (
     <li className="flex flex-wrap items-center gap-2 rounded-lg border border-border/40 bg-card/60 px-3 py-2">
       <span className="min-w-0 flex-1 truncate text-sm font-medium">
-        {candidate.key.split('+').join(' + ')}
+        {domainsLabel(t, candidate.key)}
         {candidate.origin === 'seed' && (
           <span className="ml-2 text-[11px] font-normal text-muted-foreground">
             {t('settings.habits.candidate_origin_seed')}
@@ -536,11 +555,22 @@ function habitLabel(
     shape === 'weekly' && days.length > 0
       ? t('settings.habits.shape.weekly', { day: weekdayName(locale, days[0]) })
       : t(`settings.habits.shape.${shape}`);
-  return t('settings.habits.row.recurring_request', {
-    domains: habit.key.split('+').join(' + '),
+  const usualIntent = habitIntentOf(habit.payload.usual_intent);
+  const values = {
+    domains: domainsLabel(t, habit.key),
     schedule,
     time: hour !== null ? `~${formatHour(hour)}` : '',
-  }).trim();
+  };
+  // Q4: the ledger's dominant request opens the row when it learned one
+  // (« Search · Emails — every day ~08:30 »).
+  return (
+    usualIntent
+      ? t('settings.habits.row.recurring_request_with_intent', {
+          ...values,
+          intent: t(`settings.habits.intent.${usualIntent}`),
+        })
+      : t('settings.habits.row.recurring_request', values)
+  ).trim();
 }
 
 function HabitRow({

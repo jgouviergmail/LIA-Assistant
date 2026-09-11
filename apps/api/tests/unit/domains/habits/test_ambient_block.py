@@ -97,6 +97,7 @@ def _wire(
     profile: RhythmProfile | None,
     last_at: datetime | None,
     user_enabled: bool = True,
+    window_status: str | None = "active",
 ) -> None:
     user = SimpleNamespace(habits_enabled=user_enabled, timezone="UTC")
     session = MagicMock()
@@ -122,6 +123,25 @@ def _wire(
 
         async def get_profile(self, uid: Any) -> Any:
             return profile_row
+
+        async def list_habits(self, uid: Any, kind: str | None = None) -> list[Any]:
+            # The mirror rows the nightly sync writes for every claimed window,
+            # carrying the status the test asked for.
+            from src.domains.habits.window_keys import window_habit_key
+
+            if profile is None or window_status is None:
+                return []
+            rows = []
+            for class_name in ("weekday", "weekend"):
+                rhythm = getattr(profile, class_name)
+                for window in rhythm.windows:
+                    rows.append(
+                        SimpleNamespace(
+                            key=window_habit_key(class_name, window, rhythm.bin_presence),
+                            status=window_status,
+                        )
+                    )
+            return rows
 
         async def fetch_activity_bounds(self, uid: Any) -> tuple[Any, Any]:
             return None, last_at
@@ -180,3 +200,17 @@ class TestBuildBlock:
         block = await build_habits_rhythm_block(uuid.uuid4())
         assert "catch-up" in block
         assert "never comment on the absence itself" in block
+
+
+@pytest.mark.unit
+class TestWindowStatusesGovernTheAmbientBlock:
+    """A paused, blocked or deleted window must not colour the conversation
+    either (ADR-214 decision 3 — measured violated 2026-09-11, sim H)."""
+
+    @pytest.mark.parametrize("window_status", ["blocked", "paused", None])
+    async def test_refused_windows_leave_the_block_empty(
+        self, monkeypatch: pytest.MonkeyPatch, window_status: str | None
+    ) -> None:
+        monkeypatch.setattr(settings, "habits_enabled", True, raising=False)
+        _wire(monkeypatch, _profile(MORNING), datetime.now(UTC), window_status=window_status)
+        assert await build_habits_rhythm_block(uuid.uuid4()) == ""

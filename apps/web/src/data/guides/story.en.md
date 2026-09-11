@@ -4,7 +4,7 @@
 
 **Version**: 2.1
 **Date**: 2026-08-23
-**Application**: LIA v1.44.2
+**Application**: LIA v1.44.3
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -21,7 +21,7 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | Lines of code (excluding tests) — 48 functional domains | **660,000** |
 | Automated tests, run on every commit and release | **36,000+** |
 | Documented architecture decisions (ADR) | **280** |
-| Versions shipped at a steady pace | **255** |
+| Versions shipped at a steady pace | **256** |
 | Languages, parity checked automatically | **6** |
 | Technical audit across 24 areas | **8.3/10** |
 

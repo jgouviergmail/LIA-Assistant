@@ -17,6 +17,15 @@ if TYPE_CHECKING:
     from src.domains.agents.services.reference_resolver import ResolvedContext
 
 
+#: The closed vocabulary of ``immediate_intent`` — what the analyzer prompt
+#: asks for. Declared once so every reader that translates or bounds it (the
+#: habits panel's labels, the recurrence ledger's histogram) is pinned to the
+#: same set instead of a comment three files away.
+IMMEDIATE_INTENTS: frozenset[str] = frozenset(
+    {"search", "detail", "create", "update", "delete", "send", "chat", "list"}
+)
+
+
 class UserGoal(Enum):
     """
     User's ultimate goal (not just the immediate action).
@@ -57,8 +66,8 @@ class QueryIntelligence:
 
     # === INTELLIGENCE: DEEP INTENTION ===
 
-    # Immediate intent (technical action)
-    immediate_intent: str  # search | detail | create | update | delete | send | chat | list
+    # Immediate intent (technical action) — the vocabulary is IMMEDIATE_INTENTS
+    immediate_intent: str
     immediate_confidence: float
 
     # Ultimate goal (what user REALLY wants)

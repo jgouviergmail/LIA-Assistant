@@ -25,6 +25,7 @@ from uuid import uuid4
 import pytest
 
 from src.domains.habits.ledger_seed import _SEED_ACTIVITY_SQL, seed_ledger_from_outcomes
+from src.domains.habits.recurrence_sync import RecurringSyncOutcome
 from src.infrastructure.cache import recurrence_store
 
 pytestmark = pytest.mark.unit
@@ -32,7 +33,7 @@ pytestmark = pytest.mark.unit
 
 def _settings(**overrides: object) -> SimpleNamespace:
     base = {
-        "recurrence_suggestion_enabled": True,
+        "habits_enabled": True,
         "recurrence_window_days": 28,
         "recurrence_day_hours_cap": 4,
         "recurrence_ledger_max_entries": 28,
@@ -123,7 +124,7 @@ class TestSeedLedgerFromOutcomes:
         db = _db_with_rows([])
         with _patch_redis(_FakeRedis()) as redis_mock:
             seeded = await seed_ledger_from_outcomes(
-                db, uuid4(), "Europe/Paris", _settings(recurrence_suggestion_enabled=False)
+                db, uuid4(), "Europe/Paris", _settings(habits_enabled=False)
             )
         assert seeded == 0
         redis_mock.assert_not_called()
@@ -205,6 +206,14 @@ class TestRecomputeTriggersSeed:
         repo.day_activity = {now.date() - timedelta(days=1): {9: 1}}
         service = _service_with(repo)
         seed = AsyncMock(return_value=0)
-        with patch("src.domains.habits.service.seed_ledger_from_outcomes", seed):
+        with (
+            patch("src.domains.habits.service.seed_ledger_from_outcomes", seed),
+            # The recurring sync that follows the seed has its own suite and
+            # reads Redis — neutralised, as the service tests do.
+            patch(
+                "src.domains.habits.service.sync_recurring_habits",
+                AsyncMock(return_value=RecurringSyncOutcome()),
+            ),
+        ):
             await service.recompute_user_profile(_user())
         seed.assert_awaited_once()

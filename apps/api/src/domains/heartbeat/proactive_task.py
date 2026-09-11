@@ -22,20 +22,27 @@ from uuid import UUID, uuid4
 import structlog
 
 from src.core.config import get_settings
-from src.core.constants import HEARTBEAT_ENRICHMENT_CONTEXT_ID
+from src.core.constants import (
+    HEARTBEAT_ENRICHMENT_CONTEXT_ID,
+    HEARTBEAT_NOTIFY_END_HOUR_DEFAULT,
+    HEARTBEAT_NOTIFY_START_HOUR_DEFAULT,
+)
 from src.domains.habits.presence import last_seen_at
+from src.domains.habits.tick_scoring import TickSurface, should_defer_tick_for_rhythm
 from src.domains.heartbeat.context_aggregator import ContextAggregator
-from src.domains.heartbeat.habit_context import should_defer_tick_for_rhythm
 from src.domains.heartbeat.prompts import (
     generate_heartbeat_message,
     get_heartbeat_decision,
 )
 from src.domains.heartbeat.schemas import HeartbeatTarget
-from src.domains.moments.busy_gate import should_defer_for_meeting
+from src.domains.moments.busy_gate import agenda_verdict
 from src.domains.moments.schemas import ServedMoment
 from src.domains.push_channels.wake import WakePayload
 from src.infrastructure.database import get_db_context
-from src.infrastructure.observability.metrics_habits import heartbeat_ticks_deferred_total
+from src.infrastructure.observability.metrics_habits import (
+    heartbeat_habit_offers_total,
+    heartbeat_ticks_deferred_total,
+)
 from src.infrastructure.observability.metrics_registry import heartbeat_enrichment_total
 from src.infrastructure.proactive.base import ContentSource, ProactiveTaskResult
 
@@ -81,6 +88,18 @@ class HeartbeatProactiveTask:
 
     task_type: str = "heartbeat"
 
+    #: How this sweep names its window and period for the learned-rhythm
+    #: deferral — the same fields and fallbacks as its eligibility checker
+    #: (pinned by ``test_habit_tick_scoring``).
+    tick_surface: TickSurface = TickSurface(
+        task_type="heartbeat",
+        start_hour_field="heartbeat_notify_start_hour",
+        end_hour_field="heartbeat_notify_end_hour",
+        default_start_hour=HEARTBEAT_NOTIFY_START_HOUR_DEFAULT,
+        default_end_hour=HEARTBEAT_NOTIFY_END_HOUR_DEFAULT,
+        interval_setting="heartbeat_notification_interval_minutes",
+    )
+
     def __init__(
         self,
         wake: WakePayload | None = None,
@@ -120,13 +139,30 @@ class HeartbeatProactiveTask:
             # and ONLY they. The window, the daily quota and the three cooldowns
             # live in EligibilityChecker and are applied in full (ADR-281).
             return True
-        # Before the rhythm, and before any model call: someone in a meeting is
-        # the one person the activity cooldown reads as MOST available, because
-        # they are precisely not typing.
-        if await should_defer_for_meeting(user_id, now):
-            heartbeat_ticks_deferred_total.labels(day_class="unknown", reason="in_meeting").inc()
+        # ONE calendar read (cached), two questions. Before the rhythm, and
+        # before any model call: someone in a meeting is the one person the
+        # activity cooldown reads as MOST available, because they are
+        # precisely not typing.
+        verdict = await agenda_verdict(user_id, now, surface=self.task_type)
+        if verdict is not None and verdict.busy:
+            heartbeat_ticks_deferred_total.labels(
+                task_type=self.task_type, day_class="unknown", reason="in_meeting"
+            ).inc()
             return False
-        if await should_defer_tick_for_rhythm(user_id, user_settings, get_settings()):
+        if self.wake is not None:
+            # A wake answers an event (ADR-261/281): the learned rhythm may
+            # defer a tick, never a wake — a wake is consumed when served and
+            # never re-queued, so « later today » means « lost ». It still
+            # stands aside for a meeting in progress: the next tick reads the
+            # mail from the anchor the refused wake did not advance.
+            return True
+        if await should_defer_tick_for_rhythm(
+            user_id,
+            user_settings,
+            get_settings(),
+            surface=self.tick_surface,
+            imminent_event_at=verdict.next_start if verdict is not None else None,
+        ):
             return False
         return True
 
@@ -460,11 +496,13 @@ class HeartbeatProactiveTask:
                 "workboard_ticket_ids": [
                     ticket["id"] for ticket in (target.context.workboard or []) if ticket.get("id")
                 ],
-                # ADR-214 — the missed-routine candidate surfaced this cycle,
-                # consumed by the post-notification offer bookkeeping.
-                "habit_offer_id": (
-                    ((target.context.habits or {}).get("missed_routine") or {}).get("habit_id")
-                ),
+                # ADR-214 — the missed-routine candidate this notification
+                # actually OFFERED, consumed by the post-notification offer
+                # bookkeeping, persisted on the audit row (the offers inbox
+                # and the feedback bump read it there). Absent when the
+                # decision spoke about something else: a candidate merely
+                # present in the context is not an offer.
+                "habit_offer_id": _offered_habit_id(target),
             },
         )
 
@@ -677,17 +715,44 @@ class HeartbeatProactiveTask:
             return None
 
 
+def _offered_habit_id(target: HeartbeatTarget) -> str | None:
+    """The habit this decision OFFERED to run, or None.
+
+    Declared by the decision alone (``habit_offered``, rule 24). The HABITS
+    source label used to be the sole key and it is wrong in both directions:
+    the model does not always choose it for an offer (measured 2026-09-11 —
+    an email routine offer labelled UNREAD_EMAILS, budget never charged), and
+    it chooses it for the RHYTHM context too, which stamped a 7-day cooldown
+    on an offer never made. The label is therefore observed, never obeyed:
+    ``heartbeat_habit_offers_total{outcome}`` says how often a model labels
+    without declaring, so a prompt drift is visible instead of silent.
+    """
+    candidate = ((target.context.habits or {}).get("missed_routine") or {}).get("habit_id")
+    if not candidate:
+        return None
+    if bool(getattr(target.decision, "habit_offered", False)):
+        heartbeat_habit_offers_total.labels(outcome="declared").inc()
+        return str(candidate)
+    if "HABITS" in (target.decision.sources_used or []):
+        heartbeat_habit_offers_total.labels(outcome="label_only").inc()
+        logger.info("habit_offer_labelled_not_declared", habit_id=str(candidate))
+        return None
+    heartbeat_habit_offers_total.labels(outcome="none").inc()
+    return None
+
+
 async def _bump_offered_habit(db: Any, user_id: UUID, metadata: dict[str, Any]) -> None:
     """Stamp the offer bookkeeping of the habit a delivered offer surfaced.
 
     ADR-214 stop rule: the offer date joins ``payload.offer_dates`` (bounded),
     and when the trailing offers reach the ignored threshold with no later
     occurrence, ``muted_until_reproof`` silences further offers until the
-    routine re-occurs (a fresh promotion resets it). Only runs when the
-    decision actually used the HABITS source.
+    routine re-occurs (the nightly sync lifts it on a fresh occurrence). The
+    ``habit_offer_id`` in the metadata is already the declared offer
+    (``_offered_habit_id``) — nothing else is read.
     """
     habit_id = metadata.get("habit_offer_id")
-    if "HABITS" not in metadata.get("sources_used", []) or not habit_id:
+    if not habit_id:
         return
     from src.core.config import settings as app_settings
     from src.domains.habits.models import UserHabit

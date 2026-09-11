@@ -80,6 +80,25 @@ async def _resolve_recurrence_suggestion(
     # v2 (ADR-214): domain-only signature (see resolve_actionable_domain);
     # the user's local date anchors the observation window for the locks.
     signature = build_signature(qi_primary)
+    # The operator's habits switch, read at the act (ADR-280 amendment): a
+    # ledger key outlives the switch by up to its TTL, and a lock it still
+    # holds must not speak once learning is off for the instance.
+    from src.domains.habits.capability import habits_capability_enabled
+
+    if not await habits_capability_enabled():
+        recurrence_evaluation_skipped_total.labels(reason="feature_disabled").inc()
+        return None
+    # The person's switch and their tombstone on THIS signature (paused or
+    # blocked) are read before any ledger evaluation: until 2026-09-11 a
+    # blocked habit was suggested again every cooldown period, and a switched
+    # off account still heard « je remarque que tu me demandes… ».
+    from src.domains.habits.learning_gate import read_learning_gate
+
+    gate = await read_learning_gate(user_id, signature)
+    if not gate.suggestion_allowed:
+        reason = "user_disabled" if not gate.allowed else str(gate.recurring_status)
+        recurrence_evaluation_skipped_total.labels(reason=reason).inc()
+        return None
     return await evaluate_suggestion(
         user_id,
         signature,
@@ -95,24 +114,25 @@ async def initiative_node(
 ) -> dict[str, Any]:
     """Initiative core + deterministic recurrence suggestion (P12).
 
-    Thin wrapper: runs the historical initiative evaluation, then — when the
-    core produced NO suggestion of its own — merges the recurrence-detector
-    suggestion into the same ``STATE_KEY_INITIATIVE_SUGGESTION`` slot (the
-    response node already renders that directive). Independent flags: the
-    recurrence check runs even when ``initiative_enabled`` is off (the core
-    then returns ``{}``), and never overrides an LLM suggestion.
+    Thin wrapper: runs the historical initiative evaluation, then merges the
+    recurrence-detector suggestion into the same ``STATE_KEY_INITIATIVE_SUGGESTION``
+    slot (the response node already renders that directive). The two
+    COEXIST: until 2026-09-11 the recurrence suggestion was dropped whenever
+    the LLM core had something of its own to say, so a measured, deterministic
+    proposal lost to « active OpenWeatherMap » every turn it was offered —
+    and the ledger's ``suggested_at`` never advanced (measured, sim C15).
+    Independent flags: the recurrence check runs even when
+    ``initiative_enabled`` is off (the core then returns ``{}``).
 
     Args:
         state: Current graph state with execution results.
         config: RunnableConfig with user_id, thread_id, store, callbacks.
 
     Returns:
-        State update dict (possibly carrying the recurrence suggestion).
+        State update dict (possibly carrying one or two suggestions).
     """
     state_update = await _initiative_core(state, config)
-
-    if state_update.get(STATE_KEY_INITIATIVE_SUGGESTION):
-        return state_update
+    core_suggestion = state_update.get(STATE_KEY_INITIATIVE_SUGGESTION)
 
     try:
         suggestion = await _resolve_recurrence_suggestion(state, config)
@@ -121,9 +141,11 @@ async def initiative_node(
         return state_update
 
     if suggestion:
-        state_update = {**state_update, STATE_KEY_INITIATIVE_SUGGESTION: suggestion}
+        merged = f"{core_suggestion}\n\n{suggestion}" if core_suggestion else suggestion
+        state_update = {**state_update, STATE_KEY_INITIATIVE_SUGGESTION: merged}
         logger.info(
             "recurrence_suggestion_injected",
             run_id=_extract_run_id(config),
+            alongside_core=bool(core_suggestion),
         )
     return state_update

@@ -61,15 +61,12 @@ def _router_for(capability: PlatformCapability) -> object:
         from src.domains.voice.router import router
     elif capability is PlatformCapability.IMAGE_GENERATION:
         from src.domains.image_generation.options_router import router
-    # B7 — the eight features whose router IS the ability.
+    # B7 — the features whose router IS the ability (habits and the heartbeat
+    # moved to the act with the ADR-280 amendment of 2026-09-11).
     elif capability is PlatformCapability.WORKBOARD:
         from src.domains.workboard.router import router
     elif capability is PlatformCapability.JOURNALS:
         from src.domains.journals.router import router
-    elif capability is PlatformCapability.HABITS:
-        from src.domains.habits.router import router
-    elif capability is PlatformCapability.HEARTBEAT:
-        from src.domains.heartbeat.router import router
     elif capability is PlatformCapability.PEERS:
         from src.domains.peers.router import router
     elif capability is PlatformCapability.PSYCHE:
@@ -123,6 +120,32 @@ def test_uploads_are_guarded_at_the_ROUTE_not_at_the_router() -> None:
         if "attachments" in _names_in(getattr(route, "dependencies", []))
     }
     assert guarded == {"/attachments/upload"}, guarded
+
+
+def test_habits_are_guarded_at_the_two_ACT_routes_only() -> None:
+    """ADR-280 amendment (2026-09-11): the habits capability is an act —
+    learning at night, consuming at every tick — guarded where it acts.
+    On the router only the two routes that ACT carry it; reading,
+    correcting and deleting what was learned stay open, like the memories."""
+    from src.domains.habits.router import router
+
+    assert _names_in(router.dependencies) == set()
+    guarded = {
+        route.path
+        for route in router.routes
+        if "habits" in _names_in(getattr(route, "dependencies", []))
+    }
+    assert guarded == {"/habits/recompute", "/habits/presence"}, guarded
+
+
+def test_the_heartbeat_record_is_never_gated_on_the_switch() -> None:
+    """Same amendment: the heartbeat acts in its sweeps, never through a
+    route — settings, history, offers and feedback are what the person
+    reads and changes, capability on or off. Measured on docker dev
+    (2026-09-11): the router still carried the guard and answered 403."""
+    from src.domains.heartbeat.router import router
+
+    assert _guarded_capabilities(router) == set()
 
 
 def test_the_generated_gallery_is_not_gated_on_uploads() -> None:

@@ -86,7 +86,10 @@ export function HabitExplanation({ lng, habitId }: { lng: Language; habitId: str
             {t('settings.habits.explanation.thresholds_label')}{' '}
             <span className="tabular-nums">
               {Object.entries(data.thresholds)
-                .map(([name, value]) => `${name}=${value}`)
+                .map(
+                  ([name, value]) =>
+                    `${t(`settings.habits.explanation.threshold.${name}`, { defaultValue: name })} = ${value}`
+                )
                 .join(' · ')}
             </span>
           </p>

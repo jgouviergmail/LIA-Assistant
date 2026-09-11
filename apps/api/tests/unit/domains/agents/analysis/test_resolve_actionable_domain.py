@@ -63,6 +63,21 @@ class TestResolveActionableDomain:
         }
         assert resolve_actionable_domain(state) is None
 
+    def test_an_unregistered_domain_is_not_actionable(self) -> None:
+        """The domain becomes a Redis key tail and a word the heartbeat
+        quotes: a model's stray spelling is refused here, on the same rule
+        the product-outcomes capture applies (cold review, 2026-09-11)."""
+        from src.domains.agents.registry.domain_bounds import is_registered_domain
+
+        assert is_registered_domain("email") is True
+        assert is_registered_domain("emails; DROP *") is False
+        assert is_registered_domain(None) is False
+        state = {
+            "routing_history": [_route(INTENTION_ACTION)],
+            "query_intelligence": _qi("not_a_domain"),
+        }
+        assert resolve_actionable_domain(state) is None
+
     def test_no_route_or_no_domain_is_none(self) -> None:
         assert resolve_actionable_domain({"query_intelligence": _qi()}) is None
         assert (

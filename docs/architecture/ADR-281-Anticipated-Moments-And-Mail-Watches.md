@@ -85,6 +85,17 @@ réveil ADR-261, et pour la même raison : **un instant ne se reporte pas**.
 Reporter « comment s'est passée ta réunion ? » de deux heures, c'est ne pas la
 poser.
 
+*Précision du 2026-09-11* : cette phrase décrivait le réveil ADR-261 avant
+que le code ne la tienne — `check_eligibility` ne contournait le rythme que
+pour un moment, et un réveil était différé comme un tick (latent,
+`PUSH_WAKE_ENABLED` étant faux partout). Le réveil contourne désormais le
+rythme (il est consommé quand il est servi, « plus tard » voudrait dire
+« perdu ») mais **s'écarte pour une réunion en cours** : le tick suivant relit
+le courrier depuis l'ancre que le réveil refusé n'a pas avancée. Et le
+rythme lui-même ne cache jamais un rendez-vous : le verdict d'agenda porte
+le prochain début d'événement, et un tick dont l'événement tombe dans la
+fenêtre de garde n'est pas différé (`heartbeat_rhythm_escapes_total`).
+
 ### La question est posée, jamais l'évaluation
 
 La règle 23 du prompt de décision : **une** question ouverte, au plus deux
@@ -100,6 +111,13 @@ garde (`busy_gate.py`) lit le calendrier, met son verdict en cache Redis, et
 **ne compte pas une consultation sur un cache servi** : Redis a répondu, la
 boîte n'a pas été ouverte (ADR-263). Une lecture qui échoue est déclarée
 `failed`, jamais lue comme un silence.
+
+Depuis le 2026-09-11 (ADR-214 c, A11) le balayage d'intérêts pose la même
+question sur le même verdict mis en cache — un compte, une lecture — et
+consigne sa lecture VIVE sous sa propre surface (`interest:calendar`, domaine
+`event`). Le verdict porte aussi le prochain début d'événement, que le
+rythme appris lit pour ne pas différer un tick qui a un rendez-vous à
+servir.
 
 ### Le contrôle avant l'exploitation
 
@@ -337,10 +355,13 @@ une revue.
   ajouter, c'était deux compteurs de cooldown pour un même objet.
 - **Pas d'appel vocal** dans ce lot ; il fait l'objet d'un travail à part.
 
-### Un défaut préexistant signalé, non corrigé
+### Un défaut préexistant signalé, puis corrigé
 
-`heartbeat_wake_sweep` tourne toutes les 120 s avec un `SchedulerLock` dont le
-TTL par défaut est 300 s, et ce verrou n'est **jamais** relâché à la sortie : il
-saute donc des passes. Le balayage des moments lie son propre TTL à 90 % de son
-intervalle pour éviter ça. Le défaut du réveil est signalé ici plutôt que
-corrigé au passage — il mérite sa propre mesure.
+`heartbeat_wake_sweep` tournait toutes les 120 s avec un `SchedulerLock` dont
+le TTL par défaut est 300 s, et ce verrou n'est **jamais** relâché à la
+sortie : il sautait une passe sur deux. Le balayage des moments liait son
+propre TTL à 90 % de son intervalle pour éviter ça. Depuis le 2026-09-11 la
+règle a UNE implémentation, `scheduler_lock.ttl_for_interval` (90 % de la
+période, plancher 30 s), lue par les deux balayages et par le garde
+`test_scheduler_lock_timing_guard.py`, qui n'avait jamais listé le balayage
+des réveils — un job enregistré après l'écriture du garde y était invisible.

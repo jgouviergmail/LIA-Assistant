@@ -4,7 +4,7 @@
 
 **Version**: 6.0
 **Datum**: 2026-08-23
-**Anwendung**: LIA v1.44.2
+**Anwendung**: LIA v1.44.3
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -345,7 +345,7 @@ Und Farbe trägt die Bedeutung nie allein: Jede Markierung behält ihr Wort. Ein
 
 ### 6.7. Selbst was LIA über dich lernt, ist einsehbar
 
-Dieselbe Transparenz gilt für das Gewohnheitslernen: Was LIA über deinen Rhythmus und deine wiederkehrenden Anfragen zu wissen glaubt, lebt in einem eigenen Panel — eine Heatmap deiner 24 Stunden, dein Anteil aktiver Tage, ein Fortschrittsbalken bis zu den ersten Erkennungen, und für jede Gewohnheit die realen Beobachtungstage plus die exakten Schwellenwerte des Detektors. Gibt es keine stabile Gewohnheit, sagt das Panel das, statt eine zu erfinden. Pause, endgültige Blockierung, vollständige Löschung, sofortige rückwirkende Neuberechnung — und die ganze Funktion bleibt aus, bis du sie aktivierst.
+Dieselbe Transparenz gilt für das Gewohnheitslernen: Was LIA über deinen Rhythmus und deine wiederkehrenden Anfragen zu wissen glaubt, lebt in einem eigenen Panel — eine Heatmap deiner 24 Stunden, dein Anteil aktiver Tage, ein Fortschrittsbalken bis zu den ersten Erkennungen, und für jede Gewohnheit die realen Beobachtungstage plus die exakten Schwellenwerte des Detektors. Gibt es keine stabile Gewohnheit, sagt das Panel das, statt eine zu erfinden. Pause, endgültige Blockierung, vollständige Löschung, sofortige rückwirkende Neuberechnung — und die ganze Funktion bleibt aus, bis du sie aktivierst. Was du dort festlegst, gilt überall: Eine pausierte Gewohnheit ist für die Benachrichtigungen, deren Zeitplanung und den Kontext der Assistentin gleichermaßen pausiert; eine Routine, die du verpasst, wird dir beim Namen angeboten; und eine gelernte Gewohnheit lebt — befördert, aufgefrischt oder zurückgestuft, wie sich deine Tage ändern, nie im Zweifel.
 
 Dieselbe Anforderung gilt für das, was LIA aus deinen Vorgaben behält: Jede dauerhafte Regel („antworte kürzer“, „schlag mir das abends nicht mehr vor“) ist eine **sichtbare, änderbare und löschbare** Erinnerung — und wenn sich eine Tatsache ändert, wird die alte nicht gelöscht, sondern hinter der neuen archiviert, damit Korrigieren nie zum Umschreiben der Geschichte wird. Die Routinen, die LIA zu übernehmen vorschlägt, warten in einem eigenen Postfach auf dein Startsignal: Annehmen füllt den Chat vor, nichts geht ohne dich hinaus, und Ablehnen bringt ihr bei, weniger zu drängen.
 

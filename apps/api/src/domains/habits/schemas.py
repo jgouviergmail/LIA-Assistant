@@ -131,6 +131,15 @@ class HabitsOverviewResponse(BaseModel):
         ge=0,
         description="Candidates beyond the display cap — a cap is stated, never silent.",
     )
+    chat_suggestions_enabled: bool = Field(
+        default=True,
+        description=(
+            "Whether this instance lets LIA offer an automation in the chat when a "
+            "recurring request locks (RECURRENCE_SUGGESTION_ENABLED). Learning and "
+            "the heartbeat offers do not depend on it; the panel says so rather "
+            "than letting the person wait for an offer that cannot come (ADR-184)."
+        ),
+    )
 
 
 class HabitsSettingsUpdate(BaseModel):

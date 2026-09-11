@@ -260,19 +260,27 @@ CAPABILITY_SPECS: dict[PlatformCapability, CapabilitySpec] = {
         setting_key=SystemSettingKey.CAPABILITY_JOURNALS_ENABLED,
         route_enforced=True,
     ),
+    # ADR-280 amendment (2026-09-11): habits and the heartbeat are ACTS —
+    # learning at night, consuming at every tick, speaking on LIA's own
+    # initiative — that fill a record the person keeps reading. Measured with
+    # the operator switch OFF: the acts went on and only the panel had
+    # closed. The guard now sits at the acts (``habits/capability.py``, the
+    # heartbeat scheduler, the wake and moment sweeps) and on the two habits
+    # routes that ARE acts (``/recompute``, ``/presence``); GET / PATCH /
+    # DELETE stay open, like the memories and the gallery.
     PlatformCapability.HABITS: CapabilitySpec(
         capability=PlatformCapability.HABITS,
         family="knowledge",
         env_flag="habits_enabled",
         setting_key=SystemSettingKey.CAPABILITY_HABITS_ENABLED,
-        route_enforced=True,
+        service_enforced=True,
     ),
     PlatformCapability.HEARTBEAT: CapabilitySpec(
         capability=PlatformCapability.HEARTBEAT,
         family="work",
         env_flag="heartbeat_enabled",
         setting_key=SystemSettingKey.CAPABILITY_HEARTBEAT_ENABLED,
-        route_enforced=True,
+        service_enforced=True,
     ),
     # The moment sweep is the whole ability: there is no route of its own to
     # guard, and no record to protect — a settled moment row is bookkeeping,

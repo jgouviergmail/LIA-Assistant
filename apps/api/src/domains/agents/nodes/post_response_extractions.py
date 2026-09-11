@@ -106,6 +106,24 @@ def _record_either(kind: str, condition: bool, when_true: str, when_false: str) 
     _record_extraction(kind, when_true if condition else when_false)
 
 
+def _analyzer_intent(state: dict[str, Any]) -> str | None:
+    """The analyzer's ``immediate_intent`` for this turn, or None.
+
+    Read here rather than inline so the recurrence branch of the scheduler
+    (a frozen complexity hotspot) gains no conditional for it.
+
+    Args:
+        state: LangGraph state dict.
+
+    Returns:
+        The intent as a string, or None when the analysis carries none.
+    """
+    from src.domains.agents.analysis.query_intelligence_helpers import get_qi_attr
+
+    value = get_qi_attr(state, "immediate_intent", default=None)
+    return str(value) if value else None
+
+
 def _schedule_post_response_extractions(
     state: MessagesState,
     config: RunnableConfig,
@@ -499,7 +517,13 @@ def _schedule_post_response_extractions(
                 OUTCOME_AUTOMATED_SOURCE,
                 OUTCOME_TRIVIAL,
             )
-        elif not settings.recurrence_suggestion_enabled:
+        elif not settings.habits_enabled:
+            # The ledger is habit LEARNING (ADR-214), gated by the habits
+            # capability — never by the chat suggestion's own flag
+            # (RECURRENCE_SUGGESTION_ENABLED only decides whether LIA offers
+            # an automation in the answer). The deployment ceiling is read
+            # here, synchronously; the operator switch and the person's own
+            # switch are read in the background task.
             _record_extraction(KIND_RECURRENCE, OUTCOME_FEATURE_DISABLED)  # no ledger writes
         elif not qi_primary:
             # only actionable domain queries can recur into automations
@@ -514,7 +538,7 @@ def _schedule_post_response_extractions(
             from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
             from src.domains.agents.services.recurrence_ledger import (
                 build_signature,
-                record_occurrence,
+                record_occurrence_if_allowed,
             )
 
             try:
@@ -524,16 +548,23 @@ def _schedule_post_response_extractions(
             from datetime import datetime
 
             # v2 (ADR-214): the signature is the domain only — the local date
-            # and hour are recorded as DATA for the shape locks.
+            # and hour are recorded as DATA for the shape locks, and so is the
+            # analyzer's intent (Q4, 2026-09-11): « what the person usually
+            # asks for » travels inside the payload, never inside the key.
             now_local = datetime.now(user_tz)
             signature = build_signature(qi_primary)
+            usual_intent = _analyzer_intent(state)
+            # The person's own switch is read INSIDE the background task
+            # (``record_occurrence_if_allowed``): the turn pays nothing, and a
+            # refusal is counted on the write counter as ``user_disabled``.
             safe_fire_and_forget(
-                record_occurrence(
+                record_occurrence_if_allowed(
                     user_id,
                     signature,
                     local_date=now_local.date(),
                     local_hour=now_local.hour + now_local.minute / 60.0,
                     settings=settings,
+                    intent=usual_intent,
                 ),
                 name=f"recurrence_record_{user_id}",
                 run_id=run_id,

@@ -249,6 +249,62 @@ class TestHeartbeatContext:
         assert "LAST INTERACTION" in prompt
         assert "3.0" in prompt
 
+    def test_missed_routine_block_names_the_usual_request(self):
+        """C13: the offer had no object — « 'email' — usually daily » reads
+        for mail and for nothing else. With the descriptor the block says
+        what is usually asked, and tells the model to name it."""
+        ctx = HeartbeatContext(
+            habits={
+                "rhythm": None,
+                "missed_routine": {
+                    "habit_id": "h1",
+                    "signature": "web_search",
+                    "shape": "daily",
+                    "trigger_label": "08:00",
+                    "weekday": None,
+                    "usual_intent": "search",
+                },
+            }
+        )
+        prompt = ctx.to_prompt_context()
+        assert "MISSED ROUTINE" in prompt
+        assert "usually asks for a 'search' on 'web_search'" in prompt
+        assert "daily around 08:00" in prompt
+        # The section is DATA and names the rule that governs it; the offer
+        # instructions (once, named, declared) live in the versioned prompt.
+        assert "rule 24" in prompt
+        assert "habit_offered" not in prompt
+
+    def test_rule_24_carries_the_offer_instructions(self):
+        """What the section used to repeat in Python is said once, in the
+        versioned prompt: offer at most once, NAME the request, declare it."""
+        from src.domains.agents.prompts.prompt_loader import load_prompt
+
+        content = load_prompt("heartbeat_decision_prompt")
+        rule = next(line for line in content.splitlines() if line.startswith("24."))
+        assert "MISSED ROUTINE" in rule and "at most once" in rule
+        assert "NAMING the request" in rule
+        assert "habit_offered=true" in rule
+
+    def test_missed_routine_block_without_a_descriptor_stays_honest(self):
+        ctx = HeartbeatContext(
+            habits={
+                "rhythm": None,
+                "missed_routine": {
+                    "habit_id": "h1",
+                    "signature": "email",
+                    "shape": "weekly",
+                    "trigger_label": "09:00",
+                    "weekday": 1,
+                    "usual_intent": None,
+                },
+            }
+        )
+        prompt = ctx.to_prompt_context()
+        assert "usually makes a request on 'email'" in prompt
+        assert "weekly (weekday 1) around 09:00" in prompt
+        assert "'search'" not in prompt
+
     def test_to_prompt_context_weather_changes(self):
         """Test prompt context includes weather changes."""
         ctx = HeartbeatContext(

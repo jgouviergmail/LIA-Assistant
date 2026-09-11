@@ -78,6 +78,19 @@ class HeartbeatDecision(BaseModel):
             "the notification centers on that interest; null otherwise."
         ),
     )
+    # ADR-214: the offer bookkeeping (≤ 1 offer per day, 7-day cooldown, mute
+    # after 2 ignored offers) used to key on ``"HABITS" in sources_used`` —
+    # a label the model chose freely: measured 2026-09-11, an offer about the
+    # learned « email » routine was labelled UNREAD_EMAILS and the budget was
+    # never charged. The offer is now DECLARED, on its own field, and the
+    # source label stays what it is: an audit trail.
+    habit_offered: bool = Field(
+        default=False,
+        description=(
+            "true ONLY when message_draft offers to run the learned routine "
+            "listed under MISSED ROUTINE; false otherwise."
+        ),
+    )
 
     @model_validator(mode="after")
     def validate_message_draft_on_notify(self) -> HeartbeatDecision:
@@ -105,6 +118,42 @@ class WeatherChange:
     expected_at: datetime  # When the change is expected
     description: str  # Human-readable description for the LLM prompt
     severity: str  # info | warning
+
+
+def _missed_routine_section(missed: dict[str, Any]) -> str:
+    """The MISSED ROUTINE section of the decision prompt — data only.
+
+    C13: the offer has an OBJECT. The signature is a domain key (« email »,
+    « web_search »); the descriptor says what is usually asked for on it, so
+    the model can name the service it offers instead of a generic « it ».
+    What to DO with it (offer at most once, name the request, declare it
+    with ``habit_offered``) is rule 24 of the versioned decision prompt, not
+    a sentence repeated here: two wordings of one rule drift.
+
+    Args:
+        missed: The offer candidate ``habit_context.detect_missed_routine``
+            produced.
+
+    Returns:
+        One prompt section.
+    """
+    schedule = (
+        f"weekly (weekday {missed.get('weekday')})"
+        if missed.get("shape") == "weekly"
+        else str(missed.get("shape", "?"))
+    )
+    signature = missed.get("signature", "?")
+    usual_intent = missed.get("usual_intent")
+    request = (
+        f"the user usually asks for a '{usual_intent}' on '{signature}'"
+        if usual_intent
+        else f"the user usually makes a request on '{signature}'"
+    )
+    return (
+        "MISSED ROUTINE (learned recurring request whose usual slot passed "
+        f"today with no ask — rule 24): {request} — {schedule} around "
+        f"{missed.get('trigger_label', '?')}."
+    )
 
 
 @dataclass
@@ -402,19 +451,7 @@ class HeartbeatContext:
                 )
             missed = self.habits.get("missed_routine")
             if missed:
-                schedule = (
-                    f"weekly (weekday {missed.get('weekday')})"
-                    if missed.get("shape") == "weekly"
-                    else str(missed.get("shape", "?"))
-                )
-                sections.append(
-                    "MISSED ROUTINE (learned recurring request whose usual slot passed "
-                    f"today with no ask): '{missed.get('signature', '?')}' — usually "
-                    f"{schedule} around {missed.get('trigger_label', '?')}. You may "
-                    "offer ONCE to run it now, framed as a service ('want me to "
-                    "prepare it?'), never as surveillance. Skip it whenever anything "
-                    "else in this context is more valuable."
-                )
+                sections.append(_missed_routine_section(missed))
 
         if self.hours_since_last_interaction is not None:
             sections.append(f"LAST INTERACTION: {self.hours_since_last_interaction:.1f} hours ago")

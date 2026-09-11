@@ -51,7 +51,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from src.core import constants as C  # noqa: E402
-from src.domains.agents.services.recurrence_ledger import evaluate_locks  # noqa: E402
+from src.domains.habits.recurrence_locks import evaluate_locks  # noqa: E402
 from src.domains.habits.rhythm import RhythmThresholds, compute_rhythm_profile  # noqa: E402
 
 # The baseline every sweep starts from is the SHIPPED calibration — the

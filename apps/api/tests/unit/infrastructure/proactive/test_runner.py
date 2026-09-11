@@ -744,9 +744,10 @@ class TestTheSuccessPathIsAccountedAndRecorded:
 
     @pytest.mark.asyncio
     async def test_the_run_id_is_minted_before_the_content_and_shared(self) -> None:
-        """The collector is published around ``generate_content``, so the id
-        must exist before it — a tracker that minted its own would file the
-        consultations under a run the register never joins."""
+        """The collector is published around the whole service of the account
+        (selection included), so the id exists before any source opens — a
+        tracker that minted its own would file the consultations under a run
+        the register never joins."""
         runner = self._successful_runner()
 
         with patch(
@@ -792,6 +793,111 @@ class TestTheSuccessPathIsAccountedAndRecorded:
             await runner._process_user(_make_mock_user(), AsyncMock(), RunnerStats())
 
         assert seen == [1], "the runner published no collector around generate_content"
+
+    @pytest.mark.asyncio
+    async def test_the_sources_opened_while_selecting_the_target_are_collected(self) -> None:
+        """The heartbeat opens its thirteen sources in ``select_target`` (the
+        aggregator runs before the decision), not in ``generate_content``.
+        The collector used to open around the latter only — measured
+        2026-09-11: 31 notifications in 30 days, 0 `heartbeat:*` rows, the
+        same silence ADR-263 lot 4 was written to end."""
+        from src.domains.agents.effects.treatments import collected_treatments
+        from src.domains.shared.consultation_surfaces import record_surface_consultations
+
+        runner = self._successful_runner("heartbeat")
+        seen: list[int] = []
+        original = runner.task.select_target
+
+        async def _select(*args: Any, **kwargs: Any) -> Any:
+            record_surface_consultations(
+                surface="heartbeat",
+                user_id="11111111-1111-1111-1111-111111111111",
+                opened=["emails", "calendar"],
+                duration_ms=5,
+            )
+            seen.append(len(collected_treatments()))
+            return await original(*args, **kwargs)
+
+        runner.task.select_target = _select
+        flushed: list[list[Any]] = []
+
+        async def _flush(rows: list[Any]) -> None:
+            flushed.append(list(rows))
+
+        with (
+            patch(
+                "src.infrastructure.proactive.runner.track_proactive_tokens",
+                new=AsyncMock(return_value="run-x"),
+            ),
+            patch("src.domains.agents.effects.treatment_recorder._flush", new=_flush),
+        ):
+            await runner._process_user(_make_mock_user(), AsyncMock(), RunnerStats())
+
+        assert seen == [2], "the runner published no collector around select_target"
+        assert len(flushed) == 1 and len(flushed[0]) == 2
+        run_ids = {row.run_id for row in flushed[0]}
+        assert len(run_ids) == 1 and next(iter(run_ids)).startswith("proactive_")
+
+    @pytest.mark.asyncio
+    async def test_what_task_eligibility_reads_is_collected_too(self) -> None:
+        """The in-meeting guard opens the calendar INSIDE ``check_eligibility``
+        (ADR-281), one step before the collector used to open: a tick that
+        stood aside for a meeting had read a calendar and filed nothing."""
+        from src.domains.shared.consultation_surfaces import record_surface_consultations
+
+        runner = self._successful_runner("heartbeat")
+
+        async def _eligibility(*args: Any, **kwargs: Any) -> bool:
+            record_surface_consultations(
+                surface="heartbeat",
+                user_id="11111111-1111-1111-1111-111111111111",
+                opened=["calendar"],
+                duration_ms=5,
+            )
+            return False  # in a meeting: stand aside
+
+        runner.task.check_eligibility = _eligibility
+        flushed: list[list[Any]] = []
+
+        async def _flush(rows: list[Any]) -> None:
+            flushed.append(list(rows))
+
+        stats = RunnerStats()
+        with patch("src.domains.agents.effects.treatment_recorder._flush", new=_flush):
+            assert await runner._process_user(_make_mock_user(), AsyncMock(), stats) is False
+
+        assert stats.skip_reasons == {"task_eligibility_failed": 1}
+        assert len(flushed) == 1 and [row.tool_name for row in flushed[0]] == ["heartbeat:calendar"]
+
+    @pytest.mark.asyncio
+    async def test_a_sweep_that_says_nothing_still_files_what_it_read(self) -> None:
+        """« I checked and said nothing » opened the same sources; the skip
+        path had no collector at all."""
+        from src.domains.shared.consultation_surfaces import record_surface_consultations
+
+        runner = self._successful_runner("heartbeat")
+
+        async def _select(*args: Any, **kwargs: Any) -> Any:
+            record_surface_consultations(
+                surface="heartbeat",
+                user_id="11111111-1111-1111-1111-111111111111",
+                opened=["emails"],
+                duration_ms=5,
+            )
+            return None  # decision = skip
+
+        runner.task.select_target = _select
+        flushed: list[list[Any]] = []
+
+        async def _flush(rows: list[Any]) -> None:
+            flushed.append(list(rows))
+
+        stats = RunnerStats()
+        with patch("src.domains.agents.effects.treatment_recorder._flush", new=_flush):
+            assert await runner._process_user(_make_mock_user(), AsyncMock(), stats) is False
+
+        assert stats.skip_reasons == {"no_target": 1}
+        assert len(flushed) == 1 and [row.tool_name for row in flushed[0]] == ["heartbeat:emails"]
 
     @pytest.mark.asyncio
     async def test_a_delivered_notification_is_recorded_as_an_ACTION(self) -> None:

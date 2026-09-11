@@ -21,8 +21,11 @@ Mapping note: this list mirrors the ``add_job(trigger="interval", ...)`` calls i
 job that ticks faster than the lock TTL fails this guard by design.
 """
 
+import pytest
+
 from src.core.config import settings
 from src.core.constants import SCHEDULER_LOCK_DEFAULT_TTL_SECONDS
+from src.infrastructure.locks.scheduler_lock import ttl_for_interval
 
 # job_id -> callable returning its interval in SECONDS from settings.
 SCHEDULER_LOCK_INTERVAL_JOBS = {
@@ -30,6 +33,16 @@ SCHEDULER_LOCK_INTERVAL_JOBS = {
     "token_refresh": lambda s: s.oauth_proactive_refresh_interval_minutes * 60,
     "oauth_health": lambda s: s.oauth_health_check_interval_minutes * 60,
     "heartbeat_notification": lambda s: s.heartbeat_notification_interval_minutes * 60,
+}
+
+# Fast jobs whose lock is sized by ``ttl_for_interval`` on their own period —
+# the shape a job ticking under five minutes must take. job_id -> interval fn.
+# The moment sweep wrote the rule for itself; the wake sweep (120 s) was
+# registered after this guard was written and never listed here, so it ran
+# every other tick for as long as PUSH_WAKE_ENABLED has existed.
+SCHEDULER_LOCK_DERIVED_TTL_JOBS = {
+    "moment_sweep": lambda s: s.moments_sweep_interval_minutes * 60,
+    "heartbeat_wake_sweep": lambda s: s.push_wake_sweep_interval_seconds,
 }
 
 # Jobs that violate ``TTL < interval`` at DEFAULT settings. Accepted throttle debt
@@ -64,6 +77,37 @@ def test_allowlist_only_holds_still_throttled_jobs():
         if ttl < interval:
             stale.append(f"{job}: TTL {ttl}s < interval {interval}s — remove from KNOWN_THROTTLED")
     assert not stale, "\n".join(stale)
+
+
+@pytest.mark.parametrize("job", sorted(SCHEDULER_LOCK_DERIVED_TTL_JOBS))
+def test_derived_ttl_jobs_tick_faster_than_their_lock(job: str):
+    """A lock sized on the period stays below it at every allowed setting."""
+    interval = SCHEDULER_LOCK_DERIVED_TTL_JOBS[job](settings)
+    assert (
+        ttl_for_interval(interval) < interval
+    ), f"{job}: TTL {ttl_for_interval(interval)}s >= interval {interval}s (throttled)"
+
+
+def test_the_rule_holds_across_the_wake_sweeps_whole_range():
+    """The setting's bounds (30..900 s) are the contract the rule must keep."""
+    field = type(settings).model_fields["push_wake_sweep_interval_seconds"]
+    lo = next(m.ge for m in field.metadata if hasattr(m, "ge"))
+    hi = next(m.le for m in field.metadata if hasattr(m, "le"))
+    # The floor equals the smallest allowed interval: a 30 s sweep keeps its
+    # crash protection and is throttled by exactly nothing above it.
+    assert ttl_for_interval(lo) <= lo
+    for interval in range(lo + 1, hi + 1):
+        assert ttl_for_interval(interval) < interval, interval
+
+
+def test_the_two_fast_sweeps_size_their_lock_with_the_rule():
+    """Reading the call sites: both sweeps hand the lock ``ttl_for_interval``."""
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2] / "src" / "infrastructure" / "scheduler"
+    for module in ("moment_sweep.py", "heartbeat_wake_sweep.py"):
+        source = (root / module).read_text(encoding="utf-8")
+        assert "ttl_for_interval(" in source, f"{module} sizes its SchedulerLock by hand"
 
 
 def test_allowlist_jobs_are_declared():

@@ -77,6 +77,19 @@ class TestDetectMissedRoutine:
         assert offer["signature"] == "email"
         assert offer["trigger_label"] == "09:00"
 
+    def test_the_offer_carries_what_the_person_usually_asks(self) -> None:
+        """Q4 / C13: the descriptor the sync stored on the row reaches the
+        offer, so the decision can name the request rather than « it »."""
+        habit = _habit(payload={"usual_intent": "search"})
+        offer = detect_missed_routine(habit, {"2026-08-01"}, NOW, _settings())
+        assert offer is not None
+        assert offer["usual_intent"] == "search"
+
+    def test_an_offer_without_a_descriptor_says_so(self) -> None:
+        offer = detect_missed_routine(_habit(), {"2026-08-01"}, NOW, _settings())
+        assert offer is not None
+        assert offer["usual_intent"] is None
+
     def test_weekly_offers_on_first_miss(self) -> None:
         habit = _habit(payload={"shape": "weekly", "days_of_week": [1]})
         offer = detect_missed_routine(habit, set(), NOW, _settings())
@@ -162,11 +175,12 @@ class TestRhythmSummary:
                 },
             },
         }
-        assert rhythm_summary(payload) == {"weekday": ["08:00-10:00"]}
+        from src.domains.habits.rhythm import RhythmProfile
 
-    def test_empty_payload_is_none(self) -> None:
+        assert rhythm_summary(RhythmProfile.from_payload(payload)) == {"weekday": ["08:00-10:00"]}
+
+    def test_no_profile_is_none(self) -> None:
         assert rhythm_summary(None) is None
-        assert rhythm_summary({}) is None
 
 
 @pytest.mark.unit
@@ -228,6 +242,11 @@ class TestFetchHabitsContext:
         weekly.positive_signals = 5
         muted = _habit(muted_until_reproof=True)
 
+        # The mirror row of the claimed window is ACTIVE: consumable.
+        window_row = _habit(
+            kind="active_window", key="weekday:morning", status="active", payload={"version": 1}
+        )
+
         class _Repo:
             def __init__(self, db: Any) -> None:
                 pass
@@ -236,6 +255,8 @@ class TestFetchHabitsContext:
                 return profile_row
 
             async def list_habits(self, user_id: Any, kind: str | None = None) -> list:
+                if kind == "active_window":
+                    return [window_row]
                 return [weekly, muted]
 
         monkeypatch.setattr(module, "HabitsRepository", _Repo)
@@ -259,3 +280,73 @@ class TestFetchHabitsContext:
         # sibling would otherwise pass silently as "no offer").
         assert result["missed_routine"] is not None
         assert result["missed_routine"]["habit_id"] == str(weekly.id)
+
+
+_WINDOW_PROFILE_PAYLOAD = {
+    "version": 1,
+    "active_days_fraction": 0.8,
+    "sparse": False,
+    "classes": {
+        "weekday": {
+            "verdict": "windows",
+            "windows": [{"start_hour": 8, "end_hour": 10, "presence": 0.9}],
+            "n_eff": 20.0,
+            "bin_presence": [0.0] * 24,
+        },
+        "weekend": {"verdict": "none", "windows": [], "n_eff": 8.0, "bin_presence": [0.0] * 24},
+    },
+}
+
+
+@pytest.mark.unit
+class TestWindowStatusesGovernConsumption:
+    """ADR-214 decision 3, measured violated 2026-09-11 (sim H): the heartbeat
+    kept serving a window the person had blocked."""
+
+    @pytest.mark.parametrize("status", ["blocked", "paused"])
+    async def test_a_window_the_person_refused_is_not_served(
+        self, monkeypatch: pytest.MonkeyPatch, status: str
+    ) -> None:
+        import src.domains.heartbeat.habit_context as module
+
+        profile_row = MagicMock()
+        profile_row.payload = _WINDOW_PROFILE_PAYLOAD
+        refused = _habit(
+            kind="active_window", key="weekday:morning", status=status, payload={"version": 1}
+        )
+
+        class _Repo:
+            def __init__(self, db: Any) -> None:
+                pass
+
+            async def get_profile(self, user_id: Any) -> Any:
+                return profile_row
+
+            async def list_habits(self, user_id: Any, kind: str | None = None) -> list:
+                return [refused] if kind == "active_window" else []
+
+        monkeypatch.setattr(module, "HabitsRepository", _Repo)
+        user = SimpleNamespace(habits_enabled=True, timezone="Europe/Paris")
+        assert await fetch_habits_context(MagicMock(), uuid.uuid4(), user, _settings()) is None
+
+    async def test_a_deleted_row_is_not_served_until_relearned(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import src.domains.heartbeat.habit_context as module
+
+        profile_row = MagicMock()
+        profile_row.payload = _WINDOW_PROFILE_PAYLOAD
+
+        class _Repo:
+            def __init__(self, db: Any) -> None:
+                pass
+
+            async def get_profile(self, user_id: Any) -> Any:
+                return profile_row
+
+            async def list_habits(self, user_id: Any, kind: str | None = None) -> list:
+                return []  # the person deleted the row; the nightly sync has not run yet
+
+        monkeypatch.setattr(module, "HabitsRepository", _Repo)
+        user = SimpleNamespace(habits_enabled=True, timezone="Europe/Paris")
+        assert await fetch_habits_context(MagicMock(), uuid.uuid4(), user, _settings()) is None

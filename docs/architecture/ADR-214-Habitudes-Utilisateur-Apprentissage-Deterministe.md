@@ -416,3 +416,115 @@ jeu expédié (`weekly` du domaine route à 3 jours modaux — sous la barre de 
 visible dans la ligne wk_relaxed) ; le rythme reste `none` (honnête). Le
 mécanisme est prêt pour les données que le correctif (a) laissera enfin
 s'accumuler.
+
+## Amendement 2026-09-11 (c) — le cycle de vie appartient au job, le statut d'une ligne atteint ses consommateurs
+
+Audit d'exécution sur docker dev (simulations A-H, chaque constat rejoué
+après déploiement). Ce que l'implémentation promettait et ne tenait pas,
+avec la preuve, puis la décision.
+
+**1. Bloquer ou mettre en pause une fenêtre ne changeait rien à sa
+consommation.** Le bloc heartbeat, le scoring de tick et le bloc ambiant
+lisaient le PROFIL (`user_habit_profiles.payload`), jamais les lignes miroir
+`active_window` que le panneau édite : une fenêtre `blocked` continuait de
+différer les ticks et de figurer dans le prompt (sim H). → Un seul prédicat
+de consommation, `habits/consumption.py::load_consumable_profile` : le profil
+lu est réduit aux fenêtres dont la ligne miroir est ACTIVE, et les trois
+consommateurs passent par lui. La clé d'une fenêtre a un seul producteur
+(`window_keys.window_habit_key`, « weekday:morning ») partagé par la synchro
+et la lecture — deux constructions de la même clé avaient déjà divergé.
+
+**2. Une habitude récurrente n'avait pas de cycle de vie.** Sa promotion
+dépendait de la SUGGESTION de chat (`RECURRENCE_SUGGESTION_ENABLED` +
+`INITIATIVE_REACT_ENABLED`, tous deux faux dans les `.env.example`) : un
+compte ReAct sur un déploiement par défaut n'obtenait jamais de ligne ; la
+promotion écrasait `offer_dates` ; le mute de la règle d'arrêt ne se levait
+qu'à la promotion suivante (≥ 30 j) ; une récurrence dont le ledger avait
+expiré restait offerte comme « routine manquée » (fantôme, C4-b). → Le job
+nocturne fait la synchro (`habits/recurrence_sync.py::sync_recurring_habits`) :
+chaque signature du ledger est évaluée ; verrou → créée / rafraîchie
+(BLOQUÉE respectée, PAUSÉE suit la preuve mais reste pausée, plafond par
+sorte sur les nouvelles seules) ; existence sans verrou → gardée
+(`touch_habit`) ; ni l'un ni l'autre, ou plus de clé → **rétrogradée**
+(ACTIVE seule — les statuts posés par la personne ne sont jamais touchés, et
+un ledger illisible ne rétrograde rien). Le dépôt préserve `offer_dates` à la
+fusion et ne lève le mute que sur preuve (`reset_mute`) : le mute tombe « à
+l'occurrence suivante », comme les docstrings le promettaient
+(`offer_bookkeeping.occurrence_after_last_offer`, une reprise le jour même
+compte comme reprise). Métrique `recurring_habits_synced_total{action}`.
+
+**3. La porte d'apprentissage ne fermait qu'une porte.** « Apprendre mes
+habitudes » à OFF arrêtait la promotion et laissait le ledger enregistrer les
+demandes de quelqu'un qui avait demandé de ne pas apprendre (sim C5). →
+`habits/learning_gate.py::read_learning_gate` (fail-closed) est lue par
+l'écriture du ledger (`record_occurrence_if_allowed`, issue
+`user_disabled`), par le détecteur d'initiative (une signature bloquée ou en
+pause n'est plus jamais suggérée) et par le seed. Le ledger est de
+l'apprentissage : il suit `HABITS_ENABLED` et l'interrupteur ADR-280
+`habits` lu à l'acte (issue `feature_disabled`), plus jamais le flag de la
+suggestion de chat. Le panneau dit quand l'instance n'offre pas
+d'automatisation dans le chat (`chat_suggestions_enabled`).
+
+**4. Le tampon d'offre dépendait du label choisi par le modèle** (C16) :
+`_bump_offered_habit` exigeait `"HABITS" in sources_used`, et une offre de
+routine étiquetée `UNREAD_EMAILS` ne tamponnait pas `offer_dates` — le budget
+« ≤ 1 offre/j, cooldown 7 j, arrêt à 2 » tenait à un choix d'étiquette. → La
+décision DÉCLARE l'offre (`HeartbeatDecision.habit_offered`, règle 24 du
+prompt), et le tampon ne lit QUE cette déclaration : le label est faux dans
+les deux sens (absent sur une vraie offre, présent sur un simple usage du
+rythme, qui tamponnait un cooldown de 7 jours pour une offre jamais faite),
+il est donc observé et jamais obéi — `heartbeat_habit_offers_total{outcome}`
+(`declared` / `label_only` / `none`) rend visible un modèle qui étiquette
+sans déclarer.
+
+**5. L'offre n'avait pas d'objet** (C13, arbitrage Q4) : la signature est le
+domaine seul, décision documentée pour ne pas fragmenter le ledger, et le
+bloc disait « 'email' — usually daily around 08:00 … want me to prepare it? »
+— lisible pour le courrier, vide pour `web_search`, `contact`, `ticket`. →
+Le descripteur de la demande voyage en DONNÉE, jamais dans la clé :
+`immediate_intent` de l'analyseur est enregistré par occurrence dans un
+histogramme borné du payload (`recurrence_store.record_intent`, 8 valeurs
+distinctes, normalisées), `dominant_intent` le lit, la promotion et la
+synchro copient `usual_intent` sur la ligne, le bloc heartbeat dit « the user
+usually asks for a 'search' on 'web_search' » et le panneau ouvre la ligne
+par « Recherche · E-mails — chaque jour ~08:30 » (vocabulaire fermé
+`IMMEDIATE_INTENTS`, six langues, pinné). Un payload reconstruit par le seed
+n'a pas de descripteur (`product_outcomes` n'en stocke pas) : la ligne se
+tait plutôt que d'inventer.
+
+**6. Présence ON par défaut** (Q5) : `HABITS_PRESENCE_ENABLED=true` dans les
+deux gabarits et dans le défaut du réglage — une personne qui lit sans écrire
+est présente, et le rythme appris des seuls tours tapés avait réduit deux
+comptes au silence (`last_seen_at` lit aussi `last_presence_at`).
+
+**7. Le scoring de tick est au domaine des habitudes** (A11) : la balayage
+d'intérêts interrompt la même personne sur son propre rythme, et `heartbeat`
+importe `interests` — la règle a donc quitté `heartbeat.habit_context` pour
+`habits/tick_scoring.py`, chaque balayage déclarant sa `TickSurface` (champs
+de bornes, période, label) pinnée sur son `EligibilityChecker`. La balayage
+d'intérêts s'écarte désormais pour une réunion en cours (verdict d'agenda
+partagé, lecture VIVE consignée sous sa propre surface `interest:calendar`)
+et pour le rythme, avec la même échappée pour un rendez-vous imminent.
+`heartbeat_ticks_deferred_total` et `heartbeat_rhythm_escapes_total`
+portent le `task_type`.
+
+**Revue à froid (même jour).** Trois écarts corrigés avant livraison : la
+lecture calendrier de la garde « en réunion » se faisait à l'étape 2 du runner,
+avant le collecteur ADR-263 (rien de filé), et un échec de lecture était filé
+`opened=[]`, c'est-à-dire pas du tout — le collecteur enveloppe désormais
+`check_eligibility`, un échec est nommé, et un calendrier que personne n'a pu
+interroger (pas de connecteur) n'est pas une consultation ; la synchro des
+récurrences et le seed passent AVANT le court-circuit « aucune activité » du
+job nocturne, parce que le compte silencieux au ledger expiré est exactement
+celui que la rétrogradation existe pour servir ; enfin le domaine qui devient
+queue de clé Redis et mot cité dans le prompt est ENREGISTRÉ dans le registre
+(`is_registered_domain`, un seul prédicat lu par la capture des
+`product_outcomes` et par l'écriture du ledger) — une orthographe égarée du
+modèle n'est pas un domaine, et la suggestion de chat lit aussi la capacité
+`habits` à l'acte.
+
+**Ce qui ne change pas, et pourquoi.** La signature reste le domaine seul ;
+le cooldown d'activité n'est pas rendu sensible à la présence (un ping de
+visibilité n'est pas un message) ; jamais de rétrogradation dans le doute ;
+un réveil push contourne le rythme (il est consommé quand il est servi — cf.
+ADR-281) mais s'écarte pour une réunion.

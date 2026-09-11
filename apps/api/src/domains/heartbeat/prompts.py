@@ -128,6 +128,28 @@ async def get_heartbeat_decision(
     return decision, tokens_in, tokens_out, tokens_cache
 
 
+def message_clock(context: HeartbeatContext) -> tuple[str, str | None]:
+    """The clock the message prompt is written against: the PERSON's.
+
+    The decision prompt has always received the local time (``TIME: … 11:40``)
+    while the message prompt received UTC — measured 2026-09-11: « Il est 9h43
+    et il brille toujours par son absence » delivered at 11:43 Paris. The
+    aggregator computes ``user_local_time`` for every context; a context
+    without one (tests, a degraded aggregation) falls back to UTC, named.
+
+    Args:
+        context: The aggregated heartbeat context.
+
+    Returns:
+        ``(label, timezone_name)`` — the formatted local instant and the IANA
+        name for the psyche block, or ``None`` when only UTC is known.
+    """
+    local = context.user_local_time
+    if local is None or local.tzinfo is None:
+        return datetime.now(tz=UTC).strftime("%d/%m/%Y %H:%M"), None
+    return local.strftime("%d/%m/%Y %H:%M"), str(local.tzinfo)
+
+
 async def generate_heartbeat_message(
     message_draft: str,
     context: HeartbeatContext,
@@ -159,7 +181,7 @@ async def generate_heartbeat_message(
     from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
 
     language_name = get_language_name(user_language)
-    current_dt = datetime.now(tz=UTC).strftime("%d/%m/%Y %H:%M")
+    current_dt, user_timezone = message_clock(context)
 
     # Resolve psyche context before template formatting
     psyche_block = ""
@@ -169,7 +191,9 @@ async def generate_heartbeat_message(
         with suppress(Exception):
             from src.domains.psyche.service import build_psyche_prompt_block
 
-            psyche_block = await build_psyche_prompt_block(user_id=user_id, user_timezone=None)
+            psyche_block = await build_psyche_prompt_block(
+                user_id=user_id, user_timezone=user_timezone
+            )
         # Journal portrait injection is best-effort
         with suppress(Exception):
             from src.domains.journals.portrait_builder import (

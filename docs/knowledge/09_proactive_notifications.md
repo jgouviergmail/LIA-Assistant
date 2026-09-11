@@ -4,9 +4,9 @@
 Proactive notifications allow LIA to **take the initiative** to contact you with useful information:
 
 **🧠 How it works:**
-• LIA continuously analyzes multiple data sources (calendar, weather, emails, interests, memories)
+• LIA continuously analyzes thirteen data sources (calendar, weather, emails, tasks, interests, memories, journals, health signals, birthdays, open loops, departure, habits, workboard)
 • An LLM **intelligently decides** whether there's something useful to tell you
-• The message is rewritten with your **personality** and in your **language**
+• The message is rewritten with your **personality** and in your **language**, at your local time
 • LIA's inner emotional state subtly shapes the **tone** of notifications (warmth, energy, rhythm) — but is **never projected onto you**
 
 **📌 Examples:**
@@ -33,39 +33,39 @@ Settings → "*Proactive Notifications*" section → Enable the toggle
 Push (FCM/Telegram) follows your **global notification opt-in** automatically — there is no separate per-feature switch. Every message is also archived in the conversation, so you will find it at your next login either way.
 
 ## What data sources are used?
-LIA aggregates **8 data sources** in parallel to decide whether to notify you:
+LIA aggregates **thirteen sources** in parallel to decide whether to notify you. Each has its own switch, and the settings panel says for each one whether it is connected:
 
-**📅 Calendar:**
-• Upcoming events (next few hours)
-• Requires an active calendar connector (Google Calendar, Apple Calendar, or Microsoft)
+**📅 Calendar** — upcoming events (next few hours); needs an active calendar connector (Google, Apple or Microsoft)
 
-**🌤️ Weather + Changes:**
-• Current conditions + transition detection: rain starting/stopping, **temperature drop OR rise for tomorrow** (compared on daily averages — the old detector was removed because it flagged nighttime cooling as a "temperature drop", which was just the normal day/night cycle), strong wind
-• Requires an OpenWeatherMap connector + configured home location
-• **Travel-aware location (v1.16.7, opt-in)** — If you enable "Use my current location for weather alerts" in Settings > Proactive notifications, LIA uses your browser position instead of your home address when you're more than 50 km away from home and the position is less than 24 h old. The notification always mentions the city it's referring to. Your location is encrypted, never historized (each update overwrites the previous one), and wiped immediately if you disable the option or remove your home address.
+**📧 Emails** — today's unread, urgent or actionable emails; needs an active email connector
 
-**✅ Tasks:**
-• Pending or overdue tasks
-• Requires an active tasks connector (Google Tasks or Microsoft To Do)
+**✅ Tasks** — pending or overdue tasks; needs Google Tasks or Microsoft To Do
 
-**📧 Emails:**
-• Today's unread emails (urgent, actionable)
-• Requires an active email connector (Gmail, Apple, Microsoft)
+**🌤️ Weather** — current conditions and transitions (rain starting or stopping, a temperature drop or rise for tomorrow compared on daily averages, strong wind); needs an OpenWeatherMap connector and a home address
+• **Travel-aware location (opt-in)** — if you enable "Use my current location for weather alerts" in Settings > Proactive notifications, LIA uses your browser position instead of your home address when you're more than 50 km away from home and the position is less than 24 h old. The notification always mentions the city it's referring to. Your location is encrypted, never historized (each update overwrites the previous one), and wiped immediately if you disable the option or remove your home address.
 
-**⭐ Interests:**
-• Trending topics among your active interests
+**⭐ Interests** — a varied sample of your active interests, one per theme, least recently covered first
 
-**🧠 Memories:**
-• Relevant information extracted from your memories
+**🧠 Memories** — relevant facts from your memories
 
-**📓 Journals:**
-• Relevant entries from the assistant's personal journals (self-reflection, observations, learnings)
+**📓 Journals** — relevant entries from the assistant's personal journals, when journals are enabled
 • Journals are fetched in a **second pass** — LIA builds a dynamic query from the aggregated context (calendar, weather, emails, etc.) to find the most relevant journal entries
 • In addition to the dynamic-query entries, the **compiled user-model portrait brief** (~60 tokens) is injected so the notification voice is aligned with the same nuanced model of you that drives the conversation
-• Requires journals to be enabled (Settings > Features > Personal Journals)
+
+**❤️ Health signals** — when health metrics are enabled for your account
+
+**🎂 Birthdays** — from your Google contacts
+
+**🧵 Open loops** — the unfinished threads LIA keeps track of
+
+**🚗 Departure** — when to leave for a meeting, from your calendar
+
+**🧭 Habits** — a learned routine whose usual time passed without your asking, once a habit profile exists
+
+**📋 Workboard** — the tickets LIA holds for you
 
 **📊 Indicators:**
-The Settings section shows a **green badge** for each connected source and a **gray badge** for unavailable sources.
+The Settings section shows a **green badge** for each connected source and a **gray badge** with a note for the others; a source that depends on another says which one you switched off.
 
 **🩺 When a source cannot answer:**
 • Every source is optional and independently failable — a slow or unavailable one never blocks the notification
@@ -112,7 +112,7 @@ Your feedback helps LIA improve:
 **⚙️ Adjustment:**
 • If you receive too many notifications, reduce the daily maximum
 • If a source is not relevant, switch it off in **Notification topics** —
-  eleven switches, one per source. You keep the service connected and the tool
+  thirteen switches, one per source. You keep the service connected and the tool
   you ask with: being connected to a service and being interrupted by it are
   two separate decisions
 • Everything is on by default, and a switch that cannot produce anything says
@@ -203,3 +203,20 @@ Yes. The regular proactive pass is periodic, so it could not return to a precise
 • your notification hours, daily limit and pauses still apply — only the "spread over the day" smoothing is bypassed, because an instant does not defer
 
 **Where to control it:** Settings → *Proactive Notifications* → *Anticipated moments*. Each kind has its own switch ("After a meeting" needs a connected calendar), and your administrator can switch the whole capability off.
+
+
+## Can LIA offer to run a request I usually make and forgot today?
+Yes, once it has learned the habit. When a request you make regularly — say your e-mail review every weekday around 8:30 — has not been made by the time its usual slot passes, the next proactive pass may offer to run it, naming it: "shall I run your usual e-mail review?"
+
+**What it needs:**
+• habit learning on for your account, and a recurring request recognised in the habits panel (the row reads what and when, e.g. "Search · E-mails — every day ~08:30")
+• a habit that is neither paused nor blocked — a status you set holds everywhere
+• the proactive pass itself: your hours, daily limit and pauses still apply, and a person in a meeting is not interrupted
+
+**How to answer:** a 👍 or a 👎 on the notification is an answer about the habit itself; a habit refused often enough stops being offered.
+
+**What it never does:** run the request on its own — an offer is a question. And an offer is counted against the day only when LIA actually made one, not when a notification merely mentioned your habits.
+
+
+## What does a proactive pass write in my registers?
+Every proactive pass files what it consulted — the sources it aggregated and the calendar check that decides whether you are in a meeting — under its own run in the **Registers** (the *Consultations* list and the *On LIA's own initiative* tab), exactly as a conversation turn does. A source answered from cache was not opened and is not filed; a source that failed to answer is filed as failed rather than read as silence. Interest notifications now stand aside during a meeting and respect your learned rhythm like the heartbeat does, and a wake triggered by a new mail skips the rhythm but never a meeting.

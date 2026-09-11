@@ -59,6 +59,28 @@ def _state(intention: str = "action"):
 
 #: The config the node receives carries thread plumbing only (ADR-231).
 _CONFIG = {"configurable": {"thread_id": "t1"}}
+
+
+@pytest.fixture(autouse=True)
+def _open_learning_gate():
+    """The person allows learning and holds no tombstone on the signature —
+    the historical premise of every test below — and the operator's habits
+    switch is ON. The refusal cases patch their own gate or switch."""
+    from src.domains.habits.learning_gate import LearningGate
+
+    with (
+        patch(
+            "src.domains.habits.capability.habits_capability_enabled",
+            AsyncMock(return_value=True),
+        ),
+        patch(
+            "src.domains.habits.learning_gate.read_learning_gate",
+            AsyncMock(return_value=LearningGate(allowed=True)),
+        ) as gate,
+    ):
+        yield gate
+
+
 _USER_ID = UUID("11111111-1111-1111-1111-111111111111")
 
 
@@ -114,7 +136,10 @@ class TestInitiativeRecurrenceWrapper:
         signature = eval_mock.await_args.args[1]
         assert signature == "web_search"
 
-    async def test_core_suggestion_never_overridden(self):
+    async def test_core_and_recurrence_suggestions_coexist(self):
+        """Measured 2026-09-11 (sim C15): the LLM core's « active OpenWeatherMap »
+        used to silence the deterministic recurrence suggestion — and its
+        promotion — every turn it was offered. Both now travel in the slot."""
         with (
             patch(
                 "src.domains.agents.nodes.initiative_recurrence.settings",
@@ -128,11 +153,34 @@ class TestInitiativeRecurrenceWrapper:
                 "src.domains.agents.services.recurrence_ledger.evaluate_suggestion",
                 AsyncMock(return_value="recurrence suggestion"),
             ) as eval_mock,
+            installed_runtime_context(user_id=UUID("11111111-1111-1111-1111-111111111111")),
+        ):
+            update = await initiative_node(_state(), _CONFIG)
+
+        assert update[STATE_KEY_INITIATIVE_SUGGESTION] == (
+            "core suggestion\n\nrecurrence suggestion"
+        )
+        eval_mock.assert_awaited_once()
+
+    async def test_core_suggestion_alone_when_nothing_recurs(self):
+        with (
+            patch(
+                "src.domains.agents.nodes.initiative_recurrence.settings",
+                _settings(),
+            ),
+            patch(
+                "src.domains.agents.nodes.initiative_recurrence._initiative_core",
+                AsyncMock(return_value={STATE_KEY_INITIATIVE_SUGGESTION: "core suggestion"}),
+            ),
+            patch(
+                "src.domains.agents.services.recurrence_ledger.evaluate_suggestion",
+                AsyncMock(return_value=None),
+            ),
+            installed_runtime_context(user_id=UUID("11111111-1111-1111-1111-111111111111")),
         ):
             update = await initiative_node(_state(), _CONFIG)
 
         assert update[STATE_KEY_INITIATIVE_SUGGESTION] == "core suggestion"
-        eval_mock.assert_not_awaited()
 
     async def test_flag_off_leaves_update_untouched(self):
         with (
@@ -209,6 +257,7 @@ class TestRecurrenceRecordWiring:
 
     def _extraction_settings(self, **overrides):
         defaults = {
+            "habits_enabled": True,
             "recurrence_suggestion_enabled": True,
             "recurrence_window_days": 14,
             "recurrence_ledger_max_entries": 20,
@@ -223,13 +272,25 @@ class TestRecurrenceRecordWiring:
         names = self._run(state=_state(), config=_CONFIG, settings=self._extraction_settings())
         assert any(n.startswith("recurrence_record_") for n in names)
 
-    def test_not_recorded_when_flag_off(self):
+    def test_not_recorded_when_the_habits_flag_is_off(self):
+        """The ledger is habit LEARNING (ADR-214 c): it follows HABITS_ENABLED."""
+        names = self._run(
+            state=_state(),
+            config=_CONFIG,
+            settings=self._extraction_settings(habits_enabled=False),
+        )
+        assert not any(n.startswith("recurrence_record_") for n in names)
+
+    def test_the_chat_suggestion_flag_does_not_govern_the_ledger(self):
+        """RECURRENCE_SUGGESTION_ENABLED decides whether LIA OFFERS an
+        automation in the answer — never whether the request is learned.
+        The previous version of this test passed on a missing attribute."""
         names = self._run(
             state=_state(),
             config=_CONFIG,
             settings=self._extraction_settings(recurrence_suggestion_enabled=False),
         )
-        assert not any(n.startswith("recurrence_record_") for n in names)
+        assert any(n.startswith("recurrence_record_") for n in names)
 
     def test_not_recorded_for_conversation_intent(self):
         state = _state(intention="conversation")
@@ -277,4 +338,95 @@ class TestAutomatedRunGuard:
             update = await initiative_node(_state(), _CONFIG)
 
         assert update[STATE_KEY_INITIATIVE_SUGGESTION] == "Veux-tu automatiser cela ?"
+        eval_mock.assert_awaited_once()
+
+
+@pytest.mark.unit
+class TestThePersonsGateOnTheSuggestion:
+    """« Apprendre mes habitudes » OFF, a paused or a blocked habit: no
+    evaluation, no suggestion, one counted reason (measured violated
+    2026-09-11 — sim C5 and the blocked-key reading of ADR-214 decision 3)."""
+
+    @pytest.mark.parametrize(
+        ("gate_kwargs", "reason"),
+        [
+            ({"allowed": False}, "user_disabled"),
+            ({"allowed": True, "recurring_status": "paused"}, "paused"),
+            ({"allowed": True, "recurring_status": "blocked"}, "blocked"),
+        ],
+    )
+    async def test_refused_gate_skips_the_ledger_evaluation(
+        self, gate_kwargs: dict, reason: str
+    ) -> None:
+        from src.domains.habits.learning_gate import LearningGate
+        from src.infrastructure.observability.metrics_agents import (
+            recurrence_evaluation_skipped_total,
+        )
+
+        before = recurrence_evaluation_skipped_total.labels(reason=reason)._value.get()
+        with (
+            patch("src.domains.agents.nodes.initiative_recurrence.settings", _settings()),
+            patch(
+                "src.domains.habits.learning_gate.read_learning_gate",
+                AsyncMock(return_value=LearningGate(**gate_kwargs)),
+            ) as gate,
+            patch(
+                "src.domains.agents.services.recurrence_ledger.evaluate_suggestion",
+                AsyncMock(return_value="recurrence suggestion"),
+            ) as eval_mock,
+            installed_runtime_context(user_id=UUID("11111111-1111-1111-1111-111111111111")),
+        ):
+            update = await initiative_node(_state(), _CONFIG)
+
+        assert STATE_KEY_INITIATIVE_SUGGESTION not in update
+        eval_mock.assert_not_awaited()
+        gate.assert_awaited_once_with("11111111-1111-1111-1111-111111111111", "web_search")
+        after = recurrence_evaluation_skipped_total.labels(reason=reason)._value.get()
+        assert after == before + 1
+
+    async def test_the_operator_switch_closes_the_suggestion_at_the_act(self) -> None:
+        """ADR-280 amendment: a habits capability switched OFF after boot must
+        silence the chat suggestion too — a stale ledger key (35-day TTL)
+        would otherwise still lock and speak, and the promotion it triggers
+        is refused while the words are not."""
+        from src.infrastructure.observability.metrics_agents import (
+            recurrence_evaluation_skipped_total,
+        )
+
+        before = recurrence_evaluation_skipped_total.labels(reason="feature_disabled")._value.get()
+        with (
+            patch("src.domains.agents.nodes.initiative_recurrence.settings", _settings()),
+            patch(
+                "src.domains.habits.capability.habits_capability_enabled",
+                AsyncMock(return_value=False),
+            ),
+            patch(
+                "src.domains.agents.services.recurrence_ledger.evaluate_suggestion",
+                AsyncMock(return_value="recurrence suggestion"),
+            ) as eval_mock,
+            installed_runtime_context(user_id=_USER_ID),
+        ):
+            update = await initiative_node(_state(), _CONFIG)
+        assert STATE_KEY_INITIATIVE_SUGGESTION not in update
+        eval_mock.assert_not_awaited()
+        after = recurrence_evaluation_skipped_total.labels(reason="feature_disabled")._value.get()
+        assert after == before + 1
+
+    async def test_an_active_row_still_evaluates(self) -> None:
+        from src.domains.habits.learning_gate import LearningGate
+
+        with (
+            patch("src.domains.agents.nodes.initiative_recurrence.settings", _settings()),
+            patch(
+                "src.domains.habits.learning_gate.read_learning_gate",
+                AsyncMock(return_value=LearningGate(allowed=True, recurring_status="active")),
+            ),
+            patch(
+                "src.domains.agents.services.recurrence_ledger.evaluate_suggestion",
+                AsyncMock(return_value="recurrence suggestion"),
+            ) as eval_mock,
+            installed_runtime_context(user_id=UUID("11111111-1111-1111-1111-111111111111")),
+        ):
+            update = await initiative_node(_state(), _CONFIG)
+        assert update[STATE_KEY_INITIATIVE_SUGGESTION] == "recurrence suggestion"
         eval_mock.assert_awaited_once()

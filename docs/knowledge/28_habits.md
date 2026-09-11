@@ -1,7 +1,7 @@
 # Habit learning
 
 ## What does LIA learn about my habits?
-Two things, and only if you enable it (**Settings → Learn my habits**, off by default):
+Two things, and only if you enable it (**Settings → Learn my habits**; the deployment ships with the feature off until the administrator switches it on):
 
 **🧭 Your activity rhythm** — the time windows (2-4 hours) when you are usually active, learned separately for weekdays and weekends.
 
@@ -35,13 +35,19 @@ Yes — full control, immediately:
 • **Block** it permanently (never relearned — a definitive veto)
 • **Delete** one habit or **forget everything** at once
 • **Recompute now** relaunches learning over your existing history, immediately and retroactively
-• The **master toggle** turns the whole feature off — and it starts off
+• The **master toggle** turns the whole feature off: nothing is recorded, suggested or seeded, and the keys you refused are never proposed again. What was already learned stays readable and editable, switch on or off
+
+**A status holds everywhere.** The proactive notifications, their scheduling and the assistant's context all read the same rows you edit here, so a paused or blocked habit is paused or blocked for real — not only on the panel.
+
+**A learned habit has a life.** A nightly job promotes a new recurring request, refreshes one whose hour shifted, keeps one that still holds and demotes one you stopped — never on doubt, and never for a single silent day. A habit you resume comes back the same day; "Recompute now" does the same on demand.
+
+Each recurring request is shown as what and when — "Search · E-mails — every day ~08:30" — because LIA keeps what you usually ask for, not only the time you ask it.
 
 ## How does LIA use my habits?
 With restraint, and never beyond your own settings:
 
 • **Context**: responses and the daily briefing can take your rhythm into account
-• **Missed routines**: if a locked routine is skipped, LIA may offer help — at most once a day, and it goes permanently quiet for that habit after two ignored offers
+• **Missed routines**: if a locked routine is skipped, LIA may offer to run it, naming the request ("shall I run your usual e-mail review?") — at most once a day, and it goes quiet for that habit after two ignored offers until you make the request again; a paused or blocked habit is never offered
 • **Notification timing**: LIA can prefer your usual windows for its proactive notifications — but it **never widens the hour bounds you configured**; if your habits and your settings do not overlap, nothing changes
 
 ## Does a conversation reset erase what was learned?
@@ -67,7 +73,7 @@ When habit learning is enabled, LIA tracks how many consecutive days each confir
 **🤝 Honest by design:** a missed day resets the current streak but never erases the record, and days where LIA had no data are not counted against you. Streaks appear in **Settings → Learn my habits** next to each confirmed habit.
 
 ## Does reading LIA count towards the rhythm it learns?
-Yes, once the administrator has switched that on. The rhythm LIA learns used to see only what you *typed*, which under-reads anyone who mostly reads.
+Yes — presence is on by default, and the administrator can switch it off. The rhythm LIA learns used to see only what you *typed*, which under-reads anyone who mostly reads.
 
 **What counts as being there:**
 - opening the app (once per hour at most)
@@ -75,5 +81,5 @@ Yes, once the administrator has switched that on. The rhythm LIA learns used to 
 
 **What never counts:** a notification LIA *sends* you. Its own activity is not yours, and treating it as such is how an assistant ends up learning from itself.
 
-Everything stays visible and reversible in **Settings › Habits**: the heat map of your hours, the days actually observed, and a single click to pause, block or forget everything. And what it has learned now survives a fresh conversation — the reset clears the conversation, not the learning.
+The same presence is what "last seen" reads, so a proactive pass knows you were there this morning even if you wrote nothing. Everything stays visible and reversible in **Settings › Habits**: the heat map of your hours, the days actually observed, and a single click to pause, block or forget everything. And what it has learned now survives a fresh conversation — the reset clears the conversation, not the learning.
 

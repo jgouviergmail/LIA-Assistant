@@ -118,6 +118,7 @@ function overview(over: Partial<HabitsOverview> = {}): HabitsOverview {
     habits: [habit()],
     candidates: [],
     candidates_more: 0,
+    chat_suggestions_enabled: true,
     streak: { current: 0, longest: 0, milestone_reached: null, next_milestone: 7 },
     ...over,
   };
@@ -176,6 +177,47 @@ describe('HabitsSettings', () => {
     expect(tCalls).toContain('settings.habits.shape.intermittent');
     expect(tCalls).not.toContain('settings.habits.shape.weekly');
     expect(tCalls).not.toContain('settings.habits.shape.daily');
+  });
+
+  it('a recurring habit names the usual request when the ledger learned one', () => {
+    // Q4 (2026-09-11): the descriptor is DATA on the row payload; the row
+    // opens with it through the closed intent vocabulary, and a row that
+    // carries none keeps the plain wording rather than an empty slot.
+    state.overview = overview({
+      habits: [
+        habit({
+          kind: 'recurring_request',
+          key: 'email',
+          payload: {
+            version: 1,
+            shape: 'daily',
+            trigger_hour: 8.5,
+            days_of_week: [],
+            usual_intent: 'search',
+          },
+        }),
+      ],
+    });
+    renderSection();
+    expect(
+      screen.getByText('settings.habits.row.recurring_request_with_intent')
+    ).toBeInTheDocument();
+    expect(tCalls).toContain('settings.habits.intent.search');
+  });
+
+  it('a request outside the intent vocabulary never reaches the row raw', () => {
+    state.overview = overview({
+      habits: [
+        habit({
+          kind: 'recurring_request',
+          key: 'email',
+          payload: { version: 1, shape: 'daily', trigger_hour: 8, usual_intent: 'frobnicate' },
+        }),
+      ],
+    });
+    renderSection();
+    expect(screen.getByText('settings.habits.row.recurring_request')).toBeInTheDocument();
+    expect(tCalls.some(key => key.startsWith('settings.habits.intent.'))).toBe(false);
   });
 
   it('states the sparse verdict for occasional users', () => {
@@ -303,6 +345,27 @@ describe('HabitsSettings', () => {
     expect(screen.queryByRole('button', { name: /forget_all_label/ })).not.toBeInTheDocument();
   });
 
+  it('says when the chat will not offer automations on this instance', () => {
+    // ADR-184: the chat suggestion depends on RECURRENCE_SUGGESTION_ENABLED, the
+    // learning does not — the person is told rather than left waiting.
+    state.overview = overview({ chat_suggestions_enabled: false });
+    renderSection();
+    expect(screen.getByText('settings.habits.chat_suggestions_off')).toBeInTheDocument();
+  });
+
+  it('stays quiet about the chat when it does offer automations', () => {
+    state.overview = overview({ chat_suggestions_enabled: true });
+    renderSection();
+    expect(screen.queryByText('settings.habits.chat_suggestions_off')).not.toBeInTheDocument();
+  });
+
+  it('the section description is rendered once, by the frame', () => {
+    // It used to be rendered twice: by SettingsSection's header and again as
+    // the first paragraph of the body (measured 2026-09-11, desktop and mobile).
+    renderSection();
+    expect(screen.getAllByText('settings.habits.description')).toHaveLength(1);
+  });
+
   it('candidates under observation show quantified progress and a stated cap', () => {
     state.overview = overview({
       habits: [],
@@ -314,7 +377,10 @@ describe('HabitsSettings', () => {
     });
     renderSection();
     expect(screen.getByText('settings.habits.observing_title')).toBeInTheDocument();
-    expect(screen.getByText('email + contact')).toBeInTheDocument();
+    // Domain keys read through the register's own vocabulary, never raw.
+    expect(
+      screen.getByText('treatments.domains.email + treatments.domains.contact')
+    ).toBeInTheDocument();
     // Provenance is stated, never a different threshold (ADR-214 amendment):
     // exactly one candidate was rebuilt from durable history.
     expect(screen.getAllByText('settings.habits.candidate_origin_seed')).toHaveLength(1);

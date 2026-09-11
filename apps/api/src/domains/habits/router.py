@@ -60,9 +60,11 @@ logger = get_logger(__name__)
 router = APIRouter(
     prefix="/habits",
     tags=["Habits"],
-    # The deployment ceiling already decides whether this router is
-    # mounted at all; this is the operator's switch inside it (B7).
-    dependencies=capability_dependencies(PlatformCapability.HABITS),
+    # The deployment ceiling already decides whether this router is mounted
+    # at all. The operator's switch guards the two routes that ACT
+    # (``/recompute``, ``/presence``) and the acts themselves
+    # (``habits/capability.py``); the record — reading, correcting, deleting
+    # what was learned — stays open (ADR-280 amendment, 2026-09-11).
 )
 
 
@@ -162,11 +164,13 @@ async def get_habits_overview(
             for c in candidates
         ],
         candidates_more=candidates_more,
+        chat_suggestions_enabled=bool(settings.recurrence_suggestion_enabled),
     )
 
 
 @router.post(
     "/recompute",
+    dependencies=capability_dependencies(PlatformCapability.HABITS),
     response_model=HabitsRecomputeResponse,
     summary="Recompute the rhythm profile now",
     description="Runs the nightly unit of work immediately. The aggregation is "
@@ -193,6 +197,7 @@ async def recompute_habits_now(
 
 @router.post(
     "/presence",
+    dependencies=capability_dependencies(PlatformCapability.HABITS),
     status_code=status.HTTP_204_NO_CONTENT,
     response_class=Response,
     summary="Reading presence ping",

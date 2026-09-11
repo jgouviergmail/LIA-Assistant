@@ -18,6 +18,31 @@ import { useApiMutation } from '@/hooks/useApiMutation';
 import { useApiQuery } from '@/hooks/useApiQuery';
 
 export type HabitVerdict = 'windows' | 'diffuse' | 'none' | 'insufficient' | 'sparse';
+
+/** The analyzer's closed `immediate_intent` vocabulary (backend
+ * `IMMEDIATE_INTENTS`) — the request descriptor a recurring habit may carry
+ * (`payload.usual_intent`, ADR-214 c). The only values the panel translates:
+ * a payload carrying anything else (a model's stray spelling) falls back to
+ * the plain wording, because a raw token is not a label. Pinned to the
+ * `settings.habits.intent.*` locale keys by `useHabits.test.ts`. */
+export const HABIT_INTENTS = [
+  'search',
+  'detail',
+  'create',
+  'update',
+  'delete',
+  'send',
+  'chat',
+  'list',
+] as const;
+export type HabitIntent = (typeof HABIT_INTENTS)[number];
+
+/** Narrow an arbitrary payload value to a translatable intent, or null. */
+export function habitIntentOf(value: unknown): HabitIntent | null {
+  return typeof value === 'string' && (HABIT_INTENTS as readonly string[]).includes(value)
+    ? (value as HabitIntent)
+    : null;
+}
 export type HabitStatus = 'active' | 'paused' | 'blocked';
 export type HabitKind = 'active_window' | 'recurring_request';
 
@@ -91,6 +116,10 @@ export interface HabitsOverview {
   candidates: HabitCandidate[];
   /** Candidates beyond the display cap — a cap is stated, never silent. */
   candidates_more: number;
+  /** Whether this instance lets LIA offer an automation in the chat when a
+   * recurring request locks (RECURRENCE_SUGGESTION_ENABLED). Learning and the
+   * heartbeat offers do not depend on it; the panel says so (ADR-184). */
+  chat_suggestions_enabled: boolean;
 }
 
 /** "08:00–10:00" — the wrap-aware window label (locale-independent digits). */

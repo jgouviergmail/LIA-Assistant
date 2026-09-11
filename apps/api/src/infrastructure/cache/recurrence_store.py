@@ -17,18 +17,32 @@ module without creating the agents↔habits cycle the coupling ratchet
 forbids (agents already imports habits for the promotion path).
 
 Payload shape: ``{"days": {iso_date: [local_hours]}, "suggested_at": ts,
-"origin": "live" | "seed"}`` — ``origin`` defaults to ``live`` on read so
-pre-amendment payloads keep their meaning.
+"origin": "live" | "seed", "intents": {intent: count}}`` — ``origin`` defaults
+to ``live`` on read so pre-amendment payloads keep their meaning, and
+``intents`` is the request DESCRIPTOR (Q4, 2026-09-11): what the person
+usually asks for on that domain, kept as a bounded histogram of the
+analyzer's ``immediate_intent`` so a missed-routine offer has an object
+(« your usual email search ») without composing anything into the KEY —
+which would fragment every ledger and push the locks out of reach.
 """
 
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Sequence
 from datetime import UTC, date, datetime
 from typing import Any
 
 KEY_PREFIX = "recurrence"
+
+#: Bounds of the intent histogram: the analyzer's field is a free string a
+#: model fills (``search | detail | create | update | delete | send | chat |
+#: list`` by contract, anything by construction), so what reaches Redis is
+#: normalised and bounded in both length and cardinality.
+INTENT_MAX_LENGTH = 24
+INTENT_MAX_DISTINCT = 8
+_INTENT_SHAPE = re.compile(r"^[a-z][a-z0-9_]*$")
 
 #: Provenance of a ledger payload: written by a live human turn, or rebuilt
 #: from ``product_outcomes`` by the habits recompute (ADR-214 amendment).
@@ -109,7 +123,12 @@ def convert_legacy(data: dict[str, Any]) -> dict[str, Any]:
     for ts in data.get("ts") or []:
         moment = datetime.fromtimestamp(int(ts), tz=UTC)
         days.setdefault(moment.date().isoformat(), []).append(moment.hour + moment.minute / 60.0)
-    return {"days": days, "suggested_at": data.get("suggested_at"), "origin": ORIGIN_LIVE}
+    return {
+        "days": days,
+        "suggested_at": data.get("suggested_at"),
+        "origin": ORIGIN_LIVE,
+        "intents": {},
+    }
 
 
 async def load(redis: Any, key: str) -> dict[str, Any]:
@@ -128,6 +147,8 @@ async def load(redis: Any, key: str) -> dict[str, Any]:
     data.setdefault("days", {})
     data.setdefault("suggested_at", None)
     data.setdefault("origin", ORIGIN_LIVE)
+    if not isinstance(data.get("intents"), dict):
+        data["intents"] = {}
     return data
 
 
@@ -143,6 +164,69 @@ async def store_if_absent(redis: Any, key: str, data: dict[str, Any], ttl_days: 
         True when the key was written, False when it already existed.
     """
     return bool(await redis.set(key, json.dumps(data), ex=ttl_days * 86400, nx=True))
+
+
+def normalise_intent(raw: object) -> str | None:
+    """The bounded, comparable form of an analyzer intent — or None.
+
+    Args:
+        raw: Whatever the analyzer produced (a str by contract).
+
+    Returns:
+        A lower-cased, trimmed, length-bounded identifier, or None when the
+        value is not a usable identifier at all.
+    """
+    if not isinstance(raw, str):
+        return None
+    intent = raw.strip().lower()[:INTENT_MAX_LENGTH]
+    return intent if _INTENT_SHAPE.match(intent) else None
+
+
+def record_intent(data: dict[str, Any], raw: object) -> None:
+    """Count one occurrence of an intent in the payload's histogram (in place).
+
+    The cardinality is capped: once ``INTENT_MAX_DISTINCT`` values are held,
+    the rarest is dropped — the newcomer included when it is the rarest, so
+    a burst of odd spellings cannot evict the established request.
+
+    Args:
+        data: A loaded payload (``intents`` is created when missing).
+        raw: The analyzer's ``immediate_intent`` for this occurrence.
+    """
+    intent = normalise_intent(raw)
+    if intent is None:
+        return
+    intents = data.get("intents")
+    if not isinstance(intents, dict):
+        intents = {}
+        data["intents"] = intents
+    intents[intent] = int(intents.get(intent, 0) or 0) + 1
+    while len(intents) > INTENT_MAX_DISTINCT:
+        rarest = min(intents.items(), key=lambda item: (item[1], item[0]))[0]
+        del intents[rarest]
+
+
+def dominant_intent(data: dict[str, Any]) -> str | None:
+    """The request the person usually makes on this signature — or None.
+
+    Args:
+        data: A loaded payload.
+
+    Returns:
+        The most frequent recorded intent (ties settled alphabetically so
+        two readers agree), or None when nothing usable was recorded.
+    """
+    intents = data.get("intents")
+    if not isinstance(intents, dict):
+        return None
+    counted = [
+        (name, count)
+        for name, count in intents.items()
+        if isinstance(name, str) and isinstance(count, int) and count > 0
+    ]
+    if not counted:
+        return None
+    return sorted(counted, key=lambda item: (-item[1], item[0]))[0][0]
 
 
 def trim(data: dict[str, Any], max_day_entries: int) -> None:

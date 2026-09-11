@@ -350,10 +350,17 @@ export default defineConfig({
         // statements 79.12 / branches 74.59 / functions 76.24 / lines 79.84.
         // Raised 76/72/74/77 -> 77/72/74/77 (floor(measured - 2) per axis —
         // statements alone crosses an integer step this time).
+        // Global floor — re-measured 2026-09-11 after the habits × proactive
+        // audit (ADR-214 c: the habit row naming the usual request through the
+        // intent vocabulary, the chat-suggestion caption, the translated
+        // explanation thresholds, the two newest source glyphs — ~10 new
+        // tests): statements 79.40 / branches 74.91 / functions 76.53 /
+        // lines 80.12. Raised 77/72/74/77 -> 77/72/74/78 (floor(measured - 2)
+        // per axis — lines alone crosses an integer step this time).
         statements: 77,
         branches: 72,
         functions: 74,
-        lines: 77,
+        lines: 78,
         // Chat state machine — fully covered, keep it that way (2026-07).
         'src/reducers/**/*.ts': {
           statements: 100,

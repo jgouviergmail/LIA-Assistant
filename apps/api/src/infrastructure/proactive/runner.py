@@ -444,20 +444,115 @@ class ProactiveTaskRunner:
                 **debug_info,
             )
 
-        # 2. Task-specific eligibility
-        if not await self.task.check_eligibility(user.id, user_settings, now):
-            logger.debug(
-                "proactive_task_eligibility_failed",
-                task_type=self.task.task_type,
-                user_id=str(user.id),
+        # The correlation key is minted HERE, before the first source opens,
+        # and the consultation collector is published around everything the
+        # task does for this account — its own eligibility, selection,
+        # generation and dispatch. It used to open around ``generate_content``
+        # alone, on the premise that this is where the sources open; the
+        # heartbeat opens its thirteen in ``select_target`` (the aggregator
+        # runs before the decision), so its reads were filed under nothing:
+        # 31 notifications in 30 days and not one ``heartbeat:*`` row, and a
+        # sweep that decided to say nothing had no collector at all (measured
+        # 2026-09-11 — the silence ADR-263 lot 4 was written to end). Task
+        # eligibility is inside too: the in-meeting guard reads the calendar
+        # there (ADR-281), and a tick that stood aside had filed nothing.
+        from src.domains.agents.effects.treatment_recorder import treatment_recorder
+
+        run_id = generate_proactive_run_id(self.task.task_type, str(user.id))
+        async with treatment_recorder(run_id=run_id):
+            # 2. Task-specific eligibility
+            if not await self.task.check_eligibility(user.id, user_settings, now):
+                logger.debug(
+                    "proactive_task_eligibility_failed",
+                    task_type=self.task.task_type,
+                    user_id=str(user.id),
+                )
+                stats.record_skip("task_eligibility_failed")
+                _record_eligibility("task_eligibility_failed")
+                return False
+
+            # Eligibility passed all checks
+            _record_eligibility("eligible")
+            return await self._serve_user(user, db, stats, run_id)
+
+    def _count_content_source(self, result: Any) -> None:
+        """Count the content source (wikipedia, perplexity, llm_reflection…).
+
+        ``source_name`` is an optional attribute on task-specific result
+        subclasses — read with ``getattr`` so tasks that do not populate it
+        (or test fakes) do not break; a metric failure never breaks the run.
+
+        Args:
+            result: The task's generated content.
+        """
+        source_name = getattr(result, "source_name", None)
+        if not source_name:
+            return
+        with suppress(Exception):
+            from src.infrastructure.observability.metrics_registry import (
+                proactive_content_source_total,
             )
-            stats.record_skip("task_eligibility_failed")
-            _record_eligibility("task_eligibility_failed")
-            return False
 
-        # Eligibility passed all checks
-        _record_eligibility("eligible")
+            proactive_content_source_total.labels(
+                task_type=self.task.task_type, source=source_name
+            ).inc()
 
+    def _stamp_cost_metadata(self, result: Any, run_id: str, *, user_id: str) -> float:
+        """Price the generation and stamp run id + token data on the result.
+
+        Centralised so every proactive type gets token display in chat bubbles
+        automatically; the archived message carries these BEFORE
+        ``track_proactive_tokens`` runs.
+
+        Args:
+            result: The task's generated content (mutated: ``metadata``).
+            run_id: The correlation key of this service.
+            user_id: Owner, for the fallback log.
+
+        Returns:
+            The cost in euros (0.0 when unpriced).
+        """
+        cost_eur = 0.0
+        if result.model_name:
+            try:
+                _, cost_eur = get_cached_cost_usd_eur(
+                    model=result.model_name,
+                    prompt_tokens=result.tokens_in,
+                    completion_tokens=result.tokens_out,
+                    cached_tokens=result.tokens_cache,
+                )
+            except Exception:
+                logger.debug(
+                    "proactive_cost_pre_calculation_fallback",
+                    task_type=self.task.task_type,
+                    user_id=user_id,
+                )
+        result.metadata.update(
+            {
+                "run_id": run_id,
+                "tokens_in": result.tokens_in,
+                "tokens_out": result.tokens_out,
+                "tokens_cache": result.tokens_cache,
+                "cost_eur": cost_eur,
+                "model_name": result.model_name,
+            }
+        )
+        return cost_eur
+
+    async def _serve_user(
+        self, user: Any, db: AsyncSession, stats: RunnerStats, run_id: str
+    ) -> bool:
+        """Steps 3-7 of the pipeline for one eligible account, under the collector.
+
+        Args:
+            user: User model instance (eligibility already passed).
+            db: Runner session.
+            stats: RunnerStats to record skip/failure reasons.
+            run_id: The correlation key every row of this service is filed under.
+
+        Returns:
+            True if notification was sent, False otherwise.
+        """
         # 3. Select target
         target = await self.task.select_target(user.id)
         if target is None:
@@ -473,20 +568,7 @@ class ProactiveTaskRunner:
         user_language = (
             getattr(user, "language", settings.default_language) or settings.default_language
         )
-        # The correlation key is minted HERE rather than at 4b, and the
-        # collector is published around the generation, because that is where
-        # the person's sources are actually opened: the heartbeat aggregator
-        # reads thirteen of them in parallel, on LIA's own initiative and while
-        # nobody is watching — 824 sweeps over thirty days with not one row in
-        # the register (measured 2026-09-07). Minting it later left nothing for
-        # those reads to be filed under.
-        from src.domains.agents.effects.treatment_recorder import treatment_recorder
-
-        run_id = generate_proactive_run_id(
-            self.task.task_type, str(getattr(target, "id", "unknown"))
-        )
-        async with treatment_recorder(run_id=run_id):
-            result = await self.task.generate_content(user.id, target, user_language)
+        result = await self.task.generate_content(user.id, target, user_language)
 
         if not result.success or not result.content:
             logger.warning(
@@ -499,19 +581,7 @@ class ProactiveTaskRunner:
             stats.record_failure("content_generation_failed")
             return False
 
-        # Track content source (wikipedia, perplexity, llm_reflection, etc.).
-        # `source_name` is an optional attribute on task-specific result subclasses —
-        # use getattr() so tasks that don't populate it (or test fakes) don't break.
-        _source_name = getattr(result, "source_name", None)
-        if _source_name:
-            with suppress(Exception):
-                from src.infrastructure.observability.metrics_registry import (
-                    proactive_content_source_total,
-                )
-
-                proactive_content_source_total.labels(
-                    task_type=self.task.task_type, source=_source_name
-                ).inc()
+        self._count_content_source(result)
 
         # 4b. Cost for metadata injection. The archived message carries the
         # run id + token data BEFORE track_proactive_tokens() runs, which is
@@ -519,35 +589,7 @@ class ProactiveTaskRunner:
         # resolve for history queries. The run id itself was minted above, so
         # what the sweep READ and what it COST point at each other.
         target_id_for_tracking = result.target_id or str(getattr(target, "id", "unknown"))
-
-        cost_eur = 0.0
-        if result.model_name:
-            try:
-                _, cost_eur = get_cached_cost_usd_eur(
-                    model=result.model_name,
-                    prompt_tokens=result.tokens_in,
-                    completion_tokens=result.tokens_out,
-                    cached_tokens=result.tokens_cache,
-                )
-            except Exception:
-                logger.debug(
-                    "proactive_cost_pre_calculation_fallback",
-                    task_type=self.task.task_type,
-                    user_id=str(user.id),
-                )
-
-        # Inject standard token tracking data into metadata (centralized, DRY).
-        # All proactive types get token display in chat bubbles automatically.
-        result.metadata.update(
-            {
-                "run_id": run_id,
-                "tokens_in": result.tokens_in,
-                "tokens_out": result.tokens_out,
-                "tokens_cache": result.tokens_cache,
-                "cost_eur": cost_eur,
-                "model_name": result.model_name,
-            }
-        )
+        cost_eur = self._stamp_cost_metadata(result, run_id, user_id=str(user.id))
 
         # 5. Dispatch notification
         # Push follows the GLOBAL notification opt-in only (owner arbitration

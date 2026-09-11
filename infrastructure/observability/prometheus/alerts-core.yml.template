@@ -474,7 +474,12 @@ groups:
       # swallowing every write both read as zero (measured 2026-09-11: the
       # gate read an attribute the producer never declared and recorded
       # nothing for weeks under green dashboards). The feature_disabled outcome
-      # keeps a deliberately switched-off ledger silent. `or vector(0)` is
+      # keeps a deliberately switched-off ledger silent, and the user_disabled
+      # write outcome keeps an account that switched learning OFF silent too —
+      # a refusal of the person's own is not a starved ledger — and the
+      # feature_disabled WRITE outcome covers the operator's switch flipped
+      # after boot (the extraction gate reads the deployment ceiling only).
+      # `or vector(0)` is
       # load-bearing: a labelled counter that never fired exposes NO series,
       # and without the fallback the comparison is empty and the alert can
       # never fire — the exact silence it exists to break.
@@ -490,6 +495,14 @@ groups:
           and
           (
             (sum(increase(post_response_extraction_scheduled_total{kind="recurrence", outcome="feature_disabled"}[7d])) or vector(0)) == 0
+          )
+          and
+          (
+            (sum(increase(recurrence_ledger_writes_total{outcome="user_disabled"}[7d])) or vector(0)) == 0
+          )
+          and
+          (
+            (sum(increase(recurrence_ledger_writes_total{outcome="feature_disabled"}[7d])) or vector(0)) == 0
           )
         for: 1h
         labels:

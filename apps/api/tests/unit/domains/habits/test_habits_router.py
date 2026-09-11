@@ -136,6 +136,19 @@ def test_overview_renders_before_first_compute(client: TestClient) -> None:
     assert body["habits"] == []
 
 
+def test_overview_publishes_whether_the_chat_will_offer_automations(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """ADR-184: the chat suggestion depends on an instance flag the learning
+    does not; the panel is told rather than left waiting for an offer."""
+    from src.core.config import settings as app_settings
+
+    monkeypatch.setattr(app_settings, "recurrence_suggestion_enabled", False, raising=False)
+    assert client.get("/habits").json()["chat_suggestions_enabled"] is False
+    monkeypatch.setattr(app_settings, "recurrence_suggestion_enabled", True, raising=False)
+    assert client.get("/habits").json()["chat_suggestions_enabled"] is True
+
+
 def test_overview_publishes_the_24_bin_distribution(client: TestClient) -> None:
     """The distribution-level profile reaches the panel: 'where' activity
     concentrates stays visible even when no window is claimable (the honest

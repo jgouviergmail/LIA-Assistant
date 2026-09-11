@@ -38,7 +38,7 @@ from src.core.constants import (
     HEARTBEAT_CONTENT_EXCERPT_CHARS,
 )
 from src.domains.connectors.service import ConnectorService
-from src.domains.conversations.models import Conversation, ConversationMessage
+from src.domains.conversations.activity_probe import fetch_last_seen_at
 
 #: Fetched by ``_second_pass`` rather than the parallel gather, and read
 #: just the same.
@@ -961,34 +961,18 @@ class ContextAggregator:
         db: AsyncSession,
         user_id: UUID,
     ) -> tuple[datetime, float] | None:
-        """Get last user interaction time.
+        """Get last user interaction time (thin delegate).
+
+        Reads the ONE definition of « last seen » — message or reading
+        presence, whichever is later (``conversations/activity_probe``).
 
         Returns:
             Tuple of (last_interaction_at, hours_since) or None.
         """
-        # Query last user message via Conversation JOIN
-        result = await db.execute(
-            select(ConversationMessage.created_at)
-            .join(Conversation, ConversationMessage.conversation_id == Conversation.id)
-            .where(
-                Conversation.user_id == user_id,
-                ConversationMessage.role == "user",
-                # A run's synthetic question is not the person speaking
-                # (ADR-276): reading it here would make a ticket LIA ran
-                # alone look like the person's last words.
-                ConversationMessage.hidden.is_(False),
-            )
-            .order_by(ConversationMessage.created_at.desc())
-            .limit(1)
-        )
-        last_at = result.scalar_one_or_none()
-
-        if not last_at:
+        last_at = await fetch_last_seen_at(user_id, db)
+        if last_at is None:
             return None
-
-        now = datetime.now(UTC)
-        hours_since = (now - last_at).total_seconds() / 3600
-        return last_at, hours_since
+        return last_at, (datetime.now(UTC) - last_at).total_seconds() / 3600
 
     # ------------------------------------------------------------------
     # Recent heartbeats (anti-redundancy)

@@ -46,10 +46,6 @@ MESSAGE_READERS: Final[dict[str, tuple[ReadScope, str]]] = {
         ReadScope.VISIBLE_ONLY,
         "when the person was last active — a run's synthetic question is not them speaking",
     ),
-    "src.domains.heartbeat.context_aggregator": (
-        ReadScope.VISIBLE_ONLY,
-        "the person's last message — a ticket's brief would read as their last words",
-    ),
     "src.domains.heartbeat.context_sources": (
         ReadScope.WHOLE_RECORD,
         "narrowed to proactive rows by their `type`, a key a run's rows never carry",

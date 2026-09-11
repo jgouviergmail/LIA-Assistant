@@ -68,8 +68,14 @@ describe('HabitExplanation', () => {
     await openDisclosure();
     expect(screen.getByText('settings.habits.explanation.observed_label')).toBeInTheDocument();
     // Dates render short-formatted and joined; the thresholds are checkable.
-    expect(screen.getByText(/min_distinct_days=4/)).toBeInTheDocument();
-    expect(screen.getByText(/weekly_min_same_dow=4/)).toBeInTheDocument();
+    // Each threshold is named in the person's language (the mock echoes
+    // the key) and carries the exact applied value.
+    expect(
+      screen.getByText(/settings\.habits\.explanation\.threshold\.min_distinct_days = 4/)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/settings\.habits\.explanation\.threshold\.weekly_min_same_dow = 4/)
+    ).toBeInTheDocument();
   });
 
   it('states the overflow beyond the shown dates', async () => {
@@ -93,7 +99,9 @@ describe('HabitExplanation', () => {
     expect(
       screen.queryByText('settings.habits.explanation.observed_label')
     ).not.toBeInTheDocument();
-    expect(screen.getByText(/presence_min=0.55/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/settings\.habits\.explanation\.threshold\.presence_min = 0.55/)
+    ).toBeInTheDocument();
   });
 
   it('a load failure is an alert, not silence', async () => {

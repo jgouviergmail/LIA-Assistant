@@ -128,7 +128,7 @@ OpenTelemetry OTLP --> Tempo --> Grafana
 | 10 | OAuth, Connectors & MCP | `10-oauth-connectors-mcp` | lia, oauth, connectors, mcp | 44 | Flux OAuth, performance OAuth, sante connecteurs, APIs Google, serveurs MCP, formes de requetes contacts/email |
 | 11 | Voice & WebSocket | `11-voice-websocket` | lia, voice, tts, stt, websocket | 24 | TTS, streaming audio, STT, WebSocket |
 | 12 | Channels / Telegram | `12-channels` | lia, channels, telegram | 13 | Flux messages, bindings et securite, fonctionnalites canal |
-| 13 | Proactive & Heartbeat | `13-proactive-heartbeat` | lia, proactive, heartbeat | 26 | Vue d'ensemble taches, notifications et couts, eligibilite et feedback, presence en lecture et reveils push (ADR-214/261) |
+| 13 | Proactive & Heartbeat | `13-proactive-heartbeat` | lia, proactive, heartbeat | 38 | Vue d'ensemble taches, notifications et couts, eligibilite et feedback, presence en lecture et reveils push (ADR-214/261), moments anticipes (ADR-281), ce que le job nocturne des habitudes a appris (ADR-214 c) |
 | 14 | Data Registry & Checkpoints | `14-registry-checkpoints` | lia, registry, checkpoints | 26 | Data registry, moteur de requetes, checkpoints LangGraph, recherche hybride, sante repository |
 | 15 | LangGraph Framework Deep Dive | `15-langgraph-deep` | lia, langgraph, framework | 35 | Execution graphe, gestion d'etat, latence par etage (TTFT), integration Langfuse (repliee, requiert LANGFUSE_ENABLED) |
 | 16 | Recording Rules & Alerts Health | `16-meta-health` | lia, meta, operational | 33 | Sante des recording rules, sante des alertes, validation et securite, integrite du registre d'outils, auto-diagnostic (verdicts, incidents, duree du tick, cout LLM, sources de preuves lues) |
@@ -225,9 +225,9 @@ TTS : latence par provider (Edge, OpenAI, Gemini), taille audio, erreurs. Stream
 
 Flux de messages Telegram (entrants/sortants, types), bindings utilisateur-canal (OTP, etat), securite (rate limiting, tentatives invalides), fonctionnalites canal (voix, HITL clavier, formatage).
 
-### 13 - Proactive & Heartbeat (26 panels)
+### 13 - Proactive & Heartbeat (38 panels)
 
-Taches proactives (selections, generations, envois), notifications heartbeat (volume, cout LLM de la decision + redaction), eligibilite (fenetres horaires, quotas, cooldowns, dedup), feedback utilisateur.
+Taches proactives (selections, generations, envois), notifications heartbeat (volume, cout LLM de la decision + redaction), eligibilite (fenetres horaires, quotas, cooldowns, dedup), feedback utilisateur. Sections repliees : presence en lecture et reveils push (ADR-214/261) ; moments anticipes (ADR-281) ; **ce que le job nocturne des habitudes a appris** (ADR-214 c) — utilisateurs profiles, duree p95 du job, fenetres rejetees par raison, lignes miroir et habitudes recurrentes synchronisees par action (`user_habits_synced_total`, `recurring_habits_synced_total`), blocs ambiants, ticks ecartes et echappees du rythme par balayage et par raison (`heartbeat_ticks_deferred_total{task_type, reason}`, `heartbeat_rhythm_escapes_total{task_type, reason}`), offres de routine declarees ou seulement etiquetees (`heartbeat_habit_offers_total{outcome}`) — tous avec `or vector(0)`, un compteur qui n'a jamais tire n'expose aucune serie.
 
 ### 14 - Data Registry & Checkpoints (26 panels)
 

@@ -28,6 +28,8 @@ from uuid import UUID
 
 from src.core.config import settings
 from src.core.time_utils import resolve_user_timezone
+from src.domains.habits.capability import habits_capability_enabled
+from src.domains.habits.consumption import load_consumable_profile
 from src.domains.habits.rhythm import WEEKDAY, WEEKEND, RhythmProfile, hour_in_windows
 from src.infrastructure.database.session import get_db_context
 from src.infrastructure.observability.logging import get_logger
@@ -90,6 +92,8 @@ async def build_habits_rhythm_block(user_id: str | UUID, flow: str = "response")
     """
     if not getattr(settings, "habits_enabled", False):
         return ""
+    if not await habits_capability_enabled():
+        return ""
     try:
         uid = UUID(str(user_id)) if not isinstance(user_id, UUID) else user_id
         async with get_db_context() as db:
@@ -100,39 +104,19 @@ async def build_habits_rhythm_block(user_id: str | UUID, flow: str = "response")
             if user is None or not user.habits_enabled:
                 return ""
             repo = HabitsRepository(db)
-            profile_row = await repo.get_profile(uid)
-            if profile_row is None:
+            # Consumable windows only (ADR-214 decision 3): a paused or
+            # blocked window must not colour the conversation either.
+            profile = await load_consumable_profile(repo, uid)
+            if profile is None:
                 return ""
             _first, last_at = await repo.fetch_activity_bounds(uid)
 
-        profile = RhythmProfile.from_payload(profile_row.payload)
         now = datetime.now(UTC)
-        now_local = now.astimezone(resolve_user_timezone(user))
-
-        lines: list[str] = []
-        kinds: list[str] = []
-        windows = _window_labels(profile)
-        if windows:
-            lines.append(f"Usual activity: {windows}.")
-            kinds.append("rhythm")
-            if _unusual_hour(profile, now_local):
-                lines.append(
-                    "The current hour is unusual for this user: you may "
-                    "acknowledge it lightly AT MOST once, and prefer a concise "
-                    "format, offering to defer detail."
-                )
-                kinds.append("unusual_hour")
-        if _unusual_absence(profile, last_at, now):
-            lines.append(
-                "The user returns after an unusually long absence for them: "
-                "greet warmly and briefly offer a catch-up — never comment on "
-                "the absence itself."
-            )
-            kinds.append("absence")
+        lines, kinds = _block_lines(
+            profile, last_at, now, now.astimezone(resolve_user_timezone(user))
+        )
         if not lines:
             return ""
-        lines.append("Never mention this learned profile explicitly.")
-
         for kind in kinds:
             with suppress(Exception):
                 habit_ambient_block_total.labels(flow=flow, kind=kind).inc()
@@ -140,3 +124,46 @@ async def build_habits_rhythm_block(user_id: str | UUID, flow: str = "response")
     except Exception as exc:  # noqa: BLE001 — ambient block must never break a turn
         logger.warning("habit_ambient_block_failed", error=str(exc), flow=flow)
         return ""
+
+
+def _block_lines(
+    profile: RhythmProfile,
+    last_at: datetime | None,
+    now: datetime,
+    now_local: datetime,
+) -> tuple[list[str], list[str]]:
+    """The block's sentences and the kinds they count under (pure).
+
+    Args:
+        profile: The consumable rhythm profile.
+        last_at: The person's last activity, or None.
+        now: The current instant (UTC).
+        now_local: The same instant in the person's timezone.
+
+    Returns:
+        ``(lines, kinds)`` — both empty when nothing is worth saying; the
+        closing instruction is appended only when something is.
+    """
+    lines: list[str] = []
+    kinds: list[str] = []
+    windows = _window_labels(profile)
+    if windows:
+        lines.append(f"Usual activity: {windows}.")
+        kinds.append("rhythm")
+        if _unusual_hour(profile, now_local):
+            lines.append(
+                "The current hour is unusual for this user: you may "
+                "acknowledge it lightly AT MOST once, and prefer a concise "
+                "format, offering to defer detail."
+            )
+            kinds.append("unusual_hour")
+    if _unusual_absence(profile, last_at, now):
+        lines.append(
+            "The user returns after an unusually long absence for them: "
+            "greet warmly and briefly offer a catch-up — never comment on "
+            "the absence itself."
+        )
+        kinds.append("absence")
+    if lines:
+        lines.append("Never mention this learned profile explicitly.")
+    return lines, kinds

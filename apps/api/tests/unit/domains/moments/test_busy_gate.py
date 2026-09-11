@@ -173,10 +173,16 @@ class TestTheRegister:
         assert await _ask([], cached=b"1", opener=opener) is True
 
     async def test_a_failed_read_is_recorded_as_failed_not_as_silence(self) -> None:
-        """A blind source is named, never read as « nothing there »."""
+        """A blind source is named, never read as « nothing there ».
+
+        The section must be in ``opened`` AS WELL: the recorder files one row
+        per opened section and reads ``failed`` as a subset of them, so the
+        first version of this test — ``opened == []`` — pinned exactly the
+        silence its title refuses (cold review, 2026-09-11).
+        """
         recorder = MagicMock()
 
         await _ask(RuntimeError("calendar down"), recorder=recorder)
 
         assert recorder.call_args.kwargs["failed"] == ["calendar"]
-        assert recorder.call_args.kwargs["opened"] == []
+        assert recorder.call_args.kwargs["opened"] == ["calendar"]

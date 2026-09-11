@@ -64,7 +64,7 @@ class _FakeRedis:
 def _lock_settings() -> SimpleNamespace:
     """The production defaults, read from settings — never re-declared."""
     return SimpleNamespace(
-        recurrence_suggestion_enabled=True,
+        habits_enabled=True,
         recurrence_window_days=app_settings.recurrence_window_days,
         recurrence_min_distinct_days=app_settings.recurrence_min_distinct_days,
         recurrence_day_hours_cap=app_settings.recurrence_day_hours_cap,

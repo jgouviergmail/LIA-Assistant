@@ -4,7 +4,7 @@
 
 **Versión**: 6.0
 **Fecha**: 2026-08-23
-**Aplicación**: LIA v1.44.2
+**Aplicación**: LIA v1.44.3
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -345,7 +345,7 @@ Y el color nunca lleva solo el significado: cada etiqueta conserva su palabra. U
 
 ### 6.7. Incluso lo que LIA aprende de ti es inspeccionable
 
-La misma transparencia cubre el aprendizaje de hábitos: lo que LIA cree saber de tu ritmo y tus peticiones recurrentes vive en un panel dedicado — mapa de calor de tus 24 horas, porcentaje de días activos, barra de progreso hacia las primeras detecciones, y para cada hábito los días reales en que fue observado más los umbrales exactos aplicados por el detector. Cuando no hay un hábito estable, el panel lo dice en lugar de inventarlo. Pausa, bloqueo definitivo, borrado total, recálculo retroactivo inmediato — y toda la función está apagada hasta que la actives.
+La misma transparencia cubre el aprendizaje de hábitos: lo que LIA cree saber de tu ritmo y tus peticiones recurrentes vive en un panel dedicado — mapa de calor de tus 24 horas, porcentaje de días activos, barra de progreso hacia las primeras detecciones, y para cada hábito los días reales en que fue observado más los umbrales exactos aplicados por el detector. Cuando no hay un hábito estable, el panel lo dice en lugar de inventarlo. Pausa, bloqueo definitivo, borrado total, recálculo retroactivo inmediato — y toda la función está apagada hasta que la actives. Lo que fijas ahí vale en todas partes: un hábito en pausa lo está para las notificaciones, su horario y el contexto de la asistente por igual; una rutina que se te pasa se te ofrece por su nombre; y un hábito aprendido vive — promovido, refrescado o degradado según cambian tus días, nunca en la duda.
 
 La misma exigencia gobierna lo que LIA retiene de tus indicaciones: cada regla duradera («responde más corto», «no me propongas eso por la noche») es una memoria **visible, modificable y eliminable** — y cuando un hecho cambia, el antiguo no se borra: se archiva detrás del nuevo, para que corregir nunca sea reescribir la historia. Las rutinas que LIA propone asumir esperan tu luz verde en una bandeja dedicada: aceptar rellena el chat, nada sale sin ti, y rechazar le enseña a insistir menos.
 

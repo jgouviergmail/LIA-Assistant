@@ -161,19 +161,43 @@ class TestNamedSetsKeepTheirInvariants:
         """Every ``*_DEFAULT`` the detectors read is mirrored in the harness
         baseline, field for field — a constant added to the config and not
         here would be measured at whatever ``SimpleNamespace`` lacks (an
-        AttributeError at best, a stale number at worst)."""
+        AttributeError at best, a stale number at worst).
+
+        The reference is what the settings classes DECLARE, never what the
+        environment holds: ``HabitsSettings()`` reads ``HABITS_*`` from the
+        process environment, so the previous form of this test was green on
+        the CI runner and red inside any container whose ``.env`` pinned an
+        older calibration (measured 2026-09-11: ``selectivity_min 1.9 != 1.6``
+        on docker dev) — a verdict that depends on the launcher is not a test
+        of the code. ``model_construct`` materialises the declared defaults
+        without consulting the environment.
+        """
         from src.core import constants as C
         from src.core.config.automation import AutomationSettings
         from src.core.config.habits import HabitsSettings
         from src.domains.habits.rhythm import RhythmThresholds
 
         rhythm = RhythmThresholds.from_settings(HARNESS.SHIPPED_RHYTHM)
-        assert rhythm == RhythmThresholds.from_settings(HabitsSettings())
+        assert rhythm == RhythmThresholds.from_settings(HabitsSettings.model_construct())
         shipped = vars(HARNESS.SHIPPED_RECURRENCE)
-        live = AutomationSettings()
+        declared = AutomationSettings.model_construct()
         for name, value in shipped.items():
-            assert getattr(live, name) == value, name
+            assert getattr(declared, name) == value, name
         assert shipped["recurrence_window_days"] == C.RECURRENCE_WINDOW_DAYS_DEFAULT
+
+    def test_the_baseline_check_ignores_the_environment(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A pinned ``HABITS_SELECTIVITY_MIN`` in the environment must not
+        change the verdict: the harness measures the shipped code."""
+        from src.core.config.habits import HabitsSettings
+        from src.domains.habits.rhythm import RhythmThresholds
+
+        monkeypatch.setenv("HABITS_SELECTIVITY_MIN", "4.9")
+        assert HabitsSettings().habits_selectivity_min == 4.9  # the env IS read by a live instance
+        assert RhythmThresholds.from_settings(
+            HARNESS.SHIPPED_RHYTHM
+        ) == RhythmThresholds.from_settings(HabitsSettings.model_construct())
 
     @pytest.mark.parametrize(("name", "spec"), HARNESS.LOCK_SETS)
     def test_lock_set_is_coherent(self, name: str, spec: dict[str, float]) -> None:

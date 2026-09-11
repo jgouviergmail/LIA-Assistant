@@ -224,6 +224,9 @@ CONSULTATION_SURFACES: Final[Mapping[str, ConsultationSurface]] = {
             "brave": "brave",
             "perplexity": "perplexity",
             "wikipedia": "wikipedia",
+            # The in-meeting guard reads the calendar before the sweep speaks
+            # (A11, 2026-09-11) — a live read, filed like the heartbeat's.
+            "calendar": "event",
             # A reflection re-reads the person's OWN declared interests, which
             # is the one source here that is theirs.
             "llm_reflection": "interest",

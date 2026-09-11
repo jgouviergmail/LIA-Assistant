@@ -25,6 +25,7 @@ from src.core.constants import (
     SCHEDULER_JOB_HEARTBEAT_NOTIFICATION,
 )
 from src.domains.conversations.activity_probe import fetch_last_user_activity_at
+from src.domains.feature_switches.registry import PlatformCapability, is_capability_enabled
 from src.domains.heartbeat.models import HeartbeatNotification
 from src.domains.heartbeat.proactive_task import HeartbeatProactiveTask
 from src.domains.interests.models import InterestNotification
@@ -100,6 +101,12 @@ async def process_heartbeat_notifications() -> dict[str, Any]:
     Returns:
         Dict with execution statistics (or skipped status if lock not acquired)
     """
+    # The operator's switch, at call time (ADR-280 amendment 2026-09-11):
+    # switching the heartbeat off must stop LIA speaking on her own, not
+    # merely close the settings panel — measured the other way round.
+    if not await is_capability_enabled(PlatformCapability.HEARTBEAT):
+        logger.info("heartbeat_notification_job_skipped", reason="capability_disabled")
+        return {"status": "skipped", "reason": "capability_disabled"}
     redis = await get_redis_cache()
     async with SchedulerLock(redis, SCHEDULER_JOB_HEARTBEAT_NOTIFICATION) as lock:
         if not lock.acquired:

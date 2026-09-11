@@ -4,7 +4,7 @@
 
 **Version**: 6.0
 **Date**: 2026-08-23
-**Application**: LIA v1.44.2
+**Application**: LIA v1.44.3
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -345,7 +345,7 @@ And colour never carries meaning on its own: every label keeps its word. An inte
 
 ### 6.7. Even what LIA learns about you is inspectable
 
-The same transparency covers habit learning: what LIA believes about your rhythm and your recurring requests sits in a dedicated panel — a 24-hour heat map, your active-day percentage, a progress bar toward the first claims, and for every habit the real days it was observed plus the exact thresholds the detector applied. When there is no stable habit, the panel says so instead of inventing one. Pause, permanent block, total deletion, instant retroactive recompute — and the whole feature is off until you turn it on.
+The same transparency covers habit learning: what LIA believes about your rhythm and your recurring requests sits in a dedicated panel — a 24-hour heat map, your active-day percentage, a progress bar toward the first claims, and for every habit the real days it was observed plus the exact thresholds the detector applied. When there is no stable habit, the panel says so instead of inventing one. Pause, permanent block, total deletion, instant retroactive recompute — and the whole feature is off until you turn it on. What you set there holds everywhere: a paused habit is paused for the notifications, their timing and the assistant's context alike; a routine you miss is offered by name; and a learned habit lives — promoted, refreshed or demoted as your days change, never on doubt.
 
 The same requirement governs what LIA retains of your instructions: every lasting rule ("answer more briefly", "stop suggesting that in the evening") is a **visible, editable and deletable** memory — and when a fact changes, the old one is not erased, it is archived behind the new one, so that correcting is never rewriting history. The routines LIA offers to take over wait for your go-ahead in a dedicated inbox: accepting pre-fills the chat, nothing leaves without you, and declining teaches it to insist less.
 

@@ -117,6 +117,11 @@ async def record_presence(
     if not presence_allowed(user, kind):
         _observe(kind, "disabled")
         return "disabled"
+    from src.domains.habits.capability import habits_capability_enabled
+
+    if not await habits_capability_enabled():
+        _observe(kind, "disabled")
+        return "disabled"
 
     moment = (at or datetime.now(UTC)).astimezone(resolve_user_timezone(user))
     local_date, hour = moment.date(), moment.hour

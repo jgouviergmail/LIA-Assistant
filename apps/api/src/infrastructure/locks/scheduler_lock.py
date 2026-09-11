@@ -25,6 +25,33 @@ from src.core.constants import SCHEDULER_LOCK_DEFAULT_TTL_SECONDS
 logger = structlog.get_logger(__name__)
 
 
+#: A lock sized for a fast job: this fraction of the job's interval, so the
+#: NEXT tick can always take it, above a floor that still protects against a
+#: crashed holder on a one-minute interval.
+LOCK_TTL_INTERVAL_FRACTION = 0.9
+LOCK_TTL_FLOOR_SECONDS = 30
+
+
+def ttl_for_interval(interval_seconds: int) -> int:
+    """How long a periodic job's lock outlives its holder.
+
+    ``SchedulerLock.__aexit__`` never releases: the lock expires. Given the
+    default TTL (five minutes), any job ticking faster is silently throttled
+    to one run per TTL — measured on the wake sweep (120 s interval, 300 s
+    lock: every other tick skipped, 2026-09-11) after the executor had paid
+    for the same class (F003). The moment sweep wrote this rule for itself;
+    it is the ONE rule now, and the timing guard reads it too.
+
+    Args:
+        interval_seconds: The job's period.
+
+    Returns:
+        A TTL strictly below the interval whenever the interval leaves room
+        for the floor.
+    """
+    return max(int(interval_seconds * LOCK_TTL_INTERVAL_FRACTION), LOCK_TTL_FLOOR_SECONDS)
+
+
 class SchedulerLock:
     """
     Distributed lock for scheduled jobs using Redis SETNX.

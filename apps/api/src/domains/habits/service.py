@@ -30,29 +30,24 @@ from src.domains.habits.models import (
     UserHabit,
     UserHabitProfile,
 )
+from src.domains.habits.recurrence_sync import RecurringSyncOutcome, sync_recurring_habits
 from src.domains.habits.repository import HabitsRepository
 from src.domains.habits.rhythm import (
     DAY_CLASSES,
-    ClaimedWindow,
     RhythmProfile,
     RhythmThresholds,
     compute_rhythm_profile_with_diagnostics,
 )
 from src.domains.habits.streaks import StreakSummary, compute_streaks
+from src.domains.habits.window_keys import part_of_day as part_of_day
+from src.domains.habits.window_keys import window_habit_key
 
 logger = structlog.get_logger(__name__)
 
-# Part-of-day identity for ACTIVE_WINDOW habit keys. A claimed window drifting
-# by an hour between runs must keep its identity (a user's block on
-# "weekday mornings" survives 8-10h becoming 7-10h), so the key is the day
-# class + the coarse part of day of the window's CENTER — never exact hours.
-_PARTS_OF_DAY: tuple[tuple[str, int, int], ...] = (
-    ("night", 22, 5),
-    ("morning", 5, 12),
-    ("afternoon", 12, 17),
-    ("evening", 17, 22),
-)
-
+# The window key (day class + part of day of the ACTIVITY center) has ONE
+# producer, ``window_keys.window_habit_key`` — the consumption predicate reads
+# the mirror rows back through the same function. ``part_of_day`` stays
+# importable from here for its historical readers.
 ACTIVE_WINDOW_PAYLOAD_VERSION = 1
 
 
@@ -73,35 +68,6 @@ def merge_activity_days(
             if count > target.get(hour, 0):
                 target[hour] = count
     return merged
-
-
-def part_of_day(hour: float) -> str:
-    """Coarse part-of-day label for an hour (wrap-aware for night)."""
-    for name, start, end in _PARTS_OF_DAY:
-        if start < end:
-            if start <= hour < end:
-                return name
-        elif hour >= start or hour < end:
-            return name
-    return "night"  # unreachable — the parts cover the full circle
-
-
-def _activity_center(window: ClaimedWindow, bin_presence: tuple[float, ...]) -> float:
-    """Presence-weighted center of the ACTIVITY inside a window.
-
-    The habit's identity must follow where the activity actually sits, not
-    the window's geometric middle: a 21h routine claimed as 21-23h would
-    otherwise be labeled "night" (center 22h) while the user experiences it
-    as an evening habit.
-    """
-    length = (window.end_hour - window.start_hour) % 24
-    bins = [(window.start_hour + k) % 24 for k in range(length)]
-    total = sum(bin_presence[b] for b in bins)
-    if total <= 0:
-        return (window.start_hour + length / 2) % 24
-    # Weighted mean of offsets from start (windows are ≤ 4h — no wrap issue).
-    mean_offset = sum((k + 0.5) * bin_presence[bins[k]] for k in range(length)) / total
-    return (window.start_hour + mean_offset) % 24
 
 
 class HabitsService:
@@ -141,6 +107,21 @@ class HabitsService:
         now_local = datetime.now(user_tz)
         # Last COMPLETE local day: a partial today must never dilute presence.
         as_of = (now_local - timedelta(days=1)).date()
+
+        # The ledger side comes FIRST, before any skip. The seed rebuilds an
+        # EMPTY ledger from durable product outcomes (one-shot by construction)
+        # and runs on the manual recompute path too; the recurring sync then
+        # follows that ledger (ADR-214 amendment c): promotion, refresh, mute
+        # lift and demotion no longer wait for a chat turn. Seed before sync,
+        # or a Redis flush would demote every row one night and recreate it
+        # the next — and both before the activity skips, because the one
+        # account the demotion exists for (conversations reset, silent past
+        # the rollup window, ledger expired) is exactly the account every
+        # skip below refuses. Neither reads the activity sources.
+        await seed_ledger_from_outcomes(self.db, user.id, str(user_tz), settings)
+        self._emit_recurring_sync(
+            await sync_recurring_habits(self.repository, user.id, str(user_tz), settings)
+        )
 
         first_at, last_at = await self.repository.fetch_activity_bounds(user.id)
         if last_at is None and not await self.repository.fetch_activity_rollup(user.id):
@@ -186,12 +167,6 @@ class HabitsService:
         merged = {d: h for d, h in merged.items() if d >= window_floor}
         await self.repository.upsert_activity_days(user.id, merged)
         await self.repository.prune_activity_days(user.id, window_floor)
-
-        # Recurrence-ledger seed, banked like the rollup: BEFORE the delta
-        # skip (a skip must not starve it) and on the manual recompute path
-        # too — one-shot by construction (only an EMPTY ledger seeds), so
-        # recurrences become retroactive over durable product outcomes.
-        await seed_ledger_from_outcomes(self.db, user.id, str(user_tz), settings)
 
         # Delta skip (detector + profile persist only — the rollup above is
         # already banked): with no new messages NOTHING can appear, but
@@ -263,6 +238,22 @@ class HabitsService:
         return "computed"
 
     @staticmethod
+    def _emit_recurring_sync(outcome: RecurringSyncOutcome) -> None:
+        """Count what the recurring sync did (best-effort, never breaks the job)."""
+        with suppress(Exception):
+            from src.infrastructure.observability.metrics_habits import (
+                recurring_habits_synced_total,
+            )
+
+            if outcome.skipped:
+                recurring_habits_synced_total.labels(action="skipped").inc()
+                return
+            for action in ("created", "updated", "kept", "demoted", "blocked", "capped"):
+                count = getattr(outcome, action)
+                if count:
+                    recurring_habits_synced_total.labels(action=action).inc(count)
+
+    @staticmethod
     def _emit_gate_diagnostics(gate_diagnostics: dict[str, dict[str, int]]) -> None:
         """Emit the detector's gate-rejection census (best-effort).
 
@@ -299,8 +290,7 @@ class HabitsService:
         for class_name in DAY_CLASSES:
             rhythm = getattr(profile, class_name)
             for window in rhythm.windows:
-                center = _activity_center(window, rhythm.bin_presence)
-                key = f"{class_name}:{part_of_day(center)}"
+                key = window_habit_key(class_name, window, rhythm.bin_presence)
                 entry = live.setdefault(
                     key,
                     {

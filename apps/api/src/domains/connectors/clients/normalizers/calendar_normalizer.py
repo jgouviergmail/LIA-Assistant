@@ -83,18 +83,26 @@ def normalize_vevent(event: Any) -> dict[str, Any]:
     return result
 
 
-def normalize_calendar(cal: Any) -> dict[str, Any]:
+def normalize_calendar(cal: Any, display_name: str | None) -> dict[str, Any]:
     """
     Normalize a caldav Calendar to Google Calendar API dict format.
 
+    The display name is RESOLVED BY THE CALLER: on an async caldav client it is
+    only reachable through ``await cal.get_display_name()`` (the deprecated
+    ``name`` property returns that coroutine), and this normalizer is
+    synchronous on purpose — reading the attribute here put a coroutine in
+    ``summary`` (production, 2026-09-11).
+
     Args:
         cal: caldav Calendar object.
+        display_name: The calendar's display name, or ``None`` when the server
+            exposes none — the URL then stands in as the summary.
 
     Returns:
         Dict matching Google Calendar API calendar list item.
     """
     cal_id = str(cal.url) if hasattr(cal, "url") else "unknown"
-    display_name = getattr(cal, "name", None) or cal_id
+    display_name = display_name or cal_id
 
     result: dict[str, Any] = {
         "id": cal_id,

@@ -1,6 +1,6 @@
 [project]
 name = "lia-api"
-version = "1.44.2"
+version = "1.44.3"
 description = "LIA Assistant - AI conversational assistant with multi-agent orchestration"
 license = "AGPL-3.0-or-later"
 authors = [
@@ -287,6 +287,16 @@ filterwarnings = [
     #              pinned version changes, forcing a re-check of whether the driver
     #              still leaks and this ignore is still needed.
     "ignore:coroutine 'Connection\\._cancel' was never awaited:RuntimeWarning",
+    # google-genai (transitive, pinned through langchain-google-genai) reads
+    # ``typing._UnionGenericAlias`` at import, which Python 3.14 deprecates for
+    # removal in 3.17. It fires once per process at ``google.genai.types`` import,
+    # in vendor code no test can reach, and it was the one warning every green
+    # suite still printed. Scoped to that exact message AND that module: a
+    # deprecated read of our own would still surface.
+    #   package:   google-genai==2.10.0 (requirements.lock.txt)
+    #   review_by: the next langchain-google-genai bump (drop it once the
+    #              vendor import no longer warns under ``-W error``)
+    "ignore:'_UnionGenericAlias' is deprecated:DeprecationWarning:google.genai.types",
 ]
 pythonpath = ["."]
 markers = [

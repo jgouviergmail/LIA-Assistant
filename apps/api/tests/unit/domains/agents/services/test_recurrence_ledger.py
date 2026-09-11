@@ -11,6 +11,7 @@ The v2 contract pinned here:
   promotes a persisted habit.
 """
 
+import asyncio
 import json
 from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
@@ -27,6 +28,7 @@ from src.domains.agents.services.recurrence_ledger import (
     evaluate_locks,
     evaluate_suggestion,
     record_occurrence,
+    record_occurrence_if_allowed,
 )
 from src.infrastructure.observability.metrics_agents import recurrence_ledger_writes_total
 
@@ -253,6 +255,32 @@ class TestRecordOccurrence:
         assert len(stored["days"]) == 28  # capped in DAY entries
         assert 9.5 in stored["days"][TODAY.isoformat()]
 
+    async def test_the_intent_is_recorded_as_data_never_as_key(self):
+        """Q4 (2026-09-11): the request descriptor travels INSIDE the payload
+        so a missed-routine offer has an object; the key stays the domain."""
+        redis = _redis_with({"days": {}, "suggested_at": None, "intents": {"search": 1}})
+        with _patched(redis):
+            await record_occurrence(
+                str(uuid4()),
+                "email",
+                local_date=TODAY,
+                local_hour=9.5,
+                settings=_settings(),
+                intent="Search",
+            )
+        assert redis.set.await_args.args[0].endswith(":email")
+        stored = json.loads(redis.set.await_args.args[1])
+        assert stored["intents"] == {"search": 2}
+
+    async def test_no_intent_leaves_the_histogram_alone(self):
+        redis = _redis_with({"days": {}, "suggested_at": None, "intents": {"send": 3}})
+        with _patched(redis):
+            await record_occurrence(
+                str(uuid4()), "email", local_date=TODAY, local_hour=9.5, settings=_settings()
+            )
+        stored = json.loads(redis.set.await_args.args[1])
+        assert stored["intents"] == {"send": 3}
+
     async def test_per_day_hours_cap(self):
         payload = {
             "days": {TODAY.isoformat(): [8.0, 8.1, 8.2, 8.3, 8.4]},
@@ -334,6 +362,29 @@ def _weekly_payload() -> dict:
 
 @pytest.mark.unit
 class TestEvaluateSuggestion:
+    async def test_the_promotion_is_handed_the_dominant_intent(self):
+        days = {(TODAY - timedelta(days=7 * k)).isoformat(): [9.0] for k in range(4)}
+        redis = _redis_with(
+            {"days": days, "suggested_at": None, "intents": {"send": 1, "search": 4}}
+        )
+        with (
+            _patched(redis),
+            patch(
+                "src.domains.agents.services.recurrence_ledger._promote_recurring_habit",
+                new=AsyncMock(),
+            ) as promote,
+            patch(
+                "src.infrastructure.async_utils.safe_fire_and_forget",
+                side_effect=lambda coro, **_: asyncio.ensure_future(coro),
+            ),
+        ):
+            text = await evaluate_suggestion(
+                str(uuid4()), "email", language="en", local_today=TODAY, settings=_settings()
+            )
+            await asyncio.sleep(0)
+        assert text
+        assert promote.await_args.kwargs["usual_intent"] == "search"
+
     async def test_locked_weekly_fires_with_schedule_text(self):
         redis = _redis_with(_weekly_payload())
         with _patched(redis), _fire_patch() as fire:
@@ -542,6 +593,59 @@ class TestPromotionCap:
 
 
 @pytest.mark.unit
+class TestPromotionCarriesTheUsualIntent:
+    async def test_the_row_payload_names_what_the_person_usually_asks(self, monkeypatch):
+        """The chat promotion and the nightly sync write ONE payload builder;
+        both hand it the ledger's dominant intent (Q4)."""
+        from src.domains.agents.services.recurrence_ledger import (
+            _promote_recurring_habit,
+        )
+
+        lock = RecurrenceLock(
+            shape="daily", trigger_hour=8.5, modal_weekday=None, distinct_days=6, occurrences=7
+        )
+        payloads: list[dict] = []
+
+        class _Repo:
+            def __init__(self, db):
+                pass
+
+            async def list_habits(self, uid, kind=None):
+                return []
+
+            async def upsert_habit(self, **kwargs):
+                payloads.append(kwargs["payload"])
+                return "created"
+
+        import src.domains.habits.repository as repo_module
+        from src.core.config import settings as app_settings
+
+        monkeypatch.setattr(repo_module, "HabitsRepository", _Repo)
+        monkeypatch.setattr(app_settings, "habits_enabled", True, raising=False)
+        monkeypatch.setattr(app_settings, "habits_max_habits_per_kind", 8, raising=False)
+        user = MagicMock()
+        user.habits_enabled = True
+        session = MagicMock()
+        session.get = AsyncMock(return_value=user)
+        session.commit = AsyncMock()
+        from contextlib import asynccontextmanager
+
+        import src.infrastructure.database as db_module
+
+        @asynccontextmanager
+        async def _ctx():
+            yield session
+
+        monkeypatch.setattr(db_module, "get_db_context", _ctx)
+
+        await _promote_recurring_habit(str(uuid4()), "email", lock, usual_intent="search")
+        await _promote_recurring_habit(str(uuid4()), "email", lock, usual_intent=None)
+        assert payloads[0]["usual_intent"] == "search"
+        # Unknown stays ABSENT, never a placeholder the panel would translate.
+        assert "usual_intent" not in payloads[1]
+
+
+@pytest.mark.unit
 class TestShapeVocabularyIsClosed:
     """Five readers consume the shape (``days_of_week``, the backend
     suggestion text in six languages, the settings row in six locales, the
@@ -585,6 +689,25 @@ class TestShapeVocabularyIsClosed:
             for shape in RECURRENCE_SHAPES:
                 assert shape in labels, f"{lang}: settings.habits.shape.{shape}"
 
+    def test_every_intent_has_a_settings_label_in_every_locale(self):
+        """Q4: the habit row opens with the usual request through
+        ``settings.habits.intent.<intent>`` — one label per vocabulary entry,
+        six languages, and no label for a value the analyzer never produces."""
+        from src.domains.agents.analysis.query_intelligence import IMMEDIATE_INTENTS
+        from src.infrastructure.cache.recurrence_store import INTENT_MAX_DISTINCT
+        from tests._repo_paths import repo_root_or_skip
+
+        # The histogram can hold the whole vocabulary: a cap below it would
+        # evict a legitimate request the moment the person varies.
+        assert INTENT_MAX_DISTINCT >= len(IMMEDIATE_INTENTS)
+        locales = repo_root_or_skip() / "apps" / "web" / "locales"
+        for lang in ("en", "fr", "de", "es", "it", "zh"):
+            path = locales / lang / "translation.json"
+            if not path.exists():  # pragma: no cover - the frontend tree is absent
+                pytest.skip("apps/web is not checked out beside apps/api")
+            labels = json.loads(path.read_text(encoding="utf-8"))["settings"]["habits"]["intent"]
+            assert set(labels) == set(IMMEDIATE_INTENTS), lang
+
     def test_the_heartbeat_handles_every_shape_deliberately(self):
         """The heartbeat offers a missed slot for the calendar shapes and
         deliberately skips ``intermittent`` (no slot to miss). Its literal
@@ -606,3 +729,54 @@ class TestSignatureHasOneProducer:
         call site."""
         assert build_signature("email") == "email"
         assert build_signature("email") == build_signature("email", [])
+
+
+@pytest.mark.unit
+class TestRecordOccurrenceIfAllowed:
+    """The write obeys « Apprendre mes habitudes » (measured violated
+    2026-09-11, sim C5): a refusal is counted as the person's own, never as a
+    starved ledger, and the store is never touched."""
+
+    async def test_switch_off_writes_nothing_and_counts_user_disabled(self):
+        from src.domains.habits.learning_gate import CLOSED
+
+        redis = _redis_with(None)
+        before = _writes("user_disabled")
+        with (
+            _patched(redis),
+            patch(
+                "src.domains.habits.learning_gate.read_learning_gate",
+                AsyncMock(return_value=CLOSED),
+            ) as gate,
+        ):
+            await record_occurrence_if_allowed(
+                str(uuid4()), "email", local_date=TODAY, local_hour=9.5, settings=_settings()
+            )
+        redis.set.assert_not_awaited()
+        gate.assert_awaited_once()
+        assert _writes("user_disabled") == before + 1
+
+    async def test_switch_on_delegates_to_the_write(self):
+        from src.domains.habits.learning_gate import LearningGate
+
+        redis = _redis_with(None)
+        before = _writes("written")
+        with (
+            _patched(redis),
+            patch(
+                "src.domains.habits.learning_gate.read_learning_gate",
+                AsyncMock(return_value=LearningGate(allowed=True)),
+            ),
+        ):
+            await record_occurrence_if_allowed(
+                str(uuid4()),
+                "email",
+                local_date=TODAY,
+                local_hour=9.5,
+                settings=_settings(),
+                intent="send",
+            )
+        redis.set.assert_awaited_once()
+        assert _writes("written") == before + 1
+        # The descriptor crosses the gate with the occurrence it describes.
+        assert json.loads(redis.set.await_args.args[1])["intents"] == {"send": 1}

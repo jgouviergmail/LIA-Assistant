@@ -52,7 +52,6 @@ export function OpenLoopsSection({ lng }: BaseSettingsProps) {
 
   const content = (
     <div className="space-y-4">
-      <p className="text-xs text-muted-foreground">{t('settings.open_loops.description')}</p>
       {loadError ? (
         // Transient failure (network, 5xx) — same retry affordance as the
         // sibling settings sections, never a silently vanished feature.

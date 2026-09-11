@@ -6,7 +6,7 @@
 
 **Version**: 5.0
 **Date**: 2026-08-23
-**Application**: LIA v1.44.2
+**Application**: LIA v1.44.3
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -68,8 +68,8 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | ARM64 self-hosting | Multi-arch Docker, semantic embeddings (multilingual), Playwright chromium cross-platform |
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
-| Full transparency | 550 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 280 ADRs, ~28,233 pytest-collected tests across 1,652 files, native observability, 6-level HITL |
+| Full transparency | 553 Prometheus metrics, embedded debug panel, token-by-token tracking |
+| Production reliability | 280 ADRs, ~28,443 pytest-collected tests across 1,669 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -87,11 +87,11 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | 28,233 collected by pytest across 1,652 test files + 8,246 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
-| pytest fixtures | 961, 46 of them shared through conftest |
+| Tests | 28,443 collected by pytest across 1,669 test files + 8,256 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| pytest fixtures | 969, 46 of them shared through conftest |
 | Documentation documents | 647 |
 | ADRs (Architecture Decision Records) | 280 |
-| Prometheus metrics | 550 definitions |
+| Prometheus metrics | 553 definitions |
 | Grafana dashboards | 29 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -813,9 +813,9 @@ Wake word ("OK Guy") via Sherpa-onnx WASM in the browser (zero external transmis
 
 **Phase 1 — Decision** (the `heartbeat_decision` slot, a frugal model chosen in the admin catalogue):
 1. `EligibilityChecker`: opt-in, time window, cooldown (1h global, 30 min per type), recent activity — optional `notification_filter`/`cross_type_filters` keep each flow's eligibility budget separate from the shared ledger
-2. `ContextAggregator`: 12 sources in parallel (`asyncio.gather`): Calendar, Weather (change detection), Tasks, Emails, Interests, Activity, recent heartbeat/interest notifications, other proactive surfaces (fired reminders, automation results, call reports — the extended anti-redundancy window), Health, upcoming Birthdays and Open loops (the commitments ledger, ADR-139). A **second pass** then derives a dynamic semantic query from the aggregated context to select Journals and Memories (ADR-135 symmetry) and computes the traffic-aware departure advice (Routes ETA, flag-gated). Interests arrive as a **varied sample** (`pick_varied_sample`: one interest per subject, least recently served subjects first) — the model can only mention what it is shown, so the rotation is mechanical
+2. `ContextAggregator`: 14 sources in parallel (`asyncio.gather`): Calendar, Weather (change detection), Tasks, Emails, Interests, Activity, recent heartbeat/interest notifications, other proactive surfaces (fired reminders, automation results, call reports — the extended anti-redundancy window), Health, upcoming Birthdays Open loops (the commitments ledger, ADR-139), Habits (a learned routine whose usual slot passed, with what it usually asks for) and the Workboard. A **second pass** then derives a dynamic semantic query from the aggregated context to select Journals and Memories (ADR-135 symmetry) and computes the traffic-aware departure advice (Routes ETA, flag-gated). Interests arrive as a **varied sample** (`pick_varied_sample`: one interest per subject, least recently served subjects first) — the model can only mention what it is shown, so the rotation is mechanical
 
-   **Being connected and being interrupted are two decisions** (ADR-197). Eleven of these sources carry their own switch, applied **before** the fetch: a refused source stops feeding the decision *and* stops costing an API call, without disconnecting the service — so without losing the tool you ask with. Storage holds the **refusal**, never the permission: `NULL` means “never expressed”, so an existing account keeps its behaviour and a source added later is on until someone refuses it. What is not a source — activity, the anti-redundancy windows — stays out of the registry by construction: gating those would make the assistant repeat itself rather than interrupt less. And a dependency is **declared then published**: leave-by advice reads the calendar of the first pass, so refusing the calendar would silence it; the panel says so instead of leaving a live switch with no effect.
+   **Being connected and being interrupted are two decisions** (ADR-197). Thirteen of these sources carry their own switch, applied **before** the fetch: a refused source stops feeding the decision *and* stops costing an API call, without disconnecting the service — so without losing the tool you ask with. Storage holds the **refusal**, never the permission: `NULL` means “never expressed”, so an existing account keeps its behaviour and a source added later is on until someone refuses it. What is not a source — activity, the anti-redundancy windows — stays out of the registry by construction: gating those would make the assistant repeat itself rather than interrupt less. And a dependency is **declared then published**: leave-by advice reads the calendar of the first pass, so refusing the calendar would silence it; the panel says so instead of leaving a live switch with no effect.
 3. LLM structured output: `skip` | `notify` plus `interest_topic` (copied verbatim from the sample, fail-open runtime guard) and source labels constrained by a `Literal`. Two-level anti-redundancy: source, and **content** — the last 10 notifications over 7 days are injected with their excerpts, which forbids re-proposing a theme even when it came from a different source
 
 **Phase 1b — Enrichment** (when `interest_topic` is set): `InterestContentGenerator` (Perplexity → Brave → Wikipedia) under a hard timeout, deduplicated against recent notification embeddings. Fully fail-open: flag off, failure or empty result → the message ships without facts.
@@ -970,7 +970,7 @@ Provenance is therefore a property of the **data**: the registry's 24 types are 
 
 | Technology | Role |
 |------------|------|
-| Prometheus | 550 custom metrics (RED pattern) |
+| Prometheus | 553 custom metrics (RED pattern) |
 | Grafana | 29 production-ready dashboards |
 | Loki | Aggregated structured JSON logs |
 | Tempo | Cross-service distributed traces (OTLP gRPC) |
@@ -978,7 +978,7 @@ Provenance is therefore a property of the **data**: the registry's 24 types are 
 | Alertmanager | 14-alert vital core delivered by email (linked runbooks, per-environment thresholds) + webhook to LIA: every alert becomes an in-product incident (ADR-247) |
 | structlog | Structured logging with PII filtering |
 
-**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 550 defined; the 57 that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. The price of not having had this: a heartbeat source failing open dropped the health signals on 46.5 % of ticks for a week, with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
+**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 553 defined; the 44 that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. The price of not having had this: a heartbeat source failing open dropped the health signals on 46.5 % of ticks for a week, with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
 
 ### 20.2. Embedded Debug Panel
 
@@ -1469,9 +1469,11 @@ The statistical unit is the **day**, never the message — per-message counting 
 
 The hardest problem was not the detector but the **data**: conversations are ephemeral by design (resettable at will), so activity aggregates over four durable sources merged by per-hour maximum — live messages, per-run summaries, the reset audit trail (a human gesture by construction), and a daily activity bank. Every source passes a **human-session whitelist**: when the detector first ran against real production data, it claimed a daily scheduled action's 07:00 message — the scheduler's own timetable — as a user habit. The whitelist fails toward slower learning (visible), never toward a fabricated habit (invisible).
 
-Consumption is deliberately restrained: ambient context for responses and briefings, at most one missed-routine offer per day with a hard stop after two ignored ones, and notification tick scoring that prefers learned windows without ever widening the user's configured bounds — an anti-starvation rule guarantees an empty intersection changes nothing. Every threshold the detectors apply is published in the panel: a displayed habit is proven, or it does not exist.
+Consumption is deliberately restrained: ambient context for responses and briefings, at most one missed-routine offer per day, muted after two ignored ones until the routine re-occurs, and notification tick scoring that prefers learned windows without ever widening the user's configured bounds — an anti-starvation rule guarantees an empty intersection changes nothing. Every threshold the detectors apply is published in the panel: a displayed habit is proven, or it does not exist.
 
 The second half — **recurring requests** — reads the router's decision, in a closed vocabulary: the very value the product dashboard derives from, so a turn counted as an action is a turn the ledger records. The signature stays the primary domain alone. Four shapes are named: daily, workdays, weekly and **intermittent** — "several times a week around 9 am" — decided by the density of distinct days over the eligible span, never by the lock: a 3×/week is no longer promised "every day". The thresholds are measured on a durable harness (`task habits:calibration:measure`, 300 trials per cell, dense and moderate populations each with a scattered control at equal volume): a daily rhythm is recognised at D+14, a 3×/week between D+21 and D+35, a weekly ritual kept 90 % of the time at D+42 — over five slots, so a missed week no longer kills the lock — with 0-0.3 % false locks on structureless usage; the relaxations the harness refused stay in its tables. And silence is an alert: `RecurrenceLedgerSilent` compares actionable human turns with landed writes — a ledger that writes nothing while it is being spoken to is not a discreet ledger, it is a broken one.
+
+**What is learned is consumed through ONE predicate, and audited by execution.** The habits panel edits mirror rows — a window can be paused or blocked — while the heartbeat block, the tick scoring and the ambient block used to read the profile: a blocked window kept steering ticks. `habits/consumption.py::load_consumable_profile` now serves all three, keeping only the windows whose row is active, and the window key has one producer. A learned habit has a lifecycle owned by the nightly job (`recurrence_sync`: promote, refresh, keep, demote — active rows only, never on doubt, and for a silent account too, which is precisely the demotion case), never by the chat suggestion. The learning gate (`learning_gate.read_learning_gate`, fail-closed) closes every door — the ledger write, the initiative detector, the seed — and follows `HABITS_ENABLED` plus the `habits` capability switch read at the act: `habits` and `heartbeat` left ADR-280's router-guarded family for the service-enforced one, because the routes are the archive. The decision **declares** its offer (`HeartbeatDecision.habit_offered`, rule 24) instead of the offer budget hanging on a source label the model picked, and the offer has an object: the analyzer's `immediate_intent` is a bounded histogram inside the ledger payload — never part of the key, which would fragment every ledger — so `usual_intent` reaches the row, the prompt (« usually asks for a 'search' on 'email' ») and the panel through the closed `IMMEDIATE_INTENTS` vocabulary. The tick scoring lives in `habits/tick_scoring.py` with one `TickSurface` per sweep pinned to its eligibility checker, and the interest sweep applies both gates — the meeting guard and the learned rhythm; a wake bypasses the rhythm but stands aside for a meeting, the agenda verdict carrying `next_start` so the rhythm never hides an appointment. Presence is on by default and last-seen counts a presence ping. And the consultation register is fed around the whole run, eligibility included — the aggregator read in `select_target` while the collector opened in `generate_content`: 824 runs, zero rows.
 
 ## 28. Governing an instance: spend, capabilities, installation
 
@@ -1669,8 +1671,8 @@ The companion's face used to pick its end-of-turn expression from the psyche's d
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 280 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~28,233 tests across 1,652 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 280 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~28,443 tests across 1,669 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 280 ADRs, and the changelog (v1.0 to v1.44.2). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 280 ADRs, and the changelog (v1.0 to v1.44.3). All metrics, versions, and patterns cited are verifiable in the codebase.*

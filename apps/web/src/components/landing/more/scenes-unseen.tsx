@@ -2,7 +2,7 @@
  * Scenes of section 06 — "Unseen but felt": background response continuity,
  * widgets that travel across devices, per-response cost transparency, the
  * pricing grid reviewed field by field before it is written, the acts LIA
- * files under her own initiative, and
+ * files under her own initiative, a habit paused once and paused everywhere, and
  * the accessibility care (focus ring travelling on Tab), and the reflow that
  * keeps a narrow screen readable. Timer-driven micro-demos; last phase =
  * resting frame.
@@ -11,9 +11,11 @@
 'use client';
 
 import {
+  BellRing,
   Blocks,
   Brain,
   Check,
+  Clock,
   Coins,
   Eclipse,
   EyeOff,
@@ -22,12 +24,15 @@ import {
   Info,
   Map as MapIcon,
   Mic,
+  Pause,
+  Repeat,
   Send,
   Server,
   Sun,
   Sunrise,
   Vibrate,
   Wind,
+  type LucideIcon,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -622,6 +627,83 @@ function CapabilityHonestyScene({ active, labels }: SceneProps) {
   );
 }
 
+type HabitStatusPhase = 'active' | 'pausing' | 'paused';
+const HABIT_STATUS_STEPS: readonly TimelineStep<HabitStatusPhase>[] = [
+  { at: 0, state: 'active' },
+  { at: 1300, state: 'pausing' },
+  { at: 1900, state: 'paused' },
+];
+
+/**
+ * One status, read everywhere (ADR-214 amendment c).
+ *
+ * The person pauses a learned habit once; the three consumers under it — the
+ * notifications, their timing and the assistant's context — dim TOGETHER,
+ * because they now read the same rows the panel edits. The resting frame is
+ * the paused one: the row says so and nothing under it still glows.
+ */
+function HabitStatusHoldsScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(HABIT_STATUS_STEPS, { active });
+  const paused = phase === 'paused';
+  const consumers: readonly LucideIcon[] = [BellRing, Clock, Brain];
+
+  return (
+    <div className={cn(STAGE, 'items-stretch justify-center gap-2')}>
+      <div className="flex items-center gap-2 rounded-lg border border-border bg-background/60 px-2.5 py-2">
+        <Repeat
+          className={cn(
+            'h-4 w-4 transition-colors duration-300',
+            paused ? 'text-muted-foreground' : 'text-primary'
+          )}
+        />
+        <span
+          className={cn(
+            'flex-1 truncate text-[10px] font-medium transition-opacity duration-300',
+            paused ? 'opacity-40' : 'opacity-100'
+          )}
+        >
+          {labels.habit}
+        </span>
+        <span
+          aria-hidden="true"
+          className={cn(
+            'inline-flex h-5 w-5 items-center justify-center rounded-full border transition-colors duration-300 motion-reduce:transition-none',
+            phase === 'active'
+              ? 'border-border text-muted-foreground'
+              : 'border-primary/50 bg-primary/10 text-primary'
+          )}
+        >
+          <Pause className="h-2.5 w-2.5" />
+        </span>
+      </div>
+      <div className="flex items-center justify-center gap-2">
+        {consumers.map((Icon, index) => (
+          <span
+            key={index}
+            aria-hidden="true"
+            className={cn(
+              'inline-flex h-6 w-6 items-center justify-center rounded-full border transition-all duration-500 motion-reduce:transition-none',
+              paused
+                ? 'border-border text-muted-foreground opacity-40'
+                : 'border-primary/50 bg-primary/10 text-primary'
+            )}
+          >
+            <Icon className="h-3 w-3" />
+          </span>
+        ))}
+        <span
+          className={cn(
+            'text-[10px] text-muted-foreground transition-opacity duration-300',
+            paused ? 'opacity-100' : 'opacity-0'
+          )}
+        >
+          {labels.paused}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 type PluginPhase = 'skill1' | 'skill2' | 'server' | 'hold';
 
 const PLUGIN_STEPS: readonly TimelineStep<PluginPhase>[] = [
@@ -1181,6 +1263,7 @@ export const UNSEEN_SCENES: Readonly<Record<string, SceneComponent>> = {
   oled_black: OledBlackScene,
   capability_map: CapabilityMapScene,
   capability_honesty: CapabilityHonestyScene,
+  habit_status_holds: HabitStatusHoldsScene,
   finished_answer: FinishedAnswerScene,
   air_quality_honesty: AirQualityHonestyScene,
   plugin_report: PluginReportScene,

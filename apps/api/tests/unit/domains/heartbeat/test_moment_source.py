@@ -28,12 +28,14 @@ import pytest
 
 from src.domains.heartbeat.proactive_task import HeartbeatProactiveTask
 from src.domains.heartbeat.schemas import HeartbeatContext
+from src.domains.moments.busy_gate import AgendaVerdict
 from src.domains.moments.schemas import ServedMoment
+from src.domains.push_channels.wake import WakePayload
 
 pytestmark = pytest.mark.unit
 
 _DEFER = "src.domains.heartbeat.proactive_task.should_defer_tick_for_rhythm"
-_BUSY = "src.domains.heartbeat.proactive_task.should_defer_for_meeting"
+_BUSY = "src.domains.heartbeat.proactive_task.agenda_verdict"
 
 
 def _moment(**overrides: object) -> ServedMoment:
@@ -53,7 +55,7 @@ class TestWhatAMomentBypasses:
 
         with (
             patch(_DEFER, new=AsyncMock(return_value=True)) as defer,
-            patch(_BUSY, new=AsyncMock(return_value=True)) as busy,
+            patch(_BUSY, new=AsyncMock(return_value=AgendaVerdict(busy=True))) as busy,
         ):
             eligible = await task.check_eligibility(
                 uuid4(), {"heartbeat_enabled": True}, None  # type: ignore[arg-type]
@@ -71,7 +73,7 @@ class TestWhatAMomentBypasses:
 
         with (
             patch(_DEFER, new=AsyncMock(return_value=True)),
-            patch(_BUSY, new=AsyncMock(return_value=False)),
+            patch(_BUSY, new=AsyncMock(return_value=AgendaVerdict(busy=False))),
         ):
             eligible = await task.check_eligibility(
                 uuid4(), {"heartbeat_enabled": True}, None  # type: ignore[arg-type]
@@ -152,7 +154,7 @@ class TestTheInMeetingGuard:
 
     async def test_a_tick_stands_aside_during_a_meeting(self) -> None:
         with (
-            patch(_BUSY, new=AsyncMock(return_value=True)),
+            patch(_BUSY, new=AsyncMock(return_value=AgendaVerdict(busy=True))),
             patch(_DEFER, new=AsyncMock(return_value=False)) as rhythm,
         ):
             eligible = await HeartbeatProactiveTask().check_eligibility(
@@ -165,7 +167,7 @@ class TestTheInMeetingGuard:
 
     async def test_a_free_tick_goes_on_to_the_rhythm(self) -> None:
         with (
-            patch(_BUSY, new=AsyncMock(return_value=False)),
+            patch(_BUSY, new=AsyncMock(return_value=AgendaVerdict(busy=False))),
             patch(_DEFER, new=AsyncMock(return_value=False)) as rhythm,
         ):
             eligible = await HeartbeatProactiveTask().check_eligibility(
@@ -174,3 +176,68 @@ class TestTheInMeetingGuard:
 
         assert eligible is True
         rhythm.assert_awaited_once()
+
+
+class TestWhatAWakeBypasses:
+    """ADR-281 says a wake bypasses « le lissage probabiliste et le rythme
+    appris ». The code only bypassed the rhythm for a moment (measured
+    2026-09-11, sim E): a mail wake outside the learned window was consumed
+    as ineligible — a wake is never re-queued — and lost."""
+
+    def _wake(self) -> WakePayload:
+        from datetime import UTC, datetime
+
+        return WakePayload(user_id=uuid4(), provider="google_gmail", enqueued_at=datetime.now(UTC))
+
+    async def test_a_wake_is_never_deferred_by_the_rhythm(self) -> None:
+        task = HeartbeatProactiveTask(wake=self._wake())
+        with (
+            patch(_DEFER, new=AsyncMock(return_value=True)) as defer,
+            patch(_BUSY, new=AsyncMock(return_value=AgendaVerdict(busy=False))),
+        ):
+            eligible = await task.check_eligibility(
+                uuid4(), {"heartbeat_enabled": True}, None  # type: ignore[arg-type]
+            )
+        assert eligible is True
+        defer.assert_not_awaited()
+
+    async def test_a_wake_still_stands_aside_for_a_meeting_in_progress(self) -> None:
+        """Unlike a debrief, a new mail does not speak because a meeting
+        ended: interrupting the meeting is what the guard exists to prevent,
+        and the next tick reads the mail from the anchor that was not advanced."""
+        task = HeartbeatProactiveTask(wake=self._wake())
+        with (
+            patch(_DEFER, new=AsyncMock(return_value=False)),
+            patch(_BUSY, new=AsyncMock(return_value=AgendaVerdict(busy=True))),
+        ):
+            eligible = await task.check_eligibility(
+                uuid4(), {"heartbeat_enabled": True}, None  # type: ignore[arg-type]
+            )
+        assert eligible is False
+
+
+class TestTheVerdictReachesTheRhythm:
+    async def test_the_next_start_is_handed_to_the_rhythm_gate(self) -> None:
+        from datetime import UTC, datetime, timedelta
+
+        soon = datetime.now(UTC) + timedelta(minutes=30)
+        task = HeartbeatProactiveTask()
+        with (
+            patch(_DEFER, new=AsyncMock(return_value=False)) as defer,
+            patch(_BUSY, new=AsyncMock(return_value=AgendaVerdict(busy=False, next_start=soon))),
+        ):
+            await task.check_eligibility(
+                uuid4(), {"heartbeat_enabled": True}, None  # type: ignore[arg-type]
+            )
+        assert defer.await_args.kwargs["imminent_event_at"] == soon
+
+    async def test_no_verdict_hands_nothing(self) -> None:
+        task = HeartbeatProactiveTask()
+        with (
+            patch(_DEFER, new=AsyncMock(return_value=False)) as defer,
+            patch(_BUSY, new=AsyncMock(return_value=None)),
+        ):
+            await task.check_eligibility(
+                uuid4(), {"heartbeat_enabled": True}, None  # type: ignore[arg-type]
+            )
+        assert defer.await_args.kwargs["imminent_event_at"] is None

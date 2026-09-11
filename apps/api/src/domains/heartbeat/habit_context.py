@@ -13,10 +13,9 @@ Three things live here:
   usual slot passed with no ask) — an OFFER framed as service, bounded by
   the shape-aware k rule, a per-habit cooldown and the stop rule (2
   consecutive ignored offers → mute until the routine re-occurs);
-- the deterministic TICK SCORING (plan §11.2, own OFF-by-default flag): a
-  proactive tick outside the learned windows defers only when a later
-  same-day tick can land inside one within the user's bounds —
-  anti-starvation first, fail-open everywhere.
+- the deterministic TICK SCORING moved to ``habits.tick_scoring`` on
+  2026-09-11 (A11): the interest sweep reads it too, and ``heartbeat``
+  imports ``interests``, so the rule now lives with the rhythm it reads.
 
 Everything here is READ-ONLY: the offer bookkeeping (dates, mute) is stamped
 by ``proactive_task.on_notification_sent`` only when a notification actually
@@ -34,36 +33,40 @@ import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.i18n_dates import format_half_hour_label
-from src.core.time_utils import now_in_timezone, resolve_user_timezone
-from src.domains.habits.models import HabitKind, HabitStatus, ProfileVerdict, UserHabit
+from src.core.time_utils import resolve_user_timezone
+from src.domains.habits import recurrence_locks
+from src.domains.habits.capability import habits_capability_enabled
+from src.domains.habits.consumption import load_consumable_profile
+from src.domains.habits.models import HabitKind, HabitStatus, UserHabit
+from src.domains.habits.offer_bookkeeping import ignored_offer_count as ignored_offer_count
 from src.domains.habits.repository import HabitsRepository
-from src.domains.habits.rhythm import ClaimedWindow, RhythmProfile, hour_in_windows
+from src.domains.habits.rhythm import RhythmProfile
 from src.infrastructure.cache import recurrence_store
 
 logger = structlog.get_logger(__name__)
 
 
-#: Shapes that promise a calendar slot the heartbeat can find MISSED. Literal
-#: on purpose — importing the ledger's tuple would add a heartbeat→agents
-#: edge; ``test_recurrence_ledger.py`` holds the two vocabularies together.
-#: ``intermittent`` is deliberately absent: it promises no calendar day, so
-#: there is no slot to miss and nothing to offer.
-SLOTTED_SHAPES: tuple[str, ...] = ("daily", "workdays", "weekly")
+#: Shapes that promise a calendar slot the heartbeat can find MISSED — one
+#: declaration, in the habits domain (heartbeat already imports habits; the
+#: literal that used to live here existed only to avoid a heartbeat→agents
+#: edge, and the vocabulary has moved out of agents since).
+SLOTTED_SHAPES = recurrence_locks.SLOTTED_SHAPES
 
 
-def rhythm_summary(profile_payload: dict[str, Any] | None) -> dict[str, list[str]] | None:
-    """Compact per-class window labels from a stored profile payload.
+def rhythm_summary(profile: RhythmProfile | None) -> dict[str, list[str]] | None:
+    """Compact per-class window labels of a (consumable) rhythm profile.
 
     Args:
-        profile_payload: The stored ``UserHabitProfile.payload``, or None.
+        profile: The profile as narrowed by ``load_consumable_profile`` —
+            the caller never hands the raw stored payload here, or a window
+            the person paused or blocked would be served again.
 
     Returns:
         ``{"weekday": ["08:00-10:00", ...], "weekend": [...]}`` with only the
         classes that actually claim windows; None when nothing is claimed.
     """
-    if not profile_payload:
+    if profile is None:
         return None
-    profile = RhythmProfile.from_payload(profile_payload)
     summary = {
         name: [w.label() for w in rhythm.windows]
         for name, rhythm in (("weekday", profile.weekday), ("weekend", profile.weekend))
@@ -81,21 +84,6 @@ def _scheduled_days_between(days_of_week: list[int], start: date, end: date) -> 
             out.append(d)
         d += timedelta(days=1)
     return out
-
-
-def ignored_offer_count(offer_dates: list[str], occurrence_days: set[str]) -> int:
-    """Consecutive trailing offers with no occurrence on a later day.
-
-    Read-only stop-rule input: an offer counts as ignored while no occurrence
-    happened strictly AFTER it. A single later occurrence resets the run —
-    the routine re-proved itself.
-    """
-    ignored = 0
-    for offer_iso in sorted(offer_dates, reverse=True):
-        if any(day > offer_iso for day in occurrence_days):
-            break
-        ignored += 1
-    return ignored
 
 
 def detect_missed_routine(
@@ -130,12 +118,17 @@ def detect_missed_routine(
     if not _offer_allowed(payload, occurrence_days, today, settings):
         return None
 
+    usual_intent = payload.get("usual_intent")
     return {
         "habit_id": str(habit.id),
         "signature": habit.key,
         "shape": shape,
         "trigger_label": format_half_hour_label(float(trigger_hour)),
         "weekday": days_of_week[0] if shape == "weekly" else None,
+        # The request descriptor the sync copied from the ledger (Q4): what
+        # the person usually asks for on this domain, or None when the row
+        # was rebuilt from history that stores no intent.
+        "usual_intent": str(usual_intent) if isinstance(usual_intent, str) else None,
     }
 
 
@@ -190,119 +183,6 @@ def _offer_allowed(
     )
 
 
-def should_defer_tick(
-    now_local: datetime,
-    windows: tuple[ClaimedWindow, ...],
-    *,
-    notify_start_hour: int,
-    notify_end_hour: int,
-    tick_interval_minutes: int,
-) -> bool:
-    """Whether this proactive tick should wait for a learned window (pure).
-
-    The learned rhythm PRIORITIZES, it never widens (ADR-214 decision 4):
-    a tick is deferred ONLY when a later same-day tick can land both inside
-    a learned window and inside the user's configured bounds. Otherwise —
-    inside a window already, last window passed, window out of bounds, or
-    no room left for even one tick — the tick flows normally
-    (anti-starvation; the runner's guaranteed-minimum pressure stays intact
-    because in-window and post-window ticks are never deferred).
-
-    Args:
-        now_local: Current time in the user's timezone.
-        windows: Claimed windows of the CURRENT day class.
-        notify_start_hour: User's configured window start (bounds are never
-            widened; used only to detect a midnight-wrapping bounds pair).
-        notify_end_hour: User's configured window end.
-        tick_interval_minutes: Runner tick period — the margin one more
-            tick needs before the bounds close.
-
-    Returns:
-        True when the tick should wait for a learned window later today.
-    """
-    if not windows:
-        return False
-    hour = now_local.hour + now_local.minute / 60.0
-    if hour_in_windows(hour, windows):
-        return False
-    # Same-day ceiling: with midnight-wrapping user bounds the conservative
-    # ceiling is midnight — deferring toward tomorrow would starve today.
-    end_bound = float(notify_end_hour) if notify_end_hour > notify_start_hour else 24.0
-    entries = [float(w.start_hour) for w in windows if w.start_hour > hour]
-    if not entries:
-        return False
-    return min(entries) + tick_interval_minutes / 60.0 <= end_bound
-
-
-async def should_defer_tick_for_rhythm(
-    user_id: UUID,
-    user_settings: dict[str, Any],
-    settings: Any,
-) -> bool:
-    """Async gate around :func:`should_defer_tick` — flags, profile, class.
-
-    Fail-open at every step: scoring disabled, feature off, user preference
-    off, no profile, non-window verdict, or any storage error → False (the
-    tick pipeline must never be blocked by its own optimization).
-
-    Args:
-        user_id: Owner.
-        user_settings: The runner's extracted user settings (timezone,
-            bounds, ``habits_enabled`` preference).
-        settings: Application settings view.
-
-    Returns:
-        True when this tick should wait for a learned window later today.
-    """
-    if not getattr(settings, "habits_tick_scoring_enabled", False):
-        return False
-    if not getattr(settings, "habits_enabled", False):
-        return False
-    if not user_settings.get("habits_enabled", True):
-        return False
-    try:
-        from src.infrastructure.database import get_db_context
-
-        async with get_db_context() as db:
-            profile_row = await HabitsRepository(db).get_profile(user_id)
-        if profile_row is None:
-            return False
-        profile = RhythmProfile.from_payload(profile_row.payload)
-        now_local = now_in_timezone(user_settings.get("timezone"))
-        day_class = "weekday" if now_local.weekday() < 5 else "weekend"
-        rhythm = profile.weekday if day_class == "weekday" else profile.weekend
-        # Claim-quality only: windows without the WINDOWS verdict (corrupt or
-        # stale payload) must never steer timing.
-        if rhythm.verdict != ProfileVerdict.WINDOWS.value or not rhythm.windows:
-            return False
-        # Defaults mirror the runner's own bound fallbacks (runner.py) —
-        # `is None` checks, because hour 0 (midnight) is a VALID bound.
-        start_bound = user_settings.get("heartbeat_notify_start_hour")
-        end_bound = user_settings.get("heartbeat_notify_end_hour")
-        deferred = should_defer_tick(
-            now_local,
-            rhythm.windows,
-            notify_start_hour=9 if start_bound is None else int(start_bound),
-            notify_end_hour=22 if end_bound is None else int(end_bound),
-            tick_interval_minutes=int(settings.heartbeat_notification_interval_minutes),
-        )
-        if deferred:
-            from src.infrastructure.observability.metrics_habits import (
-                heartbeat_ticks_deferred_total,
-            )
-
-            heartbeat_ticks_deferred_total.labels(day_class=day_class, reason="rhythm").inc()
-            logger.debug(
-                "heartbeat_tick_deferred_rhythm",
-                user_id=str(user_id),
-                day_class=day_class,
-            )
-        return deferred
-    except Exception as exc:  # noqa: BLE001 — optimization must never block ticks
-        logger.debug("habit_tick_scoring_failed", error=str(exc))
-        return False
-
-
 async def _ledger_occurrence_days(user_id: UUID, signature: str) -> set[str]:
     """ISO dates with recorded occurrences for (user, signature) — best-effort."""
     try:
@@ -340,10 +220,11 @@ async def fetch_habits_context(
     """
     if not getattr(settings, "habits_enabled", False) or not getattr(user, "habits_enabled", True):
         return None
+    if not await habits_capability_enabled():
+        return None
 
     repo = HabitsRepository(db)
-    profile_row = await repo.get_profile(user_id)
-    rhythm = rhythm_summary(profile_row.payload if profile_row else None)
+    rhythm = rhythm_summary(await load_consumable_profile(repo, user_id))
 
     now_local = datetime.now(resolve_user_timezone(user))
     candidates = [

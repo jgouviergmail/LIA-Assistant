@@ -4,7 +4,7 @@
 
 **Version** : 6.0
 **Date** : 2026-08-23
-**Application** : LIA v1.44.2
+**Application** : LIA v1.44.3
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -345,7 +345,7 @@ Et la couleur ne porte jamais seule le sens : chaque étiquette garde son mot. U
 
 ### 6.7. Même ce que LIA apprend de toi est inspectable
 
-La même transparence couvre l'apprentissage des habitudes : ce que LIA croit savoir de ton rythme et de tes demandes récurrentes vit dans un panneau dédié — carte de chaleur de tes 24 heures, pourcentage de jours actifs, barre de progression vers les premières détections, et pour chaque habitude les jours réels où elle a été observée plus les seuils exacts appliqués par le détecteur. Quand il n'y a pas d'habitude stable, le panneau le dit au lieu d'en inventer une. Pause, blocage définitif, suppression totale, recalcul rétroactif immédiat — et toute la fonction est éteinte tant que tu ne l'actives pas.
+La même transparence couvre l'apprentissage des habitudes : ce que LIA croit savoir de ton rythme et de tes demandes récurrentes vit dans un panneau dédié — carte de chaleur de tes 24 heures, pourcentage de jours actifs, barre de progression vers les premières détections, et pour chaque habitude les jours réels où elle a été observée plus les seuils exacts appliqués par le détecteur. Quand il n'y a pas d'habitude stable, le panneau le dit au lieu d'en inventer une. Pause, blocage définitif, suppression totale, recalcul rétroactif immédiat — et toute la fonction est éteinte tant que tu ne l'actives pas. Ce que tu y poses vaut partout : une habitude en pause l'est pour les notifications, leur horaire et le contexte de l'assistante à la fois ; une routine que tu manques t'est proposée par son nom ; et une habitude apprise vit — promue, rafraîchie ou rétrogradée au fil de tes journées, jamais dans le doute.
 
 La même exigence gouverne ce que LIA retient de tes consignes : chaque règle durable (« réponds plus court », « ne me propose plus ça le soir ») est une mémoire **visible, modifiable et supprimable** — et quand un fait change, l'ancien ne s'efface pas, il s'archive derrière le nouveau, pour que corriger ne soit jamais réécrire l'histoire. Les routines que LIA propose de prendre en charge attendent ton feu vert dans une boîte dédiée : accepter préremplit le chat, rien ne part sans toi, refuser lui apprend à moins insister.
 

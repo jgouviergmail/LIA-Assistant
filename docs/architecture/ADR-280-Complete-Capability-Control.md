@@ -64,8 +64,9 @@ C'est la leçon d'ADR-279 généralisée. Deux formes d'application, choisies pa
 que la capacité EST :
 
 - **la route est la capacité** — un tableau, des connexions, un canal vivant, un
-  profil : la garde se pose sur le routeur (`workboard`, `journals`, `habits`,
-  `heartbeat`, `peers`, `psyche`, `channels`, `open_loops`) ;
+  profil : la garde se pose sur le routeur (`workboard`, `journals`, `peers`,
+  `psyche`, `channels`, `open_loops` ; `habits` et `heartbeat` ont quitté cette
+  liste le 2026-09-11, voir l'amendement ci-dessous) ;
 - **la capacité est un acte de FOND qui remplit une archive que la personne
   continue de lire** — extraire une mémoire, apprendre un intérêt, écrire un
   débrief : la garde se pose sur l'ACTE, et le routeur de l'archive reste ouvert
@@ -191,3 +192,34 @@ coupé », qui ferait conclure au lecteur que la fonctionnalité est éteinte.
 - **Grouper les familles côté frontend.** Deux tables pour une appartenance,
   c'est la dérive que ce dépôt paie régulièrement — la famille voyage avec la
   spécification.
+
+## Amendement 2026-09-11 — `habits` et `heartbeat` sont des actes de fond, gardés à l'acte
+
+L'audit des habitudes (ADR-214, amendement c) a mesuré sur docker dev ce que
+la garde de routeur ne tenait pas : `habits` OFF laissait le job nocturne
+apprendre, le ledger enregistrer, le bloc heartbeat consommer le profil et le
+scoring différer les ticks ; `heartbeat` OFF laissait le balayage périodique,
+le balayage des réveils et celui des moments notifier. La route (`/habits`,
+`/heartbeat/settings`) n'était pas la capacité : elle en est l'ARCHIVE et le
+réglage, exactement le cas de la mémoire et des intérêts.
+
+Les deux passent donc dans la seconde famille (`service_enforced=True`,
+`route_enforced=False`) :
+
+- `habits` est lu à l'acte par le job nocturne, l'écriture du ledger
+  (`record_occurrence_if_allowed`, issue `feature_disabled` sur
+  `recurrence_ledger_writes_total`), la promotion, le bloc heartbeat, le bloc
+  ambiant, le scoring de tick et le ping de présence (`record_presence` rend
+  `disabled`). Le routeur des habitudes reste ouvert — la personne consulte,
+  met en pause, supprime, oublie — et seuls `/recompute` et `/presence`, qui
+  sont des ACTES, portent `capability_dependencies(HABITS)` ;
+- `heartbeat` est lu à l'acte par les trois balayages (`heartbeat_notification`,
+  `heartbeat_wake_sweep`, `moment_sweep`, après la capacité `moments`), qui
+  répondent `capability_disabled` sans rien servir. Le routeur reste ouvert :
+  l'historique des notifications, les sujets refusés et les genres de moments
+  sont des réglages que la personne doit pouvoir lire et changer capacité
+  coupée.
+
+Chaque lecture se fait par `is_capability_enabled` à l'appel, jamais par le
+drapeau brut (décision 3). Le garde de câblage des routes lit la
+déclaration et refuse un routeur gardé pour une capacité déclarée à l'acte.

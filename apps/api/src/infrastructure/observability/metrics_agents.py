@@ -693,7 +693,7 @@ initiative_actions_rejected_total = Counter(
 recurrence_evaluation_skipped_total = Counter(
     "recurrence_evaluation_skipped_total",
     "Recurrence-suggestion evaluations skipped before any ledger read",
-    ["reason"],  # automated_source
+    ["reason"],  # automated_source | feature_disabled | user_disabled | paused | blocked
 )
 
 # ADR-214 amendment (2026-09-11): the gate counts ``scheduled`` when it HANDS
@@ -703,7 +703,7 @@ recurrence_evaluation_skipped_total = Counter(
 recurrence_ledger_writes_total = Counter(
     "recurrence_ledger_writes_total",
     "Recurrence ledger occurrence writes by outcome",
-    ["outcome"],  # written | redis_unavailable | failed
+    ["outcome"],  # written | redis_unavailable | failed | user_disabled
 )
 
 initiative_duration_seconds = Histogram(

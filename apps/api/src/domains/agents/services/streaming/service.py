@@ -1047,10 +1047,10 @@ class StreamingService:
         # column, and product importing DOMAIN_REGISTRY would create the
         # agents<->product cycle the coupling ratchet forbids.
         if routing_history_changed:
-            from src.domains.agents.registry.domain_taxonomy import DOMAIN_REGISTRY
+            from src.domains.agents.registry.domain_bounds import is_registered_domain
 
             qi_state = chunk.get("query_intelligence")
-            if isinstance(qi_state, dict) and qi_state.get("primary_domain") in DOMAIN_REGISTRY:
+            if isinstance(qi_state, dict) and is_registered_domain(qi_state.get("primary_domain")):
                 self.primary_domain = str(qi_state["primary_domain"])
 
         # 4. Cache debug panel data (query_intelligence, tool_scores, filtered_catalogue)

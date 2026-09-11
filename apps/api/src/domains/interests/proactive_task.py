@@ -5,7 +5,10 @@ Implements the ProactiveTask protocol for interest-based notifications.
 Selects top weighted interests and generates content using the content sources.
 
 Flow:
-1. check_eligibility: Verify user has interests_enabled
+1. check_eligibility: Verify user has interests_enabled, then stand aside for
+   a meeting in progress and for the learned rhythm (A11 — the same two
+   gates the heartbeat tick applies, because the person interrupted is the
+   same person)
 2. select_target: subject-rarity draw (ADR-131) or legacy uniform draw (mode switch)
 3. generate_content: Use InterestContentGenerator
 4. on_feedback: Update interest weights
@@ -24,7 +27,12 @@ from typing import Any
 from uuid import UUID
 
 from src.core.config import settings
+from src.core.constants import (
+    INTEREST_NOTIFY_END_HOUR_DEFAULT,
+    INTEREST_NOTIFY_START_HOUR_DEFAULT,
+)
 from src.core.i18n_types import get_language_name
+from src.domains.habits.tick_scoring import TickSurface, should_defer_tick_for_rhythm
 from src.domains.interests.models import UserInterest
 from src.domains.interests.repository import (
     InterestNotificationRepository,
@@ -39,9 +47,11 @@ from src.domains.interests.services.content_sources import (
     InterestContentGenerator,
 )
 from src.domains.interests.sources import build_sources_block
+from src.domains.moments.busy_gate import agenda_verdict
 from src.infrastructure.database import get_db_context
 from src.infrastructure.llm.token_utils import extract_llm_tokens
 from src.infrastructure.observability.logging import get_logger
+from src.infrastructure.observability.metrics_habits import heartbeat_ticks_deferred_total
 from src.infrastructure.observability.metrics_registry import (
     interest_selection_eligible_subjects,
     interest_selection_total,
@@ -74,6 +84,18 @@ class InterestProactiveTask:
 
     task_type: str = "interest"
 
+    #: How this sweep names its window and period for the learned-rhythm
+    #: deferral — the same fields and fallbacks as its eligibility checker
+    #: (pinned by ``test_proactive_task_gates``).
+    tick_surface: TickSurface = TickSurface(
+        task_type="interest",
+        start_hour_field="interests_notify_start_hour",
+        end_hour_field="interests_notify_end_hour",
+        default_start_hour=INTEREST_NOTIFY_START_HOUR_DEFAULT,
+        default_end_hour=INTEREST_NOTIFY_END_HOUR_DEFAULT,
+        interval_setting="interest_notification_interval_minutes",
+    )
+
     def __init__(self) -> None:
         """Initialize interest proactive task."""
         self._content_generator: InterestContentGenerator | None = None
@@ -93,8 +115,13 @@ class InterestProactiveTask:
         """
         Check if user is eligible for interest notifications.
 
-        Task-specific check: only verify interests_enabled setting.
-        Common checks (timezone, quota, cooldown) handled by EligibilityChecker.
+        Task-specific checks: the interests_enabled setting, then the two
+        « not now » gates the heartbeat tick applies (A11, 2026-09-11) —
+        someone in a meeting is the one person the activity cooldown reads
+        as MOST available, and a tick outside the learned rhythm defers only
+        when a later same-day tick can land inside a learned window. Both
+        fail open. Common checks (timezone, quota, cooldown) are handled by
+        EligibilityChecker.
 
         Args:
             user_id: User UUID
@@ -102,7 +129,7 @@ class InterestProactiveTask:
             now: Current datetime in user's timezone
 
         Returns:
-            True if interests_enabled is True
+            True when the sweep may go on to select a target now
         """
         interests_enabled = user_settings.get("interests_enabled", False)
 
@@ -111,6 +138,24 @@ class InterestProactiveTask:
                 "interest_task_user_disabled",
                 user_id=str(user_id),
             )
+            return False
+
+        # ONE calendar read (cached, shared with the heartbeat's verdict),
+        # two questions: in a meeting → stand aside; an event starting soon
+        # → the rhythm must not hide it.
+        verdict = await agenda_verdict(user_id, now, surface=self.task_type)
+        if verdict is not None and verdict.busy:
+            heartbeat_ticks_deferred_total.labels(
+                task_type=self.task_type, day_class="unknown", reason="in_meeting"
+            ).inc()
+            return False
+        if await should_defer_tick_for_rhythm(
+            user_id,
+            user_settings,
+            settings,
+            surface=self.tick_surface,
+            imminent_event_at=verdict.next_start if verdict is not None else None,
+        ):
             return False
 
         logger.debug(

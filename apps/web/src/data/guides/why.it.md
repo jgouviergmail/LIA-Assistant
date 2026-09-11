@@ -4,7 +4,7 @@
 
 **Versione**: 6.0
 **Data**: 2026-08-23
-**Applicazione**: LIA v1.44.2
+**Applicazione**: LIA v1.44.3
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -345,7 +345,7 @@ E il colore non porta mai da solo il significato: ogni etichetta conserva la sua
 
 ### 6.7. Anche ciò che LIA impara di te è ispezionabile
 
-La stessa trasparenza copre l'apprendimento delle abitudini: ciò che LIA crede di sapere del tuo ritmo e delle tue richieste ricorrenti vive in un pannello dedicato — mappa di calore delle tue 24 ore, percentuale di giorni attivi, barra di avanzamento verso i primi rilevamenti, e per ogni abitudine i giorni reali in cui è stata osservata più le soglie esatte applicate dal rilevatore. Quando non c'è un'abitudine stabile, il pannello lo dice invece di inventarla. Pausa, blocco definitivo, cancellazione totale, ricalcolo retroattivo immediato — e l'intera funzione resta spenta finché non la attivi.
+La stessa trasparenza copre l'apprendimento delle abitudini: ciò che LIA crede di sapere del tuo ritmo e delle tue richieste ricorrenti vive in un pannello dedicato — mappa di calore delle tue 24 ore, percentuale di giorni attivi, barra di avanzamento verso i primi rilevamenti, e per ogni abitudine i giorni reali in cui è stata osservata più le soglie esatte applicate dal rilevatore. Quando non c'è un'abitudine stabile, il pannello lo dice invece di inventarla. Pausa, blocco definitivo, cancellazione totale, ricalcolo retroattivo immediato — e l'intera funzione resta spenta finché non la attivi. Ciò che imposti lì vale ovunque: un'abitudine in pausa lo è per le notifiche, il loro orario e il contesto dell'assistente allo stesso modo; una routine che manchi ti viene proposta per nome; e un'abitudine appresa vive — promossa, aggiornata o retrocessa mentre le tue giornate cambiano, mai nel dubbio.
 
 La stessa esigenza governa ciò che LIA trattiene delle tue indicazioni: ogni regola duratura («rispondi più breve», «non propormelo più la sera») è una memoria **visibile, modificabile ed eliminabile** — e quando un fatto cambia, il vecchio non si cancella: si archivia dietro al nuovo, perché correggere non sia mai riscrivere la storia. Le routine che LIA propone di prendere in carico attendono il tuo via libera in una casella dedicata: accettare precompila la chat, nulla parte senza di te, rifiutare le insegna a insistere meno.
 

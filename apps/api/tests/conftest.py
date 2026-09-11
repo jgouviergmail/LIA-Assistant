@@ -64,6 +64,15 @@ else:
     # localhost resolves to ::1 first and the Docker IPv6 proxy times out
     # with redis-py asyncio (the sync client silently falls back to IPv4).
     os.environ["REDIS_URL"] = f"redis://:{_redis_password}@127.0.0.1:6379/15"  # Test DB 15
+# The DB index carried by REDIS_URL is NOT what the clients open:
+# ``infrastructure/cache/redis.py`` rebuilds the URL with ``redis_cache_db`` /
+# ``redis_session_db`` (2 / 1 by default, and the root .env the Taskfile
+# injects says the same). Any test that reached the real cache client therefore
+# wrote into the developer's live cache — measured 2026-09-11: 2 639
+# ``presence:last:<uuid>`` markers for 16 real accounts, written in bursts at
+# every suite run. Both indices must follow the test database.
+os.environ["REDIS_CACHE_DB"] = "15"
+os.environ["REDIS_SESSION_DB"] = "15"
 
 # ruff: noqa: E402 - Module level imports must come after environment setup
 

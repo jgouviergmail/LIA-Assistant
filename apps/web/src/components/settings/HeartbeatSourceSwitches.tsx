@@ -7,10 +7,12 @@ import {
   CakeSlice,
   CloudSun,
   Heart,
+  LayoutGrid,
   ListChecks,
   ListTodo,
   Mail,
   Navigation,
+  Repeat,
   Sparkles,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -69,6 +71,11 @@ const SOURCE_ICONS: Record<string, LucideIcon> = {
   birthdays: CakeSlice,
   open_loops: ListTodo,
   departure: Navigation,
+  // The same marks their own settings sections wear (`HabitsSettings`,
+  // `WorkboardSettings`): unlisted, both fell back to the neutral glyph,
+  // which is also the one « Interests » wears — three rows, one mark.
+  habits: Repeat,
+  workboard: LayoutGrid,
 };
 
 export function HeartbeatSourceSwitches({

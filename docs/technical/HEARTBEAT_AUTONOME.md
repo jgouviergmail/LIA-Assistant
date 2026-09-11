@@ -106,7 +106,9 @@ The `ContextAggregator` fetches all sources in parallel via `asyncio.gather(retu
 | Birthdays | `connectors.birthdays.fetch_upcoming_birthdays` via `context_sources.fetch_birthdays_context` (Redis cache to local midnight, horizon `HEARTBEAT_CONTEXT_BIRTHDAYS_DAYS`) — P7 | Google Contacts connector | None |
 | Departure advice | `context_sources.fetch_departure_advice` (2nd pass over fetched calendar events: Routes traffic-aware ETA + leave-by, Redis cache per (user, event), ≤1 call/cycle) — P6, rule 20 | `HEARTBEAT_DEPARTURE_ENABLED` + Google API key | None |
 | Open loops | `context_sources.fetch_open_loops_context` (lazy expiry + nudge-worthiness filter + per-loop cooldown; post-notify bump in `proactive_task` when `OPEN_LOOPS` was used) — P5, ADR-139 | `OPEN_LOOPS_ENABLED` | None |
-| Activity | Last message query | Always available | None |
+| Habits | `habit_context.fetch_habits_context` — the learned RHYTHM (consumable windows only: a window the person paused, blocked or deleted never reaches the prompt — `habits/consumption.py`) and at most ONE missed-routine OFFER, naming the usual request (`usual_intent`, ADR-214 c) — rule 24 | `HABITS_ENABLED` + the `habits` capability switch + the person's « learn my habits » preference | None |
+| Workboard | `context_sources.fetch_workboard_context` (nudge-worthy tickets, D14) — ADR-276 | `WORKBOARD_ENABLED` | None |
+| Activity | `conversations/activity_probe.fetch_last_seen_at` — the LAST of the person's last visible human message and their last presence ping (`last_presence_at`): someone who reads without writing is not absent (ADR-214 c) | Always available | None |
 | Recent heartbeats | HeartbeatNotification table (10 items / 7 days, CONTENT excerpts — ADR-135) | Always available | [] |
 | Recent interest notifications | InterestNotification JOIN | Always available | [] |
 | Recent other proactive messages | Archived `proactive_reminder`/`proactive_phone_call` conversation messages + `ScheduledAction.last_executed_at` (extended anti-redundancy window — P10, prompt rule 10c) | Always available | [] |
@@ -118,6 +120,25 @@ The standalone fetchers and the pure weather-transition rules live in
 `src/domains/heartbeat/context_sources.py` (extracted — file-size ratchet);
 `ContextAggregator` keeps thin delegate methods.
 
+**Which sources an account can produce is one table, complete by
+construction** (`heartbeat/source_availability.py`): one probe per source of
+`HEARTBEAT_SOURCE_ORDER`, asserted complete at import (ADR-085). The settings
+panel used to compute availability for 8 of 13 sources and showed « Not
+connected » for ever on habits, workboard, commitments, birthdays and the
+leave-by advice (measured 2026-09-11).
+
+**The clock the decision reads is the person's** (`prompts.message_clock`):
+`current_datetime` and the psyche block's time are rendered from
+`context.user_local_time` in the account's timezone — the message used to
+say « il est 9h43 » at 11:43 in Paris.
+
+**The consultation register is fed from the run, not from one step**
+(ADR-263): the runner publishes the `treatment_recorder` collector around the
+WHOLE per-account pipeline (`_serve_user`), because the aggregator reads the
+sources in `select_target` while the collector used to be opened around
+`generate_content` — 824 runs over thirty days without a single
+`heartbeat:*` row, the regression ADR-263 had already paid for once.
+
 ### Per-source permission (ADR-197)
 
 Being **connected** to a service and being **interrupted** by it are two
@@ -127,7 +148,8 @@ the tool the user asks with.
 
 `domains/heartbeat/source_policy.py` owns the vocabulary:
 
-- `HEARTBEAT_SOURCE_KEYS` — the eleven sources a notification can be *about*.
+- `HEARTBEAT_SOURCE_KEYS` — the thirteen sources a notification can be *about*
+  (habits and the workboard joined the eleven of v1.27.8).
   `activity` and the three anti-redundancy windows are deliberately absent:
   they say what was already sent, so gating them would make the assistant
   repeat itself rather than interrupt less.
@@ -210,7 +232,8 @@ meeting is invisible to it, and a tick draws a random batch rather than
 targeting a person.
 
 The moment sweep (`MOMENTS_SWEEP_INTERVAL_MINUTES`, jittered, its lock TTL tied
-to its own interval) detects, claims, revalidates and serves. Like a wake it
+to its own interval through `scheduler_lock.ttl_for_interval` — the wake sweep
+sizes its lock the same way since 2026-09-11) detects, claims, revalidates and serves. Like a wake it
 runs the SAME `HeartbeatProactiveTask` for that account only, under the SAME
 `EligibilityChecker`, and skips only the probabilistic smoothing and the
 learned rhythm: **an instant does not defer**. It is additionally held back
@@ -245,10 +268,43 @@ The periodic tick is no longer the only way a decision starts. When
 calendar) queues the user; the wake sweep serves the queue every
 `PUSH_WAKE_SWEEP_INTERVAL_SECONDS` (jittered) and runs the SAME
 `HeartbeatProactiveTask` for that user only, through the same
-`ProactiveTaskRunner` and the same `EligibilityChecker`. The only gate a wake
-skips is the probabilistic "guaranteed minimum" smoothing — a wake answers an
-event; the window, the daily quota and every cooldown still apply, plus a
-wake cooldown of its own (`PUSH_WAKE_COOLDOWN_MINUTES`).
+`ProactiveTaskRunner` and the same `EligibilityChecker`. The gates a wake
+skips are the probabilistic "guaranteed minimum" smoothing and the learned
+rhythm (a wake is consumed when served, so « later today » would mean
+« lost ») — a wake answers an event; the window, the daily quota and every
+cooldown still apply, plus a wake cooldown of its own
+(`PUSH_WAKE_COOLDOWN_MINUTES`), and a wake still stands aside for a meeting
+in progress: the next tick reads the mail from the anchor the refused wake
+did not advance.
+
+### The agenda verdict, and what a tick does with it
+
+`HeartbeatProactiveTask.check_eligibility` reads the calendar ONCE per tick
+per account through `moments/busy_gate.agenda_verdict` (cached
+`MOMENTS_BUSY_GUARD_CACHE_SECONDS`; a cache hit records no consultation) and
+asks it two questions: **busy** — a meeting this person attends is in
+progress → the tick stands aside (`heartbeat_ticks_deferred_total{reason=
+"in_meeting"}`); **next_start** — the next event of theirs starting within
+`MOMENTS_BUSY_GUARD_WINDOW_HOURS` → the learned rhythm must not defer this
+tick (`heartbeat_rhythm_escapes_total{reason="imminent_event"}`): a
+departure advice for a 15:00 meeting cannot wait for a 20-22h window. The
+interest sweep asks the same two questions of the same cached verdict
+(ADR-214 c, A11), filing a live read under its own surface, and both counters
+carry the `task_type`.
+
+### The learned rhythm (ADR-214)
+
+`habits/tick_scoring.should_defer_tick_for_rhythm` — behind
+`HABITS_TICK_SCORING_ENABLED` — defers a tick only when a later same-day tick
+can land inside a learned window within the sweep's own bounds
+(`TickSurface`, one per sweep, pinned to its `EligibilityChecker`). Fail-open
+everywhere; consumable windows only. The prompt sees the rhythm as CONTEXT
+(rule 24: prefer those windows, never mention that a rhythm was learned) and
+the missed routine as an OFFER the decision must DECLARE
+(`HeartbeatDecision.habit_offered`): the offer budget (≤ 1/day, 7-day
+cooldown, mute after 2 ignored) is stamped from that declaration, no longer
+from the `sources_used` label the model happened to pick (measured
+2026-09-11: an offer labelled `UNREAD_EMAILS` never burnt its cooldown).
 
 What the decision sees: the aggregator receives the wake payload — the mail
 metadata the pre-filter already fetched (used instead of the delta fast-path,
