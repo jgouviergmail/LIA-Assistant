@@ -4741,9 +4741,10 @@
             "i5": "<b>👁️ «Vigilar» sobre un correo del briefing</b> — un gesto en una tarjeta de correo pone una vigilancia sobre la respuesta de ese remitente, durante dos semanas. Se niega a crear una segunda para la misma persona: una respuesta esperada nunca se anuncia dos veces.",
             "i6": "<b>🧭 El aprendizaje de hábitos por fin aprende</b> — el registro de peticiones recurrentes no había anotado ni una en cinco semanas: dos lectores buscaban un campo que no existía. Ahora anota, una alerta lo notaría si se detuviera, y los umbrales se recalibraron sobre un banco duradero: un hábito «varias veces por semana» se llama así, uno diario se reconoce en dos semanas, y cada listón que hay que superar se publica en la explicación «por qué ningún hábito».",
             "i7": "<b>🖼️ Las miniaturas de la galería muestran la imagen entera</b> — una foto vertical ya no llega recortada, y una tarjeta de documento lleva la marca de su tipo en vez de una simple línea de texto.",
-            "i8": "<b>🔧 También corregido</b> — una rutina cerrada por el sistema ya no se lee «En pausa»; una nota sobre un conector ausente ya no afirma que lo desactivaste; la guía del heartbeat nombraba un modelo y dos valores por defecto erróneos, corregidos."
+            "i8": "<b>🧭 Una conversación larga dejaba de actuar tras unos días en modo autónomo</b> — el tiempo pasado en las herramientas se sumaba turno tras turno durante toda la vida de la conversación en lugar de empezar de cero en cada uno. Tras unos seis días de uso normal, el contador superaba su presupuesto y, desde entonces, cada turno autónomo de esa conversación se detenía antes de ejecutar una sola herramienta: un recordatorio pedido tres veces, tres veces nada, ningún error. El contador ahora empieza de cero en cada turno —conversaciones, rutinas y tickets incluidos— y una guarda rechaza cualquier contador futuro que no lo hiciera.",
+            "i9": "<b>🔧 También corregido</b> — una rutina cerrada por el sistema ya no se lee «En pausa»; una nota sobre un conector ausente ya no afirma que lo desactivaste; la guía del heartbeat nombraba un modelo y dos valores por defecto erróneos, corregidos."
           },
-          "count": "8"
+          "count": "9"
         },
         "v1_44_1": {
           "title": "v1.44.1 — 🗂️ Lo que LIA fabrica es tuyo",

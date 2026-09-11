@@ -4750,9 +4750,10 @@
             "i5": "<b>👁️ « Watch » on a briefing e-mail</b> — one gesture on a mail card posts a watch for that sender's reply, for two weeks. It refuses to create a second one for the same person, so an awaited reply is never announced twice.",
             "i6": "<b>🧭 Habit learning finally learns</b> — the ledger of recurring requests had never recorded a single one, in five weeks: two readers looked up a field that did not exist. It records now, an alert would notice if it stopped, and the thresholds were recalibrated on a durable harness: a habit coming several times a week is named as such, a daily one is recognised after two weeks, and every bar you must clear is published in the &quot;why no habit&quot; explanation.",
             "i7": "<b>🖼️ Gallery thumbnails show the whole image</b> — a portrait picture no longer arrives cropped, and a document card carries the mark of its type instead of a bare line of text.",
-            "i8": "<b>🔧 Also fixed</b> — a routine the system closed no longer reads &quot;Paused&quot;; a note about a missing connector no longer claims you switched it off; the heartbeat guide named a model and two wrong defaults, now corrected."
+            "i8": "<b>🧭 A long conversation stopped acting after a few days of autonomous mode</b> — the time spent inside tools was added up turn after turn for the whole life of the conversation instead of restarting on each one. After about six days of ordinary use the counter crossed its budget, and from then on every autonomous turn of that conversation stopped before running a single tool: a reminder asked three times, three times nothing, no error. The counter now restarts on every turn, in conversations, routines and tickets alike, and a guard refuses any future counter that would not.",
+            "i9": "<b>🔧 Also fixed</b> — a routine the system closed no longer reads &quot;Paused&quot;; a note about a missing connector no longer claims you switched it off; the heartbeat guide named a model and two wrong defaults, now corrected."
           },
-          "count": "8"
+          "count": "9"
         },
         "v1_44_1": {
           "title": "v1.44.1 — 🗂️ What LIA makes belongs to you",

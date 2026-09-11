@@ -135,6 +135,13 @@ block, each best-effort, each returning `None` when it has nothing to say.
   the response node synthesises). It buys an answer instead of a promise.
 - **Extensions are observable**: `react_productive_iterations` is state, and the
   truncation reason is logged and rendered.
+- **And that state restarts on every turn** (amendment 2026-09-11). The counter
+  was charged as `previous + 1`, restored by the checkpoint, and named nowhere
+  in the router's turn-start reset — so `budget <= productive` stayed true from
+  the first turns on and every turn began at the ceiling, ADR-238's saving
+  silently gone. It now comes from `react_turn_reset()` (ADR-256 amendment, one
+  declaration for every accumulator the stop predicate reads, AST-guarded); the
+  same omission on `react_tool_seconds` killed every ReAct turn of a thread.
 - **Defaults**: progress extension is ON. A self-hoster who wants the historical
   behaviour sets `REACT_PROGRESS_EXTENSION_ENABLED=false`.
 - ADR-238 is not withdrawn: domain span remains the right way to size the

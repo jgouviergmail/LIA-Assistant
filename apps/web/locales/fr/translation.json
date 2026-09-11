@@ -4755,9 +4755,10 @@
             "i5": "<b>👁️ « Surveiller » sur un courriel du briefing</b> — un geste sur une carte de courriel pose une veille sur la réponse de cet expéditeur, pour deux semaines. Il refuse d’en créer une seconde pour la même personne : une réponse attendue n’est jamais annoncée deux fois.",
             "i6": "<b>🧭 L’apprentissage des habitudes apprend enfin</b> — le registre des demandes récurrentes n’en avait jamais enregistré une seule en cinq semaines : deux lecteurs cherchaient un champ qui n’existait pas. Il enregistre désormais, une alerte le remarquerait s’il s’arrêtait, et les seuils ont été recalibrés sur un harnais durable : une habitude « plusieurs fois par semaine » est nommée ainsi, une habitude quotidienne est reconnue en deux semaines, et chaque barre à franchir est publiée dans l’explication « pourquoi aucune habitude ».",
             "i7": "<b>🖼️ Les vignettes de la galerie montrent l’image entière</b> — une photo en portrait n’arrive plus rognée, et une carte de document porte la marque de son type au lieu d’une simple ligne de texte.",
-            "i8": "<b>🔧 Corrigé aussi</b> — une routine fermée par le système ne se lit plus « En pause » ; une note sur un connecteur absent ne prétend plus que tu l’as désactivé ; le guide du battement nommait un modèle et deux défauts erronés, corrigés."
+            "i8": "<b>🧭 Une conversation longue cessait d’agir après quelques jours de mode autonome</b> — le temps passé dans les outils s’additionnait tour après tour pour toute la vie de la conversation au lieu de repartir de zéro à chacun. Au bout de six jours d’usage ordinaire, le compteur dépassait son budget et chaque tour autonome de cette conversation s’arrêtait ensuite avant de lancer le moindre outil : un rappel demandé trois fois, trois fois rien, aucune erreur. Le compteur repart désormais de zéro à chaque tour — conversations, routines et tickets compris — et un garde refuse tout futur compteur qui ne le ferait pas.",
+            "i9": "<b>🔧 Corrigé aussi</b> — une routine fermée par le système ne se lit plus « En pause » ; une note sur un connecteur absent ne prétend plus que tu l’as désactivé ; le guide du battement nommait un modèle et deux défauts erronés, corrigés."
           },
-          "count": "8"
+          "count": "9"
         },
         "v1_44_1": {
           "title": "v1.44.1 — 🗂️ Ce que LIA fabrique t'appartient",

@@ -180,6 +180,19 @@ too long when in fact a sub-agent did.
 
 Both exclude the wall clock a user spends on a HITL approval, for the structural reason below.
 
+**Both restart at zero on every turn, from ONE declaration** — `react_turn_reset()` in
+`utils/react_budget.py`, spread by `router_node_v3` at turn start and by `create_initial_state`.
+Every accumulator of the loop (`react_iteration`, both time counters, `react_productive_iterations`,
+`react_call_digests`) is charged as `previous + spent` and restored by the checkpoint, so one the
+router does not reset is a debt that runs for the life of the thread. Measured on production
+(2026-09-11, ADR-256 amendment): `react_tool_seconds` was missing from the router's hand-maintained
+list, one conversation accumulated 913.8 s over six days, and every later ReAct turn of that thread
+stopped at iteration 1 with its tool calls abandoned — no error, three identical « ko ». A routine
+(one thread per action) and a ticket (one thread per ticket) reach the same wall, slower.
+`test_react_turn_reset_guard.py` reads by AST every `state.get("react_…")` of the stop predicate and
+of the routing edge, and refuses a key the declaration does not name; `react_max_iterations_effective`
+is the one exemption, because its start value is COMPUTED by `react_setup_node` from the domain span.
+
 `react_agent_timeout_seconds` is compared against **compute time**, not wall
 clock. The reason is structural: `interrupt()` raises, so the node never returns, no state
 update is persisted and no timestamp is refreshed; the resume re-enters the interrupted node,

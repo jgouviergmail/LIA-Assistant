@@ -24,6 +24,7 @@ from src.core.field_names import (
 from src.domains.agents.data_registry.models import RegistryItem
 from src.domains.agents.data_registry.state import merge_registry
 from src.domains.agents.utils.message_filters import remove_orphan_tool_messages
+from src.domains.agents.utils.react_budget import react_turn_reset
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -717,9 +718,7 @@ def create_initial_state(
         context_confidence=1.0,  # Default high confidence
         # LLM-Native Semantic Architecture: Semantic Agent (Phase 2)
         filtered_tools=[],  # Tool names selected by semantic matching
-        react_iteration=0,  # ReAct loop iteration counter
         react_max_iterations_effective=None,  # ADR-238 adaptive budget (None = fixed cap)
-        react_productive_iterations=0,  # ADR-248 progress-earned extensions
         react_scripts=[],  # ADR-249 ephemeral scripts (admin debug surface)
         react_script_runs=0,  # ADR-249 script budget consumed this turn
         pending_tool_calls=[],  # Tool calls awaiting execution
@@ -757,14 +756,16 @@ def create_initial_state(
         # ReAct Execution Mode (ADR-070)
         execution_mode=None,
         react_agent_result=None,
-        # react_iteration already initialized above (Semantic Agent Phase 2)
         react_tool_names=[],
         react_hitl_map={},
         react_start_time=None,
         react_system_blocks=[],
-        react_elapsed_seconds=0.0,
-        react_tool_seconds=0.0,
-        react_call_digests={},
+        # The loop's accumulators (iteration, reasoning seconds, tool seconds,
+        # productive iterations, call digests) start where every turn restarts:
+        # ONE declaration, next to the predicate that reads them. Listing them
+        # here by hand is how the initial state and the turn reset drifted apart
+        # (ADR-256 amendment, 2026-09-11).
+        **react_turn_reset(),
     )
 
 

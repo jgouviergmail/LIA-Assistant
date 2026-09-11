@@ -25,6 +25,7 @@ from src.domains.agents.constants import (
     STATE_KEY_ROUTING_HISTORY,
 )
 from src.domains.agents.nodes.router_node_v3 import get_router_v3_edge, router_node_v3
+from src.domains.agents.utils.react_budget import react_turn_reset
 
 pytestmark = pytest.mark.unit
 
@@ -169,6 +170,47 @@ class TestRouterClearsPerTurnState:
         update = await router_node_v3(state, _config())
 
         assert update[key] == expected
+
+
+class TestRouterResetsTheReactTurn:
+    """The ReAct counters restart from the ONE declaration, never from a list.
+
+    Measured on production, 2026-09-11: ``react_tool_seconds`` was missing from
+    the hand-maintained reset above, so the checkpoint carried six days of tool
+    time (913.8 s) into every new turn and each one died at iteration 1 with its
+    tool calls abandoned. The cases below are DERIVED from the declaration: a
+    counter added there is tested here without anyone editing this file.
+    """
+
+    @pytest.mark.parametrize("key,expected", sorted(react_turn_reset().items()))
+    async def test_every_declared_counter_restarts(self, key: str, expected: Any) -> None:
+        stale = {
+            "react_iteration": 7,
+            "react_elapsed_seconds": 240.0,
+            "react_tool_seconds": 913.79,
+            "react_productive_iterations": 40,
+            "react_call_digests": {"digest": 3},
+        }
+        state = _state(HumanMessage(content="cherche jean"))
+        state.update(stale)
+        assert state[key] != expected, "precondition: the stale value differs from the reset"
+
+        update = await router_node_v3(state, _config())
+
+        assert update[key] == expected
+
+    async def test_an_exhausted_tool_budget_does_not_survive_the_turn_start(self) -> None:
+        """The incident, on the node: the value that killed three attempts."""
+        from src.core.config import settings
+        from src.domains.agents.utils.react_budget import react_exit_reason
+
+        state = _state(HumanMessage(content="rappelle-moi samedi"))
+        state["react_tool_seconds"] = float(settings.react_tool_budget_seconds) + 13.79
+        state["react_iteration"] = 1
+
+        update = await router_node_v3(state, _config())
+
+        assert react_exit_reason({**state, **update}) is None
 
 
 class TestRouterEdge:

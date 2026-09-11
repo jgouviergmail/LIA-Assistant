@@ -4741,9 +4741,10 @@
             "i5": "<b>👁️ „Beobachten“ auf einer Briefing-Mail</b> — ein Griff auf einer Mail-Karte setzt für zwei Wochen eine Beobachtung auf die Antwort dieses Absenders. Für dieselbe Person legt er keine zweite an: Eine erwartete Antwort wird nie zweimal angekündigt.",
             "i6": "<b>🧭 Das Gewohnheitslernen lernt endlich</b> — das Register wiederkehrender Anfragen hatte in fünf Wochen keine einzige aufgezeichnet: Zwei Leser suchten ein Feld, das es nicht gab. Es zeichnet jetzt auf, ein Alarm würde einen Stillstand bemerken, und die Schwellen wurden auf einem dauerhaften Prüfstand neu kalibriert: Eine Gewohnheit „mehrmals pro Woche“ heißt so, eine tägliche wird nach zwei Wochen erkannt, und jede Latte steht in der Erklärung „warum keine Gewohnheit“.",
             "i7": "<b>🖼️ Galerie-Vorschauen zeigen das ganze Bild</b> — ein Hochformat kommt nicht mehr beschnitten an, und eine Dokumentkarte trägt die Marke ihres Typs statt einer bloßen Textzeile.",
-            "i8": "<b>🔧 Ebenfalls behoben</b> — eine vom System geschlossene Routine liest sich nicht mehr „Pausiert“; ein Hinweis auf einen fehlenden Connector behauptet nicht mehr, du hättest ihn abgeschaltet; der Heartbeat-Leitfaden nannte ein Modell und zwei falsche Vorgaben, jetzt korrigiert."
+            "i8": "<b>🧭 Eine lange Unterhaltung hörte nach einigen Tagen im autonomen Modus auf zu handeln</b> — die in Werkzeugen verbrachte Zeit wurde Zug um Zug für die gesamte Lebensdauer der Unterhaltung aufsummiert, statt bei jedem Zug neu zu beginnen. Nach etwa sechs Tagen gewöhnlicher Nutzung überschritt der Zähler sein Budget, und von da an brach jeder autonome Zug dieser Unterhaltung ab, bevor ein einziges Werkzeug lief: eine Erinnerung dreimal erbeten, dreimal nichts, kein Fehler. Der Zähler beginnt jetzt bei jedem Zug neu – in Unterhaltungen, Routinen und Tickets gleichermaßen – und eine Prüfung weist jeden künftigen Zähler zurück, der das nicht täte.",
+            "i9": "<b>🔧 Ebenfalls behoben</b> — eine vom System geschlossene Routine liest sich nicht mehr „Pausiert“; ein Hinweis auf einen fehlenden Connector behauptet nicht mehr, du hättest ihn abgeschaltet; der Heartbeat-Leitfaden nannte ein Modell und zwei falsche Vorgaben, jetzt korrigiert."
           },
-          "count": "8"
+          "count": "9"
         },
         "v1_44_1": {
           "title": "v1.44.1 — 🗂️ Was LIA erstellt, gehört dir",

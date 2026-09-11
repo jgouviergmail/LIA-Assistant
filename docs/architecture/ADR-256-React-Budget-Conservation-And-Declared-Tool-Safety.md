@@ -250,6 +250,39 @@ resserrer.
 - La borne temporelle du ReAct reste appliquée **entre** deux appels, jamais au
   milieu d'un appel LLM déjà parti. C'est la limite que le pipeline a aussi.
 
+## Amendement 2026-09-11 — le compteur ne repartait jamais de zéro
+
+**Mesuré en production.** `react_tool_seconds` est débité en `précédent + dépensé`
+et restitué par le point de reprise à chaque tour ; la remise à zéro de début de
+tour vit dans `router_node_v3`, dans une liste de clés tenue à la main et écrite
+avant cet ADR — qui ne le nommait pas. Sur une conversation, le cumul est passé
+de 77 s (05/09) à 913,8 s (11/09 06:31) en six jours d'usage ordinaire, chaque
+tour ne dépensant que 5 à 60 s ; à partir de là, **chaque tour ReAct du fil
+s'arrêtait à l'itération 1** (`reason=tool_budget`), le modèle ayant bien émis
+`create_reminder_tool` + `create_event_tool`, tous deux abandonnés par
+`react_finalize_node`. Trois relances, trois « ko », aucune erreur nulle part —
+et `uncharged_wall_seconds`, calculé comme `mur − (raisonnement + outils)`, était
+écrasé à 0. `react_productive_iterations` (ADR-248) portait le même oubli dans
+l'autre sens : le budget adaptatif d'ADR-238 était gonflé jusqu'au plafond dès
+les premiers tours. Une routine (un fil par action pour toute sa vie) et un
+ticket du tableau de travail (un fil par ticket) atteignaient le même mur, plus
+lentement — les fils `scheduled_*` montaient d'un jour sur l'autre dans Loki.
+
+**Décision.** Ce qu'un tour ReAct commence avec est **déclaré une fois**,
+`react_turn_reset()` dans `utils/react_budget.py`, à côté de l'arithmétique qui
+le lit ; le routeur déplie la déclaration au lieu de recopier des clés. Un garde
+(`test_react_turn_reset_guard.py`) lit par AST chaque `state.get("react_…")` de
+`react_exit_reason`, `react_iteration_budget` et des deux lecteurs de
+`react_finalize_node`, et refuse toute clé absente de la déclaration — sauf
+`REACT_TURN_KEYS_OWNED_BY_SETUP`, dont la valeur de départ est **calculée** par
+`react_setup_node` (l'allocation d'ADR-238), et dont le garde vérifie que le
+nœud l'écrit réellement. Les cas du test du routeur sont désormais dérivés de la
+déclaration. Aucune migration : le premier tour après déploiement écrit `0.0`
+dans chaque fil, conversations, routines et tickets compris. Le mode pipeline
+n'était pas concerné : ses bornes sont des `wait_for` à l'horloge murale, rien
+n'y est additionné dans l'état, et ses deux compteurs d'itérations étaient déjà
+dans la remise à zéro.
+
 ## Alternatives écartées
 
 - **Additionner le temps outil dans `react_elapsed_seconds`.** Mesuré : une

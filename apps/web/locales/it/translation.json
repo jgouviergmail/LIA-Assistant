@@ -4743,9 +4743,10 @@
             "i5": "<b>👁️ «Sorveglia» su un’e-mail del briefing</b> — un gesto su una scheda e-mail mette una sorveglianza sulla risposta di quel mittente, per due settimane. Rifiuta di crearne una seconda per la stessa persona: una risposta attesa non viene mai annunciata due volte.",
             "i6": "<b>🧭 L’apprendimento delle abitudini impara finalmente</b> — il registro delle richieste ricorrenti non ne aveva annotata nemmeno una in cinque settimane: due lettori cercavano un campo che non esisteva. Ora annota, un allarme se ne accorgerebbe se si fermasse, e le soglie sono state ricalibrate su un banco duraturo: un’abitudine «più volte a settimana» si chiama così, una quotidiana è riconosciuta in due settimane, e ogni asticella da superare è pubblicata nella spiegazione «perché nessuna abitudine».",
             "i7": "<b>🖼️ Le miniature della galleria mostrano l’immagine intera</b> — una foto verticale non arriva più ritagliata, e una scheda documento porta il segno del suo tipo invece di una semplice riga di testo.",
-            "i8": "<b>🔧 Corretto anche</b> — una routine chiusa dal sistema non si legge più «In pausa»; una nota su un connettore assente non afferma più che l’hai disattivato; la guida del heartbeat nominava un modello e due valori predefiniti errati, corretti."
+            "i8": "<b>🧭 Una conversazione lunga smetteva di agire dopo qualche giorno in modalità autonoma</b> — il tempo passato negli strumenti si sommava turno dopo turno per tutta la vita della conversazione invece di ripartire da zero a ognuno. Dopo circa sei giorni di uso ordinario il contatore superava il suo budget e, da allora, ogni turno autonomo di quella conversazione si fermava prima di eseguire un solo strumento: un promemoria chiesto tre volte, tre volte niente, nessun errore. Il contatore ora riparte da zero a ogni turno — conversazioni, routine e ticket compresi — e una guardia rifiuta qualsiasi contatore futuro che non lo facesse.",
+            "i9": "<b>🔧 Corretto anche</b> — una routine chiusa dal sistema non si legge più «In pausa»; una nota su un connettore assente non afferma più che l’hai disattivato; la guida del heartbeat nominava un modello e due valori predefiniti errati, corretti."
           },
-          "count": "8"
+          "count": "9"
         },
         "v1_44_1": {
           "title": "v1.44.1 — 🗂️ Quello che LIA produce è tuo",

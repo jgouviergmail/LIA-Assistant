@@ -357,9 +357,10 @@ When a new feature is read-only, latency-sensitive, and would be unnatural in th
 
 LangGraph state is a `TypedDict` (`MessagesState`) with a custom `add_messages_with_truncate` reducer that handles token-based truncation, message windowing, and OpenAI message sequence validation. State is checkpointed to PostgreSQL.
 
-Two traps when touching state:
+Three traps when touching state:
 - Any key a node writes **must be declared in `MessagesState`** — undeclared keys are silently dropped by LangGraph (recurring trap: writing an object "mirror" of a dict field under an undeclared key; only the declared dict survives the checkpoint).
 - State survives msgpack round-trips: custom objects must be stored as dicts (`to_serializable_dict`) and reconstructed on read — keep both sides in sync (see Systemic Rules, round-trip test).
+- **A counter charged as `previous + spent` is a debt for the life of the thread unless the turn start resets it.** The checkpoint restores it on every turn, and a chat conversation, a routine (one thread per action) and a ticket (one thread per ticket) each live for weeks. `react_tool_seconds` was added to the state by ADR-256 and never to the router's hand-maintained reset list: one conversation accumulated 913.8 s over six days and every later ReAct turn died at iteration 1 with its tool calls abandoned — three « ko », no error (2026-09-11). What a ReAct turn starts with is now ONE declaration, `react_turn_reset()` in `utils/react_budget.py`, spread by the router and AST-guarded against every key the stop predicate reads (`test_react_turn_reset_guard.py`). Adding an accumulator means adding it there, never to a list in a node.
 
 ### Tool System
 

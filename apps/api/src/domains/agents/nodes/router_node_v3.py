@@ -46,6 +46,7 @@ from src.domains.agents.constants import (
 from src.domains.agents.context.runtime_context import runtime_context_if_running
 from src.domains.agents.domain_schemas import RouterOutput
 from src.domains.agents.models import MessagesState
+from src.domains.agents.utils.react_budget import react_turn_reset
 from src.domains.agents.utils.state_tracking import track_state_updates
 from src.domains.agents.utils.turn_type import normalize_turn_type
 from src.infrastructure.llm.message_text import coerce_content_to_text
@@ -355,14 +356,17 @@ async def router_node_v3(
         "react_agent_result": None,
         "react_tool_names": [],
         "react_hitl_map": {},
-        "react_iteration": 0,
         "react_start_time": None,
         # Same reason as the keys above: the previous turn's value must not leak
-        # into this one. Blocks are rebuilt by react_setup, the compute budget
-        # restarts at zero, and the loop guard forgets what the last turn called.
+        # into this one. Blocks are rebuilt by react_setup.
         "react_system_blocks": [],
-        "react_elapsed_seconds": 0.0,
-        "react_call_digests": {},
+        # The loop's ACCUMULATORS (iterations, reasoning seconds, tool seconds,
+        # productive iterations, call digests) restart from ONE declaration that
+        # lives next to the predicate reading them. This list used to name them
+        # one by one and missed two added later — measured 2026-09-11, 913.8 s of
+        # tool time carried by the checkpoint, every ReAct turn of the thread
+        # dead at iteration 1 (react_budget.react_turn_reset).
+        **react_turn_reset(),
         # Store intelligence for planner (as serializable dict for LangGraph checkpointing)
         # Also store the object for in-memory access by streaming service
         STATE_KEY_QUERY_INTELLIGENCE: intelligence.to_serializable_dict(),

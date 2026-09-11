@@ -31,17 +31,30 @@ that complete today would start being cut.
 Both exclude the wall clock a user spends on a HITL approval, for ADR-170's
 structural reason: ``interrupt()`` raises, so an interrupted node never returns
 and charges nothing.
+
+**And both restart at zero on every turn, by declaration** (:func:`react_turn_reset`).
+Every counter above is charged as ``previous + spent`` and restored by the
+checkpoint, so a counter the router does not reset is a debt that runs for the
+life of the thread. Measured on production (2026-09-11): ``react_tool_seconds``
+was missing from the router's hand-maintained reset list, one conversation
+accumulated 913.8 s over six days, and from then on every ReAct turn of that
+thread stopped at iteration 1 with its tool calls abandoned — no error, three
+identical « ko ». The reset therefore lives HERE, next to the arithmetic that
+reads it, and a guard test refuses any key the predicate reads that the
+declaration does not name.
 """
 
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypedDict
 
 if TYPE_CHECKING:
     from src.domains.agents.models import MessagesState
 
 __all__ = [
+    "REACT_TURN_KEYS_OWNED_BY_SETUP",
+    "ReactTurnReset",
     "TIMEOUT_ATTRIBUTION_MARGIN",
     "abandoned_call_message",
     "effective_react_budget",
@@ -49,9 +62,66 @@ __all__ = [
     "loop_tool_seconds",
     "react_exit_reason",
     "react_iteration_budget",
+    "react_turn_reset",
     "tool_timeout_message",
     "uncharged_wall_seconds",
 ]
+
+
+#: Keys the stop predicate reads that the ROUTER does not reset, because their
+#: start value is COMPUTED rather than constant and the node holding the input
+#: writes them. ``react_max_iterations_effective`` is ADR-238's allowance, derived
+#: from the query's domain span in ``react_setup_node`` — a router writing
+#: ``None`` there would merely be overwritten one node later. Each entry must be
+#: written by ``react_setup_node``; the guard test checks that it is.
+REACT_TURN_KEYS_OWNED_BY_SETUP: frozenset[str] = frozenset({"react_max_iterations_effective"})
+
+
+class ReactTurnReset(TypedDict):
+    """The accumulators of the ReAct loop, typed as the state declares them.
+
+    A ``TypedDict`` rather than ``dict[str, Any]`` so that ``**react_turn_reset()``
+    is accepted inside the ``MessagesState`` constructor under MyPy strict, and so
+    that a key renamed in the state fails here at type-check time rather than at
+    the first checkpoint that drops it.
+    """
+
+    react_iteration: int
+    react_elapsed_seconds: float
+    react_tool_seconds: float
+    react_productive_iterations: int
+    react_call_digests: dict[str, int]
+
+
+def react_turn_reset() -> ReactTurnReset:
+    """What a ReAct turn STARTS with — the values the router writes at turn start.
+
+    A function rather than a constant so that every call hands out FRESH
+    containers: the router's return is merged into the state, and a shared
+    ``{}`` instance would let one turn's digests leak into the next through the
+    object itself.
+
+    The keys are the accumulators of the loop: every one of them is charged as
+    ``previous + spent`` by a ReAct node and restored by the checkpoint, so a key
+    absent from this declaration is a counter that never restarts. Two of them
+    were, until 2026-09-11 (see the module docstring).
+
+    Returns:
+        A new dict, to be spread into the router's state update.
+    """
+    return ReactTurnReset(
+        # ADR-070: the loop counter — the iteration ceiling reads it.
+        react_iteration=0,
+        # ADR-170: the model's own reasoning time this turn.
+        react_elapsed_seconds=0.0,
+        # ADR-256: the time spent INSIDE tools this turn (the incident's counter).
+        react_tool_seconds=0.0,
+        # ADR-248: iterations that brought results back — buys extensions, so a
+        # stale value silently inflated every turn's budget to the ceiling.
+        react_productive_iterations=0,
+        # ADR-170: the repetition brake forgets what the previous turn called.
+        react_call_digests={},
+    )
 
 
 #: How close to its own bound a call must have run for a timeout to be
