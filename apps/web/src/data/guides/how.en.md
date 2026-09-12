@@ -6,7 +6,7 @@
 
 **Version**: 5.0
 **Date**: 2026-08-23
-**Application**: LIA v1.44.3
+**Application**: LIA v1.44.4
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -69,7 +69,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 553 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 280 ADRs, ~28,443 pytest-collected tests across 1,669 files, native observability, 6-level HITL |
+| Production reliability | 281 ADRs, ~28,443 pytest-collected tests across 1,669 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -90,7 +90,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Tests | 28,443 collected by pytest across 1,669 test files + 8,256 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | pytest fixtures | 969, 46 of them shared through conftest |
 | Documentation documents | 647 |
-| ADRs (Architecture Decision Records) | 280 |
+| ADRs (Architecture Decision Records) | 281 |
 | Prometheus metrics | 553 definitions |
 | Grafana dashboards | 29 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -375,6 +375,12 @@ Three design decisions carry the feature. First, honesty of the artifact: spread
 **The craft belongs to the renderer, the meaning to the model (ADR-274).** The schema the writer slot fills is *semantic*: it names what a thing is — a heading, an ordered sequence, a quote, a callout, a part opener, a two-column comparison, a captioned table — and never how to draw it. The layout decision belongs to the renderer, which expresses it through each format's native mechanisms rather than imitating them: named styles, `PAGE`/`NUMPAGES` fields and a multilevel numbering definition in Word, so the contents and the numbers are recomputed by Word itself; the template's own layouts and placeholders in PowerPoint, on a 16:9 stage; a named Table over typed columns in Excel, so filtering and sorting come for free; bookmarks, links and exact page numbers in the PDF, obtained by paginating the body once and concatenating the front matter ahead of it. This split avoids handing the model a catalogue of templates to choose from — a drawing decision it cannot judge — and lets the renderer improve without touching the schema.
 
 **Text is measured before it is placed.** PowerPoint computes no autofit when a file is opened, and the library's own fit is wrong by a factor of two: the renderer therefore measures itself, with an estimator calibrated against PowerPoint — a full-width glyph counting one whole em, a Latin glyph a measured fraction. What does not fit is first shrunk to a readability floor, then split into “Title (2/3)” slides; an over-long bullet is cut at a sentence end. Nothing is ever clipped, because text cut off on screen is information lost without warning. The same principle governs the model call: an answer the provider reports as truncated is refused with its budget named (ADR-275), never closed up to look like a complete document.
+
+### 5.6. What the person keeps: produced files and kept answers (ADR-279, ADR-282)
+
+An artifact and an answer follow two different lifecycles once they exist, and both belong to the person rather than to the conversation. A produced file — an image, a document, a browser screenshot — is an attachment stamped with its **origin**, listed in a gallery of its own with an exact total and a visible retention deadline; clearing a conversation removes what the person uploaded and never what LIA produced, because a purge removes what its family declares, not what merely looks like it.
+
+An answer the person wants to keep is a different object: it is prose, it must render exactly as the bubble did, and it must outlive a conversation that is reset often. So a **bookmark is a copy, never a pointer**. At the click, the answer (markdown or a rich HTML document, verbatim), the request that produced it and the answer's date are written to a table of their own. The two references kept towards the conversation are `SET NULL` on delete: they only serve the toggle on the bubble while the conversation lives. The request is resolved **server-side** under the same visibility predicate the chat uses — the last visible user message before the answer, never the synthetic question of a run executed out of turn — and a notification LIA sent on its own initiative keeps no request rather than a wrong one. A partial unique index makes the toggle idempotent by construction, the account's cap is published because it is enforced, page and total come from one `WHERE`, and the operator's switch guards the act of keeping alone: what was already kept stays readable, exportable and deletable.
 
 ## 6. The planning system (ExecutionPlan DSL)
 
@@ -754,6 +760,8 @@ Each provider returns data in its own format. Dedicated normalizers (`calendar_n
 Not every connector asks for an account. An **OAuth connector** holds the user's personal credentials: Gmail, Calendar, Contacts, Drive. A **platform-key service** holds no per-user data — the user simply switches it on, and the key belongs to the installation: Routes, Places, Weather, Environment. `ConnectorType.uses_global_api_key` carries the distinction, and the tool base picks the credentials path from the **resolved** type. One functional category can therefore mix both: weather accepts a personal-key provider as readily as a platform service, without the caller knowing which one answered.
 
 A third case exists: a client that **borrows a sibling connector's token**. Spreadsheets and documents read and write with Drive's token; Gmail settings with Gmail's. No extra connector appears in the settings, and that is deliberate — the user authorized a workspace, not an API. The consequence was measured: the client cache was keyed on the user and the connector type, so two classes sharing a token served each other. The key now carries the class name as well.
+
+The distinction also decides what a **new account** starts with. Five connectors ask nothing of the person — Wikipedia, page browsing, Places, Weather, Environment — and they are activated at sign-up from a list the backend declares (`ConnectorType.get_keyless_types()`) and the frontend mirrors, a parity a test pins. The provisioning step never blocks a sign-up and refuses in writing: a type the administrator switched off, a platform key the instance lacks, page browsing disabled. Existing accounts are never touched.
 
 ### 13.5. Agentic telephony (ADR-127)
 
@@ -1376,7 +1384,7 @@ One CSS rule governs the design system's spacing: vertical margins on an `inline
 
 ## 24. Architecture Decision Records (ADR)
 
-280 ADRs in MADR format document the major architectural decisions. Some representative examples:
+281 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1671,8 +1679,8 @@ The companion's face used to pick its end-of-turn expression from the psyche's d
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 280 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~28,443 tests across 1,669 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 281 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~28,443 tests across 1,669 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 280 ADRs, and the changelog (v1.0 to v1.44.3). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 281 ADRs, and the changelog (v1.0 to v1.44.4). All metrics, versions, and patterns cited are verifiable in the codebase.*

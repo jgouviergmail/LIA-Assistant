@@ -6038,3 +6038,27 @@ def _recurrence_limits() -> tuple[RecurrenceLimits, RecurrenceLimits]:
 #: Two consumers, two ceilings, one engine — the difference is a value, never a
 #: branch.
 RECURRENCE_ROUTINE_LIMITS, RECURRENCE_REMINDER_LIMITS = _recurrence_limits()
+
+# =============================================================================
+# Message bookmarks (ADR-282)
+# =============================================================================
+# An assistant answer the person KEEPS: copied at the click, so it survives the
+# conversation that produced it. See domains/bookmarks/.
+
+#: How many bookmarks one account may keep. Published to the client through the
+#: listing (ADR-184) and enforced on creation — an enforced bound nobody can
+#: read is a trap.
+BOOKMARKS_MAX_PER_USER_DEFAULT: int = 500
+
+#: Page size bounds of the bookmarks listing — the gallery's rhythm (ADR-279).
+BOOKMARKS_PAGE_MIN_LIMIT: int = 1
+BOOKMARKS_PAGE_MAX_LIMIT: int = 100
+BOOKMARKS_PAGE_DEFAULT_LIMIT: int = 24
+
+# =============================================================================
+# Proactive notifications archived in the conversation
+# =============================================================================
+#: ``message_metadata["type"]`` of an assistant message LIA sent on its own
+#: initiative: ``proactive_<task_type>``. ONE prefix, read by the heartbeat's
+#: context sources and by the bookmarks (a notification answers no request).
+PROACTIVE_MESSAGE_TYPE_PREFIX: str = "proactive_"

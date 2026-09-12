@@ -209,6 +209,11 @@ if getattr(settings, "attachments_enabled", False):
 # instance that offers image or document generation offers the files it
 # produced, and one that offers neither simply lists nothing.
 _include_generated_assets()
+# The answers a person keeps (ADR-282): a record of its own, in the same tab.
+if getattr(settings, "bookmarks_enabled", False):
+    from src.domains.bookmarks.router import router as bookmarks_router
+
+    api_router.include_router(bookmarks_router)
 if getattr(settings, "skills_enabled", False):
     from src.domains.skills.router import router as skills_router
 
@@ -390,6 +395,9 @@ async def get_client_config() -> dict:
             # Workboard (ADR-276): gates the board page, its settings section
             # and the ticket actions under a chat notification.
             "workboard_enabled": getattr(settings, "workboard_enabled", False),
+            # Message bookmarks (ADR-282): gates the bubble action and the
+            # « Bookmarks » tab of the generated files.
+            "bookmarks_enabled": getattr(settings, "bookmarks_enabled", False),
         },
         "api_version": constants.API_VERSION,  # PHASE 2.1: Use constant instead of hardcoded value
     }

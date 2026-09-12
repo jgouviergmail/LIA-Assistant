@@ -145,6 +145,12 @@ class TestItIsActuallyWired:
             "src.domains.users.demo_account_preferences.apply_demo_account_preferences",
             _spy,
         )
+        # The keyless-connector step has its own suite; on an AsyncMock session
+        # it would leave an un-awaited coroutine behind.
+        monkeypatch.setattr(
+            "src.domains.users.keyless_connectors_provisioning.provision_keyless_connectors",
+            AsyncMock(return_value=[]),
+        )
         db = AsyncMock()
         user_id = uuid4()
 

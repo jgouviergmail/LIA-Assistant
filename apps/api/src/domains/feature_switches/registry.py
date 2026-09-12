@@ -90,6 +90,8 @@ class PlatformCapability(str, Enum):
     SUB_AGENTS = "sub_agents"
     PYTHON_SANDBOX = "python_sandbox"
     MOMENTS = "moments"
+    # ADR-282 — an answer a person keeps out of their conversations.
+    BOOKMARKS = "bookmarks"
 
 
 @dataclass(frozen=True)
@@ -293,6 +295,16 @@ CAPABILITY_SPECS: dict[PlatformCapability, CapabilitySpec] = {
         env_flag="moments_enabled",
         setting_key=SystemSettingKey.CAPABILITY_MOMENTS_ENABLED,
         service_enforced=True,
+    ),
+    # The guard sits on the act of KEEPING alone: listing, exporting and
+    # deleting what was already kept stay open whatever this switch says
+    # (ADR-279's rule — a switch removes the capability, never the record).
+    PlatformCapability.BOOKMARKS: CapabilitySpec(
+        capability=PlatformCapability.BOOKMARKS,
+        family="knowledge",
+        env_flag="bookmarks_enabled",
+        setting_key=SystemSettingKey.CAPABILITY_BOOKMARKS_ENABLED,
+        route_enforced=True,
     ),
     PlatformCapability.PEERS: CapabilitySpec(
         capability=PlatformCapability.PEERS,

@@ -78,6 +78,14 @@ def _isolate_post_user_creation_services():
     with (
         patch("src.domains.skills.preference_service.SkillPreferenceService") as skill_cls,
         patch("src.domains.usage_limits.service.UsageLimitService") as limit_cls,
+        # Same class of leak: the keyless-connector step queries the global
+        # configs through the session, and an AsyncMock result synthesises a
+        # coroutine for ``scalar_one_or_none()`` that nothing awaits.
+        patch(
+            "src.domains.users.keyless_connectors_provisioning.provision_keyless_connectors",
+            new_callable=AsyncMock,
+            return_value=[],
+        ),
     ):
         skill_cls.return_value.ensure_user_skills = AsyncMock()
         limit_cls.return_value.create_default_limits = AsyncMock()

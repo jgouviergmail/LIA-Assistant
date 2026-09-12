@@ -42,7 +42,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.44.3</strong> — <strong>What LIA learns about a person holds everywhere.</strong> A paused habit is paused for the heartbeat too, a missed routine is offered by name, every proactive pass files what it read, and a switch closes the act — never the record — 11 September 2026.
+  <strong>Version 1.44.4</strong> — <strong>An answer you keep is yours.</strong> A bookmark on every answer copies it out of the conversation, with your request and its date; kept answers have their own tab, and a new account starts with the connectors that ask nothing of it — 12 September 2026.
 </p>
 
 ---
@@ -112,8 +112,8 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **48** functional domains | **660,000** lines of code (excl. tests) | **36,000+** automated tests | **280** ADRs                                                           |
-| **256** versions shipped  | **6 languages**, parity enforced in CI  | **553** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **49** functional domains | **660,000** lines of code (excl. tests) | **36,000+** automated tests | **281** ADRs                                                           |
+| **257** versions shipped  | **6 languages**, parity enforced in CI  | **553** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -204,6 +204,7 @@ Every capability below is documented in an architecture decision record (ADR) or
 ### Connect your world
 
 - **Mail, calendar, contacts, tasks** — Google (OAuth 2.1 + PKCE), Apple iCloud (IMAP/SMTP, CalDAV, CardDAV) and Microsoft 365 (Graph API, personal and business tenants); one active provider per category, and activating one deactivates its competitor ([OAUTH](docs/technical/OAUTH.md)).
+- **Connected from the first day** — the connectors that ask nothing of the person (Wikipedia, page browsing, Google Places, Weather and Environment) are activated when the account is created, unless the administrator switched one off or the instance has no platform key; existing accounts keep their choices ([CONNECTORS_PATTERNS](docs/technical/CONNECTORS_PATTERNS.md)).
 - **Documents, places and weather** — Google Drive folders and a Gmail label as knowledge sources, synced incrementally ([ADR-262](docs/architecture/ADR-262-Opt-In-Mail-Label-RAG-Source.md)); Google Maps places, routes and geocoding; weather with change detection; a last-known-position cascade so every feature knows where you are, with the age of the fix stated ([ADR-219](docs/architecture/ADR-219-Derniere-Position-Connue-Generalisee.md)).
 - **Home and body** — Philips Hue lighting by voice (rooms, scenes, local bridge or cloud); daily steps and heart-rate batches pushed from an iPhone Shortcut, idempotently, with baselines, variation detection and charts ([ADR-076](docs/architecture/ADR-076-Health-Metrics-Ingestion.md), [ADR-148](docs/architecture/ADR-148-Health-Daily-Rollup.md), [GUIDE_IPHONE_SHORTCUTS_HEALTH](docs/guides/GUIDE_IPHONE_SHORTCUTS_HEALTH.md)).
 - **Your own tools (MCP)** — per-user servers with API key, bearer or OAuth 2.1 authentication (dynamic registration, PKCE), HTTPS-only, SSRF-checked, credentials encrypted; conformant to the protocol's current revision on both halves and reading tool declarations to the letter of JSON Schema 2020-12 ([ADR-224](docs/architecture/ADR-224-Conformite-MCP-2026-07-28-SDK-v2.md), [ADR-255](docs/architecture/ADR-255-MCP-Tool-Declaration-Conformance.md)); MCP Apps rendered as sandboxed widgets behind a CSP airlock ([ADR-098](docs/architecture/ADR-098-CSP-Widget-Airlock.md)); an iterative mode where a dedicated agent reads a complex server's docs before calling it ([MCP_INTEGRATION](docs/technical/MCP_INTEGRATION.md)).
@@ -237,6 +238,7 @@ Every capability below is documented in an architecture decision record (ADR) or
 - **Meetings and minutes** — record from the phone or the computer while the chat stays usable, with a capture that survives reloads and lost microphones; a chain of transcription engines walked at processing time; minutes filled from one of thirty built-in templates or your own, reformatted in place or derived into a second set from the same transcript ([ADR-258](docs/architecture/ADR-258-Meeting-Recording-And-Structured-Minutes.md), [ADR-259](docs/architecture/ADR-259-Meeting-Template-Library-And-Reformatting.md), [MEETINGS](docs/technical/MEETINGS.md)).
 - **People** — a 360° relationship lens over open loops, calls, messages and memories, with a written debrief per person built lazily when the card opens ([ADR-176](docs/architecture/ADR-176-Personal-CRM-Relations.md), [ADR-193](docs/architecture/ADR-193-Read-Capabilities-And-Merged-Identity.md), [ADR-269](docs/architecture/ADR-269-Relationship-Debrief.md)); connections between users of the same instance, assistant to assistant — relayed messages delivered by the recipient's own assistant, field-level read-only shares, silent blocking ([ADR-180](docs/architecture/ADR-180-Peer-Connections.md), [ADR-182](docs/architecture/ADR-182-Peer-Routing-Awareness-And-Honest-Failure.md)).
 - **What LIA produced is yours** — generated images, documents and browser screenshots have their own galleries with search, exact totals and a visible retention deadline; clearing a conversation never clears them ([ADR-279](docs/architecture/ADR-279-Generated-Assets-Gallery.md)).
+- **What you keep is yours too** — a bookmark on every answer copies it with the request that produced it and the answer's date, so it outlives the conversation; a Bookmarks tab beside the galleries lists them newest first, with search, an exact total against the account's cap, sharing, a Markdown export and deletion ([ADR-282](docs/architecture/ADR-282-Message-Bookmarks.md), [BOOKMARKS](docs/technical/BOOKMARKS.md)).
 
 ### Trust it
 
@@ -437,7 +439,7 @@ graph TD
 ```
 apps/api/src/
 ├── core/                 # Settings composed per domain, constants, i18n tables, recurrence engine
-├── domains/              # 48 bounded contexts (DDD)
+├── domains/              # 49 bounded contexts (DDD)
 │   ├── agents/           # The LangGraph graph: nodes (router, planner, react ×4, response…), tools, prompts, orchestration
 │   ├── connectors/       # Google, Apple and Microsoft clients behind one provider resolver
 │   ├── heartbeat/ moments/ scheduled_actions/ reminders/ habits/ interests/ briefing/       # initiative
@@ -619,7 +621,7 @@ Instrumentation and caching are in place — per-node message windowing, LLM con
 
 ### Architecture Decision Records
 
-280 ADR files (ADR-001 through ADR-281 — ADR-008 has no separate file) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
+281 ADR files (ADR-001 through ADR-282 — ADR-008 has no separate file) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
 
 - [ADR-070: ReAct Execution Mode](docs/architecture/ADR-070-ReAct-Execution-Mode.md) — why two execution modes rather than one
 - [ADR-263: Execution Authority Chain and Effect Register](docs/architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md) — how every act is claimed, closed and recorded

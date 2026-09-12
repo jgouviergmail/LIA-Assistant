@@ -169,6 +169,13 @@ COUNTED_NODES: tuple[_CountedNode, ...] = (
     # What LIA produced and the person kept (ADR-279). The gallery is not gated
     # on uploads, and neither is this tally.
     _CountedNode("generated_files", count_with=lambda uid: _count_generated_files(uid)),
+    # The answers the person kept out of their conversations (ADR-282): a
+    # record of its own, counted exactly, next to the files in the same tab.
+    _CountedNode(
+        "bookmarks",
+        lambda: _import("bookmarks.models", "MessageBookmark"),
+        capability=PlatformCapability.BOOKMARKS,
+    ),
     _CountedNode(
         "journals",
         lambda: _import("journals.models", "JournalEntry"),
@@ -271,6 +278,7 @@ PLATFORM_CAPABILITY_NODES: dict[PlatformCapability, str] = {
     PlatformCapability.MEMORY: "memory",
     PlatformCapability.INTERESTS: "interests",
     PlatformCapability.RELATION_DEBRIEF: "relations",
+    PlatformCapability.BOOKMARKS: "bookmarks",
 }
 
 #: Capabilities deliberately absent from the map, and why. The map's third

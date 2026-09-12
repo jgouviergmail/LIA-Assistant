@@ -6,7 +6,7 @@
 
 **Versión**: 5.0
 **Fecha**: 2026-08-23
-**Aplicación**: LIA v1.44.3
+**Aplicación**: LIA v1.44.4
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -69,7 +69,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Soberanía de datos | PostgreSQL local (sin SaaS DB), cifrado Fernet en reposo, sesiones Redis locales |
 | Multi-proveedor LLM | Factory pattern con 7 adaptadores, configuración por nodo, sin acoplamiento fuerte a un provider |
 | Transparencia total | 553 métricas Prometheus, debug panel integrado, seguimiento token por token |
-| Fiabilidad en producción | 280 ADRs, ~28.443 tests recogidos por pytest en 1.669 archivos, observabilidad nativa, HITL de 6 niveles |
+| Fiabilidad en producción | 281 ADRs, ~28.443 tests recogidos por pytest en 1.669 archivos, observabilidad nativa, HITL de 6 niveles |
 | Costes controlados | Smart Services (89 % de ahorro en tokens), embeddings semánticos, prompt caching, filtrado de catálogo |
 
 ### 1.2. Principios arquitecturales
@@ -90,7 +90,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Tests | 28.443 recopilados por pytest en 1.669 archivos de prueba + 8.256 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
 | Fixtures pytest | 969, de las cuales 46 compartidas mediante conftest |
 | Documentos de documentación | 647 |
-| ADRs (Architecture Decision Records) | 280 |
+| ADRs (Architecture Decision Records) | 281 |
 | Métricas Prometheus | 553 definiciones |
 | Dashboards Grafana | 29 |
 | Idiomas soportados (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -375,6 +375,12 @@ Tres decisiones de diseño sostienen la funcionalidad. Primero, la honestidad de
 **El oficio pertenece al renderizador, el sentido al modelo (ADR-274).** El esquema que rellena el slot redactor es *semántico*: nombra lo que una cosa es — un título, una secuencia ordenada, una cita, un aviso, una apertura de parte, una comparación a dos columnas, una tabla con leyenda — y nunca cómo dibujarla. La decisión de maquetación es del renderizador, que la expresa con los mecanismos nativos del formato en lugar de imitarlos: estilos con nombre, campos `PAGE`/`NUMPAGES` y una definición de numeración multinivel en Word, de modo que el índice y los números los recalcula el propio Word; las maquetaciones y marcadores de posición de la plantilla en PowerPoint, sobre un escenario 16:9; una tabla con nombre sobre columnas tipadas en Excel, con filtro y orden gratuitos; marcadores, enlaces y números de página exactos en el PDF, obtenidos paginando el cuerpo una vez y concatenando delante las páginas preliminares. Este reparto evita darle al modelo un catálogo de plantillas que elegir — una decisión de dibujo que no sabe juzgar — y deja que el renderizado mejore sin tocar el esquema.
 
 **El texto se mide antes de colocarse.** PowerPoint no calcula ningún ajuste automático al abrir un archivo, y el ajuste que ofrece la biblioteca se equivoca por un factor de dos: el renderizador mide por su cuenta, con un estimador calibrado contra PowerPoint — un glifo de ancho completo vale un em entero; uno latino, una fracción medida. Lo que no cabe se reduce primero hasta un umbral de legibilidad y luego se parte en diapositivas «Título (2/3)»; una viñeta demasiado larga se corta al final de una frase. Nunca se recorta, porque un texto cortado en pantalla es información perdida sin aviso. El mismo principio rige la llamada al modelo: una respuesta que el proveedor declara truncada se rechaza nombrando su límite (ADR-275), y jamás se cierra para parecer un documento completo.
+
+### 5.6. Lo que la persona conserva: archivos producidos y respuestas guardadas (ADR-279, ADR-282)
+
+Un artefacto y una respuesta siguen dos ciclos de vida distintos una vez que existen, y ambos pertenecen a la persona y no a la conversación. Un archivo producido — una imagen, un documento, una captura del navegador — es un adjunto sellado con su **origen**, listado en una galería propia con un total exacto y un plazo de conservación visible; vaciar una conversación retira lo que la persona subió y nunca lo que LIA produjo, porque una purga retira lo que su familia declara, no lo que se le parece.
+
+Una respuesta que la persona quiere conservar es otro objeto: es prosa, debe renderizarse exactamente como la burbuja y debe sobrevivir a una conversación que se reinicia a menudo. Un **marcador es, por tanto, una copia, nunca un puntero**. Al hacer clic, la respuesta (markdown o un documento HTML enriquecido, tal cual), la petición que la produjo y la fecha de la respuesta se escriben en una tabla propia. Las dos referencias hacia la conversación son `SET NULL` al borrar: solo sirven al conmutador de la burbuja mientras la conversación vive. La petición se resuelve **en el servidor**, bajo el mismo predicado de visibilidad que usa el chat — el último mensaje visible de la persona antes de la respuesta, nunca la pregunta sintética de una ejecución fuera de turno — y una notificación enviada por iniciativa de LIA no conserva ninguna petición antes que una falsa. Un índice único parcial hace el conmutador idempotente por construcción, el límite de la cuenta se publica porque se aplica, página y total salen de un mismo `WHERE`, y el interruptor del operador protege solo el acto de guardar: lo ya guardado sigue legible, exportable y eliminable.
 
 ## 6. El sistema de planificación (ExecutionPlan DSL)
 
@@ -754,6 +760,8 @@ Cada provider devuelve datos en su propio formato. Normalizers dedicados (`calen
 No todos los conectores piden una cuenta. Un **conector OAuth** guarda las credenciales personales del usuario: Gmail, Calendario, Contactos, Drive. Un **servicio con clave de plataforma** no guarda ningún dato por usuario — basta con activarlo, y la clave pertenece a la instalación: Rutas, Lugares, Meteorología, Entorno. `ConnectorType.uses_global_api_key` lleva esa distinción, y la base de herramientas elige el camino de credenciales según el tipo **resuelto**. Una misma categoría funcional puede así mezclar ambos: la meteorología acepta un proveedor con clave personal igual que un servicio de plataforma, sin que quien llama sepa cuál respondió.
 
 Existe un tercer caso: un cliente que **toma prestado el token de un conector vecino**. Las hojas de cálculo y los documentos leen y escriben con el token de Drive; los ajustes de Gmail, con el de Gmail. No aparece ningún conector adicional en los ajustes, y es deliberado — el usuario autorizó un espacio de trabajo, no una API. La consecuencia se midió: la caché de clientes se indexaba por usuario y tipo de conector, de modo que dos clases que comparten token se servían la una a la otra. Ahora la clave lleva también el nombre de la clase.
+
+La distinción decide también con qué empieza una **cuenta nueva**. Cinco conectores no piden nada a la persona — Wikipedia, la navegación de páginas, Lugares, Tiempo, Entorno — y se activan al registrarse a partir de una lista que el backend declara (`ConnectorType.get_keyless_types()`) y el frontend refleja, paridad que fija un test. El paso de aprovisionamiento nunca bloquea un registro y rechaza por escrito: un tipo apagado por el administrador, una clave de plataforma que la instancia no tiene, la navegación desactivada. Las cuentas existentes nunca se tocan.
 
 ### 13.5. Telefonía agéntica (ADR-127)
 
@@ -1382,7 +1390,7 @@ Una regla CSS gobierna los espaciados del design system: los márgenes verticale
 
 ## 24. Arquitectura de decisiones (ADR)
 
-280 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
+281 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
 
 | ADR | Decisión | Problema resuelto | Impacto medido |
 |-----|----------|----------------|---------------|
@@ -1644,8 +1652,8 @@ El rostro del compañero elegía su expresión de fin de turno a partir de la em
 
 LIA es un ejercicio de ingeniería de software que intenta resolver un problema concreto: construir un asistente IA multi-agente de calidad producción, transparente, seguro y extensible, capaz de funcionar en un Raspberry Pi.
 
-Los 280 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~27.290 tests en 1.601 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
+Los 281 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~27.290 tests en 1.601 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
 
 La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesiano, enrutamiento semántico, HITL sistemático, proactividad LLM-driven, diarios introspectivos — crea un sistema donde cada componente refuerza a los demás. El HITL alimenta el pattern learning, que reduce los costes, que permiten más funcionalidades, que generan más datos para la memoria, que mejora las respuestas. Es un círculo virtuoso por diseño, no por accidente.
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (490+ documentos), de los 280 ADRs y del changelog (v1.0 a v1.44.3). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (490+ documentos), de los 281 ADRs y del changelog (v1.0 a v1.44.4). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

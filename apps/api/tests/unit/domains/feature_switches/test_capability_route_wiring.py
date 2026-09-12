@@ -75,6 +75,10 @@ def _router_for(capability: PlatformCapability) -> object:
         from src.domains.channels.router import router
     elif capability is PlatformCapability.OPEN_LOOPS:
         from src.domains.open_loops.router import router
+    # ADR-282 — guarded at the ROUTE like uploads: keeping is the act, the
+    # kept answers are the record.
+    elif capability is PlatformCapability.BOOKMARKS:
+        from src.domains.bookmarks.router import router
     else:  # pragma: no cover - defensive
         raise AssertionError(f"no router mapped for {capability}")
     return router

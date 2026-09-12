@@ -63,13 +63,36 @@ export const SECTION_CAPABILITY: Readonly<Partial<Record<SettingsSectionToken, s
   );
 
 /**
+ * Capabilities that land on a TAB of a section another capability already
+ * owns. Kept OUT of `CAPABILITY_SECTION` on purpose: that table is a bijection
+ * (one section, one status on its overview card), and the kept answers share
+ * the generated-files section with the files — the card keeps the files'
+ * status, the node keeps its own destination (ADR-282).
+ */
+export const CAPABILITY_SECTION_TAB: Readonly<
+  Record<string, { readonly token: SettingsSectionToken; readonly tab: string }>
+> = {
+  bookmarks: { token: 'generated-assets', tab: 'bookmarks' },
+};
+
+/**
  * The section that configures a capability.
  *
  * @param capability - A `capabilities.nodes.*` key.
  * @returns Its settings token, or null when the capability has no section.
  */
 export function sectionOfCapability(capability: string): SettingsSectionToken | null {
-  return CAPABILITY_SECTION[capability] ?? null;
+  return CAPABILITY_SECTION[capability] ?? CAPABILITY_SECTION_TAB[capability]?.token ?? null;
+}
+
+/**
+ * The tab of that section the capability lands on, when it shares the section.
+ *
+ * @param capability - A `capabilities.nodes.*` key.
+ * @returns The tab key, or null when the capability owns its whole section.
+ */
+export function tabOfCapability(capability: string): string | null {
+  return CAPABILITY_SECTION_TAB[capability]?.tab ?? null;
 }
 
 /**

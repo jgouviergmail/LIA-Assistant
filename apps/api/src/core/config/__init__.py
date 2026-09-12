@@ -33,6 +33,7 @@ from .agents import AgentsSettings
 from .attachments import AttachmentsSettings
 from .automation import AutomationSettings
 from .background_runs import BackgroundRunsSettings
+from .bookmarks import BookmarksSettings
 from .briefing import BriefingSettings
 from .browser import BrowserSettings
 from .channels import ChannelsSettings
@@ -139,6 +140,7 @@ class Settings(
     BackgroundRunsSettings,
     TelephonySettings,
     MeetingsSettings,
+    BookmarksSettings,
     MFASettings,
     AccountExportSettings,
     ProductSettings,
@@ -179,6 +181,7 @@ class Settings(
         23. MFASettings (Strong authentication: WebAuthn passkeys, TOTP)
         24. AccountExportSettings (GDPR full-account export jobs)
         24b. MeetingsSettings (meeting recording & structured minutes, ADR-258)
+        24c. BookmarksSettings (message bookmarks, ADR-282)
         25. BaseSettings (Pydantic base class)
 
     All settings can be overridden via .env file or environment variables.
@@ -457,6 +460,7 @@ __all__ = [
     "MFASettings",
     "AccountExportSettings",
     "MeetingsSettings",
+    "BookmarksSettings",
     "PushRelaySettings",
     "PushSettings",
 ]

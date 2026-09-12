@@ -38,6 +38,7 @@ import { FeatureErrorBoundary } from '@/components/errors';
 
 import { useDebugPanelEnabled } from '@/hooks/useDebugPanelEnabled';
 import { useAppConfig, type AppConfig } from '@/hooks/useAppConfig';
+import { BookmarkStateProvider } from '@/lib/bookmark-state-context';
 import { useInputDraft } from '@/hooks/useInputDraft';
 import { useSkills } from '@/hooks/useSkills';
 import {
@@ -75,6 +76,15 @@ function composerFeatureFlags(config: AppConfig | null): {
     attachmentsEnabled: config?.features?.attachments_enabled ?? true,
     meetingsEnabled: config?.features?.meetings_enabled ?? false,
   };
+}
+
+/**
+ * Whether the bubbles may offer the bookmark toggle (module-level — CC
+ * discipline): default OFF, an instance that does not publish the flag keeps
+ * no answers (ADR-282).
+ */
+function bookmarksEnabled(config: AppConfig | null): boolean {
+  return config?.features?.bookmarks_enabled ?? false;
 }
 
 /**
@@ -1029,32 +1039,34 @@ export default function ChatPage() {
                   onExecute={sendMessageFromPresent}
                   onPrefill={handleFollowupPick}
                 />
-                <ChatMessageList
-                  messages={displayedMessages}
-                  isTyping={isTyping && !searchQuery}
-                  activeStreamId={searchQuery ? null : activeStreamId}
-                  streamPhase={streamPhase}
-                  browserScreenshot={browserScreenshot}
-                  // Scroll-up pagination — disabled while the user is searching
-                  // (search filters client-side over already-loaded messages
-                  // only, so a sentinel would conflate "no match in this page"
-                  // with "more remote history exists").
-                  hasMoreOlder={hasMoreOlder && !searchQuery}
-                  isLoadingOlder={isLoadingOlder}
-                  onLoadOlder={handleLoadOlder}
-                  searchHighlight={highlightTerm}
-                  // UXR Lot 3 (A3): floating return button — in history view it
-                  // delegates to the QW-2 return-to-present page swap.
-                  historyView={historyView}
-                  onReturnToPresent={handleReturnToPresent}
-                  ownSendTick={ownSendTick}
-                  onRetry={handleRetry}
-                  onPrefillComposer={handleFollowupPick}
-                  // W8: an empty chat offers three ways in. Same rail as the
-                  // follow-up chips — it prefills the composer, never sends.
-                  onStarterPick={handleFollowupPick}
-                  groundedSuggestions={groundedSuggestions}
-                />
+                <BookmarkStateProvider enabled={bookmarksEnabled(appConfig)}>
+                  <ChatMessageList
+                    messages={displayedMessages}
+                    isTyping={isTyping && !searchQuery}
+                    activeStreamId={searchQuery ? null : activeStreamId}
+                    streamPhase={streamPhase}
+                    browserScreenshot={browserScreenshot}
+                    // Scroll-up pagination — disabled while the user is searching
+                    // (search filters client-side over already-loaded messages
+                    // only, so a sentinel would conflate "no match in this page"
+                    // with "more remote history exists").
+                    hasMoreOlder={hasMoreOlder && !searchQuery}
+                    isLoadingOlder={isLoadingOlder}
+                    onLoadOlder={handleLoadOlder}
+                    searchHighlight={highlightTerm}
+                    // UXR Lot 3 (A3): floating return button — in history view it
+                    // delegates to the QW-2 return-to-present page swap.
+                    historyView={historyView}
+                    onReturnToPresent={handleReturnToPresent}
+                    ownSendTick={ownSendTick}
+                    onRetry={handleRetry}
+                    onPrefillComposer={handleFollowupPick}
+                    // W8: an empty chat offers three ways in. Same rail as the
+                    // follow-up chips — it prefills the composer, never sends.
+                    onStarterPick={handleFollowupPick}
+                    groundedSuggestions={groundedSuggestions}
+                  />
+                </BookmarkStateProvider>
               </div>
             </RegistryProvider>
 

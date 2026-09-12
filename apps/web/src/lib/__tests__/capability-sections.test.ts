@@ -12,7 +12,9 @@ import { describe, expect, it } from 'vitest';
 import {
   CAPABILITY_SECTION,
   SECTION_CAPABILITY,
+  CAPABILITY_SECTION_TAB,
   capabilityOfSection,
+  tabOfCapability,
   sectionOfCapability,
 } from '../capability-sections';
 import { SETTINGS_SECTIONS, type SettingsSectionToken } from '../settings-sections';
@@ -54,5 +56,26 @@ describe('lookups', () => {
     // an invented pairing would put a count on a card that cannot hold one.
     expect(sectionOfCapability('documents')).toBeNull();
     expect(capabilityOfSection('theme' as SettingsSectionToken)).toBeNull();
+  });
+});
+
+describe('CAPABILITY_SECTION_TAB — a node landing on a TAB of a shared section (ADR-282)', () => {
+  it('keeps the shared section out of the bijection', () => {
+    // The kept answers share « generated-assets » with the files: the card
+    // keeps the files' status, the node keeps its own destination.
+    for (const capability of Object.keys(CAPABILITY_SECTION_TAB)) {
+      expect(CAPABILITY_SECTION[capability]).toBeUndefined();
+    }
+  });
+
+  it('routes the bookmarks node to the generated files, on their tab', () => {
+    expect(sectionOfCapability('bookmarks')).toBe('generated-assets');
+    expect(tabOfCapability('bookmarks')).toBe('bookmarks');
+    // The reverse still names the capability that OWNS the section.
+    expect(capabilityOfSection('generated-assets')).toBe('generated_files');
+  });
+
+  it('answers null for a capability that owns its whole section', () => {
+    expect(tabOfCapability('memory')).toBeNull();
   });
 });

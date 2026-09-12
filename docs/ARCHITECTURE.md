@@ -357,6 +357,7 @@ apps/api/src/
 │   ├── chat/                    # Chat routing
 │   ├── llm/                     # LLM pricing
 │   ├── attachments/             # File attachments & vision analysis (evolution F4)
+│   ├── bookmarks/               # Kept answers — a copy, not a pointer (ADR-282)
 │   ├── plugins/                 # Agent Plugins client (agent-plugins.org, ADR-225) — portable packages
 │   ├── skills/                  # Skills system (agentskills.io) — SKILL.md files, cache, LLM activation
 │   └── user_mcp/                # Per-user MCP server management (CRUD, DDD, LLM description)
@@ -3827,6 +3828,20 @@ async with TrackingContext(user_id, run_id) as tracker:
 **Table** : `attachments` avec index `(user_id, created_at)` et `(expires_at)`.
 
 > Voir [ATTACHMENTS_INTEGRATION.md](./technical/ATTACHMENTS_INTEGRATION.md) pour la documentation complète.
+
+### Bookmarks de messages (ADR-282)
+
+**Réponses conservées** : une bulle de l'assistant se conserve d'un clic ; le bookmark est une **copie** (réponse, demande qui l'a produite, date), jamais un pointeur — il survit à la réinitialisation de la conversation.
+
+| Couche | Composant | Rôle |
+|--------|-----------|------|
+| Domain | `domains/bookmarks/` | Modèle, requêtes (page + total exact d'un même `WHERE`), dépôt déclaré `VISIBLE_ONLY`, service, routeur, erreurs |
+| Capacité | `PlatformCapability.BOOKMARKS` | Garde sur le `POST` seul — lister, état, supprimer, exporter restent ouverts |
+| Frontend | `lib/bookmark-state-context.tsx`, `chat/BookmarkButton.tsx`, `settings/generated-assets/Bookmark*.tsx` | Un état par chat, bascule optimiste, onglet « Bookmarks » |
+
+**Table** : `message_bookmarks` — `message_id` / `conversation_id` en `SET NULL`, index unique **partiel** `(user_id, message_id)`, ordre `(user_id, answered_at DESC, id DESC)`. Classée `USER_PURGED` + export `FULL`.
+
+> Voir [BOOKMARKS.md](./technical/BOOKMARKS.md) pour la documentation complète.
 
 ### Heartbeat Autonome (evolution F5)
 

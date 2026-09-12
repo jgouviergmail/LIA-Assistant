@@ -44,6 +44,7 @@ import {
   ResponseFeedbackButtons,
   type ResponseFeedbackButtonsProps,
 } from './ResponseFeedbackButtons';
+import { BookmarkButton } from './BookmarkButton';
 import { ShareResponseMenu } from './ShareResponseMenu';
 import { toast } from 'sonner';
 import { formatFileSize } from '@/lib/utils/image-compress';
@@ -220,6 +221,20 @@ function responseFeedbackProps(
 }
 
 /**
+ * The archived id a bubble may be kept under (ADR-282), or null.
+ *
+ * Every assistant bubble that reached the archive and carries text — a
+ * proactive notification included, since it is an answer the person may want
+ * to keep — except an active stream (its id is not known yet) and a bubble
+ * with nothing to keep (the share menu hides for the same reason).
+ */
+function bookmarkableMessageDbId(message: Message, isActiveStream: boolean): string | null {
+  if (isActiveStream || message.content.trim().length === 0) return null;
+  const dbId = message.metadata?.message_db_id;
+  return typeof dbId === 'string' ? dbId : null;
+}
+
+/**
  * The prompt an error bubble pinned for replay (W3), or undefined.
  *
  * Lives here rather than inline in the bubble: the render function is a
@@ -276,6 +291,7 @@ function AssistantActionRow({
   copied,
   onCopy,
   feedbackProps,
+  bookmarkMessageDbId,
   proactiveFeedback,
   trace,
   effects,
@@ -286,6 +302,8 @@ function AssistantActionRow({
   copied: boolean;
   onCopy: () => void;
   feedbackProps: ResponseFeedbackButtonsProps | null;
+  /** ADR-282: the archived id the bubble may be kept under; null hides the toggle. */
+  bookmarkMessageDbId: string | null;
   /** Proactive notification verdicts — mutually exclusive with `feedbackProps`
    *  (`responseFeedbackProps` returns null for proactive bubbles). */
   proactiveFeedback: React.ReactNode;
@@ -320,6 +338,9 @@ function AssistantActionRow({
         </TooltipTrigger>
         <TooltipContent>{t('chat.message.copy')}</TooltipContent>
       </Tooltip>
+      {/* ADR-282: keep this answer — every archived bubble with text,
+          proactive notifications included. */}
+      {bookmarkMessageDbId && <BookmarkButton messageDbId={bookmarkMessageDbId} />}
       {/* UX P4: share/export menu — same chip family as Copy. Text-less
           bubbles (image-only answers) have nothing to share or export:
           `navigator.share({ text: '' })` rejects and the .md would be empty. */}
@@ -1059,6 +1080,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
                 copied={copied}
                 onCopy={handleCopyMessage}
                 feedbackProps={feedbackProps}
+                bookmarkMessageDbId={bookmarkableMessageDbId(message, isActiveStream)}
                 proactiveFeedback={
                   feedbackRow ? (
                     <ProactiveFeedbackButtons

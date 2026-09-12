@@ -6,6 +6,7 @@ cascade from the auth service (ADR-126): skill states + usage limits,
 with caller-controlled transaction topology (``commit_per_step``).
 """
 
+from collections.abc import Iterator
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
@@ -27,6 +28,38 @@ def mock_db() -> AsyncMock:
 def service(mock_db: AsyncMock) -> AccountProvisioningService:
     """Create the provisioning service on the mocked session."""
     return AccountProvisioningService(mock_db)
+
+
+@pytest.fixture(autouse=True)
+def _keyless_connectors_step() -> Iterator[AsyncMock]:
+    """Stub the keyless-connector step: it has its own suite, and an AsyncMock
+    session would hand it a coroutine for ``db.add`` that nobody awaits."""
+    with patch(
+        "src.domains.users.keyless_connectors_provisioning.provision_keyless_connectors",
+        new_callable=AsyncMock,
+        return_value=[],
+    ) as step:
+        yield step
+
+
+class TestKeylessConnectorsStep:
+    """provision_new_user hands the new account to the keyless-connector step."""
+
+    async def test_the_step_runs_on_the_same_session(
+        self,
+        service: AccountProvisioningService,
+        mock_db: AsyncMock,
+        monkeypatch: pytest.MonkeyPatch,
+        _keyless_connectors_step: AsyncMock,
+    ) -> None:
+        monkeypatch.setattr(settings, "usage_limits_enabled", False, raising=False)
+        user_id = uuid4()
+
+        with patch("src.domains.skills.preference_service.SkillPreferenceService") as skill_cls:
+            skill_cls.return_value.ensure_user_skills = AsyncMock(return_value=0)
+            await service.provision_new_user(user_id, commit_per_step=False)
+
+        _keyless_connectors_step.assert_awaited_once_with(mock_db, user_id)
 
 
 class TestProvisionNewUser:

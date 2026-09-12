@@ -778,7 +778,12 @@
       "tts_tooltip_provider": "Sprachsynthese via {{provider}}{{model}}",
       "tts_tooltip_fallback": "Kosten der Sprachsynthese",
       "share_peer": "Mit einem Peer teilen",
-      "share_peer_draft": "Leite dies an {{recipient}} weiter:\n\n{{content}}"
+      "share_peer_draft": "Leite dies an {{recipient}} weiter:\n\n{{content}}",
+      "bookmark": "Diese Antwort behalten",
+      "bookmark_remove": "Aus den Lesezeichen entfernen",
+      "bookmark_kept": "Antwort in Ihren Lesezeichen behalten",
+      "bookmark_removed": "Aus Ihren Lesezeichen entfernt",
+      "bookmark_error": "Diese Antwort konnte nicht behalten werden"
     },
     "code": {
       "copy": "Code kopieren",
@@ -3643,7 +3648,7 @@
         "admin-registers": "register, transparenz, aktionen, abrufe, export, protokoll, audit, admin, Diagramme, Statistiken, Zahlen, Überblick, Initiative, proaktiv, Artikel 12, vollständiger Auszug, Züge",
         "reminders": "Erinnerung, erinnere mich, Warnung, Benachrichtigung, wiederkehrende Erinnerung, wiederholen, Merkzettel, Wiederholung, täglich, Zeitfenster",
         "workboard": "workboard board tickets ticket kanban spalten zu erledigen backlog",
-        "generated-assets": "dateien bilder dokumente aufnahmen downloads galerie erzeugt ablauf"
+        "generated-assets": "dateien bilder dokumente aufnahmen downloads galerie erzeugt ablauf lesezeichen bookmarks behaltene antworten gespeicherte antworten favoriten"
       }
     },
     "haptics": {
@@ -3731,11 +3736,12 @@
     },
     "generated_assets": {
       "title": "Meine erzeugten Dateien",
-      "description": "Die Bilder, Dokumente und Aufnahmen, die LIA für Sie erstellt hat. Laden Sie sie herunter, bevor sie ablaufen, oder löschen Sie sie jetzt.",
+      "description": "Die Bilder, Dokumente und Aufnahmen, die LIA für Sie erstellt hat, und die Antworten, die Sie behalten wollten. Laden Sie die Dateien herunter, bevor sie ablaufen, oder entfernen Sie sie jetzt.",
       "family": {
         "images": "Bilder",
         "documents": "Dokumente",
-        "screenshots": "Aufnahmen"
+        "screenshots": "Aufnahmen",
+        "bookmarks": "Lesezeichen"
       },
       "filters": {
         "title": "Filter",
@@ -3778,7 +3784,9 @@
         "documents_title": "Noch kein Dokument",
         "documents_description": "Bitten Sie LIA um einen Bericht, eine Tabelle oder eine Präsentation, und sie erscheint hier.",
         "screenshots_title": "Noch keine Aufnahme",
-        "screenshots_description": "LIA bewahrt hier das letzte Bild einer Browsersitzung auf."
+        "screenshots_description": "LIA bewahrt hier das letzte Bild einer Browsersitzung auf.",
+        "bookmarks_title": "Noch kein Lesezeichen",
+        "bookmarks_description": "Behalten Sie eine Antwort mit dem Lesezeichen ihrer Sprechblase im Chat: Sie erscheint hier, auch wenn die Unterhaltung gelöscht ist."
       },
       "total": "{{count}} Dateien",
       "total_one": "{{count}} Datei",
@@ -3795,6 +3803,31 @@
       "confirm_delete_description": "{{count}} Dateien werden jetzt aus Ihrem Konto entfernt.",
       "confirm_delete_description_one": "{{count}} Datei wird jetzt aus Ihrem Konto entfernt.",
       "confirm_delete_description_other": "{{count}} Dateien werden jetzt aus Ihrem Konto entfernt."
+    },
+    "bookmarks": {
+      "request": "Ihre Anfrage",
+      "no_request": "Eine Nachricht, die LIA aus eigener Initiative gesendet hat",
+      "answered_at": "Beantwortet am {{when}}",
+      "kept_at": "Behalten am {{when}}",
+      "search": "In Ihren Lesezeichen suchen",
+      "show_more": "Ganze Antwort anzeigen",
+      "show_less": "Weniger anzeigen",
+      "share": "Teilen",
+      "share_error": "Teilen fehlgeschlagen",
+      "download": "Als Markdown herunterladen",
+      "delete": "Dieses Lesezeichen löschen",
+      "confirm_delete_title": "Dieses Lesezeichen löschen?",
+      "confirm_delete_description": "Es verschwindet aus Ihren Lesezeichen. Die Unterhaltung, aus der es stammt, bleibt unverändert.",
+      "deleted": "Lesezeichen gelöscht",
+      "load_error": "Ihre Lesezeichen konnten nicht gelesen werden.",
+      "total": "{{count}} Lesezeichen",
+      "total_one": "{{count}} Lesezeichen",
+      "total_other": "{{count}} Lesezeichen",
+      "capacity": "{{count}} / {{max}} Lesezeichen",
+      "page_info": "Seite {{current}} von {{total}}",
+      "export_request": "Anfrage",
+      "export_answer": "Antwort",
+      "export_kept": "Aus LIA behalten — beantwortet am {{when}}"
     }
   },
   "relations": {
@@ -4525,7 +4558,7 @@
         },
         "connectors": {
           "title": "🔌 Konnektoren & Registry",
-          "description": "Ein modulares Register für alle Dienste — Google (Gmail, Kalender, Kontakte, Aufgaben, Drive, Orte, Routen), Apple iCloud, Microsoft 365, OpenWeatherMap, Wikipedia, Perplexity, Brave. Jeder Konnektor deklariert sein Manifest, seine JSON-Schemata entstehen aus den Python-Typen, und OAuth, API-Schlüssel und Zugangsdaten werden für alle gleich verwaltet."
+          "description": "Ein modulares Register für alle Dienste — Google (Gmail, Kalender, Kontakte, Aufgaben, Drive, Orte, Routen), Apple iCloud, Microsoft 365, OpenWeatherMap, Wikipedia, Perplexity, Brave. Ein Manifest je Konnektor, Schemata aus den Python-Typen, OAuth, Schlüssel und Zugangsdaten für alle gleich. Wikipedia, Browser, Places, Wetter und Luftqualität brauchen keinen Schlüssel von dir und sind vom ersten Tag an aktiv."
         },
         "streaming": {
           "title": "⚡ Streaming & Echtzeit",
@@ -4637,7 +4670,7 @@
         },
         "attachments": {
           "title": "📎 Fotos & Dateianhänge",
-          "description": "Fotos und PDFs über die 📎-Schaltfläche, per Drag-and-drop oder mit einem einfachen Strg+V aus der Zwischenablage, im Browser komprimiert, bevor sie den Rechner verlassen. Bilder liest ein Vision-Modell, aus PDFs wird der Text gezogen, Vorschaubilder öffnen sich in einer barrierefreien Lightbox. Was LIA erzeugt, hat eine eigene Galerie mit der Frist auf jeder Karte. Ein Reset entfernt, was du hochgeladen hast; was LIA gemacht hat, bleibt."
+          "description": "Fotos und PDFs über die 📎-Schaltfläche, per Drag & Drop oder einfach mit Strg+V, im Browser komprimiert, bevor sie das Gerät verlassen. Bilder liest ein Vision-Modell, aus PDFs wird der Text extrahiert, Vorschaubilder in einer barrierefreien Lightbox. Was LIA erzeugt, hat eine eigene Galerie mit der Frist auf jeder Karte, deine behaltenen Antworten liegen daneben im Reiter Lesezeichen; ein Reset entfernt, was du hochgeladen hast, nie, was LIA gemacht oder du behalten hast."
         },
         "skills": {
           "title": "Skills (mit interaktiven Karten und Mini-Apps)",
@@ -7139,6 +7172,18 @@
             "i1": "<b>📊 Admin · Echte Zahlen, sofort</b> — die Gauges des Produkt-Dashboards berechnen ihre ersten Werte zwei Minuten nach dem Start (zuvor warteten sie eine volle Stunde, die bewegte Tage nie gewährten), und die Panels für Routinen, First-Pass und Zeit bis zum ersten Wert lesen exaktes SQL statt Platzhalter-Notizen.",
             "i2": "<b>🔧 Admin · Zugriffsreparatur</b> — die Nur-Lese-Datenbankrolle hinter dem Produkt-Dashboard erhielt in der Produktion endlich ihre View-Berechtigungen (Panels zeigten „No data in response“), und das Deployment liefert nun das Wartungsskript mit, das sie konvergent hält."
           }
+        },
+        "v1_44_4": {
+          "title": "v1.44.4 — 🔖 Eine behaltene Antwort gehört dir",
+          "date": "September 2026",
+          "items": {
+            "i1": "<b>🔖 Eine Antwort mit einem Klick behalten</b> — jede Sprechblase des Assistenten trägt neben „Kopieren“ ein Lesezeichen. Einmal behalten, bleibt die Antwort mit der Anfrage, die sie hervorgebracht hat, und ihrem Datum — auch nachdem du die Unterhaltung zurückgesetzt hast: ein Lesezeichen ist eine Kopie, kein Verweis. Das Symbol füllt sich, wenn die Antwort behalten ist; ein zweiter Klick lässt sie los.",
+            "i2": "<b>🗂️ Ein Reiter „Lesezeichen“ in „Meine erzeugten Dateien“</b> — die neueste Antwort zuerst, eine Suche über Antworten und Anfragen, die genaue Gesamtzahl gegenüber dem, was dein Konto behalten darf. Jede Karte gibt die Antwort mit ihrer Formatierung wieder, teilt sie, lädt sie als Markdown mit deiner Anfrage als Zitat darüber herunter oder löscht sie nach Rückfrage.",
+            "i3": "<b>🔌 Neue Konten starten verbunden</b> — Wikipedia, das Seiten-Browsing, Google Places, Google Weather und Google Environment verlangen nichts von dir, also startet ein neues Konto mit ihnen aktiv statt mit fünf zu suchenden Schaltflächen. Bestehende Konten behalten ihre Wahl; eine Instanz ohne Plattform-Google-Schlüssel oder mit einem abgeschalteten Konnektor überspringt ihn.",
+            "i4": "<b>🎛️ Für Administratoren</b> — ein Schalter „Lesezeichen“ kommt ins Fähigkeiten-Panel: aus, verschwindet die Aktion, während bereits Behaltenes lesbar und löschbar bleibt. Die Fähigkeitenkarte zählt sie, und der Kontoexport nimmt sie mit.",
+            "i5": "<b>📅 Apple Kalender findet seinen Namen wieder</b> — ein über seinen Namen gewählter Standardkalender wurde auf iCloud nie gefunden; jetzt schon, durch dieselbe Korrektur, die die Kalenderliste repariert hat."
+          },
+          "count": "5"
         }
       }
     },
@@ -7193,7 +7238,7 @@
       "chat": {
         "title": "Unterhaltungen",
         "description": "Chat- und Unterhaltungsnutzung",
-        "count": "25",
+        "count": "26",
         "questions": {
           "q1": {
             "question": "Kann ich mehrere Unterhaltungen gleichzeitig führen?",
@@ -7294,6 +7339,10 @@
           "q25": {
             "question": "Was sind die kleinen animierten Augen auf der Chat-Seite?",
             "answer": "Das sind LIAs <strong>ausdrucksstarke Augen</strong> — ein kleines Begleiter-Widget, das spiegelt, was der Assistent gerade tut und fühlt. Sie beobachten das Eingabefeld, während du tippst, kneifen sich zusammen, wenn LIA nachdenkt, schweifen beim Suchen hin und her und spielen das <strong>Register</strong> jeder Antwort — LIA gibt selbst an, ob das soeben Geschriebene herzlich, souverän, sachlich, entschuldigend, neugierig oder besorgt ist, und das Gesicht spielt es, Mund inbegriffen. Zwölf unterschiedliche Ausdrücke, von denen nur zwei lächeln: eine technische Antwort behält ein konzentriertes Gesicht. In Ruhe gelassen lebt das ganze Gesicht weiter: Die Brauen behalten einen leichten Bogen und folgen dem Blick, ein einziger Atem trägt Augen, Brauen und Mund, der Mund spielt gemächlich kleine Mimiken, und alle ein bis zwei Minuten läuft eine kurze Szene — eine Fliege zum Verfolgen, ein Niesen, ein Gähnen, ein Schluckauf. Jeder Ausdruckswechsel bricht sie sofort ab.<br><br><strong>Mach sie zu deinen:</strong> Ziehe sie wohin du willst (Pfeiltasten funktionieren auch, und sie driften nie von ihrem Platz), tippe sie auf dem Handy an, um Größen- und Ausblenden-Knöpfe zu zeigen, oder reduziere sie auf einen kleinen Wiederherstellungspunkt. Sechs visuelle Stile stehen unter <strong>Einstellungen › Personalisierung › Augen-Stil</strong> mit Live-Vorschauen bereit. Dasselbe Gesicht begrüßt Besucher auf der öffentlichen Startseite, im Kapsel-Look, mit einem eigenen Platz, der den des Chats nie verschiebt. Bei reduzierter Bewegung im System bleiben die Augen still."
+          },
+          "q26": {
+            "question": "Wie behalte ich eine Antwort, damit sie die Unterhaltung überlebt?",
+            "answer": "Jede Sprechblase des Assistenten trägt neben „Kopieren“ ein <strong>Lesezeichen</strong>. Ein Klick behält die Antwort — eine Kopie in diesem Augenblick, mit der Anfrage, die sie hervorgebracht hat, und dem Datum —, sodass sie einen Reset der Unterhaltung überlebt. Das Symbol füllt sich, wenn die Antwort behalten ist; ein zweiter Klick lässt sie los.<br><br>Behaltene Antworten leben unter <strong>Einstellungen > Meine erzeugten Dateien > Lesezeichen</strong>, die neueste zuerst, mit einer Suche über Antworten und Anfragen. Jede Karte gibt die Antwort mit ihrer Formatierung wieder und bietet drei Aktionen: teilen (wo dein Gerät ein Teilen-Blatt hat), als Markdown herunterladen (deine Anfrage als Zitat über der Antwort), nach Rückfrage löschen.<br><br>Ein Konto behält eine begrenzte Zahl von Lesezeichen; der Reiter zeigt das Limit. Lesezeichen reisen mit deinem Kontoexport und werden mit deinem Konto gelöscht — nie durch einen Reset der Unterhaltung."
           }
         }
       },
@@ -7419,7 +7468,7 @@
       "connectors": {
         "title": "Konnektoren",
         "description": "Integrationen und externe Verbindungen",
-        "count": "14",
+        "count": "15",
         "questions": {
           "q1": {
             "question": "Was ist ein Konnektor?",
@@ -7476,6 +7525,10 @@
           "q14": {
             "question": "Wie verbinde ich Philips Hue?",
             "answer": "Philips Hue verwendet eine <strong>hybride Authentifizierung</strong> (lokales Press-Link oder Remote-OAuth2):<br><br><strong>🏠 Lokaler Modus (empfohlen):</strong><br>1. Geh zu <strong>Einstellungen > Smart Home > Philips Hue</strong><br>2. Klicke auf <strong>Lokale Verbindung</strong><br>3. Klicke auf <strong>Bridges suchen</strong><br>4. Wähle deine Bridge<br>5. <strong>Drücke den physischen Knopf</strong> auf der Hue Bridge<br>6. Klicke innerhalb von 30 Sekunden auf <strong>Koppeln</strong><br>7. LIA validiert die Konnektivität und aktiviert den Connector<br><br><strong>💡 Was Sie tun können:</strong><br>Wohnzimmerlichter einschalten, Schlafzimmer dimmen, Filmmodus aktivieren."
+          },
+          "q15": {
+            "question": "Welche Konnektoren sind gleich nach der Anmeldung aktiv?",
+            "answer": "Die, die nichts von dir verlangen: <strong>Wikipedia</strong>, das <strong>Seiten-Browsing</strong>, <strong>Google Places</strong>, <strong>Google Weather</strong> und <strong>Google Environment</strong> (Luftqualität und Pollen) — kein Konto zu verknüpfen, kein Schlüssel einzufügen. Ein neues Konto startet mit allen aktiv, damit der Assistent von der ersten Unterhaltung an einen Ort oder das Wetter nachschlagen kann.<br><br>Drei Fälle, in denen einer nicht aktiviert wird: der Administrator hat ihn für die Instanz abgeschaltet, die Instanz hat keinen Plattform-Google-Schlüssel, oder das Seiten-Browsing ist deaktiviert. Du kannst jeden davon unter <strong>Einstellungen > Konnektoren</strong> abschalten. Bestehende Konten werden nicht angerührt: was du gewählt hast, bleibt so."
           }
         }
       },
@@ -8884,6 +8937,10 @@
       "pinned_dock": {
         "title": "Deine Einstellungen, wo du auch bist",
         "desc": "Hefte die Bereiche an, die du nutzt; eine Kapsel trägt sie über jeden Bildschirm."
+      },
+      "keep_answer": {
+        "title": "Die Antwort behalten, den Chat loslassen",
+        "desc": "Ein Lesezeichen an jeder Antwort. Einmal behalten, bleibt sie — datiert, mit deiner Anfrage daneben — auch nachdem die Unterhaltung zurückgesetzt wurde. Teile sie, lade sie als Markdown herunter, lass sie los, wenn du fertig bist."
       }
     },
     "scenes": {
@@ -9014,6 +9071,10 @@
       "local_model_fit": {
         "thinking": "Denken",
         "dropped": "Nicht akzeptiert"
+      },
+      "keep_answer": {
+        "kept": "In deinen Lesezeichen behalten",
+        "gone": "Unterhaltung zurückgesetzt — die Antwort bleibt"
       }
     },
     "craft": {
@@ -9989,7 +10050,7 @@
     "features": {
       "connected_services": {
         "title": "Google, Apple iCloud & Microsoft 365",
-        "description": "E-Mails, Kalender, Kontakte und Aufgaben über Google, Apple iCloud oder Microsoft 365 — nach Wahl. Kontaktgruppen, freie Zeitfenster, Videolink bei der Terminerstellung sowie Lesen und Schreiben von Drive-Tabellen und -Dokumenten. Alles in natürlicher Sprache, unabhängig vom Anbieter."
+        "description": "E-Mails, Kalender, Kontakte und Aufgaben über Google, Apple iCloud oder Microsoft 365 — nach Wahl. Kontaktgruppen, freie Zeitfenster, Videolink bei der Terminerstellung sowie Lesen und Schreiben von Drive-Tabellen und -Dokumenten. Alles in natürlicher Sprache, unabhängig vom Anbieter. Wikipedia, Places, Wetter und Luftqualität brauchen keinen Schlüssel von dir und sind vom ersten Tag an aktiv."
       },
       "smart_home": {
         "title": "Smart Home (Philips Hue)",
@@ -10033,7 +10094,7 @@
       },
       "memory": {
         "title": "Kontextuelles Gedächtnis",
-        "description": "LIA merkt sich deine Vorlieben, Gewohnheiten und wichtigen Informationen. Sie verbessert sich mit jeder Interaktion für immer relevantere Antworten. Was sie behält, kommt von dir, wo immer du schreibst — Browser oder Messenger — und selbst dann, wenn deine Anfrage eine Aktion auslöst. Dauerhafte Regeln sind ebenfalls Erinnerungen: Sag einmal, wie LIA für dich arbeiten soll, und es gilt überall — und wenn sich ein Fakt ändert, wird der alte mit Datum abgelöst, nie stillschweigend gelöscht."
+        "description": "LIA merkt sich deine Vorlieben, Gewohnheiten und wichtigen Informationen. Sie verbessert sich mit jeder Interaktion für immer relevantere Antworten. Was sie behält, kommt von dir, wo immer du schreibst — Browser oder Messenger — und selbst dann, wenn deine Anfrage eine Aktion auslöst. Dauerhafte Regeln sind ebenfalls Erinnerungen: Sag einmal, wie LIA für dich arbeiten soll, und es gilt überall — und wenn sich ein Fakt ändert, wird der alte mit Datum abgelöst, nie stillschweigend gelöscht. Und eine Antwort, die es wert ist, wird mit einem Klick behalten — ein Lesezeichen an ihrer Sprechblase, datiert, mit deiner Anfrage, außerhalb jeder Unterhaltung."
       },
       "rich_responses": {
         "title": "Reichhaltige visuelle Antworten",
@@ -10890,7 +10951,7 @@
       "google-workspace": {
         "title": "Google Workspace-Integration: Gmail, Calendar, Contacts, Drive, Tasks",
         "excerpt": "LIA verbindet sich über OAuth 2.0 mit deinem Google Workspace zur Verwaltung von E-Mails, Kalender, Kontakten, Drive und Aufgaben.",
-        "body": "<h2>16 Google-APIs, eine einzige Konversation</h2><p>LIA integriert <strong>16 Google-APIs</strong>, die deinen Arbeitsbereich und darüber hinaus abdecken: <strong>Gmail API</strong>, <strong>Calendar API</strong>, <strong>People API v1</strong> (Kontakte), <strong>Drive API</strong>, <strong>Tasks API</strong>, <strong>Routes API</strong> und <strong>Places API</strong>. Du verwaltest alles über eine einzige Oberfläche in natürlicher Sprache.</p><h2>Vollständige Operationen pro Dienst</h2><p>Jeder Dienst bietet einen vollständigen Satz von CRUD-Operationen:</p><ul><li><strong>Gmail</strong> — Suche, Lesen, Senden, Antworten, Weiterleiten, Label-Verwaltung. Scope: <code>gmail.modify</code></li><li><strong>Calendar</strong> — Suche, Erstellen, Ändern, Löschen von Terminen, Teilnehmerverwaltung. Scope: <code>calendar.events</code></li><li><strong>Contacts</strong> — Suche, Erstellen, Ändern, Löschen über People API v1. Scope: <code>contacts</code>. Optimierte Feldprojektionen mit <strong>110 Token pro Kontakt</strong> im Listenmodus zur Minimierung des LLM-Verbrauchs</li><li><strong>Drive</strong> — Suche, Auflistung, Download, Freigabe von Dateien. Scope: <code>drive.readonly</code></li><li><strong>Tasks</strong> — Auflistung, Erstellen, Aktualisieren, Abschließen, Löschen. Scope: <code>tasks</code></li></ul><h2>Routes und Places: Globale APIs</h2><p>Über den Workspace hinaus integriert LIA die <strong>Google Routes API</strong> für die Routenberechnung (Auto, ÖPNV, Fahrrad, zu Fuß) und die <strong>Google Places API</strong> für die Suche nach Orten, Geschäften und Sehenswürdigkeiten. Diese APIs bereichern die kontextuellen Antworten des Assistenten.</p><h2>ConnectorTool-Architektur</h2><p>Jeder Dienst verwendet eine Basisklasse <code>ConnectorTool</code>, die automatisch die OAuth-Authentifizierung, die Token-Aktualisierung, das Caching des API-Clients und die Fehlerbehandlung verwaltet. Die Feldprojektionen (<code>field masks</code>) sind pro Operation optimiert, um die Größe der API-Antworten und den Token-Verbrauch zu reduzieren.</p><h2>OAuth 2.0-Sicherheit</h2><p>Zugriffstoken werden über Fernet (AES-128 CBC + HMAC) in der Datenbank verschlüsselt. Die Aktualisierung ist transparent: Wenn ein Token während einer Operation abläuft, erneuert LIA ihn automatisch. Die angeforderten OAuth-Scopes sind <strong>strikt auf das pro Dienst erforderliche Minimum beschränkt</strong>, gemäß dem Prinzip der minimalen Berechtigung.</p><h2>Was die Tokens ohnehin erlaubten</h2><p>Die Welle vom August 2026 verlangte den Nutzenden kaum neue Berechtigungen ab: Sie nutzt, was die erteilten Freigaben längst abdeckten, ohne dass LIA es abrief. <strong>Kontaktgruppen</strong> (People API) machen ein ganzes Label adressierbar — „schreib der Gruppe Familie\" — mit einer exakten Mitgliederzahl aus der API-Aggregation, nie aus einer abgeschnittenen Seite. Der <strong>freeBusy</strong>-Endpunkt berechnet freie Zeitfenster und liest dabei nur belegte Zeiträume: weniger Daten als das Lesen von Terminen, bei besserem Ergebnis. <strong>history.list</strong> ersetzt die periodische Neuabfrage des Herzschlags durch ein exaktes Delta, verankert an einer Verlaufs-ID. Und die APIs <strong>Sheets</strong> und <strong>Docs</strong> akzeptieren das bereits erteilte Drive-Token: eine Tabelle lesen und danach unter Bestätigung hineinschreiben, ohne erneute Zustimmung.</p><p>Zwei Plattformdienste vervollständigen das Bild, per Schalter aktivierbar, da sie auf dem Instanzschlüssel statt auf einem persönlichen Konto laufen: <strong>Weather</strong> (eine Alternative zu OpenWeatherMap für alle, die keinen eigenen Schlüssel besorgen wollen) und <strong>Environment</strong> (Luftqualität, Pollen). Die Normalisierung geschieht an der Client-Grenze, sodass sich die neunzehn Oberflächen, die Wetter bereits konsumieren, um keine Zeile geändert haben. <strong>Web Risk</strong> prüft Adressen vor dem Öffnen, <strong>Street View</strong> bebildert einen Ort ohne Foto — nach kostenloser Prüfung, ob Bildmaterial existiert — und <strong>watch</strong>-Kanäle plus <strong>Pub/Sub</strong> ersetzen das Abfragen durch Benachrichtigung, sobald der Betreiber sie einschaltet.</p>"
+        "body": "<h2>16 Google-APIs, eine einzige Konversation</h2><p>LIA integriert <strong>16 Google-APIs</strong>, die deinen Arbeitsbereich und darüber hinaus abdecken: <strong>Gmail API</strong>, <strong>Calendar API</strong>, <strong>People API v1</strong> (Kontakte), <strong>Drive API</strong>, <strong>Tasks API</strong>, <strong>Routes API</strong> und <strong>Places API</strong>. Du verwaltest alles über eine einzige Oberfläche in natürlicher Sprache.</p><h2>Vollständige Operationen pro Dienst</h2><p>Jeder Dienst bietet einen vollständigen Satz von CRUD-Operationen:</p><ul><li><strong>Gmail</strong> — Suche, Lesen, Senden, Antworten, Weiterleiten, Label-Verwaltung. Scope: <code>gmail.modify</code></li><li><strong>Calendar</strong> — Suche, Erstellen, Ändern, Löschen von Terminen, Teilnehmerverwaltung. Scope: <code>calendar.events</code></li><li><strong>Contacts</strong> — Suche, Erstellen, Ändern, Löschen über People API v1. Scope: <code>contacts</code>. Optimierte Feldprojektionen mit <strong>110 Token pro Kontakt</strong> im Listenmodus zur Minimierung des LLM-Verbrauchs</li><li><strong>Drive</strong> — Suche, Auflistung, Download, Freigabe von Dateien. Scope: <code>drive.readonly</code></li><li><strong>Tasks</strong> — Auflistung, Erstellen, Aktualisieren, Abschließen, Löschen. Scope: <code>tasks</code></li></ul><h2>Routes und Places: Globale APIs</h2><p>Über den Workspace hinaus integriert LIA die <strong>Google Routes API</strong> für die Routenberechnung (Auto, ÖPNV, Fahrrad, zu Fuß) und die <strong>Google Places API</strong> für die Suche nach Orten, Geschäften und Sehenswürdigkeiten. Diese APIs bereichern die kontextuellen Antworten des Assistenten. Places läuft, wie Wetter und Luftqualität, mit dem Schlüssel der Instanz: nichts zu verknüpfen, und ein neues Konto startet mit dem Dienst aktiv.</p><h2>ConnectorTool-Architektur</h2><p>Jeder Dienst verwendet eine Basisklasse <code>ConnectorTool</code>, die automatisch die OAuth-Authentifizierung, die Token-Aktualisierung, das Caching des API-Clients und die Fehlerbehandlung verwaltet. Die Feldprojektionen (<code>field masks</code>) sind pro Operation optimiert, um die Größe der API-Antworten und den Token-Verbrauch zu reduzieren.</p><h2>OAuth 2.0-Sicherheit</h2><p>Zugriffstoken werden über Fernet (AES-128 CBC + HMAC) in der Datenbank verschlüsselt. Die Aktualisierung ist transparent: Wenn ein Token während einer Operation abläuft, erneuert LIA ihn automatisch. Die angeforderten OAuth-Scopes sind <strong>strikt auf das pro Dienst erforderliche Minimum beschränkt</strong>, gemäß dem Prinzip der minimalen Berechtigung.</p><h2>Was die Tokens ohnehin erlaubten</h2><p>Die Welle vom August 2026 verlangte den Nutzenden kaum neue Berechtigungen ab: Sie nutzt, was die erteilten Freigaben längst abdeckten, ohne dass LIA es abrief. <strong>Kontaktgruppen</strong> (People API) machen ein ganzes Label adressierbar — „schreib der Gruppe Familie\" — mit einer exakten Mitgliederzahl aus der API-Aggregation, nie aus einer abgeschnittenen Seite. Der <strong>freeBusy</strong>-Endpunkt berechnet freie Zeitfenster und liest dabei nur belegte Zeiträume: weniger Daten als das Lesen von Terminen, bei besserem Ergebnis. <strong>history.list</strong> ersetzt die periodische Neuabfrage des Herzschlags durch ein exaktes Delta, verankert an einer Verlaufs-ID. Und die APIs <strong>Sheets</strong> und <strong>Docs</strong> akzeptieren das bereits erteilte Drive-Token: eine Tabelle lesen und danach unter Bestätigung hineinschreiben, ohne erneute Zustimmung.</p><p>Zwei Plattformdienste vervollständigen das Bild, per Schalter aktivierbar, da sie auf dem Instanzschlüssel statt auf einem persönlichen Konto laufen: <strong>Weather</strong> (eine Alternative zu OpenWeatherMap für alle, die keinen eigenen Schlüssel besorgen wollen) und <strong>Environment</strong> (Luftqualität, Pollen). Die Normalisierung geschieht an der Client-Grenze, sodass sich die neunzehn Oberflächen, die Wetter bereits konsumieren, um keine Zeile geändert haben. <strong>Web Risk</strong> prüft Adressen vor dem Öffnen, <strong>Street View</strong> bebildert einen Ort ohne Foto — nach kostenloser Prüfung, ob Bildmaterial existiert — und <strong>watch</strong>-Kanäle plus <strong>Pub/Sub</strong> ersetzen das Abfragen durch Benachrichtigung, sobald der Betreiber sie einschaltet.</p>"
       },
       "apple-microsoft": {
         "title": "Apple iCloud und Microsoft 365: Multi-Plattform-Konnektoren",
@@ -11700,7 +11761,8 @@
       "habits": "Gewohnheiten",
       "mcp_servers": "MCP-Server",
       "telephony": "Anrufe",
-      "meetings": "Besprechungen"
+      "meetings": "Besprechungen",
+      "bookmarks": "Lesezeichen"
     },
     "items": {
       "stt": "Spracheingabe (Transkription)",
@@ -11754,7 +11816,9 @@
       "python_sandbox": "Flüchtiges Python",
       "python_sandbox_description": "Ein kurzes vom Modell geschriebenes Skript in der Sandbox ausführen. Abschalten verweigert es beim Aufruf.",
       "moments": "Vorausgesehene Momente",
-      "moments_description": "LIA meldet sich in einem Moment, der zählt — etwa direkt nach einem wichtigen Meeting — statt auf den nächsten geplanten Durchlauf zu warten. Kontingent und Zeitfenster der proaktiven Benachrichtigungen gelten weiterhin."
+      "moments_description": "LIA meldet sich in einem Moment, der zählt — etwa direkt nach einem wichtigen Meeting — statt auf den nächsten geplanten Durchlauf zu warten. Kontingent und Zeitfenster der proaktiven Benachrichtigungen gelten weiterhin.",
+      "bookmarks": "Lesezeichen",
+      "bookmarks_description": "Eine Antwort über das Lesezeichen ihrer Sprechblase außerhalb einer Unterhaltung behalten. Wird dies abgeschaltet, verschwindet die Aktion; bereits Behaltenes bleibt lesbar und löschbar."
     }
   },
   "showroom": {

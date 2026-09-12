@@ -791,7 +791,12 @@
       "tts_tooltip_provider": "语音合成 via {{provider}}{{model}}",
       "tts_tooltip_fallback": "文字转语音成本",
       "share_peer": "分享给伙伴",
-      "share_peer_draft": "把这个转发给{{recipient}}：\n\n{{content}}"
+      "share_peer_draft": "把这个转发给{{recipient}}：\n\n{{content}}",
+      "bookmark": "保存这条回答",
+      "bookmark_remove": "从书签中移除",
+      "bookmark_kept": "回答已保存到您的书签",
+      "bookmark_removed": "已从您的书签中移除",
+      "bookmark_error": "无法保存这条回答"
     },
     "code": {
       "copy": "复制代码",
@@ -3650,7 +3655,7 @@
         "admin-registers": "记录, 透明度, 操作, 查阅, 导出, 日志, 审计, 管理，图表，统计，数字，总览, 主动, 主动行动, 第 12 条, 完整导出, 回合",
         "reminders": "提醒, 提醒我, 警报, 通知, 重复提醒, 重复, 便签，重复，每天，时间段",
         "workboard": "workboard 工单板 工单 看板 列 待办 待处理",
-        "generated-assets": "文件 图片 文档 截图 下载 图库 生成 过期"
+        "generated-assets": "文件 图片 文档 截图 下载 图库 生成 过期 书签 收藏 保存的回答 bookmarks"
       },
       "results_count_other": "找到 {{count}} 项设置"
     },
@@ -3739,11 +3744,12 @@
     },
     "generated_assets": {
       "title": "我生成的文件",
-      "description": "LIA 为您生成的图片、文档与截图。请在它们过期前下载，或立即删除。",
+      "description": "LIA 为您生成的图片、文档和截图，以及您选择保存的回答。请在文件过期前下载，或立即删除。",
       "family": {
         "images": "图片",
         "documents": "文档",
-        "screenshots": "截图"
+        "screenshots": "截图",
+        "bookmarks": "书签"
       },
       "filters": {
         "title": "筛选",
@@ -3786,7 +3792,9 @@
         "documents_title": "暂无文档",
         "documents_description": "向 LIA 索取报告、表格或演示文稿，它就会出现在这里。",
         "screenshots_title": "暂无截图",
-        "screenshots_description": "LIA 会在此保留浏览会话的最后一帧画面。"
+        "screenshots_description": "LIA 会在此保留浏览会话的最后一帧画面。",
+        "bookmarks_title": "还没有书签",
+        "bookmarks_description": "在聊天中用气泡上的书签保存一条回答，它就会出现在这里——即使对话已被删除。"
       },
       "total": "{{count}} 个文件",
       "total_one": "{{count}} 个文件",
@@ -3803,6 +3811,31 @@
       "confirm_delete_description": "将立即从您的账户中移除 {{count}} 个文件。",
       "confirm_delete_description_one": "将立即从您的账户中移除 {{count}} 个文件。",
       "confirm_delete_description_other": "将立即从您的账户中移除 {{count}} 个文件。"
+    },
+    "bookmarks": {
+      "request": "您的请求",
+      "no_request": "LIA 主动发送的消息",
+      "answered_at": "回答于 {{when}}",
+      "kept_at": "保存于 {{when}}",
+      "search": "搜索您的书签",
+      "show_more": "显示完整回答",
+      "show_less": "收起",
+      "share": "分享",
+      "share_error": "分享失败",
+      "download": "下载为 Markdown",
+      "delete": "删除此书签",
+      "confirm_delete_title": "删除此书签？",
+      "confirm_delete_description": "它将从您的书签中移除。它所属的对话不受影响。",
+      "deleted": "书签已删除",
+      "load_error": "无法读取您的书签。",
+      "total": "{{count}} 个书签",
+      "total_one": "{{count}} 个书签",
+      "total_other": "{{count}} 个书签",
+      "capacity": "{{count}} / {{max}} 个书签",
+      "page_info": "第 {{current}} 页，共 {{total}} 页",
+      "export_request": "请求",
+      "export_answer": "回答",
+      "export_kept": "保存自 LIA — 回答于 {{when}}"
     }
   },
   "relations": {
@@ -4520,7 +4553,7 @@
         },
         "connectors": {
           "title": "🔌 连接器与注册表",
-          "description": "所有服务共用一套模块化注册表——Google（Gmail、日历、联系人、任务、Drive、地点、路线）、Apple iCloud、Microsoft 365、OpenWeatherMap、维基百科、Perplexity、Brave。每个连接器声明自己的清单，JSON 模式由 Python 类型生成，OAuth、API 密钥和凭据对所有连接器一视同仁。"
+          "description": "所有服务共用一套模块化注册表——Google（Gmail、日历、联系人、任务、Drive、地点、路线）、Apple iCloud、Microsoft 365、OpenWeatherMap、维基百科、Perplexity、Brave。每个连接器一份清单，模式由 Python 类型生成，OAuth、密钥和凭据一视同仁。维基百科、浏览器、地点、天气和空气质量不需要你提供密钥，从第一天起就已启用。"
         },
         "streaming": {
           "title": "⚡ 流式传输与实时",
@@ -4632,7 +4665,7 @@
         },
         "attachments": {
           "title": "📎 照片与文件附件",
-          "description": "通过 📎 按钮、拖放或 Ctrl+V 添加照片和 PDF，在离开浏览器前先压缩。图片由视觉模型读取，PDF 会被提取文字，缩略图在无障碍查看器中打开。LIA 生成的文件有自己的图库，卡片上写明期限。重置只移除你上传的内容；LIA 做出来的会留下。"
+          "description": "通过 📎 按钮、拖放或 Ctrl+V 添加照片和 PDF，在离开浏览器前先压缩。图片由视觉模型读取，PDF 会被提取文字，缩略图在无障碍查看器中打开。LIA 生成的文件有自己的图库，卡片上写明期限，你保存的回答就在旁边的「书签」标签页；重置只移除你上传的内容，绝不会动 LIA 做出来的或你保存的。"
         },
         "skills": {
           "title": "Skills（带地图和交互式迷你应用）",
@@ -7134,6 +7167,18 @@
             "i1": "<b>📊 管理 · 立即呈现真实数字</b> — 产品仪表盘的度量在启动两分钟后即计算首批数值（此前要等整整一小时，繁忙的日子里从未等到），例行任务、首次通过率与首个价值时延面板改读精确 SQL，而非占位说明。",
             "i2": "<b>🔧 管理 · 访问修复</b> — 产品仪表盘背后的只读数据库角色终于在生产环境获得了视图权限（面板曾显示 “No data in response”），部署现在随附维护脚本以保持权限收敛。"
           }
+        },
+        "v1_44_4": {
+          "title": "v1.44.4 — 🔖 保存的回答属于你",
+          "date": "2026 年 9 月",
+          "items": {
+            "i1": "<b>🔖 一键保存回答</b>——助手的每条气泡在「复制」旁都有一个书签。保存一次，回答就连同产生它的请求和日期一起留下，即使你重置了对话：书签是一份副本，不是一个指针。回答保存后图标会填满；再点一次即可移除。",
+            "i2": "<b>🗂️「我的生成文件」中新增「书签」标签页</b>——最新回答排在最前，可按回答和请求搜索，并显示相对于账户上限的精确总数。每张卡片按原有格式呈现回答，可以分享、下载为 Markdown（你的请求引用在最上方），或在确认后删除。",
+            "i3": "<b>🔌 新账户一开始就已连接</b>——维基百科、网页浏览、Google 地点、Google 天气和 Google 环境不需要你提供任何东西，因此新账户一开始就启用它们，而不是让你去找五个按钮。已有账户保留自己的选择；没有平台 Google 密钥的实例，或已被关闭的连接器，会被跳过。",
+            "i4": "<b>🎛️ 面向管理员</b>——能力面板新增「书签」开关：关闭后书签操作消失，而已保存的内容仍可阅读和删除。能力地图会统计它们，账户导出也会包含它们。",
+            "i5": "<b>📅 Apple 日历找回了它的名字</b>——按名称选择的默认日历在 iCloud 上从未被找到；现在可以了，得益于修复日历列表的同一处更正。"
+          },
+          "count": "5"
         }
       }
     },
@@ -7188,7 +7233,7 @@
       "chat": {
         "title": "对话",
         "description": "使用聊天和对话",
-        "count": "25",
+        "count": "26",
         "questions": {
           "q1": {
             "question": "我可以同时进行多个对话吗？",
@@ -7289,6 +7334,10 @@
           "q25": {
             "question": "聊天页上的小动画眼睛是什么？",
             "answer": "那是 LIA 的<strong>表情眼睛</strong>——一个小小的陪伴部件，映照出助手正在做什么、感受如何。你输入时它们注视输入框，LIA 思考时眯起，检索时左右扫视，并演出每条回答的<strong>语气</strong>——由 LIA 自己说明刚写下的内容是温和、笃定、平实、致歉、好奇还是关切，表情随之呈现，包含嘴部。十二种截然不同的表情，其中只有两种在微笑：技术性回答会保持专注的神情。无人打扰时，整张脸依然活着：眉毛保持隐约的弧度并跟随目光，一次呼吸带动眼睛、眉毛和嘴巴，嘴巴不慌不忙地做小表情，每隔一两分钟上演一段小戏——追一只苍蝇、打喷嚏、打哈欠、打嗝。任何表情变化都会立刻中断它。<br><br><strong>让它们属于你：</strong>把它们拖到任何位置（方向键也可以，而且它们绝不会从你放置的位置漂移），在手机上轻点它们即可显示大小与隐藏按钮，或将它们收起为一个小小的恢复圆点。在<strong>设置 › 个性化 › 眼睛样式</strong>中有六种视觉样式可选，并配有动态预览。同一张脸也会在公开首页迎接访客，以胶囊外观出现，有自己的位置，绝不会移动聊天页里的位置。若系统开启了减少动态效果，眼睛会保持静止。"
+          },
+          "q26": {
+            "question": "如何保存一条回答，让它在对话之外留存？",
+            "answer": "助手的每条气泡在「复制」旁都有一个<strong>书签</strong>。点一下就保存这条回答——在那一刻取一份副本，连同产生它的请求和日期——这样它就能在对话重置后留存。回答保存后图标会填满；再点一次即可移除。<br><br>保存的回答位于<strong>设置 > 我的生成文件 > 书签</strong>，最新的排在最前，可按回答和请求搜索。每张卡片按原有格式呈现回答，并提供三个操作：分享（当你的设备有分享面板时）、下载为 Markdown（你的请求引用在回答上方）、确认后删除。<br><br>一个账户可保存的书签数量有限；标签页会显示上限。书签会随账户导出一起带走，并随账户一起删除——绝不会因对话重置而消失。"
           }
         }
       },
@@ -7414,7 +7463,7 @@
       "connectors": {
         "title": "连接器",
         "description": "集成和外部连接",
-        "count": "14",
+        "count": "15",
         "questions": {
           "q1": {
             "question": "什么是连接器？",
@@ -7471,6 +7520,10 @@
           "q14": {
             "question": "如何连接Philips Hue？",
             "answer": "Philips Hue使用<strong>混合认证</strong>（本地按键配对或远程OAuth2）：<br><br><strong>🏠 本地模式（推荐 — 同一网络）：</strong><br>1. 前往 <strong>设置 > 智能家居 > Philips Hue</strong><br>2. 点击 <strong>本地连接</strong><br>3. 点击 <strong>搜索网桥</strong><br>4. 选择你的网桥<br>5. <strong>按下</strong>Hue网桥上的物理按钮<br>6. 在30秒内点击 <strong>配对</strong><br>7. LIA验证连接并激活连接器<br><br><strong>💡 你可以做什么：</strong><br>• \"打开客厅的灯\"<br>• \"将卧室调暗到30%\"<br>• \"将厨房灯设为蓝色\"<br>• \"激活电影模式\""
+          },
+          "q15": {
+            "question": "注册后哪些连接器会立即启用？",
+            "answer": "那些不需要你提供任何东西的：<strong>维基百科</strong>、<strong>网页浏览</strong>、<strong>Google 地点</strong>、<strong>Google 天气</strong>和 <strong>Google 环境</strong>（空气质量与花粉）——无需绑定账户，无需粘贴密钥。新账户一开始就全部启用，让助手从第一次对话起就能查找地点或天气。<br><br>三种情况下某个连接器不会被启用：管理员在实例上关闭了它、实例没有平台 Google 密钥、或网页浏览已被禁用。你可以在<strong>设置 > 连接器</strong>中关闭任意一个。已有账户不受影响：你的选择保持原样。"
           }
         }
       },
@@ -8879,6 +8932,10 @@
       "pinned_dock": {
         "title": "你的设置，走到哪儿都在",
         "desc": "把常用板块钉起来，一枚小胶囊会带着它们出现在每个页面。"
+      },
+      "keep_answer": {
+        "title": "留下回答，放下对话",
+        "desc": "每条回答上都有一个书签。保存一次，它就留下来——带着日期，你的请求在旁边——即使对话被重置也不受影响。分享它，下载为 Markdown，不需要时再放手。"
       }
     },
     "scenes": {
@@ -9009,6 +9066,10 @@
       "local_model_fit": {
         "thinking": "思考",
         "dropped": "不接受"
+      },
+      "keep_answer": {
+        "kept": "已保存到你的书签",
+        "gone": "对话已重置——回答仍在"
       }
     },
     "craft": {
@@ -9984,7 +10045,7 @@
     "features": {
       "connected_services": {
         "title": "Google、Apple iCloud 与 Microsoft 365",
-        "description": "通过 Google、Apple iCloud 或 Microsoft 365 处理邮件、日历、联系人和任务——由你选择。支持联系人分组、空闲时段查找、创建会议时自动附带视频链接，以及读写 Drive 表格与文档。全部用自然语言完成，不受服务商限制。"
+        "description": "通过 Google、Apple iCloud 或 Microsoft 365 处理邮件、日历、联系人和任务——由你选择。支持联系人分组、空闲时段查找、创建会议时自动附带视频链接，以及读写 Drive 表格与文档。全部用自然语言完成，不受服务商限制。 维基百科、地点、天气和空气质量不需要你提供密钥，从第一天起就已启用。"
       },
       "smart_home": {
         "title": "智能家居 (Philips Hue)",
@@ -10028,7 +10089,7 @@
       },
       "memory": {
         "title": "上下文记忆",
-        "description": "LIA记住你的偏好、习惯和重要信息。通过每次互动不断改进，提供越来越相关的回复。 它记住的内容来自你，无论你在浏览器还是即时通讯软件中书写，即使你的请求触发了某项操作。 永久规则也是记忆：说一次 LIA 应如何为您工作，它便处处应用——当事实变化时，旧事实会被带日期地取代，绝不悄然抹去。"
+        "description": "LIA记住你的偏好、习惯和重要信息。通过每次互动不断改进，提供越来越相关的回复。 它记住的内容来自你，无论你在浏览器还是即时通讯软件中书写，即使你的请求触发了某项操作。 永久规则也是记忆：说一次 LIA 应如何为您工作，它便处处应用——当事实变化时，旧事实会被带日期地取代，绝不悄然抹去。 值得留下的回答，一键就能保存——气泡上的一个书签，带着日期和你的请求，独立于任何对话。"
       },
       "rich_responses": {
         "title": "丰富可视化回复",
@@ -10885,7 +10946,7 @@
       "google-workspace": {
         "title": "Google Workspace集成：Gmail、Calendar、Contacts、Drive、Tasks",
         "excerpt": "LIA通过OAuth 2.0连接你的Google Workspace，用自然语言管理邮件、日历、联系人、Drive和任务。",
-        "body": "<h2>16个Google API，一次对话</h2><p>LIA集成<strong>16个Google API</strong>，覆盖你的工作空间及更多：<strong>Gmail API</strong>、<strong>Calendar API</strong>、<strong>People API v1</strong>（联系人）、<strong>Drive API</strong>、<strong>Tasks API</strong>、<strong>Routes API</strong>和<strong>Places API</strong>。你可以通过单一自然语言界面管理所有服务。</p><h2>各服务完整操作</h2><p>每个服务提供完整的CRUD操作集：</p><ul><li><strong>Gmail</strong> — 搜索、阅读、发送、回复、转发、标签管理。Scope：<code>gmail.modify</code></li><li><strong>Calendar</strong> — 搜索、创建、修改、删除日程，管理参与者。Scope：<code>calendar.events</code></li><li><strong>Contacts</strong> — 通过People API v1搜索、创建、修改、删除。Scope：<code>contacts</code>。字段投影优化至列表模式下<strong>每个联系人110个Token</strong>以最小化LLM消耗</li><li><strong>Drive</strong> — 搜索、列表、下载、共享文件。Scope：<code>drive.readonly</code></li><li><strong>Tasks</strong> — 列表、创建、更新、完成、删除。Scope：<code>tasks</code></li></ul><h2>Routes和Places：全球API</h2><p>除了Workspace之外，LIA还集成了<strong>Google Routes API</strong>（计算路线：驾车、公共交通、骑行、步行）和<strong>Google Places API</strong>（搜索地点、商家和兴趣点）。这些API丰富了助手的上下文响应。</p><h2>ConnectorTool架构</h2><p>每个服务使用<code>ConnectorTool</code>基类，自动处理OAuth认证、Token刷新、API客户端缓存和错误管理。字段投影（<code>field masks</code>）按操作优化，以减少API响应大小和Token消耗。</p><h2>OAuth 2.0安全</h2><p>访问令牌通过Fernet（AES-128 CBC + HMAC）加密存储在数据库中。刷新是透明的：如果Token在操作期间过期，LIA会自动更新。请求的OAuth scope严格遵循<strong>最小权限原则</strong>。</p><h2>授权早已允许的能力</h2><p>2026 年 8 月这一批几乎没有向用户索取新权限：它使用的是已授予范围本就涵盖、但 LIA 从未调用的能力。<strong>联系人分组</strong>（People API）让整个标签可寻址——“给家人分组发邮件”——成员数量取自 API 聚合结果，绝不来自被截断的页面。<strong>freeBusy</strong> 端点在计算空闲时段时只读取忙碌区间：比读取日程内容更少的数据，却给出更好的答案。<strong>history.list</strong> 用锚定在历史标识上的精确增量，取代了心跳的周期性重复查询。而 <strong>Sheets</strong> 与 <strong>Docs</strong> API 接受已授予的 Drive 令牌：读取表格，并在确认后写入，无需重新授权。</p><p>两项平台服务补全了这一体系，只需一个开关即可启用，因为它们使用实例密钥而非个人账号：<strong>Weather</strong>（面向不愿自行申请密钥的用户，作为 OpenWeatherMap 的替代）和 <strong>Environment</strong>（空气质量、花粉）。归一化在客户端边界完成，因此已经消费天气数据的十九处界面一行都没有改动。<strong>Web Risk</strong> 在打开前筛查网址，<strong>Street View</strong> 为没有照片的地点提供配图——先免费确认影像存在——而 <strong>watch</strong> 通道与 <strong>Pub/Sub</strong> 在运营者启用后，用通知取代轮询。</p>"
+        "body": "<h2>16个Google API，一次对话</h2><p>LIA集成<strong>16个Google API</strong>，覆盖你的工作空间及更多：<strong>Gmail API</strong>、<strong>Calendar API</strong>、<strong>People API v1</strong>（联系人）、<strong>Drive API</strong>、<strong>Tasks API</strong>、<strong>Routes API</strong>和<strong>Places API</strong>。你可以通过单一自然语言界面管理所有服务。</p><h2>各服务完整操作</h2><p>每个服务提供完整的CRUD操作集：</p><ul><li><strong>Gmail</strong> — 搜索、阅读、发送、回复、转发、标签管理。Scope：<code>gmail.modify</code></li><li><strong>Calendar</strong> — 搜索、创建、修改、删除日程，管理参与者。Scope：<code>calendar.events</code></li><li><strong>Contacts</strong> — 通过People API v1搜索、创建、修改、删除。Scope：<code>contacts</code>。字段投影优化至列表模式下<strong>每个联系人110个Token</strong>以最小化LLM消耗</li><li><strong>Drive</strong> — 搜索、列表、下载、共享文件。Scope：<code>drive.readonly</code></li><li><strong>Tasks</strong> — 列表、创建、更新、完成、删除。Scope：<code>tasks</code></li></ul><h2>Routes和Places：全球API</h2><p>除了Workspace之外，LIA还集成了<strong>Google Routes API</strong>（计算路线：驾车、公共交通、骑行、步行）和<strong>Google Places API</strong>（搜索地点、商家和兴趣点）。这些API丰富了助手的上下文响应。Places 与天气、空气质量一样使用实例自己的密钥：无需绑定任何账户，新账户一开始就启用了该服务。</p><h2>ConnectorTool架构</h2><p>每个服务使用<code>ConnectorTool</code>基类，自动处理OAuth认证、Token刷新、API客户端缓存和错误管理。字段投影（<code>field masks</code>）按操作优化，以减少API响应大小和Token消耗。</p><h2>OAuth 2.0安全</h2><p>访问令牌通过Fernet（AES-128 CBC + HMAC）加密存储在数据库中。刷新是透明的：如果Token在操作期间过期，LIA会自动更新。请求的OAuth scope严格遵循<strong>最小权限原则</strong>。</p><h2>授权早已允许的能力</h2><p>2026 年 8 月这一批几乎没有向用户索取新权限：它使用的是已授予范围本就涵盖、但 LIA 从未调用的能力。<strong>联系人分组</strong>（People API）让整个标签可寻址——“给家人分组发邮件”——成员数量取自 API 聚合结果，绝不来自被截断的页面。<strong>freeBusy</strong> 端点在计算空闲时段时只读取忙碌区间：比读取日程内容更少的数据，却给出更好的答案。<strong>history.list</strong> 用锚定在历史标识上的精确增量，取代了心跳的周期性重复查询。而 <strong>Sheets</strong> 与 <strong>Docs</strong> API 接受已授予的 Drive 令牌：读取表格，并在确认后写入，无需重新授权。</p><p>两项平台服务补全了这一体系，只需一个开关即可启用，因为它们使用实例密钥而非个人账号：<strong>Weather</strong>（面向不愿自行申请密钥的用户，作为 OpenWeatherMap 的替代）和 <strong>Environment</strong>（空气质量、花粉）。归一化在客户端边界完成，因此已经消费天气数据的十九处界面一行都没有改动。<strong>Web Risk</strong> 在打开前筛查网址，<strong>Street View</strong> 为没有照片的地点提供配图——先免费确认影像存在——而 <strong>watch</strong> 通道与 <strong>Pub/Sub</strong> 在运营者启用后，用通知取代轮询。</p>"
       },
       "apple-microsoft": {
         "title": "Apple iCloud和Microsoft 365：多平台连接器",
@@ -11695,7 +11756,8 @@
       "habits": "习惯",
       "mcp_servers": "MCP 服务器",
       "telephony": "通话",
-      "meetings": "会议"
+      "meetings": "会议",
+      "bookmarks": "书签"
     },
     "items": {
       "stt": "语音输入（转写）",
@@ -11749,7 +11811,9 @@
       "python_sandbox": "临时 Python",
       "python_sandbox_description": "在沙箱中运行模型编写的短脚本。关闭后在调用时拒绝。",
       "moments": "预期时刻",
-      "moments_description": "LIA 会在重要的时刻主动联系你（例如重要会议刚结束时），而不是等到下一次定时扫描。主动通知的配额和时段仍然适用。"
+      "moments_description": "LIA 会在重要的时刻主动联系你（例如重要会议刚结束时），而不是等到下一次定时扫描。主动通知的配额和时段仍然适用。",
+      "bookmarks": "书签",
+      "bookmarks_description": "通过气泡上的书签，把一条回答保存在对话之外。关闭后，书签操作消失；已保存的内容仍可阅读和删除。"
     }
   },
   "showroom": {

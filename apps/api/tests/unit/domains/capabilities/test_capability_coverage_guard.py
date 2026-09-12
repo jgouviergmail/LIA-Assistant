@@ -157,6 +157,10 @@ class TestTheChartCanDrawEveryNode:
         source = (_WEB / "src/lib/capability-sections.ts").read_text(encoding="utf-8")
         block = source.split("CAPABILITY_SECTION", 1)[1].split("};", 1)[0]
         routed = set(re.findall(r"^\s{2}([a-z_]+): '", block, re.M))
+        # A node may land on a TAB of a section another node owns (the kept
+        # answers, ADR-282): that table is a destination too.
+        tabs = source.split("CAPABILITY_SECTION_TAB", 1)[1].split("};", 1)[0]
+        routed |= set(re.findall(r"^\s{2}([a-z_]+): \{ token: '", tabs, re.M))
 
         assert MAP_NODE_KEYS - routed == NODES_WITHOUT_A_SETTINGS_DESTINATION, (
             "a capability node gained or lost its settings destination: "

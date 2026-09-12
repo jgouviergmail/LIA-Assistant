@@ -28,7 +28,7 @@ import { CapabilityConstellation } from './CapabilityConstellation';
 import { CapabilityList } from './CapabilityList';
 import { useCapabilities } from '@/hooks/useCapabilities';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { sectionOfCapability } from '@/lib/capability-sections';
+import { sectionOfCapability, tabOfCapability } from '@/lib/capability-sections';
 import { settingsSectionHref } from '@/lib/settings-sections';
 
 export function CapabilityMapView({ lng }: { lng: string }) {
@@ -64,7 +64,9 @@ export function CapabilityMapView({ lng }: { lng: string }) {
     // configure per account) points at the settings root rather than nowhere —
     // a dead link is worse than a general one.
     const token = sectionOfCapability(key);
-    return token ? settingsSectionHref(lng, token) : `/${lng}/dashboard/settings`;
+    return token
+      ? settingsSectionHref(lng, token, tabOfCapability(key))
+      : `/${lng}/dashboard/settings`;
   };
 
   return wide ? (

@@ -21,6 +21,8 @@ peers notification is asserted NOT to produce it.
 
 from __future__ import annotations
 
+from src.core.constants import PROACTIVE_MESSAGE_TYPE_PREFIX
+
 #: Proactive task type of a RELAYED message delivered to its recipient.
 #: ``NotificationDispatcher`` derives the archived metadata ``type`` from it.
 PEER_MESSAGE_TASK_TYPE = "peer_message"
@@ -36,7 +38,7 @@ PEER_REQUEST_TASK_TYPE = "peer_request"
 #: message. Composed exactly as the dispatcher composes it — the single value
 #: a reader may filter on (prefix matching would also catch requests and
 #: lifecycle notices, which are NOT messages from the peer).
-PROACTIVE_PEER_MESSAGE_TYPE = f"proactive_{PEER_MESSAGE_TASK_TYPE}"
+PROACTIVE_PEER_MESSAGE_TYPE = f"{PROACTIVE_MESSAGE_TYPE_PREFIX}{PEER_MESSAGE_TASK_TYPE}"
 
 #: Metadata key: boolean marker written since Lot 7. NO reader depends on it —
 #: what identifies a relayed bubble is ``type``, which cannot be imitated by

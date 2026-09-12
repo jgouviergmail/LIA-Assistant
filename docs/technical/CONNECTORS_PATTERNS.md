@@ -276,6 +276,21 @@ emails = ContactsFormatter._extract_emails(person)
 | **GoogleWeatherClient** | Current conditions + hourly forecast, normalized to the OWM shape AT THE CLIENT BOUNDARY (icons mapped to OWM codes, km/h → m/s) so the 19 weather call sites are provider-agnostic |
 | **GoogleEnvironmentClient** | Air quality (universal + LOCAL national index) and pollen forecast; deliberately OUTSIDE the "weather" functional category, so an OpenWeatherMap user keeps it |
 
+#### Keyless user connectors — activated at sign-up
+
+A connector that asks NOTHING of the person (no OAuth consent, no personal key) is
+activated by one click in the settings, and **every new account starts with all of
+them**: Wikipedia, the browser, Google Places, Google Weather and Google Environment.
+The list is ONE declaration, `ConnectorType.get_keyless_types()` (`connectors/models.py`),
+mirrored by the frontend's `requiresKey: false` entries and pinned by
+`tests/unit/domains/connectors/test_keyless_connector_types_frontend_parity.py`.
+`users/keyless_connectors_provisioning.py` runs inside `provision_new_user` (ADR-126),
+stages the rows and never raises. Three refusals: a type the administrator disabled
+globally, a platform-key type on an instance with no `GOOGLE_API_KEY` (an active
+connector that can only fail is worse than an absent one), and the browser when
+`BROWSER_ENABLED=false`. Existing accounts are never touched; the rows carry
+`provisioned_by: signup_keyless` so the register says where they came from.
+
 #### Drive-token ride-along clients (no new scope)
 
 | Connecteur | Key Features |

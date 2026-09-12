@@ -83,6 +83,11 @@ MESSAGE_READERS: Final[dict[str, tuple[ReadScope, str]]] = {
         ReadScope.WHOLE_RECORD,
         "the retention sweep targets the hidden rows themselves and measures their volume",
     ),
+    "src.domains.bookmarks.repository": (
+        ReadScope.VISIBLE_ONLY,
+        "the answer a person chose to keep and their last words before it — a run's rows are "
+        "never shown, so never kept, and its synthetic question is not what they asked",
+    ),
 }
 
 

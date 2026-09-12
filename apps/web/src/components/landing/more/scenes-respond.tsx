@@ -12,6 +12,8 @@ import {
   HelpCircle,
   ChevronDown,
   ArrowDown,
+  Bookmark,
+  BookmarkCheck,
   Check,
   ChevronRight,
   Copy,
@@ -211,6 +213,77 @@ function ShareExportScene({ active }: SceneProps) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+type KeepPhase = 'bubble' | 'kept' | 'toast' | 'gone';
+const KEEP_STEPS: readonly TimelineStep<KeepPhase>[] = [
+  { at: 0, state: 'bubble' },
+  { at: 900, state: 'kept' },
+  { at: 1300, state: 'toast' },
+  { at: 2600, state: 'gone' },
+];
+
+/**
+ * Keep an answer: the bookmark on the bubble fills, a toast confirms, then
+ * the conversation around it fades and the kept answer stays — the whole
+ * point of a copy that does not depend on the conversation.
+ */
+function KeepAnswerScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(KEEP_STEPS, { active });
+  const kept = phase !== 'bubble';
+  const gone = phase === 'gone';
+  return (
+    <div className={cn(STAGE, 'items-stretch justify-center gap-1.5')}>
+      <MiniBubble
+        side="user"
+        className={cn('w-3/5 self-end transition-opacity duration-500', gone && 'opacity-20')}
+      >
+        <SkeletonLine w="w-full" />
+      </MiniBubble>
+      <MiniBubble
+        side="assistant"
+        className={cn(
+          'w-3/4 space-y-1.5 transition-all duration-500',
+          gone ? 'border-primary/50 ring-1 ring-primary/30' : ''
+        )}
+      >
+        <SkeletonLine w="w-full" />
+        <SkeletonLine w="w-3/5" />
+      </MiniBubble>
+      <div
+        className={cn(
+          'flex items-center gap-2.5 self-start pl-2 text-muted-foreground transition-opacity duration-500',
+          gone && 'opacity-20'
+        )}
+      >
+        <Copy className="h-3 w-3" />
+        {kept ? (
+          <BookmarkCheck className="h-3 w-3 text-primary" />
+        ) : (
+          <Bookmark className="h-3 w-3" />
+        )}
+        <ThumbsUp className="h-3 w-3" />
+      </div>
+      <MiniToast
+        icon={BookmarkCheck}
+        tone="success"
+        className={cn(
+          'absolute right-4 top-4 transition-all duration-300',
+          phase === 'toast' ? 'translate-y-0 opacity-100' : '-translate-y-1 opacity-0'
+        )}
+      >
+        {labels.kept}
+      </MiniToast>
+      <span
+        className={cn(
+          'absolute bottom-3 left-4 text-[10px] text-muted-foreground transition-opacity duration-500',
+          gone ? 'opacity-100' : 'opacity-0'
+        )}
+      >
+        {labels.gone}
+      </span>
     </div>
   );
 }
@@ -578,6 +651,7 @@ export const RESPOND_SCENES: Readonly<Record<string, SceneComponent>> = {
   bubble_actions: BubbleActionsScene,
   selection_actions: SelectionActionsScene,
   share_export: ShareExportScene,
+  keep_answer: KeepAnswerScene,
   backstage: BackstageScene,
   peer_actions: PeerActionsScene,
 };

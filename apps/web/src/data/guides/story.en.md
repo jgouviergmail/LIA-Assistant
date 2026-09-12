@@ -4,7 +4,7 @@
 
 **Version**: 2.1
 **Date**: 2026-08-23
-**Application**: LIA v1.44.3
+**Application**: LIA v1.44.4
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | Indicator | Value |
 | --- | --- |
 | Code written by an AI — directed, framed, controlled | **≈ 100%** |
-| Lines of code (excluding tests) — 48 functional domains | **660,000** |
+| Lines of code (excluding tests) — 49 functional domains | **660,000** |
 | Automated tests, run on every commit and release | **36,000+** |
-| Documented architecture decisions (ADR) | **280** |
-| Versions shipped at a steady pace | **256** |
+| Documented architecture decisions (ADR) | **281** |
+| Versions shipped at a steady pace | **257** |
 | Languages, parity checked automatically | **6** |
 | Technical audit across 24 areas | **8.3/10** |
 
@@ -50,7 +50,7 @@ An AI that codes produces volume; it only produces quality under constraint. Fou
 
 ## 4. The trade-offs
 
-Three structural decisions, among the 280 documented:
+Three structural decisions, among the 281 documented:
 
 **Sovereignty & reversibility — no irreversible vendor dependency.** AI models (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, local models via Ollama) sit behind a single abstraction: any usage can switch provider through configuration, with cost comparison. The same principle applies to business services: Google, Apple and Microsoft are interchangeable per functional category. Hosting is fully controlled; personal data is encrypted and stays on the infrastructure.
 

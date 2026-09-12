@@ -71,6 +71,10 @@ EXPECTED_CAPABILITIES: frozenset[str] = frozenset(
         # rather than at a tick. It adds a scheduler job and a new way to be
         # interrupted, so an operator must be able to switch it off.
         "moments",
+        # ADR-282 — the answers a person keeps out of their conversations. A
+        # new act on every bubble and a new record: an operator must be able
+        # to switch the act off while the record stays readable.
+        "bookmarks",
     }
 )
 

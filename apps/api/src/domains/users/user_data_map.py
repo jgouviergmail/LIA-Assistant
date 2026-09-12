@@ -327,6 +327,9 @@ TABLE_RULES: dict[str, TableRule] = {
     ),
     "rag_spaces": _PURGED_FULL,
     "attachments": _PURGED_FULL,
+    # The answers a person kept (ADR-282): their own copy, purged with them
+    # and handed back in full by the export.
+    "message_bookmarks": _PURGED_FULL,
     # Meeting recording & minutes (ADR-258). The transcript column is
     # Fernet-encrypted at rest (third parties' speech) and decrypted at export
     # time by the account-export builder so the archive stays readable.

@@ -23,9 +23,11 @@
  */
 
 import { useMemo, useState } from 'react';
-import { Camera, FileText, FolderOpen, ImageIcon, Trash2 } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import { Bookmark, Camera, FileText, FolderOpen, ImageIcon, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { BookmarkList } from '@/components/settings/generated-assets/BookmarkList';
 import { GeneratedAssetGrid } from '@/components/settings/generated-assets/GeneratedAssetGrid';
 import { GeneratedAssetFiltersBar } from '@/components/settings/generated-assets/GeneratedAssetFiltersBar';
 import { SettingsSection } from '@/components/settings/SettingsSection';
@@ -36,6 +38,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useConfirm } from '@/components/ui/use-confirm';
 import { useApiMutation } from '@/hooks/useApiMutation';
+import { useAppConfig } from '@/hooks/useAppConfig';
 import { useGeneratedAssets } from '@/hooks/useGeneratedAssets';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useTranslation } from '@/i18n/client';
@@ -54,6 +57,16 @@ const FAMILIES: readonly { key: GeneratedAssetFamily; icon: typeof ImageIcon }[]
   { key: 'screenshots', icon: Camera },
 ];
 
+/** The fourth tab (ADR-282): kept answers, a record of its own, in this section. */
+const BOOKMARKS_TAB = 'bookmarks';
+
+/** Every tab this section can open. */
+type SectionTab = GeneratedAssetFamily | typeof BOOKMARKS_TAB;
+
+function isSectionTab(value: string | null): value is SectionTab {
+  return value === BOOKMARKS_TAB || FAMILIES.some(family => family.key === value);
+}
+
 const NO_FILTERS: GeneratedAssetFilters = {};
 
 export interface GeneratedAssetsSettingsProps {
@@ -62,7 +75,16 @@ export interface GeneratedAssetsSettingsProps {
 
 export function GeneratedAssetsSettings({ lng }: GeneratedAssetsSettingsProps) {
   const { t } = useTranslation(lng);
-  const [family, setFamily] = useState<GeneratedAssetFamily>('images');
+  const { config } = useAppConfig();
+  const bookmarksEnabled = config?.features?.bookmarks_enabled ?? false;
+  // `?tab=` is read ONCE, on arrival: the capability map sends a reader
+  // straight to their bookmarks. The rest of the time the tab is local state.
+  const requested = useSearchParams().get('tab');
+  const [tab, setTab] = useState<SectionTab>(() =>
+    isSectionTab(requested) ? requested : 'images'
+  );
+  const shown: SectionTab = tab === BOOKMARKS_TAB && !bookmarksEnabled ? 'images' : tab;
+  const columns = bookmarksEnabled ? 'grid-cols-4' : 'grid-cols-3';
 
   return (
     <SettingsSection
@@ -71,9 +93,9 @@ export function GeneratedAssetsSettings({ lng }: GeneratedAssetsSettingsProps) {
       description={t('settings.generated_assets.description')}
       icon={FolderOpen}
     >
-      <Tabs value={family} onValueChange={value => setFamily(value as GeneratedAssetFamily)}>
-        <TabsList className="grid w-full grid-cols-3">
-          {/* Three equal columns are ~80 px each at 320 px: the mark yields to
+      <Tabs value={shown} onValueChange={value => setTab(value as SectionTab)}>
+        <TabsList className={`grid w-full ${columns}`}>
+          {/* Equal columns are ~60-80 px each at 320 px: the mark yields to
               the word below `sm` (the `SkillGuideModal` precedent), because a
               tab reading « Docu… » names nothing. */}
           {FAMILIES.map(({ key, icon: Icon }) => (
@@ -82,14 +104,29 @@ export function GeneratedAssetsSettings({ lng }: GeneratedAssetsSettingsProps) {
               <span className="truncate">{t(`settings.generated_assets.family.${key}`)}</span>
             </TabsTrigger>
           ))}
+          {bookmarksEnabled && (
+            <TabsTrigger
+              value={BOOKMARKS_TAB}
+              className="gap-1.5 px-2 text-xs sm:px-3 sm:text-sm"
+              data-testid="bookmarks-tab"
+            >
+              <Bookmark className="hidden h-4 w-4 shrink-0 sm:block" aria-hidden="true" />
+              <span className="truncate">{t('settings.generated_assets.family.bookmarks')}</span>
+            </TabsTrigger>
+          )}
         </TabsList>
         {FAMILIES.map(({ key, icon: Icon }) => (
           <TabsContent key={key} value={key} className="mt-4">
-            {/* Mounted only while its tab is open: three galleries fetching at
-                once would open three pages nobody is looking at. */}
-            {family === key && <Gallery lng={lng} family={key} icon={Icon} />}
+            {/* Mounted only while its tab is open: four lists fetching at
+                once would open four pages nobody is looking at. */}
+            {shown === key && <Gallery lng={lng} family={key} icon={Icon} />}
           </TabsContent>
         ))}
+        {bookmarksEnabled && (
+          <TabsContent value={BOOKMARKS_TAB} className="mt-4">
+            {shown === BOOKMARKS_TAB && <BookmarkList lng={lng} />}
+          </TabsContent>
+        )}
       </Tabs>
     </SettingsSection>
   );
@@ -144,9 +181,7 @@ function Gallery({
     // What actually went, and what did not: a file the cleanup removed between
     // the listing and the click is skipped, never counted as deleted.
     if (result.deleted.length > 0) {
-      toast.success(
-        t('settings.generated_assets.deleted', { count: result.deleted.length })
-      );
+      toast.success(t('settings.generated_assets.deleted', { count: result.deleted.length }));
     }
     if (result.skipped.length > 0) {
       toast.info(t('settings.generated_assets.skipped', { count: result.skipped.length }));
@@ -160,11 +195,7 @@ function Gallery({
 
       {/* Below `lg` the block folds behind a summary saying what it holds: the
           reader came to look at their files, not at four fields and a button. */}
-      <GeneratedAssetFiltersBar
-        filters={filters}
-        onChange={setFilters}
-        collapsible={!wide}
-      />
+      <GeneratedAssetFiltersBar filters={filters} onChange={setFilters} collapsible={!wide} />
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">

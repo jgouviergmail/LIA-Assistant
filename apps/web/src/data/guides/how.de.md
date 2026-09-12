@@ -6,7 +6,7 @@
 
 **Version**: 5.0
 **Datum**: 2026-08-23
-**Application**: LIA v1.44.3
+**Application**: LIA v1.44.4
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -69,7 +69,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
 | Vollständige Transparenz | 553 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 280 ADRs, ~28.443 von pytest gesammelte Tests in 1.669 Dateien, native Observability, HITL auf 6 Ebenen |
+| Produktionszuverlässigkeit | 281 ADRs, ~28.443 von pytest gesammelte Tests in 1.669 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -90,7 +90,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Tests | 28.443 von pytest über 1.669 Testdateien gesammelt + 8.256 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
 | pytest-Fixtures | 969, davon 46 über conftest geteilt |
 | Dokumentationsdokumente | 647 |
-| ADRs (Architecture Decision Records) | 280 |
+| ADRs (Architecture Decision Records) | 281 |
 | Prometheus-Metriken | 553 Definitionen |
 | Grafana-Dashboards | 29 |
 | Unterstützte Sprachen (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -375,6 +375,12 @@ Drei Designentscheidungen tragen das Feature. Erstens die Ehrlichkeit des Artefa
 **Die Sorgfalt gehört dem Renderer, die Bedeutung dem Modell (ADR-274).** Das Schema, das der Autoren-Slot ausfüllt, ist *semantisch*: es benennt, was eine Sache ist — eine Überschrift, eine geordnete Folge, ein Zitat, ein Hinweis, ein Kapitelauftakt, ein zweispaltiger Vergleich, eine Tabelle mit Bildunterschrift — und nie, wie sie zu zeichnen ist. Die Layoutentscheidung liegt beim Renderer, der sie mit den nativen Mitteln des Formats ausdrückt, statt sie nachzuahmen: benannte Formatvorlagen, `PAGE`/`NUMPAGES`-Felder und eine mehrstufige Nummerierungsdefinition in Word, sodass Word Inhaltsverzeichnis und Zahlen selbst neu berechnet; die Layouts und Platzhalter der Vorlage in PowerPoint auf einer 16:9-Bühne; eine benannte Tabelle über typisierten Spalten in Excel, wodurch Filtern und Sortieren gratis sind; Lesezeichen, Links und exakte Seitenzahlen im PDF, gewonnen, indem der Textkörper einmal paginiert und der Vorspann davor gesetzt wird. Diese Teilung erspart dem Modell einen Katalog von Vorlagen — eine gestalterische Entscheidung, die es nicht beurteilen kann — und lässt das Rendering sich verbessern, ohne das Schema anzufassen.
 
 **Text wird gemessen, bevor er gesetzt wird.** PowerPoint berechnet beim Öffnen einer Datei keine automatische Anpassung, und die Anpassung der Bibliothek liegt um den Faktor zwei daneben: der Renderer misst deshalb selbst, mit einem gegen PowerPoint kalibrierten Schätzer — ein Vollbreiten-Zeichen zählt ein ganzes Em, ein lateinisches einen gemessenen Bruchteil. Was nicht passt, wird zuerst bis zu einer Lesbarkeitsgrenze verkleinert und dann in „Titel (2/3)“-Folien geteilt; ein zu langer Aufzählungspunkt wird am Satzende getrennt. Abgeschnitten wird nie, denn auf dem Bildschirm abgeschnittener Text ist ohne Warnung verlorene Information. Dasselbe Prinzip gilt für den Modellaufruf: eine Antwort, die der Anbieter als abgeschnitten meldet, wird unter Nennung ihres Budgets abgelehnt (ADR-275) und nie so geschlossen, dass sie wie ein vollständiges Dokument aussieht.
+
+### 5.6. Was die Person behält: erzeugte Dateien und behaltene Antworten (ADR-279, ADR-282)
+
+Ein Artefakt und eine Antwort folgen zwei verschiedenen Lebenszyklen, sobald sie existieren, und beide gehören der Person, nicht der Unterhaltung. Eine erzeugte Datei — ein Bild, ein Dokument, ein Browser-Screenshot — ist ein Anhang mit gestempelter **Herkunft**, in einer eigenen Galerie gelistet, mit genauer Gesamtzahl und sichtbarer Aufbewahrungsfrist; das Leeren einer Unterhaltung entfernt, was die Person hochgeladen hat, und nie, was LIA erzeugt hat, weil eine Bereinigung entfernt, was ihre Familie deklariert, nicht, was ihr bloß ähnelt.
+
+Eine Antwort, die die Person behalten will, ist ein anderes Objekt: Sie ist Prosa, sie muss genau so gerendert werden wie die Sprechblase, und sie muss eine Unterhaltung überleben, die oft zurückgesetzt wird. Ein **Lesezeichen ist daher eine Kopie, nie ein Verweis**. Beim Klick werden die Antwort (Markdown oder ein angereichertes HTML-Dokument, unverändert), die Anfrage, die sie hervorgebracht hat, und das Datum der Antwort in eine eigene Tabelle geschrieben. Die beiden Verweise auf die Unterhaltung sind `SET NULL` beim Löschen: Sie dienen nur dem Umschalter an der Sprechblase, solange die Unterhaltung lebt. Die Anfrage wird **serverseitig** unter demselben Sichtbarkeitsprädikat aufgelöst wie im Chat — die letzte sichtbare Nachricht der Person vor der Antwort, nie die synthetische Frage eines außer der Reihe ausgeführten Laufs — und eine Benachrichtigung, die LIA aus eigener Initiative gesendet hat, behält keine Anfrage statt einer falschen. Ein partieller eindeutiger Index macht den Umschalter konstruktiv idempotent, das Limit des Kontos wird veröffentlicht, weil es durchgesetzt wird, Seite und Gesamtzahl kommen aus demselben `WHERE`, und der Schalter des Betreibers schützt allein den Akt des Behaltens: Bereits Behaltenes bleibt lesbar, exportierbar und löschbar.
 
 ## 6. Das Planungssystem (ExecutionPlan DSL)
 
@@ -754,6 +760,8 @@ Jeder Provider gibt Daten in seinem eigenen Format zurück. Dedizierte Normalize
 Nicht jeder Konnektor verlangt ein Konto. Ein **OAuth-Konnektor** hält die persönlichen Zugangsdaten der Nutzerin: Gmail, Kalender, Kontakte, Drive. Ein **Dienst mit Plattformschlüssel** hält keine nutzerbezogenen Daten — man schaltet ihn schlicht ein, und der Schlüssel gehört der Installation: Routen, Orte, Wetter, Umwelt. `ConnectorType.uses_global_api_key` trägt diese Unterscheidung, und die Werkzeugbasis wählt den Zugangsdatenpfad anhand des **aufgelösten** Typs. Eine funktionale Kategorie kann daher beides mischen: Wetter akzeptiert einen Anbieter mit persönlichem Schlüssel ebenso wie einen Plattformdienst, ohne dass der Aufrufer weiß, wer geantwortet hat.
 
 Es gibt einen dritten Fall: einen Client, der **das Token eines benachbarten Konnektors ausleiht**. Tabellen und Dokumente lesen und schreiben mit dem Token von Drive, die Gmail-Einstellungen mit dem von Gmail. In den Einstellungen erscheint kein zusätzlicher Konnektor, und das ist beabsichtigt — autorisiert wurde ein Arbeitsbereich, keine API. Die Folge wurde gemessen: Der Client-Cache war auf Nutzer und Konnektortyp geschlüsselt, sodass zwei Klassen mit gemeinsamem Token einander bedienten. Der Schlüssel trägt nun auch den Klassennamen.
+
+Die Unterscheidung entscheidet auch, womit ein **neues Konto** beginnt. Fünf Konnektoren verlangen nichts von der Person — Wikipedia, das Seiten-Browsing, Orte, Wetter, Umwelt — und sie werden bei der Registrierung aus einer Liste aktiviert, die das Backend deklariert (`ConnectorType.get_keyless_types()`) und das Frontend spiegelt, eine Parität, die ein Test festhält. Der Provisionierungsschritt blockiert nie eine Registrierung und lehnt schriftlich ab: ein vom Administrator abgeschalteter Typ, ein fehlender Plattformschlüssel, deaktiviertes Seiten-Browsing. Bestehende Konten werden nie angerührt.
 
 ### 13.5. Agentische Telefonie (ADR-127)
 
@@ -1382,7 +1390,7 @@ Eine CSS-Regel bestimmt die Abstände des Design-Systems: Vertikale Ränder eine
 
 ## 24. Architekturentscheidungen (ADR)
 
-280 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
+281 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
 
 | ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
 |-----|----------|----------------|---------------|
@@ -1644,8 +1652,8 @@ Das Gesicht des Begleiters wählte seinen Ausdruck am Ende eines Zuges aus der d
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 280 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~27.290 Tests in 1.601 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 281 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~27.290 Tests in 1.601 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 280 ADRs und des Changelogs (v1.0 bis v1.44.3). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 281 ADRs und des Changelogs (v1.0 bis v1.44.4). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

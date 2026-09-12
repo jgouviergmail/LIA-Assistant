@@ -134,6 +134,17 @@ describe('settingsSectionHref', () => {
     );
   });
 
+  it('enters a section on one of its tabs when asked, and encodes the tab', () => {
+    // The capability map sends a reader straight to their bookmarks (ADR-282).
+    expect(settingsSectionHref('fr', 'generated-assets', 'bookmarks')).toBe(
+      '/fr/dashboard/settings?section=generated-assets&tab=bookmarks'
+    );
+    expect(settingsSectionHref('fr', 'generated-assets', null)).toBe(
+      '/fr/dashboard/settings?section=generated-assets'
+    );
+    expect(settingsSectionHref('fr', 'generated-assets', 'a b')).toContain('&tab=a%20b');
+  });
+
   it('produces a link the page understands, back to the same target', () => {
     // Round trip: every href the app can build must survive the URL and resolve
     // to the section it was built from. The page narrows the raw parameter with

@@ -401,3 +401,15 @@ Activating an Apple service automatically deactivates its Google equivalent (and
 
 **🔐 Security:**
 Your app-specific password is encrypted and never exposed. You can revoke it at any time from your Apple account.
+
+## Which connectors are active as soon as I sign up?
+The ones that ask nothing of you: **Wikipedia**, **page browsing**, **Google
+Places**, **Google Weather** and **Google Environment** (air quality and
+pollen) — no account to link, no key to paste. A new account starts with all
+of them active, so the assistant can look up a place or the weather from the
+first conversation.
+
+Three cases where one is not activated: the administrator switched it off for
+the instance, the instance has no platform Google key, or page browsing is
+disabled. You can switch any of them off in **Settings > Connectors**. Existing
+accounts are not touched: what you chose stays as it is.

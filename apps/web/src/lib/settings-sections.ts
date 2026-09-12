@@ -445,6 +445,13 @@ export function isSettingsSectionToken(token: string): token is SettingsSectionT
  * Returns:
  *   The localized href, `?section=` included.
  */
-export function settingsSectionHref(lng: string, token: SettingsSectionToken): string {
-  return `/${lng}/dashboard/settings?section=${String(token)}`;
+export function settingsSectionHref(
+  lng: string,
+  token: SettingsSectionToken,
+  tab?: string | null
+): string {
+  const href = `/${lng}/dashboard/settings?section=${String(token)}`;
+  // A section with tabs may be entered on one of them (the kept answers,
+  // ADR-282); the section reads `tab` once, on arrival.
+  return tab ? `${href}&tab=${encodeURIComponent(tab)}` : href;
 }

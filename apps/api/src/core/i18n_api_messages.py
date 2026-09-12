@@ -2993,6 +2993,51 @@ class APIMessages:
         }
         return messages.get(language, messages["en"])
 
+    # =========================================================================
+    # MESSAGE BOOKMARKS (ADR-282)
+    # =========================================================================
+
+    @staticmethod
+    def bookmark_limit_reached(max_per_user: int, language: SupportedLanguage = "fr") -> str:
+        """The account keeps as many bookmarks as it may (409)."""
+        messages = {
+            "fr": (
+                f"Vous avez atteint la limite de {max_per_user} bookmarks. "
+                "Supprimez-en pour en conserver de nouveaux."
+            ),
+            "en": (
+                f"You have reached the limit of {max_per_user} bookmarks. "
+                "Delete some to keep new ones."
+            ),
+            "es": (
+                f"Has alcanzado el límite de {max_per_user} marcadores. "
+                "Elimina algunos para guardar otros."
+            ),
+            "de": (
+                f"Sie haben das Limit von {max_per_user} Lesezeichen erreicht. "
+                "Löschen Sie einige, um neue zu behalten."
+            ),
+            "it": (
+                f"Hai raggiunto il limite di {max_per_user} segnalibri. "
+                "Eliminane alcuni per conservarne di nuovi."
+            ),
+            "zh-CN": f"您已达到 {max_per_user} 个书签的上限。请删除一些以保存新的书签。",
+        }
+        return messages.get(language, messages["en"])
+
+    @staticmethod
+    def bookmark_nothing_to_keep(language: SupportedLanguage = "fr") -> str:
+        """An answer with no text cannot be kept (400)."""
+        messages = {
+            "fr": "Cette réponse ne contient aucun texte à conserver.",
+            "en": "This answer has no text to keep.",
+            "es": "Esta respuesta no contiene texto que guardar.",
+            "de": "Diese Antwort enthält keinen Text zum Behalten.",
+            "it": "Questa risposta non contiene testo da conservare.",
+            "zh-CN": "此回答没有可保存的文本。",
+        }
+        return messages.get(language, messages["en"])
+
 
 # =============================================================================
 # CACHED MESSAGE SETS FOR PERFORMANCE

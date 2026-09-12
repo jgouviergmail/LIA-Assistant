@@ -87,6 +87,8 @@ class SystemSettingKey(str, enum.Enum):
     CAPABILITY_PYTHON_SANDBOX_ENABLED = "capability_python_sandbox_enabled"
     # ADR-281 — LIA comes back at an instant, not at a tick.
     CAPABILITY_MOMENTS_ENABLED = "capability_moments_enabled"
+    # ADR-282 — the answers a person keeps out of their conversations.
+    CAPABILITY_BOOKMARKS_ENABLED = "capability_bookmarks_enabled"
 
     # Whether the landing advertises the public demonstrator. Off by default:
     # a fresh instance never advertises a demonstrator it does not run. Read

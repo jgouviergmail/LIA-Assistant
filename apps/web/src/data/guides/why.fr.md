@@ -4,7 +4,7 @@
 
 **Version** : 6.0
 **Date** : 2026-08-23
-**Application** : LIA v1.44.3
+**Application** : LIA v1.44.4
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -131,6 +131,8 @@ Parle à LIA comme à un assistant humain — pas de commandes à mémoriser, pa
 
 ### 3.3. Intelligence web et environnement
 
+Wikipédia, la navigation de pages, les lieux, la météo et la qualité de l'air ne te demandent rien : un nouveau compte démarre avec eux actifs.
+
 - **Recherche web** : recherche multi-sources (Brave Search, Perplexity, Wikipedia) pour des réponses complètes et sourcées
 - **Météo** : conditions actuelles et prévisions à 5 jours, avec détection de changements (début/fin de pluie, chute de température, alertes vent)
 - **Qualité de l'air et pollens** : indice de qualité de l'air et types de pollen en saison, joints à toute réponse météo quand le service est activé — avec la catégorie publiée par le fournisseur lui-même, et l'indice de ton pays quand il existe
@@ -154,6 +156,7 @@ LIA propose un mode vocal complet :
 - **Schémas Excalidraw** : génère des diagrammes et schémas directement dans la conversation
 - **Pièces jointes** : joins photos et PDF — LIA analyse le contenu visuel et extrait le texte des documents
 - **MCP Apps** : widgets interactifs directement dans le chat (formulaires, visualisations, mini-applications)
+- **Réponses conservées** : un bookmark sur chaque réponse la garde hors de la conversation — avec ta demande et sa date — dans un onglet à côté de tes fichiers générés ; partage-la, télécharge-la en Markdown, ou laisse-la partir
 
 ### 3.6. Proactivité et initiatives
 

@@ -39,6 +39,9 @@ export const CAPABILITY_ORDER: readonly { key: string; ring: 'inner' | 'outer' }
   // What LIA produced and the person kept (ADR-279): on the inner ring with
   // the rest of what the assistant makes.
   { key: 'generated_files', ring: 'inner' },
+  // The answers the person kept (ADR-282): same tab as the files, a record
+  // of its own — on the inner ring beside them.
+  { key: 'bookmarks', ring: 'inner' },
   { key: 'interests', ring: 'outer' },
   { key: 'routines', ring: 'outer' },
   { key: 'reminders', ring: 'outer' },

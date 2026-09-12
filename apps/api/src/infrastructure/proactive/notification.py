@@ -20,6 +20,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
+from src.core.constants import PROACTIVE_MESSAGE_TYPE_PREFIX
 from src.core.field_names import (
     FIELD_FEEDBACK_ENABLED,
     FIELD_RUN_ID,
@@ -303,7 +304,7 @@ class NotificationDispatcher:
 
         # Build complete metadata
         full_metadata = {
-            "type": f"proactive_{task_type}",
+            "type": f"{PROACTIVE_MESSAGE_TYPE_PREFIX}{task_type}",
             FIELD_TARGET_ID: target_id,
             FIELD_FEEDBACK_ENABLED: settings.proactive_feedback_enabled,
             "sent_at": datetime.now(UTC).isoformat(),
@@ -394,7 +395,7 @@ class NotificationDispatcher:
                     user_id=user.id,
                     title=title,
                     body=markdown_links_to_plain(content),
-                    task_type=f"proactive_{task_type}",
+                    task_type=f"{PROACTIVE_MESSAGE_TYPE_PREFIX}{task_type}",
                     target_id=target_id,
                     db=db,
                 )
@@ -472,7 +473,7 @@ class NotificationDispatcher:
         # was hardcoded "true" here while the archived metadata read the
         # setting, so a disabled product feature still shipped its buttons.
         data: dict[str, str] = {
-            "type": f"proactive_{task_type}",
+            "type": f"{PROACTIVE_MESSAGE_TYPE_PREFIX}{task_type}",
             FIELD_TARGET_ID: target_id,
             FIELD_FEEDBACK_ENABLED: str(settings.proactive_feedback_enabled).lower(),
             "click_action": "OPEN_CHAT",
@@ -525,7 +526,7 @@ class NotificationDispatcher:
 
         channel = f"user_notifications:{user_id}"
         payload = {
-            "type": f"proactive_{task_type}",
+            "type": f"{PROACTIVE_MESSAGE_TYPE_PREFIX}{task_type}",
             "content": content,
             "title": title,
             FIELD_TARGET_ID: target_id,

@@ -139,6 +139,27 @@ class ConnectorType(str, enum.Enum):
         """
         return self in _GLOBAL_API_KEY_CONNECTOR_TYPES
 
+    @property
+    def is_keyless(self) -> bool:
+        """
+        Check if this connector type asks NOTHING of the person to activate.
+
+        A keyless connector is activated by one click in the settings: it
+        needs no OAuth consent and no per-user key (the platform key or no
+        key at all). Every new account starts with all of them
+        (``users/keyless_connectors_provisioning.py``), and the frontend's
+        ``requiresKey: false`` entries mirror this set — a test pins the two.
+
+        Returns:
+            True when activation requires no user-provided credential.
+        """
+        return self in _KEYLESS_USER_CONNECTOR_TYPES
+
+    @classmethod
+    def get_keyless_types(cls) -> frozenset[ConnectorType]:
+        """Get the connector types a person activates without any credential."""
+        return _KEYLESS_USER_CONNECTOR_TYPES
+
     @classmethod
     def get_oauth_types(cls) -> frozenset[ConnectorType]:
         """
@@ -223,6 +244,20 @@ _HUE_CONNECTOR_TYPES: frozenset[ConnectorType] = frozenset({ConnectorType.PHILIP
 _GLOBAL_API_KEY_CONNECTOR_TYPES: frozenset[ConnectorType] = frozenset(
     {
         ConnectorType.GOOGLE_ROUTES,
+        ConnectorType.GOOGLE_PLACES,
+        ConnectorType.GOOGLE_WEATHER,
+        ConnectorType.GOOGLE_ENVIRONMENT,
+    }
+)
+
+# Keyless user connectors: a one-click activation, nothing asked of the
+# person. Platform-key types that HAVE a connector row (Routes has none — its
+# tools read the platform key directly) plus the two free services. Mirrored
+# by the frontend's `requiresKey: false` entries; a test pins the parity.
+_KEYLESS_USER_CONNECTOR_TYPES: frozenset[ConnectorType] = frozenset(
+    {
+        ConnectorType.WIKIPEDIA,
+        ConnectorType.BROWSER,
         ConnectorType.GOOGLE_PLACES,
         ConnectorType.GOOGLE_WEATHER,
         ConnectorType.GOOGLE_ENVIRONMENT,

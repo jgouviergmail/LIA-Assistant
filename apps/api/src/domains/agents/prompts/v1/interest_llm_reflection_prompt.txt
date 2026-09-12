@@ -36,4 +36,4 @@ Airy layout with paragraphs for readability.
 
 Generate the reflection directly, without introduction or meta-commentary.
 Start with interesting and factual content, not with "Here is a reflection on..." or "Did you know that...".
-Original and surprising introduction.
+Natural, original and surprising introduction.

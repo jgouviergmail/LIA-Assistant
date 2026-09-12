@@ -52,6 +52,29 @@ vi.mock('@/components/ui/use-confirm', () => ({
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), info: vi.fn() }));
 vi.mock('sonner', () => ({ toast }));
 
+// The fourth tab (ADR-282) follows the instance flag; its list has its own suite.
+const config = vi.hoisted(() => ({ bookmarks: false }));
+vi.mock('@/hooks/useAppConfig', () => ({
+  useAppConfig: () => ({
+    config: { features: { bookmarks_enabled: config.bookmarks } },
+    loading: false,
+    error: null,
+  }),
+}));
+const navigation = vi.hoisted(() => ({ search: '' }));
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  usePathname: () => '/',
+  useSearchParams: () => new URLSearchParams(navigation.search),
+}));
+const bookmarkList = vi.hoisted(() => ({ mounted: 0 }));
+vi.mock('@/components/settings/generated-assets/BookmarkList', () => ({
+  BookmarkList: () => {
+    bookmarkList.mounted += 1;
+    return <div data-testid="bookmark-list" />;
+  },
+}));
+
 function asset(over: Partial<GeneratedAsset> = {}): GeneratedAsset {
   return {
     id: 'a1b2c3d4-0000-4000-8000-000000000001',
@@ -70,6 +93,9 @@ function asset(over: Partial<GeneratedAsset> = {}): GeneratedAsset {
 beforeEach(() => {
   vi.clearAllMocks();
   media.wide = true;
+  config.bookmarks = false;
+  navigation.search = '';
+  bookmarkList.mounted = 0;
   gallery.items = [];
   gallery.total = 0;
   gallery.totalBytes = 0;
@@ -248,5 +274,48 @@ describe('on a phone', () => {
     renderWithProviders(<GeneratedAssetsSettings lng="fr" />);
 
     expect(screen.getByLabelText(/filters.search/)).toBeInTheDocument();
+  });
+});
+
+describe('the bookmarks tab (ADR-282)', () => {
+  it('is absent when the instance does not offer bookmarks', () => {
+    renderWithProviders(<GeneratedAssetsSettings lng="fr" />);
+
+    expect(screen.queryByTestId('bookmarks-tab')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('tab')).toHaveLength(3);
+  });
+
+  it('is the fourth tab when it does, and mounts its list only once opened', async () => {
+    config.bookmarks = true;
+    const { user } = renderWithProviders(<GeneratedAssetsSettings lng="fr" />);
+
+    expect(screen.getAllByRole('tab')).toHaveLength(4);
+    expect(bookmarkList.mounted).toBe(0);
+
+    await user.click(screen.getByTestId('bookmarks-tab'));
+
+    await waitFor(() => expect(screen.getByTestId('bookmark-list')).toBeInTheDocument());
+    // The gallery that was open is gone with its tab — one list at a time.
+    expect(gallery.calls.at(-1)).toMatchObject({ enabled: true });
+  });
+
+  it('opens straight on the bookmarks when the URL asks for that tab', () => {
+    // The capability map sends a reader here with `?tab=bookmarks`.
+    config.bookmarks = true;
+    navigation.search = 'section=generated-assets&tab=bookmarks';
+
+    renderWithProviders(<GeneratedAssetsSettings lng="fr" />);
+
+    expect(screen.getByTestId('bookmark-list')).toBeInTheDocument();
+    expect(gallery.calls).toHaveLength(0);
+  });
+
+  it('ignores a requested tab the instance does not offer', () => {
+    navigation.search = 'tab=bookmarks';
+
+    renderWithProviders(<GeneratedAssetsSettings lng="fr" />);
+
+    expect(screen.queryByTestId('bookmark-list')).not.toBeInTheDocument();
+    expect(gallery.calls[0]).toMatchObject({ family: 'images' });
   });
 });

@@ -228,6 +228,7 @@ def build_purge_statements(user_id: UUID) -> list[tuple[str, Delete]]:
         by_user("user_fcm_tokens"),
         by_user("user_channel_bindings"),
         by_user("attachments"),
+        by_user("message_bookmarks"),
         by_user("user_usage_limits"),
         # GDPR (audit N-207.1): physiological data + ingestion tokens.
         # The user row is soft-deleted, so FK CASCADEs never fire — these
