@@ -4,7 +4,7 @@
 
 **Versión**: 6.0
 **Fecha**: 2026-08-23
-**Aplicación**: LIA v1.44.4
+**Aplicación**: LIA v1.44.5
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -326,6 +326,8 @@ El mismo principio se aplica a las propias protecciones. Una seguridad anunciada
 
 Y este principio llega más lejos de lo que parece. Tampoco demuestra nada una prueba que nunca se ejecuta: una medición ausente se parece exactamente a una medición en verde. Una capacidad anunciada pero ausente no es una imprecisión de la documentación, es una promesa hecha a alguien que no tiene forma de comprobarla — mostrar un ajuste que no controla nada es peor que no mostrar nada. Y una cifra escrita en un documento es una afirmación como cualquier otra: cada versión y cada umbral que un documento enuncia se recalcula desde el código que lo posee, y la discrepancia detiene la compilación. Un documento elige su precisión; no elige ser preciso y falso.
 
+Esa honestidad empieza antes incluso de que entres. La página que te propone probar el demostrador público lista lo que está activado allí y lo que no — y esa lista no la escribe alguien que podría olvidarse de actualizarla: se lee de la configuración del propio demostrador, y si no responde, la página lo dice en vez de mostrar una columna vacía. Sabes lo que vas a encontrar, y lo que no, antes de crear una cuenta.
+
 ### 6.5. Por qué LIA piensa eso
 
 Un asistente que retiene cosas acaba por afirmarlas. «Prefieres las reuniones por la mañana», «este tema te interesa»: conclusiones útiles, pero inverificables mientras no se pueda remontar a lo que las produjo.
@@ -450,6 +452,8 @@ LIA incorpora una observabilidad de grado producción:
 | **Alertmanager** | Alertas por correo sobre señales vitales, runbooks enlazados |
 
 Cada solicitud se traza de extremo a extremo, cada llamada LLM se mide, cada error se contextualiza. No es un monitoring añadido a posteriori — es una **decisión arquitectónica fundamental** documentada en los Architecture Decision Records del proyecto.
+
+Esa exigencia baja hasta la máquina. Un servidor son varios procesos, y «el contenedor consume cinco gigabytes» no dice cuál retiene qué: cada proceso de LIA publica por tanto él mismo lo que retiene en memoria, un panel lo dibuja proceso por proceso, una alerta nombra al que se desborda — y lo que un proceso carga se midió en la máquina de destino antes de tocarlo, nunca se supuso.
 
 ### 8.3. Un pipeline anti-alucinación
 

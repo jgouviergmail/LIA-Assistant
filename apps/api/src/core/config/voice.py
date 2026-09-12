@@ -42,6 +42,7 @@ from src.core.constants import (
     VOICE_SENTENCE_DELIMITERS_DEFAULT,
     VOICE_STT_LANGUAGE_DEFAULT,
     VOICE_STT_MAX_DURATION_SECONDS_DEFAULT,
+    VOICE_STT_MAX_RECOGNIZERS_DEFAULT,
     VOICE_STT_MODEL_PATH_DEFAULT,
     VOICE_STT_NUM_THREADS_DEFAULT,
     VOICE_STT_SINGLE_PASS_MAX_SECONDS_DEFAULT,
@@ -277,6 +278,17 @@ class VoiceSettings(BaseSettings):
     voice_stt_task: str = Field(
         default=VOICE_STT_TASK_DEFAULT,
         description=("Whisper task: 'transcribe' (same language) or 'translate' (to English)."),
+    )
+
+    voice_stt_max_recognizers: int = Field(
+        default=VOICE_STT_MAX_RECOGNIZERS_DEFAULT,
+        ge=1,
+        le=8,
+        description=(
+            "Resident Whisper recognizers per worker process (one per language, "
+            "least recently used evicted). Each costs ~0.8 GB on arm64; "
+            "1 keeps a single language resident and reloads (~2 s) on a switch."
+        ),
     )
 
     voice_stt_max_duration_seconds: int = Field(

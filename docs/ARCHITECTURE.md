@@ -2153,7 +2153,7 @@ interaction = HitlInteractionRegistry.from_action_type(action_type, ...)
 
 **4. Connection Pooling**
 - httpx: 100 max connections, 20 keepalive
-- PostgreSQL: SQLAlchemy pool_size=20
+- PostgreSQL: SQLAlchemy pool sized per worker — a few persistent connections (each an idle Postgres backend with private memory) and an overflow opened on demand; the shipped figures live in `.env.prod.example`, bounded by the F004 burst budget and the ADR-283 floor guard
 - Redis: connection pool reused
 
 **5. Caching Strategies**

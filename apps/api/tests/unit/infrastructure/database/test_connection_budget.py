@@ -53,11 +53,15 @@ def _settings(
     max_conn: int = 200,
     reserved: int = 5,
     is_production: bool = False,
+    ckpt_min: int = 1,
+    store_min: int = 1,
 ) -> SimpleNamespace:
     return SimpleNamespace(
         web_concurrency=workers,
         database_pool_size=pool,
         database_max_overflow=overflow,
+        langgraph_checkpoint_pool_min_size=ckpt_min,
+        langgraph_store_pool_min_size=store_min,
         langgraph_checkpoint_pool_max_size=ckpt_max,
         langgraph_store_pool_max_size=store_max,
         database_max_connections=max_conn,
@@ -152,3 +156,22 @@ def test_shipped_env_profile_fits_the_budget(env_file: str):
         f"({values['WEB_CONCURRENCY']} workers)"
     )
     assert validate_connection_budget(settings) == []
+
+
+class TestThePersistentFloor:
+    """What every worker holds OPEN whether or not anyone is talking to it.
+
+    Measured in the production Postgres container on 2026-09-12: an idle client
+    backend costs 7 MB of private memory (4-24 MB), and the API kept 80 of them
+    (20 per worker x 4) for one or two people -- 560 MB the kernel can never
+    reclaim, next to 512 MB of shared_buffers, under a 1 GiB limit.
+    """
+
+    def test_persistent_total_counts_every_pool_minimum_across_workers(self):
+        settings = _settings(workers=4, pool=5, ckpt_min=1, store_min=1)
+        assert compute_connection_budget(settings).persistent_total == 4 * (5 + 1 + 1)
+
+    def test_persistent_total_is_a_floor_of_the_burst(self):
+        settings = _settings(workers=4, pool=5, overflow=15, ckpt_min=1, store_min=2)
+        budget = compute_connection_budget(settings)
+        assert budget.persistent_total < budget.burst_total

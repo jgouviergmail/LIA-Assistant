@@ -42,7 +42,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.44.4</strong> — <strong>An answer you keep is yours.</strong> A bookmark on every answer copies it out of the conversation, with your request and its date; kept answers have their own tab, and a new account starts with the connectors that ask nothing of it — 12 September 2026.
+  <strong>Version 1.44.5</strong> — <strong>A demo that says what it offers, a server that says what it holds.</strong> The page that opens the public demonstrator lists, from the demonstrator's own configuration, what is switched on there and what is not; every API worker publishes the memory it holds; and your generated documents stay openable wherever uploads are off — 12 September 2026.
 </p>
 
 ---
@@ -94,7 +94,7 @@ Under the hood: a FastAPI backend orchestrating 20+ specialised agents with Lang
 
 LIA is hosted at **https://lia.jeyswork.com/** — no installation required.
 
-The [interactive showroom](https://lia.jeyswork.com/demo) runs six guided synthetic missions, one per differentiating mechanism: orchestration under approval, proactivity, persistent memory, outbound calls, rich replies and in-app configuration. Approve, edit or refuse each prepared change through the real approval UI, and read LIA's closing reply rendered by the production pipeline. Everything is labelled synthetic — no account, model or external service is contacted — and a proof drawer links every visible capability to its exact source.
+The [interactive showroom](https://lia.jeyswork.com/demo) runs six guided synthetic missions, one per differentiating mechanism: orchestration under approval, proactivity, persistent memory, outbound calls, rich replies and in-app configuration. Approve, edit or refuse each prepared change through the real approval UI, and read LIA's closing reply rendered by the production pipeline. Everything is labelled synthetic — no account, model or external service is contacted — and a proof drawer links every visible capability to its exact source. When a live demonstrator is published, the same page lists what is switched on there and what is not — read from the demonstrator's own configuration, never kept by hand — before offering the link.
 
 > **Closed beta** — access is granted at the administrator's discretion. To request an invitation, write to **liamyassistant@gmail.com**.
 
@@ -112,8 +112,8 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **49** functional domains | **660,000** lines of code (excl. tests) | **36,000+** automated tests | **281** ADRs                                                           |
-| **257** versions shipped  | **6 languages**, parity enforced in CI  | **553** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **49** functional domains | **660,000** lines of code (excl. tests) | **36,000+** automated tests | **282** ADRs                                                           |
+| **258** versions shipped  | **6 languages**, parity enforced in CI  | **555** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -285,10 +285,11 @@ A 24-section panel embedded in the chat, organised into six groups; an empty sec
 
 ### Observability
 
-- **Prometheus**: 553 custom metrics (agents, LLM, infrastructure). A metric nobody can see is a metric nobody acts on: every one must be wired to a Grafana panel, a recording rule or an alert, and a shrink-only ratchet fails the build on a newly blind metric.
+- **Prometheus**: 555 custom metrics (agents, LLM, infrastructure). A metric nobody can see is a metric nobody acts on: every one must be wired to a Grafana panel, a recording rule or an alert, and a shrink-only ratchet fails the build on a newly blind metric.
 - **Grafana**: 29 dashboards, including a product-value cockpit · **Loki**: structured JSON logs with PII filtering · **Tempo**: distributed tracing · **Langfuse**: LLM tracing with prompt versions.
 - **Probes**: liveness (`GET /health`) split from readiness (`GET /ready`, 503 unless PostgreSQL **and** Redis answer) — [ADR-115](docs/architecture/ADR-115-Liveness-Readiness-Probes.md).
 - **Alerting**: a vital core (service, database and Redis down, disk, OOM, 5xx rate, SSE latency, backup failure, public-endpoint and TLS probes, chain self-monitoring) evaluated by Prometheus, emailed by a dedicated Alertmanager, unit-tested with `promtool`, every alert linking its runbook — [ADR-119](docs/architecture/ADR-119-Alerting-Reactivation-Minimal-Core.md).
+- **Per-process memory**: every API worker publishes what it holds (`lia_worker_memory_bytes`, one series per live worker), drawn on the infrastructure dashboard and watched by an alert that names the process; what a process loads is declared, measured on the target host and bounded where it multiplies — the supervisor never imports the application, heavy libraries load where they are used, and the speech engine keeps one resident model per worker ([ADR-283](docs/architecture/ADR-283-Worker-Memory-Anatomy.md)).
 - **Self-diagnostics**: a leader-elected self-check of the golden signals, one incident per outage whichever observer saw it first, and a budget-capped diagnosis written in each administrator's language from evidence collected at diagnosis time — metrics, a sanitised log excerpt, the running build, the alert's runbook — shown under its verdict in Settings › Platform health ([ADR-247](docs/architecture/ADR-247-Self-Diagnostics-And-Answer-Resilience.md), [ADR-266](docs/architecture/ADR-266-Diagnosis-Evidence-At-Diagnosis-Time-And-Exact-Str-Embedding-Inputs.md)).
 
 ---
@@ -356,7 +357,7 @@ cd apps/web && pnpm dev
 
 ### Self-Hosting in Production
 
-A guided installer lives at the repository root ([ADR-215](docs/architecture/ADR-215-Self-Host-Installer.md)). It asks a short questionnaire (LAN exposure, your own reverse proxy, or managed HTTPS with Caddy), generates a private `.env` and Compose overlay, applies the reference seeds atomically, creates the admin and provider keys over stdin, verifies the installation beyond `/ready` and prints a non-secret report. A complete source checkout builds the images locally; an official release directory uses prebuilt digests only when its adjacent manifest is qualified. Resume an interrupted run with `./install.sh --resume`, change the routing later with `./install.sh --reconfigure`.
+A guided installer lives at the repository root ([ADR-215](docs/architecture/ADR-215-Self-Host-Installer.md)). It asks a short questionnaire (LAN exposure, your own reverse proxy, or managed HTTPS with Caddy), generates a private `.env` and Compose overlay, applies the reference seeds atomically, creates the admin and provider keys over stdin, verifies the installation beyond `/ready` and prints a non-secret report. A complete source checkout builds the images locally; an official release directory uses prebuilt digests only when its adjacent manifest is qualified. Resume an interrupted run with `./install.sh --resume`, change the routing later with `./install.sh --reconfigure`. The shipped `.env` profiles size the connection pools against the database's memory floor as well as its ceiling, and a guard reads both profiles with the Compose file so the sizing cannot drift ([ADR-283](docs/architecture/ADR-283-Worker-Memory-Anatomy.md)).
 
 **Full guide: [docs/guides/GUIDE_SELF_HOSTING.md](docs/guides/GUIDE_SELF_HOSTING.md)** — what it installs, every setting, and what to do when a step fails. Production targets include the Raspberry Pi (ARM64) through multi-arch Docker images (`linux/amd64,linux/arm64`).
 
@@ -529,8 +530,8 @@ task test:e2e                      # Playwright + axe journeys (hermetic, mocked
 
 | Metric                  | Value                                                                                                 |
 | ----------------------- | ----------------------------------------------------------------------------------------------------- |
-| Backend tests           | 28,443 collected over `tests/` (`pytest --collect-only -q`, 1,669 files, 2026-09-11)                  |
-| Frontend tests (vitest) | 8,256 across 645 files, plus hermetic Playwright journeys with axe, dark-mode and zoom checks          |
+| Backend tests           | 28,583 collected over `tests/` (`pytest --collect-only -q`, 1,685 files, 2026-09-12)                  |
+| Frontend tests (vitest) | 8,314 across 651 files, plus hermetic Playwright journeys with axe, dark-mode and zoom checks          |
 | Coverage floor          | 72% enforced in CI on the backend — a shrink-only ratchet, never lowered; frontend thresholds per glob |
 | Technical audit         | **8.3/10** across 24 normalized areas — [full public report & protocol](docs/audit/README.md)         |
 
@@ -621,7 +622,7 @@ Instrumentation and caching are in place — per-node message windowing, LLM con
 
 ### Architecture Decision Records
 
-281 ADR files (ADR-001 through ADR-282 — ADR-008 has no separate file) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
+282 ADR files (ADR-001 through ADR-283 — ADR-008 has no separate file) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
 
 - [ADR-070: ReAct Execution Mode](docs/architecture/ADR-070-ReAct-Execution-Mode.md) — why two execution modes rather than one
 - [ADR-263: Execution Authority Chain and Effect Register](docs/architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md) — how every act is claimed, closed and recorded

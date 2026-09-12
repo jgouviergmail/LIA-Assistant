@@ -595,16 +595,18 @@ curl -i http://localhost:8000/api/health
 # Avant
 engine = create_async_engine(
     database_url,
-    pool_size=5,           # Trop petit
-    max_overflow=10,
+    pool_size=5,
+    max_overflow=5,        # Trop petit pour les pointes
     pool_timeout=30
 )
 
-# Après (basé sur charge réelle)
+# Après (basé sur charge réelle) — on élargit le DÉBORDEMENT, pas le pool
+# persistant : chaque connexion persistante est un backend Postgres qui tient
+# ~7 Mo à vide, multiplié par le nombre de workers (ADR-283).
 engine = create_async_engine(
     database_url,
-    pool_size=20,          # 4x augmentation
-    max_overflow=40,       # Permet bursts
+    pool_size=5,           # persistant, par worker — inchangé
+    max_overflow=20,       # permet les pointes, libéré ensuite
     pool_timeout=30,
     pool_pre_ping=True,    # Vérifie connexions vivantes
     pool_recycle=3600      # Recycle après 1h

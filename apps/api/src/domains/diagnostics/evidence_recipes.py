@@ -137,6 +137,10 @@ EVIDENCE_RECIPES: dict[str, EvidenceRecipe] = {
         EvidenceRecipe("ContainerMemoryNearLimit", prom_queries=("memory_usage_percent",)),
         EvidenceRecipe("HighMemoryUsage", prom_queries=("memory_usage_percent",)),
         EvidenceRecipe(
+            "ApiWorkerMemoryHigh",
+            prom_queries=("api_worker_heap_mb", "stt_recognizers_by_worker"),
+        ),
+        EvidenceRecipe(
             "ContainerRestartLoop",
             prom_queries=("dependency_up", "http_request_rate", "background_job_errors"),
             logs=_HTTP_LOGS,

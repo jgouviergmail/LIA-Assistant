@@ -4,7 +4,7 @@
 
 **Version**: 2.1
 **Datum**: 2026-08-23
-**Anwendung**: LIA v1.44.4
+**Anwendung**: LIA v1.44.5
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -20,8 +20,8 @@ Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führ
 | Von einer KI geschriebener Code — geführt, gerahmt, kontrolliert | **≈ 100 %** |
 | Codezeilen (ohne Tests) — 49 Fachdomänen | **660.000** |
 | Automatisierte Tests, bei jedem Commit und Release ausgeführt | **36.000+** |
-| Dokumentierte Architekturentscheidungen (ADR) | **281** |
-| In regelmäßigem Rhythmus gelieferte Versionen | **257** |
+| Dokumentierte Architekturentscheidungen (ADR) | **282** |
+| In regelmäßigem Rhythmus gelieferte Versionen | **258** |
 | Sprachen, Parität automatisch geprüft | **6** |
 | Technisches Audit über 24 Bereiche | **8,3/10** |
 
@@ -50,7 +50,7 @@ Eine KI, die programmiert, produziert Volumen; Qualität produziert sie nur unte
 
 ## 4. Die Abwägungen
 
-Drei strukturelle Entscheidungen, unter den 281 dokumentierten:
+Drei strukturelle Entscheidungen, unter den 282 dokumentierten:
 
 **Souveränität & Reversibilität — keine irreversible Anbieterabhängigkeit.** Die KI-Modelle (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, lokale Modelle über Ollama) stehen hinter einer einzigen Abstraktion: Jede Nutzung kann per Konfiguration den Anbieter wechseln, mit Kostenvergleich. Dasselbe Prinzip auf Fachseite: Google, Apple und Microsoft sind pro Funktionskategorie austauschbar. Das Hosting ist vollständig kontrolliert; personenbezogene Daten sind verschlüsselt und bleiben auf der Infrastruktur.
 
@@ -62,7 +62,7 @@ Drei strukturelle Entscheidungen, unter den 281 dokumentierten:
 
 Ein System, das nach Instrumenten geflogen wird:
 
-- **Observability**: neunundzwanzig Dashboards — Anwendungsgesundheit, Service-Verpflichtungen, KI-Kosten, Agentenverhalten, Infrastruktur. Mehr als 540 Metriken; zentralisierte strukturierte Logs mit Filterung personenbezogener Daten; durchgängiges verteiltes Tracing. Rund vierzig schriftliche Betriebsprozeduren — Diagnose, Behebung, Wiederherstellung. Und der Assistent liest diese Telemetrie selbst: periodische Selbstprüfung, ein anhand eben dieser Prozeduren diagnostiziertes Vorfallgedächtnis, Antworten, die einen bekannten Ausfall umfahren. Und eine Diagnose zeigt die Beweise, aus denen sie geschrieben wurde.
+- **Observability**: neunundzwanzig Dashboards — Anwendungsgesundheit, Service-Verpflichtungen, KI-Kosten, Agentenverhalten, Infrastruktur. Mehr als 540 Metriken; zentralisierte strukturierte Logs mit Filterung personenbezogener Daten; durchgängiges verteiltes Tracing. Rund vierzig schriftliche Betriebsprozeduren — Diagnose, Behebung, Wiederherstellung. Und der Assistent liest diese Telemetrie selbst: periodische Selbstprüfung, ein anhand eben dieser Prozeduren diagnostiziertes Vorfallgedächtnis, Antworten, die einen bekannten Ausfall umfahren. Und eine Diagnose zeigt die Beweise, aus denen sie geschrieben wurde. Und die Instrumente reichen bis zu den Prozessen: jeder API-Worker veröffentlicht, was er im Speicher hält, sodass sich eine Container-Summe Prozess für Prozess lesen lässt.
 - **Lieferung**: containerisiertes Deployment, automatisierte Schemamigrationen, Images für zwei Hardwarearchitekturen (amd64/arm64) veröffentlicht.
 - **Kosten**: bewusst frugale Infrastruktur — etwa 150 € Hardware, null Lizenzen, Open-Source-Bausteine, dimensioniert nach dem realen Bedarf.
 - **Compliance**: Sicherheit Endpunkt für Endpunkt überprüft; personenbezogene Daten verschlüsselt; Konto-Lebenszyklus an der DSGVO ausgerichtet.

@@ -11,7 +11,8 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
-    # Increase max_connections to handle SQLAlchemy pool (60) + checkpointer + store + overhead
+    # max_connections is the CEILING the connection budget (F004) fits under:
+    # 4 workers x (pool 5 + overflow 15) + checkpointer + store, see .env.prod.example.
     command: >
       postgres
       -c max_connections=200
@@ -44,7 +45,15 @@ services:
       resources:
         limits:
           cpus: '1'
-          memory: 1G
+          # 2G, not 1G. The container's UNRECLAIMABLE floor is shared_buffers
+          # (512 MB, above) plus one private backend per persistent pool
+          # connection (7 MB each, measured 2026-09-12). Under 1G that floor
+          # sat at 900-950 MiB every night once the 02:00 backup had filled
+          # the buffers, and every morning pushed the working set to 95-99 %
+          # (five ContainerMemoryNearLimit cycles on 2026-09-11) and 272 MB of
+          # the database into zram. A limit reserves nothing; the floor must
+          # stay under half of it: tests/unit/test_postgres_memory_floor_guard.py.
+          memory: 2G
         reservations:
           cpus: '0.25'
           memory: 256M

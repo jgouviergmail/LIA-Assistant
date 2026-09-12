@@ -672,25 +672,29 @@ async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
             )
             logger.info("psyche_weekly_narrative_job_scheduled", cron="sun@03:00")
 
-        # Schedule attachment cleanup (evolution F4 — File Attachments)
-        # Runs every 6 hours as TTL safety net for orphan files
-        if getattr(settings, "attachments_enabled", False):
-            from src.infrastructure.scheduler.attachment_cleanup import (
-                cleanup_expired_attachments,
-            )
+        # Schedule attachment cleanup (evolution F4 — File Attachments).
+        # Runs every 6 hours as the TTL safety net for expired files. NOT
+        # gated on the uploads ceiling (ADR-279, amended 2026-09-12): four
+        # producers write this table — uploads, generated images, generated
+        # documents, browser screenshots — and an instance with uploads off
+        # and generation on would otherwise never expire what it produced.
+        # A sweep that finds nothing costs one indexed query.
+        from src.infrastructure.scheduler.attachment_cleanup import (
+            cleanup_expired_attachments,
+        )
 
-            scheduler.add_job(
-                cleanup_expired_attachments,
-                trigger="interval",
-                hours=6,
-                jitter=jitter_seconds_for(hours=6),
-                id=SCHEDULER_JOB_ATTACHMENT_CLEANUP,
-                name="Cleanup expired attachments",
-                replace_existing=True,
-                max_instances=1,
-                misfire_grace_time=60,
-            )
-            logger.info("attachment_cleanup_job_scheduled", interval_hours=6)
+        scheduler.add_job(
+            cleanup_expired_attachments,
+            trigger="interval",
+            hours=6,
+            jitter=jitter_seconds_for(hours=6),
+            id=SCHEDULER_JOB_ATTACHMENT_CLEANUP,
+            name="Cleanup expired attachments",
+            replace_existing=True,
+            max_instances=1,
+            misfire_grace_time=60,
+        )
+        logger.info("attachment_cleanup_job_scheduled", interval_hours=6)
 
         # Schedule nightly habit-profile recompute (ADR-214). One aggregate
         # query + one upsert per enabled user; per-user sessions and error

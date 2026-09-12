@@ -33,10 +33,19 @@ CLOSED="/api/v1/connectors/gmail/authorize
 
 #: Paths the product needs. A 404 here means the allowlist was narrowed until
 #: the demonstrator stopped working — the failure mode that cost seven prefixes
-#: and an empty personality picker on 2026-08-07.
+#: and an empty personality picker on 2026-08-07. The last five are a family's
+#: BARE path (`/x/*` never matched `/x`), a family listed by omission, two
+#: families the template switched ON on 2026-09-12, and the download route of
+#: a generated document, which the uploads ceiling used to unmount — the
+#: first two answered 404 that day while every static gate was green.
 OPEN="/api/v1/auth/login
 /api/v1/auth/register
-/api/v1/capabilities"
+/api/v1/capabilities
+/api/v1/relations
+/api/v1/bookmarks/state
+/api/v1/workboard/summary
+/api/v1/peers/me
+/api/v1/attachments/00000000-0000-0000-0000-000000000000"
 
 if ! docker network inspect "$NETWORK" >/dev/null 2>&1; then
     echo "ERROR: network $NETWORK not found — is the demonstrator running?" >&2

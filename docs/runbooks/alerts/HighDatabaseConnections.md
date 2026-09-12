@@ -110,13 +110,20 @@ GROUP BY state;
 
 ### Immediate Mitigation
 
-**Option 1: Increase connection pool size**
+**Option 1: Give the pool more burst room — the OVERFLOW, not the persistent pool**
+
+The pool size is what every worker keeps OPEN when idle: each persistent
+connection is a Postgres backend holding ~7 MB whether or not it is used,
+multiplied by `WEB_CONCURRENCY` (ADR-283: 20 × 4 workers = 88 idle backends
+was the floor that drove `lia-postgres-prod` to 95-99 % of its limit every
+morning). Raise the overflow, which is opened on demand and released, and keep
+the product under the F004 budget and the memory floor guard
+(`tests/unit/test_postgres_memory_floor_guard.py`).
 
 **File**: `apps/api/.env`
 ```bash
-# Increase from 20 to 30
-DATABASE_POOL_SIZE=30
-DATABASE_MAX_OVERFLOW=10
+DATABASE_POOL_SIZE=5        # persistent, per worker — leave it
+DATABASE_MAX_OVERFLOW=20    # burst, per worker — raise this one (was 15)
 ```
 
 **Restart**:
@@ -152,8 +159,8 @@ from sqlalchemy.pool import QueuePool
 engine = create_async_engine(
     DATABASE_URL,
     poolclass=QueuePool,
-    pool_size=20,
-    max_overflow=10,
+    pool_size=settings.database_pool_size,        # persistent, per worker (5)
+    max_overflow=settings.database_max_overflow,  # burst, per worker (15)
     pool_timeout=30,
     pool_recycle=3600,  # Recycle connections every hour
     pool_pre_ping=True,  # Verify connections before use

@@ -6,7 +6,7 @@
 
 **Versión**: 5.0
 **Fecha**: 2026-08-23
-**Aplicación**: LIA v1.44.4
+**Aplicación**: LIA v1.44.5
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -54,7 +54,8 @@
 39. [Tres registros, y el que nadie había pedido](#39-tres-registros-y-el-que-nadie-había-pedido)
 40. [Un resumen por relación: lo que diez secciones no dicen](#40-un-resumen-por-relación-lo-que-diez-secciones-no-dicen)
 41. [El tablero de tickets: una fila, dos lados y una asistente que pregunta](#41-el-tablero-de-tickets-una-fila-dos-lados-y-una-asistente-que-pregunta)
-42. [Conclusión](#42-conclusión)
+42. [La anatomía de un proceso: lo que carga está declarado, medido y acotado](#42-la-anatomía-de-un-proceso-lo-que-carga-está-declarado-medido-y-acotado)
+43. [Conclusión](#43-conclusión)
 ---
 
 ## 1. Contexto y decisiones fundacionales
@@ -68,8 +69,8 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Auto-hospedaje ARM64 | Docker multi-arch, embeddings semánticos (multilingües), Playwright chromium cross-platform |
 | Soberanía de datos | PostgreSQL local (sin SaaS DB), cifrado Fernet en reposo, sesiones Redis locales |
 | Multi-proveedor LLM | Factory pattern con 7 adaptadores, configuración por nodo, sin acoplamiento fuerte a un provider |
-| Transparencia total | 553 métricas Prometheus, debug panel integrado, seguimiento token por token |
-| Fiabilidad en producción | 281 ADRs, ~28.443 tests recogidos por pytest en 1.669 archivos, observabilidad nativa, HITL de 6 niveles |
+| Transparencia total | 555 métricas Prometheus, debug panel integrado, seguimiento token por token |
+| Fiabilidad en producción | 282 ADRs, ~28.583 tests recogidos por pytest en 1.685 archivos, observabilidad nativa, HITL de 6 niveles |
 | Costes controlados | Smart Services (89 % de ahorro en tokens), embeddings semánticos, prompt caching, filtrado de catálogo |
 
 ### 1.2. Principios arquitecturales
@@ -87,10 +88,10 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 
 | Métrica | Valor |
 |----------|--------|
-| Tests | 28.443 recopilados por pytest en 1.669 archivos de prueba + 8.256 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
+| Tests | 28.583 recopilados por pytest en 1.685 archivos de prueba + 8.314 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
 | Fixtures pytest | 969, de las cuales 46 compartidas mediante conftest |
 | Documentos de documentación | 647 |
-| ADRs (Architecture Decision Records) | 281 |
+| ADRs (Architecture Decision Records) | 282 |
 | Métricas Prometheus | 553 definiciones |
 | Dashboards Grafana | 29 |
 | Idiomas soportados (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -381,6 +382,8 @@ Tres decisiones de diseño sostienen la funcionalidad. Primero, la honestidad de
 Un artefacto y una respuesta siguen dos ciclos de vida distintos una vez que existen, y ambos pertenecen a la persona y no a la conversación. Un archivo producido — una imagen, un documento, una captura del navegador — es un adjunto sellado con su **origen**, listado en una galería propia con un total exacto y un plazo de conservación visible; vaciar una conversación retira lo que la persona subió y nunca lo que LIA produjo, porque una purga retira lo que su familia declara, no lo que se le parece.
 
 Una respuesta que la persona quiere conservar es otro objeto: es prosa, debe renderizarse exactamente como la burbuja y debe sobrevivir a una conversación que se reinicia a menudo. Un **marcador es, por tanto, una copia, nunca un puntero**. Al hacer clic, la respuesta (markdown o un documento HTML enriquecido, tal cual), la petición que la produjo y la fecha de la respuesta se escriben en una tabla propia. Las dos referencias hacia la conversación son `SET NULL` al borrar: solo sirven al conmutador de la burbuja mientras la conversación vive. La petición se resuelve **en el servidor**, bajo el mismo predicado de visibilidad que usa el chat — el último mensaje visible de la persona antes de la respuesta, nunca la pregunta sintética de una ejecución fuera de turno — y una notificación enviada por iniciativa de LIA no conserva ninguna petición antes que una falsa. Un índice único parcial hace el conmutador idempotente por construcción, el límite de la cuenta se publica porque se aplica, página y total salen de un mismo `WHERE`, y el interruptor del operador protege solo el acto de guardar: lo ya guardado sigue legible, exportable y eliminable.
+
+Leer y borrar los propios archivos sobrevive al techo de las subidas: el router `attachments` se monta diga lo que diga `ATTACHMENTS_ENABLED`, y la guarda de capacidad se apoya solo en la subida. Como todo documento generado se sirve por esa lectura, una instancia que genera sin aceptar subidas — el demostrador — hace abrible lo que produce, y el barrido de caducidad corre para los cuatro productores de la tabla, nunca solo para la subida.
 
 ## 6. El sistema de planificación (ExecutionPlan DSL)
 
@@ -805,7 +808,7 @@ Dos hechos viajan con cada servidor como datos, nunca como prosa de prompt. Un s
 
 ### 15.1. STT
 
-Wake word ("OK Guy") via Sherpa-onnx WASM en el navegador (cero envío externo). Transcripción Whisper Small (99+ idiomas, offline) en el backend via ThreadPoolExecutor. Per-user STT language con caché thread-safe de `OfflineRecognizer` por idioma.
+Wake word ("OK Guy") via Sherpa-onnx WASM en el navegador (cero envío externo). Transcripción Whisper Small (99+ idiomas, offline) en el backend via ThreadPoolExecutor. Idioma STT por usuario; por worker, una caché LRU acotada de `OfflineRecognizer` (`VOICE_STT_MAX_RECOGNIZERS`, uno por defecto) — nada se carga al construir, la primera transcripción paga la carga de su idioma, una expulsión devuelve la memoria al sistema, y el número residente se publica por worker (`voice_stt_recognizers_loaded`).
 
 **Optimizaciones de latencia**: reutilización del flujo micro KWS → grabación (~200-800 ms ahorrados), pre-conexión WebSocket, `getUserMedia` + WS paralelizados via `Promise.allSettled`, caché Worklet AudioWorklet.
 
@@ -980,7 +983,7 @@ La procedencia es por tanto una propiedad del **dato**: los 24 tipos del registr
 
 | Tecnología | Rol |
 |-------------|------|
-| Prometheus | 553 métricas custom (RED pattern) |
+| Prometheus | 555 métricas custom (RED pattern) |
 | Grafana | 29 dashboards production-ready |
 | Loki | Logs estructurados JSON agregados |
 | Tempo | Trazas distribuidas cross-service (OTLP gRPC) |
@@ -988,7 +991,7 @@ La procedencia es por tanto una propiedad del **dato**: los 24 tipos del registr
 | Alertmanager | Núcleo de 14 alertas vitales notificadas por correo (runbooks enlazados, umbrales por entorno) + webhook hacia LIA: cada alerta se convierte en un incidente dentro del producto (ADR-247) |
 | structlog | Logging estructurado con PII filtering |
 
-**Una métrica que no llega a ningún panel es una métrica sobre la que nadie actúa.** La distancia entre lo que el código emite y lo que un operador puede ver se mide, nunca se supone: `scripts/audit/measure_metric_coverage.py` analiza cada definición de métrica (por AST y no por expresión regular — una regex lee `ZoneInfo("UTC")` como una métrica `Info`) y coteja cada nombre con todos los paneles, reglas de registro y expresiones de alerta. 553 definidas; las 44 que no llegan a nada figuran explícitamente en una base **que solo puede encogerse**, de modo que una métrica recién ciega hace fallar la compilación y una métrica que se vuelve visible debe salir de la lista — si no, la siguiente ciega ocupa su hueco en silencio. El precio de no haberlo tenido: una fuente de heartbeat que falló en abierto descartó las señales de salud en el 46,5 % de los ticks durante una semana, sin ninguna métrica que lo advirtiera (ADR-148). Dos trampas que la guarda cierra por construcción — un contador con etiquetas que nunca se incrementó no expone **ninguna serie**, así que un panel que vigila un fallo raro necesita `or vector(0)` o mostrará «No data» donde el operador espera un cero verde; y la cobertura se lee únicamente de las **expresiones** de paneles y reglas, porque una métrica citada en un comentario no está cableada.
+**Una métrica que no llega a ningún panel es una métrica sobre la que nadie actúa.** La distancia entre lo que el código emite y lo que un operador puede ver se mide, nunca se supone: `scripts/audit/measure_metric_coverage.py` analiza cada definición de métrica (por AST y no por expresión regular — una regex lee `ZoneInfo("UTC")` como una métrica `Info`) y coteja cada nombre con todos los paneles, reglas de registro y expresiones de alerta. 555 definidas; las 44 que no llegan a nada figuran explícitamente en una base **que solo puede encogerse**, de modo que una métrica recién ciega hace fallar la compilación y una métrica que se vuelve visible debe salir de la lista — si no, la siguiente ciega ocupa su hueco en silencio. El precio de no haberlo tenido: una fuente de heartbeat que falló en abierto descartó las señales de salud en el 46,5 % de los ticks durante una semana, sin ninguna métrica que lo advirtiera (ADR-148). Dos trampas que la guarda cierra por construcción — un contador con etiquetas que nunca se incrementó no expone **ninguna serie**, así que un panel que vigila un fallo raro necesita `or vector(0)` o mostrará «No data» donde el operador espera un cero verde; y la cobertura se lee únicamente de las **expresiones** de paneles y reglas, porque una métrica citada en un comentario no está cableada.
 
 ### 20.2. Debug Panel integrado
 
@@ -1390,7 +1393,7 @@ Una regla CSS gobierna los espaciados del design system: los márgenes verticale
 
 ## 24. Arquitectura de decisiones (ADR)
 
-281 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
+282 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
 
 | ADR | Decisión | Problema resuelto | Impacto medido |
 |-----|----------|----------------|---------------|
@@ -1467,6 +1470,8 @@ Las capacidades administrables siguen el mismo modelo de dos cotas compuestas �
 El instalador aplica la misma regla a la cadena de artefactos: no fiarse jamás de una etiqueta. El valor por defecto es una **construcción local** desde el código clonado; el modo preconstruido solo acepta referencias `repository@sha256:...` procedentes de un manifiesto cuya cualificación es explícitamente `passed`, y promover una versión no reconstruye nada — crea la etiqueta semántica a partir de digests ya cualificados. Los secretos entran por stdin en un único documento JSON que crea el administrador a través de la autoridad de contraseñas existente y cifra las claves de proveedor en la misma transacción; nada pasa por `argv`, y nada aterriza en el estado de reanudación, que solo almacena hechos no secretos y huellas SHA-256, y se detiene antes de cualquier mutación de Compose ante una discrepancia. Los datos de referencia se aplican en una sola transacción, un único `psql`, `ON_ERROR_STOP=1`, seguida de un archivo de verificación bloqueante y de un marcador escrito en esa misma transacción. Y `/ready` es necesario sin ser nunca suficiente: un verificador sin secretos comprueba la única cabeza de Alembic, el marcador exacto, las postcondiciones de los datos de referencia, un administrador activo, filas de proveedor descifrables y la cobertura de proveedores **sobre la configuración efectiva posterior a los seeds** — la que usará el primer mensaje, y no los valores por defecto del código que el seed acaba de sobrescribir.
 
 El hilo común de estos cuatro lotes es una propiedad de los propios tests. Cada protección se había entregado con los suyos, todos en verde, y todos con la misma forma: fijaban lo que el código hacía el día de la entrega. Una lista escrita a mano no describe un sistema; describe lo que su autor sabía del sistema. Estas guardas **recalculan** la protección desde la fuente de verdad — las familias de coste que el resumen de ejecución publica realmente, leídas por AST; las rutas que la aplicación monta realmente, confrontadas con el orden de evaluación del borde; el router de conectores recorrido en ambos sentidos, para que no clasificado y clasificado-pero-desmontado se pongan igualmente en rojo. Encontraron tres fallos que ningún test existente podía ver, entre ellos una síntesis de voz facturada al propietario y jamás contada contra el tope. Cada una fue después rota a propósito, para verificar que se pone en rojo.
+
+El demostrador público se aplica estos límites a sí mismo, y los hace legibles. Cada capacidad del registro está decidida por escrito en su plantilla de entorno — activada o cortada, con su razón — y dos guardas rechazan un techo dejado al valor por defecto del código o una divergencia entre las plantillas de desarrollo y producción; el censo de rutas alcanzables monta los routers bajo esos mismos techos, de modo que una familia cortada no aparece y una activada queda escrita ruta por ruta. Por último, cada instancia publica en su configuración pública el estado efectivo de todas sus capacidades — techo e interruptor compuestos — y la instancia que anuncia un demostrador lee esa configuración en el servidor y la muestra junto al enlace: la lista de lo que un visitante encontrará, y de lo que no, sigue el archivo de entorno de la demostración, nadie la mantiene a mano.
 
 ## 29. Administrar por archivo: el libro es el formulario
 
@@ -1648,12 +1653,22 @@ El rostro del compañero elegía su expresión de fin de turno a partir de la em
 
 **Lo que una ejecución escribe, y dónde.** Una ejecución archiva su encargo y su pregunta como filas DE LA EJECUCIÓN — mantenidas fuera del chat, apuntadas por el registro de decisiones, retiradas por la retención tras cerrarse el ticket —, mientras que la notificación que la persona debe leer es un mensaje corriente. La distinción es una columna DERIVADA en lugar de un sello en los metadatos, calculada en el único sitio que construye la fila; y todos los metadatos de turno archivados los construye un constructor con nombre, bajo una guardia que rechaza un diccionario escrito en el sitio de llamada — así fue exactamente como una vista previa de borrado llegó una vez al chat.
 
-## 42. Conclusión
+## 42. La anatomía de un proceso: lo que carga está declarado, medido y acotado
+
+Un servidor API son varios procesos: un supervisor que no atiende ninguna petición y workers que lo atienden todo. Cada uno retiene memoria por razones distintas, y «el contenedor consume cinco gigabytes» no dice nada útil mientras no se sepa qué proceso retiene qué. LIA aplica aquí una sola regla: **lo que un proceso carga está declarado, medido por proceso y acotado allí donde se multiplica**. Cada partida se midió en el host de destino, en un proceso desechable, antes de tocarla — y tres medidas contradijeron la primera lectura, que es exactamente la razón de medir.
+
+El supervisor no carga la aplicación. La línea de comandos de uvicorn importa la aplicación en el proceso padre para producir un error de importación temprano, y luego la descarta — un padre que solo vigila a sus workers retenía así varios cientos de megabytes durante toda la vida del contenedor. `python -m src.serve` conduce la misma cadena `Config → Server → Multiprocess` con las mismas opciones, sin esa importación; una guarda AST prohíbe al módulo importar nada de `src`, y el error temprano lo devuelve la comprobación de salud que el despliegue ya lee. Con el mismo espíritu, una biblioteca pesada — renderizado PDF, cálculo tabular, motores de audio — se importa donde sirve y nunca al arrancar: una lista declara el coste medido de cada una, y una guarda rechaza cualquier importación de primer nivel bajo `src/`, incluida una escondida en un `try` de módulo.
+
+Lo que carga un singleton se multiplica por el número de workers. La transcripción de voz guardaba un modelo residente por cada idioma pedido alguna vez, en un singleton por proceso; la caché ahora está acotada (`VOICE_STT_MAX_RECOGNIZERS`, uno por defecto), se expulsa el menos usado recientemente, nada se carga al construir, una expulsión devuelve la memoria al sistema — medido — y una decodificación en curso conserva su propia referencia. Y cada worker publica lo que retiene: `lia_worker_memory_bytes{kind}` la lee cada worker en su propio `/proc/self/status`, una serie por worker vivo que desaparece con él, dibujada en dos paneles y vigilada por la alerta `ApiWorkerMemoryHigh`, que nombra el proceso. Responde a un límite estructural: cAdvisor ve el contenedor, y el modo multiproceso de prometheus_client no exporta ninguna métrica de proceso.
+
+El presupuesto de conexiones tiene un suelo, no solo un techo. La auditoría F004 acotaba el pico — lo que los pools pueden abrir; cada conexión persistente es también un backend Postgres inactivo que retiene siete megabytes, junto a los `shared_buffers`. `ConnectionBudget.persistent_total` nombra ese suelo, y una guarda lee juntos el compose (límite de memoria, `shared_buffers`) y los dos perfiles `.env` entregados — el completo y el mínimo del autoalojador, resolviendo las claves ausentes a los valores por defecto del código como al arrancar: el suelo debe quedar por debajo de la mitad del límite, para que la base de datos conserve la otra mitad para su caché. Perfil entregado: cinco conexiones persistentes y quince de desbordamiento por worker, límite de dos gibibytes. Lo que el lote deja abierto está escrito: el crecimiento durante varios días de un worker sin transcripción — medible ahora — y la retención de los checkpoints de LangGraph.
+
+## 43. Conclusión
 
 LIA es un ejercicio de ingeniería de software que intenta resolver un problema concreto: construir un asistente IA multi-agente de calidad producción, transparente, seguro y extensible, capaz de funcionar en un Raspberry Pi.
 
-Los 281 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~27.290 tests en 1.601 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
+Los 282 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~27.290 tests en 1.601 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
 
 La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesiano, enrutamiento semántico, HITL sistemático, proactividad LLM-driven, diarios introspectivos — crea un sistema donde cada componente refuerza a los demás. El HITL alimenta el pattern learning, que reduce los costes, que permiten más funcionalidades, que generan más datos para la memoria, que mejora las respuestas. Es un círculo virtuoso por diseño, no por accidente.
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (490+ documentos), de los 281 ADRs y del changelog (v1.0 a v1.44.4). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (490+ documentos), de los 282 ADRs y del changelog (v1.0 a v1.44.5). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

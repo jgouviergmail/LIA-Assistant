@@ -119,6 +119,11 @@ topk(10, count by (__name__)({__name__=~".+"}))
 Vérifier d'abord une fuite plutôt que la taille : la mémoire doit se stabiliser
 en plateau, pas croître linéairement.
 
+Depuis l'ADR-283, la question « quel worker tient quoi » a une réponse : le
+tableau 03 trace `lia_worker_memory_bytes{kind="anon"}` par `pid` et
+`voice_stt_recognizers_loaded` à côté, et l'alerte `ApiWorkerMemoryHigh` nomme
+le worker en cause — voir [ApiWorkerMemoryHigh.md](./ApiWorkerMemoryHigh.md).
+
 ```promql
 container_memory_working_set_bytes{name="lia-api-prod"}[6h]
 ```

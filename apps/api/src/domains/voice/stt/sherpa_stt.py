@@ -24,6 +24,7 @@ Updated: 2026-02-01 - Migrated from SenseVoice to Whisper for French support
 
 import asyncio
 import threading
+from collections import OrderedDict
 from collections.abc import Awaitable, Callable
 from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
@@ -49,6 +50,7 @@ from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_voice import (
     stt_audio_duration_seconds,
     stt_errors_total,
+    stt_recognizers_loaded,
     stt_transcription_duration_seconds,
     stt_transcriptions_total,
 )
@@ -75,12 +77,15 @@ class SherpaSttService:
     Supports: French, English, German, Spanish, Italian, Chinese, and more.
 
     Thread-safe via ThreadPoolExecutor for async operations.
-    Maintains a cache of recognizers keyed by language code so that each
-    user's preferred language is used as a Whisper language hint, improving
-    transcription accuracy.
+    Keeps at most ``voice_stt_max_recognizers`` recognizers resident, keyed by
+    language code and evicted least-recently-used: sherpa-onnx binds the
+    language to the recognizer, so every language is a full ONNX session
+    (~0.8 GB on the production arm64, measured 2026-09-12) in a singleton that
+    lives once PER uvicorn worker. Nothing is loaded at construction — the
+    first transcription pays one load for the language it actually needs.
 
     Attributes:
-        _recognizers: Dict of language → OfflineRecognizer instances
+        _recognizers: language → OfflineRecognizer, most recently used LAST
         _sample_rate: Expected audio sample rate (16000 Hz)
 
     Example:
@@ -141,16 +146,15 @@ class SherpaSttService:
         self._default_language = settings.voice_stt_language
         self._task = settings.voice_stt_task
 
-        # Cache of recognizers keyed by language code (thread-safe)
-        # Each language gets its own recognizer with the appropriate language hint.
-        # Whisper uses the language parameter to bias transcription output.
-        # Type is Any because sherpa_onnx is imported dynamically at runtime
-        # and has no official Python type stubs (see github.com/k2-fsa/sherpa-onnx).
-        self._recognizers: dict[str, Any] = {}
+        # Recognizers keyed by language code, least recently used FIRST
+        # (thread-safe). Whisper binds the language hint to the recognizer, so
+        # a language is a full ONNX session; the cap keeps a worker from
+        # accumulating one per language ever spoken to it. Type is Any because
+        # sherpa_onnx is imported dynamically and ships no type stubs.
+        self._recognizers: OrderedDict[str, Any] = OrderedDict()
         self._recognizers_lock = threading.Lock()
-
-        # Pre-initialize the default language recognizer
-        self._get_recognizer(self._default_language)
+        self._max_recognizers = settings.voice_stt_max_recognizers
+        stt_recognizers_loaded.set(0)
 
         self._sample_rate = 16000  # Sherpa-onnx requires 16kHz
         self._max_duration = settings.voice_stt_max_duration_seconds
@@ -176,6 +180,7 @@ class SherpaSttService:
             num_threads=self._num_threads,
             default_language=self._default_language or "auto-detect",
             task=self._task,
+            max_recognizers=self._max_recognizers,
             max_duration_seconds=self._max_duration,
             single_pass_max_seconds=self._single_pass_max_seconds,
             window_seconds=self._window_seconds,
@@ -184,9 +189,16 @@ class SherpaSttService:
 
     def _get_recognizer(self, language: str) -> Any:
         """
-        Get or create an OfflineRecognizer for the given language.
+        Get or create the OfflineRecognizer for the given language.
 
-        Recognizers are cached by language code. Thread-safe via lock.
+        Bounded by ``voice_stt_max_recognizers``: loading a language beyond the
+        cap first drops the least recently used one from the cache, so the
+        peak is one model rather than two for the duration of the load. A decode already
+        holding that recognizer keeps its own reference — the cache only
+        releases its own, and the ONNX session goes with the last reference
+        (measured: 1 166 MB back to the OS for two recognizers). Thread-safe
+        via lock; the lock is held for the load, so two languages requested at
+        once are loaded one after the other rather than twice.
 
         Args:
             language: ISO 639-1 language code (e.g. 'fr', 'en', 'de').
@@ -196,9 +208,22 @@ class SherpaSttService:
             Sherpa-onnx OfflineRecognizer instance for the requested language
         """
         with self._recognizers_lock:
-            if language in self._recognizers:
-                return self._recognizers[language]
+            cached = self._recognizers.get(language)
+            if cached is not None:
+                self._recognizers.move_to_end(language)
+                return cached
 
+            # Make room BEFORE loading: the peak is one model, not two for the
+            # duration of the load. No local name keeps the evicted object
+            # alive — its session goes when the cache's reference does.
+            while len(self._recognizers) >= self._max_recognizers:
+                evicted_language = next(iter(self._recognizers))
+                del self._recognizers[evicted_language]
+                logger.info(
+                    "stt_recognizer_evicted",
+                    language=evicted_language or "auto-detect",
+                    max_recognizers=self._max_recognizers,
+                )
             recognizer = self._sherpa_onnx.OfflineRecognizer.from_whisper(
                 encoder=str(self._encoder_file),
                 decoder=str(self._decoder_file),
@@ -208,6 +233,7 @@ class SherpaSttService:
                 task=self._task,
             )
             self._recognizers[language] = recognizer
+            stt_recognizers_loaded.set(len(self._recognizers))
 
             logger.info(
                 "stt_recognizer_created",

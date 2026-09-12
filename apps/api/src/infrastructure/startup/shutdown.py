@@ -48,6 +48,8 @@ class StartupHandles:
             if it never started).
         cache_invalidation_task: Cache invalidation subscriber task to cancel
             (None if it never started).
+        worker_memory_task: Per-worker resident memory sampler to cancel
+            (None if it never started).
     """
 
     leader_elector: SchedulerLeaderElector
@@ -55,6 +57,28 @@ class StartupHandles:
     telegram_bot: Bot | None
     lifetime_metrics_task: asyncio.Task[None] | None
     cache_invalidation_task: asyncio.Task[None] | None
+    worker_memory_task: asyncio.Task[None] | None = None
+
+
+async def stop_worker_memory_sampler(task: asyncio.Task[None] | None) -> None:
+    """Cancel the worker memory sampler and await its exit on this loop.
+
+    Args:
+        task: The sampler started by ``observability.start_worker_memory_sampler``,
+            or None when it never started.
+    """
+    if task is None:
+        return
+    task.cancel()
+    try:
+        with suppress(asyncio.CancelledError):
+            await task
+    except Exception as exc:
+        # The sampler is best-effort telemetry: a reading that raised must not
+        # abort the rest of the shutdown sequence (Langfuse flush, pools).
+        logger.warning("worker_memory_sampler_shutdown_failed", error=str(exc))
+        return
+    logger.info("worker_memory_sampler_stopped")
 
 
 async def shutdown_application(handles: StartupHandles) -> None:
@@ -113,6 +137,8 @@ async def shutdown_application(handles: StartupHandles) -> None:
             logger.info("prometheus_multiproc_marked_dead", pid=os.getpid())
         except Exception as exc:  # pragma: no cover - best-effort cleanup
             logger.warning("prometheus_multiproc_cleanup_failed", error=str(exc))
+
+    await stop_worker_memory_sampler(handles.worker_memory_task)
 
     # Stop lifetime metrics updater
     if handles.lifetime_metrics_task:

@@ -26,6 +26,8 @@ from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
 from src.core.config import settings
+from src.domains.feature_switches.public_state import PublicCapabilityState
+from src.domains.product.demo_capabilities import fetch_demo_capabilities
 from src.domains.system_settings.models import SystemSettingKey
 from src.domains.system_settings.registry import read_setting
 
@@ -42,6 +44,13 @@ class PublicDemoLink:
     url: str | None = None
 
 
+class PublicCapabilityEntry(BaseModel):
+    """One capability of the demonstrator, as it publishes it itself."""
+
+    enabled: bool = Field(description="Effectively available on the demonstrator right now")
+    family: str = Field(description="The registry family the capability belongs to")
+
+
 class PublicDemoLinkResponse(BaseModel):
     """Anonymous read of the demonstrator link."""
 
@@ -49,6 +58,16 @@ class PublicDemoLinkResponse(BaseModel):
     url: str | None = Field(
         default=None,
         description="Where it points. Absent when the link is off — the address is not disclosed.",
+    )
+    capabilities: dict[str, PublicCapabilityEntry] | None = Field(
+        default=None,
+        description=(
+            "What the demonstrator offers, keyed like the frontend's "
+            "`capabilities.items.*` labels — read from the demonstrator's own "
+            "public configuration and relayed here. None when the link is off "
+            "or the demonstrator could not be read: the page then says so "
+            "rather than showing an empty list."
+        ),
     )
 
 
@@ -99,4 +118,17 @@ async def resolve_public_demo_link() -> PublicDemoLink:
 async def get_public_demo_link() -> PublicDemoLinkResponse:
     """Read the demonstrator link state (no credentials required)."""
     link = await resolve_public_demo_link()
-    return PublicDemoLinkResponse(enabled=link.enabled, url=link.url)
+    capabilities: dict[str, PublicCapabilityState] | None = None
+    if link.enabled and link.url:
+        # Relayed rather than read from the visitor's browser: the document's
+        # CSP allows connect-src to this API alone (see demo_capabilities.py).
+        capabilities = await fetch_demo_capabilities(link.url)
+    return PublicDemoLinkResponse(
+        enabled=link.enabled,
+        url=link.url,
+        capabilities=(
+            {key: PublicCapabilityEntry(**entry) for key, entry in capabilities.items()}
+            if capabilities
+            else None
+        ),
+    )

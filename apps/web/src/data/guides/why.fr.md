@@ -4,7 +4,7 @@
 
 **Version** : 6.0
 **Date** : 2026-08-23
-**Application** : LIA v1.44.4
+**Application** : LIA v1.44.5
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -326,6 +326,8 @@ Le même principe vaut pour les protections elles-mêmes. Une sécurité annonc�
 
 Et ce principe va plus loin qu'il n'y paraît. Un test qui ne tourne pas ne prouve rien non plus : une mesure absente ressemble à s'y méprendre à une mesure au vert. Une capacité annoncée mais absente n'est pas une imprécision de documentation, c'est une promesse faite à quelqu'un qui n'a aucun moyen de la vérifier — afficher un réglage qui ne commande rien est pire que de ne rien afficher. Et un chiffre écrit dans un document est une affirmation comme les autres : chaque version et chaque seuil qu'un document énonce est recalculé depuis le code qui le détient, et l'écart bloque la construction. Un document choisit sa précision ; il ne choisit pas d'être précis et faux.
 
+Cette honnêteté commence avant même que tu entres. La page qui te propose d'essayer le démonstrateur public liste ce qui y est activé et ce qui ne l'est pas — et cette liste n'est pas écrite par quelqu'un qui pourrait oublier de la mettre à jour : elle est lue dans la configuration du démonstrateur lui-même, et s'il ne répond pas, la page le dit plutôt que d'afficher une colonne vide. Tu sais ce que tu vas trouver, et ce que tu ne trouveras pas, avant de créer un compte.
+
 ### 6.5. Pourquoi LIA pense cela
 
 Un assistant qui retient des choses finit par en affirmer. « Tu préfères les réunions le matin », « ce sujet t'intéresse » : des conclusions utiles, mais invérifiables tant qu'on ne peut pas remonter à ce qui les a produites.
@@ -450,6 +452,8 @@ LIA embarque une observabilité de grade production :
 | **Alertmanager** | Alertes e-mail sur les signaux vitaux, runbooks liés |
 
 Chaque requête est tracée de bout en bout, chaque appel LLM est mesuré, chaque erreur est contextualisée. Ce n'est pas du monitoring ajouté après coup — c'est une **décision architecturale fondamentale** documentée dans les Architecture Decision Records du projet.
+
+Cette exigence descend jusqu'à la machine. Un serveur est plusieurs processus, et « le conteneur consomme cinq gigaoctets » ne dit pas lequel tient quoi : chaque processus de LIA publie donc lui-même ce qu'il tient en mémoire, un tableau de bord le trace processus par processus, une alerte nomme celui qui déborde — et ce qu'un processus charge a été mesuré sur la machine cible avant d'être touché, jamais supposé.
 
 ### 8.3. Un pipeline anti-hallucination
 

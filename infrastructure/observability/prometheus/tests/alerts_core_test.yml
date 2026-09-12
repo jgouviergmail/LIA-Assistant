@@ -861,3 +861,42 @@ tests:
       - eval_time: 200h
         alertname: RecurrenceLedgerSilent
         exp_alerts: []
+
+  # ===== ApiWorkerMemoryHigh: one worker's HEAP above the ceiling, by pid =====
+  # 3.5 GiB of anonymous memory in one process for 10 minutes: what a worker
+  # looks like after it loaded a second STT model or is leaking. The series is
+  # per LIVE worker (multiprocess_mode="liveall"), so the alert names the pid.
+  - interval: 1m
+    input_series:
+      - series: 'lia_worker_memory_bytes{kind="anon", pid="58"}'
+        values: '3670016000x12'
+      - series: 'lia_worker_memory_bytes{kind="anon", pid="59"}'
+        values: '800000000x12'
+    alert_rule_test:
+      - eval_time: 11m
+        alertname: ApiWorkerMemoryHigh
+        exp_alerts:
+          - exp_labels:
+              pid: "58"
+              severity: warning
+              component: api
+              tier: core
+            exp_annotations:
+              summary: "API worker 58 holds 3500 MB of heap"
+              description: "Worker process 58 has held 3500 MB of anonymous memory (heap: Python objects, model weights, ONNX arenas) for 10 minutes (threshold: 3072 MB). One worker far above its peers has loaded something the others have not — a second STT recognizer, measured at ~0.8 GB each — or leaks. Compare with voice_stt_recognizers_loaded on dashboard 03."
+              runbook: "docs/runbooks/alerts/ApiWorkerMemoryHigh.md"
+
+  # ===== ApiWorkerMemoryHigh: mapped libraries and shared pages do not count =====
+  # A worker's file-backed pages are reclaimable and shared; only the heap says
+  # what the process holds. The same bytes under kind="file" must stay silent.
+  - interval: 1m
+    input_series:
+      - series: 'lia_worker_memory_bytes{kind="file", pid="58"}'
+        values: '3670016000x12'
+      - series: 'lia_worker_memory_bytes{kind="anon", pid="58"}'
+        values: '900000000x12'
+    alert_rule_test:
+      - eval_time: 11m
+        alertname: ApiWorkerMemoryHigh
+        exp_alerts: []
+

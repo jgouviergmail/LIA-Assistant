@@ -136,6 +136,20 @@ Le garde de câblage (`test_capability_route_wiring.py`) apprend à accepter une
 garde posée au niveau de la ROUTE en plus du niveau du routeur — sans quoi il
 aurait lu ce déplacement comme une capacité non gardée.
 
+**Amendement du 2026-09-12 — le plafond d'environnement n'obéissait pas à
+cette règle.** Le commutateur d'opérateur la respectait ; `routes.py` incluait
+encore le routeur `attachments` tout entier sous `attachments_enabled`, et
+`startup/schedulers.py` n'enregistrait le balayage d'expiration que sous ce
+même drapeau. Sur une instance aux téléversements coupés — le démonstrateur
+public — un document généré était écrit et ne pouvait pas être ouvert
+(`GET /attachments/{id}` en 404), et n'aurait jamais expiré. Le routeur est
+désormais monté quel que soit le plafond (la route de téléversement porte sa
+propre garde, lue à l'appel) et le balayage est enregistré sans condition :
+quatre producteurs écrivent la table, et une passe qui ne trouve rien coûte
+une requête indexée. Deux gardes : `test_router_mounted_whatever_the_ceiling.py`
+(routes montées sous les deux valeurs du plafond, garde de téléversement
+présente, `add_job` du balayage hors de tout `if` lisant le drapeau).
+
 ### 6. « Supprimé » veut dire parti
 
 `POST /generated-assets/delete` répond `{deleted, skipped}`. Un identifiant que

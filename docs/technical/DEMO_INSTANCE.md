@@ -29,11 +29,11 @@ why "recalculates" is the load-bearing word.
 | Mass registration burning the mail quota | Instance-wide daily signup ceiling, counted from the accounts, plus relay-side rate limits | `auth/demo_signup_ceiling.py`, `docker-compose.demo-instance.yml` |
 | A container pivoting to the LAN or the host | Every network internal except three single-member outbound ones; the edge reaches nothing but its two neighbours | `docker-compose.demo-instance.yml`, `tests/unit/test_demo_instance_envelope.py` |
 | A capability offered that cannot work | Flags, egress allowlist and provider keys checked against each other | `tests/unit/test_demo_instance_capability_coherence.py` |
-| A capability costing more than intended | 10 administrable capabilities, two composed bounds, three declared enforcement modes | [ADR-217](../architecture/ADR-217-Capacites-Administrables.md), `domains/feature_switches/` |
+| A capability costing more than intended | Every capability of the registry administrable (ADR-280), two composed bounds, three declared enforcement modes — and every ceiling written in the template, on or off, with its reason | [ADR-217](../architecture/ADR-217-Capacites-Administrables.md), `domains/feature_switches/`, `.env.demo-instance.example` |
 | A stranger's real account tied to a throwaway one | Connector linking AND federated sign-in refused, at the edge and in the app | `core/demo_mode.py` |
-| A route reachable that nobody decided to expose | Edge allowlist + frozen census of the 53 reachable routes | `infrastructure/demo-instance/Caddyfile`, `tests/unit/test_demo_instance_exposed_routes.py` |
+| A route reachable that nobody decided to expose — or hidden because nobody listed it | Edge allowlist + frozen census of the reachable routes, and every route the edge does not forward declared with its reason | `infrastructure/demo-instance/Caddyfile`, `tests/unit/test_demo_instance_exposed_routes.py` |
 | Data surviving the night | Full nightly purge, guarded by a marker **in the database** | `infrastructure/scheduler/demo_account_purge.py` |
-| A visitor not knowing any of this | Terms section 12 in all 6 languages, limits stated before the link | `apps/web/src/data/guides/terms.*.md`, `LiveDemoInvitation.tsx` |
+| A visitor not knowing any of this | Terms section 12 in all 6 languages, limits stated before the link, and the switched-on / switched-off lists relayed LIVE from this instance's own `/config` | `apps/web/src/data/guides/terms.*.md`, `LiveDemoInvitation.tsx`, `product/demo_capabilities.py` |
 
 ## Getting in
 
@@ -69,6 +69,23 @@ The URL is a deployment fact (`DEMO_INSTANCE_PUBLIC_URL`); the switch is an
 operator fact, stored in the audited settings store and flipped from the
 administration. When it is off, the URL is not served at all — hiding a link
 whose address still answers only hides it from people who do not look.
+
+### What the invitation lists, and where it reads it
+
+The invitation says which capabilities a visitor will find and which they
+will not, and nobody keeps that list. Every instance publishes on its public
+`GET /config` a `capabilities` block — the whole registry, each member with
+its EFFECTIVE state (deployment ceiling AND operator switch,
+`feature_switches/public_state.py`). The instance that advertises the link
+reads that block SERVER-SIDE (`product/demo_capabilities.py`: one bounded GET
+to the configured origin, cached per process for a minute, a failure cached
+too) and relays it in the link payload. Change a ceiling in
+`.env.demo-instance.prod`, restart, and the public page follows within a
+minute; a demonstrator that could not be read is shown as not answering,
+never as a blank "switched off" column. Relayed, not read from the browser:
+the landing's CSP allows `connect-src` to its own API alone (ADR-098), so the
+edge here opens nothing cross-origin — `test_demo_instance_edge_allowlist.py`
+pins that no `Access-Control-Allow-Origin` exists in the Caddyfile.
 
 ## Operating it
 
@@ -284,7 +301,20 @@ fails there; so does leaving a host open that no enabled capability needs.
 
 Today: speech synthesis works (Edge, free, no key — the client passes the
 egress proxy to its WebSocket, which aiohttp does not discover on its own);
-dictation is off because it needs an ElevenLabs key.
+dictation is off because the local engine holds gigabytes per worker on a host
+shared with production (ADR-283) and the remote path needs a key and a host.
+
+A fourth declaration joined on 2026-09-12: **the template itself must decide
+every capability**. It had been written for the thirteen switches of ADR-217
+and never followed ADR-280's registry, so a ceiling it did not mention took
+the code's default — the workboard, the meetings and model-authored Python ran
+ON in the public demonstrator by nobody's decision, each behind a door that did
+not open (an edge prefix nobody listed, no STT engine, no Docker socket). The
+coherence guard now refuses a registry `env_flag` absent from the template and
+a value on which the dev and prod templates disagree, and the routes census
+mounts the routers UNDER the template's flags rather than the test process's —
+which is how 57 routes of switched-off families were found frozen as
+"reachable" while they never were.
 
 ## Incidents — the four questions worth asking
 
@@ -323,12 +353,25 @@ never runs** — which is the one promise the terms make.
 
 ## Changing it
 
-Seven guards will stop a change that widens the surface, or narrows it into
+Eight guards will stop a change that widens the surface, or narrows it into
 uselessness, without a decision:
 
 - a new `*_cost_eur` field must be counted or excluded **with a reason**;
 - a new route under an allowed prefix must be added to
   `EXPECTED_EXPOSED_ROUTES` after review;
+- a route the edge does NOT forward must fall under a family declared in
+  `HIDDEN_BY_DECISION` or `HIDDEN_PENDING_DECISION`, with the reason or the
+  open question — "closed by omission" is refused. The exposed census alone
+  could not see it: a family mounted under a prefix nobody listed shipped to
+  the demonstrator as an empty screen three releases running (the generated
+  files, then the kept answers), and three families listed as `/x/*` had their
+  bare `/x` overview answering 404 while every sub-route worked (2026-09-12).
+  A family is listed as `/x*`;
+- a route the demonstrator's own ceilings unmount is not "closed by the
+  edge" either: reading and deleting one's own files (`/attachments/{id}`,
+  where every generated document is served) is mounted whatever
+  `ATTACHMENTS_ENABLED` says since 2026-09-12 (ADR-279 amended), so document
+  generation is ON here while uploads stay OFF;
 - a new connector route must be a linking path (refused) or classified in
   `READ_ONLY_ROUTES` with why it may stay open;
 - a new container with a route to the Internet must be declared in
@@ -341,5 +384,6 @@ uselessness, without a decision:
   a variable in the template must be one the code reads.
 
 None of them is a formality: each one found a real hole the day it was
-written, and the last four were written the day the audit measured the holes
-the first three could not see.
+written, the fourth to seventh were written the day the audit measured the
+holes the first three could not see, and the third the day the census was
+found to be one-eyed.

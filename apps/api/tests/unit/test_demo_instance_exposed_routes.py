@@ -18,10 +18,14 @@ Read the list below as the answer to "what can an anonymous stranger reach".
 
 from __future__ import annotations
 
+import importlib
 import re
+from contextlib import ExitStack
+from unittest.mock import patch
 
 import pytest
 
+from tests._demo_template import capability_flags
 from tests._repo_paths import repo_root_or_skip
 
 pytestmark = pytest.mark.unit
@@ -34,21 +38,32 @@ CADDYFILE = repo_root_or_skip() / "infrastructure" / "demo-instance" / "Caddyfil
 #: It is long because the demonstrator shows the REAL product — a visitor
 #: reaches every feature their own account owns. What is NOT here is what
 #: matters: no /connectors (linking a real mailbox), no /admin, no
-#: /usage-limits/admin, no /metrics, no federated sign-in.
+#: /usage-limits/admin, no /metrics, no federated sign-in — and nothing of a
+#: family the demonstrator template switches OFF (attachments, spaces,
+#: skills, MCP, heartbeat, channels, meetings, telephony…): their routers
+#: are not mounted there, so their prefixes in the Caddyfile open nothing.
+#: Until 2026-09-12 this list carried 57 such routes, read from the TEST
+#: process's routers rather than the demonstrator's.
 EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
     {
         "POST /api/v1/account/export",
         "GET /api/v1/account/export/latest",
         "GET /api/v1/account/export/{job_id}/download",
         "POST /api/v1/agents/chat/stream",
+        # Reading and deleting one's OWN files survives the uploads ceiling
+        # (ADR-279, amended 2026-09-12): every generated document is served by
+        # the GET, so with the router unmounted the demonstrator wrote reports
+        # nobody could open. The upload stays refused by the route's own
+        # capability guard (ATTACHMENTS_ENABLED=false here): forwarded by the
+        # edge, refused by the application, which is the honest shape.
+        "GET /api/v1/attachments/{attachment_id}",
+        "DELETE /api/v1/attachments/{attachment_id}",
+        "POST /api/v1/attachments/upload",
         "GET /api/v1/agents/health",
         "GET /api/v1/agents/hitl/pending",
         "GET /api/v1/agents/runs/active",
         "POST /api/v1/agents/runs/active/cancel",
         "GET /api/v1/agents/runs/{stream_id}/stream",
-        "POST /api/v1/attachments/upload",
-        "DELETE /api/v1/attachments/{attachment_id}",
-        "GET /api/v1/attachments/{attachment_id}",
         "GET /api/v1/auth/features",
         "POST /api/v1/auth/login",
         "POST /api/v1/auth/logout",
@@ -117,14 +132,6 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         "GET /api/v1/health-metrics/tokens",
         "POST /api/v1/health-metrics/tokens",
         "DELETE /api/v1/health-metrics/tokens/{token_id}",
-        "GET /api/v1/heartbeat/history",
-        # Lot 5-C2 (ADR-238): the proposals inbox — a pull-only VIEW over the
-        # visitor's own undecided habit offers; deciding rides the feedback
-        # route already exposed below.
-        "GET /api/v1/heartbeat/offers",
-        "PATCH /api/v1/heartbeat/notifications/{notification_id}/feedback",
-        "GET /api/v1/heartbeat/settings",
-        "PATCH /api/v1/heartbeat/settings",
         "GET /api/v1/interests",
         "POST /api/v1/interests",
         "DELETE /api/v1/interests/all",
@@ -152,10 +159,6 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         "DELETE /api/v1/journals/{entry_id}",
         "PATCH /api/v1/journals/{entry_id}",
         "GET /api/v1/journals/{entry_id}/provenance",
-        "GET /api/v1/mcp/admin-servers",
-        "POST /api/v1/mcp/admin-servers/{server_key}/app/call-tool",
-        "POST /api/v1/mcp/admin-servers/{server_key}/app/read-resource",
-        "PATCH /api/v1/mcp/admin-servers/{server_key}/toggle",
         "GET /api/v1/mcp/servers",
         "POST /api/v1/mcp/servers",
         "GET /api/v1/mcp/servers/oauth/callback",
@@ -240,39 +243,6 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         "PATCH /api/v1/psyche/settings",
         "GET /api/v1/psyche/state",
         "GET /api/v1/psyche/summary",
-        "GET /api/v1/rag-spaces",
-        "POST /api/v1/rag-spaces",
-        "POST /api/v1/rag-spaces/admin/reindex",
-        "GET /api/v1/rag-spaces/admin/reindex/status",
-        "GET /api/v1/rag-spaces/admin/system-spaces",
-        "POST /api/v1/rag-spaces/admin/system-spaces/{space_name}/reindex",
-        "GET /api/v1/rag-spaces/admin/system-spaces/{space_name}/staleness",
-        "DELETE /api/v1/rag-spaces/{space_id}",
-        "GET /api/v1/rag-spaces/{space_id}",
-        "PATCH /api/v1/rag-spaces/{space_id}",
-        "POST /api/v1/rag-spaces/{space_id}/documents",
-        # Document operations (ADR-259): the same surface as upload/delete —
-        # a visitor's own documents, in the visitor's own spaces.
-        "GET /api/v1/rag-spaces/{space_id}/documents/archive",
-        "POST /api/v1/rag-spaces/{space_id}/documents/bulk-delete",
-        "POST /api/v1/rag-spaces/{space_id}/documents/move",
-        "GET /api/v1/rag-spaces/{space_id}/documents/{document_id}/download",
-        "DELETE /api/v1/rag-spaces/{space_id}/documents/{document_id}",
-        "GET /api/v1/rag-spaces/{space_id}/documents/{document_id}/status",
-        "GET /api/v1/rag-spaces/{space_id}/drive-browse",
-        "GET /api/v1/rag-spaces/{space_id}/drive-sources",
-        "POST /api/v1/rag-spaces/{space_id}/drive-sources",
-        "DELETE /api/v1/rag-spaces/{space_id}/drive-sources/{source_id}",
-        "POST /api/v1/rag-spaces/{space_id}/drive-sources/{source_id}/sync",
-        "GET /api/v1/rag-spaces/{space_id}/drive-sources/{source_id}/sync-status",
-        # Mail source (ADR-262): the visitor's own Gmail labels, in their own spaces.
-        "GET /api/v1/rag-spaces/{space_id}/mail-labels",
-        "GET /api/v1/rag-spaces/{space_id}/mail-sources",
-        "POST /api/v1/rag-spaces/{space_id}/mail-sources",
-        "DELETE /api/v1/rag-spaces/{space_id}/mail-sources/{source_id}",
-        "POST /api/v1/rag-spaces/{space_id}/mail-sources/{source_id}/sync",
-        "GET /api/v1/rag-spaces/{space_id}/mail-sources/{source_id}/sync-status",
-        "PATCH /api/v1/rag-spaces/{space_id}/toggle",
         "DELETE /api/v1/relations/favorites/{name}",
         "PUT /api/v1/relations/favorites/{name}",
         "POST /api/v1/relations/merges",
@@ -308,21 +278,6 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         "PATCH /api/v1/scheduled-actions/{action_id}",
         "POST /api/v1/scheduled-actions/{action_id}/execute",
         "PATCH /api/v1/scheduled-actions/{action_id}/toggle",
-        "GET /api/v1/skills",
-        "POST /api/v1/skills/admin/import",
-        "GET /api/v1/skills/admin/list",
-        "DELETE /api/v1/skills/admin/{skill_name}",
-        "PATCH /api/v1/skills/admin/{skill_name}/description",
-        "GET /api/v1/skills/admin/{skill_name}/download",
-        "PATCH /api/v1/skills/admin/{skill_name}/system-toggle",
-        "POST /api/v1/skills/admin/{skill_name}/translate-description",
-        "POST /api/v1/skills/import",
-        "POST /api/v1/skills/import-from-url",
-        "POST /api/v1/skills/reload",
-        "DELETE /api/v1/skills/{skill_name}",
-        "GET /api/v1/skills/{skill_name}/download",
-        "GET /api/v1/skills/{skill_name}/preview",
-        "PATCH /api/v1/skills/{skill_name}/toggle",
         "GET /api/v1/system-settings/debug-panel-status",
         "GET /api/v1/usage-limits/me",
         "GET /api/v1/usage/export/consumption-summary",
@@ -346,8 +301,101 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         "GET /api/v1/users/{user_id}",
         "PATCH /api/v1/users/{user_id}",
         "POST /api/v1/voice/ticket",
+        # Three families were listed as `/x/*`, which never matched the bare
+        # `/x`: the Relations overview, the learned-habits panel (and its
+        # « forget everything »), the health samples list (and its per-kind
+        # delete) answered 404 while every sub-route worked (2026-09-12). All
+        # four read or delete the visitor's OWN rows.
+        "GET /api/v1/relations",
+        "GET /api/v1/habits",
+        "DELETE /api/v1/habits",
+        "GET /api/v1/health-metrics",
+        "DELETE /api/v1/health-metrics",
+        # Same shape: the generation route was listed EXACT, so the options
+        # the picker reads (qualities and sizes of the configured model) were
+        # not. Read-only, no account parameter.
+        "GET /api/v1/image-generation/options",
+        # The visitor's own timeline of what LIA did proactively for them —
+        # the same class as the effects register exposed above: read-only,
+        # paged with exact totals, nothing but the visitor's account.
+        "GET /api/v1/activity/timeline",
+        # The gallery of what LIA produced (ADR-279): the same class as the
+        # attachments beside it — a visitor's own images, documents and
+        # screenshots, listed, deleted, never anyone else's. Hidden by
+        # omission since v1.44.1: the settings tab came up empty.
+        "GET /api/v1/generated-assets",
+        "POST /api/v1/generated-assets/delete",
+        "DELETE /api/v1/generated-assets/{asset_id}",
+        # The answers a visitor keeps (ADR-282): a COPY of their own bubble
+        # into their own rows, bounded by BOOKMARKS_MAX_PER_USER, no model
+        # spend, no external effect. The bubble shows the toggle whenever the
+        # capability is on, so a hidden route would be a button that fails.
+        "POST /api/v1/bookmarks",
+        "GET /api/v1/bookmarks",
+        "GET /api/v1/bookmarks/state",
+        "DELETE /api/v1/bookmarks/by-message/{message_id}",
+        "DELETE /api/v1/bookmarks/{bookmark_id}",
+        # The workboard (ADR-276): a visitor's own tickets, held by them or by
+        # LIA. A run spends the visitor's own allowance exactly as a routine
+        # does (scheduled-actions, exposed above), under the same ceilings;
+        # every handler resolves the row through the session owner. Switched
+        # ON in the demonstrator template on 2026-09-12.
+        "GET /api/v1/workboard/summary",
+        "GET /api/v1/workboard/needs-me",
+        "GET /api/v1/workboard/tickets",
+        "POST /api/v1/workboard/tickets",
+        "GET /api/v1/workboard/tickets/{ticket_id}",
+        "PATCH /api/v1/workboard/tickets/{ticket_id}",
+        "DELETE /api/v1/workboard/tickets/{ticket_id}",
+        "POST /api/v1/workboard/tickets/{ticket_id}/comments",
+        "POST /api/v1/workboard/tickets/{ticket_id}/move",
+        "POST /api/v1/workboard/tickets/{ticket_id}/run-now",
+        # Peer connections: two demonstrator accounts, throwaway on both sides
+        # and wiped together the same night. Discovery answers an EXACT email
+        # only (the by-email search above is already exposed), a request has
+        # to be accepted by the other side, and the sharing scope is the
+        # accepting account's own choice. Switched ON on 2026-09-12.
+        "GET /api/v1/peers/me",
+        "PUT /api/v1/peers/me",
+        "POST /api/v1/peers/discovery/search",
+        "GET /api/v1/peers/requests",
+        "POST /api/v1/peers/requests",
+        "POST /api/v1/peers/requests/{connection_id}/respond",
+        "GET /api/v1/peers/connections",
+        "DELETE /api/v1/peers/connections/{connection_id}",
+        "PUT /api/v1/peers/connections/{connection_id}/shares",
+        "GET /api/v1/peers/messages",
+        "GET /api/v1/peers/blocks",
+        "POST /api/v1/peers/blocks",
+        "DELETE /api/v1/peers/blocks/{peer_id}",
+        "GET /api/v1/peers/access-log",
     }
 )
+
+#: What the edge keeps from visitors ON PURPOSE, family by family, each with
+#: the reason. A key ending in `*` is a prefix; any other key is an exact path.
+#: Every mounted route the edge does not forward must fall under one of these
+#: or under ``HIDDEN_PENDING_DECISION`` — a family nobody listed is not
+#: "closed by decision", it is closed by omission, and that is how the gallery
+#: and the kept answers shipped to the demonstrator as empty screens.
+HIDDEN_BY_DECISION: dict[str, str] = {
+    "/api/v1/admin/*": "the operator's surface; a visitor is never an administrator",
+    "/api/v1/usage-limits/admin/*": "the operator's ceilings and blocks",
+    "GET /api/v1/users": "the superuser listing of every account (the /users/me routes are exposed)",
+    "/api/v1/connectors*": "nobody links a real mailbox to an instance wiped nightly",
+    "GET /api/v1/": "the API root banner; the web reads /health and /ready",
+    "GET /api/v1/health": "the API's own probe; the edge exposes /health and /ready instead",
+}
+
+#: Families no decision has been written for yet. Shrink-only: an entry leaves
+#: when the owner decides — exposed (written above), closed (written in
+#: ``HIDDEN_BY_DECISION``), or switched off in the demonstrator template, in
+#: which case the router is not mounted at all and the decision lives with
+#: the flag (meetings, channels, plugins left this table that way on
+#: 2026-09-12). Each names the question the decision must answer.
+HIDDEN_PENDING_DECISION: dict[str, str] = {
+    "/api/v1/ingest/*": "the mobile health ingestion; nothing on the demonstrator produces samples",
+}
 
 
 def _allowed_patterns() -> set[str]:
@@ -378,18 +426,47 @@ def _matches(pattern: str, path: str) -> bool:
     return pattern == path
 
 
-def _mounted_routes() -> set[str]:
-    """Every "METHOD /path" the API actually mounts, prefix included."""
-    from src.api.v1.routes import api_router
-
+def _routes_of(api_router: object) -> set[str]:
+    """Every "METHOD /path" a router mounts, prefix included."""
     routes: set[str] = set()
-    for route in api_router.routes:
+    for route in getattr(api_router, "routes", []):
         path = "/api/v1" + str(getattr(route, "path", ""))
         for method in getattr(route, "methods", None) or []:
             if method in {"HEAD", "OPTIONS"}:
                 continue
             routes.add(f"{method} {path}")
     return routes
+
+
+def _mounted_routes() -> set[str]:
+    """The routes the application mounts UNDER THE DEMONSTRATOR'S CEILINGS.
+
+    ``routes.py`` includes a router or not at import time, reading
+    ``settings``, and the test environment declares no capability flag — so
+    the census used to see the TEST process's routers: the heartbeat and MCP
+    routes counted as exposed while the demonstrator switches both off and
+    mounts neither, and a family the demonstrator switches ON (peers) was
+    invisible here and closed at the edge without anyone noticing. The
+    router is therefore rebuilt with the flags of ``.env.demo-instance.example``
+    patched onto ``settings`` and restored afterwards, so what this file
+    freezes is what the demonstrator actually serves.
+    """
+    from src.api.v1 import routes as routes_module
+    from src.core.config import settings
+
+    ceilings = {
+        key.lower(): value
+        for key, value in capability_flags().items()
+        if hasattr(settings, key.lower())
+    }
+    assert ceilings, "the demonstrator template declares no *_ENABLED ceiling"
+    try:
+        with ExitStack() as stack:
+            for name, value in ceilings.items():
+                stack.enter_context(patch.object(settings, name, value))
+            return _routes_of(importlib.reload(routes_module).api_router)
+    finally:
+        importlib.reload(routes_module)
 
 
 def _exposed_routes() -> set[str]:
@@ -447,6 +524,52 @@ def test_the_public_surface_is_exactly_what_was_decided() -> None:
     ), "route(s) no longer reachable — the visitor journey may be broken:\n" + "\n".join(
         sorted(removed)
     )
+
+
+def _hidden_key_matches(key: str, route: str) -> bool:
+    """A table key is a prefix (``/x/*``) or an exact ``METHOD /path``."""
+    path = route.split(" ", 1)[1]
+    if key.endswith("*"):
+        return _matches(key, path)
+    return key == route
+
+
+def test_every_hidden_route_is_hidden_by_a_written_decision() -> None:
+    """A mounted route the edge does not forward is closed on purpose, or the build reds.
+
+    The exposed list above only ever sees routes under an ALLOWED prefix, so
+    a whole new family — the gallery, the kept answers — could ship to the
+    demonstrator as a 404 without failing anything (measured 2026-09-12:
+    176 hidden routes, 15 of them families the product shows on screen).
+    The refusal block is a decision in its own right and is read as one.
+    """
+    refused = _refused_regexps()
+    hidden = _mounted_routes() - _exposed_routes()
+    declared = {**HIDDEN_BY_DECISION, **HIDDEN_PENDING_DECISION}
+    undeclared = sorted(
+        route
+        for route in hidden
+        if not any(regexp.match(route.split(" ", 1)[1]) for regexp in refused)
+        and not any(_hidden_key_matches(key, route) for key in declared)
+    )
+    assert not undeclared, (
+        f"{len(undeclared)} mounted route(s) the demonstrator cannot reach and nobody "
+        "decided about — expose them in the Caddyfile and EXPECTED_EXPOSED_ROUTES, or "
+        "declare them in HIDDEN_BY_DECISION / HIDDEN_PENDING_DECISION with a reason:\n"
+        + "\n".join(undeclared)
+    )
+    stale = sorted(key for key in declared if not any(_hidden_key_matches(key, r) for r in hidden))
+    assert not stale, "hidden-table entries that hide nothing any more (delete them): " + ", ".join(
+        stale
+    )
+
+
+def test_a_hidden_family_is_not_also_exposed() -> None:
+    """The two tables and the allowlist cannot disagree about one family."""
+    exposed = _exposed_routes()
+    for key in {**HIDDEN_BY_DECISION, **HIDDEN_PENDING_DECISION}:
+        leaked = sorted(r for r in exposed if _hidden_key_matches(key, r))
+        assert not leaked, f"{key} is declared hidden but the edge forwards: {leaked}"
 
 
 def test_paths_outside_the_api_prefix_are_refused_by_decision() -> None:

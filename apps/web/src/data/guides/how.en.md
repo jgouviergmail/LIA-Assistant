@@ -6,7 +6,7 @@
 
 **Version**: 5.0
 **Date**: 2026-08-23
-**Application**: LIA v1.44.4
+**Application**: LIA v1.44.5
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -54,7 +54,8 @@
 39. [Three registers, and the one nobody had asked for](#39-three-registers-and-the-one-nobody-had-asked-for)
 40. [A debrief per relationship: what ten sections do not say](#40-a-debrief-per-relationship-what-ten-sections-do-not-say)
 41. [The workboard: one row, two sides, and an assistant that asks](#41-the-workboard-one-row-two-sides-and-an-assistant-that-asks)
-42. [Conclusion](#42-conclusion)
+42. [The anatomy of a process: what it loads is declared, measured and bounded](#42-the-anatomy-of-a-process-what-it-loads-is-declared-measured-and-bounded)
+43. [Conclusion](#43-conclusion)
 ---
 
 ## 1. Context and founding choices
@@ -68,8 +69,8 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | ARM64 self-hosting | Multi-arch Docker, semantic embeddings (multilingual), Playwright chromium cross-platform |
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
-| Full transparency | 553 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 281 ADRs, ~28,443 pytest-collected tests across 1,669 files, native observability, 6-level HITL |
+| Full transparency | 555 Prometheus metrics, embedded debug panel, token-by-token tracking |
+| Production reliability | 282 ADRs, ~28,583 pytest-collected tests across 1,685 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -87,10 +88,10 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | 28,443 collected by pytest across 1,669 test files + 8,256 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | 28,583 collected by pytest across 1,685 test files + 8,314 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | pytest fixtures | 969, 46 of them shared through conftest |
 | Documentation documents | 647 |
-| ADRs (Architecture Decision Records) | 281 |
+| ADRs (Architecture Decision Records) | 282 |
 | Prometheus metrics | 553 definitions |
 | Grafana dashboards | 29 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -381,6 +382,8 @@ Three design decisions carry the feature. First, honesty of the artifact: spread
 An artifact and an answer follow two different lifecycles once they exist, and both belong to the person rather than to the conversation. A produced file — an image, a document, a browser screenshot — is an attachment stamped with its **origin**, listed in a gallery of its own with an exact total and a visible retention deadline; clearing a conversation removes what the person uploaded and never what LIA produced, because a purge removes what its family declares, not what merely looks like it.
 
 An answer the person wants to keep is a different object: it is prose, it must render exactly as the bubble did, and it must outlive a conversation that is reset often. So a **bookmark is a copy, never a pointer**. At the click, the answer (markdown or a rich HTML document, verbatim), the request that produced it and the answer's date are written to a table of their own. The two references kept towards the conversation are `SET NULL` on delete: they only serve the toggle on the bubble while the conversation lives. The request is resolved **server-side** under the same visibility predicate the chat uses — the last visible user message before the answer, never the synthetic question of a run executed out of turn — and a notification LIA sent on its own initiative keeps no request rather than a wrong one. A partial unique index makes the toggle idempotent by construction, the account's cap is published because it is enforced, page and total come from one `WHERE`, and the operator's switch guards the act of keeping alone: what was already kept stays readable, exportable and deletable.
+
+Reading and deleting one's own files survives the uploads ceiling: the `attachments` router is mounted whatever `ATTACHMENTS_ENABLED` says, the capability guard sitting on the upload alone. Since every generated document is served by that read, an instance that generates without accepting uploads — the demonstrator — makes what it produces openable, and the expiry sweep runs for the table's four producers, never for uploads alone.
 
 ## 6. The planning system (ExecutionPlan DSL)
 
@@ -805,7 +808,7 @@ Two facts travel with each server as data, never as prompt prose. A user server 
 
 ### 15.1. STT
 
-Wake word ("OK Guy") via Sherpa-onnx WASM in the browser (zero external transmission). Whisper Small transcription (99+ languages, offline) server-side via ThreadPoolExecutor. Per-user STT language with thread-safe `OfflineRecognizer` cache per language.
+Wake word ("OK Guy") via Sherpa-onnx WASM in the browser (zero external transmission). Whisper Small transcription (99+ languages, offline) server-side via ThreadPoolExecutor. Per-user STT language; per worker, a bounded LRU cache of `OfflineRecognizer` (`VOICE_STT_MAX_RECOGNIZERS`, one by default) — nothing loaded at construction, the first transcription pays the load for its language, an eviction returns memory to the system, and the resident count is published per worker (`voice_stt_recognizers_loaded`).
 
 **Latency optimizations**: KWS → recording microphone stream reuse (~200-800 ms saved), WebSocket pre-connection, `getUserMedia` + WS parallelized via `Promise.allSettled`, AudioWorklet Worklet cache.
 
@@ -978,7 +981,7 @@ Provenance is therefore a property of the **data**: the registry's 24 types are 
 
 | Technology | Role |
 |------------|------|
-| Prometheus | 553 custom metrics (RED pattern) |
+| Prometheus | 555 custom metrics (RED pattern) |
 | Grafana | 29 production-ready dashboards |
 | Loki | Aggregated structured JSON logs |
 | Tempo | Cross-service distributed traces (OTLP gRPC) |
@@ -986,7 +989,7 @@ Provenance is therefore a property of the **data**: the registry's 24 types are 
 | Alertmanager | 14-alert vital core delivered by email (linked runbooks, per-environment thresholds) + webhook to LIA: every alert becomes an in-product incident (ADR-247) |
 | structlog | Structured logging with PII filtering |
 
-**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 553 defined; the 44 that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. The price of not having had this: a heartbeat source failing open dropped the health signals on 46.5 % of ticks for a week, with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
+**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 555 defined; the 44 that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. The price of not having had this: a heartbeat source failing open dropped the health signals on 46.5 % of ticks for a week, with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
 
 ### 20.2. Embedded Debug Panel
 
@@ -1384,7 +1387,7 @@ One CSS rule governs the design system's spacing: vertical margins on an `inline
 
 ## 24. Architecture Decision Records (ADR)
 
-281 ADRs in MADR format document the major architectural decisions. Some representative examples:
+282 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1494,6 +1497,8 @@ Administrable capabilities follow the same two-composed-bounds model — what th
 The installer applies the same rule to the artifact chain: never trust a label. The default is a **local build** from the checked-out source; prebuilt mode accepts only `repository@sha256:...` references from a manifest whose qualification is explicitly `passed`, and promoting a version rebuilds nothing — it creates the semantic tag from digests that were already qualified. Secrets enter through stdin as one JSON document that creates the administrator through the existing password authority and encrypts the provider keys in the same transaction; nothing passes through `argv`, and nothing lands in the resume state, which stores only non-secret facts plus SHA-256 fingerprints and stops before any Compose mutation on a mismatch. Reference data applies in a single transaction, one `psql`, `ON_ERROR_STOP=1`, followed by a blocking verification file and a marker written in that same transaction. And `/ready` is necessary without ever being sufficient: a secret-free verifier checks the single Alembic head, the exact marker, the reference-data postconditions, an active administrator, decryptable provider rows, and provider coverage **on the post-seed effective configuration** — the one the first message will use, rather than the code defaults the seed precisely overrode.
 
 The common thread across these four batches is a property of the tests themselves. Each protection had shipped with its own, all green, and all of the same shape: they pinned what the code did on the day it was delivered. A hand-written list does not describe a system; it describes what its author knew about the system. These guards **recalculate** the protection from the source of truth — the cost families the run summary really publishes, read by AST; the routes the application really mounts, confronted with the edge's evaluation order; the connector router walked in both directions, so that unclassified and classified-but-unmounted are equally red. They found three faults no existing test could see, including speech synthesis billed to the owner and never counted against the ceiling. Each was then deliberately broken, to verify that it goes red.
+
+The public demonstrator applies these bounds to itself, and makes them readable. Every capability of the registry is decided in writing in its environment template — on or off, with the reason — and two guards refuse a ceiling left to the code's default or a disagreement between the development and production templates; the census of reachable routes mounts the routers under those same ceilings, so a switched-off family does not appear and a switched-on one is written route by route. Finally, every instance publishes in its public configuration the effective state of all its capabilities — ceiling and switch composed — and the instance that advertises a demonstrator reads that configuration server-side and shows it beside the link: the list of what a visitor will find, and will not, follows the demonstration's environment file, and nobody keeps it by hand.
 
 ## 29. Administering by file: the workbook is the form
 
@@ -1675,12 +1680,22 @@ The companion's face used to pick its end-of-turn expression from the psyche's d
 
 **What a run writes, and where.** A run archives its brief and its question as rows of the run — kept out of the chat, pointed at by the decision register, removed by retention after the ticket closes — while the notification the person is meant to read is an ordinary message. The distinction is a derived column rather than a stamp in the metadata, computed at the one place that builds the row; and every archived turn's metadata is built by a named builder, guarded against a dictionary written at the call site, because that is exactly how a deletion preview once reached the chat.
 
-## 42. Conclusion
+## 42. The anatomy of a process: what it loads is declared, measured and bounded
+
+An API server is several processes: a supervisor that serves no request, and workers that serve everything. Each holds memory for different reasons, and "the container uses five gigabytes" says nothing useful until you know which process holds what. LIA applies one rule here: **what a process loads is declared, measured per process, and bounded where it multiplies**. Every item was measured on the target host, in a throwaway process, before being touched — and three measurements contradicted the first reading, which is exactly why one measures.
+
+The supervisor does not load the application. uvicorn's command line imports the application in the parent process to produce an early import error, then discards it — a parent that only watches its workers thus held several hundred megabytes for the life of the container. `python -m src.serve` drives the same `Config → Server → Multiprocess` chain with the same flags, without that import; an AST guard refuses the module any import from `src`, and the early error is rendered by the health check the deployment already reads. In the same spirit, a heavy library — PDF rendering, tabular computation, audio engines — is imported where it is used and never at boot: a list declares each one's measured cost, and a guard refuses any module-level import under `src/`, including one hidden in a module-level `try`.
+
+What a singleton loads is multiplied by the worker count. Speech transcription kept one resident model per language ever asked for, in a singleton per process; the cache is now bounded (`VOICE_STT_MAX_RECOGNIZERS`, one by default), least-recently-used out, nothing loaded at construction, an eviction returns memory to the system — measured — and a decode in flight keeps its own reference. And every worker publishes what it holds: `lia_worker_memory_bytes{kind}` is read by each worker from its own `/proc/self/status`, one series per live worker that disappears with it, drawn on two panels and watched by the `ApiWorkerMemoryHigh` alert, which names the process. It answers a structural limit: cAdvisor sees the container, and prometheus_client's multiprocess mode exports no process metric.
+
+The connection budget has a floor, not only a ceiling. Audit F004 bounded the burst — what the pools may open; every persistent connection is also an idle Postgres backend holding seven megabytes, beside `shared_buffers`. `ConnectionBudget.persistent_total` names that floor, and a guard reads the compose file (memory limit, `shared_buffers`) together with the two shipped `.env` profiles — the full one and the self-hoster's minimal one, absent keys resolving to the code's defaults as at boot: the floor must stay under half the limit, so the database keeps the other half for its cache. Shipped profile: five persistent connections and fifteen overflow per worker, a two-gibibyte limit. What the lot leaves open is written down: the multi-day growth of a worker without transcription — measurable now — and the retention of LangGraph checkpoints.
+
+## 43. Conclusion
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 281 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~28,443 tests across 1,669 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 282 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~28,583 tests across 1,685 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 281 ADRs, and the changelog (v1.0 to v1.44.4). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 282 ADRs, and the changelog (v1.0 to v1.44.5). All metrics, versions, and patterns cited are verifiable in the codebase.*

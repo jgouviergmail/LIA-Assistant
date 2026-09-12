@@ -4,7 +4,7 @@
 
 **Versione**: 6.0
 **Data**: 2026-08-23
-**Applicazione**: LIA v1.44.4
+**Applicazione**: LIA v1.44.5
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -326,6 +326,8 @@ Lo stesso principio vale per le protezioni stesse. Una sicurezza annunciata ma n
 
 E questo principio va più lontano di quanto sembri. Nemmeno un test che non viene mai eseguito dimostra qualcosa: una misura assente somiglia in tutto a una misura verde. Una capacità annunciata ma assente non è un'imprecisione della documentazione, è una promessa fatta a qualcuno che non ha modo di verificarla — mostrare un'impostazione che non comanda nulla è peggio che non mostrare nulla. E una cifra scritta in un documento è un'affermazione come le altre: ogni versione e ogni soglia che un documento enuncia viene ricalcolata dal codice che la possiede, e lo scarto blocca la build. Un documento sceglie la propria precisione; non sceglie di essere preciso e falso.
 
+Questa onestà comincia prima ancora che tu entri. La pagina che ti propone il dimostratore pubblico elenca ciò che vi è attivo e ciò che non lo è — e quell'elenco non lo scrive qualcuno che potrebbe dimenticarsi di aggiornarlo: è letto dalla configurazione del dimostratore stesso, e se non risponde, la pagina lo dice invece di mostrare una colonna vuota. Sai cosa troverai, e cosa no, prima di creare un account.
+
 ### 6.5. Perché LIA pensa questo
 
 Un assistente che ricorda finisce per affermare. «Preferisci le riunioni al mattino», «questo argomento ti interessa»: conclusioni utili, ma inverificabili finché non si può risalire a ciò che le ha prodotte.
@@ -450,6 +452,8 @@ LIA integra un'osservabilità di grado produzione:
 | **Alertmanager** | Alert e-mail sui segnali vitali, runbook collegati |
 
 Ogni richiesta viene tracciata end-to-end, ogni chiamata LLM viene misurata, ogni errore è contestualizzato. Non è un monitoraggio aggiunto dopo — è una **decisione architetturale fondamentale** documentata negli Architecture Decision Records del progetto.
+
+Questa esigenza scende fino alla macchina. Un server è più processi, e «il container consuma cinque gigabyte» non dice quale trattiene cosa: ogni processo di LIA pubblica quindi da sé ciò che trattiene in memoria, un pannello lo traccia processo per processo, un allarme nomina quello che trabocca — e ciò che un processo carica è stato misurato sulla macchina di destinazione prima di essere toccato, mai supposto.
 
 ### 8.3. Una pipeline anti-allucinazione
 

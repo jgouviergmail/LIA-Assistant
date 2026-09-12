@@ -206,6 +206,16 @@ stt_errors_total = Counter(
     # Tracks error patterns for reliability monitoring
 )
 
+stt_recognizers_loaded = Gauge(
+    "voice_stt_recognizers_loaded",
+    "Whisper recognizers resident in this worker process (one ONNX session per language)",
+    # Each resident recognizer is ~0.8 GB on arm64 and lives once PER uvicorn
+    # worker: two languages on two workers took the API container from 4.2 to
+    # 7.0 GB (2026-09-12). One series per live worker so the panel shows WHICH
+    # process holds a model, not a sum that hides it.
+    multiprocess_mode="liveall",
+)
+
 # ============================================================================
 # WEBSOCKET AUDIO STREAMING METRICS
 # ============================================================================

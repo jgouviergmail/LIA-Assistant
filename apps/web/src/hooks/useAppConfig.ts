@@ -51,6 +51,12 @@ export interface AppConfig {
     // Message bookmarks (ADR-282) — gates the bubble toggle and the « Bookmarks » tab.
     bookmarks_enabled?: boolean;
   };
+  // Every capability of the registry with its EFFECTIVE state (deployment
+  // ceiling AND operator switch), keyed like `capabilities.items.<key>`.
+  // Read server-side by the instance that advertises this one as its
+  // demonstrator (`product/demo_capabilities.py`) and relayed to its
+  // landing; optional here because an older API omits it.
+  capabilities?: Record<string, { enabled: boolean; family: string }>;
   api_version: string;
 }
 

@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 45 |
-| ADRs | 281 ADR files (ADR-282 latest — ADR-008 n'a pas de fichier séparé, d'où le numéro un cran au-dessus du décompte) |
+| ADRs | 282 ADR files (ADR-283 latest — ADR-008 n'a pas de fichier séparé, d'où le numéro un cran au-dessus du décompte) |
 | Fiches knowledge (RAG système) | 40 |
 
 ---
@@ -50,7 +50,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [PROVENANCE_AND_CAPABILITIES.md](./technical/PROVENANCE_AND_CAPABILITIES.md) | Provenance bornée des conclusions et carte des capacités (ADR-201, ADR-204) |
 | [DEMO_INSTANCE.md](./technical/DEMO_INSTANCE.md) | Démonstrateur libre : image standard isolée, plafond, capacités, purge nocturne, surface vérifiée (ADR-216→218) |
 | [DEBUG_PANEL.md](./technical/DEBUG_PANEL.md) | Panneau de debug : trace en ordre d'exécution, chronologie ancrée au run, waterfall LLM (ADR-209) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (281 ADR files) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (282 ADR files) |
 
 ### Pour les Product Managers
 
@@ -441,6 +441,7 @@ Les ADR-001 à ADR-008 n'ont pas de fichier dédié : ils sont documentés inlin
 | [HighCPUUsage.md](./runbooks/alerts/HighCPUUsage.md) | Utilisation CPU élevée |
 | [HighMemoryUsage.md](./runbooks/alerts/HighMemoryUsage.md) | Utilisation mémoire élevée (niveau **hôte**) |
 | [ContainerMemoryNearLimit.md](./runbooks/alerts/ContainerMemoryNearLimit.md) | Conteneur proche de sa limite Compose — `working_set`, pas `usage` (ADR-119) |
+| [ApiWorkerMemoryHigh.md](./runbooks/alerts/ApiWorkerMemoryHigh.md) | Un worker uvicorn dont le tas dépasse le plafond — par `pid`, `anon` seulement (ADR-283) |
 | [DiskSpaceCritical.md](./runbooks/alerts/DiskSpaceCritical.md) | Espace disque critique |
 | [BackupFailed.md](./runbooks/alerts/BackupFailed.md) | Échec backup PostgreSQL (sidecar ADR-109) |
 | [SystemKnowledgeIndexationFailing.md](./runbooks/alerts/SystemKnowledgeIndexationFailing.md) | La FAQ système n'est plus mise à jour (ADR-162) |

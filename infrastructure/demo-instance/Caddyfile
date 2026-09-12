@@ -44,13 +44,29 @@
 	# product: getting in, the conversation, and every feature a visitor's own
 	# account can reach — personalities, psyche, journals, memories,
 	# interests, habits, relations, briefing, reminders, skills, spaces,
-	# attachments, voice, settings.
+	# attachments and the files LIA made, the answers a visitor keeps, the
+	# activity timeline, the workboard, connections between two visitor
+	# accounts, voice, settings. What is ON here follows the capability
+	# ceilings of .env.demo-instance.example: a family that file switches off
+	# mounts no router at all, so listing its prefix here opens nothing.
+	# The instance's /api/v1/config also publishes those ceilings' effective
+	# state; the site that links here reads it SERVER-SIDE and relays it to
+	# its own landing (product/demo_capabilities.py) — no CORS opening here.
 	#
 	# A narrower list is not "safer", it is broken: with only seven prefixes
 	# the personality picker, the timezone list, psyche, journals and skills
 	# all answered 404 and the screens came up empty (measured 2026-08-07).
 	# What protects this instance is the switches inside it and the four
 	# refusals below — not a surface so small the product cannot run.
+	#
+	# Shape trap: `/api/v1/habits/*` does NOT match `/api/v1/habits`. Three
+	# families were listed that way and their overview routes — the Relations
+	# page, the learned-habits panel, the health samples — answered 404 while
+	# every sub-route worked (measured 2026-09-12). A family is listed as
+	# `/api/v1/<family>*`, which covers the bare path and everything under it.
+	# And a family nobody lists is not "closed by decision", it is closed by
+	# omission: `test_demo_instance_exposed_routes.py` now refuses a mounted
+	# route that is neither exposed nor declared hidden with a reason.
 	#
 	# Deliberately ABSENT: /api/v1/connectors/* (nobody links a real Google
 	# account to an instance wiped every night), /api/v1/admin/*,
@@ -76,7 +92,7 @@
 		respond 404
 	}
 
-	@allowed path /api/v1/auth/* /api/v1/agents/* /api/v1/conversations* /api/v1/users/* /api/v1/usage-limits/me* /api/v1/usage/* /api/v1/capabilities /api/v1/config /api/v1/system-settings/* /api/v1/personalities* /api/v1/psyche/* /api/v1/journals* /api/v1/memories* /api/v1/effects* /api/v1/interests* /api/v1/habits/* /api/v1/relations/* /api/v1/open-loops* /api/v1/briefing/* /api/v1/heartbeat/* /api/v1/notifications* /api/v1/reminders* /api/v1/scheduled-actions* /api/v1/skills* /api/v1/rag-spaces* /api/v1/attachments* /api/v1/mcp/* /api/v1/voice/* /api/v1/health-metrics/* /api/v1/image-generation /api/v1/chat/* /api/v1/account/* /api/v1/product/* /health /ready
+	@allowed path /api/v1/auth/* /api/v1/agents/* /api/v1/conversations* /api/v1/users/* /api/v1/peers* /api/v1/usage-limits/me* /api/v1/usage/* /api/v1/capabilities /api/v1/config /api/v1/system-settings/* /api/v1/personalities* /api/v1/psyche/* /api/v1/journals* /api/v1/memories* /api/v1/effects* /api/v1/activity/* /api/v1/interests* /api/v1/habits* /api/v1/relations* /api/v1/open-loops* /api/v1/briefing/* /api/v1/heartbeat/* /api/v1/notifications* /api/v1/reminders* /api/v1/scheduled-actions* /api/v1/workboard/* /api/v1/skills* /api/v1/rag-spaces* /api/v1/attachments* /api/v1/generated-assets* /api/v1/bookmarks* /api/v1/mcp/* /api/v1/voice/* /api/v1/health-metrics* /api/v1/image-generation* /api/v1/chat/* /api/v1/account/* /api/v1/product/* /health /ready
 	handle @allowed {
 		reverse_proxy demo-instance-api:8000
 	}

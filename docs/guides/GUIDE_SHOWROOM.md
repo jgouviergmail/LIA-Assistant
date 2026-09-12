@@ -595,6 +595,21 @@ demonstrator ABOVE the guided missions, stating every limitation before
 offering the link. When the link is off, the guided missions are the whole
 page — they are the socle and the fallback.
 
+Among those limitations, "some features are switched off" says WHICH, and
+the list is not kept by hand: the demonstrator publishes its own capability
+states on its public `/config` (the `capabilities` block — the whole
+registry, each member with its effective state), the linking instance's API
+reads that server-side and relays it beside the link
+(`GET /api/v1/product/public-demo-link`, `product/demo_capabilities.py`),
+and the page draws two columns, switched on / switched off, labelled with the
+same `capabilities.items.*` keys the administration panel uses. Relayed
+rather than read from the visitor's browser because the document's CSP allows
+`connect-src` to the instance's own API alone (ADR-098) — measured in the
+hermetic browser suite, where a cross-origin read was refused and the lists
+never drew. An instance the API could not read is said to have not answered
+— never an empty "switched off" column a visitor would read as "everything
+works" — and the page still makes exactly ONE request.
+
 An earlier attempt embedded a live mission INSIDE this page, proxied through
 the web server to a second backend. It was removed in 2026-08: a demonstrator
 that shows the real product is better served by running the real product in an

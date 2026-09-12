@@ -987,8 +987,15 @@ SSE_HEARTBEAT_INTERVAL_DEFAULT = 15  # seconds
 # - 50 users × 3 connections = 150 max, but connections are short-lived
 # - Recommended: pool_size=30 (persistent), max_overflow=30 (burst)
 #
-DATABASE_POOL_SIZE_DEFAULT = 30  # Persistent connections (was 20)
-DATABASE_MAX_OVERFLOW_DEFAULT = 30  # Burst capacity for peak load (was 20)
+# Persistent connections are held open PER WORKER whether or not anyone is
+# talking to it, and each is a Postgres backend with ~7 MB of private memory
+# the kernel cannot reclaim (measured 2026-09-12: 80 idle backends for one or
+# two people, 560 MB next to 512 MB of shared_buffers under a 1 GiB limit).
+# The pool is sized for one worker's steady state; the overflow absorbs bursts
+# and is released. Both are declared in every .env profile; these are the code
+# defaults a profile that says nothing inherits.
+DATABASE_POOL_SIZE_DEFAULT = 5
+DATABASE_MAX_OVERFLOW_DEFAULT = 15
 DATABASE_POOL_TIMEOUT_DEFAULT = 30  # Seconds to wait for connection (SQLAlchemy default)
 DATABASE_CONNECT_TIMEOUT_DEFAULT = 30  # Seconds libpq waits to ESTABLISH one connection
 DATABASE_POOL_RECYCLE_DEFAULT = 1800  # Recycle connections every 30min (avoid stale connections)
@@ -1764,6 +1771,14 @@ REDIS_KEY_INSTANCE_DAILY_BUDGET_EUR = "system:instance_daily_budget_eur"
 REDIS_KEY_CAPABILITY_PREFIX = "system:capability:"
 REDIS_KEY_PUBLIC_DEMO_LINK_ENABLED = "system:public_demo_link_enabled"
 
+# The landing relays the demonstrator's OWN capability list (its public
+# /config) beside the link, so a visitor is told, live, what is on and what is
+# off. One bounded GET to an operator-configured URL, cached per process so a
+# busy landing does not become traffic on the demonstrator; a failure is
+# cached too, and reads as "the demonstrator did not answer".
+DEMO_CAPABILITIES_FETCH_TIMEOUT_SECONDS = 3.0
+DEMO_CAPABILITIES_CACHE_TTL_SECONDS = 60
+
 # Stable error code for a route refused because its capability is switched
 # off. Distinct from a permission error: nothing is wrong with the account,
 # the instance simply does not offer that feature right now.
@@ -1900,6 +1915,14 @@ VOICE_STT_LANGUAGE_DEFAULT = ""
 
 # Default Whisper task (transcribe or translate)
 VOICE_STT_TASK_DEFAULT = "transcribe"
+
+# Resident whisper recognizers per PROCESS. sherpa-onnx binds the language to
+# the recognizer, so each language is its own ONNX session: measured on the
+# production arm64 (2026-09-12), 516 MB to create plus ~300 MB after the first
+# decode, never released while cached -- and the service is a singleton per
+# uvicorn worker. One is the steady state of a person who speaks one language;
+# switching costs a ~2 s reload rather than a second resident model.
+VOICE_STT_MAX_RECOGNIZERS_DEFAULT = 1
 
 # Long audio on the local engine. sherpa-onnx's Whisper decoder keeps only the
 # first 30 s of a buffer and drops the rest with a stderr log (measured
@@ -3034,6 +3057,10 @@ EVALUATOR_LATENCY_GOOD_THRESHOLD_MS_DEFAULT = 1000.0
 EVALUATOR_LATENCY_ACCEPTABLE_THRESHOLD_MS_DEFAULT = 2000.0
 EVALUATOR_LATENCY_SLOW_THRESHOLD_MS_DEFAULT = 5000.0
 LIFETIME_METRICS_UPDATE_INTERVAL_SECONDS_DEFAULT = 30  # DB->Prometheus gauge sync period
+# Per-worker resident memory gauge (lia_worker_memory_bytes): one /proc read
+# per period per worker. 15 s matches the Prometheus scrape interval so every
+# scrape sees a fresh figure without reading the file more often than it is used.
+WORKER_MEMORY_SAMPLE_INTERVAL_SECONDS_DEFAULT = 15
 
 # --- Voice config defaults ---
 # TTS provider/model/voice/tuning live on llm_config_overrides.voice_tts (ADR-081);

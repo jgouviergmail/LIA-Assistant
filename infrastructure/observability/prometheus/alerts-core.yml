@@ -125,6 +125,29 @@ groups:
           description: "{{ $labels.name }} restarted {{ $value | humanize }} times in 30 minutes (threshold: 3). Likely crash loop or OOM kill cycle."
           runbook: "docs/runbooks/alerts/ContainerDown.md"
 
+      # The HEAP of one worker, by pid. cAdvisor sees the container; four
+      # uvicorn workers live inside it and prometheus_client's multiprocess
+      # mode exports no process_* metric, so a container climbing from 2.5 to
+      # 5.3 GB over two days (measured 2026-09-08 → 09-10) could not be blamed
+      # on a process. lia_worker_memory_bytes is read by each worker from its
+      # own /proc/self/status (multiprocess_mode="liveall": one series per live
+      # worker, gone when the worker is). kind="anon" ONLY: file-backed pages
+      # are shared libraries the kernel reclaims, shmem is the metrics mmap —
+      # neither says what the process holds. `max by (pid)` keeps the label
+      # the runbook needs and drops the kind.
+      - alert: ApiWorkerMemoryHigh
+        expr: |
+          max by (pid) (lia_worker_memory_bytes{kind="anon"}) / 1048576 > 3072
+        for: 10m
+        labels:
+          severity: warning
+          component: api
+          tier: core
+        annotations:
+          summary: "API worker {{ $labels.pid }} holds {{ $value | printf \"%.0f\" }} MB of heap"
+          description: "Worker process {{ $labels.pid }} has held {{ $value | printf \"%.0f\" }} MB of anonymous memory (heap: Python objects, model weights, ONNX arenas) for 10 minutes (threshold: 3072 MB). One worker far above its peers has loaded something the others have not — a second STT recognizer, measured at ~0.8 GB each — or leaks. Compare with voice_stt_recognizers_loaded on dashboard 03."
+          runbook: "docs/runbooks/alerts/ApiWorkerMemoryHigh.md"
+
   # ===== API QUALITY — error rate, SSE latency =====
   - name: core_api
     interval: 30s

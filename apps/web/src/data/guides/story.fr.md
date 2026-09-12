@@ -4,7 +4,7 @@
 
 **Version** : 2.1
 **Date** : 2026-08-23
-**Application** : LIA v1.44.4
+**Application** : LIA v1.44.5
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -20,8 +20,8 @@ La quasi-totalité du code a été écrite par une IA, sous direction humaine : 
 | Code écrit par une IA — dirigée, encadrée, contrôlée | **≈ 100 %** |
 | Lignes de code (hors tests) — 49 domaines fonctionnels | **660 000** |
 | Tests automatisés, exécutés à chaque commit et livraison | **36 000+** |
-| Décisions d'architecture documentées (ADR) | **281** |
-| Versions livrées à rythme régulier | **257** |
+| Décisions d'architecture documentées (ADR) | **282** |
+| Versions livrées à rythme régulier | **258** |
 | Langues, parité vérifiée automatiquement | **6** |
 | Audit technique sur 24 périmètres | **8,3/10** |
 
@@ -50,7 +50,7 @@ Une IA qui code produit du volume ; elle ne produit de la qualité que sous cont
 
 ## 4. Les arbitrages
 
-Trois décisions structurantes, parmi les 281 documentées :
+Trois décisions structurantes, parmi les 282 documentées :
 
 **Souveraineté & réversibilité — aucune dépendance fournisseur irréversible.** Les modèles d'IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modèles locaux via Ollama) sont placés derrière une abstraction unique : chaque usage peut changer de fournisseur par configuration, avec comparaison de coût. Même principe côté métier : Google, Apple et Microsoft sont interchangeables par catégorie fonctionnelle. L'hébergement est intégralement maîtrisé ; les données personnelles sont chiffrées et restent sur l'infrastructure.
 
@@ -62,7 +62,7 @@ Trois décisions structurantes, parmi les 281 documentées :
 
 Un système qu'on pilote aux instruments :
 
-- **Observabilité** : vingt-neuf tableaux de bord — santé applicative, engagements de service, coûts d'IA, comportement des agents, infrastructure. Plus de 540 métriques ; journaux structurés centralisés avec filtrage des données personnelles ; traçage distribué de bout en bout. Une quarantaine de procédures d'exploitation écrites — diagnostic, remédiation, restauration. Et l'assistant lit lui-même cette télémétrie : auto-contrôle périodique, mémoire d'incidents diagnostiqués sur la base de ces procédures, réponses qui contournent une panne connue. Et un diagnostic montre les preuves dont il est issu.
+- **Observabilité** : vingt-neuf tableaux de bord — santé applicative, engagements de service, coûts d'IA, comportement des agents, infrastructure. Plus de 540 métriques ; journaux structurés centralisés avec filtrage des données personnelles ; traçage distribué de bout en bout. Une quarantaine de procédures d'exploitation écrites — diagnostic, remédiation, restauration. Et l'assistant lit lui-même cette télémétrie : auto-contrôle périodique, mémoire d'incidents diagnostiqués sur la base de ces procédures, réponses qui contournent une panne connue. Et un diagnostic montre les preuves dont il est issu. Et les instruments descendent jusqu'aux processus : chaque worker de l'API publie ce qu'il tient en mémoire, si bien qu'un total de conteneur se lit processus par processus.
 - **Livraison** : déploiement conteneurisé, migrations de schéma automatisées, images publiées pour deux architectures matérielles (amd64/arm64).
 - **Coûts** : infrastructure frugale par choix — environ 150 € de matériel, zéro licence, briques open-source dimensionnées au besoin réel.
 - **Conformité** : sécurité revue point d'accès par point d'accès ; chiffrement des données personnelles ; cycle de vie des comptes aligné sur le RGPD.

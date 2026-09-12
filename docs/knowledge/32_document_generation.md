@@ -20,3 +20,11 @@ The administrator can disable the capability instance-wide via the platform capa
 
 ## Which model writes the documents?
 A dedicated LLM slot named "Document Generation" in the administrator's LLM Configuration (default: gpt-4.1). The administrator can point it at any configured chat model; its maximum output length bounds the largest producible document. If the model is cut at that budget mid-write, the generation FAILS and names the budget so you can ask for a shorter document or split it in two — it is never closed up and delivered as a complete one, which is what used to happen and is impossible to notice from the file itself. The content is then rendered locally into the exact file format, with no third-party document service involved.
+
+## Do my documents stay accessible if attachments are switched off?
+Yes. Uploading a file and consulting your own files are two different things,
+and only the first depends on the attachments setting. A report LIA wrote
+opens, downloads and deletes from **Settings › My generated files** even on an
+instance where uploads are off, and its retention deadline is still applied.
+The public demonstrator is such an instance: it accepts no upload, yet
+document generation is on there.

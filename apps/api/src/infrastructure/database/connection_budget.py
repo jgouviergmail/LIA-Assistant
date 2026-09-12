@@ -36,7 +36,17 @@ class ConnectionBudgetError(RuntimeError):
 
 @dataclass(frozen=True)
 class ConnectionBudget:
-    """Per-deployment PostgreSQL connection accounting."""
+    """Per-deployment PostgreSQL connection accounting.
+
+    Two figures, two risks. ``burst_total`` is the CEILING — every pool at its
+    maximum across all workers — and must fit under ``max_connections``.
+    ``persistent_total`` is the FLOOR — every pool minimum, held open whether
+    or not anyone is talking to the worker — and each of those is a Postgres
+    backend with private memory the kernel cannot reclaim (7 MB measured on
+    production, 2026-09-12: 80 idle backends for one or two people). The floor
+    is what the Postgres container's memory limit is sized against
+    (``tests/unit/test_postgres_memory_floor_guard.py``).
+    """
 
     workers: int
     max_connections: int
@@ -44,6 +54,7 @@ class ConnectionBudget:
     sqlalchemy_burst: int
     checkpoint_burst: int
     store_burst: int
+    persistent_total: int
 
     @property
     def usable(self) -> int:
@@ -71,6 +82,12 @@ def compute_connection_budget(settings: Settings) -> ConnectionBudget:
         sqlalchemy_burst=workers * (settings.database_pool_size + settings.database_max_overflow),
         checkpoint_burst=workers * settings.langgraph_checkpoint_pool_max_size,
         store_burst=workers * settings.langgraph_store_pool_max_size,
+        persistent_total=workers
+        * (
+            settings.database_pool_size
+            + settings.langgraph_checkpoint_pool_min_size
+            + settings.langgraph_store_pool_min_size
+        ),
     )
 
 

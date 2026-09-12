@@ -259,9 +259,12 @@ SESSION_COOKIE_DOMAIN=.yourdomain.com  # Enable cross-subdomain cookies
 # Production: use managed service (RDS, Cloud SQL, etc.)
 DATABASE_URL=postgresql+asyncpg://user:password@db-host:5432/lia
 
-# Connection pool settings (tune based on load)
-DATABASE_POOL_SIZE=20  # Default: 5 (local), 20+ (production)
-DATABASE_MAX_OVERFLOW=40  # Default: 10, 40+ (production)
+# Connection pool settings, PER uvicorn worker (ADR-283). The pool is what a
+# worker keeps OPEN when idle — one Postgres backend and ~7 MB each, times the
+# worker count — and the overflow is opened on demand. Bounded by the F004
+# burst budget (max_connections) and by the Postgres memory floor guard.
+DATABASE_POOL_SIZE=5
+DATABASE_MAX_OVERFLOW=15
 
 # ============================================================================
 # REDIS CONFIGURATION

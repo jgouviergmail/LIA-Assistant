@@ -42,6 +42,9 @@ EXPECTED_ALLOWED = {
     "/api/v1/chat/*",
     # The visitor's own account, and what the instance offers.
     "/api/v1/users/*",
+    # Peer connections: two demonstrator accounts, throwaway on both sides;
+    # switched ON in the template on 2026-09-12.
+    "/api/v1/peers*",
     "/api/v1/account/*",
     "/api/v1/usage-limits/me*",
     "/api/v1/usage/*",
@@ -61,22 +64,39 @@ EXPECTED_ALLOWED = {
     # same class as memories and journals, and the settings surface that reads
     # it is part of the real product the demonstrator shows.
     "/api/v1/effects*",
+    # The visitor's own timeline of what LIA did proactively — read-only,
+    # the same class as the register above.
+    "/api/v1/activity/*",
     "/api/v1/interests*",
-    "/api/v1/habits/*",
-    "/api/v1/relations/*",
+    # A family is listed as `/x*`, never `/x/*`: the second shape does not
+    # match the bare `/x`, and the Relations overview, the learned-habits
+    # panel and the health samples list answered 404 that way while every
+    # sub-route worked (2026-09-12).
+    "/api/v1/habits*",
+    "/api/v1/relations*",
     "/api/v1/open-loops*",
     "/api/v1/briefing/*",
     "/api/v1/heartbeat/*",
     "/api/v1/notifications*",
     "/api/v1/reminders*",
     "/api/v1/scheduled-actions*",
+    # The workboard (ADR-276): a ticket runs on the visitor's own allowance
+    # exactly as a routine does; switched ON in the template on 2026-09-12.
+    "/api/v1/workboard/*",
     "/api/v1/skills*",
     "/api/v1/rag-spaces*",
     "/api/v1/attachments*",
+    # ADR-279 and ADR-282: the files LIA made for the visitor and the answers
+    # the visitor keeps — their own rows, the same class as the attachments,
+    # no model spend. Both shipped hidden by omission and their settings tabs
+    # came up empty on the demonstrator.
+    "/api/v1/generated-assets*",
+    "/api/v1/bookmarks*",
     "/api/v1/mcp/*",
     "/api/v1/voice/*",
-    "/api/v1/health-metrics/*",
-    "/api/v1/image-generation",
+    "/api/v1/health-metrics*",
+    # Exact, the generation route hid the options the picker reads beside it.
+    "/api/v1/image-generation*",
     # Liveness only.
     "/health",
     "/ready",
@@ -178,6 +198,19 @@ def test_any_other_api_path_is_404_not_forwarded() -> None:
     # the web fallback.
     assert allow_block < api_block < web_fallback
     assert content.count("reverse_proxy") == 2, "only the API and the web may be proxied"
+
+
+def test_the_edge_opens_nothing_cross_origin() -> None:
+    """The site that links here relays /api/v1/config SERVER-SIDE.
+
+    A wildcard `Access-Control-Allow-Origin` was added on that one path on
+    2026-09-12 for a read from the visitor's browser, and removed the same day:
+    the landing's CSP refuses a cross-origin fetch anyway (ADR-098), so the
+    read moved to the linking instance's API (`product/demo_capabilities.py`)
+    and the edge keeps no CORS opening at all — a stranger's script reaches
+    nothing here.
+    """
+    assert "Access-Control-Allow-Origin" not in _caddyfile()
 
 
 def test_the_edge_keeps_no_access_log() -> None:

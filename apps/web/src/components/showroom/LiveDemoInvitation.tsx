@@ -18,6 +18,8 @@ import {
 import { useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
+import { DemoCapabilityLists } from '@/components/showroom/DemoCapabilityLists';
+import { readPublicCapabilities } from '@/lib/demo-capabilities';
 import { trackShowroomEvent } from '@/lib/product-telemetry';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 import type { Language } from '@/i18n/settings';
@@ -35,12 +37,17 @@ import type { Language } from '@/i18n/settings';
  * The showroom's zero-API oracle allows this ONE endpoint explicitly (see
  * `e2e/smoke/public-demo-showroom.spec.ts`): it is a read-only, enum-shaped,
  * cookie-less public read, and nothing about the visitor travels with it.
+ * The same payload relays what the demonstrator offers (`capabilities`, read
+ * server-side from the demonstrator's own `/config`), so listing it costs the
+ * page no second request and no CSP opening.
  */
 const PUBLIC_DEMO_LINK_ENDPOINT = '/api/v1/product/public-demo-link';
 
 interface PublicDemoLink {
   enabled: boolean;
   url: string | null;
+  /** Relayed from the demonstrator; absent or null when it did not answer. */
+  capabilities?: unknown;
 }
 
 interface LiveDemoInvitationProps {
@@ -126,9 +133,7 @@ export function LiveDemoInvitation({ lng }: LiveDemoInvitationProps) {
         </Button>
       </div>
 
-      <p className="mt-2 text-sm text-muted-foreground">
-        {t('showroom.live_invitation.intro')}
-      </p>
+      <p className="mt-2 text-sm text-muted-foreground">{t('showroom.live_invitation.intro')}</p>
 
       <ul className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-x-8">
         {limits.map(({ key, icon: Icon }) => (
@@ -138,6 +143,11 @@ export function LiveDemoInvitation({ lng }: LiveDemoInvitationProps) {
           </li>
         ))}
       </ul>
+
+      {/* What the instance offers and what it does not, read from the instance
+          itself: the "reduced edition" line above says SOME features are off,
+          this says WHICH — before the link, like every other limitation. */}
+      <DemoCapabilityLists capabilities={readPublicCapabilities(data.capabilities)} />
 
       <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <a

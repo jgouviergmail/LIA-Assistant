@@ -118,7 +118,7 @@ OpenTelemetry OTLP --> Tempo --> Grafana
 |---|-----------|-----|------|--------|---------|
 | 01 | Application Overview | `01-app-overview` | lia, overview, health | 24 | Sante globale, performance requetes, pipeline agent, infra, resume couts LLM |
 | 02 | SLO Tracking | `02-slo-tracking` | lia, slo, reliability | 17 | SLOs API, SLOs agents, SLOs providers LLM, SLOs DB et business |
-| 03 | Infrastructure & Resources | `03-infra-resources` | lia, infra, docker, raspberry-pi | 24 | Systeme hote (RPi), ressources conteneurs, PostgreSQL, Redis |
+| 03 | Infrastructure & Resources | `03-infra-resources` | lia, infra, docker, raspberry-pi | 26 | Systeme hote (RPi), ressources conteneurs, PostgreSQL, Redis |
 | 04 | HTTP & API Performance | `04-http-api` | lia, http, api, latency | 17 | Trafic, latence, erreurs, rate limiting |
 | 05 | LLM Tokens & Cost | `05-llm-tokens-cost` | lia, llm, tokens, cost | 56 | Headlines couts, ventilation, consommation tokens, efficacite, suivi par utilisateur (Loki), performance API LLM, cache LLM et economies, pricing, metriques cumulees, embeddings (issues, regulateur, refus fournisseur par raison) |
 | 06 | Logs, Traces & Correlations | `06-logs-traces` | lia, logs, traces, debug | 17 | Logs, traces, correlation metrique-log, vue correlee, jobs background, recherche |
@@ -179,9 +179,11 @@ Dashboard d'accueil. Fournit une vue synthetique de la sante de l'application : 
 
 Suivi des Service Level Objectives sur 4 axes : API (disponibilite, latence), agents (taux de succes, duree pipeline), providers LLM (taux d'erreur, latence par provider), et business (DB pool, Redis, taux abandon conversations). Chaque SLO affiche le budget d'erreur restant sur la periode.
 
-### 03 - Infrastructure & Resources (24 panels)
+### 03 - Infrastructure & Resources (26 panels)
 
 Metriques systeme orientees Raspberry Pi (ARM64) : charge CPU hote, memoire, espace disque (node_exporter), metriques conteneurs Docker (cAdvisor), pool de connexions PostgreSQL, taille et memoire Redis. Essentiel pour le capacity planning sur hardware contraint.
+
+> **Memoire par worker API (ADR-283)** : dans la ligne « Container Resources », deux panneaux lisent ce que chaque processus worker tient — `lia_worker_memory_bytes{kind="anon"}` (le tas, une serie par worker vivant, lue par le worker dans son propre `/proc/self/status`) et `voice_stt_recognizers_loaded` (les modeles whisper residents, ~0,8 Go chacun). cAdvisor ne voit que le conteneur ; c'est ici qu'on lit QUEL worker a charge quoi. L'alerte `ApiWorkerMemoryHigh` porte sur la premiere.
 
 ### 04 - HTTP & API Performance (17 panels)
 

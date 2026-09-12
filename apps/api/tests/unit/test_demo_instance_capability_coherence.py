@@ -31,13 +31,14 @@ import re
 
 import pytest
 
+from tests._demo_template import DEV_TEMPLATE, PROD_TEMPLATE, capability_flags, template_flags
 from tests._repo_paths import repo_root_or_skip
 
 pytestmark = pytest.mark.unit
 
 ROOT = repo_root_or_skip()
 SQUID = ROOT / "infrastructure/demo-instance/squid.conf"
-ENV_TEMPLATE = ROOT / ".env.demo-instance.example"
+ENV_TEMPLATE = DEV_TEMPLATE
 
 #: Hosts each capability must reach when its flag is true. A capability with
 #: no entry reaches nothing outside (attachments, spaces, skills, MCP) or is
@@ -95,14 +96,7 @@ def _allowlisted_hosts() -> set[str]:
 
 def _template_flags() -> dict[str, str]:
     """Every ``KEY=value`` the demonstrator template declares."""
-    flags: dict[str, str] = {}
-    for line in ENV_TEMPLATE.read_text(encoding="utf-8").splitlines():
-        stripped = line.strip()
-        if stripped.startswith("#") or "=" not in stripped:
-            continue
-        key, value = stripped.split("=", 1)
-        flags[key.strip()] = value.strip()
-    return flags
+    return template_flags(ENV_TEMPLATE)
 
 
 class TestTheGuardReadsSomething:
@@ -175,3 +169,38 @@ class TestTheConfiguredProviderIsReachable:
             f"every LLM type is pointed at {provider}, whose host is not on "
             "the allowlist: the first message would fail"
         )
+
+
+class TestEveryCapabilityIsDecidedInTheTemplate:
+    """A ceiling absent from the template takes the code's default — by nobody.
+
+    Measured 2026-09-12: the template was written for the thirteen switches of
+    ADR-217 and never followed ADR-280's twenty-five, so the workboard, the
+    meetings and model-authored Python ran ON in the public demonstrator by
+    default — each behind a door that did not open (an edge prefix nobody
+    listed, no STT engine, no Docker socket). Every capability the registry
+    declares is therefore written in BOTH templates, on or off, and the two
+    agree.
+    """
+
+    def test_every_registry_ceiling_is_written_in_the_dev_template(self) -> None:
+        from src.domains.feature_switches.registry import CAPABILITY_SPECS
+
+        declared = set(capability_flags(DEV_TEMPLATE))
+        missing = sorted(
+            spec.env_flag.upper()
+            for spec in CAPABILITY_SPECS.values()
+            if spec.env_flag.upper() not in declared
+        )
+        assert not missing, (
+            "capability ceilings the demonstrator template leaves to the code's default "
+            f"— decide each one, on or off, with a reason: {missing}"
+        )
+
+    def test_the_two_templates_agree_on_every_ceiling(self) -> None:
+        dev, prod = capability_flags(DEV_TEMPLATE), capability_flags(PROD_TEMPLATE)
+        assert dev == prod, {
+            "only_in_dev": sorted(set(dev) - set(prod)),
+            "only_in_prod": sorted(set(prod) - set(dev)),
+            "differ": sorted(k for k in set(dev) & set(prod) if dev[k] != prod[k]),
+        }

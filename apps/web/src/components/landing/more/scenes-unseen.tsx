@@ -15,6 +15,8 @@ import {
   Blocks,
   Brain,
   Check,
+  CircleCheck,
+  CircleOff,
   Clock,
   Coins,
   Eclipse,
@@ -22,6 +24,7 @@ import {
   FileSpreadsheet,
   Hourglass,
   Info,
+  ListChecks,
   Map as MapIcon,
   Mic,
   Pause,
@@ -48,6 +51,84 @@ import {
 } from './primitives';
 import type { SceneComponent, SceneProps } from './scene-types';
 import { useLoopedTimeline, type TimelineStep } from './useLoopedTimeline';
+
+type DemoOfferPhase = 'empty' | 'one' | 'two' | 'three' | 'four' | 'source';
+const DEMO_OFFER_STEPS: readonly TimelineStep<DemoOfferPhase>[] = [
+  { at: 0, state: 'empty' },
+  { at: 500, state: 'one' },
+  { at: 900, state: 'two' },
+  { at: 1300, state: 'three' },
+  { at: 1700, state: 'four' },
+  { at: 2400, state: 'source' },
+];
+const DEMO_OFFER_RANK: Record<DemoOfferPhase, number> = {
+  empty: 0,
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  source: 4,
+};
+
+/**
+ * The invitation to the live demonstrator draws two columns — switched on,
+ * switched off — one line at a time, then says where the list comes from:
+ * the demonstrator's own configuration, never a hand-kept copy.
+ */
+function DemoOfferScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(DEMO_OFFER_STEPS, { active });
+  const shown = DEMO_OFFER_RANK[phase];
+  const column = (title: string, tone: 'on' | 'off', ranks: readonly number[]) => (
+    <div className="flex-1 space-y-1">
+      <div className="flex items-center gap-1 text-[10px] font-semibold">
+        {tone === 'on' ? (
+          <CircleCheck className="h-3 w-3 text-primary" />
+        ) : (
+          <CircleOff className="h-3 w-3 text-muted-foreground" />
+        )}
+        {title}
+      </div>
+      {ranks.map(rank => (
+        <div
+          key={rank}
+          className={cn(
+            'flex items-center gap-1.5 transition-all duration-300 motion-reduce:transition-none',
+            shown >= rank ? 'translate-x-0 opacity-100' : '-translate-x-1 opacity-0'
+          )}
+        >
+          {tone === 'on' ? (
+            <CircleCheck className="h-2.5 w-2.5 shrink-0 text-primary" />
+          ) : (
+            <CircleOff className="h-2.5 w-2.5 shrink-0 text-muted-foreground" />
+          )}
+          <SkeletonLine w={rank % 2 ? 'w-4/5' : 'w-3/5'} />
+        </div>
+      ))}
+    </div>
+  );
+  return (
+    <div className={cn(STAGE, 'items-stretch justify-center gap-2')}>
+      <div className="flex items-center gap-1.5 text-[10px] font-medium">
+        <ListChecks className="h-3.5 w-3.5 text-primary" />
+        <SkeletonLine w="w-2/3" />
+      </div>
+      <div className="flex gap-3 rounded-lg border border-border bg-background/60 px-2.5 py-2">
+        {column(labels.on, 'on', [1, 3])}
+        {column(labels.off, 'off', [2, 4])}
+      </div>
+      <MiniToast
+        icon={Info}
+        tone="info"
+        className={cn(
+          'transition-all duration-300 motion-reduce:transition-none',
+          phase === 'source' ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
+        )}
+      >
+        {labels.source}
+      </MiniToast>
+    </div>
+  );
+}
 
 type FinishedPhase = 'announce' | 'working' | 'answer';
 const FINISHED_STEPS: readonly TimelineStep<FinishedPhase>[] = [
@@ -365,7 +446,6 @@ function NarrowScreensScene({ active }: SceneProps) {
     </div>
   );
 }
-
 
 /**
  * Haptics — a brief tap, on request.
@@ -1263,6 +1343,7 @@ export const UNSEEN_SCENES: Readonly<Record<string, SceneComponent>> = {
   oled_black: OledBlackScene,
   capability_map: CapabilityMapScene,
   capability_honesty: CapabilityHonestyScene,
+  demo_offer: DemoOfferScene,
   habit_status_holds: HabitStatusHoldsScene,
   finished_answer: FinishedAnswerScene,
   air_quality_honesty: AirQualityHonestyScene,

@@ -6,10 +6,22 @@ renamed/removed flag breaks a test instead of silently hiding the section on
 every instance.
 """
 
+from unittest.mock import patch
+
 import pytest
 
 from src.api.v1.routes import get_client_config
 from src.core.config import settings
+
+
+@pytest.fixture(autouse=True)
+def _no_switch_store():
+    """``/config`` now reads the capability switches; a unit test has no store."""
+    with patch(
+        "src.domains.feature_switches.public_state.disabled_capabilities",
+        return_value=frozenset(),
+    ):
+        yield
 
 
 @pytest.mark.unit
@@ -34,3 +46,16 @@ class TestClientConfigFlags:
         assert {"open_loops_enabled", "channels_enabled", "heartbeat_enabled"} <= set(
             payload["features"]
         )
+
+    async def test_every_capability_is_published_with_its_effective_state(self):
+        """The demonstrator invitation of another LIA lists what a visitor will
+        find here, read live from this payload — every registry member, keyed by
+        the frontend's own label vocabulary, with a boolean and a family."""
+        from src.domains.feature_switches.registry import CAPABILITY_SPECS
+
+        payload = await get_client_config()
+        published = payload["capabilities"]
+        assert set(published) == {capability.value for capability in CAPABILITY_SPECS}
+        for entry in published.values():
+            assert isinstance(entry["enabled"], bool)
+            assert isinstance(entry["family"], str)

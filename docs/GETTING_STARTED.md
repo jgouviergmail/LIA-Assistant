@@ -5,7 +5,7 @@
 
 **Version**: 4.0
 **Last Updated**: 2026-08-22
-**Compatibility**: LIA v1.44.4
+**Compatibility**: LIA v1.44.5
 
 ## Table of Contents
 
@@ -353,9 +353,10 @@ POSTGRES_PASSWORD=CHANGE_ME_PASSWORD
 POSTGRES_DB=lia
 DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
 
-# SQLAlchemy pool (production values)
-DATABASE_POOL_SIZE=30
-DATABASE_MAX_OVERFLOW=30
+# SQLAlchemy pool, PER WORKER: few persistent connections (each is an idle
+# Postgres backend holding ~7 MB), an overflow opened on demand (ADR-283)
+DATABASE_POOL_SIZE=5
+DATABASE_MAX_OVERFLOW=15
 DATABASE_POOL_TIMEOUT=30
 DATABASE_POOL_RECYCLE=1800
 

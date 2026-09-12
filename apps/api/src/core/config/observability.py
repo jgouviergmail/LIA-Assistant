@@ -29,6 +29,7 @@ from src.core.constants import (
     LIFETIME_METRICS_UPDATE_INTERVAL_SECONDS_DEFAULT,
     OTEL_SERVICE_NAME_DEFAULT,
     PROMETHEUS_METRICS_PORT_DEFAULT,
+    WORKER_MEMORY_SAMPLE_INTERVAL_SECONDS_DEFAULT,
 )
 
 
@@ -172,6 +173,13 @@ class ObservabilitySettings(BaseSettings):
         default=LIFETIME_METRICS_UPDATE_INTERVAL_SECONDS_DEFAULT,
         ge=5,
         description="Sync period in seconds for DB-backed lifetime gauges (tokens, cost)",
+    )
+
+    worker_memory_sample_interval: int = Field(
+        default=WORKER_MEMORY_SAMPLE_INTERVAL_SECONDS_DEFAULT,
+        ge=5,
+        description="Seconds between two readings of this worker's resident memory "
+        "(lia_worker_memory_bytes, one series per worker process)",
     )
 
     # =========================================================================

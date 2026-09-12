@@ -90,6 +90,8 @@ class TestLiaMetricsResolveToProducers:
         import src.infrastructure.observability.metrics  # noqa: F401
         import src.infrastructure.observability.metrics_agents  # noqa: F401
         import src.infrastructure.observability.metrics_errors  # noqa: F401
+        import src.infrastructure.observability.metrics_voice  # noqa: F401
+        import src.infrastructure.observability.process_memory  # noqa: F401
         import src.infrastructure.resilience.circuit_breaker  # noqa: F401
 
         # A labelled metric with zero observations exposes NO samples, so we

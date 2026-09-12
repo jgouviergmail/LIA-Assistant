@@ -94,3 +94,30 @@ def start_lifetime_metrics() -> asyncio.Task[None] | None:
     except (RuntimeError, ImportError) as exc:
         logger.error("lifetime_metrics_updater_failed", error=str(exc), exc_info=True)
     return lifetime_metrics_task
+
+
+def start_worker_memory_sampler() -> asyncio.Task[None] | None:
+    """Start publishing this worker's resident memory (``lia_worker_memory_bytes``).
+
+    One task per worker process, reading ``/proc/self/status`` every
+    ``worker_memory_sample_interval`` seconds. Where there is no procfs the
+    task returns after one attempt and no series is published.
+
+    Returns:
+        The running sampler task (to cancel at shutdown), or None on failure.
+    """
+    task: asyncio.Task[None] | None = None
+    try:
+        from src.infrastructure.observability.process_memory import sample_worker_memory
+
+        task = asyncio.create_task(
+            sample_worker_memory(settings.worker_memory_sample_interval),
+            name="worker-memory-sampler",
+        )
+        logger.info(
+            "worker_memory_sampler_started",
+            interval_seconds=settings.worker_memory_sample_interval,
+        )
+    except (RuntimeError, ImportError) as exc:
+        logger.error("worker_memory_sampler_failed", error=str(exc), exc_info=True)
+    return task

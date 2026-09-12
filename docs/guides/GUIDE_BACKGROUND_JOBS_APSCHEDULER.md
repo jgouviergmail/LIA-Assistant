@@ -45,7 +45,7 @@
 | `oauth_health_check` | Interval | 5 min | Surveillance connecteurs OAuth | `OAUTH_HEALTH_CHECK_ENABLED` |
 | `user_mcp_pool_eviction` | Interval | 60s | Eviction connexions MCP idle | `MCP_USER_ENABLED` |
 | `journal_consolidation` | Interval | Configurable (1-4h) | Consolidation autonome des journaux | `JOURNALS_ENABLED` |
-| `attachment_cleanup` | Interval | 6h | Nettoyage fichiers expirés | `ATTACHMENTS_ENABLED` |
+| `attachment_cleanup` | Interval | 6h | Nettoyage fichiers expirés (téléversements, images et documents générés, captures) | Toujours — quatre producteurs écrivent la table, le balayage ne dépend d'aucun plafond (ADR-279, amendé 2026-09-12) |
 | `subagent_stale_recovery` | Interval | 120s | Récupération sous-agents bloqués | `SUB_AGENTS_ENABLED` |
 | `browser_session_cleanup` | Dynamic | — | Nettoyage sessions navigateur | `ATTACHMENTS_ENABLED` |
 | `scheduler_leader_lock_renewal` | Interval | 30s | Renouvellement lock leader Redis | Leader only |

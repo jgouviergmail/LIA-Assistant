@@ -30,11 +30,32 @@ import { LiveDemoInvitation } from '@/components/showroom/LiveDemoInvitation';
  */
 const fetchMock = vi.fn();
 
-function mockLink(enabled: boolean, url: string | null, pending = false): void {
+/** What the link payload relays from the demonstrator, by default. */
+const DEMO_CAPABILITIES = {
+  web_search: { enabled: true, family: 'reach' },
+  meetings: { enabled: false, family: 'media' },
+};
+
+/** Passed as `capabilities` to answer as an older API would: no field at all. */
+const OMIT_CAPABILITIES = Symbol('omit');
+
+/**
+ * ONE read, the link — the demonstrator's capabilities travel WITH it
+ * (relayed server-side). `capabilities` lets a test make the demonstrator
+ * unreachable (null) or omit the field as an older API would.
+ */
+function mockLink(
+  enabled: boolean,
+  url: string | null,
+  pending = false,
+  capabilities: unknown = DEMO_CAPABILITIES
+): void {
+  const body =
+    capabilities === OMIT_CAPABILITIES ? { enabled, url } : { enabled, url, capabilities };
   fetchMock.mockReturnValue(
     pending
       ? new Promise(() => undefined) // never settles: the "unknown" state
-      : Promise.resolve({ ok: true, json: () => Promise.resolve({ enabled, url }) })
+      : Promise.resolve({ ok: true, json: () => Promise.resolve(body) })
   );
 }
 
@@ -157,6 +178,48 @@ describe('LiveDemoInvitation', () => {
     expect(first.compareDocumentPosition(second)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 
+  it('lists what the demonstrator offers, from the block relayed with the link', async () => {
+    mockLink(true, 'https://demo.example.org');
+    render(<LiveDemoInvitation lng="fr" />);
+
+    expect(await screen.findByTestId('demo-capability-on-web_search')).toBeInTheDocument();
+    expect(screen.getByTestId('demo-capability-off-meetings')).toBeInTheDocument();
+    // ONE request: the block travels with the link. A second read — to the
+    // demonstrator's origin — is what the document's CSP refuses (ADR-098).
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('places the lists after the limitations and before the call to action', async () => {
+    mockLink(true, 'https://demo.example.org');
+    render(<LiveDemoInvitation lng="fr" />);
+
+    const lists = await screen.findByTestId('demo-capabilities');
+    const lastLimit = screen.getByText('showroom.live_invitation.limits.email_required');
+    const cta = screen.getByRole('link', { name: /showroom\.live_invitation\.cta/ });
+    expect(lastLimit.compareDocumentPosition(lists)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(lists.compareDocumentPosition(cta)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+
+  it('says the demonstrator did not answer rather than showing an empty list', async () => {
+    mockLink(true, 'https://demo.example.org', false, null);
+    render(<LiveDemoInvitation lng="fr" />);
+
+    expect(await screen.findByTestId('demo-capabilities-unavailable')).toHaveTextContent(
+      'showroom.live_invitation.capabilities.unavailable'
+    );
+    expect(screen.queryByTestId('demo-capabilities')).not.toBeInTheDocument();
+    // The link itself stays: an unreadable configuration is not a closed door.
+    expect(
+      screen.getByRole('link', { name: /showroom\.live_invitation\.cta/ })
+    ).toBeInTheDocument();
+  });
+
+  it('treats an older API that relays nothing as "did not answer"', async () => {
+    mockLink(true, 'https://demo.example.org', false, OMIT_CAPABILITIES);
+    render(<LiveDemoInvitation lng="fr" />);
+    expect(await screen.findByTestId('demo-capabilities-unavailable')).toBeInTheDocument();
+  });
+
   it('offers the same way out as the guided missions', async () => {
     mockLink(true, 'https://demo.example.org');
     render(<LiveDemoInvitation lng="fr" />);
@@ -177,8 +240,6 @@ describe('LiveDemoInvitation', () => {
     expect(
       await screen.findByText('showroom.live_invitation.limits.account_quota')
     ).toBeInTheDocument();
-    expect(
-      screen.getByText('showroom.live_invitation.limits.daily_capacity')
-    ).toBeInTheDocument();
+    expect(screen.getByText('showroom.live_invitation.limits.daily_capacity')).toBeInTheDocument();
   });
 });

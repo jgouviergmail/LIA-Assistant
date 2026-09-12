@@ -319,4 +319,11 @@ ENTRYPOINT ["/app/docker-entrypoint.sh"]
 # describe the process, so the default lives in the environment instead.
 ENV WEB_CONCURRENCY=4
 
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--limit-max-requests", "10000", "--limit-max-requests-jitter", "1000", "--proxy-headers", "--forwarded-allow-ips", "*", "--timeout-graceful-shutdown", "20"]
+# Launcher: `python -m src.serve`, NOT the `uvicorn` CLI. The CLI imports the
+# application in the SUPERVISOR (uvicorn.main.run → config.load_app(), for an
+# early import error it then discards), so the process that only forks and
+# watches the workers kept 437 MB resident on the production Pi (measured
+# 2026-09-12, 407 MB on the demonstrator) for the life of the container.
+# src.serve drives the same Config → Server → Multiprocess chain with the
+# CLI's flags, one to one, and never imports the app (AST-guarded).
+CMD ["python", "-m", "src.serve", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--limit-max-requests", "10000", "--limit-max-requests-jitter", "1000", "--proxy-headers", "--forwarded-allow-ips", "*", "--timeout-graceful-shutdown", "20"]

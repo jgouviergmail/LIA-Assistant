@@ -64,6 +64,13 @@ offering a switch that would change nothing.
 administrator. Every row shows three things side by side: what the deployment
 allows, what the administrator chose, and what is actually enforced.
 
+Anyone can read the effective state without an account: every instance
+publishes it in its public configuration, one entry per capability of the
+registry. That is what the page presenting the public demonstrator reads —
+server-side, from the demonstrator's own configuration — to list what a
+visitor will find there and what they will not, before offering the link.
+The list follows the demonstrator's environment file; nobody keeps it by hand.
+
 ## Does a capability being off affect my existing data?
 No. Switching a capability off stops new use of it; it does not delete what
 already exists. If document spaces are switched off, your documents stay where

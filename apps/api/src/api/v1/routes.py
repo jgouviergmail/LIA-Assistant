@@ -30,6 +30,7 @@ from src.domains.capabilities.router import router as capabilities_router
 from src.domains.chat.router import router as chat_router
 from src.domains.connectors.router import router as connectors_router
 from src.domains.conversations.router import router as conversations_router
+from src.domains.feature_switches.public_state import public_capability_states
 from src.domains.feature_switches.router import router as capability_switches_router
 from src.domains.google_api.router import router as google_api_admin_router
 from src.domains.google_api.user_export_router import router as user_export_router
@@ -200,12 +201,23 @@ def _include_generated_assets() -> None:
     api_router.include_router(generated_assets_router)
 
 
-if getattr(settings, "attachments_enabled", False):
+def _include_attachments() -> None:
+    """Wire the attachments router WHATEVER the uploads ceiling says (ADR-279).
+
+    Uploading and consulting are two capabilities sharing one router. The
+    ceiling refuses the upload through the guard on ``POST /upload`` itself,
+    read at call time; reading and deleting one's own files — every generated
+    document is served by ``GET /attachments/{id}`` — must survive it. Until
+    2026-09-12 this inclusion sat under ``attachments_enabled``, so the public
+    demonstrator (uploads off) wrote documents nobody could open.
+    """
     from src.domains.attachments.router import router as attachments_router
 
     api_router.include_router(attachments_router)
 
-# The gallery of what LIA PRODUCED (ADR-279) is not gated on uploads: an
+
+_include_attachments()
+# The gallery of what LIA PRODUCED (ADR-279) is not gated on uploads either: an
 # instance that offers image or document generation offers the files it
 # produced, and one that offers neither simply lists nothing.
 _include_generated_assets()
@@ -399,5 +411,10 @@ async def get_client_config() -> dict:
             # « Bookmarks » tab of the generated files.
             "bookmarks_enabled": getattr(settings, "bookmarks_enabled", False),
         },
+        # Every capability of the registry with its EFFECTIVE state (ceiling
+        # AND operator switch): what a visitor will find on this instance.
+        # Read cross-origin by the demonstrator invitation of another LIA, so
+        # the lists it shows never drift from this instance's own .env.
+        "capabilities": await public_capability_states(),
         "api_version": constants.API_VERSION,  # PHASE 2.1: Use constant instead of hardcoded value
     }

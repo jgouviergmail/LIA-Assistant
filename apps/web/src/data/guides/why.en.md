@@ -4,7 +4,7 @@
 
 **Version**: 6.0
 **Date**: 2026-08-23
-**Application**: LIA v1.44.4
+**Application**: LIA v1.44.5
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -326,6 +326,8 @@ The same principle applies to the protections themselves. Security that is annou
 
 And that principle reaches further than it looks. Nor does a test that never runs prove anything: a missing measurement looks exactly like a green one. A capability advertised but absent is not a documentation imprecision, it is a promise made to someone who has no way of checking it — showing a setting that controls nothing is worse than showing nothing. And a figure written in a document is a claim like any other: every version and every threshold a document states is recomputed from the code that owns it, and a mismatch stops the build. A document may choose how precise it wants to be; it may not be precise and wrong.
 
+That honesty starts before you even walk in. The page that offers you the public demonstrator lists what is switched on there and what is not — and that list is not written by someone who might forget to update it: it is read from the demonstrator's own configuration, and if it does not answer, the page says so rather than showing an empty column. You know what you will find, and what you will not, before creating an account.
+
 ### 6.5. Why LIA thinks that
 
 An assistant that remembers things ends up asserting them. “You prefer morning meetings”, “this topic interests you”: useful conclusions, but unverifiable as long as you cannot trace back to what produced them.
@@ -450,6 +452,8 @@ LIA ships with production-grade observability:
 | **Alertmanager** | Email alerts on vital signals, linked runbooks |
 
 Every request is traced end-to-end, every LLM call is measured, every error is contextualized. This isn't monitoring bolted on as an afterthought — it's a **foundational architectural decision** documented across the project's Architecture Decision Records.
+
+That demand reaches down to the machine. A server is several processes, and "the container uses five gigabytes" does not say which one holds what: every LIA process therefore publishes what it holds in memory itself, a dashboard draws it process by process, an alert names the one that overflows — and what a process loads was measured on the target machine before being touched, never assumed.
 
 ### 8.3. An anti-hallucination pipeline
 

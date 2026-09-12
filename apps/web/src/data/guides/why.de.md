@@ -4,7 +4,7 @@
 
 **Version**: 6.0
 **Datum**: 2026-08-23
-**Anwendung**: LIA v1.44.4
+**Anwendung**: LIA v1.44.5
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -326,6 +326,8 @@ Dasselbe Prinzip gilt für die Schutzmaßnahmen selbst. Sicherheit, die angekün
 
 Und dieses Prinzip reicht weiter, als es scheint. Auch ein Test, der nie läuft, beweist nichts: Eine fehlende Messung sieht genauso aus wie eine grüne. Eine angekündigte, aber fehlende Fähigkeit ist keine Ungenauigkeit der Dokumentation, sondern ein Versprechen an jemanden, der es nicht überprüfen kann — eine Einstellung anzuzeigen, die nichts steuert, ist schlimmer, als nichts anzuzeigen. Und eine Zahl in einem Dokument ist eine Aussage wie jede andere: Jede Version und jeder Schwellenwert, den ein Dokument nennt, wird aus dem Code neu berechnet, dem er gehört, und eine Abweichung stoppt den Build. Ein Dokument wählt seine Genauigkeit; es wählt nicht, genau und falsch zu sein.
 
+Diese Ehrlichkeit beginnt, bevor du überhaupt eintrittst. Die Seite, die dir den öffentlichen Demonstrator anbietet, listet, was dort eingeschaltet ist und was nicht — und diese Liste schreibt niemand, der vergessen könnte, sie zu aktualisieren: sie wird aus der Konfiguration des Demonstrators selbst gelesen, und antwortet er nicht, sagt die Seite das, statt eine leere Spalte zu zeigen. Du weißt, was du vorfinden wirst und was nicht, bevor du ein Konto anlegst.
+
 ### 6.5. Warum LIA das denkt
 
 Ein Assistent, der sich Dinge merkt, behauptet sie am Ende auch. „Du bevorzugst Vormittagstermine“, „dieses Thema interessiert dich“: nützliche Schlussfolgerungen, aber unüberprüfbar, solange man nicht zurückverfolgen kann, was sie hervorgebracht hat.
@@ -450,6 +452,8 @@ LIA bietet produktionsreife Observability:
 | **Alertmanager** | E-Mail-Alerts bei vitalen Signalen, verknüpfte Runbooks |
 
 Jede Anfrage wird von Anfang bis Ende nachverfolgt, jeder LLM-Aufruf gemessen, jeder Fehler kontextualisiert. Das ist kein nachträglich hinzugefügtes Monitoring — es ist eine **grundlegende Architekturentscheidung**, die in den Architecture Decision Records des Projekts dokumentiert ist.
+
+Dieser Anspruch reicht bis auf die Maschine hinunter. Ein Server besteht aus mehreren Prozessen, und „der Container belegt fünf Gigabyte“ sagt nicht, welcher was hält: jeder Prozess von LIA veröffentlicht deshalb selbst, was er im Speicher hält, ein Dashboard zeichnet es Prozess für Prozess, ein Alarm benennt den, der überläuft — und was ein Prozess lädt, wurde auf der Zielmaschine gemessen, bevor es angefasst wurde, nie angenommen.
 
 ### 8.3. Eine Anti-Halluzinations-Pipeline
 

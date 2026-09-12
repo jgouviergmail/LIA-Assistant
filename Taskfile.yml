@@ -469,7 +469,7 @@ tasks:
       NEXT_PUBLIC_PRODUCT_TELEMETRY: "false"
       NEXT_PUBLIC_WEB_VITALS_SAMPLE_RATE: "0"
     cmds:
-      - npx playwright test smoke/public-demo-showroom.spec.ts a11y/axe-public-demo-showroom.spec.ts
+      - npx playwright test smoke/public-demo-showroom.spec.ts smoke/public-demo-showroom-invitation.spec.ts a11y/axe-public-demo-showroom.spec.ts
 
   test:e2e:showroom:telemetry:
     desc: Guided showroom P0 — CLEAN managed build, telemetry ON (credential-less contract)

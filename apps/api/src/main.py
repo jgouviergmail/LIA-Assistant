@@ -134,6 +134,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
 
     lifetime_metrics_task = observability.start_lifetime_metrics()
     cache_invalidation_task = caches.start_cache_invalidation_subscriber()
+    worker_memory_task = observability.start_worker_memory_sampler()
 
     logger.info("application_ready")
 
@@ -149,6 +150,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
             telegram_bot=telegram_bot,
             lifetime_metrics_task=lifetime_metrics_task,
             cache_invalidation_task=cache_invalidation_task,
+            worker_memory_task=worker_memory_task,
         )
     )
 
