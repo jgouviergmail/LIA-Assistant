@@ -26,6 +26,7 @@ Data Registry Integration:
     - Cross-domain queries with LocalQueryEngine
 """
 
+from functools import lru_cache
 from typing import Annotated, Any
 from uuid import UUID
 
@@ -35,6 +36,7 @@ from langchain_core.tools import InjectedToolArg, tool
 from pydantic import BaseModel
 
 from src.core.config import settings
+from src.core.prompt_store import parse_prompt_sections, read_prompt_file
 from src.core.time_utils import get_current_datetime_context
 from src.domains.agents.constants import (
     AGENT_PERPLEXITY,
@@ -62,6 +64,29 @@ from src.infrastructure.observability.metrics_agents import (
 )
 
 logger = structlog.get_logger(__name__)
+
+
+@lru_cache(maxsize=1)
+def _perplexity_lines() -> dict[str, str]:
+    """System-prompt lines of the Perplexity tools, read once from the store."""
+    return dict(parse_prompt_sections(read_prompt_file("perplexity_tool_lines"), 2))
+
+
+def build_perplexity_system_prompt(current_datetime: str, context: str | None) -> str:
+    """The Perplexity system prompt: the date, plus the expert framing when asked.
+
+    Args:
+        current_datetime: The rendered current date and time.
+        context: Optional domain the answer should be an expert in.
+
+    Returns:
+        The system prompt, blocks separated by a blank line.
+    """
+    lines = _perplexity_lines()
+    parts = [lines["datetime_context"].format(current_datetime=current_datetime)]
+    if context:
+        parts.append(lines["expert_context"].format(context=context))
+    return "\n\n".join(parts)
 
 
 # ============================================================================
@@ -335,18 +360,7 @@ class PerplexityAskTool(PerplexityBaseTool):
             timezone_str=client.user_timezone,
             language=client.user_language,
         )
-        datetime_context = f"Current date and time: {current_datetime}"
-
-        # Build system prompt
-        system_prompt_parts = [datetime_context]
-
-        if context:
-            system_prompt_parts.append(
-                f"You are an expert in {context}. "
-                f"Provide accurate, well-researched answers focused on this domain."
-            )
-
-        system_prompt = "\n\n".join(system_prompt_parts)
+        system_prompt = build_perplexity_system_prompt(current_datetime, context)
 
         result = await client.ask(
             question=question,

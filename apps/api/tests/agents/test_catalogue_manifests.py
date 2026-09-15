@@ -14,7 +14,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.core.constants import CONTACTS_AGENT_PROMPT_VERSION_DEFAULT
 from src.domains.agents.google_contacts.catalogue_manifests import (
     get_contacts_catalogue_manifest as GET_CONTACTS_MANIFEST,
 )
@@ -140,7 +139,7 @@ def sample_agent_manifest():
         tools=["test_tool"],
         max_parallel_runs=1,
         default_timeout_ms=30000,
-        prompt_version=CONTACTS_AGENT_PROMPT_VERSION_DEFAULT,
+        prompt_version="v1",
         owner_team="Team AI",
         version="1.0.0",
     )
@@ -493,7 +492,7 @@ class TestAgentManifest:
         )
         assert manifest.max_parallel_runs == 1
         assert manifest.default_timeout_ms == 30000
-        assert manifest.prompt_version == CONTACTS_AGENT_PROMPT_VERSION_DEFAULT
+        assert manifest.prompt_version == "v1"  # the dataclass default, the store's only version
         assert manifest.owner_team == "Team AI"
         assert manifest.version == "1.0.0"
         assert isinstance(manifest.updated_at, datetime)

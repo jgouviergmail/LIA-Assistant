@@ -42,6 +42,7 @@ import json
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from functools import lru_cache
 from uuid import UUID
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
@@ -53,8 +54,9 @@ from src.core.constants import (
     INTEREST_EXTRACTION_QUERY_TRUNCATION_LENGTH,
     REDIS_KEY_INTEREST_ANALYSIS_PREFIX,
 )
-from src.core.i18n_types import get_language_name
+from src.core.i18n import get_language_name
 from src.core.llm_config_helper import get_llm_config_for_agent
+from src.core.prompt_store import parse_prompt_sections, read_prompt_file
 from src.domains.agents.prompts import load_prompt
 from src.domains.agents.utils.json_parser import extract_json_from_llm_response
 from src.domains.interests.repository import InterestRepository
@@ -77,6 +79,14 @@ from src.infrastructure.llm.usage_metadata import (
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+@lru_cache(maxsize=1)
+def _no_known_interest() -> str:
+    """The value of ``{existing_interests}`` when the account has none yet."""
+    return dict(parse_prompt_sections(read_prompt_file("interest_extraction_lines"), 2))[
+        "no_known_interest"
+    ]
 
 
 # ============================================================================
@@ -657,7 +667,7 @@ async def _analyze_interests_core(
         prompt = _get_extraction_prompt().format(
             conversation=conversation,
             existing_interests=(
-                "\n".join(existing_texts) if existing_texts else "Aucun interet connu"
+                "\n".join(existing_texts) if existing_texts else _no_known_interest()
             ),
             current_datetime=current_datetime,
             user_language=get_language_name(user_language),
@@ -673,7 +683,7 @@ async def _analyze_interests_core(
             session_id=session_id,
             conversation_preview=conversation[:500] if conversation else "EMPTY",
             existing_interests_preview=(
-                "\n".join(existing_texts)[:200] if existing_texts else "Aucun"
+                "\n".join(existing_texts)[:200] if existing_texts else "(none)"
             ),
             user_language=user_language,
         )

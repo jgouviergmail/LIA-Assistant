@@ -123,6 +123,8 @@ export interface BriefingCardProps<T extends SectionData> {
   onRefresh: () => void;
   renderContent: (data: T) => ReactNode;
   emptyStateKey: string;
+  /** Interpolation values of the empty-state sentence (e.g. the window it names). */
+  emptyStateValues?: Record<string, string | number>;
   onErrorCta?: () => void;
   staggerIndex?: number;
   className?: string;
@@ -153,6 +155,7 @@ export function BriefingCard<T extends SectionData>({
   onRefresh,
   renderContent,
   emptyStateKey,
+  emptyStateValues,
   onErrorCta,
   staggerIndex,
   className,
@@ -288,7 +291,7 @@ export function BriefingCard<T extends SectionData>({
 
           {section.status === 'empty' && (
             <div className="flex-1 flex items-center justify-center text-center text-sm text-muted-foreground italic py-2">
-              {t(emptyStateKey)}
+              {t(emptyStateKey, emptyStateValues)}
             </div>
           )}
 

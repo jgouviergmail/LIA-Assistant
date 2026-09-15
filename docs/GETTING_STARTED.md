@@ -5,7 +5,7 @@
 
 **Version**: 4.0
 **Last Updated**: 2026-08-22
-**Compatibility**: LIA v1.44.5
+**Compatibility**: LIA v1.44.6
 
 ## Table of Contents
 
@@ -1187,7 +1187,7 @@ LIA drives **54 independently configurable LLM slots** — every pipeline node, 
 - **Providers**: OpenAI, Anthropic, DeepSeek, Google Gemini, Qwen, Perplexity, Ollama (text) + ElevenLabs and Edge (voice). Ollama needs only `OLLAMA_BASE_URL` (the server root; the context window LIA requests and accounts with is set per LLM slot in the admin, ADR-278); Perplexity/Qwen base URLs are parameterizable.
 - Model catalogue and pricing are database-driven: adding a model is an admin operation, no deploy needed.
 
-The tables below show the **effective production configuration** (code defaults merged with the production database overrides) — a battle-tested quality/cost balance you can reproduce as-is. *Reasoning* is the per-slot reasoning-effort setting (`off` = thinking disabled, `—` = non-reasoning model).
+The tables below show the **effective production configuration** (code defaults merged with the production database overrides) — a battle-tested quality/cost balance you can reproduce as-is. *Reasoning* is the per-slot reasoning-effort setting (`off` = thinking disabled, `—` = non-reasoning model). `deepseek-v4-flash` in these tables is the **retired alias** of what the DeepSeek API now calls `deepseek-flash` (DeepSeek-V4.1-Flash, carried by the catalogue since v1.44.6): pick the current name when you reproduce them, and keep reasoning `off` on the slots the tables show `off` — on this family thinking is on by default and billed inside `max_tokens`.
 
 #### Pipeline (Orchestration & Routing)
 

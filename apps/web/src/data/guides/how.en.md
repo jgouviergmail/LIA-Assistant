@@ -6,7 +6,7 @@
 
 **Version**: 5.0
 **Date**: 2026-08-23
-**Application**: LIA v1.44.5
+**Application**: LIA v1.44.6
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -70,7 +70,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 555 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 282 ADRs, ~28,583 pytest-collected tests across 1,685 files, native observability, 6-level HITL |
+| Production reliability | 284 ADRs, ~28,983 pytest-collected tests across 1,703 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -88,10 +88,10 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | 28,583 collected by pytest across 1,685 test files + 8,314 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | 28,983 collected by pytest across 1,703 test files + 8,316 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | pytest fixtures | 969, 46 of them shared through conftest |
 | Documentation documents | 647 |
-| ADRs (Architecture Decision Records) | 282 |
+| ADRs (Architecture Decision Records) | 284 |
 | Prometheus metrics | 553 definitions |
 | Grafana dashboards | 29 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -171,7 +171,7 @@ apps/api/src/
 │   │   ├── registry/             # AgentRegistry, domain_taxonomy, catalogue
 │   │   ├── semantic/             # Semantic router, expansion service
 │   │   ├── middleware/           # Memory injection, personality injection
-│   │   ├── prompts/v1/           # 86 versioned .txt prompt files
+│   │   ├── prompts/v1/           # versioned .txt prompt files
 │   │   ├── graphs/               # 15 agent builders (one per domain)
 │   │   ├── context/              # Context store (Data Registry), decorators
 │   │   └── models.py             # MessagesState (TypedDict + custom reducer)
@@ -730,6 +730,8 @@ The `llm_models` table carries the full catalogue: provider, classic functional 
 
 The Pricing LLM admin screen writes that ladder **directly**: it renders the depths the model's family offers — resolved live by `GET /admin/llm/reasoning-family`, through the same function as the translator and the validator — and you **untick** the ones this particular model refuses. Ticking everything stores nothing: the family's ladder applies as is. The Excel workbook (ADR-228) carries the same two columns, and its import refuses a depth outside the family **while naming the ones that would have been accepted**: a spreadsheet cannot render checkboxes, so the guarantee moves to import time. A template mechanism — “copy the shape of that existing model” — used to sit here; it grouped models by their *stored* ladder rather than by family, so copying one across families silently removed depths. See `docs/technical/LLM_REASONING_IDENTITY.md`.
 
+**A model family is declared once, and a short answer is asked for without reasoning** (ADR-285). The *family* of a model is the shape of its reasoning API — a toggle and an effort ladder for DeepSeek, a budget for Gemini 2.5, a level for OpenAI — and it is derived from one declaration in `reasoning/profiles.py` that the adapter, the validator and the structured-output detour all read: three private prefix tests once let a vendor's renamed flagship slip through all of them at once, with no ladder offered and no off switch sent. The same seam serves the callers that need two sentences: on a model that thinks by default, the provider bills the thinking *inside* `max_tokens` (OpenAI, Anthropic, Gemini and DeepSeek all do), so a small budget buys hidden reasoning and no answer. `short_answer_config` therefore declares *no reasoning* wherever the resolved profile can switch it off and keeps its small budget only there; elsewhere the slot's own budget stands, because a cap that includes the thinking is not a cap on the answer. The output ceiling of a family, likewise, is read from the catalogue row rather than from a literal.
+
 ### 12.5. Provider-agnostic prompt caching
 
 Every provider bills less (and answers faster) when the beginning of a prompt is byte-identical across requests — but each with its own mechanism: Anthropic's `cache_control` blocks, OpenAI's `prompt_cache_key` routing, implicit prefix caches on DeepSeek/Qwen/Gemini. LIA separates the concerns: every versioned system prompt places its static content (role, rules, examples, output format) first, then a canonical `--- DYNAMIC CONTEXT ---` marker, then all per-request content (datetime, query, context, tool catalogue). Templates stay model-neutral; the infrastructure layer translates the marker into each provider's dialect — the `cache_control` split for Anthropic, the cache-routing key for OpenAI, nothing at all for the implicit caches, which benefit from the stable prefix as-is. The planner prompt — the pipeline's most expensive — exposes a ~77% byte-stable cacheable prefix across any two requests. Shrink-only CI guards lock the convention: every dynamic prompt must carry the marker, no placeholder may precede it without a justified exception, and the planner prefix's byte stability is asserted on every build.
@@ -854,6 +856,8 @@ APScheduler with Redis leader election (SETNX, TTL 120s, recheck 5s) for the loo
 Caps are **injected by the consumer**, never read from the model: 12 firings a day for a routine, 48 for a reminder. Each conversation tool publishes the bounds it enforces (ADR-184), so an out-of-bounds number is repaired by the planner's own clamp instead of being reported as a defect.
 
 Every tick ends with a row in a **run history**, written at the result inside the marking transaction — five outcomes, one per executor exit, in a savepoint and never blocking the routine. The current week is computed server-side with the engine that arms the runs: a cell takes the last run whose served instant **equals** the slot's, never a tolerance window, so a schedule change resets the grid by construction and the browser never re-reads the schedule — it paints.
+
+The reminder's sentence follows the same rule as any short answer: it is asked for **without reasoning** where the model can stop, on a small answer budget — and an answer that comes back empty, or that the provider reports as cut at its budget, is a refusal rather than a message. The written fallback goes out in its place, the spend that happened is kept, and the warning names the model and its reasoning tokens. A notification is the one act of LIA's own initiative a person actually experiences; it never arrives as a bell and nothing else.
 
 ### 16.4. A push notification that leads to a decision
 
@@ -1196,7 +1200,9 @@ All tools return `ToolResponse` (success) or `ToolErrorModel` (failure) with a `
 
 ### 23.4. Prompt System
 
-86 versioned `.txt` files in `src/domains/agents/prompts/v1/`, loaded via `load_prompt()` with LRU cache (32 entries). Versions configurable via environment variables.
+Versioned `.txt` files in `src/domains/agents/prompts/v1/` (one per prompt, the `PromptName` literal kept in sync by a test), loaded via `load_prompt()` with an LRU cache sized above the whole corpus. Versions configurable via environment variables.
+
+**A prompt states what the code enforces, and nothing else** (ADR-284). Every `{placeholder}` of a file has a producer in the module that loads it, and a file that contains `{{` is rendered by `.format()` — an AST guard reads both per file. One instruction per context lives in the file and is emitted only when the content exists (`response_context_sections.txt`), so a bare turn carries no empty wrapper and no instruction about an absent document. The bound a prompt publishes is the bound the tool enforces, from one constant; a number comes from a setting and a fact from the code that applies it; a capability is promised only when the turn can run it. Prose never lives in a `.py` and neither does a fallback: one-line scaffolds sit in `key|template` line files read by a single parser (`parse_prompt_sections`), and a missing file is a broken deployment that fails loudly rather than a quiet second wording.
 
 ### 23.5. Centralized Component Activation (ADR-061)
 
@@ -1387,7 +1393,7 @@ One CSS rule governs the design system's spacing: vertical margins on an `inline
 
 ## 24. Architecture Decision Records (ADR)
 
-282 ADRs in MADR format document the major architectural decisions. Some representative examples:
+284 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1694,8 +1700,8 @@ The connection budget has a floor, not only a ceiling. Audit F004 bounded the bu
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 282 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~28,583 tests across 1,685 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 284 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~28,983 tests across 1,703 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 282 ADRs, and the changelog (v1.0 to v1.44.5). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 284 ADRs, and the changelog (v1.0 to v1.44.6). All metrics, versions, and patterns cited are verifiable in the codebase.*

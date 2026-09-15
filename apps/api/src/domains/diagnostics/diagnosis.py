@@ -30,8 +30,7 @@ from pydantic import BaseModel, Field
 
 from src.core.config import settings
 from src.core.constants import REDIS_KEY_DIAGNOSTICS_DIAGNOSIS_COST_PREFIX
-from src.core.i18n import normalize_language
-from src.core.i18n_types import get_language_name
+from src.core.i18n import get_language_name, normalize_language
 from src.domains.diagnostics.context_collector import collect_diagnosis_context
 from src.domains.diagnostics.models import Incident
 from src.domains.diagnostics.repository import DiagnosticsRepository

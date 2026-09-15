@@ -2417,9 +2417,9 @@ def _build_response_chain(
     # language) + personality prompt can overpower the system prompt's language directive.
     # Placing this reminder as the last message before generation ensures compliance.
     # NOTE: Uses "human" role because Anthropic API rejects non-consecutive system messages.
-    from src.core.i18n_types import LANGUAGE_NAMES
+    from src.core.i18n import get_language_name
 
-    _lang_name = LANGUAGE_NAMES.get(user_language, user_language)
+    _lang_name = get_language_name(user_language)
     prompt_messages.append(
         (
             "human",

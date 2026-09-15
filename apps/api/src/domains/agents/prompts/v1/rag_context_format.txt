@@ -1,0 +1,14 @@
+# Labels of a retrieved-context block (RAG spaces and the app knowledge base).
+# One `key|line` per line; blank lines and #-comments are ignored.
+#
+# The block NAMES its content — the instruction about how to use it travels
+# with the response prompt's section that wraps it (<UserDocuments>,
+# <AppKnowledge> in response_context_sections.txt). Measured 2026-09-12: a
+# second instruction here reached the model together with the section's own,
+# and the two disagreed.
+
+user_header|## USER KNOWLEDGE SPACES (RAG Documents)
+system_header|## APP KNOWLEDGE (FAQ / Help)
+chunk_space|[Space: {space_name}]
+chunk_source|Source: {original_filename}
+chunk_separator|---

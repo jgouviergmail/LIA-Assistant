@@ -18,8 +18,8 @@
 -- above records.
 --
 -- Two tables, both idempotent (ON CONFLICT DO NOTHING):
---   llm_models        — the capabilities catalogue (124 models)
---   llm_model_pricing — prices resolved by model NAME (139 rows, price
+--   llm_models        — the capabilities catalogue (125 models)
+--   llm_model_pricing — prices resolved by model NAME (140 rows, price
 --                       history kept: superseded rows ship is_active=false)
 
 -- Disable triggers for faster bulk insert
@@ -117,8 +117,13 @@ INSERT INTO llm_models (
     ('anthropic', 'claude-sonnet-4-6', 8192, 4096, true, true, false, true, false, true, true, false, false, false, 'chat', '["none", "low", "medium", "high", "max"]'::jsonb, 'anthropic_sonnet_4_6', true),
     ('deepseek', 'deepseek-chat', 128000, 8192, true, true, false, true, false, false, true, true, true, true, 'chat', NULL, NULL, false),
     ('deepseek', 'deepseek-reasoner', 128000, 64000, false, false, false, true, false, true, false, false, false, false, 'chat', NULL, NULL, false),
-    ('deepseek', 'deepseek-v4-flash', 1000000, 384000, true, true, false, true, false, true, true, true, true, true, 'chat', '["none", "high", "max"]'::jsonb, 'deepseek_v4', true),
-    ('deepseek', 'deepseek-v4-pro', 1000000, 384000, true, true, false, true, false, true, true, true, true, true, 'chat', '["none", "high", "max"]'::jsonb, 'deepseek_v4', true),
+    -- deepseek-flash is the vendor's CURRENT name (DeepSeek-V4.1-Flash, vision
+    -- capable); deepseek-v4-flash is the retired alias the API still accepts.
+    -- The ladder is the documented low/high/max plus the off switch
+    -- (api-docs.deepseek.com/guides/thinking_mode, read 2026-09-12).
+    ('deepseek', 'deepseek-flash', 1000000, 384000, true, true, false, true, true, true, true, true, true, true, 'chat', '["none", "low", "high", "max"]'::jsonb, 'deepseek_v4', true),
+    ('deepseek', 'deepseek-v4-flash', 1000000, 384000, true, true, false, true, false, true, true, true, true, true, 'chat', '["none", "low", "high", "max"]'::jsonb, 'deepseek_v4', true),
+    ('deepseek', 'deepseek-v4-pro', 1000000, 384000, true, true, false, true, false, true, true, true, true, true, 'chat', '["none", "low", "high", "max"]'::jsonb, 'deepseek_v4', true),
     ('perplexity', 'llama-3.1-sonar-large-128k-online', 127000, 4096, false, false, false, true, false, false, true, true, true, true, 'chat', NULL, NULL, true),
     ('perplexity', 'llama-3.1-sonar-small-128k-online', 127000, 4096, false, false, false, true, false, false, true, true, true, true, 'chat', NULL, NULL, true),
     ('perplexity', 'sonar', 8192, 4096, true, true, false, true, false, false, true, true, true, true, 'chat', NULL, NULL, true),
@@ -197,6 +202,7 @@ INSERT INTO _lia_pricing_bundle VALUES
     ('claude-sonnet-4-6', 3.000000, 0.300000, 15.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
     ('computer-use-preview', 3.000000, NULL, 12.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
     ('deepseek-chat', 0.280000, 0.028000, 0.420000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', false),
+    ('deepseek-flash', 0.300000, 0.006000, 1.200000, 'per_1m_tokens', '2026-09-11T22:42:59.784553+00:00', true),
     ('deepseek-reasoner', 0.280000, 0.028000, 0.420000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', false),
     ('deepseek-v4-flash', 0.140000, 0.028000, 0.280000, 'per_1m_tokens', '2026-05-05T19:09:22.020980+00:00', false),
     ('deepseek-v4-flash', 0.440000, 0.014000, 1.320000, 'per_1m_tokens', '2026-08-14T10:02:47.659078+00:00', true),
@@ -407,6 +413,20 @@ WHERE p.is_active
 -- OFF-PEAK tariff (the default outside every window); the two peak windows
 -- override all three prices. Idempotent by construction (absolute values).
 -- ============================================================================
+-- deepseek-flash (DeepSeek-V4.1-Flash): the vendor's current tariff, read on
+-- 2026-09-12 from api-docs.deepseek.com/quick_start/pricing — off-peak is half
+-- of peak; peak is 01:00-04:00 and 06:00-10:00 UTC on weekdays.
+UPDATE llm_model_pricing p
+SET input_unit_price = 0.150000,
+    cached_input_unit_price = 0.003000,
+    output_unit_price = 0.600000,
+    time_slots = '[
+      {"start_utc": "01:00", "end_utc": "04:00", "input_unit_price": 0.3, "cached_input_unit_price": 0.006, "output_unit_price": 1.2},
+      {"start_utc": "06:00", "end_utc": "10:00", "input_unit_price": 0.3, "cached_input_unit_price": 0.006, "output_unit_price": 1.2}
+    ]'::jsonb
+FROM llm_models m
+WHERE m.id = p.model_id AND m.model_name = 'deepseek-flash' AND p.is_active;
+
 UPDATE llm_model_pricing p
 SET input_unit_price = 0.220000,
     cached_input_unit_price = 0.007000,

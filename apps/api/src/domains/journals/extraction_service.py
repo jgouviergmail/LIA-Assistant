@@ -56,7 +56,7 @@ from src.domains.shared.extraction_targets import (
 from src.domains.shared.provenance_capture import record_origin
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
-from src.infrastructure.llm.usage_metadata import tokens_from_usage_metadata
+from src.infrastructure.llm.usage_metadata import tokens_from_response, tokens_from_usage_metadata
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_journals import (
     journal_extraction_duration_seconds,
@@ -546,21 +546,20 @@ async def _update_user_last_cost(
     from src.infrastructure.database import get_db_context
 
     try:
-        usage_metadata = getattr(result, "usage_metadata", None)
-        if not usage_metadata:
+        if not getattr(result, "usage_metadata", None):
             return
-
-        input_tokens = usage_metadata.get("input_tokens", 0)
-        output_tokens = usage_metadata.get("output_tokens", 0)
+        # ONE reader for every provider's spelling (ADR-272 corollary): cached
+        # tokens used to be priced at zero here — and at full input rate.
+        tokens = tokens_from_response(result)
 
         # Calculate real cost
         from src.infrastructure.cache.pricing_cache import get_cached_cost_usd_eur
 
         _, cost_eur = get_cached_cost_usd_eur(
             model=model_name,
-            prompt_tokens=input_tokens,
-            completion_tokens=output_tokens,
-            cached_tokens=0,
+            prompt_tokens=tokens.prompt,
+            completion_tokens=tokens.completion,
+            cached_tokens=tokens.cached,
         )
 
         from src.domains.users.models import User
@@ -571,8 +570,8 @@ async def _update_user_last_cost(
             result_user = await db.execute(select(User).where(User.id == UUID(user_id)))
             user = result_user.scalar_one_or_none()
             if user:
-                user.journal_last_cost_tokens_in = input_tokens
-                user.journal_last_cost_tokens_out = output_tokens
+                user.journal_last_cost_tokens_in = tokens.prompt + tokens.cached  # what was sent
+                user.journal_last_cost_tokens_out = tokens.completion
                 user.journal_last_cost_eur = Decimal(str(cost_eur))
                 user.journal_last_cost_at = datetime.now(UTC)
                 user.journal_last_cost_source = source

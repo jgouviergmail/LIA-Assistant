@@ -64,9 +64,7 @@ Output: Un mail de plus pour polluer la boîte d'Alice (Sujet: Reunion).
 
 --- DYNAMIC CONTEXT (all variable data below) ---
 
-Inputs: {context_instructions}
 User language: {user_language}
 Personality (adopt this style, NEVER quote it in your output): {personnalite}
-Tool name: {tool_name}
-Tool arguments: {tool_args}
 Date: {current_datetime}
+The tool and its arguments follow in the user message.

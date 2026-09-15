@@ -63,31 +63,31 @@ class BriefingSettings(BaseSettings):
         default=BRIEFING_MAX_MAILS_ITEMS_DEFAULT,
         ge=1,
         le=50,
-        description="Maximum emails shown on the mails card. Default 5.",
+        description=f"Maximum emails shown on the mails card. Default {BRIEFING_MAX_MAILS_ITEMS_DEFAULT}.",
     )
     briefing_max_birthdays_items: int = Field(
         default=BRIEFING_MAX_BIRTHDAYS_ITEMS_DEFAULT,
         ge=1,
         le=50,
-        description="Maximum upcoming birthdays shown on the birthdays card. Default 5.",
+        description=f"Maximum upcoming birthdays shown on the birthdays card. Default {BRIEFING_MAX_BIRTHDAYS_ITEMS_DEFAULT}.",
     )
     briefing_max_birthdays_horizon_days: int = Field(
         default=BRIEFING_MAX_BIRTHDAYS_HORIZON_DAYS_DEFAULT,
         ge=1,
         le=365,
-        description="Forward window (days) for upcoming birthdays. Default 14.",
+        description=f"Forward window (days) for upcoming birthdays. Default {BRIEFING_MAX_BIRTHDAYS_HORIZON_DAYS_DEFAULT}.",
     )
     briefing_max_reminders_items: int = Field(
         default=BRIEFING_MAX_REMINDERS_ITEMS_DEFAULT,
         ge=1,
         le=50,
-        description="Maximum pending reminders shown on the reminders card. Default 5.",
+        description=f"Maximum pending reminders shown on the reminders card. Default {BRIEFING_MAX_REMINDERS_ITEMS_DEFAULT}.",
     )
     briefing_health_window_days: int = Field(
         default=BRIEFING_HEALTH_WINDOW_DAYS_DEFAULT,
         ge=1,
         le=90,
-        description="Rolling window (days) for the health card per-kind averages. Default 14.",
+        description=f"Rolling window (days) for the health card per-kind averages. Default {BRIEFING_HEALTH_WINDOW_DAYS_DEFAULT}.",
     )
     briefing_weather_daily_forecast_days: int = Field(
         default=BRIEFING_WEATHER_DAILY_FORECAST_DAYS_DEFAULT,

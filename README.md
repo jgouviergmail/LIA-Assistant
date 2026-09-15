@@ -42,7 +42,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.44.5</strong> — <strong>A demo that says what it offers, a server that says what it holds.</strong> The page that opens the public demonstrator lists, from the demonstrator's own configuration, what is switched on there and what is not; every API worker publishes the memory it holds; and your generated documents stay openable wherever uploads are off — 12 September 2026.
+  <strong>Version 1.44.6</strong> — <strong>A reminder arrives with its text, and a prompt states what the code enforces.</strong> A two-sentence notification is asked for without reasoning — on a model that thinks by default the thinking is billed inside the answer budget — and an empty or cut answer is a refusal, never a bare bell; DeepSeek's current name is a first-class model with its full ladder and time-window tariff; and every prompt now says only what the code enforces, one instruction per context, emitted only when its content exists — 15 September 2026.
 </p>
 
 ---
@@ -112,8 +112,8 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **49** functional domains | **660,000** lines of code (excl. tests) | **36,000+** automated tests | **282** ADRs                                                           |
-| **258** versions shipped  | **6 languages**, parity enforced in CI  | **555** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **49** functional domains | **660,000** lines of code (excl. tests) | **36,000+** automated tests | **284** ADRs                                                           |
+| **259** versions shipped  | **6 languages**, parity enforced in CI  | **555** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -493,14 +493,14 @@ The UI is responsive by design — desktop, tablet and phone — with touch-frie
 
 ### Supported LLM Providers
 
-The model catalogue lives in the database, curated from vendored public registries and editable from the admin panel; every row states where its capabilities came from ([ADR-244](docs/architecture/ADR-244-LLM-Catalogue-Truth.md)). Reasoning depth has one stored shape for every provider ([ADR-245](docs/architecture/ADR-245-Reasoning-Unification.md)).
+The model catalogue lives in the database, curated from vendored public registries and editable from the admin panel; every row states where its capabilities came from ([ADR-244](docs/architecture/ADR-244-LLM-Catalogue-Truth.md)). Reasoning depth has one stored shape for every provider ([ADR-245](docs/architecture/ADR-245-Reasoning-Unification.md)); a model family is declared once, and a caller that needs two sentences asks for no reasoning rather than a small budget — a reasoning model bills its thinking inside `max_tokens` ([ADR-285](docs/architecture/ADR-285-Short-Answer-Without-Reasoning-And-One-Family-Declaration.md)). What a prompt says is what the code enforces, and nothing else: every placeholder has a producer, every published bound is the applied bound, prose never lives in a `.py` ([ADR-284](docs/architecture/ADR-284-Prompt-States-What-The-Code-Enforces.md)).
 
 | Provider   | Notes                                                                                             |
 | ---------- | ------------------------------------------------------------------------------------------------- |
 | OpenAI     | Prompt caching, reasoning models, structured output                                               |
 | Anthropic  | Extended thinking                                                                                 |
 | Google     | Gemini, multimodal; `gemini-embedding-001` for retrieval                                          |
-| DeepSeek   | Cost-effective reasoning with a thinking-mode toggle                                              |
+| DeepSeek   | Cost-effective reasoning with a thinking-mode toggle (`deepseek-flash`, `deepseek-v4-pro`); tariff by UTC window |
 | Qwen       | Thinking, tools and vision through Alibaba Cloud DashScope; regional endpoint via `QWEN_BASE_URL` |
 | Perplexity | Web-augmented answers; endpoint via `PERPLEXITY_BASE_URL`                                         |
 | Ollama     | Any local model, capabilities discovered from the server, native client; `OLLAMA_BASE_URL`        |
@@ -530,8 +530,8 @@ task test:e2e                      # Playwright + axe journeys (hermetic, mocked
 
 | Metric                  | Value                                                                                                 |
 | ----------------------- | ----------------------------------------------------------------------------------------------------- |
-| Backend tests           | 28,583 collected over `tests/` (`pytest --collect-only -q`, 1,685 files, 2026-09-12)                  |
-| Frontend tests (vitest) | 8,314 across 651 files, plus hermetic Playwright journeys with axe, dark-mode and zoom checks          |
+| Backend tests           | 28,983 collected over `tests/` (`pytest --collect-only -q`, 1,703 files, 2026-09-15)                  |
+| Frontend tests (vitest) | 8,316 across 652 files, plus hermetic Playwright journeys with axe, dark-mode and zoom checks          |
 | Coverage floor          | 72% enforced in CI on the backend — a shrink-only ratchet, never lowered; frontend thresholds per glob |
 | Technical audit         | **8.3/10** across 24 normalized areas — [full public report & protocol](docs/audit/README.md)         |
 
@@ -622,7 +622,7 @@ Instrumentation and caching are in place — per-node message windowing, LLM con
 
 ### Architecture Decision Records
 
-282 ADR files (ADR-001 through ADR-283 — ADR-008 has no separate file) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
+284 ADR files (ADR-001 through ADR-285 — ADR-008 has no separate file) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
 
 - [ADR-070: ReAct Execution Mode](docs/architecture/ADR-070-ReAct-Execution-Mode.md) — why two execution modes rather than one
 - [ADR-263: Execution Authority Chain and Effect Register](docs/architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md) — how every act is claimed, closed and recorded

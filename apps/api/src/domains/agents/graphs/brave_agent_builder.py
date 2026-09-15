@@ -12,6 +12,7 @@ Features:
 
 from typing import Any
 
+from src.core.constants import BRAVE_NEWS_SEARCH_MAX_COUNT, BRAVE_WEB_SEARCH_MAX_COUNT
 from src.core.time_utils import get_prompt_datetime_formatted
 from src.domains.agents.graphs.base_agent_builder import (
     build_generic_agent,
@@ -21,6 +22,24 @@ from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+def render_brave_agent_prompt() -> str:
+    """Render the Brave agent system prompt with every value the code enforces.
+
+    The ``count`` maxima are the tool's own constants (published in the catalogue
+    manifest too), so the prompt cannot promise a bound the tool then halves.
+    ``{current_datetime}`` is re-escaped: the agent config fills it per call.
+
+    Returns:
+        The system prompt template, ``{current_datetime}`` still pending.
+    """
+    return load_prompt("brave_agent_prompt", version="v1").format(
+        current_datetime="{current_datetime}",
+        context_instructions="",  # Stateless API, no context
+        brave_web_max_count=BRAVE_WEB_SEARCH_MAX_COUNT,
+        brave_news_max_count=BRAVE_NEWS_SEARCH_MAX_COUNT,
+    )
 
 
 def build_brave_agent() -> Any:
@@ -59,14 +78,7 @@ def build_brave_agent() -> Any:
         ],
     )
 
-    # Load versioned prompt template
-    brave_agent_prompt_template = load_prompt("brave_agent_prompt", version="v1")
-
-    # Brave is stateless - no context_instructions needed
-    system_prompt_template = brave_agent_prompt_template.format(
-        current_datetime="{current_datetime}",
-        context_instructions="",  # Stateless API, no context
-    )
+    system_prompt_template = render_brave_agent_prompt()
 
     config = create_agent_config_from_settings(
         agent_name="brave_agent",

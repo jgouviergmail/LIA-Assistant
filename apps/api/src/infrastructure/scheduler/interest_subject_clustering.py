@@ -22,7 +22,7 @@ from uuid import UUID
 from sqlalchemy import ColumnElement, Select, func, select
 
 from src.core.config import settings
-from src.core.i18n_types import get_language_name
+from src.core.i18n import get_language_name
 from src.domains.agents.prompts import load_prompt
 from src.domains.interests.models import InterestStatus, UserInterest
 from src.infrastructure.database import get_db_context

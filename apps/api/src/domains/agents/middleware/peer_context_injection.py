@@ -33,6 +33,7 @@ from uuid import UUID
 import structlog
 
 from src.core.config import settings
+from src.core.prompt_store import parse_prompt_sections
 from src.domains.agents.prompts import load_prompt
 from src.domains.agents.services.analysis.peer_directory import detect_mentioned_peers
 from src.domains.peers.repository import PeersRepository
@@ -61,14 +62,8 @@ def _section_formats() -> dict[str, tuple[str, str]]:
     ``.py`` is exactly what the versioned-prompt rule forbids, fallbacks and
     LLM scaffolding included.
     """
-    formats: dict[str, tuple[str, str]] = {}
-    for line in load_prompt("peer_context_section_headers").splitlines():
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#") or stripped.count("|") < 2:
-            continue
-        section, header, template = stripped.split("|", 2)
-        formats[section.strip()] = (header.strip(), template.strip())
-    return formats
+    rows = parse_prompt_sections(load_prompt("peer_context_section_headers"), 3)
+    return {section: (header, template) for section, header, template in rows}
 
 
 async def _peer_directory(user_id: UUID) -> list[str]:

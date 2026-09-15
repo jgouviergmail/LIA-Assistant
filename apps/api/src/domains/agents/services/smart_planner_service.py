@@ -21,6 +21,7 @@ retry ONCE with expanded catalogue.
 """
 
 from contextlib import suppress
+from functools import lru_cache
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -31,6 +32,7 @@ from src.core.constants import (
     V3_PLANNER_DOMAIN_FULL_TOKENS,
 )
 from src.core.context import exclude_sub_agents_from_prompt, panic_mode_attempted
+from src.core.prompt_store import parse_prompt_sections, read_prompt_file
 from src.domains.agents.analysis.query_intelligence import QueryIntelligence
 from src.domains.agents.context.runtime_context import (
     runtime_language,
@@ -39,6 +41,7 @@ from src.domains.agents.context.runtime_context import (
 )
 from src.domains.agents.prompts import (
     get_smart_planner_prompt,
+    load_prompt,
 )
 from src.domains.agents.semantic.expansion_service import (
     generate_semantic_dependencies_for_prompt,
@@ -64,6 +67,12 @@ if TYPE_CHECKING:
     from src.domains.agents.services.planner.strategies.base_strategy import PlanningStrategy
 
 logger = get_logger(__name__)
+
+
+@lru_cache(maxsize=1)
+def _planner_lines() -> dict[str, str]:
+    """One-line scaffolds of the planner prompt, read once from the store."""
+    return dict(parse_prompt_sections(read_prompt_file("smart_planner_prompt_lines"), 2))
 
 
 class SmartPlannerService:
@@ -776,14 +785,7 @@ class SmartPlannerService:
                 preserved_params = {}
 
             if preserved_params:
-                preserved_section = (
-                    "\n\n## PRESERVED PARAMETERS (FROM PREVIOUS CLARIFICATION)\n"
-                    "The following parameters were already set in a previous step. "
-                    "You MUST preserve these exact values in the new plan:\n"
-                )
-                for param_name, param_value in preserved_params.items():
-                    preserved_section += f'- {param_name}: "{param_value}"\n'
-                preserved_section += "\nDo NOT modify or regenerate these values."
+                preserved_section = self._render_preserved_parameters(preserved_params)
 
                 logger.info(
                     "planner_preserving_existing_params",
@@ -950,20 +952,58 @@ class SmartPlannerService:
                 cut_pos = ref_content.rfind("\n", 0, max_ref_chars)
                 if cut_pos <= 0:
                     cut_pos = max_ref_chars
-                truncated = ref_content[:cut_pos] + "\n... (truncated)"
+                truncated = ref_content[:cut_pos] + "\n" + _planner_lines()["mcp_truncated_marker"]
             else:
                 truncated = ref_content
 
             sections.append(
-                f"\nMCP TOOL FORMAT REFERENCE — {server_name} (MANDATORY):\n"
-                f"When generating parameters for any {server_name} tool, you MUST "
-                f"follow the exact structure, field names, types, and enum values "
-                f"described below. Match parameter names from the catalogue above "
-                f"to the format documented here.\n\n"
-                f"{truncated}"
+                SmartPlannerService._render_mcp_format_reference(server_name, truncated)
             )
 
         return "\n".join(sections)
+
+    @staticmethod
+    def _render_preserved_parameters(preserved_params: dict[str, Any]) -> str:
+        """The « preserved parameters » block appended after a clarification.
+
+        Every sentence comes from ``smart_planner_prompt_lines``; this only lays
+        the values out (prompt audit 2026-09-12, lot B).
+
+        Args:
+            preserved_params: Parameter name → value the new plan must keep.
+
+        Returns:
+            The block, led by a blank line so it appends cleanly.
+        """
+        lines = _planner_lines()
+        rows = [
+            lines["preserved_line"].format(name=name, value=value)
+            for name, value in preserved_params.items()
+        ]
+        return "\n\n" + "\n".join(
+            [
+                lines["preserved_header"],
+                lines["preserved_intro"],
+                *rows,
+                "",
+                lines["preserved_footer"],
+            ]
+        )
+
+    @staticmethod
+    def _render_mcp_format_reference(server_name: str, format_reference: str) -> str:
+        """The mandatory per-server MCP format block (versioned prompt).
+
+        Args:
+            server_name: The MCP server the reference documents.
+            format_reference: The (possibly truncated) reference text.
+
+        Returns:
+            The block, led by a newline so it appends cleanly.
+        """
+        return "\n" + load_prompt("smart_planner_mcp_format_reference_prompt").format(
+            server_name=server_name, format_reference=format_reference
+        )
 
     @staticmethod
     def _build_skills_catalog(config: RunnableConfig) -> str:
@@ -993,7 +1033,11 @@ class SmartPlannerService:
         Returns the section content when SUB_AGENTS_ENABLED, empty string otherwise.
         Returns empty string when exclude_sub_agents_from_prompt ContextVar is True
         (F6: user rejected a sub-agent plan, replanning without delegation).
-        Braces in examples are escaped for Python .format() compatibility.
+
+        The text is the versioned ``smart_planner_subagent_delegation_prompt`` and
+        every number in it is the setting the executor enforces (prompt audit
+        2026-09-12: the inline copy claimed a 2-pass call, four tools and a
+        120 s timeout, none of which was true).
         """
         from src.core.config import get_settings
 
@@ -1007,61 +1051,16 @@ class SmartPlannerService:
         if exclude_sub_agents_from_prompt.get():
             return ""
 
-        return (
-            "SUB-AGENT DELEGATION (Optional Advanced Capability):\n"
-            "You can delegate a complex unitary task to an ephemeral sub-agent — a "
-            "bounded 2-pass LLM call playing a SPECIALIST EXPERT PERSONA you craft "
-            "for this exact task. The sub-agent has NO user-data tools (it cannot "
-            "fetch the user's emails, contacts, calendar, etc.); it has only 4 "
-            "read-only RESEARCH tools (Perplexity, web search, Wikipedia, web "
-            "fetch) it may optionally use to verify facts or fetch external "
-            "context. Returns the analytical text in `$steps.step_N.analysis`.\n\n"
-            "WHEN TO DELEGATE:\n"
-            "- Deep domain expertise improves the answer (analyst, consultant, "
-            "  legal/medical/technical reviewer, coach, critic, …)\n"
-            "- Multi-source synthesis, structured cross-comparison, structured "
-            "  framing the user explicitly asked for\n"
-            "- Independent parallel angles — fan out 2+ delegate steps with no "
-            "  depends_on for different expert perspectives in parallel\n\n"
-            "WHEN NOT TO DELEGATE:\n"
-            "- Simple factual queries (weather, plain contact lookup, raw email "
-            "  list) — you can answer directly\n"
-            "- Standard CRUD (send email, create event) — you do those yourself\n"
-            "- Tasks where the inlined data is trivial to summarize without a "
-            "  specialist's lens\n\n"
-            "HOW TO USE delegate_to_sub_agent_tool — the principal does the work "
-            "FIRST, the sub-agent applies expertise to the result:\n"
-            "1. **Fetch all USER data the expert will need** in earlier steps "
-            "   (get_emails_tool, get_events_tool, search_contacts_tool, etc.). "
-            "   The sub-agent CANNOT fetch them itself. Do NOT pre-fetch public "
-            "   knowledge though — the expert has its own research tools for that.\n"
-            "2. **Write `expertise` as a FULL CUSTOM SYSTEM PROMPT** for the "
-            "   expert (typical good length 300-2000 chars, longer is fine):\n"
-            '   - the expert role and perspective ("You are a senior consultant '
-            '     specialized in …, known for your rigor on …");\n'
-            "   - the methodology to apply (frameworks, criteria, scoring grid, "
-            "     analytical steps);\n"
-            "   - the analytical depth required (surface summary vs. deep audit);\n"
-            "   - the exact OUTPUT FORMAT and structure expected (sections, "
-            "     bullet structure, fields, length budget);\n"
-            '   - any constraints and pitfalls to avoid ("do not speculate on '
-            '     X", "if Y is missing say so explicitly").\n'
-            "   The richer and more specific `expertise` is, the better the "
-            "   result. A vague `expertise` defeats the purpose — the principal "
-            "   could have answered directly.\n"
-            "3. **Write `instruction`** with the task statement AND the actual "
-            "   data inlined via `$steps.step_N.<field>` references (email "
-            "   bodies, transcripts, lists). Resolved cap: "
-            "   SUBAGENT_INSTRUCTION_MAX_TOKENS_RESOLVED tokens.\n"
-            "4. **Set `timeout_seconds: 120`** (the bounded 2-pass + optional "
-            "   research tools needs the headroom).\n"
-            "5. **Independent delegate steps** → leave `depends_on` empty (they "
-            "   run in parallel via the wave executor).\n"
-            "6. **Reference the result** in subsequent steps via "
-            "   `$steps.step_N.analysis` (it is the analytical text, safe to "
-            "   chain — not a raw payload).\n"
-            "7. **Handle write actions** (send_email, etc.) YOURSELF after the "
-            "   sub-agent's analysis returns.\n"
+        settings = get_settings()
+        tools = settings.subagent_research_tools_whitelist_parsed
+        return load_prompt("smart_planner_subagent_delegation_prompt").format(
+            subagent_max_iterations=settings.subagent_default_max_iterations,
+            # Empty whitelist = legacy blocklist mode (discouraged, see the validator):
+            # the model is told so in technical English rather than handed a blank.
+            subagent_research_tools=", ".join(tools)
+            or "every read-only tool (no whitelist configured)",
+            subagent_instruction_max_tokens=settings.subagent_instruction_max_tokens_resolved,
+            subagent_timeout_seconds=int(settings.subagent_tool_timeout_seconds),
         )
 
     def _get_field_specific_instruction(self, clarification_field: str) -> str:

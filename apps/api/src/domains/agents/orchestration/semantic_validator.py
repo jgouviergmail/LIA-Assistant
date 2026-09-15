@@ -33,12 +33,14 @@ import asyncio
 import re
 import time
 from contextlib import suppress
+from functools import lru_cache
 from typing import Any
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from src.core.config import settings
+from src.core.prompt_store import parse_prompt_sections, read_prompt_file
 from src.domains.agents.prompts import load_prompt
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.structured_output import (
@@ -84,6 +86,19 @@ logger = get_logger(__name__)
 # - CARDINALITY_KEYWORDS removed (LLM sets has_cardinality_risk flag)
 # - MUTATION_TOOL_PATTERNS kept only for tool name validation (internal data)
 # ============================================================================
+
+
+@lru_cache(maxsize=1)
+def validator_lines() -> dict[str, str]:
+    """The verdicts of the deterministic rules, read once from the store.
+
+    The planner reads them on replan, so they are prompt text and live in
+    ``semantic_validator_lines`` (prompt audit 2026-09-12, lot B).
+
+    Returns:
+        Verdict key → str.format template.
+    """
+    return dict(parse_prompt_sections(read_prompt_file("semantic_validator_lines"), 2))
 
 
 def _programmatic_rejection(
@@ -976,8 +991,8 @@ class PlanSemanticValidator:
             )
             return _programmatic_rejection(
                 SemanticIssueType.GHOST_DEPENDENCY,
-                "$steps reference uses wrong result_key for step",
-                refs_feedback or "Fix $steps references",
+                validator_lines()["ghost_dependency_description"],
+                refs_feedback or validator_lines()["ghost_dependency_fix_fallback"],
                 CriticalityLevel.HIGH,
                 start_time,
             )
@@ -1001,16 +1016,10 @@ class PlanSemanticValidator:
             )
             return _programmatic_rejection(
                 SemanticIssueType.WRONG_PARAMETERS,
-                (
-                    "Fabricated placeholder contact detail: "
-                    f"{'; '.join(placeholder_findings[:3])}"
+                validator_lines()["placeholder_contact_description"].format(
+                    findings="; ".join(placeholder_findings[:3])
                 ),
-                (
-                    "NEVER invent contact details (emails, phone numbers). "
-                    "Either add a get_contacts_tool step and reference its "
-                    "output ($steps.step_N.contacts[0].emailAddresses[0].value), "
-                    "or OMIT the optional parameter entirely."
-                ),
+                validator_lines()["placeholder_contact_fix"],
                 CriticalityLevel.HIGH,
                 start_time,
             )
@@ -1037,8 +1046,8 @@ class PlanSemanticValidator:
             )
             return _programmatic_rejection(
                 for_each_issue,
-                "for_each pattern issue detected",
-                for_each_feedback or "Fix for_each configuration",
+                validator_lines()["for_each_description"],
+                for_each_feedback or validator_lines()["for_each_fix_fallback"],
                 CriticalityLevel.MEDIUM,
                 start_time,
             )
@@ -1068,16 +1077,11 @@ class PlanSemanticValidator:
             )
             return _programmatic_rejection(
                 SemanticIssueType.SCOPE_OVERFLOW,
-                (
-                    "The request asks for information, but the plan performs "
-                    f"action(s): {', '.join(writing_tools)}"
+                validator_lines()["scope_overflow_description"].format(
+                    writing_tools=", ".join(writing_tools)
                 ),
-                (
-                    "The user asked a QUESTION, not for an action. Answer it by "
-                    "READING: keep the lookup steps and replace every action tool "
-                    f"({', '.join(writing_tools)}) with a read tool of the same "
-                    "domain. Never contact anyone to obtain information the "
-                    "system can read itself."
+                validator_lines()["scope_overflow_fix"].format(
+                    writing_tools=", ".join(writing_tools)
                 ),
                 CriticalityLevel.HIGH,
                 start_time,

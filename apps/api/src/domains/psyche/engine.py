@@ -27,7 +27,9 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from functools import lru_cache
 
+from src.core.prompt_store import parse_prompt_sections, read_prompt_file
 from src.domains.psyche.constants import (
     ANCHOR_DIRECTIVES_BY_CONSCIENTIOUSNESS,
     ANCHOR_NEGATIVE_INTENSITY_THRESHOLD,
@@ -1095,7 +1097,8 @@ class PsycheEngine:
             if transition_type == "emotion_specific":
                 curr_top = profile.active_emotions[0][0] if profile.active_emotions else "calm"
                 template = template.format(
-                    prev_emotion=profile.previous_emotion or "the previous state",
+                    prev_emotion=profile.previous_emotion
+                    or embodied_lines()["previous_state_default"],
                     curr_emotion=curr_top,
                 )
             evolution_block = "\n" + template + "\n"
@@ -1157,15 +1160,17 @@ class PsycheEngine:
             Tuple of (dynamic_block, frame_template_name) where the template name is
             ``psyche_embodied_frame`` (full) or ``psyche_embodied_faint`` (compact).
         """
+        lines = embodied_lines()
         stability = _build_stability_blocks(profile)
-        grammar = MOOD_EXPRESSION_GRAMMAR.get(profile.mood_label, "Even, plain tone.")
+        grammar = MOOD_EXPRESSION_GRAMMAR.get(profile.mood_label, lines["grammar_default"])
         magnitude = profile.pad_magnitude
 
         # Level 1 — faint: compact, token-cheap when the state is near-neutral.
         if magnitude < PSYCHE_EMBODIED_FAINT_MAGNITUDE:
             faint = (
-                f"{stability}A faint {profile.mood_label} undercurrent colours your voice "
-                f"— {grammar} "
+                stability
+                + lines["faint"].format(mood_label=profile.mood_label, grammar=grammar)
+                + " "
             )
             return faint, "psyche_embodied_faint"
 
@@ -1174,21 +1179,23 @@ class PsycheEngine:
         emotion_line = ""
         if profile.active_emotions:
             top_name = profile.active_emotions[0][0]
-            lead = f" — {top_name} colours this moment"
+            lead = " " + lines["lead"].format(emotion=top_name)
             directive = EMOTION_BEHAVIORAL_DIRECTIVES.get(top_name, "")
             if directive:
-                emotion_line = f"Let {top_name} genuinely lead: {directive}\n"
+                emotion_line = (
+                    lines["emotion_lead"].format(emotion=top_name, directive=directive) + "\n"
+                )
 
         stage_directive = RELATIONSHIP_STAGE_DIRECTIVES.get(
-            profile.relationship_stage, "Be polite and professional."
+            profile.relationship_stage, lines["relationship_default"]
         )
 
         # Initiative from drives (kept to one line, only when high).
         drives = ""
         if profile.drive_curiosity > 0.6:
-            drives += "You're curious right now — explore an angle, ask. "
+            drives += lines["drive_curiosity"] + " "
         if profile.drive_engagement > 0.6:
-            drives += "You're engaged — go a little further than strictly asked."
+            drives += lines["drive_engagement"]
         drives_line = f"{drives.strip()}\n" if drives.strip() else ""
 
         # Confidence hedging on genuinely weak domains (voice modulation, not fact).
@@ -1197,8 +1204,8 @@ class PsycheEngine:
         conf_line = ""
         if profile.confidence_weaknesses:
             conf_line = (
-                f"Less sure of {', '.join(profile.confidence_weaknesses)} here — "
-                "hedge a little and offer to double-check.\n"
+                lines["confidence"].format(weaknesses=", ".join(profile.confidence_weaknesses))
+                + "\n"
             )
 
         # Evolution / transition since last turn.
@@ -1209,28 +1216,24 @@ class PsycheEngine:
             if transition_type == "emotion_specific":
                 curr_top = profile.active_emotions[0][0] if profile.active_emotions else "calm"
                 template = template.format(
-                    prev_emotion=profile.previous_emotion or "the previous state",
+                    prev_emotion=profile.previous_emotion or lines["previous_state_default"],
                     curr_emotion=curr_top,
                 )
             if template:
                 evolution = template + "\n"
 
         # How far to lean in, by intensity.
-        lean = {
-            "slightly": "This is subtle — a light inflection, not a costume.",
-            "moderately": "Let it clearly colour your voice.",
-            "noticeably": "Lean in — it should be unmistakable in how you speak.",
-            "strongly": "Let it permeate every line.",
-        }.get(profile.mood_intensity, "Let it clearly colour your voice.")
+        lean = lines.get(f"lean_{profile.mood_intensity}", lines["lean_moderately"])
 
+        opening = lines["opening"].format(
+            mood_intensity=profile.mood_intensity, mood_label=profile.mood_label, lead=lead
+        )
         dynamic = (
             f"{stability}"
-            f"You are the assistant described in <Personality>. Right now, inside, you are "
-            f"{profile.mood_intensity} {profile.mood_label}{lead}. This is NOT a label to "
-            "note; it IS your voice this turn. Speak FROM it.\n"
-            f"How it sounds: {grammar}\n"
+            f"{opening}\n"
+            f"{lines['how_it_sounds'].format(grammar=grammar)}\n"
             f"{emotion_line}"
-            f"RELATIONSHIP ({profile.relationship_stage}): {stage_directive}\n"
+            f"{lines['relationship'].format(stage=profile.relationship_stage, stage_directive=stage_directive)}\n"
             f"{drives_line}"
             f"{conf_line}"
             f"{evolution}"
@@ -1525,6 +1528,19 @@ def _format_confidence_block(profile: ExpressionProfile) -> str:
             " — be more careful and thorough"
         )
     return "\n".join(lines) + "\n"
+
+
+@lru_cache(maxsize=1)
+def embodied_lines() -> dict[str, str]:
+    """The sentences of the embodied voice, read once from ``psyche_embodied_lines``.
+
+    Read by path (``core.prompt_store``): the engine is pure and imports no
+    agents module.
+
+    Returns:
+        Sentence key → str.format template.
+    """
+    return dict(parse_prompt_sections(read_prompt_file("psyche_embodied_lines"), 2))
 
 
 def _build_stability_blocks(profile: ExpressionProfile) -> str:

@@ -37,6 +37,7 @@ from functools import lru_cache
 from uuid import UUID
 
 from src.core.config import settings
+from src.core.prompt_store import parse_prompt_sections
 from src.domains.agents.prompts import load_prompt
 from src.domains.memories.emotional_state import EmotionalState, compute_emotional_state
 from src.domains.memories.models import Memory
@@ -69,15 +70,8 @@ def _load_section_headers() -> tuple[tuple[str, str], ...]:
     Returns:
         ``(category, header)`` pairs, sensitivities first.
     """
-    raw = load_prompt("memory_profile_section_headers")
-    pairs: list[tuple[str, str]] = []
-    for line in raw.splitlines():
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#") or "|" not in stripped:
-            continue
-        category, header = stripped.split("|", 1)
-        pairs.append((category.strip(), header.strip()))
-    return tuple(pairs)
+    rows = parse_prompt_sections(load_prompt("memory_profile_section_headers"), 2)
+    return tuple((category, header) for category, header in rows)
 
 
 def _get_emotional_label(emotional_weight: int) -> str:

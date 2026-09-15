@@ -227,8 +227,8 @@ def rate_limit(
 
                 # Return error message (graceful degradation)
                 default_message = (
-                    f"Limite de requêtes dépassée pour {tool_name}. "
-                    f"Veuillez patienter {retry_after_seconds} secondes avant de réessayer."
+                    f"Rate limit exceeded for {tool_name}. "
+                    f"Retry in {retry_after_seconds} seconds."
                 )
 
                 import json

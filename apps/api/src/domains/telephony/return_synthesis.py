@@ -31,8 +31,8 @@ from pydantic import ValidationError
 
 from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.i18n import get_language_name
 from src.core.i18n_telephony import get_return_phrases
-from src.core.i18n_types import get_language_name
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.domains.telephony.models import PhoneCallOutcome, PhoneCallStatus
 from src.domains.telephony.prompts.loader import load_telephony_prompt

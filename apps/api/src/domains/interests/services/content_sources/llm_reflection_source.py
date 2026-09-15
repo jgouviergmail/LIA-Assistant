@@ -22,7 +22,7 @@ from uuid import UUID
 from langchain_core.messages import AIMessage
 
 from src.core.config import settings
-from src.core.i18n_types import get_language_name
+from src.core.i18n import get_language_name
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.domains.agents.prompts import load_prompt
 from src.domains.interests.services.content_sources.base import ContentResult

@@ -1,0 +1,17 @@
+# Scaffolds of the draft-modifier prompt, `key|template` per line; blank lines and
+# #-comments are ignored (prompt audit 2026-09-12, lot B). str.format templates.
+
+user_message|Modify the draft according to the instructions: {instructions}
+sender_info|SENDER (the user writing this): {sender_name}
+contacts_header|## Contact email addresses available
+contact_line|- {name}: {emails}
+recipient|Current recipient (editable): {to}
+recipient_unspecified|not specified
+cc|Current CC (editable): {cc}
+subject|Current subject: {subject}
+event|Event: {summary}
+event_date|Date: {start}
+contact|Contact: {name}
+task|Task: {title}
+generic|Generic draft
+expected_field|"{field}": "modified content"

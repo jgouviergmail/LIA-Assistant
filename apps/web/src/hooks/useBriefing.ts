@@ -18,6 +18,7 @@ import apiClient from '@/lib/api-client';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import type {
   BriefingResponse,
+  BriefingWindows,
   CardsBundle,
   RefreshRequest,
   RefreshScope,
@@ -26,6 +27,7 @@ import type {
 
 interface CardsResponse {
   cards: CardsBundle;
+  windows: BriefingWindows;
 }
 
 interface SynthesisResponse {
@@ -36,6 +38,8 @@ interface SynthesisResponse {
 export interface UseBriefingResult {
   /** Cards bundle (fast — no LLM). undefined while initial query is in flight. */
   cards: CardsBundle | undefined;
+  /** The windows the cards were built with, from the same response. */
+  windows: BriefingWindows | undefined;
   /** Greeting + synthesis (LLM). undefined while LLM call is in flight. */
   text: SynthesisResponse | undefined;
   /** True while either initial query is loading. */
@@ -84,12 +88,12 @@ export function useBriefing(): UseBriefingResult {
         if (section === 'all') {
           // Global refresh: the LLM texts summarize the cards, regenerate both.
           const fresh = await apiClient.post<BriefingResponse>(ENDPOINT_REFRESH, payload);
-          cardsQuery.setData({ cards: fresh.cards });
+          cardsQuery.setData({ cards: fresh.cards, windows: fresh.windows });
           synthesisQuery.setData({ greeting: fresh.greeting, synthesis: fresh.synthesis });
         } else {
           // D-04: a per-card retry must not pay two LLM calls — cards only.
           const fresh = await apiClient.post<CardsResponse>(ENDPOINT_REFRESH_CARDS, payload);
-          cardsQuery.setData({ cards: fresh.cards });
+          cardsQuery.setData({ cards: fresh.cards, windows: fresh.windows });
         }
       } finally {
         setRefreshing(prev => {
@@ -108,6 +112,7 @@ export function useBriefing(): UseBriefingResult {
 
   return {
     cards: cardsQuery.data?.cards,
+    windows: cardsQuery.data?.windows,
     text: synthesisQuery.data,
     loading: cardsQuery.loading || synthesisQuery.loading,
     cardsLoading: cardsQuery.loading,

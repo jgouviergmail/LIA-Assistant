@@ -34,7 +34,7 @@ import { TasksCard } from '../cards/TasksCard';
 import { BirthdaysCard } from '../cards/BirthdaysCard';
 import { DocumentsCard } from '../cards/DocumentsCard';
 import { openCardActions, runCardAction } from '../cards/__tests__/card-actions-harness';
-import type { CardSection, SectionData } from '@/types/briefing';
+import type { BriefingWindows, CardSection, SectionData } from '@/types/briefing';
 
 const push = vi.fn();
 
@@ -77,6 +77,13 @@ function section<T extends SectionData>(data: T): CardSection<T> {
 }
 
 const cardProps = { isRefreshing: false, onRefresh: vi.fn(), staggerIndex: 0 };
+const WINDOWS: BriefingWindows = {
+  birthdays_horizon_days: 7,
+  health_window_days: 14,
+  agenda_lookahead_hours: 24,
+  tasks_horizon_days: 7,
+  weather_forecast_days: 5,
+};
 
 function lastUrl(): string {
   return openChat.mock.calls[openChat.mock.calls.length - 1][0] as string;
@@ -184,6 +191,7 @@ describe('birthday action (QW-24)', () => {
     const { user } = renderWithProviders(
       <BirthdaysCard
         {...cardProps}
+        windows={WINDOWS}
         section={section({
           items: [
             { contact_name: 'Gérard Dupont', date_iso: '--07-25', days_until: 3, age_at_next: 42 },

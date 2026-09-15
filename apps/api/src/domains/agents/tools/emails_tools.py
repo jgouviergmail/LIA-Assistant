@@ -46,8 +46,8 @@ from src.core.constants import (
 from src.core.field_names import (
     FIELD_CACHED_AT,
 )
+from src.core.i18n import get_language_name
 from src.core.i18n_api_messages import APIMessages, SupportedLanguage
-from src.core.i18n_types import get_language_name
 from src.core.validators import validate_email
 from src.domains.agents.constants import AGENT_EMAIL, CONTEXT_DOMAIN_EMAILS
 from src.domains.agents.context import ContextTypeDefinition, ContextTypeRegistry

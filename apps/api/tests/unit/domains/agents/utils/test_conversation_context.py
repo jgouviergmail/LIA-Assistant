@@ -33,7 +33,7 @@ class TestFormatConversationHistoryBasic:
     def test_format_empty_messages(self):
         """Test formatting with empty message list."""
         result = format_conversation_history([])
-        assert result == "(aucun historique)"
+        assert result == ""
 
     def test_format_single_human_message(self):
         """Test formatting a single HumanMessage."""
@@ -140,7 +140,7 @@ class TestFormatConversationHistorySpecialCases:
             AIMessage(content="   "),
         ]
         result = format_conversation_history(messages)
-        assert result == "(aucun historique)"
+        assert result == ""
 
     def test_handles_unknown_message_type(self):
         """Test handling of unknown message types."""
@@ -169,7 +169,7 @@ class TestFormatConversationHistoryEdgeCases:
         messages = [msg]
         result = format_conversation_history(messages)
 
-        assert result == "(aucun historique)"
+        assert result == ""
 
     def test_preserves_message_order(self):
         """Test that message order is preserved."""
@@ -719,7 +719,7 @@ class TestFormatConversationHistoryGemini3:
         """A reasoning-only list (no text block) yields no line, no crash."""
         messages = [AIMessage(content=[{"type": "thinking", "thinking": "..."}])]
         result = format_conversation_history(messages)
-        assert result == "(aucun historique)"
+        assert result == ""
 
     def test_summary_for_logging_handles_list_content(self):
         """get_conversation_summary_for_logging coerces list content to text."""

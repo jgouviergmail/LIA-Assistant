@@ -28,11 +28,13 @@ from src.core.constants import OLLAMA_BASE_URL_ENV
 from src.core.reasoning_intent import requested_level
 from src.domains.llm_config.cache import LLMConfigOverrideCache
 from src.domains.llm_config.constants import LLM_PROVIDERS
+from src.infrastructure.llm.providers.deepseek_limits import capped_max_tokens
 from src.infrastructure.llm.providers.ollama_urls import ollama_native_root
 from src.infrastructure.llm.providers.responses_adapter import (
     create_responses_llm,
     is_responses_api_eligible,
 )
+from src.infrastructure.llm.reasoning.profiles import is_deepseek_thinking_model
 from src.infrastructure.llm.reasoning.translate import kwargs_for as reasoning_kwargs_for
 from src.infrastructure.observability.logging import get_logger
 
@@ -556,16 +558,21 @@ class ProviderAdapter:
         - V3 ``deepseek-chat`` / ``deepseek-reasoner`` (legacy, slated for
           deprecation; ``deepseek-chat`` already routes to V4-flash on the
           backend per upstream community confirmation).
-        - V4 ``deepseek-v4-flash`` / ``deepseek-v4-pro``: same model invoked
-          with or without thinking mode via the ``thinking.type`` extra-body
-          field. Thinking is enabled by default. Sampling parameters
-          (``temperature``, ``top_p``, ``frequency_penalty``,
+        - The thinking-toggle family -- ``deepseek-flash`` (the current name,
+          DeepSeek-V4.1-Flash), ``deepseek-v4-pro`` and the retired
+          ``deepseek-v4-flash`` aliases -- declared ONCE in
+          ``reasoning/profiles.py``: same model invoked with or without
+          thinking mode via the ``thinking.type`` extra-body field. Thinking
+          is enabled by default, at effort ``high``, and its tokens count
+          INSIDE ``max_tokens`` (measured 2026-09-12: a 150-token budget came
+          back as 150 reasoning tokens and an empty answer). Sampling
+          parameters (``temperature``, ``top_p``, ``frequency_penalty``,
           ``presence_penalty``) are silently ignored when thinking is on.
 
-        Reasoning effort mapping for V4 (LIA's 6-level scale → DeepSeek API):
+        Reasoning effort mapping (LIA's ladder → DeepSeek API, ``translate.py``):
         - ``none`` → ``thinking.type=disabled`` (no thinking)
-        - ``minimal`` / ``low`` / ``medium`` → ``thinking.type=enabled, reasoning_effort=high``
-        - ``high`` / ``xhigh`` → ``thinking.type=enabled, reasoning_effort=max``
+        - ``low`` / ``high`` / ``max`` → ``thinking.type=enabled, reasoning_effort=<level>``
+        - any other stored level is coerced onto that ladder, counted and logged
 
         We use a local ``ChatDeepSeekPatched`` subclass that round-trips
         ``reasoning_content`` between turns — required by the V4 API
@@ -573,8 +580,9 @@ class ProviderAdapter:
         See ``_deepseek_patched.py`` for the full rationale.
 
         Args:
-            model: DeepSeek model name (``deepseek-chat``, ``deepseek-reasoner``,
-                ``deepseek-v4-flash``, ``deepseek-v4-pro``)
+            model: DeepSeek model name (``deepseek-flash``, ``deepseek-v4-pro``,
+                the retired ``deepseek-v4-flash``, or the V3 ``deepseek-chat`` /
+                ``deepseek-reasoner``)
             temperature: Temperature parameter
             max_tokens: Maximum tokens to generate
             streaming: Enable streaming
@@ -601,18 +609,20 @@ class ProviderAdapter:
                 "Install it with: pip install langchain-deepseek"
             ) from e
 
-        is_v4 = model.startswith("deepseek-v4-")
-        is_reasoner_v3 = "reasoner" in model and not is_v4
+        # ONE declaration of the family (profiles.py): a private prefix test
+        # here missed ``deepseek-flash`` while the rule table missed it too.
+        is_thinking_family = is_deepseek_thinking_model(model)
+        is_reasoner_v3 = "reasoner" in model and not is_thinking_family
         reasoning_value = kwargs.pop("reasoning_effort", None)
 
-        # V4 thinking mode: delegate to the single reasoning seam (ADR-245).
-        # DeepSeek's family ladder is (none, high, max) and the write path only
-        # ever stores one of those, so the translator emits the API shape
-        # directly; a level from a stale row is coerced, counted and logged.
-        if is_v4:
-            v4_kwargs = reasoning_kwargs_for("deepseek", model, reasoning_value)
-            _merge_extra_body(kwargs, v4_kwargs.pop("extra_body", {}))
-            kwargs.update(v4_kwargs)  # adds top-level reasoning_effort when applicable
+        # Thinking mode (V4 and V4.1): delegate to the single reasoning seam
+        # (ADR-245). The family ladder is (none, low, high, max) and the write
+        # path only ever stores one of those, so the translator emits the API
+        # shape directly; a level from a stale row is coerced, counted and logged.
+        if is_thinking_family:
+            thinking_kwargs = reasoning_kwargs_for("deepseek", model, reasoning_value)
+            _merge_extra_body(kwargs, thinking_kwargs.pop("extra_body", {}))
+            kwargs.update(thinking_kwargs)  # adds top-level reasoning_effort when applicable
             extra_body: dict[str, Any] = kwargs.get("extra_body") or {}
 
             # When thinking is enabled, sampling params are silently ignored by
@@ -638,20 +648,11 @@ class ProviderAdapter:
                 msg="deepseek-reasoner does not support sampling parameters (temperature, top_p, penalties): omitted",
             )
 
-        # max_tokens limits per model family
-        if is_v4:
-            deepseek_max_tokens_limit = 64000  # V4 family supports large output budgets
-        else:
-            deepseek_max_tokens_limit = 64000 if is_reasoner_v3 else 8192
-        if max_tokens > deepseek_max_tokens_limit:
-            logger.warning(
-                "deepseek_max_tokens_capped",
-                requested=max_tokens,
-                capped_to=deepseek_max_tokens_limit,
-                model=model,
-                msg=f"max_tokens={max_tokens} exceeds DeepSeek limit, capped to {deepseek_max_tokens_limit}",
-            )
-            max_tokens = deepseek_max_tokens_limit
+        # Output ceiling per family (deepseek_limits.py): the catalogue row for
+        # the thinking family, the documented V3 figures otherwise.
+        max_tokens = capped_max_tokens(
+            model, max_tokens, thinking_family=is_thinking_family, reasoner_v3=is_reasoner_v3
+        )
 
         # ADR-220: ask for usage on streamed responses. Applied per-request by
         # _should_stream_usage (streamed only), so non-streamed calls are

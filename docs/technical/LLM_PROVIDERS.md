@@ -133,8 +133,13 @@ OLLAMA_BASE_URL=http://localhost:11434  # URL du serveur Ollama local (pas une c
 
 | Modele (valeur `.env`) | Context | Max Output | Type | Prix (input/output $/1M) | Cache hit |
 |------------------------|---------|------------|------|--------------------------|-----------|
-| `deepseek-chat` | 128K | 8K | Standard (V3.2) | $0.28 / $0.42 | $0.028 |
-| `deepseek-reasoner` | 128K | 64K | **Thinking** (V3.2) | $0.28 / $0.42 | $0.028 |
+| `deepseek-flash` | 1M | 384K | **Thinking par défaut**, débrayable (V4.1-Flash, vision) | $0.15 / $0.60 hors pointe, $0.30 / $1.20 en pointe | $0.003 / $0.006 |
+| `deepseek-v4-pro` | 1M | 384K | **Thinking par défaut**, débrayable (V4-Pro) | $0.66 / $1.98 hors pointe, $1.32 / $3.96 en pointe | $0.022 / $0.044 |
+| `deepseek-v4-flash` | 1M | 384K | alias **retiré** (encore accepté, servi par V4.1-Flash) | — | — |
+| `deepseek-chat` | 128K | 8K | Standard (V3.2, legacy) | $0.28 / $0.42 | $0.028 |
+| `deepseek-reasoner` | 128K | 64K | **Thinking** (V3.2, legacy) | $0.28 / $0.42 | $0.028 |
+
+Les trois premiers forment la **famille thinking** (une seule déclaration, `DEEPSEEK_THINKING_PREFIXES` dans `reasoning/profiles.py`) : même modèle avec ou sans raisonnement, activé **par défaut** et compté **dans** `max_tokens`. Les heures de pointe sont 01:00-04:00 et 06:00-10:00 UTC en semaine (tarif par plages, ADR-223). Mapping complet et contraintes : [LLM_PROVIDER_CONSTRAINTS.md §DeepSeek](./LLM_PROVIDER_CONSTRAINTS.md).
 
 **Distinction thinking / non-thinking** : uniquement par le **nom du modele** dans `.env` :
 ```bash
@@ -375,7 +380,7 @@ En cas d'echec du provider principal, le systeme bascule automatiquement sur les
 
 ```bash
 # Liste ordonnee de fallback (CSV)
-FALLBACK_MODELS=claude-sonnet-4-5,deepseek-chat
+FALLBACK_MODELS=claude-sonnet-4-6,deepseek-v4-flash
 ```
 
 Le middleware detecte automatiquement le provider a partir du nom du modele et tente chaque fallback dans l'ordre.

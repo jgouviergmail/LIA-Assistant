@@ -26,6 +26,7 @@ from uuid import UUID
 import structlog
 
 from src.core.constants import PUSH_WAKE_MAIL_MAX_MESSAGES
+from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.push_channels.wake import WakePayload
 from src.domains.push_channels.wake_filter import (
     CalendarWakeRules,
@@ -166,13 +167,24 @@ def fresh_section(provider: str | None) -> str | None:
     trigger = _WAKE_TRIGGERS.get(provider or "")
     if trigger is None:
         return None
-    from src.domains.agents.prompts.prompt_loader import load_prompt_with_fallback
+    return build_fresh_block(trigger)
 
-    template = load_prompt_with_fallback(
-        "heartbeat_wake_fresh_prompt",
-        fallback_content="FRESH: {trigger}. This is why you were woken now.",
-    )
-    return template.strip().format(trigger=trigger)
+
+def build_fresh_block(trigger: str) -> str:
+    """Render the FRESH line from its versioned prompt, and nothing else.
+
+    No inline fallback: the one that existed had already lost the file's rule
+    (« an interruption still has to earn itself ») — a fallback that contradicts
+    the versioned text is the 2026-09-06 trap, and a missing file is a broken
+    deployment that must fail loudly (prompt audit 2026-09-12).
+
+    Args:
+        trigger: The wording of the event that woke the decision.
+
+    Returns:
+        The rendered FRESH line.
+    """
+    return load_prompt("heartbeat_wake_fresh_prompt").strip().format(trigger=trigger)
 
 
 async def wake_or_delta_messages(

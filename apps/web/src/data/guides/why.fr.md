@@ -4,7 +4,7 @@
 
 **Version** : 6.0
 **Date** : 2026-08-23
-**Application** : LIA v1.44.5
+**Application** : LIA v1.44.6
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -283,6 +283,7 @@ LIA ne se contente pas de tourner sur du matériel modeste — elle **optimise a
 - **Apprentissage de patterns** : les plans validés sont mémorisés et réutilisés sans rappeler le LLM
 - **Message Windowing** : chaque composant ne voit que le contexte strictement nécessaire
 - **Cache de prompts** : exploitation du cache natif des fournisseurs pour limiter les coûts récurrents
+- **Des prompts sans poids mort** : un contexte n'est enveloppé que s'il existe, si bien qu'un tour nu ne porte aucune enveloppe vide, et une notification de deux phrases se demande sans réflexion — sur un modèle qui réfléchit par défaut, la réflexion se facture dans le budget de la réponse
 
 Combinées, ces optimisations expliquent l'écart de 4 à 8 entre le mode Pipeline et le mode agent autonome, à service rendu équivalent.
 
@@ -457,7 +458,7 @@ Cette exigence descend jusqu'à la machine. Un serveur est plusieurs processus, 
 
 ### 8.3. Un pipeline anti-hallucination
 
-Le système de réponse dispose d'un mécanisme anti-hallucination en trois couches : formatage des données avec limites explicites, directives imposant l'usage exclusif de données vérifiées, et gestion des cas limites. Le LLM est contraint de ne synthétiser que ce qui provient des résultats réels des outils.
+Le système de réponse dispose d'un mécanisme anti-hallucination en trois couches : formatage des données avec limites explicites, directives imposant l'usage exclusif de données vérifiées, et gestion des cas limites. Le LLM est contraint de ne synthétiser que ce qui provient des résultats réels des outils. Et ce que le modèle lit est vrai : un prompt n'énonce que ce que le code impose — une borne publiée est la borne appliquée, un nombre vient d'un réglage — et une consigne n'est émise que quand son contenu existe.
 
 ### 8.4. Human-in-the-Loop à 6 niveaux
 

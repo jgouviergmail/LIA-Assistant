@@ -72,6 +72,7 @@ from src.domains.briefing.llm import generate_greeting, generate_synthesis
 from src.domains.briefing.preferences import sanitize_briefing_preferences
 from src.domains.briefing.schemas import (
     BriefingResponse,
+    BriefingWindows,
     CardsBundle,
     CardSection,
     CardStatus,
@@ -139,6 +140,22 @@ def _resolve_user_tz(user: User) -> ZoneInfo:
     copies, and a third caller had to import THIS private symbol to reuse it.
     """
     return resolve_user_timezone(user)
+
+
+def build_briefing_windows() -> BriefingWindows:
+    """The windows the fetchers read from settings, published with the cards.
+
+    Returns:
+        One ``BriefingWindows`` built from the live settings — the same values
+        ``fetch_birthdays``, ``fetch_health`` and the others pass to their sources.
+    """
+    return BriefingWindows(
+        birthdays_horizon_days=settings.briefing_max_birthdays_horizon_days,
+        health_window_days=settings.briefing_health_window_days,
+        agenda_lookahead_hours=settings.briefing_agenda_lookahead_hours,
+        tasks_horizon_days=settings.briefing_tasks_horizon_days,
+        weather_forecast_days=settings.briefing_weather_daily_forecast_days,
+    )
 
 
 def _has_content(data: Any) -> bool:
@@ -602,6 +619,7 @@ class BriefingService:
             greeting=text.greeting,
             synthesis=text.synthesis,
             cards=cards,
+            windows=build_briefing_windows(),
         )
 
     # =========================================================================

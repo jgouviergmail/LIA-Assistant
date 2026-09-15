@@ -57,7 +57,6 @@ from src.core.constants import (
     COMPACTION_RETRY_BACKOFF_BASE_SECONDS_DEFAULT,
     COMPACTION_THRESHOLD_RATIO_DEFAULT,
     COMPACTION_TOKEN_THRESHOLD_DEFAULT,
-    CONTACTS_AGENT_PROMPT_VERSION_DEFAULT,
     CONTEXT_ACTIVE_WINDOW_TURNS_DEFAULT,
     CONTEXT_CURRENT_ITEM_CONFIDENCE_DEFAULT,
     CONTEXT_DEMONSTRATIVE_CONFIDENCE_DEFAULT,
@@ -294,7 +293,6 @@ from src.core.constants import (
     ROUTER_CONFIDENCE_LOW_DEFAULT,
     ROUTER_CONFIDENCE_MEDIUM_DEFAULT,
     ROUTER_DEBUG_LOG_PATH_DEFAULT,
-    ROUTER_PROMPT_VERSION_DEFAULT,
     SEMANTIC_DOMAIN_HARD_THRESHOLD_DEFAULT,
     SEMANTIC_DOMAIN_MAX_DOMAINS_DEFAULT,
     SEMANTIC_DOMAIN_SOFT_THRESHOLD_DEFAULT,
@@ -350,13 +348,11 @@ from src.core.constants import (
     V3_DOMAIN_SCORE_DELTA_MIN,
     V3_DOMAIN_SECONDARY_THRESHOLD,
     V3_DOMAIN_SOFTMAX_TEMPERATURE,
-    V3_ROUTER_PROMPT_VERSION,
     V3_ROUTING_CHAT_OVERRIDE_THRESHOLD,
     V3_ROUTING_CHAT_SEMANTIC_THRESHOLD,
     V3_ROUTING_CROSS_DOMAIN_THRESHOLD,
     V3_ROUTING_HIGH_SEMANTIC_THRESHOLD,
     V3_ROUTING_MIN_CONFIDENCE,
-    V3_SMART_PLANNER_PROMPT_VERSION,
     V3_TOOL_CALIBRATED_PRIMARY_MIN,
     V3_TOOL_SELECTOR_HYBRID_ALPHA_DEFAULT,
     V3_TOOL_SELECTOR_HYBRID_MODE_DEFAULT,
@@ -577,7 +573,7 @@ class AgentsSettings(BaseSettings):
     react_agent_max_iterations: int = Field(
         default=REACT_AGENT_MAX_ITERATIONS_DEFAULT,
         gt=1,
-        le=100,
+        le=200,
         description="Max ReAct loop iterations (each = 1 LLM call + tool execution).",
     )
     react_agent_timeout_seconds: int = Field(
@@ -2307,20 +2303,12 @@ class AgentsSettings(BaseSettings):
     # ========================================================================
     # Prompt Versioning (All Agents & Nodes)
     # ========================================================================
-    router_prompt_version: str = Field(
-        default=ROUTER_PROMPT_VERSION_DEFAULT,
-        description="Router system prompt version (for A/B testing and rollbacks)",
-    )
     # NOTE: Dynamic domain injection is now always enabled.
     # Domains are generated at runtime from DOMAIN_REGISTRY in domain_taxonomy.py.
     # This is the single source of truth for domain definitions.
     response_prompt_version: str = Field(
         default=RESPONSE_PROMPT_VERSION_DEFAULT,
         description="Response node system prompt version (for A/B testing and rollbacks)",
-    )
-    contacts_agent_prompt_version: str = Field(
-        default=CONTACTS_AGENT_PROMPT_VERSION_DEFAULT,
-        description="Contacts agent system prompt version (for A/B testing and rollbacks)",
     )
     emails_agent_prompt_version: str = Field(
         default=EMAILS_AGENT_PROMPT_VERSION_DEFAULT,
@@ -2783,18 +2771,6 @@ class AgentsSettings(BaseSettings):
             "When False: action buttons are hidden in all HTML card components. "
             "Useful for production environments where actions aren't yet implemented."
         ),
-    )
-
-    # ------------------------------------------------------------------------
-    # V3 Prompt Versions
-    # ------------------------------------------------------------------------
-    v3_router_prompt_version: str = Field(
-        default=V3_ROUTER_PROMPT_VERSION,
-        description="Prompt version for v3 router (for A/B testing and rollbacks).",
-    )
-    v3_smart_planner_prompt_version: str = Field(
-        default=V3_SMART_PLANNER_PROMPT_VERSION,
-        description="Prompt version for v3 smart planner (for A/B testing and rollbacks).",
     )
 
     # ------------------------------------------------------------------------

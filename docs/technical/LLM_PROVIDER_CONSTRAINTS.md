@@ -24,7 +24,7 @@ The matrix below documents **family-level** behaviour for human reference. The r
 | **Gemini** (2.0-flash, 2.5-flash/pro) | 0-2.0 | ✅ | ❌ | ❌ | ✅ → `thinking_*` + `include_thoughts`² | `max_output_tokens` |
 | **DeepSeek chat** (V3, legacy) | 0-2.0 | ✅ | ✅ | ✅ | — | `max_tokens` (cap 8192) |
 | **DeepSeek reasoner** (R1, legacy) | ❌ | ❌ | ❌ | ❌ | — | `max_tokens` (cap 64000) |
-| **DeepSeek V4** (`deepseek-v4-flash`, `deepseek-v4-pro`) | 0-2.0⁶ | ✅⁶ | ✅⁶ | ✅⁶ | ✅ → `thinking.type` + `reasoning_effort` | `max_tokens` (cap 64000) |
+| **DeepSeek thinking family** (`deepseek-flash`, `deepseek-v4-pro`, retired `deepseek-v4-flash`) | 0-2.0⁶ | ✅⁶ | ✅⁶ | ✅⁶ | ✅ → `thinking.type` + `reasoning_effort` | `max_tokens` (cap = catalogue `max_output_tokens`, 64000 fallback; **includes the thinking**) |
 | **Perplexity** (sonar, sonar-pro) | 0-2.0 | ✅ | 1.0-2.0³ | -2 to 2 | — | `max_tokens` |
 | **Ollama** | 0-2.0 | ✅ | ~⁴ | ~⁴ | — | `max_tokens` |
 
@@ -218,21 +218,25 @@ Gemini 3.x (e.g. `gemini-3-pro-preview`, `gemini-3.5-flash`) returns `AIMessage`
 - `max_tokens` capped at 64000
 - Does NOT support tools or structured output
 
-**deepseek-v4-flash, deepseek-v4-pro (V4 family)**:
+**deepseek-flash, deepseek-v4-pro, and the retired deepseek-v4-flash (the thinking family)**:
 
-The V4 models are **the same model invoked with or without thinking mode** (toggle per-request). Thinking is enabled by default. Configuration is driven by `reasoning_effort` from LIA's 6-level UI scale, mapped at the adapter level to DeepSeek's `extra_body.thinking` + `reasoning_effort` API fields:
+`deepseek-flash` is the vendor's **current** name (DeepSeek-V4.1-Flash, vision capable); `deepseek-v4-flash` and `deepseek-v4-flash-vision-exp` are retired aliases the API still accepts, and `deepseek-v4-pro` is DeepSeek-V4-Pro. They share ONE API shape — **the same model invoked with or without thinking mode** (toggle per-request), thinking **enabled by default at effort `high`** — so they form one reasoning family, declared ONCE in [`reasoning/profiles.py`](../../apps/api/src/infrastructure/llm/reasoning/profiles.py) (`DEEPSEEK_THINKING_PREFIXES`, read by the adapter and the structured-output detour through `is_deepseek_thinking_model`). Until 2026-09-12 the three readers each kept a private `startswith("deepseek-v4-")`, so a row created for `deepseek-flash` fell through all of them: no ladder offered in the admin UI, no off switch sent, the V3 output cap applied, and every short-budget call came back empty.
 
-| LIA `reasoning_effort` | API mapping |
-|------------------------|-------------|
+The stored `ReasoningIntent` is translated by the single seam (ADR-245); the family ladder is the vendor's documented `low/high/max` plus the off switch:
+
+| LIA level | API mapping |
+|-----------|-------------|
 | `none` | `extra_body = {"thinking": {"type": "disabled"}}` |
-| `minimal`, `low`, `medium` | `extra_body = {"thinking": {"type": "enabled"}, "reasoning_effort": "high"}` |
-| `high`, `xhigh` | `extra_body = {"thinking": {"type": "enabled"}, "reasoning_effort": "max"}` |
+| `low`, `high`, `max` | `extra_body = {"thinking": {"type": "enabled"}, "reasoning_effort": "<level>"}` |
+| any other stored level | coerced onto that ladder (ties break upward, never to `none`), counted and logged |
 
-**`is_reasoning_model` in the catalogue**: set to `true` for both V4 models — they CAN think when asked. The toggle in Configuration LLM (effort=none vs anything else) controls per-node behavior.
+**`is_reasoning_model` in the catalogue**: `true` for the whole family — they CAN think when asked. The toggle in Configuration LLM (effort=none vs anything else) controls per-node behavior.
 
 **Sampling params silently ignored when thinking ON**: `temperature`, `top_p`, `frequency_penalty`, `presence_penalty` are accepted by the API but ignored. The adapter strips them locally for transparency.
 
-**`max_tokens` cap**: 64000 (large output budgets supported).
+**`max_tokens` INCLUDES the thinking.** Measured 2026-09-12 on `deepseek-flash`: a request for 150 tokens came back with `completion_tokens_details.reasoning_tokens = 150`, an empty `content` and `finish_reason = "length"` — the whole budget went to the hidden chain of thought. A caller that needs a short answer must therefore ask for **no reasoning** rather than a small budget (`short_answer_config` in `core/llm_config_helper.py`, used by the reminder job): a cap that includes the thinking is not a cap on the answer.
+
+**`max_tokens` cap**: the catalogue row's `max_output_tokens` (384 000 for `deepseek-flash`), 64 000 as the fallback for a model nobody has seeded ([`providers/deepseek_limits.py`](../../apps/api/src/infrastructure/llm/providers/deepseek_limits.py)).
 
 **Critical: `reasoning_content` round-trip in tool flows.** The DeepSeek V4 API rejects multi-turn requests with a `400 invalid_request_error` if a prior assistant message's `reasoning_content` is not echoed back in the next request:
 
@@ -246,7 +250,7 @@ We work around this with a **local subclass** `ChatDeepSeekPatched` ([`apps/api/
 
 **Tracking upstream**: [issue #37178](https://github.com/langchain-ai/langchain/issues/37178), [PR #37179](https://github.com/langchain-ai/langchain/pull/37179) (auto-closed by bot for procedural reasons, not technical). When a release of `langchain-deepseek` ships the round-trip natively, our `_deepseek_patched.py` module can be deleted and the adapter switched back to bare `ChatDeepSeek`.
 
-**Forced `tool_choice` not supported with thinking ON.** The DeepSeek API rejects requests that combine `thinking.type=enabled` with a forced `tool_choice` (the form `{"type": "function", "function": {"name": "..."}}` used internally by LangChain's `with_structured_output(method="function_calling")`). The error message paradoxically references `deepseek-reasoner` even when the request targets `deepseek-v4-flash` / `deepseek-v4-pro`:
+**Forced `tool_choice` not supported with thinking ON.** The DeepSeek API rejects requests that combine `thinking.type=enabled` with a forced `tool_choice` (the form `{"type": "function", "function": {"name": "..."}}` used internally by LangChain's `with_structured_output(method="function_calling")`). The error message paradoxically references `deepseek-reasoner` even when the request targets `deepseek-flash` / `deepseek-v4-pro`:
 
 ```
 Error code: 400 - 'deepseek-reasoner does not support this tool_choice'
@@ -256,7 +260,7 @@ Error code: 400 - 'deepseek-reasoner does not support this tool_choice'
 
 **Our resolution**: `get_structured_output()` ([`apps/api/src/infrastructure/llm/structured_output.py`](../../apps/api/src/infrastructure/llm/structured_output.py)) detects this combination via `_is_v4_thinking_enabled(llm)` and downgrades to the JSON-mode fallback path (`response_format={"type": "json_object"}`), which does not use `tool_choice`. The fallback parses the JSON output via Pydantic on our side. Schema conformance is enforced by the prompt + Pydantic validation rather than by the API.
 
-**Implication for admins**: a node that needs strict structured output (`query_analyzer`, `semantic_validator`, `planner`, etc.) on a V4 model will go through the JSON-mode fallback whenever `reasoning_effort != "none"`. If you want the more reliable native function-calling path, set `reasoning_effort="none"` for that node (V4 with thinking off behaves like V3 `deepseek-chat`).
+**Implication for admins**: a node that needs strict structured output (`query_analyzer`, `semantic_validator`, `planner`, etc.) on a model of the thinking family will go through the JSON-mode fallback whenever `reasoning_effort != "none"`. If you want the more reliable native function-calling path, set `reasoning_effort="none"` for that node (thinking off behaves like V3 `deepseek-chat`).
 
 ### Perplexity
 

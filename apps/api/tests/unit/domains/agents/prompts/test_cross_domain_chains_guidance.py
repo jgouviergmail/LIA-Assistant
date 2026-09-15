@@ -34,13 +34,10 @@ class TestCrossDomainChainsGuidance:
 
     def test_react_chains_have_no_stray_format_braces(self):
         """The block must not break str.format on the dynamic placeholders."""
-        content = load_prompt("react_agent_prompt", version="v1")
-        # Formatting with the documented placeholders must not raise on
-        # any stray literal brace introduced by the guidance block.
-        content.format(
-            personnalite="p",
-            user_language="fr",
-            semantic_dependencies="none",
-            current_datetime="2026-07-22 10:00",
-            user_timezone="Europe/Paris",
+        # Rendered by the REAL assembler: a stray literal brace introduced by
+        # the guidance block would raise here, whatever placeholders exist.
+        from src.domains.agents.nodes.react_prompt import (
+            build_system_prompt as _build_system_prompt,
         )
+
+        _build_system_prompt({"personality_instruction": "p", "user_language": "fr"})

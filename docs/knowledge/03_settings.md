@@ -517,6 +517,12 @@ code change.
 The depth actually used for each role (routing, planning, answering…) is set in
 **LLM Configuration**, where the same resolved list is offered.
 
+One thing to know about models that think by default: their thinking is billed
+inside the answer budget. LIA therefore writes its short notifications — a
+reminder, for instance — without thinking wherever the model can be told to, and
+a reply that comes back empty or cut is replaced by the plain sentence rather
+than sent as is.
+
 ## How does the settings priority chain work?
 
 LIA uses a three-level priority chain for all configurable values:

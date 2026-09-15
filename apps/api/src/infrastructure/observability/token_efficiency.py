@@ -22,6 +22,7 @@ Usage:
 import structlog
 from langchain_core.runnables import RunnableConfig
 
+from src.infrastructure.llm.usage_metadata import tokens_from_usage_metadata
 from src.infrastructure.observability.metrics_business import token_efficiency_ratio
 
 logger = structlog.get_logger(__name__)
@@ -95,9 +96,12 @@ def track_token_efficiency(
         )
         return
 
-    # Extract input/output tokens
-    input_tokens = usage_metadata.get("input_tokens", 0)
-    output_tokens = usage_metadata.get("output_tokens", 0)
+    # ONE reader for every provider's spelling; efficiency is measured over the
+    # WHOLE input (cached included) — a fully cached prompt is a real input,
+    # not a zero that would skip the metric.
+    tokens = tokens_from_usage_metadata(usage_metadata)
+    input_tokens = tokens.prompt + tokens.cached
+    output_tokens = tokens.completion
 
     # Validate input_tokens > 0 to avoid division by zero
     if input_tokens <= 0:

@@ -72,7 +72,9 @@ def format_conversation_history(
         max_content_length: Maximum length per message content (truncated if longer)
 
     Returns:
-        Formatted string with conversation history, or "(aucun historique)" if empty.
+        Formatted string with conversation history; empty when there is none, so
+        the response prompt omits its <History> section rather than wrapping a
+        French literal (prompt audit 2026-09-12).
 
     Format:
         [USER]: Message content here...
@@ -87,7 +89,7 @@ def format_conversation_history(
         [ASSISTANT]: Salut!
     """
     if not messages:
-        return "(aucun historique)"
+        return ""
 
     lines = []
     for msg in messages:
@@ -115,7 +117,7 @@ def format_conversation_history(
             lines.append(f"[{type(msg).__name__.upper()}]: {content}")
 
     if not lines:
-        return "(aucun historique)"
+        return ""
 
     return "\n".join(lines)
 

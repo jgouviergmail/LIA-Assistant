@@ -4,7 +4,7 @@
 
 **Version**: 2.1
 **Datum**: 2026-08-23
-**Anwendung**: LIA v1.44.5
+**Anwendung**: LIA v1.44.6
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -20,8 +20,8 @@ Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führ
 | Von einer KI geschriebener Code — geführt, gerahmt, kontrolliert | **≈ 100 %** |
 | Codezeilen (ohne Tests) — 49 Fachdomänen | **660.000** |
 | Automatisierte Tests, bei jedem Commit und Release ausgeführt | **36.000+** |
-| Dokumentierte Architekturentscheidungen (ADR) | **282** |
-| In regelmäßigem Rhythmus gelieferte Versionen | **258** |
+| Dokumentierte Architekturentscheidungen (ADR) | **284** |
+| In regelmäßigem Rhythmus gelieferte Versionen | **259** |
 | Sprachen, Parität automatisch geprüft | **6** |
 | Technisches Audit über 24 Bereiche | **8,3/10** |
 
@@ -50,11 +50,11 @@ Eine KI, die programmiert, produziert Volumen; Qualität produziert sie nur unte
 
 ## 4. Die Abwägungen
 
-Drei strukturelle Entscheidungen, unter den 282 dokumentierten:
+Drei strukturelle Entscheidungen, unter den 284 dokumentierten:
 
 **Souveränität & Reversibilität — keine irreversible Anbieterabhängigkeit.** Die KI-Modelle (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, lokale Modelle über Ollama) stehen hinter einer einzigen Abstraktion: Jede Nutzung kann per Konfiguration den Anbieter wechseln, mit Kostenvergleich. Dasselbe Prinzip auf Fachseite: Google, Apple und Microsoft sind pro Funktionskategorie austauschbar. Das Hosting ist vollständig kontrolliert; personenbezogene Daten sind verschlüsselt und bleiben auf der Infrastruktur.
 
-**KI-Ökonomie — die Kosten pro Anfrage sind ein Designkriterium.** Zwei Ausführungsmodi koexistieren: eine deterministische, sparsame Pipeline für alltägliche Anfragen, ein autonomer Agentenmodus für explorative — der gemessene Verbrauchsunterschied reicht von 1 zu 4-8, bei gleichwertiger Leistung in Standardfällen. Jeder Aufruf wird pro Token gezählt, in Euro bewertet, pro Nutzer und Modell aggregiert, durch Quoten gesteuert.
+**KI-Ökonomie — die Kosten pro Anfrage sind ein Designkriterium.** Zwei Ausführungsmodi koexistieren: eine deterministische, sparsame Pipeline für alltägliche Anfragen, ein autonomer Agentenmodus für explorative — der gemessene Verbrauchsunterschied reicht von 1 zu 4-8, bei gleichwertiger Leistung in Standardfällen. Jeder Aufruf wird pro Token gezählt, in Euro bewertet, pro Nutzer und Modell aggregiert, durch Quoten gesteuert. Selbst eine Benachrichtigung von zwei Sätzen wird ohne Nachdenken angefordert, weil ein Modell, das standardmäßig nachdenkt, sein Nachdenken innerhalb des Antwortbudgets abrechnet.
 
 **Risikobeherrschung — keine irreversible Aktion ohne menschliche Validierung.** Sechs Stufen menschlicher Kontrolle, abgestuft nach der Sensibilität der Aktion — von der Klärung bis zur Bestätigung destruktiver Operationen. Das Verhalten bei Unterbrechung ist spezifiziert und getestet: Eine ausstehende Validierung überlebt Neustarts, ohne Verlust und ohne Doppelausführung.
 

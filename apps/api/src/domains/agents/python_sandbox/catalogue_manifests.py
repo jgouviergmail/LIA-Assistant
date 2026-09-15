@@ -7,7 +7,11 @@ description also says when NOT to reach for it — without that sentence a
 capable tool becomes a hammer.
 """
 
-from src.core.constants import EXECUTION_MODE_REACT, PYTHON_SANDBOX_AGENT_NAME
+from src.core.constants import (
+    EXECUTION_MODE_REACT,
+    PYTHON_SANDBOX_AGENT_NAME,
+    PYTHON_SANDBOX_TOOL_NAME,
+)
 from src.domains.agents.registry.catalogue import (
     REASON_SANDBOXED_CONTAINER,
     CostProfile,
@@ -37,7 +41,7 @@ _DESCRIPTION = (
 )
 
 run_python_catalogue_manifest = ToolManifest(
-    name="run_python_tool",
+    name=PYTHON_SANDBOX_TOOL_NAME,
     mutation_policy="sandboxed",
     mutation_policy_reason=REASON_SANDBOXED_CONTAINER,
     agent=PYTHON_SANDBOX_AGENT_NAME,

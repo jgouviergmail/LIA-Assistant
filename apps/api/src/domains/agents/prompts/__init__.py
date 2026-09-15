@@ -25,8 +25,8 @@ import structlog
 
 from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
-from src.core.i18n import normalize_language
-from src.core.i18n_types import LANGUAGE_NAMES
+from src.core.i18n import get_language_name, normalize_language
+from src.core.prompt_store import parse_prompt_sections
 from src.domains.agents.prompts.prompt_loader import (
     PromptIntegrityError,
     PromptLoadError,
@@ -37,7 +37,6 @@ from src.domains.agents.prompts.prompt_loader import (
     get_prompt_metadata,
     list_available_prompts,
     load_prompt,
-    load_prompt_with_fallback,
     validate_all_prompts,
 )
 
@@ -340,11 +339,38 @@ def get_current_datetime_context(
 # ============================
 
 
+def _render_context_sections(values: dict[str, str]) -> str:
+    """Render the dynamic context blocks declared in ``response_context_sections``.
+
+    One ``<Tag>`` per section, in the file's order, emitted ONLY when its content
+    is non-empty — an empty wrapper under an instruction is noise the model is
+    asked to act on. A section declared with no tag (the psyche block, which
+    arrives already wrapped) is passed through as is.
+
+    Args:
+        values: Section key → content, as produced by ``get_response_prompt``.
+
+    Returns:
+        The blocks joined by a blank line; empty when nothing was provided.
+    """
+    blocks: list[str] = []
+    for key, tag, description in parse_prompt_sections(load_prompt("response_context_sections"), 3):
+        content = values.get(key, "")
+        if not content:
+            continue
+        if not tag:
+            blocks.append(content)
+            continue
+        opening = f"<{tag}>\n{description}" if description else f"<{tag}>"
+        blocks.append(f"{opening}\n{content}\n</{tag}>")
+    return "\n\n".join(blocks)
+
+
 def get_response_prompt(
     user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
     user_language: str = settings.default_language,
     personality_instruction: str | None = None,
-    conversation_history: str = "(aucun historique)",
+    conversation_history: str = "",
     window_size: int = 20,
     psychological_profile: str | None = None,
     knowledge_context: str = "",
@@ -363,11 +389,14 @@ def get_response_prompt(
 ) -> str:
     """Get the formatted system prompt for the response node.
 
-    Returns the formatted system prompt string (not a ChatPromptTemplate).
-    The caller (response_node) is responsible for building the ChatPromptTemplate
-    dynamically, conditionally including system blocks (rejection_override,
-    agent_results) only when non-empty. This prevents sending empty system
-    content blocks which are rejected by some LLM providers (e.g., Anthropic).
+    Returns a PLAIN string: the caller (response_node) escapes it once as a
+    whole before building its ChatPromptTemplate, which is why nothing is
+    escaped here — escaping a value here AND the whole prompt there sent every
+    ``{x}`` of a user query to the model as ``{{x}}`` (prompt audit 2026-09-12).
+
+    The dynamic tail is made of the sections declared in
+    ``response_context_sections.txt`` (key, tag, ONE instruction each), rendered
+    only when their content is non-empty — see ``_render_context_sections``.
 
     V3 Architecture: LLM generates conversational response only.
     Data formatting is handled by HTML components (ContactCard, EmailCard, etc.)
@@ -379,9 +408,9 @@ def get_response_prompt(
 
     Args:
         user_timezone: User's IANA timezone for temporal context.
-        user_language: User's language code (fr, en, etc.).
+        user_language: User's language code (fr, en, etc.); the model reads its name.
         personality_instruction: LLM personality prompt instruction.
-        conversation_history: Formatted conversation history string.
+        conversation_history: Formatted conversation history string, empty when none.
         window_size: Number of turns in conversation window.
         psychological_profile: User's psychological profile for memory injection.
         knowledge_context: Brave Search enrichment context for encyclopedic knowledge.
@@ -395,14 +424,18 @@ def get_response_prompt(
         anticipated_needs: List of anticipated user needs for proactive suggestions.
             Example: ["may want reminder", "may want to reschedule"]
             Used by LIA to provide proactive suggestions in response.
-        skills_context: Skills content per activation route.
-            Routes 1+2 (planner/bypass): L2 <skill_content> structured wrapping.
-            Route 3 (conversation): L1 catalogue with activate_skill_tool instruction.
+        skills_context: Kept in the signature for call-site compatibility; the
+            response node injects skills as a dedicated system message instead.
         rag_context: RAG Spaces context from user's knowledge documents.
             Injected from RAG retrieval service (hybrid semantic + BM25 search).
         app_knowledge_context: System RAG context (FAQ, app help).
             Injected only when is_app_help_query=True (lazy loading).
             Combined with app_identity_prompt for complete self-knowledge.
+        journal_context: Behavioral directives from the user's journal.
+        psyche_context: The psyche block, already wrapped by the psyche service.
+        peer_context: Local CRM facts about a CONNECTED user named in this turn,
+            labelled database-exact so they outrank recollection and explicitly
+            bounded by the user's 360° scope.
         recent_entities: Entities still in context from earlier turns, injected
             only when the current turn produced no structured data of its own
             (built by context/recent_entities.py). Non-authoritative by contract:
@@ -421,36 +454,29 @@ def get_response_prompt(
 
     default_personality = load_prompt("default_personality_prompt")
 
-    # Escape curly braces in user-provided content to prevent format() interpretation
-    # User query and data_for_filtering may contain {} which would be interpreted as placeholders
-    safe_user_query = escape_braces(user_query) if user_query else "(pas de requête)"
-    safe_enriched_query = escape_braces(enriched_query) if enriched_query else ""
-    safe_data_for_filtering = (
-        escape_braces(data_for_filtering) if data_for_filtering else "(pas de données)"
+    # skills_context is NOT injected in the base prompt — the response node wraps
+    # it in a dedicated, priority-higher "SKILL INSTRUCTIONS CONTRACT" system
+    # message. Kept in the signature for backwards-compatible call sites.
+    _ = skills_context  # noqa: F841
+
+    # Example: {"ma femme": "jean dupond"} → "ma femme" = jean dupond
+    resolved_refs_str = ", ".join(
+        f'"{ref}" = {name}' for ref, name in (resolved_references or {}).items()
     )
-    safe_knowledge_context = escape_braces(knowledge_context) if knowledge_context else ""
+    # Example: ["may want reminder", "may want to reschedule"] → "- …\n- …" (max 4)
+    anticipated_needs_str = "\n".join(f"- {need}" for need in (anticipated_needs or [])[:4])
 
-    # Format resolved references for natural response phrasing
-    # Example: {"ma femme": "jean dupond"} → "ma femme = jean dupond"
-    resolved_refs_str = ""
-    if resolved_references:
-        resolved_refs_str = ", ".join(
-            f'"{ref}" = {name}' for ref, name in resolved_references.items()
-        )
+    # App knowledge: the identity prompt, plus the system-RAG results when the
+    # caller passed more than the bare "this is an app-help query" sentinel.
+    app_knowledge = ""
+    if app_knowledge_context:
+        app_knowledge = load_prompt("app_identity_prompt")
+        if app_knowledge_context not in ("APP_HELP_QUERY",):
+            app_knowledge += "\n\n" + app_knowledge_context
 
-    # Format anticipated needs for proactive suggestions
-    # Example: ["may want reminder", "may want to reschedule"] → "- may want reminder\n- may want to reschedule"
-    anticipated_needs_str = ""
-    if anticipated_needs and len(anticipated_needs) > 0:
-        anticipated_needs_str = "\n".join(f"- {need}" for need in anticipated_needs[:4])  # Max 4
-    else:
-        anticipated_needs_str = "(aucun besoin anticipé)"
-
-    # Convert language code to human-readable name for LLM comprehension
-    # e.g., "zh-CN" → "Simplified Chinese", "fr" → "French". Normalize first so
-    # frontend-style locales ("zh", "fr-FR") resolve instead of leaking raw codes.
-    normalized_language = normalize_language(user_language)
-    user_language_name = LANGUAGE_NAMES.get(normalized_language, user_language)
+    # The model is told the language's NAME (« Simplified Chinese »), never a code;
+    # get_language_name normalises first, so a frontend « zh » cannot leak either.
+    user_language_name = get_language_name(user_language)
 
     logger.info(
         "response_prompt_language_conversion",
@@ -458,93 +484,32 @@ def get_response_prompt(
         user_language_name=user_language_name,
     )
 
-    # Build optional sections: wrap with XML tags ONLY when content is non-empty.
-    # This avoids injecting empty <Section></Section> tags that waste tokens.
-    def _wrap_section(tag: str, content: str, description: str = "") -> str:
-        """Wrap content in XML section tag if non-empty, else return empty string."""
-        if not content:
-            return ""
-        escaped = escape_braces(content)
-        desc = f"\n{description}" if description else ""
-        return f"<{tag}>{desc}\n{escaped}\n</{tag}>"
-
-    # skills_context is NOT injected in the base prompt anymore — the response
-    # node wraps it in a dedicated, priority-higher "SKILL INSTRUCTIONS
-    # CONTRACT" system message. Kept in the signature for backwards-compatible
-    # call sites; value is intentionally discarded here.
-    _ = skills_context  # noqa: F841
-    safe_rag_context = _wrap_section(
-        "RAGDocuments",
-        rag_context,
-        "Personal documents the user uploaded. Reference key passages but always synthesize.",
-    )
-    safe_journal_context = _wrap_section(
-        "JournalContext",
-        journal_context,
-        "Your behavioral directives from past interactions. Apply silently — do NOT quote entries.",
-    )
-    safe_psyche_context = escape_braces(psyche_context) if psyche_context else ""
-    # Local CRM facts about a CONNECTED user named in this turn. Labelled as
-    # database-exact so it outranks recollection, and explicitly bounded: the
-    # user's 360° scope decides which blocks exist, so a missing one means
-    # "not selected", never "nothing happened".
-    safe_peer_context = _wrap_section(
-        "PeerContext",
-        peer_context,
-        "Exact local records about a person connected to the user through LIA. "
-        "Answer from them directly instead of announcing a lookup. A block that "
-        "is absent was not selected by the user — never read it as an absence "
-        "of facts.",
-    )
-    # Entities still in context from earlier turns, injected ONLY when the current
-    # turn produced no data of its own (see context/recent_entities.py). Labelled
-    # as non-authoritative so <DataAuthority>'s hierarchy stays intact.
-    safe_recent_entities = _wrap_section(
-        "RecentEntities",
-        recent_entities,
-        "Entities from earlier turns of this conversation, still in context. Quote their "
-        "exact values (times, dates, addresses) rather than recalling from memory. They are "
-        "NOT current-turn results: never present them as freshly retrieved, and whenever "
-        "current turn data covers the same entity, that data wins.",
-    )
-    safe_knowledge_context = _wrap_section(
-        "KnowledgeEnrichment",
-        knowledge_context,
-        "Fresh factual data from web search. Synthesize — do not dump raw results.",
+    context_sections = _render_context_sections(
+        {
+            "user_query": user_query,
+            "enriched_query": enriched_query or "",
+            "data_for_filtering": data_for_filtering,
+            "psychological_profile": psychological_profile or "",
+            "journal_context": journal_context,
+            "psyche_context": psyche_context,
+            "knowledge_context": knowledge_context,
+            "rag_context": rag_context,
+            "app_knowledge_context": app_knowledge,
+            "resolved_references": resolved_refs_str,
+            "anticipated_needs": anticipated_needs_str,
+            "recent_entities": recent_entities,
+            "peer_context": peer_context,
+            "conversation_history": conversation_history,
+        }
     )
 
-    # App knowledge context: load identity prompt + optional system RAG results
-    # Injected when is_app_help_query=True (any truthy value triggers identity prompt)
-    safe_app_knowledge = ""
-    if app_knowledge_context:
-        app_identity = load_prompt("app_identity_prompt")
-        safe_app_knowledge = escape_braces(app_identity)
-        if app_knowledge_context not in ("APP_HELP_QUERY",):
-            safe_app_knowledge += "\n\n" + escape_braces(app_knowledge_context)
-        safe_app_knowledge = f"<AppKnowledge>\n{safe_app_knowledge}\n</AppKnowledge>"
-
-    formatted_system_prompt = response_system_prompt_template.format(
+    return response_system_prompt_template.format(
         user_language=user_language_name,
         current_datetime=get_current_datetime_context(user_timezone, user_language),
         personnalite=personality_instruction or default_personality,
-        conversation_history=conversation_history,
         window_size=window_size,
-        psychological_profile=psychological_profile or "",
-        knowledge_context=safe_knowledge_context,
-        rag_context=safe_rag_context,
-        user_query=safe_user_query,
-        enriched_query=safe_enriched_query,
-        data_for_filtering=safe_data_for_filtering,
-        resolved_references=resolved_refs_str,
-        anticipated_needs=anticipated_needs_str,
-        app_knowledge_context=safe_app_knowledge,
-        journal_context=safe_journal_context,
-        psyche_context=safe_psyche_context,
-        recent_entities=safe_recent_entities,
-        peer_context=safe_peer_context,
+        context_sections=context_sections,
     )
-
-    return formatted_system_prompt
 
 
 # ============================
@@ -739,7 +704,7 @@ def get_smart_planner_prompt(
         current_datetime=get_current_datetime_context(user_timezone, user_language),
         # Human-readable name ("French") — clearer language directive for the
         # LLM than a raw code ("fr"); same convention as get_response_prompt.
-        user_language=LANGUAGE_NAMES.get(normalize_language(user_language), user_language),
+        user_language=get_language_name(user_language),
         validation_feedback=validation_feedback or "",
         semantic_dependencies=semantic_dependencies or _get_semantic_deps_fallback(),
         learned_patterns=learned_patterns,
@@ -907,7 +872,6 @@ __all__ = [
     "get_prompt_metadata",
     "list_available_prompts",
     "load_prompt",
-    "load_prompt_with_fallback",
     "validate_all_prompts",
     # Helpers
     "escape_braces",

@@ -29,18 +29,21 @@ def test_provider_default_is_always_the_identity() -> None:
 def test_the_measured_case_never_disables_reasoning() -> None:
     """The decisive measured case: downward re-creates the failure being removed.
 
-    ``deepseek-v4-flash`` accepts ("none", "high", "max"). A request for "low"
-    is equidistant from "none" and "high". Breaking down disables reasoning
-    silently — the exact defect this model exists to remove, arriving through
-    another door.
+    ``deepseek-flash`` accepts ("none", "low", "high", "max"). A request for
+    "minimal" is equidistant from "none" and "low". Breaking down disables
+    reasoning silently — the exact defect this model exists to remove,
+    arriving through another door. (Measured first on the three-level ladder
+    with "low" as the tied request; "low" joined the ladder on 2026-09-12 when
+    the vendor's documented ``low/high/max`` replaced it, and the case moved
+    one rung down without changing.)
 
     NOTE: this case is decided by the ``none``-exclusion rule BEFORE the
     tie-break sign is consulted, so it does not pin that sign. Measured: with
     the sign reversed, this assertion still passes. The sign has its own test
     below, on a ladder where two real depths tie.
     """
-    profile = resolve_reasoning_profile("deepseek", "deepseek-v4-flash")
-    assert coerce("low", profile) == ("high", True)
+    profile = resolve_reasoning_profile("deepseek", "deepseek-flash")
+    assert coerce("minimal", profile) == ("low", True)
 
     adaptive = resolve_reasoning_profile("anthropic", "claude-opus-4-6")
     assert coerce("minimal", adaptive) == ("low", True)

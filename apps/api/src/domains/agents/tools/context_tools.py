@@ -154,7 +154,7 @@ async def resolve_reference(
             {
                 "success": false,
                 "error": "no_context",
-                "message": "Aucune liste 'contacts' active en mémoire."
+                "message": "No active 'contacts' list in memory."
             }
 
     Example Usage:

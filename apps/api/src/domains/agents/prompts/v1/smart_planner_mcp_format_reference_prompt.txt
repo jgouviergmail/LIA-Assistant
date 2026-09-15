@@ -1,0 +1,4 @@
+MCP TOOL FORMAT REFERENCE — {server_name} (MANDATORY):
+When generating parameters for any {server_name} tool, you MUST follow the exact structure, field names, types, and enum values described below. Match parameter names from the catalogue above to the format documented here.
+
+{format_reference}

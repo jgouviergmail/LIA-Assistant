@@ -34,255 +34,126 @@ Write in {user_language}. This is the user's configured language.
 SECTION 2 — THEMES (the ordered ladder: classify by SUBJECT)
 =================================================================
 
-The four themes are told apart by WHAT the directive is ABOUT — never by how it is
-grounded. EVERY theme's evidence is a past moment; a `BECAUSE` clause citing one is
-therefore NOT a signal of misclassification. Ask the questions in order and stop at
-the first YES; this is the same ladder the extraction prompt uses.
+The four themes are told apart strictly by WHAT the directive is ABOUT — never by how
+it is grounded. EVERY theme's evidence is a past moment; a `BECAUSE` clause citing one
+is normal and NOT a signal of misclassification. Run the ladder in order and stop at the first YES:
 
 ────────────────────────────────────────────────────────────────
 1. **self_reflection** — MY OWN DELIVERY
-About MY tone, register, pace or posture, grounded in a user reaction to something
-I said. It stays `self_reflection` even though the user's reaction is a specific
-past moment — the SUBJECT is my delivery, not a fact I got wrong.
+About MY tone, register, pace, format, or posture, grounded in a user reaction.
+It stays `self_reflection` even though grounded in a past incident.
 Example:
-  WHEN my reply turns sharp → DO reformulate before sending (BECAUSE the user told
-  me my tone put him off).
+  WHEN my reply turns sharp -> DO reformulate before sending BECAUSE user indicated the tone felt abrasive.
 
 2. **ideas_analyses** — TOPIC-INDEPENDENT SIGNAL
-A reading of a signal whose meaning holds whatever the subject is. The normal
-evidence is the same signal seen on two DIFFERENT subjects; it does not need to
-have been stated. Rare, but do not discard it for lack of an explicit statement.
+A systemic reading of a behavioral signal whose meaning holds regardless of the subject.
+Applies across domains.
 Example:
-  WHEN the user introduces a new topic with a short transition word
-  ("bon", "bref", "anyway") → interpret it as exiting one thread and opening
-  another, NOT as agreement on the previous one.
+  WHEN the user introduces a new topic with a short transition word ("bon", "bref", "anyway") -> DO treat it as closing the previous topic immediately rather than agreeing.
 
 3. **user_observations** — STABLE TRAIT OF THE USER
-A preference or trait of the user, stated or demonstrated at least twice.
+A durable preference, cognitive constraint, or workflow habit of the user, observed across multiple exchanges.
 Example:
-  User consistently asks for the cost / time / trade-off side of a recommendation
-  → surface it without being prompted.
+  WHEN presenting a technical recommendation -> DO systematically surface trade-offs and operational costs upfront BECAUSE user consistently prioritizes maintenance friction over feature novelty.
 
 4. **learnings** — LESSON ABOUT THE WORLD OR MY METHOD
-A specific moment taught me something repeatable about a fact I got wrong or an
-approach that worked.
+A factual correction or concrete operational lesson tied to a specific domain, tool, or external reality.
 Example:
-  WHEN I cite a film as "available now" → DO verify the release date first
-  (BECAUSE I was corrected at T-N for citing an unreleased film).
+  WHEN suggesting ffmpeg commands -> DO use modern syntax without deprecated flags BECAUSE previous invocation failed on user environment.
 
 ────────────────────────────────────────────────────────────────
 **Reclassification audit** — apply the ladder above, by SUBJECT:
-
-- An entry about the USER's stable traits that is filed under `learnings` because
-  its `BECAUSE` cites a correction → `user_observations`.
-- An entry reading a signal that holds across subjects, filed anywhere else →
-  `ideas_analyses`.
-- NEVER reclassify an entry about MY OWN tone, register or posture out of
-  `self_reflection` on the grounds that its `BECAUSE` cites a past moment. That
-  rule used to exist here and it silently emptied the theme: every well-formed
-  `self_reflection` carries such a clause by construction, because the extraction
-  prompt REQUIRES a user reaction to ground it.
-
-Never change a theme that is already correct, and never reclassify to chase a
-particular theme distribution.
+- An entry about the USER's durable traits filed under `learnings` -> update to `user_observations`.
+- An entry reading a signal that holds across subjects -> update to `ideas_analyses`.
+- NEVER move an entry about MY tone or posture out of `self_reflection`.
 
 =================================================================
 SECTION 3 — YOUR MISSION (execute steps in order)
 =================================================================
 
 ────────────────────────────────────────────────────────────────
-### STEP 1 — MANDATORY DEDUP via active pairwise scan
-
-Surface phrasing differs but semantic topic is what counts. Two entries on
-"sober support in vulnerability" and "sober tone in distress" are the SAME
-topic — they MUST be merged.
-
-Execute this active scan:
-
-1. List ALL active entries by their UNDERLYING TOPIC (what is at stake), not
-   by their phrasing. Group entries that share a topic.
-2. For ANY group of size ≥2: this is a duplicate cluster.
-   → CREATE one merged, denser entry combining the best of all sources.
-   → DELETE all source entries.
-3. Threshold for "same topic" is intentionally permissive: if a reasonable
-   reader would say "these two say the same thing in different words", merge.
-   Don't preserve nuance redundantly.
-
-GUARD: never merge two directives that prescribe DIFFERENT actions, even on the
-same topic — distinct actions are not duplicates. Merge wording, not behaviour.
-
-Dedup is the #1 quality lever. Be aggressive on true duplicates, within this guard.
+### STEP 1 — MANDATORY DEDUP via active pairwise scan (conservative merging)
+Merge entries sharing the exact same underlying intent, but PRESERVE operational maturity:
+1. Identify clusters of entries prescribing the same behavior.
+2. PREFER UPDATE OVER RECREATION: Pick the entry with the highest `uses` or `conf=high`,
+   `update` its content to incorporate the best phrasing/nuance, and emit `delete`
+   ONLY for the redundant twin(s). Do not reset proven directives to zero history.
+3. GUARD: Never merge two directives that prescribe DIFFERENT actions, even if they touch the same topic. Distinct operational actions are NOT duplicates.
 
 ────────────────────────────────────────────────────────────────
-### STEP 2 — RECLASSIFICATION audit
-
-Scan every active entry for theme misclassification, using SUBJECT — not the
-presence of a `BECAUSE` clause, which every theme has:
-
-1. Read what the directive is ABOUT, then run the Section 2 ladder on it.
-2. If the ladder's answer differs from the current theme → propose `update` with
-   the corrected `theme` (the rest of the content can stay).
-3. If the ladder's answer matches → leave it alone.
-
-Two rules that override any impression of misclassification:
-- An entry about MY tone/register/posture STAYS `self_reflection`, whatever its
-  `BECAUSE` says.
-- An entry reading a signal valid across subjects STAYS (or becomes)
-  `ideas_analyses`, even if the user never named the signal.
-
-Don't change themes for entries that are correctly classified. Audit, don't churn.
+### STEP 2 — RECLASSIFICATION AUDIT
+Audit active entries against the Section 2 ladder:
+- If the subject indicates a mismatch with the current theme, emit an `update` with
+  the corrected `theme`. Keep the UUID and content intact unless refinement is needed.
 
 ────────────────────────────────────────────────────────────────
 ### STEP 3 — PROGRESSIVE REFORMAT (max 5 entries per run)
-
-Identify entries that are narrative prose without actionable content. For up
-to 5 such entries:
-→ UPDATE to rewrite in the WHEN → DO (BECAUSE) directive format, or in the
-   phrasing its theme actually takes — use that theme's example in Section 2
-   as the model, OR
-→ DELETE if no actionable directive can be extracted.
+Identify entries written as unstructured narrative prose:
+- Rewrite up to 5 entries strictly into the operational format:
+  `WHEN [trigger & context] -> DO [concrete behavioral adjustment] BECAUSE [grounding fact]`.
+- Or `delete` if the entry contains zero actionable operational directives.
 
 ────────────────────────────────────────────────────────────────
-### STEP 4 — EPISTEMIC LIFECYCLE (use the visible metrics)
-
-Reason about each entry using the visible metadata:
-
-- High `ev`, low `co`, high `uses` → propose `confidence=high`.
-- Persistent contradictions (`co > ev`) AND directive remains unclear →
-  reformulate or delete.
-- Stale (`uses=0` AND `last_inj=never` AND `created` > 14 days) → reformulate
-  or delete.
-- Fresh hypotheses (`conf=low` AND `created` < 7 days) → leave them mature.
-- Validated (`conf=high`) → PROTECT.
+### STEP 4 — EPISTEMIC LIFECYCLE MANAGEMENT
+- Promote: High `ev`, low `co`, high `uses` -> emit `update` with `confidence="high"`.
+- Deprecate: Persistent contradictions (`co > ev`) where the rule actively fails -> update or delete.
+- Prune Stale: `uses=0` AND `last_inj="never"` AND `created` > 14 days without recurrence -> delete.
+- Protect: Timeless, verified rules (`conf="high"`, L2, L3) MUST NOT be pruned.
 
 ────────────────────────────────────────────────────────────────
-### STEP 5 — STRATIFICATION (synthesise ONLY on genuine convergence)
-
-Look for transversal patterns, but NEVER invent one to hit a count.
-
-1. Group current L1 entries by their UNDERLYING TOPIC, the same way you did
-   for dedup (e.g. "factual verification before recommending" might cover
-   several entries about checking dates, availability, claims).
-
-2. For a group where the entries genuinely converge on ONE interpretation
-   (not merely the same area), you MAY synthesise it:
-     (a) Create one L2 synthesis entry (`level=L2`) covering the cluster.
-         Format: "I notice that across [contexts], the user consistently
-         [pattern] — the unifying interpretation is [synthesis]."
-         Then optionally `delete` the absorbed L1 sources, or
-     (b) Update one L1 of the group to `level=L2` in the synthesis voice,
-         then delete the redundant L1 sources.
-   A synthesis must add a real unifying INSIGHT beyond the individual L1s.
-   If the entries only share a topic but prescribe DISTINCT actions, leave
-   them as separate L1 — that is not a convergence.
-
-3. Zero L2 is the CORRECT outcome when no genuine convergence exists. Do not
-   synthesise to satisfy a quota — a forced or spurious L2 is worse than none.
-
-4. Promotion L0 → L1: any L0 raw observation that has RECURRED enough to
-   articulate a clean directive should be promoted (theme + WHEN→DO BECAUSE
-   per Section 2). An isolated, one-off L0 is NOT promoted — leave it to mature
-   or delete it.
-
-5. Demotion: rare; prefer reformulation or deletion.
+### STEP 5 — STRATIFICATION (Synthesise ONLY on Genuine Convergence)
+- Promote L0 -> L1: When an L0 raw observation recurs with enough consistency to define a falsifiable rule, promote it to L1 using `WHEN [trigger] -> DO [action] BECAUSE [event]`.
+- Synthesise L1 -> L2: When multiple mature L1 directives converge into an overarching cognitive stance, create an L2 pattern:
+  "Across [contexts], the user demonstrates [pattern] — the unifying operational rule is [synthesis]."
+- L3 Structural Facets: Reserve L3 exclusively for permanent pillars of user identity, ethics, or foundational worldview. Never create an L3 for specific tools or transient habits.
+- NEVER force an L2 synthesis if entries prescribe distinct actions. Zero L2 is an entirely correct outcome.
 
 ────────────────────────────────────────────────────────────────
-### STEP 6 — STANDARD MAINTENANCE
-
-After dedup, reclassification, reformat, lifecycle, and stratification:
-- **Deepen**: Update an entry to add nuance from new evidence.
-- **Create**: Write a new cross-theme observation born from rereading.
-- **Summarize**: Condense verbose entries.
-- **Delete**: Remove obsolete observations.
+### STEP 6 — STANDARD HYGIENE & ANTI-CHURN GUARD
+- STABILITY PRINCIPLE: If an entry is clear, functional, and well-classified, LEAVE IT ALONE.
+  Never perform cosmetic paraphrasing or rewrite working directives.
+- If no duplicates, contradictions, or format breaches exist, emitting `actions: []` is the ideal outcome.
 
 ────────────────────────────────────────────────────────────────
-### STEP 7 — PORTRAIT COMPILATION (commit 3 of journal refactor)
+### STEP 7 — PORTRAIT COMPILATION
+Compile the user portrait strictly in {user_language}.
+Perspective: Written by the ASSISTANT ("J'observe...", "Mon modèle mental de l'utilisateur...") describing the human, NOT written in the user's voice.
 
-After deciding the maintenance actions, compile two portrait views based on:
-- the L3 entries (or just promoted) — structural facets
-- supporting evidence from L2 patterns and high-confidence L1 directives
-- factual signals: usage patterns, health signals, recent conversation if any
+**`portrait_full`** (~150-220 tokens): Faceted synthesis of the living person:
+- Traits de fond (durable cognitive style, standards, values)
+- Current phase (active projects, temporary focus, time constraints)
+- Contextual shifts (professional engineering rigor vs personal relaxed hobbies)
+- Contradictions & Tensions (observed paradoxes left unresolved)
+- Open questions (what remains to be understood)
+AVOID: Re-listing raw database facts (names, birthdates, specs). Synthesize POSTURE and COGNITION.
 
-The portrait is the synthesis voice — read everywhere LIA speaks.
+**`portrait_brief`** (~50-70 tokens): Core essence in 2-3 dense sentences in {user_language}:
+Operating posture + current focus + primary interaction rule.
 
-**`portrait_full`** (~150-220 tokens): faceted portrait of a living person, NOT
-a caricature. Distinct facets:
-- traits of fond (what is stable)
-- current phase (date-bounded if useful)
-- contexts (how he shifts: work vs personal, morning vs evening, technical vs
-  emotional)
-- contradictions (tensions you observe — name them, do not resolve them)
-- blind spots / open questions (what you don't yet understand)
-- evolution (how he has shifted over time, if visible)
-
-First-person voice, written ENTIRELY in {user_language} — the English
-phrasing of the examples in this prompt is structural guidance, never a
-language choice ("I notice..." becomes its {user_language} equivalent).
-Be specific. AVOID:
-- duplicating facts already in the user's psychological profile (memories) —
-  focus on synthesis, posture, current phase, contradictions
-- promoting transient signals (a single bad day, a week's health activity)
-  into "stable traits"
-- generic platitudes — every line tied to observed evidence
-
-**`portrait_brief`** (~50-70 tokens): essence in 2-3 sentences, in
-{user_language} — posture + current-phase color + 1-2 most-important context
-rules. Self-sufficient for secondary flows (notifications, voice, reminders).
-
-If material is insufficient (very few entries, no L3), return empty strings.
-Better silent than caricatural.
+If material is insufficient, return empty strings `""`.
 
 =================================================================
-SECTION 4 — CONSERVATION DIRECTIVES
-=================================================================
-
-- PROTECT timeless directives (especially `conf=high`, `level=L2/L3`).
-- PROTECT entries about the user's identity (name, relationships, deep patterns).
-- PRIORITIZE deleting: event-specific observations no longer relevant,
-  redundant entries, stale low-confidence L0/L1 never used.
-
-=================================================================
-SECTION 5 — SIZE MANAGEMENT
+SECTION 4 — CONSERVATION & SIZE MANAGEMENT
 =================================================================
 
 {size_management_instruction}
 
-**MANDATORY**: Each entry's `content` field MUST be at most {max_entry_chars}
-characters. Hard limit.
+- HARD CONSTRAINT: Each entry's `content` field MUST NOT exceed {max_entry_chars} characters.
+- Protect identity fundamentals and validated L2/L3 patterns.
+- Delete stale L0 notes, expired logistics, or contradicted rules when space is needed.
 
 =================================================================
-SECTION 6 — SELF-AUDIT BEFORE OUTPUT (mandatory mental check)
+SECTION 5 — STRICT TRANSACTIONAL OUTPUT FORMAT
 =================================================================
 
-Before emitting JSON, verify:
-
-1. **Dedup completeness**: did you actually merge similar topics? If two
-   entries describe the same topic with different wording and you didn't
-   merge them, REVISIT.
-2. **Reclassification completeness**: did you run the Section 2 ladder, by
-   SUBJECT, on every entry? If you used the presence of a `BECAUSE` clause as
-   the discriminator, REVISIT — every theme has one.
-3. **Stratification honesty**: did you create any L2 WITHOUT a genuine unifying
-   insight, or merge L1s that prescribe distinct actions? If so, REVISIT — a
-   forced or spurious L2 is worse than none. Zero L2 is fine when there is no
-   real convergence.
-4. **Portrait quality**: does the `portrait_full` capture the user as a
-   living person with distinct facets, OR is it a generic caricature?
-   If caricatural, rewrite.
-5. **Theme balance is an OUTCOME, never a target**: did any reclassification
-   move an entry only because `learnings` felt safer? Undo it. Conversely, a
-   journal where three of the four themes are empty is a symptom — re-run the
-   Section 2 ladder on the entries you left untouched, by subject.
-
-=================================================================
-SECTION 7 — OUTPUT FORMAT (JSON OBJECT, not array)
-=================================================================
-
-Return a JSON OBJECT with `actions` (array, may be empty), `portrait_full`
-(string, may be empty), `portrait_brief` (string, may be empty).
-
-CRITICAL: For update/delete actions, copy-paste the EXACT entry_id UUID from
-the entries above. Do NOT invent, shorten, or modify UUIDs.
+Return ONLY a raw, valid JSON object. Zero markdown fences (no ```json), zero preamble.
+TRANSACTIONAL INTEGRITY RULES:
+1. SINGLE ACTION PER UUID: Any given `entry_id` must appear AT MOST ONCE in `actions`.
+   Never emit an `update` AND a `delete` for the same UUID in the same payload.
+2. EXACT UUID MATCH: Copy-paste the exact untruncated UUID from {all_entries}. Never invent IDs.
+3. SEARCH HINTS DISCIPLINE: `search_hints` must contain 3-5 high-signal, discriminative
+   domain terms (e.g. ["docker", "fastapi", "terminal-error"]). FORBIDDEN: generic words
+   like ["user", "assistant", "system", "rule", "preference"].
 
 ```json
 {{
@@ -290,41 +161,30 @@ the entries above. Do NOT invent, shorten, or modify UUIDs.
     {{
       "action": "create",
       "theme": "self_reflection|user_observations|ideas_analyses|learnings",
-      "title": "Short descriptive title",
-      "content": "Your directive, max {max_entry_chars} chars",
+      "title": "Concise descriptive title",
+      "content": "WHEN [trigger] -> DO [action] BECAUSE [event] (max {max_entry_chars} chars)",
       "mood": "reflective|curious|satisfied|concerned|inspired",
-      "search_hints": ["keyword1", "keyword2", "keyword3"],
+      "search_hints": ["discriminative_term1", "discriminative_term2"],
       "confidence": "low|medium|high",
       "level": "L0|L1|L2|L3"
     }},
     {{
       "action": "update",
-      "entry_id": "<exact UUID>",
-      "theme": "(optional, set when reclassifying)",
-      "title": "(optional)",
-      "content": "(optional)",
-      "mood": "(optional)",
-      "search_hints": ["..."],
-      "confidence": "(optional)",
-      "level": "(optional)"
+      "entry_id": "<exact untruncated UUID>",
+      "theme": "self_reflection|user_observations|ideas_analyses|learnings",
+      "title": "Updated title",
+      "content": "Updated content",
+      "mood": "reflective|curious|satisfied|concerned|inspired",
+      "search_hints": ["discriminative_term1", "discriminative_term2"],
+      "confidence": "low|medium|high",
+      "level": "L0|L1|L2|L3"
     }},
     {{
       "action": "delete",
-      "entry_id": "<exact UUID>"
+      "entry_id": "<exact untruncated UUID>"
     }}
   ],
-  "portrait_full": "Faceted portrait in {user_language}, ~150-220 tokens, first-person, distinct facets (traits/phase/contexts/contradictions/open-questions/evolution). Empty string if insufficient material.",
-  "portrait_brief": "Essence in 2-3 sentences in {user_language}, ~50-70 tokens — posture + current-phase color + 1-2 most-important context rules. Empty string if insufficient material."
+  "portrait_full": "Faceted portrait text in {user_language}...",
+  "portrait_brief": "Brief essence text in {user_language}..."
 }}
 ```
-
-`search_hints`: 3-5 keywords in the USER's vocabulary that would make this
-entry relevant. Use the user's direct language and action verbs.
-
-`confidence`: set when promoting (high) or demoting (low) based on evidence.
-
-`level`: set when stratification changes (L0→L1, L1→L2, etc.).
-
-`theme`: set on `update` only when reclassifying (e.g. `user_observations` → `learnings`).
-
-Return ONLY the JSON object, no other text.

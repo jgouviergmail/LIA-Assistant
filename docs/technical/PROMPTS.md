@@ -27,10 +27,11 @@
 > **Note importante** : Les versions v2-v8 ont été consolidées dans v1 en décembre 2025.
 > Le versioning historique des prompts est maintenant intégré dans le contenu des fichiers.
 
-### Fichiers Prompts (78 fichiers, source de vérité vivante)
+### Fichiers Prompts (source de vérité vivante)
 
 Tous les prompts vivent dans `apps/api/src/domains/agents/prompts/v1/*.txt` —
-**store unique** (règle du dépôt). La téléphonie ne fait pas exception : ses
+**store unique** (règle du dépôt ; le nombre de fichiers est celui du `Literal`
+`PromptName` de `prompt_loader.py`, tenu en phase par un test de complétude). La téléphonie ne fait pas exception : ses
 prompts (`telephony_agent_prompt.txt`, `telephony_agent_system_prompt.txt`,
 `telephony_synthesis_prompt.txt`) sont dans ce même répertoire ; le domaine
 telephony a seulement son propre lecteur minimal `telephony/prompts/loader.py`

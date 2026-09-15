@@ -18,12 +18,14 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
+from functools import lru_cache
 from uuid import UUID
 
 import tiktoken
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
+from src.core.prompt_store import parse_prompt_sections, read_prompt_file
 from src.domains.rag_spaces.embedding import embed_rag_query_cached
 from src.domains.rag_spaces.repository import RAGChunkRepository, RAGSpaceRepository
 from src.infrastructure.llm.embedding_context import (
@@ -57,6 +59,12 @@ class RAGRetrievedChunk:
     chunk_index: int
 
 
+@lru_cache(maxsize=1)
+def _context_labels() -> dict[str, str]:
+    """The retrieved-context labels, read once from the versioned prompt store."""
+    return dict(parse_prompt_sections(read_prompt_file("rag_context_format"), 2))
+
+
 @dataclass
 class RAGContext:
     """Result of RAG retrieval across user's or system's active spaces."""
@@ -67,29 +75,23 @@ class RAGContext:
     context_type: str = "user"  # "user" or "system"
 
     def to_prompt_context(self) -> str:
-        """Format retrieved chunks as prompt context for injection."""
+        """Format retrieved chunks as prompt context for injection.
+
+        The block NAMES its content (a header and per-chunk labels, all read
+        from ``rag_context_format.txt``); the instruction on how to use it is
+        the response prompt's own, in the section that wraps this block.
+        """
         if not self.chunks:
             return ""
 
-        if self.context_type == "system":
-            lines = [
-                "## APP KNOWLEDGE (FAQ / Help)\n",
-                "The following information comes from LIA's built-in knowledge base.",
-                "Use it to answer questions about the app, its features, and usage.\n",
-            ]
-        else:
-            lines = [
-                "## USER KNOWLEDGE SPACES (RAG Documents)\n",
-                "The following information comes from the user's personal document spaces.",
-                "Use it to enrich your response when relevant to the question.",
-                "Always cite the source document when using this information.\n",
-            ]
-
+        labels = _context_labels()
+        header = labels["system_header" if self.context_type == "system" else "user_header"]
+        lines = [header + "\n"]
         for chunk in self.chunks:
-            lines.append(f"[Space: {chunk.space_name}]")
-            lines.append(f"Source: {chunk.original_filename}")
+            lines.append(labels["chunk_space"].format(space_name=chunk.space_name))
+            lines.append(labels["chunk_source"].format(original_filename=chunk.original_filename))
             lines.append(chunk.content)
-            lines.append("---\n")
+            lines.append(labels["chunk_separator"] + "\n")
 
         return "\n".join(lines)
 

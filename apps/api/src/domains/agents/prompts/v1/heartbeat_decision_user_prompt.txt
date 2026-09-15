@@ -1,0 +1,11 @@
+CURRENT CONTEXT:
+{context}
+
+RECENT HEARTBEAT NOTIFICATIONS (contents shown — never repeat their topics, activities or products):
+{recent_heartbeats}
+
+RECENT INTEREST NOTIFICATIONS (avoid overlapping topics):
+{recent_interests}
+
+OTHER RECENT PROACTIVE MESSAGES (reminders, automations, call reports — the user already received these, do not pile up on the same topics):
+{recent_other}

@@ -11,7 +11,7 @@ import { MailsCard } from '../cards/MailsCard';
 import { AgendaCard } from '../cards/AgendaCard';
 import { BirthdaysCard } from '../cards/BirthdaysCard';
 import { RemindersCard } from '../cards/RemindersCard';
-import type { CardSection, SectionData } from '@/types/briefing';
+import type { BriefingWindows, CardSection, SectionData } from '@/types/briefing';
 
 const push = vi.fn();
 
@@ -54,6 +54,13 @@ function section<T extends SectionData>(data: T): CardSection<T> {
 }
 
 const cardProps = { isRefreshing: false, onRefresh: vi.fn(), staggerIndex: 0 };
+const WINDOWS: BriefingWindows = {
+  birthdays_horizon_days: 7,
+  health_window_days: 14,
+  agenda_lookahead_hours: 24,
+  tasks_horizon_days: 7,
+  weather_forecast_days: 5,
+};
 
 describe('briefing cards — actionable items (QW-9)', () => {
   beforeEach(() => {
@@ -111,6 +118,7 @@ describe('briefing cards — actionable items (QW-9)', () => {
     renderWithProviders(
       <BirthdaysCard
         {...cardProps}
+        windows={WINDOWS}
         section={section({
           items: [
             { contact_name: 'Gérard Dupont', date_iso: '--07-25', days_until: 3, age_at_next: 42 },

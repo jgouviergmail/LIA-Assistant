@@ -32,14 +32,13 @@ class TestCapabilityTruthDirective:
 
     def test_rule_survives_format(self):
         """The rule must not break str.format on the dynamic placeholders."""
-        content = load_prompt("react_agent_prompt", version="v1")
-        content.format(
-            personnalite="p",
-            user_language="fr",
-            semantic_dependencies="none",
-            current_datetime="2026-09-02 10:00",
-            user_timezone="Europe/Paris",
+        # Rendered by the REAL assembler, so a placeholder added later cannot
+        # turn this test into a stale key list.
+        from src.domains.agents.nodes.react_prompt import (
+            build_system_prompt as _build_system_prompt,
         )
+
+        _build_system_prompt({"personality_instruction": "p", "user_language": "fr"})
 
 
 @pytest.mark.unit

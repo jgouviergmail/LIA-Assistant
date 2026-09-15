@@ -35,7 +35,7 @@ from src.domains.briefing.schemas import (
     RefreshRequest,
     SynthesisResponse,
 )
-from src.domains.briefing.service import BriefingService
+from src.domains.briefing.service import BriefingService, build_briefing_windows
 from src.domains.users.models import User
 from src.domains.voice.text_readout import synthesize_user_text
 
@@ -72,7 +72,7 @@ async def get_briefing_cards(
     parallel with /briefing/synthesis to render the page progressively.
     """
     cards = await BriefingService(current_user).build_cards()
-    return CardsResponse(cards=cards)
+    return CardsResponse(cards=cards, windows=build_briefing_windows())
 
 
 @router.get(
@@ -109,7 +109,7 @@ async def refresh_briefing_cards(
     """
     _reject_hidden_sections(current_user, list(payload.sections))
     cards = await BriefingService(current_user).build_cards(force_refresh=set(payload.sections))
-    return CardsResponse(cards=cards)
+    return CardsResponse(cards=cards, windows=build_briefing_windows())
 
 
 @router.post(

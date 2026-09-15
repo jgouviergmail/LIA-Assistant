@@ -15,7 +15,7 @@ import structlog
 
 from src.core.config import settings
 from src.core.constants import LANGUAGE_TO_LOCALE
-from src.core.i18n_types import Language
+from src.core.i18n_types import LANGUAGE_NAMES, Language
 
 logger = structlog.get_logger(__name__)
 
@@ -59,6 +59,24 @@ def normalize_language(language: str) -> Language:
 
     # Unsupported: fall back to the configured default language
     return DEFAULT_LANGUAGE
+
+
+def get_language_name(language: str) -> str:
+    """Name a language for a model, from any spelling of its code.
+
+    The one door between a stored or incoming locale and the word a prompt
+    carries: ``"zh"``, ``"zh_CN"`` and ``"zh-CN"`` all read « Simplified Chinese »,
+    ``"fr-FR"`` reads « French ». A raw code in a prompt is a coin toss on how the
+    model interprets it (prompt audit 2026-09-12, lot 3).
+
+    Args:
+        language: Raw locale (e.g., "zh", "zh-CN", "fr-FR", "en_US").
+
+    Returns:
+        The human-readable name of the normalised language; an unsupported code
+        names the configured default language, like every other consumer.
+    """
+    return LANGUAGE_NAMES[normalize_language(language)]
 
 
 def get_locale_for_language(language: str | None) -> str:

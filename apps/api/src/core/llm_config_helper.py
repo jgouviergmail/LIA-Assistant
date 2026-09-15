@@ -19,6 +19,8 @@ from typing import TYPE_CHECKING, Any
 
 from src.core.constants import CAPABILITY_PROVENANCE_DECLARED
 from src.core.llm_agent_config import LLMAgentConfig
+from src.core.reasoning_intent import ReasoningIntent
+from src.infrastructure.llm.reasoning.profiles import resolve_reasoning_profile
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
@@ -126,6 +128,56 @@ def merge_config(defaults: LLMAgentConfig, overrides: dict[str, Any]) -> LLMAgen
     # model whose own default is thinking-on silently TURNED REASONING ON,
     # which is the opposite of what the operator wrote.
     return LLMAgentConfig(**merged)
+
+
+def short_answer_config(
+    agent_type: str, *, max_tokens: int, temperature: float | None = None
+) -> LLMAgentConfig:
+    """The slot's own configuration, asked for a SHORT answer.
+
+    A caller that needs two sentences -- a reminder, a notification body --
+    must not size a budget it cannot know: on a model that reasons by default
+    the provider bills the thinking inside ``max_tokens`` (OpenAI, Anthropic,
+    Gemini and DeepSeek all do), so a small cap buys thinking and no answer.
+    Measured 2026-09-12 on ``deepseek-flash``: 150 requested, 150 of
+    reasoning, an empty text sent to the person.
+
+    So the call declares what it wants -- no reasoning -- and keeps its small
+    answer budget only where the slot's model can honour that (the resolved
+    profile's ``can_disable``). Where reasoning is mandatory the slot's own
+    budget stays, because a cap that includes the thinking is not a cap on
+    the answer; the caller's honesty guard then decides what an empty answer
+    means.
+
+    Args:
+        agent_type: The LLM slot (``"response"``, ...).
+        max_tokens: The answer budget, applied only where it bounds the answer.
+        temperature: Optional sampling override.
+
+    Returns:
+        The slot's effective configuration with the overrides applied.
+    """
+    from src.core.config import settings as app_settings
+    from src.infrastructure.llm.model_capabilities_cache import ModelCapabilitiesCache
+
+    config = get_llm_config_for_agent(app_settings, agent_type)
+    updates: dict[str, Any] = {}
+    if temperature is not None:
+        updates["temperature"] = temperature
+
+    caps = ModelCapabilitiesCache.get(config.model)
+    declared = getattr(caps, "reasoning_enum_values", None)
+    profile = resolve_reasoning_profile(
+        config.provider, config.model, model_levels=tuple(declared) if declared else None
+    )
+    # An UNKNOWN family also answers ``can_disable=True`` -- it carries no
+    # claim either way -- but its ``none`` translates to no kwarg at all, so
+    # the cap would land on a model that may still be thinking. Doubt keeps
+    # the slot's budget.
+    if profile.can_disable and profile.source != "unknown":
+        updates["reasoning_effort"] = ReasoningIntent(level="none")
+        updates["max_tokens"] = max_tokens
+    return config.model_copy(update=updates)
 
 
 def get_provider_api_key(provider: str) -> str | None:

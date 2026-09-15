@@ -94,8 +94,27 @@ class TestRAGContext:
         result = ctx.to_prompt_context()
 
         assert "## USER KNOWLEDGE SPACES (RAG Documents)" in result
-        assert "personal document spaces" in result
-        assert "cite the source document" in result
+
+    @pytest.mark.unit
+    def test_to_prompt_context_carries_labels_not_instructions(self, sample_chunks) -> None:
+        """The ONE instruction about documents travels with the response prompt's
+        <UserDocuments> section (prompt audit 2026-09-12): a second copy in the
+        content header is how « always cite » and « always synthesize » reached the
+        model together. The header names the content; it does not instruct."""
+        ctx = RAGContext(chunks=sample_chunks, spaces_searched=2, total_results=3)
+
+        result = ctx.to_prompt_context()
+
+        assert "cite the source document" not in result
+        assert "personal document spaces" not in result
+        assert "[Space: " in result and "Source: " in result
+
+    @pytest.mark.unit
+    def test_to_prompt_context_has_no_unfilled_placeholder(self, sample_chunks) -> None:
+        import re
+
+        ctx = RAGContext(chunks=sample_chunks, spaces_searched=2, total_results=3)
+        assert not re.findall(r"(?<!\{)\{[a-zA-Z_]+\}(?!\})", ctx.to_prompt_context())
 
     @pytest.mark.unit
     def test_to_prompt_context_contains_chunk_metadata(self, sample_chunks) -> None:

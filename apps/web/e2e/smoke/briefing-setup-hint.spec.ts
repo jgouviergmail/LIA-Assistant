@@ -11,7 +11,7 @@
  * that the line naming the missing cards appears next to it, pointing at the
  * settings section that actually configures each one.
  */
-import { test, expect, type MockRoute } from '../fixtures';
+import { test, expect, briefingWindowsMock, type MockRoute } from '../fixtures';
 
 const GENERATED_AT = '2026-07-26T08:00:00Z';
 
@@ -38,6 +38,7 @@ const FRESH_ACCOUNT: MockRoute[] = [
   {
     url: '**/api/v1/briefing/cards',
     json: {
+      windows: briefingWindowsMock,
       cards: {
         weather: notConfigured,
         agenda: notConfigured,
@@ -122,6 +123,7 @@ test.describe('an unconfigured dashboard says so', () => {
       {
         url: '**/api/v1/briefing/cards',
         json: {
+          windows: briefingWindowsMock,
           cards: {
             weather: ok,
             agenda: ok,

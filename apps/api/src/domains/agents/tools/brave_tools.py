@@ -30,6 +30,8 @@ from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg, tool
 from pydantic import BaseModel
 
+from src.core.config import settings
+from src.core.constants import BRAVE_NEWS_SEARCH_MAX_COUNT, BRAVE_WEB_SEARCH_MAX_COUNT
 from src.domains.agents.constants import (
     AGENT_BRAVE,
     CONTEXT_DOMAIN_BRAVE,
@@ -44,6 +46,7 @@ from src.domains.agents.data_registry.models import (
 )
 from src.domains.agents.tools.base import APIKeyConnectorTool
 from src.domains.agents.tools.output import UnifiedToolOutput
+from src.domains.agents.utils.rate_limiting import rate_limit
 from src.domains.connectors.clients.brave_search_client import BraveSearchClient
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import APIKeyCredentials
@@ -54,6 +57,17 @@ from src.infrastructure.observability.metrics_agents import (
 )
 
 logger = structlog.get_logger(__name__)
+
+# The `count` bound the model reads is the one the tool enforces — ONE constant
+# per endpoint, shared with the catalogue manifest and the agent prompt.
+_WEB_COUNT_DESCRIPTION = (
+    f"Number of results to return (1-{BRAVE_WEB_SEARCH_MAX_COUNT}, default 5). "
+    "Use the exact count the user requested."
+)
+_NEWS_COUNT_DESCRIPTION = (
+    f"Number of news articles to return (1-{BRAVE_NEWS_SEARCH_MAX_COUNT}, default 5). "
+    "Use the exact count the user requested."
+)
 
 
 # ============================================================================
@@ -275,16 +289,18 @@ _brave_news_tool_impl = BraveSearchToolImpl(
     duration_metric=agent_tool_duration_seconds,
     counter_metric=agent_tool_invocations,
 )
+@rate_limit(
+    max_calls=lambda: settings.brave_rate_limit_calls,
+    window_seconds=lambda: settings.brave_rate_limit_window,
+    scope="user",
+)
 async def brave_search_tool(
     query: Annotated[
         str,
         "Search query - what to search for. Keep it under 400 characters / "
         "50 words (Brave API bound); longer queries are truncated at a word boundary.",
     ],
-    count: Annotated[
-        int,
-        "Number of results to return (1-10, default 5). Use the exact count the user requested.",
-    ] = 5,
+    count: Annotated[int, _WEB_COUNT_DESCRIPTION] = 5,
     freshness: Annotated[
         str | None,
         "Freshness filter: 'pd' (24h), 'pw' (7d), 'pm' (31d), 'py' (1y)",
@@ -302,7 +318,8 @@ async def brave_search_tool(
 
     Args:
         query: Search query (e.g., "Python programming", "recette pates")
-        count: Number of results to return (1-10, default: 5). Match the user's request.
+        count: Number of results to return (bounded by the API maximum, default: 5).
+            Match the user's request.
         freshness: Optional freshness filter:
             - "pd": Past day (24 hours)
             - "pw": Past week (7 days)
@@ -322,7 +339,7 @@ async def brave_search_tool(
         runtime,
         query=query,
         endpoint="web",
-        count=min(count, 10),
+        count=min(count, BRAVE_WEB_SEARCH_MAX_COUNT),
         freshness=freshness,
     )
 
@@ -339,16 +356,18 @@ async def brave_search_tool(
     duration_metric=agent_tool_duration_seconds,
     counter_metric=agent_tool_invocations,
 )
+@rate_limit(
+    max_calls=lambda: settings.brave_rate_limit_calls,
+    window_seconds=lambda: settings.brave_rate_limit_window,
+    scope="user",
+)
 async def brave_news_tool(
     query: Annotated[
         str,
         "News search query. Keep it under 400 characters / 50 words "
         "(Brave API bound); longer queries are truncated at a word boundary.",
     ],
-    count: Annotated[
-        int,
-        "Number of news articles to return (1-10, default 5). Use the exact count the user requested.",
-    ] = 5,
+    count: Annotated[int, _NEWS_COUNT_DESCRIPTION] = 5,
     freshness: Annotated[
         str | None,
         "Freshness filter: 'pd' (24h), 'pw' (7d), 'pm' (31d)",
@@ -366,7 +385,8 @@ async def brave_news_tool(
 
     Args:
         query: News search query (e.g., "technology news", "climate change")
-        count: Number of news articles to return (1-10, default: 5). Match the user's request.
+        count: Number of news articles to return (bounded by the API maximum, default: 5).
+            Match the user's request.
         freshness: Optional freshness filter:
             - "pd": Past day (24 hours)
             - "pw": Past week (7 days)
@@ -385,7 +405,7 @@ async def brave_news_tool(
         runtime,
         query=query,
         endpoint="news",
-        count=min(count, 10),
+        count=min(count, BRAVE_NEWS_SEARCH_MAX_COUNT),
         freshness=freshness,
     )
 

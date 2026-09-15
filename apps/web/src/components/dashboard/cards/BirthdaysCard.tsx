@@ -6,10 +6,12 @@ import { BriefingCard } from '../BriefingCard';
 import { CardItemRow } from './CardItemRow';
 import { chatDraftHref, chatIntentHref } from '@/lib/briefing-utils';
 import { openChatDeepLink } from '@/lib/chat-deep-link';
-import type { BirthdaysData, CardSection } from '@/types/briefing';
+import type { BirthdaysData, BriefingWindows, CardSection } from '@/types/briefing';
 
 interface BirthdaysCardProps {
   section: CardSection<BirthdaysData>;
+  /** The windows the API built the cards with — the empty state names the horizon. */
+  windows: BriefingWindows;
   isRefreshing: boolean;
   onRefresh: () => void;
   staggerIndex?: number;
@@ -17,6 +19,7 @@ interface BirthdaysCardProps {
 
 export function BirthdaysCard({
   section,
+  windows,
   isRefreshing,
   onRefresh,
   staggerIndex,
@@ -32,6 +35,7 @@ export function BirthdaysCard({
       isRefreshing={isRefreshing}
       onRefresh={onRefresh}
       emptyStateKey="dashboard.briefing.cards.birthdays.empty"
+      emptyStateValues={{ count: windows.birthdays_horizon_days }}
       renderContent={data => (
         <BirthdaysContent
           data={data}

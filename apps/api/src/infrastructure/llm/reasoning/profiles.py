@@ -100,6 +100,18 @@ _OLLAMA_PROFILE = ReasoningProfile(
     ladder_from_catalogue=True,
 )
 
+#: DeepSeek's thinking-toggle family, declared ONCE. The vendor renamed its
+#: flagship: the API model is ``deepseek-flash`` (DeepSeek-V4.1-Flash) and the
+#: ``deepseek-v4-*`` names are retired aliases it still accepts; the V3 names
+#: (``deepseek-chat``, ``deepseek-reasoner``) are NOT in the family. The adapter
+#: and the structured-output detour read this through
+#: :func:`is_deepseek_thinking_model` -- each kept a private
+#: ``startswith("deepseek-v4-")`` until 2026-09-12, so a row created for
+#: ``deepseek-flash`` fell through all three at once: no ladder offered, no
+#: off switch sent, the V3 output cap applied, and a 150-token call came back
+#: as 150 tokens of reasoning and no answer.
+DEEPSEEK_THINKING_PREFIXES: tuple[str, ...] = ("deepseek-flash", "deepseek-v4")
+
 #: ORDERED rules. A negative entry (``family="none"``) placed before a broad one
 #: wins -- that ordering is what keeps ``gpt-4.1`` and ``gpt-5-chat-latest`` out
 #: of the OpenAI reasoning family.
@@ -182,8 +194,14 @@ _RULES: list[tuple[str, tuple[str, ...], ReasoningProfile]] = [
     ),
     (
         "deepseek",
-        ("deepseek-v4",),
-        ReasoningProfile("deepseek_toggle", ("none", "high", "max"), False, None, True, True),
+        DEEPSEEK_THINKING_PREFIXES,
+        # ``low/high/max`` per api-docs.deepseek.com/guides/thinking_mode; the
+        # API also answers 200 to ``medium`` and ``minimal`` (probed 2026-09-12)
+        # but its silence is not a declaration, so the ladder stays the
+        # documented one.
+        ReasoningProfile(
+            "deepseek_toggle", ("none", "low", "high", "max"), False, None, True, True
+        ),
     ),
     (
         "gemini",
@@ -230,6 +248,24 @@ _RULES: list[tuple[str, tuple[str, ...], ReasoningProfile]] = [
     # from the server (see ``_OLLAMA_PROFILE``), never from the name.
     ("ollama", ("",), _OLLAMA_PROFILE),
 ]
+
+
+def is_deepseek_thinking_model(model: str) -> bool:
+    """Whether ``model`` belongs to DeepSeek's thinking-toggle family.
+
+    The ONE predicate the adapter's V4 branch and the structured-output
+    ``tool_choice`` detour consult; it reads the same prefixes as the rule
+    table, so the family cannot be recognised in one place and missed in
+    another.
+
+    Args:
+        model: The DeepSeek model name as configured.
+
+    Returns:
+        True for the current name and the retired ``deepseek-v4-*`` aliases,
+        False for the V3 names and anything unknown.
+    """
+    return model.startswith(DEEPSEEK_THINKING_PREFIXES)
 
 
 def ollama_declared_ladder(thinking: bool) -> tuple[str, ...]:

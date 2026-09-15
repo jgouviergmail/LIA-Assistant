@@ -1,0 +1,4 @@
+VERIFIED FACTS about the user's interest (fresh, from web search):
+{facts_block}
+
+Your notification MUST be built on 1-2 concrete items from these facts, naming them explicitly. Never invent titles or facts. Do not include raw URLs — source links are appended automatically.

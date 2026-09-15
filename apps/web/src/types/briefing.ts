@@ -288,6 +288,19 @@ export interface TextSection {
   usage: LLMUsage | null;
 }
 
+/**
+ * The windows the cards were built with — published by GET /briefing/cards so
+ * the UI states the number the fetcher actually used (never one typed into a
+ * locale file: prompt audit 2026-09-12, A.6).
+ */
+export interface BriefingWindows {
+  birthdays_horizon_days: number;
+  health_window_days: number;
+  agenda_lookahead_hours: number;
+  tasks_horizon_days: number;
+  weather_forecast_days: number;
+}
+
 export interface CardsBundle {
   weather: CardSection<WeatherData>;
   agenda: CardSection<AgendaData>;
@@ -301,6 +314,7 @@ export interface CardsBundle {
 }
 
 export interface BriefingResponse {
+  windows: BriefingWindows;
   greeting: TextSection;
   synthesis: TextSection | null;
   cards: CardsBundle;

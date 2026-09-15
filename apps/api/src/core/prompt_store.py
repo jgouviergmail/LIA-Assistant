@@ -28,6 +28,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal, overload
 
 #: The one prompt store. Reached by path, never by importing the agents package.
 PROMPT_STORE = Path(__file__).parents[1] / "domains" / "agents" / "prompts"
@@ -61,3 +62,48 @@ def read_prompt_file(name: str, version: str = "v1") -> str:
         return path.read_text(encoding="utf-8")
     except OSError as exc:
         raise PromptFileError(f"cannot read prompt {name!r} ({path}): {exc}") from exc
+
+
+@overload
+def parse_prompt_sections(text: str, columns: Literal[2]) -> list[tuple[str, str]]: ...
+
+
+@overload
+def parse_prompt_sections(text: str, columns: Literal[3]) -> list[tuple[str, str, str]]: ...
+
+
+@overload
+def parse_prompt_sections(text: str, columns: int) -> list[tuple[str, ...]]: ...
+
+
+def parse_prompt_sections(
+    text: str, columns: int
+) -> list[tuple[str, ...]] | list[tuple[str, str]] | list[tuple[str, str, str]]:  # noqa: E501
+    """Parse a ``key|Header|template`` prompt file into its rows, in file order.
+
+    The one implementation of a shape three modules had each written for
+    themselves (the memory profile headers, the peer-context sections and the
+    relationship-debrief sections — prompt audit 2026-09-12). Blank lines and
+    ``#`` comments are ignored; a line short of a column is not a section and
+    is skipped rather than completed by guesswork; the LAST cell keeps any
+    later ``|`` (a line template may legitimately contain one).
+
+    Args:
+        text: The file content (LF or CRLF).
+        columns: Number of cells per row, at least 2.
+
+    Returns:
+        One tuple of ``columns`` stripped cells per section line.
+
+    Raises:
+        ValueError: When ``columns`` is below 2 — a one-column file is not a table.
+    """
+    if columns < 2:
+        raise ValueError(f"a sections file has at least 2 columns, got {columns}")
+    rows: list[tuple[str, ...]] = []
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or line.count("|") < columns - 1:
+            continue
+        rows.append(tuple(cell.strip() for cell in line.split("|", columns - 1)))
+    return rows

@@ -29,8 +29,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.prompt_store import read_prompt_file
 from src.domains.psyche.constants import (
+    MOOD_BEHAVIORAL_DIRECTIVES,
+    MOOD_EXPRESSION_GRAMMAR,
     PSYCHE_SCHEMA_VERSION,
+    RELATIONSHIP_STAGE_DIRECTIVES,
     RELATIONSHIP_STAGES,
     RESET_LEVEL_FULL,
     RESET_LEVEL_PURGE,
@@ -39,11 +43,13 @@ from src.domains.psyche.constants import (
     SNAPSHOT_TYPE_MESSAGE,
 )
 from src.domains.psyche.engine import (
+    ExpressionProfile,
     PADOverride,
     PADVector,
     PersonalityTraits,
     PsycheAppraisal,
     PsycheEngine,
+    embodied_lines,
 )
 from src.domains.psyche.models import PsycheHistory, PsycheState
 from src.domains.psyche.repository import PsycheStateRepository
@@ -751,7 +757,7 @@ class PsycheService:
 
         from langchain_core.messages import HumanMessage, SystemMessage
 
-        from src.core.i18n_types import get_language_name
+        from src.core.i18n import get_language_name
         from src.domains.agents.prompts.prompt_loader import load_prompt
         from src.infrastructure.llm import get_llm
         from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
@@ -892,7 +898,7 @@ class PsycheService:
 
         from langchain_core.messages import HumanMessage, SystemMessage
 
-        from src.core.i18n_types import get_language_name
+        from src.core.i18n import get_language_name
         from src.domains.agents.prompts.prompt_loader import load_prompt
         from src.infrastructure.llm import get_llm
         from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
@@ -1251,6 +1257,34 @@ def _compute_local_hour(utc_now: datetime, timezone_str: str) -> float:
 # =============================================================================
 
 
+def render_legacy_compact_block(profile: ExpressionProfile, compact: str) -> str:
+    """The legacy ``<PsycheContext>`` block (PSYCHE_EMBODIED_INJECTION=false).
+
+    Every sentence lives in ``psyche_legacy_compact_prompt.txt``; this only maps
+    the profile to the template's values (prompt audit 2026-09-12, lot B).
+
+    Args:
+        profile: Compiled expression profile.
+        compact: The compact state line from ``PsycheEngine.format_prompt_injection``.
+
+    Returns:
+        The rendered block.
+    """
+    intensity_hint = (
+        "strongly"
+        if profile.mood_intensity == "strongly"
+        else "noticeably" if profile.mood_intensity == "noticeably" else "subtly"
+    )
+    return read_prompt_file("psyche_legacy_compact_prompt").format(
+        compact=compact,
+        intensity_hint=intensity_hint,
+        mood_label=profile.mood_label,
+        mood_directive=MOOD_BEHAVIORAL_DIRECTIVES.get(profile.mood_label, ""),
+        relationship_stage=profile.relationship_stage,
+        relationship_directive=RELATIONSHIP_STAGE_DIRECTIVES.get(profile.relationship_stage, ""),
+    )
+
+
 async def build_psyche_prompt_block(
     user_id: str | UUID,
     user_timezone: str | None = None,
@@ -1350,18 +1384,14 @@ async def build_psyche_prompt_block(
             )
 
             from src.domains.agents.prompts.prompt_loader import load_prompt
-            from src.domains.psyche.constants import (
-                MOOD_BEHAVIORAL_DIRECTIVES,
-                MOOD_EXPRESSION_GRAMMAR,
-                RELATIONSHIP_STAGE_DIRECTIVES,
-            )
 
             if settings.psyche_embodied_injection:
                 # Embodied voice for proactive messages (ADR-105): the same concrete form
                 # grammar as the main response, in a lighter frame fit for a short message.
-                grammar = MOOD_EXPRESSION_GRAMMAR.get(profile.mood_label, "Even, plain tone.")
+                lines = embodied_lines()
+                grammar = MOOD_EXPRESSION_GRAMMAR.get(profile.mood_label, lines["grammar_default"])
                 lead = (
-                    f" — {profile.active_emotions[0][0]} colours it"
+                    " " + lines["lead_proactive"].format(emotion=profile.active_emotions[0][0])
                     if profile.active_emotions
                     else ""
                 )
@@ -1375,27 +1405,8 @@ async def build_psyche_prompt_block(
                 )
 
             # Legacy compact format — rollback path for PSYCHE_EMBODIED_INJECTION=false.
-            intensity_hint = (
-                "strongly"
-                if profile.mood_intensity == "strongly"
-                else "noticeably" if profile.mood_intensity == "noticeably" else "subtly"
-            )
-            compact = PsycheEngine.format_prompt_injection(profile)
-            mood_dir = MOOD_BEHAVIORAL_DIRECTIVES.get(profile.mood_label, "")
-            rel_dir = RELATIONSHIP_STAGE_DIRECTIVES.get(profile.relationship_stage, "")
-            return (
-                f"<PsycheContext>\n{compact}\n"
-                f"You have an inner life. Inhabit this state {intensity_hint}:\n"
-                f"- MOOD ({profile.mood_label}): {mood_dir}\n"
-                f"- RELATIONSHIP ({profile.relationship_stage}): {rel_dir}\n"
-                "- EMOTIONS: let each named emotion color specific moments. "
-                "Higher intensity = more visible in tone and word choice.\n"
-                "- NEVER say 'I feel X'. Express through word choice, rhythm, energy. "
-                "Never guilt-trip or express disappointment about user behavior.\n"
-                "- NEVER attribute your emotions or mood to the user. These are YOUR internal "
-                "states — express them through your own tone and style, never by describing "
-                "the user's feelings or state of mind.\n"
-                "</PsycheContext>"
+            return render_legacy_compact_block(
+                profile, PsycheEngine.format_prompt_injection(profile)
             )
 
     except Exception as e:

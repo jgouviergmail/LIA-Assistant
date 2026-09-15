@@ -5,7 +5,12 @@ import { Sunrise } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useBriefing } from '@/hooks/useBriefing';
 import { useBriefingPreferences } from '@/hooks/useBriefingPreferences';
-import type { BriefingPreferences, BriefingSection, CardsBundle } from '@/types/briefing';
+import type {
+  BriefingPreferences,
+  BriefingSection,
+  BriefingWindows,
+  CardsBundle,
+} from '@/types/briefing';
 import { BriefingError } from './BriefingError';
 import { BriefingSynthesis } from './BriefingSynthesis';
 import { HeroLiaCard } from './HeroLiaCard';
@@ -63,11 +68,12 @@ const CARD_RENDERERS: Record<
   BriefingSection,
   (
     cards: CardsBundle,
-    common: { isRefreshing: boolean; onRefresh: () => void; staggerIndex: number }
+    common: { isRefreshing: boolean; onRefresh: () => void; staggerIndex: number },
+    windows: BriefingWindows
   ) => React.ReactElement
 > = {
   weather: (c, p) => <WeatherCard section={c.weather} {...p} />,
-  birthdays: (c, p) => <BirthdaysCard section={c.birthdays} {...p} />,
+  birthdays: (c, p, w) => <BirthdaysCard section={c.birthdays} windows={w} {...p} />,
   reminders: (c, p) => <RemindersCard section={c.reminders} {...p} />,
   health: (c, p) => <HealthCard section={c.health} {...p} />,
   agenda: (c, p) => <AgendaCard section={c.agenda} {...p} />,
@@ -83,6 +89,7 @@ const CARD_RENDERERS: Record<
  */
 function BriefingCardsGrid({
   cards,
+  windows,
   sections,
   refreshingSections,
   refetchSection,
@@ -90,6 +97,7 @@ function BriefingCardsGrid({
   lng,
 }: {
   cards: CardsBundle;
+  windows: BriefingWindows;
   sections: BriefingSection[];
   refreshingSections: Set<string>;
   refetchSection: (section: BriefingSection) => void;
@@ -115,11 +123,15 @@ function BriefingCardsGrid({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
         {sections.map((name, index) => (
           <div key={name} className="contents">
-            {CARD_RENDERERS[name](cards, {
-              isRefreshing: refreshingSections.has(name),
-              onRefresh: () => refetchSection(name),
-              staggerIndex: index,
-            })}
+            {CARD_RENDERERS[name](
+              cards,
+              {
+                isRefreshing: refreshingSections.has(name),
+                onRefresh: () => refetchSection(name),
+                staggerIndex: index,
+              },
+              windows
+            )}
           </div>
         ))}
       </div>
@@ -135,6 +147,7 @@ export function TodayBriefing() {
   const { t, i18n } = useTranslation();
   const {
     cards,
+    windows,
     text,
     cardsLoading,
     textLoading,
@@ -219,9 +232,10 @@ export function TodayBriefing() {
 
         {/* Cards (UXR Lot 5, B4): ordered by the user's preferences, hidden
             cards never rendered (and never fetched backend-side). */}
-        {cards ? (
+        {cards && windows ? (
           <BriefingCardsGrid
             cards={cards}
+            windows={windows}
             sections={visibleOrderedSections(preferences, cards)}
             refreshingSections={refreshingSections}
             refetchSection={refetchSection}

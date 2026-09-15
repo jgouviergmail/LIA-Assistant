@@ -9,7 +9,8 @@ then handle provider specifics (Anthropic ``cache_control`` split, OpenAI
 from the stable prefix with no provider-specific code at all.
 
 These guards are SHRINK-ONLY:
-- a prompt listed in ``MARKER_REQUIRED`` must keep its marker;
+- a prompt listed in ``MARKER_REQUIRED`` must keep its marker (and every
+  prompt carrying the marker must be listed — ``test_every_marked_prompt_is_required``);
 - a prompt with a marker must not grow a new active placeholder before it
   (unless listed in ``ALLOWED_BEFORE_MARKER`` with a justification).
 Add entries when adding prompts; never remove one to absorb a regression.
@@ -78,6 +79,7 @@ MARKER_REQUIRED: tuple[str, ...] = (
     "web_fetch_agent_prompt",
     "web_search_agent_prompt",
     "wikipedia_agent_prompt",
+    "telephony_agent_prompt",
 )
 
 # Placeholders deliberately allowed BEFORE the marker, per prompt.
@@ -86,7 +88,12 @@ MARKER_REQUIRED: tuple[str, ...] = (
 ALLOWED_BEFORE_MARKER: dict[str, frozenset[str]] = {
     # Personality opens the prompt (identity-first design); stable per user.
     "response_system_prompt_base": frozenset({"personnalite", "user_language"}),
-    "react_agent_prompt": frozenset({"personnalite", "user_language"}),
+    # ``computation_block``: present iff the sandbox tool is bound AND switched
+    # on — two values per deployment, both stable for the life of the switch.
+    "react_agent_prompt": frozenset({"personnalite", "user_language", "computation_block"}),
+    # Brave API maxima — constants, invariant for a deployment (ADR-184: the
+    # bound the tool enforces is the one the prompt publishes).
+    "brave_agent_prompt": frozenset({"brave_web_max_count", "brave_news_max_count"}),
     # Expert identity must be established up front; stable per delegated task type.
     "subagent_react_prompt": frozenset({"expertise"}),
     # Server identity; low cardinality, stable per MCP server.
@@ -118,11 +125,6 @@ ALLOWED_BEFORE_MARKER: dict[str, frozenset[str]] = {
     # Personality block in the static header; stable per user.
     "heartbeat_message_prompt": frozenset({"personality_instruction"}),
 }
-
-# Prompts whose pre-marker braces are verbatim DISPLAY TEMPLATES for the LLM
-# (filled by targeted .replace(), never .format()); the placeholder scan does
-# not apply to them.
-VERBATIM_TEMPLATE_PROMPTS: frozenset[str] = frozenset({"hitl_draft_critique_prompt"})
 
 
 def _read(name: str) -> str:
@@ -159,8 +161,6 @@ def test_marker_present(name: str) -> None:
 @pytest.mark.parametrize("name", MARKER_REQUIRED)
 def test_no_unexpected_placeholder_before_marker(name: str) -> None:
     """No per-request placeholder may sneak into the static (cached) prefix."""
-    if name in VERBATIM_TEMPLATE_PROMPTS:
-        pytest.skip("pre-marker braces are verbatim display templates for the LLM")
     text = _read(name)
     static = text[: text.find(DYNAMIC_CONTEXT_MARKER)]
     found = set(_PLACEHOLDER_RE.findall(static))
@@ -172,6 +172,21 @@ def test_no_unexpected_placeholder_before_marker(name: str) -> None:
         "miss). Move them below the marker, or justify an ALLOWED_BEFORE_MARKER "
         "entry if the value is stable per user."
     )
+
+
+def test_every_marked_prompt_is_required() -> None:
+    """A prompt that carries the marker is a cacheable prompt: it must be guarded.
+
+    ``telephony_agent_prompt`` carried the marker and sat outside this list
+    (prompt audit 2026-09-12): a placeholder sneaking before its marker would
+    have gone unnoticed.
+    """
+    marked = {
+        path.stem
+        for path in PROMPTS_V1.glob("*.txt")
+        if DYNAMIC_CONTEXT_MARKER in path.read_text(encoding="utf-8")
+    }
+    assert marked <= set(MARKER_REQUIRED), sorted(marked - set(MARKER_REQUIRED))
 
 
 def test_planner_static_prefix_stable_across_requests() -> None:

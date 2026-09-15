@@ -95,6 +95,7 @@ Push notifications alert you even when the app is closed:
 • At the scheduled time, you receive a notification on your device
 • The notification contains your reminder content
 • The message is personalized based on your active LIA personality
+• If that personalized sentence cannot be written — or comes back empty — you still receive a plain reminder, never an empty notification
 • Works even if the app is closed or in the background
 
 **📱 Supported devices:**

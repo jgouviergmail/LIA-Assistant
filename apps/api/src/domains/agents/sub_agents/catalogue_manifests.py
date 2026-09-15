@@ -123,14 +123,15 @@ delegate_to_sub_agent_catalogue_manifest = ToolManifest(
             required=True,
             description=(
                 "Clear TASK STATEMENT for the sub-agent — what to analyze, "
-                "what sources to use, what output format. DO NOT paste raw "
-                "data; the sub-agent has its own read-only tools and fetches "
-                "what it needs. May contain `$steps.step_N.analysis` for "
-                "sub-agent → sub-agent chaining (short text). Never reference "
-                "raw tool outputs (`$steps.step_N.<data>`) — the resolved "
-                "instruction is hard-capped (configurable via "
-                "SUBAGENT_INSTRUCTION_MAX_TOKENS_RESOLVED, default 3000 tokens) "
-                "and oversized payloads are rejected at execution time."
+                "what sources to use, what output format. The sub-agent has NO "
+                "user-data tools: hand it the user data it needs through "
+                "`$steps.step_N.<field>` references to earlier steps (never "
+                "paste data by hand), and `$steps.step_N.analysis` for "
+                "sub-agent → sub-agent chaining. Once references are resolved "
+                "the instruction is hard-capped at the token budget stated in "
+                "the SUB-AGENT DELEGATION section; an oversized one is "
+                "rejected at execution time, so reference the fields the "
+                "expert needs, not whole payloads."
             ),
             constraints=[
                 ParameterConstraint(kind="min_length", value=10),

@@ -1,0 +1,5 @@
+# System-prompt lines of the Perplexity tools, `key|template` per line; blank lines
+# and #-comments are ignored (prompt audit 2026-09-12, lot B). str.format templates.
+
+datetime_context|Current date and time: {current_datetime}
+expert_context|You are an expert in {context}. Provide accurate, well-researched answers focused on this domain.

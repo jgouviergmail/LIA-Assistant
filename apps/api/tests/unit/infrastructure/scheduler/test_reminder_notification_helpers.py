@@ -308,15 +308,13 @@ class TestTheFallbackDoesNotContradictTheVersionedPrompt:
     (`{origin_context}`) rather than restate it.
     """
 
-    def test_the_fallback_defers_to_the_origin_fragment(self) -> None:
-        from src.infrastructure.scheduler.reminder_notification import FALLBACK_REMINDER_PROMPT
+    def test_there_is_no_inline_fallback_to_defer(self) -> None:
+        """The fallback is gone (prompt audit 2026-09-12): one text, the versioned file."""
+        import inspect
 
-        assert "{origin_context}" in FALLBACK_REMINDER_PROMPT
-        for forbidden in ("asked for this reminder", "{elapsed_text}", "{created_at_text}"):
-            assert forbidden not in FALLBACK_REMINDER_PROMPT, (
-                f"the fallback states {forbidden!r}, which "
-                "`reminder_origin_recurring.txt` forbids on a recurring occurrence"
-            )
+        from src.infrastructure.scheduler import reminder_notification
+
+        assert "FALLBACK_REMINDER_PROMPT" not in inspect.getsource(reminder_notification)
 
     def test_the_versioned_fragment_still_carries_the_rule(self) -> None:
         """If the rule moved, this test must be the thing that notices."""
@@ -328,17 +326,15 @@ class TestTheFallbackDoesNotContradictTheVersionedPrompt:
     def test_reader_written_content_is_a_VALUE_not_part_of_the_template(self) -> None:
         """A reminder saying "payer la facture {montant}" must not break the job.
 
-        The fallback interpolated the reader's own words into the template
-        string, and the result was then passed to `.format()` — so a brace in
-        a reminder's content became a placeholder nobody could fill.
-        Measured 2026-09-06: `KeyError: 'montant'`, which the per-reminder
-        handler turns into three retries and an abandoned occurrence. The
-        versioned prompt never had the problem, because there the content is a
-        keyword argument. The fallback must be shaped the same way.
+        Measured 2026-09-06: the inline fallback interpolated the reader's words
+        into the template and then `.format()`ed it — `KeyError: 'montant'`,
+        three retries, an abandoned occurrence. The fallback is gone (prompt
+        audit 2026-09-12); the versioned prompt takes the content as a keyword
+        argument, which is what this pins.
         """
-        from src.infrastructure.scheduler.reminder_notification import FALLBACK_REMINDER_PROMPT
+        from src.domains.agents.prompts.prompt_loader import load_prompt
 
-        rendered = FALLBACK_REMINDER_PROMPT.format(
+        rendered = load_prompt("reminder_prompt", version="v1").format(
             persona_prompt="P",
             original_message="orig",
             reminder_content="payer la facture {montant} EUR",

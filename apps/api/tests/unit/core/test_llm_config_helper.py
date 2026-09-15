@@ -259,6 +259,17 @@ class TestGetEffectiveContextWindow:
         # The table would have said something else entirely.
         assert get_model_context_window("deepseek-chat") == 128_000
 
+    def test_the_table_knows_the_current_deepseek_name(self):
+        """The safety net must not answer the default for a 1M-window model.
+
+        ``deepseek-flash`` (DeepSeek-V4.1-Flash) matches no ``deepseek-v4``
+        prefix, so without its own entry a fresh install -- whose seeded row is
+        ``declared`` and therefore distrusted -- would compact at 128 000.
+        """
+        from src.core.config.llm import get_model_context_window
+
+        assert get_model_context_window("deepseek-flash") == 1_000_000
+
     def test_normalized_name_retries_the_cache(self):
         """Date-suffixed model ids hit the cache after normalization."""
         from src.core.llm_config_helper import get_effective_context_window

@@ -227,6 +227,16 @@ PERPLEXITY_TOOL_DEFAULT_LIMIT = 5  # Web search typically returns fewer results
 
 # Brave Search (Knowledge Enrichment)
 BRAVE_SEARCH_MAX_RESULTS = 5  # Maximum results for knowledge context injection
+# Brave Search API maxima on the `count` parameter (web 20, news 50 — the API's own
+# documented bounds). ONE constant each, read by the tool clamp, the catalogue
+# manifest (`maximum`), the parameter description and the agent prompt: the tool
+# used to clamp at 10 while the manifest published 20/50 (prompt audit 2026-09-12).
+BRAVE_WEB_SEARCH_MAX_COUNT = 20
+BRAVE_NEWS_SEARCH_MAX_COUNT = 50
+# Per-user ceiling on Brave tool calls (paid API): the tool-layer anti-runaway
+# limiter, beside the client-side per-second shaper.
+BRAVE_RATE_LIMIT_CALLS_DEFAULT: int = 30
+BRAVE_RATE_LIMIT_WINDOW_SECONDS_DEFAULT: int = 60
 BRAVE_SEARCH_MAX_CONTEXT_CHARS = 1500  # Max chars per result description (truncation)
 # Brave API hard bounds on the `q` parameter (HTTP 422 "too_long" beyond them,
 # measured in prod 2026-08-20). The client clamps at a word boundary instead of
@@ -2407,6 +2417,13 @@ INTEREST_NOTIFY_INTERVAL_MINUTES_DEFAULT = 5
 # Used when truncating notification content for push notifications
 PROACTIVE_NOTIFICATION_MAX_LENGTH_DEFAULT = 150
 
+# Output budget of the reminder notification's model call (tokens). It bounds
+# the ANSWER, so it is applied only where the slot's model can stop reasoning
+# (``short_answer_config``): on a model that thinks by default and bills the
+# thinking inside ``max_tokens`` -- measured 2026-09-12 on deepseek-flash --
+# 150 tokens buys 150 tokens of chain of thought and no answer at all.
+REMINDER_MESSAGE_MAX_TOKENS = 150
+
 # Proactive message injection into LangGraph state
 # When a user replies to a proactive notification, these messages (stored in
 # conversation_messages but not in LangGraph checkpoints) are injected into the
@@ -2623,7 +2640,6 @@ MICROSOFT_TASKS_SCOPES: list[str] = [
 # ============================================================================
 
 # Router prompt version
-ROUTER_PROMPT_VERSION_DEFAULT = "v1"
 
 # Response node prompt version
 # v5: Multi-domain architecture support + Data Registry (Markdown)
@@ -2631,7 +2647,6 @@ ROUTER_PROMPT_VERSION_DEFAULT = "v1"
 RESPONSE_PROMPT_VERSION_DEFAULT = "v1"
 
 # Contacts agent prompt version
-CONTACTS_AGENT_PROMPT_VERSION_DEFAULT = "v1"
 
 # Emails agent prompt version
 EMAILS_AGENT_PROMPT_VERSION_DEFAULT = "v1"
@@ -2718,7 +2733,12 @@ SUMMARIZATION_KEEP_MESSAGES_DEFAULT = 10
 # Both previous entries were dead: claude-sonnet-4-5 is absent from the
 # catalogue entirely and deepseek-chat is deactivated, so the failover chain had
 # no reachable target. Verified against the catalogue 2026-08-24: both
-# replacements are active, priced and not retiring.
+# replacements are active, priced and not retiring. 2026-09-12: DeepSeek
+# renamed its flagship deepseek-flash (DeepSeek-V4.1-Flash, migration
+# e9b5d7f3a2c4) and deepseek-v4-flash is a retired alias the API still serves;
+# the failover keeps the alias until the vendored registry snapshot carries the
+# new name, because test_no_deprecated_model_referenced_guard refuses a fallback
+# no registry knows — a reviewed `task llm:catalogue:fetch` moves it.
 FALLBACK_MODELS_DEFAULT = "claude-sonnet-4-6,deepseek-v4-flash"
 TOOL_RETRY_MAX_ATTEMPTS_DEFAULT = 3
 TOOL_RETRY_BACKOFF_FACTOR_DEFAULT = 1.5
@@ -3817,8 +3837,6 @@ V3_TOOL_CALIBRATED_PRIMARY_MIN = 0.07  # Min probability for primary tool (Align
 # All prompts consolidated in prompts/v1/. These values are kept for backwards
 # compatibility but always point to v1.
 
-V3_SMART_PLANNER_PROMPT_VERSION = "v1"
-V3_ROUTER_PROMPT_VERSION = "v1"
 
 # -----------------------------------------------------------------------------
 # V3 SEMANTIC DEPENDENCIES - Prompt Injection Messages
@@ -5614,6 +5632,9 @@ EXECUTION_MODE_REACT: str = "react"
 # name is its own so the tool never borrows a domain agent's identity in the
 # metrics or the catalogue.
 PYTHON_SANDBOX_AGENT_NAME: str = "python_sandbox_agent"
+# The tool's registered name — read by its manifest and by the ReAct prompt
+# assembler, which promises the tool only when it is bound for the turn.
+PYTHON_SANDBOX_TOOL_NAME: str = "run_python_tool"
 PYTHON_SANDBOX_MAX_RUNS_PER_TURN_DEFAULT: int = 3
 PYTHON_SANDBOX_RATE_LIMIT_CALLS_DEFAULT: int = 20
 PYTHON_SANDBOX_RATE_LIMIT_WINDOW_SECONDS_DEFAULT: int = 300

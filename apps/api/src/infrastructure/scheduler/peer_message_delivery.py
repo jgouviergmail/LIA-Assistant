@@ -40,8 +40,8 @@ import structlog
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from src.core.config import settings
+from src.core.i18n import get_language_name
 from src.core.i18n_proactive import ProactiveMessages
-from src.core.i18n_types import get_language_name
 from src.domains.agents.prompts import load_prompt
 from src.domains.peers.constants import (
     PEER_CONNECTION_TASK_TYPE,
@@ -55,6 +55,7 @@ from src.domains.peers.models import PeerConnectionStatus, PeerMessage
 from src.domains.peers.repository import PeersRepository
 from src.domains.users.models import User
 from src.infrastructure.database import get_db_context
+from src.infrastructure.llm.usage_metadata import tokens_from_response
 from src.infrastructure.observability.metrics_registry import peers_messages_total
 from src.infrastructure.proactive.notification import NotificationDispatcher
 
@@ -147,12 +148,9 @@ async def _generate_delivery_text(
         session_id=f"peer_msg_{message.id}",
         user_id=str(message.sender_id),  # spec §9: the sender owns this call
     )
-    tokens_in = tokens_out = tokens_cache = 0
-    if hasattr(result, "usage_metadata") and result.usage_metadata:
-        tokens_in = result.usage_metadata.get("input_tokens", 0)
-        tokens_out = result.usage_metadata.get("output_tokens", 0)
-        tokens_cache = result.usage_metadata.get("cache_read_input_tokens", 0)
-    return result.text, tokens_in, tokens_out, tokens_cache
+    # ONE reader for every provider's spelling (ADR-272 corollary).
+    tokens = tokens_from_response(result)
+    return result.text, tokens.prompt, tokens.completion, tokens.cached
 
 
 async def _revalidation_cancel_code(

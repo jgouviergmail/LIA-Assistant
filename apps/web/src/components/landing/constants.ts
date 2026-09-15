@@ -320,9 +320,9 @@ export const LANDING_STATS = {
   voiceLanguages: 99,
   metrics: 555,
   uiLanguages: 6,
-  tests: 36000,
-  adrs: 282,
-  releases: 258,
+  tests: 37000,
+  adrs: 284,
+  releases: 259,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

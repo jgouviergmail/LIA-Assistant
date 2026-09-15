@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from contextlib import suppress
 from datetime import UTC, datetime, timedelta
+from functools import lru_cache
 from typing import TYPE_CHECKING
 from uuid import UUID
 
@@ -26,6 +27,7 @@ if TYPE_CHECKING:
 from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.llm_config_helper import get_llm_config_for_agent
+from src.core.prompt_store import parse_prompt_sections, read_prompt_file
 from src.domains.journals.constants import JOURNAL_ENTRY_CONTENT_MAX_LENGTH
 from src.domains.journals.extraction_service import (
     _parse_consolidation_result,
@@ -43,6 +45,29 @@ from src.infrastructure.observability.metrics_journals import (
 )
 
 logger = get_logger(__name__)
+
+
+@lru_cache(maxsize=1)
+def _consolidation_lines() -> dict[str, str]:
+    """Size-management lines of the consolidation prompt, read once from the store."""
+    return dict(parse_prompt_sections(read_prompt_file("journal_consolidation_lines"), 2))
+
+
+def size_directives(usage_pct: float) -> tuple[str, str]:
+    """The size warning and the management instruction for a measured usage.
+
+    Args:
+        usage_pct: Journal size as a percentage of the limit.
+
+    Returns:
+        ``(warning, instruction)`` — the warning is empty under 80 %.
+    """
+    lines = _consolidation_lines()
+    if usage_pct > 100:
+        return lines["size_exceeded"], lines["size_reduce"]
+    if usage_pct > 80:
+        return lines["size_approaching"], lines["size_reduce"]
+    return "", lines["size_within"]
 
 
 async def _build_usage_patterns_section(user_id: UUID) -> str:
@@ -446,23 +471,7 @@ async def consolidate_journals_for_user(
 
         # Size warning
         usage_pct = (total_chars / max_total_chars * 100) if max_total_chars > 0 else 0
-        size_warning = ""
-        if usage_pct > 100:
-            size_warning = (
-                "CRITICAL: You have EXCEEDED the size limit. "
-                "You MUST summarize or delete entries to get back within the limit."
-            )
-        elif usage_pct > 80:
-            size_warning = (
-                "WARNING: You are approaching the size limit. "
-                "Consider summarizing or deleting older entries to make room."
-            )
-
-        size_management_instruction = (
-            "You are within the size limit. Only act if genuinely useful."
-            if usage_pct <= 80
-            else "You need to reduce total size. Summarize verbose entries or delete obsolete ones."
-        )
+        size_warning, size_management_instruction = size_directives(usage_pct)
 
         # Observed usage patterns (factual, lightweight — no LLM, no PII reproduction)
         usage_patterns_section = await _build_usage_patterns_section(user_id)

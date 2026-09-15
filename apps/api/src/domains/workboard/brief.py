@@ -38,7 +38,7 @@ import json
 from typing import TYPE_CHECKING
 
 from src.core.config import settings
-from src.core.i18n_types import get_language_name
+from src.core.i18n import get_language_name
 from src.core.prompt_store import read_prompt_file
 
 if TYPE_CHECKING:

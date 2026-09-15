@@ -18,7 +18,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.domains.agents.nodes.react_nodes import _build_system_prompt, react_setup_node
+from src.domains.agents.nodes.react_nodes import react_setup_node
+from src.domains.agents.nodes.react_prompt import build_system_prompt as _build_system_prompt
 
 
 @pytest.mark.unit

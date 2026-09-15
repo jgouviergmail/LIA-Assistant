@@ -12,6 +12,7 @@ import structlog
 from langchain_core.outputs import LLMResult
 
 from src.core.field_names import FIELD_MODEL_NAME
+from src.infrastructure.llm.usage_metadata import tokens_from_usage_metadata
 
 if TYPE_CHECKING:
     from langchain_core.language_models import BaseChatModel
@@ -82,30 +83,27 @@ class TokenExtractor:
             if hasattr(first_gen, "message") and hasattr(first_gen.message, "usage_metadata"):
                 usage_dict = first_gen.message.usage_metadata
                 if usage_dict:
-                    raw_input_tokens = usage_dict.get("input_tokens", 0)
-                    output_tokens = usage_dict.get("output_tokens", 0)
-
-                    # Extract cached tokens from input_token_details
-                    # Both OpenAI and Anthropic populate this via langchain:
-                    #   - cache_read: tokens read from cache (discounted pricing)
-                    #   - cache_creation: tokens written to cache (Anthropic only, 125% pricing)
-                    input_details = usage_dict.get("input_token_details", {})
-                    if input_details:
-                        cached_tokens = input_details.get("cache_read", 0) or 0
-                        cache_creation = input_details.get("cache_creation", 0) or 0
-                        if cache_creation > 0:
-                            logger.info(
-                                "token_cache_creation_detected",
-                                cache_creation_tokens=cache_creation,
-                                cache_read_tokens=cached_tokens,
-                                msg="Cache write detected — subsequent identical prefixes will be cache hits",
-                            )
-
-                    # Both OpenAI and Anthropic include cached tokens in input_tokens total.
-                    # Subtract cache_read to get non-cached input tokens for pricing.
-                    # (cache_creation stays in input_tokens — priced at input rate, close to
-                    # Anthropic's 125% actual rate but acceptable approximation)
-                    input_tokens = raw_input_tokens - cached_tokens
+                    # ONE reader for every provider's spelling (input_token_details
+                    # .cache_read on OpenAI, cache_read_input_tokens at the top level
+                    # on Anthropic): the prompt count excludes the cache reads, which
+                    # get_cached_cost_usd_eur prices additively.
+                    tokens = tokens_from_usage_metadata(usage_dict)
+                    input_tokens, output_tokens, cached_tokens = (
+                        tokens.prompt,
+                        tokens.completion,
+                        tokens.cached,
+                    )
+                    # cache_creation (Anthropic only) stays in the prompt count —
+                    # priced at input rate, close to the actual 125 % — but is logged.
+                    input_details = usage_dict.get("input_token_details") or {}
+                    cache_creation = input_details.get("cache_creation", 0) or 0
+                    if cache_creation > 0:
+                        logger.info(
+                            "token_cache_creation_detected",
+                            cache_creation_tokens=cache_creation,
+                            cache_read_tokens=cached_tokens,
+                            msg="Cache write detected — subsequent identical prefixes will be cache hits",
+                        )
 
             # Extract model name from response_metadata
             if hasattr(first_gen, "message") and hasattr(first_gen.message, "response_metadata"):

@@ -33,12 +33,12 @@ from uuid import UUID
 import structlog
 
 from src.core.config import settings
+from src.core.constants import REMINDER_MESSAGE_MAX_TOKENS
 from src.core.i18n_dates import format_elapsed, format_short_stamp, neutral_persona
 from src.core.i18n_proactive import ProactiveMessages
 from src.core.recurrence import RecurrenceSpec, describe
 from src.domains.agents.prompts.prompt_loader import (
     load_prompt,
-    load_prompt_with_fallback,
 )
 
 # CRITICAL: Import Reminder model at module level to register it with SQLAlchemy
@@ -48,6 +48,12 @@ from src.domains.agents.prompts.prompt_loader import (
 from src.domains.reminders.models import Reminder  # noqa: F401
 from src.infrastructure.cache.pricing_cache import get_cached_cost_usd_eur
 from src.infrastructure.llm.message_text import coerce_content_to_text
+from src.infrastructure.llm.output_truncation import is_output_truncated
+from src.infrastructure.llm.usage_metadata import (
+    model_name_of_response,
+    reasoning_tokens_of,
+    tokens_from_response,
+)
 from src.infrastructure.observability.metrics import (
     background_job_duration_seconds,
     background_job_errors_total,
@@ -83,8 +89,21 @@ def get_localized_title(language: str) -> str:
     return ProactiveMessages.notification_title("reminder", language)
 
 
-def truncate_for_notification(text: str, max_length: int = 150) -> str:
-    """Truncate text for notification body."""
+def truncate_for_notification(text: str, max_length: int | None = None) -> str:
+    """Truncate text for a push notification body.
+
+    Args:
+        text: The message.
+        max_length: Character budget. Defaults to
+            ``settings.proactive_notification_max_length`` -- the setting the
+            proactive dispatcher and the routine executor already honour; this
+            module carried a literal 150 beside it.
+
+    Returns:
+        The text, ellipsized when it exceeds the budget.
+    """
+    if max_length is None:
+        max_length = settings.proactive_notification_max_length
     if len(text) <= max_length:
         return text
     return text[: max_length - 3] + "..."
@@ -196,11 +215,7 @@ async def generate_reminder_message(
             created_at_text=created_at_text, elapsed_text=elapsed_text
         )
 
-    template = load_prompt_with_fallback(
-        "reminder_prompt",
-        version="v1",
-        fallback_content=FALLBACK_REMINDER_PROMPT,
-    )
+    template = load_prompt("reminder_prompt", version="v1")
 
     # Resolve psyche context before template formatting
     psyche_block = ""
@@ -239,16 +254,22 @@ async def generate_reminder_message(
         system_prompt += "\n\n" + user_model_block
 
     try:
-        # Use the response LLM with custom settings for short message generation.
-        # The `response` slot streams by design; usage_metadata is present on
-        # the aggregated result because every streaming-capable provider now
-        # requests it explicitly (PROVIDER_USAGE_CAPABILITIES, ADR-220). The
-        # historical "disable streaming to get usage_metadata" comment here
-        # described an override that never existed (ex-F3).
-        from src.domains.agents.graphs.base_agent_builder import LLMConfig
+        # The response slot, asked for a SHORT answer: no reasoning where the
+        # model can stop, and the answer budget only there. Until 2026-09-12
+        # this was a bare ``max_tokens=150`` on the slot as configured, which
+        # on a model that thinks by default bought 150 tokens of chain of
+        # thought and an empty answer (measured on deepseek-flash, 3 of 3).
+        # The slot streams by design; usage_metadata is present on the
+        # aggregated result because every streaming-capable provider requests
+        # it explicitly (PROVIDER_USAGE_CAPABILITIES, ADR-220).
+        from src.core.llm_config_helper import short_answer_config
 
-        llm_config: LLMConfig = {"temperature": 0.7, "max_tokens": 150}
-        llm = get_llm("response", config_override=llm_config)
+        llm = get_llm(
+            "response",
+            config_override=short_answer_config(
+                "response", max_tokens=REMINDER_MESSAGE_MAX_TOKENS, temperature=0.7
+            ),
+        )
 
         from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
 
@@ -258,27 +279,35 @@ async def generate_reminder_message(
         # reminder message is the actual text, not a Python repr of the blocks.
         message = coerce_content_to_text(response.content).strip()
 
-        # Extract token usage from response metadata
-        tokens_in = 0
-        tokens_out = 0
-        tokens_cache = 0
-        model_name = ""
+        # ONE reader for every provider's usage shape (usage_metadata.py): the
+        # local copy this replaced read ``response_metadata["model"]`` -- a
+        # key LangChain never sets -- and the raw ``cached_tokens`` rather than
+        # the normalised ``input_token_details.cache_read``, so every reminder
+        # was billed to an unnamed model at zero with no cache credit.
+        tokens = tokens_from_response(response)
+        model_name = model_name_of_response(response) or ""
 
-        if hasattr(response, "usage_metadata") and response.usage_metadata:
-            usage = response.usage_metadata
-            tokens_in = int(usage.get("input_tokens", 0) or 0)
-            tokens_out = int(usage.get("output_tokens", 0) or 0)
-            cache_val = usage.get("cache_read_input_tokens") or usage.get("cached_tokens") or 0
-            tokens_cache = int(cache_val) if isinstance(cache_val, int | float | str) else 0
-
-        if hasattr(response, "response_metadata") and response.response_metadata:
-            model_name = response.response_metadata.get("model", "")
+        # An empty answer is not a message, and a cut one is not either
+        # (ADR-275: a truncation is a refusal, never a rescue). The written
+        # sentence goes out instead -- and the spend that DID happen is kept.
+        if not message or is_output_truncated(response):
+            logger.warning(
+                "reminder_message_empty",
+                model_name=model_name,
+                truncated=is_output_truncated(response),
+                tokens_out=tokens.completion,
+                reasoning_tokens=reasoning_tokens_of(response),
+                fallback=True,
+            )
+            message = ProactiveMessages.reminder_fallback_body(
+                created_at_text, reminder_content, language
+            )
 
         return ReminderMessageResult(
             message=message,
-            tokens_in=tokens_in,
-            tokens_out=tokens_out,
-            tokens_cache=tokens_cache,
+            tokens_in=tokens.prompt,
+            tokens_out=tokens.completion,
+            tokens_cache=tokens.cached,
             model_name=model_name,
         )
 
@@ -354,26 +383,6 @@ async def get_relevant_memories(user_id: str, reminder_content: str) -> list[dic
             error=str(e),
         )
         return []
-
-
-#: The net under `reminder_prompt.txt`, shaped exactly like it: PLACEHOLDERS
-#: filled by the same `.format` call, never an f-string.
-#:
-#: Two defects this shape removes, both measured 2026-09-06 on the previous
-#: inline version:
-#:
-#: - it interpolated the reader's own words into the template, so a reminder
-#:   saying "payer la facture {montant}" turned a brace into a placeholder
-#:   nobody could fill — `KeyError`, three retries, an abandoned occurrence;
-#: - it stated when the reminder was set up unconditionally, contradicting
-#:   `reminder_origin_recurring.txt`. What a message may say about its ORIGIN
-#:   is decided there and arrives as `origin_context`; a net restates nothing.
-FALLBACK_REMINDER_PROMPT = """{persona_prompt}
-
-It's time to remind the user about: {reminder_content}
-{origin_context}
-Generate a short, natural message in {user_language}.
-"""
 
 
 async def _account_reminder_spend(
@@ -590,7 +599,7 @@ async def process_pending_reminders() -> dict[str, Any]:
 
                     # 6. Send FCM notification
                     title = get_localized_title(user.language or settings.default_language)
-                    body = truncate_for_notification(message, 150)
+                    body = truncate_for_notification(message)
 
                     fcm_result = await fcm_service.send_reminder_notification(
                         user_id=reminder.user_id,

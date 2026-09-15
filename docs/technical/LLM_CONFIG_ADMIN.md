@@ -134,7 +134,7 @@ description pour les autres (`structuredErrorDetail`,
 | **Gemini** (2.0-flash, *-lite) | 0-2.0 | 0-1.0 | **omis** | **omis** | — | Pas de thinking |
 | **DeepSeek** (chat V3, legacy) | 0-2.0 | 0-1.0 | 0-2.0 | 0-2.0 | — | max_tokens cap 8192 |
 | **DeepSeek** (reasoner R1, legacy) | **omis** | **omis** | **omis** | **omis** | — | Pas de tools, cap 64000 |
-| **DeepSeek V4** (`deepseek-v4-flash`, `deepseek-v4-pro`) | 0-2.0⁷ | ✅⁷ | ✅⁷ | ✅⁷ | none/low/medium/high (→ `thinking.type` + `reasoning_effort`) | max_tokens cap 64000. Voir [LLM_PROVIDER_CONSTRAINTS.md §DeepSeek V4](./LLM_PROVIDER_CONSTRAINTS.md) pour le mapping complet et les contraintes structured output |
+| **DeepSeek famille thinking** (`deepseek-flash`, `deepseek-v4-pro`, alias retiré `deepseek-v4-flash`) | 0-2.0⁷ | ✅⁷ | ✅⁷ | ✅⁷ | none/low/high/max (→ `thinking.type` + `reasoning_effort`) | max_tokens plafonné au `max_output_tokens` du catalogue (64000 par défaut) et la réflexion compte DEDANS. Voir [LLM_PROVIDER_CONSTRAINTS.md §DeepSeek](./LLM_PROVIDER_CONSTRAINTS.md) pour le mapping complet et les contraintes structured output |
 | **Perplexity** | 0-2.0 | 0-1.0 | 1.0-2.0³ | -2 à 2 | — | freq_penalty multiplicatif. Base URL paramétrable via `PERPLEXITY_BASE_URL` (v1.19.1+) |
 | **Ollama** | 0-2.0 | 0-1.0 | ✗² | ✗² | none/low/medium/high/max sur un modèle `thinking`, `none` seul sinon (échelle déclarée par le serveur à la découverte, ADR-267) | Client natif `langchain-ollama`. URL racine via `OLLAMA_BASE_URL` ou l'admin (`/v1` toléré) ; `max_tokens` → `num_predict` ; `num_ctx` demandé = fenêtre comptée (champ « Fenêtre de contexte » du poste, sinon max du modèle — plafonné en local, entier en cloud, ADR-278) ; usage natif |
 

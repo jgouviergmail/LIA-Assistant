@@ -231,7 +231,10 @@ MODEL_CONTEXT_WINDOWS: dict[str, int] = {
     "gemini-2.0-flash-lite": 1_000_000,
     "gemini-1.5-pro": 1_000_000,
     "gemini-1.5-flash": 1_000_000,
-    # DeepSeek series — v4 (2026) brought the family up to 1M; v3 stays at 128K
+    # DeepSeek series — v4 (2026) brought the family up to 1M; v3 stays at 128K.
+    # deepseek-flash is the current name (DeepSeek-V4.1-Flash); the v4 names
+    # are retired aliases the API still accepts.
+    "deepseek-flash": 1_000_000,
     "deepseek-v4-flash": 1_000_000,
     "deepseek-v4-pro": 1_000_000,
     "deepseek-v4-reasoner": 1_000_000,

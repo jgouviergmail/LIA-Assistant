@@ -1037,8 +1037,6 @@ Six modeles Pydantic typesafe organisent la configuration :
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `V3_ROUTER_PROMPT_VERSION` | "v1" | Version prompt router v3 |
-| `V3_SMART_PLANNER_PROMPT_VERSION` | "v1" | Version prompt smart planner |
 
 ### Variables .env - Semantic Validator LLM
 

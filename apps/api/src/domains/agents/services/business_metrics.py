@@ -44,6 +44,7 @@ from src.domains.agents.constants import (
     STATE_KEY_PLANNER_ERROR,
 )
 from src.domains.agents.models import MessagesState
+from src.infrastructure.llm.usage_metadata import model_name_of_response
 
 logger = structlog.get_logger(__name__)
 
@@ -401,12 +402,8 @@ async def calculate_total_cost_usd_async(
             elif "cache_read_input_tokens" in usage:
                 cached_tokens = int(usage.get("cache_read_input_tokens", 0))  # type: ignore[call-overload]
 
-            # Extract model name from message metadata
-            model = None
-            if hasattr(msg, "response_metadata") and msg.response_metadata:
-                model = msg.response_metadata.get("model_name") or msg.response_metadata.get(
-                    "model"
-                )
+            # Extract model name from message metadata (the ONE response-side reader)
+            model = model_name_of_response(msg)
             if not model and hasattr(msg, "additional_kwargs"):
                 model = msg.additional_kwargs.get("model")
 

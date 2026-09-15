@@ -19,7 +19,8 @@ from uuid import UUID
 
 from src.core.config import settings
 from src.core.constants import INTEREST_SOURCE_CONTENT_MAX_LENGTH
-from src.core.i18n_types import get_language_name
+from src.core.i18n import get_language_name
+from src.core.prompt_store import read_prompt_file
 from src.domains.connectors.clients.perplexity_client import PerplexityClient
 from src.domains.connectors.models import ConnectorType
 from src.domains.interests.helpers import (
@@ -221,13 +222,9 @@ class PerplexityContentSource:
         Returns:
             System prompt string
         """
-        lang_name = get_language_name(user_language)
-
-        return (
-            f"You are a helpful assistant providing interesting facts and recent news. "
-            f"Respond in {lang_name}. Be concise and informative. "
-            f"Focus on the most interesting or surprising aspects of the topic. "
-            f"Include 1-2 specific facts or recent developments."
+        # Read by path: ``interests`` must not import the agents package.
+        return read_prompt_file("interest_perplexity_system_prompt").format(
+            language=get_language_name(user_language)
         )
 
     def _build_search_query(self, topic: str, user_language: str) -> str:

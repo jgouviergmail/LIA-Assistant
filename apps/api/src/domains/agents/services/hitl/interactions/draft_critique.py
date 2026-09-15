@@ -537,13 +537,6 @@ class DraftCritiqueInteraction:
             "{personnalite}", personality_instruction or default_personality
         )
 
-        # Inject localized two-block labels for UPDATE templates.
-        # The LLM renders these verbatim, replacing any legacy "unchanged" framing.
-        update_labels = HitlMessages.get_draft_update_labels(user_language)
-        system_prompt = system_prompt.replace(
-            "{L_Modifications}", update_labels["modifications"]
-        ).replace("{L_Full_post_update}", update_labels["full_post_update"])
-
         # Pre-convert datetime values to user's local timezone for display
         # This ensures the LLM receives human-readable local dates instead of raw UTC
         display_content = self._preconvert_dates_for_display(

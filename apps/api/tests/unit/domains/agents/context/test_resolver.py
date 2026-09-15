@@ -121,7 +121,7 @@ class TestResolveEmptyItems:
 
         assert result.success is False
         assert result.error == "no_context"
-        assert "Aucun item" in result.message
+        assert result.message == "No item in the current context."  # technical English (ADR-256)
 
 
 class TestResolveNumericIndex:

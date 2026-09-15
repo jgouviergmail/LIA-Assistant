@@ -2,10 +2,11 @@
 
 Two rules, both measured rather than chosen, and both enforced by tests.
 
-**Ties break upward.** With ties broken downward, ``deepseek-v4-flash`` asked
-for ``low`` -- equidistant from ``none`` and ``high`` on its ("none", "high",
-"max") ladder -- coerces to ``none``: reasoning silently disabled. So does
-``claude-opus-4-6`` asked for ``minimal``. That is the exact failure this whole
+**Ties break upward.** With ties broken downward, ``deepseek-flash`` asked
+for ``minimal`` -- equidistant from ``none`` and ``low`` on its ("none", "low",
+"high", "max") ladder -- coerces to ``none``: reasoning silently disabled. So
+does ``claude-opus-4-6`` asked for ``minimal``. (First measured with ``low`` on
+the three-level ladder the family carried before the vendor documented ``low``.) That is the exact failure this whole
 model exists to remove, re-created through another door. The codebase already
 carries the doctrine: *"an uninformed guess must never under-budget a hard
 query"* (``utils/react_budget.py``).

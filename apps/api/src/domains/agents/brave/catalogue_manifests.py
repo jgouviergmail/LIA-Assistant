@@ -3,6 +3,7 @@ Catalogue manifests for Brave Search tools.
 Optimized for orchestration efficiency.
 """
 
+from src.core.constants import BRAVE_NEWS_SEARCH_MAX_COUNT, BRAVE_WEB_SEARCH_MAX_COUNT
 from src.domains.agents.registry.catalogue import (
     CostProfile,
     DisplayMetadata,
@@ -50,8 +51,8 @@ brave_search_catalogue_manifest = ToolManifest(
             name="count",
             type="integer",
             required=False,
-            description="Number of results (default: 5, max: 20)",
-            constraints=[ParameterConstraint(kind="maximum", value=20)],
+            description=f"Number of results (default: 5, max: {BRAVE_WEB_SEARCH_MAX_COUNT})",
+            constraints=[ParameterConstraint(kind="maximum", value=BRAVE_WEB_SEARCH_MAX_COUNT)],
         ),
         ParameterSchema(
             name="freshness",
@@ -137,8 +138,8 @@ brave_news_catalogue_manifest = ToolManifest(
             name="count",
             type="integer",
             required=False,
-            description="Number of results (default: 5, max: 50)",
-            constraints=[ParameterConstraint(kind="maximum", value=50)],
+            description=f"Number of results (default: 5, max: {BRAVE_NEWS_SEARCH_MAX_COUNT})",
+            constraints=[ParameterConstraint(kind="maximum", value=BRAVE_NEWS_SEARCH_MAX_COUNT)],
         ),
         ParameterSchema(
             name="freshness",

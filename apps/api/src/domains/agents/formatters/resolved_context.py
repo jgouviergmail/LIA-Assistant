@@ -105,7 +105,7 @@ def format_resolved_context_for_prompt(
     items = resolved_context.get("items", [])
 
     if not items:
-        return "Aucun élément résolu pour cette référence."
+        return "No item resolved for this reference."
 
     # Detect domain type from first item
     first_item = items[0] if items else {}

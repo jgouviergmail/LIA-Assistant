@@ -31,7 +31,7 @@ from src.core.constants import (
     INTEREST_NOTIFY_END_HOUR_DEFAULT,
     INTEREST_NOTIFY_START_HOUR_DEFAULT,
 )
-from src.core.i18n_types import get_language_name
+from src.core.i18n import get_language_name
 from src.domains.habits.tick_scoring import TickSurface, should_defer_tick_for_rhythm
 from src.domains.interests.models import UserInterest
 from src.domains.interests.repository import (

@@ -432,16 +432,36 @@ await chat_repo.create_or_update_token_summary(
 )
 ```
 
+### What the call asks for (ADR-285)
+
+The message is two sentences, so the call **declares no reasoning** rather than
+a small budget: `short_answer_config("response", max_tokens=REMINDER_MESSAGE_MAX_TOKENS, temperature=0.7)`
+(`core/llm_config_helper.py`) takes the slot's own configuration, resolves its
+reasoning profile through the ADR-245 seam and, where the model can stop
+reasoning (`can_disable`, known family), stores `ReasoningIntent(level="none")`
+and the answer budget. Where reasoning is mandatory or the family unknown, the
+slot's budget stays — a cap that includes the thinking is not a cap on the
+answer. Measured 2026-09-12 on production before this rule: `max_tokens=150`
+on a model that thinks by default bought 150 tokens of hidden chain of thought
+and an empty answer, three times out of three; after it, 35-48 output tokens
+and a message every time.
+
 ### Fallback
 
-If LLM generation fails:
-```python
-# French fallback
-message = f"C'est l'heure ! Rappel ({created_at_text}) : {content}"
+The written sentence (`ProactiveMessages.reminder_fallback_body`, six
+languages) goes out in three cases, never « 🔔 » alone:
 
-# English fallback
-message = f"It's time! Reminder ({created_at_text}): {content}"
-```
+| Case | Spend accounted |
+|---|---|
+| The model call raised (timeout, rate limit, provider error) | no call, nothing |
+| The answer came back **empty** | yes — the call happened |
+| The provider reports the answer **cut at its budget** (`is_output_truncated`, ADR-275) | yes |
+
+The last two log `reminder_message_empty` with the model, the truncation
+verdict and the reasoning token count (`reasoning_tokens_of`). Usage is read
+through the ONE reader (`usage_metadata.py`: `tokens_from_response`,
+`model_name_of_response`) — the local copy this replaced billed every reminder
+to an unnamed model at zero.
 
 ---
 

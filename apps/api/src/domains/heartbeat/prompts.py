@@ -10,16 +10,19 @@ from __future__ import annotations
 
 from contextlib import suppress
 from datetime import UTC, datetime
+from functools import lru_cache
 from uuid import UUID, uuid4
 
 import structlog
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from src.core.config import get_settings
-from src.core.i18n_types import get_language_name
+from src.core.i18n import get_language_name
+from src.core.prompt_store import parse_prompt_sections, read_prompt_file
 from src.domains.agents.prompts import load_prompt
 from src.domains.heartbeat.schemas import HeartbeatContext, HeartbeatDecision
 from src.infrastructure.llm.token_capture import TokenCaptureHandler
+from src.infrastructure.llm.usage_metadata import tokens_from_response
 
 logger = structlog.get_logger(__name__)
 
@@ -33,31 +36,34 @@ def build_decision_user_prompt(context: HeartbeatContext) -> str:
     Returns:
         Formatted user prompt string.
     """
-    parts = [f"CURRENT CONTEXT:\n{context.to_prompt_context()}"]
-
-    # Recent heartbeats for anti-redundancy
-    hb_summary = context.recent_heartbeats_summary
-    parts.append(
-        f"\nRECENT HEARTBEAT NOTIFICATIONS (contents shown — never repeat their "
-        f"topics, activities or products):\n{hb_summary or 'None sent recently.'}"
+    # Three anti-redundancy blocks (own heartbeats, interest notifications,
+    # other proactive surfaces — P10); an empty summary reads as the store's
+    # « none » line rather than a blank the model could misread.
+    none = _heartbeat_lines()["none_sent_recently"]
+    return load_prompt("heartbeat_decision_user_prompt").format(
+        context=context.to_prompt_context(),
+        recent_heartbeats=context.recent_heartbeats_summary or none,
+        recent_interests=context.recent_interest_notifications_summary or none,
+        recent_other=context.recent_other_notifications_summary or none,
     )
 
-    # Cross-type: recent interest notifications
-    int_summary = context.recent_interest_notifications_summary
-    parts.append(
-        f"\nRECENT INTEREST NOTIFICATIONS (avoid overlapping topics):\n"
-        f"{int_summary or 'None sent recently.'}"
-    )
 
-    # Cross-surface: reminders, scheduled-action results, call reports (P10)
-    other_summary = context.recent_other_notifications_summary
-    parts.append(
-        f"\nOTHER RECENT PROACTIVE MESSAGES (reminders, automations, call "
-        f"reports — the user already received these, do not pile up on the "
-        f"same topics):\n{other_summary or 'None sent recently.'}"
-    )
+def render_verified_facts(facts_block: str) -> str:
+    """The ADR-135 verified-facts contract appended to an interest heartbeat.
 
-    return "\n".join(parts)
+    Args:
+        facts_block: The fresh facts, one per line.
+
+    Returns:
+        The block from ``heartbeat_verified_facts_prompt``.
+    """
+    return load_prompt("heartbeat_verified_facts_prompt").format(facts_block=facts_block)
+
+
+@lru_cache(maxsize=1)
+def _heartbeat_lines() -> dict[str, str]:
+    """One-line scaffolds of the heartbeat prompts, read once from the store."""
+    return dict(parse_prompt_sections(read_prompt_file("heartbeat_prompt_lines"), 2))
 
 
 async def get_heartbeat_decision(
@@ -218,13 +224,7 @@ async def generate_heartbeat_message(
         # ADR-135: real, fresh facts for an interest-centered heartbeat. The
         # contract is explicit so the model names concrete items instead of
         # producing another vague "have a look at ..." message.
-        system_prompt += (
-            "\n\nVERIFIED FACTS about the user's interest (fresh, from web search):\n"
-            + facts_block
-            + "\n\nYour notification MUST be built on 1-2 concrete items from these "
-            "facts, naming them explicitly. Never invent titles or facts. Do not "
-            "include raw URLs — source links are appended automatically."
-        )
+        system_prompt += "\n\n" + render_verified_facts(facts_block)
 
     llm = get_llm("heartbeat_message")
 
@@ -241,14 +241,10 @@ async def generate_heartbeat_message(
 
     message = result.text
 
-    # Extract token usage
-    tokens_in = 0
-    tokens_out = 0
-    tokens_cache = 0
-    if hasattr(result, "usage_metadata") and result.usage_metadata:
-        tokens_in = result.usage_metadata.get("input_tokens", 0)
-        tokens_out = result.usage_metadata.get("output_tokens", 0)
-        tokens_cache = result.usage_metadata.get("cache_read_input_tokens", 0)
+    # ONE reader for every provider's spelling (ADR-272 corollary): the prompt
+    # count excludes what was read from cache, which the tracker prices apart.
+    tokens = tokens_from_response(result)
+    tokens_in, tokens_out, tokens_cache = tokens.prompt, tokens.completion, tokens.cached
 
     logger.info(
         "heartbeat_message_generated",

@@ -30,7 +30,7 @@ from langchain_core.runnables import RunnableConfig
 
 from src.core.config import settings
 from src.core.constants import VOICE_TTS_MS_PER_CHAR_HEURISTIC
-from src.core.i18n_types import get_language_name
+from src.core.i18n import get_language_name
 from src.core.time_utils import now_in_timezone
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.voice.factory import TTSConfig, get_tts_client, get_tts_config

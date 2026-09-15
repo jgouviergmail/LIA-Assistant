@@ -11,7 +11,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from src.core.config import settings
 from src.core.exceptions_domains import raise_usage_limit_exceeded
-from src.core.i18n_types import LANGUAGE_NAMES
+from src.core.i18n import get_language_name
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.agents.utils.json_parser import extract_json_from_llm_response
 from src.domains.usage_limits.instance_spend import (
@@ -83,8 +83,8 @@ class PersonalityTranslationService:
             return result
 
         # Get language names
-        source_name = LANGUAGE_NAMES.get(source_language, source_language)
-        target_name = LANGUAGE_NAMES.get(target_language, target_language)
+        source_name = get_language_name(source_language)
+        target_name = get_language_name(target_language)
 
         # Build prompts (system prompt is versioned in prompts/v1/)
         system_prompt = load_prompt("personality_translation_prompt", version="v1").format(

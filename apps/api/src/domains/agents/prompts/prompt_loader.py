@@ -22,7 +22,7 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 # Base directory for prompts
-PROMPTS_DIR = Path(__file__).parent  # Parent of v1/ since file is in v1/
+PROMPTS_DIR = Path(__file__).parent  # holds the version directories (v1/, ...)
 
 
 def _get_available_versions() -> set[str]:
@@ -70,7 +70,22 @@ PromptVersion = str  # Accept any version string, validated at runtime
 # an entry without a file (or a file without an entry) fails CI.
 PromptName = Literal[
     "response_system_prompt_base",
+    "response_context_sections",
+    "hitl_item_filter_prompt",
+    "smart_planner_prompt_lines",
+    "smart_planner_mcp_format_reference_prompt",
+    "heartbeat_decision_user_prompt",
+    "heartbeat_verified_facts_prompt",
+    "heartbeat_prompt_lines",
+    "perplexity_tool_lines",
+    "interest_perplexity_system_prompt",
+    "journal_consolidation_lines",
+    "semantic_validator_lines",
+    "hitl_draft_modifier_lines",
+    "interest_extraction_lines",
+    "rag_context_format",
     "react_truncation_directive",
+    "react_computation_prompt",
     "runtime_failures_directive",
     "diagnostician_prompt",
     "response_directive_plan_rejection",
@@ -180,6 +195,7 @@ PromptName = Literal[
     # Pipeline intelligence (analysis, planning, validation)
     "query_analyzer_prompt",
     "smart_planner_prompt",
+    "smart_planner_subagent_delegation_prompt",
     "for_each_directive_prompt",
     "semantic_validator_prompt",
     "semantic_pivot_prompt",
@@ -192,6 +208,8 @@ PromptName = Literal[
     "psyche_usage_directive",
     "psyche_usage_directive_light",
     "psyche_embodied_frame",
+    "psyche_embodied_lines",
+    "psyche_legacy_compact_prompt",
     "psyche_embodied_faint",
     "psyche_embodied_proactive",
     # HTML response formatting (when cards are disabled)
@@ -266,7 +284,7 @@ def calculate_prompt_hash(content: str) -> str:
     return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
 
-# 256, not 32: `prompts/v1/` holds 89 files and a single turn touches the
+# 256, not 32: `prompts/v1/` holds well over a hundred files and a single turn touches the
 # router, the analyzer, the planner, the validator, the response scaffolding and
 # every injected block. Below the working set the LRU evicts, and the next miss
 # is a SYNCHRONOUS `read_text` inside a coroutine — disk I/O on the event loop
@@ -283,7 +301,7 @@ def load_prompt(
     Load a versioned prompt from file with optional hash validation.
 
     Optimizations (Phase 3.2.9):
-    - LRU cache (maxsize=32) for prompt reuse across requests
+    - LRU cache (maxsize=256, sized above the corpus) for prompt reuse across requests
     - Reduces disk I/O from ~1000s reads/min to ~10 reads at startup
     - Cache key: (name, version, validate_hash, expected_hash)
 
@@ -317,7 +335,7 @@ def load_prompt(
     Note:
         - Hash validation is recommended in production to detect unauthorized modifications
         - Cache is in-memory and cleared on process restart (prompts reloaded from disk)
-        - maxsize=32 covers all prompts × versions with room for growth
+        - maxsize=256 covers all prompts × versions with room for growth
         - Version is validated at runtime against available versions in filesystem
     """
     # Validate version exists (runtime check to prevent silent fallback bugs)
@@ -378,46 +396,6 @@ def load_prompt(
 
     logger.debug("loaded_prompt", name=name, version=version, chars=len(content))
     return content
-
-
-def load_prompt_with_fallback(
-    name: PromptName, version: PromptVersion = "v1", fallback_content: str | None = None
-) -> str:
-    """
-    Load prompt with fallback to provided content if file not found.
-
-    Useful for gradual migration from hardcoded prompts to versioned files.
-
-    Args:
-        name: Prompt filename (without .txt extension)
-        version: Prompt version (default: "v1")
-        fallback_content: Fallback prompt content if file not found
-
-    Returns:
-        Prompt content (from file or fallback)
-
-    Example:
-        >>> # During migration period
-        >>> OLD_PROMPT = "Tu es un agent..."
-        >>> prompt = load_prompt_with_fallback(
-        ...     "router_system_prompt",
-        ...     fallback_content=OLD_PROMPT
-        ... )
-
-    Note:
-        This is a temporary migration helper. Production code should use load_prompt()
-        without fallback to ensure versioned prompts are always used.
-    """
-    try:
-        return load_prompt(name, version)
-    except PromptLoadError:
-        if fallback_content is not None:
-            logger.warning(
-                f"Prompt file not found for {name} v{version}, using fallback content. "
-                f"This should only happen during migration."
-            )
-            return fallback_content
-        raise
 
 
 def get_available_versions() -> list[str]:
@@ -567,7 +545,6 @@ __all__ = [
     "get_prompt_metadata",
     "list_available_prompts",
     "load_prompt",
-    "load_prompt_with_fallback",
     "validate_all_prompts",
 ]
 

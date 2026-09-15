@@ -570,29 +570,16 @@ flowchart TD
 
 ### Fallback Message Generation
 
-```python
-# If LLM generation fails, use simple fallback
-async def generate_reminder_message(...) -> ReminderMessageResult:
-    try:
-        # Normal LLM generation with personality + memories
-        return await _generate_with_llm(...)
-    except Exception as e:
-        logger.warning("reminder_llm_generation_failed", error=str(e))
-
-        # Fallback: simple message without LLM
-        if language == "fr":
-            message = f"C'est l'heure ! Rappel ({created_at_text}) : {content}"
-        else:
-            message = f"It's time! Reminder ({created_at_text}): {content}"
-
-        return ReminderMessageResult(
-            message=message,
-            tokens_in=0,
-            tokens_out=0,
-            tokens_cache=0,
-            model_name="fallback",
-        )
-```
+The written fallback (`ProactiveMessages.reminder_fallback_body`, six
+languages) is used when the model call raised — **and**, since ADR-285, when
+the call succeeded with an empty answer or an answer the provider reports as
+cut at its budget (`is_output_truncated`, ADR-275). In the last two cases the
+spend that happened is kept (`tokens_from_response`, `model_name_of_response`)
+and `reminder_message_empty` is logged with the reasoning token count. The call
+itself is made through `short_answer_config`: no reasoning where the model can
+stop, and the answer budget only there — a reasoning model bills its thinking
+inside `max_tokens`, which is how a 150-token budget once produced « 🔔 » and
+nothing else (see [REMINDERS.md](./REMINDERS.md#llm-message-generation)).
 
 ---
 

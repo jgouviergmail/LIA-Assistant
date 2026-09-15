@@ -25,8 +25,9 @@ from langchain_core.runnables import RunnableConfig
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.field_names import FIELD_CONTENT, FIELD_TOOL_NAME
+from src.core.i18n import get_language_name
 from src.core.i18n_hitl import HitlMessages
-from src.domains.agents.prompts import format_with_current_datetime, load_prompt
+from src.domains.agents.prompts import get_current_datetime_context, load_prompt
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.observability.logging import get_logger
 
@@ -672,7 +673,6 @@ class HitlQuestionGenerator:
         """
         # Load versioned prompt dynamically (cached by load_prompt LRU)
         from src.core.config import get_settings
-        from src.domains.agents.prompts import get_current_datetime_context
 
         settings = get_settings()
 
@@ -704,24 +704,12 @@ class HitlQuestionGenerator:
             else f"{plan_summary.total_steps} steps. " f"Actions: {'; '.join(action_parts)}"
         )
 
-        # Replace placeholders using .replace() to avoid issues with JSON braces
-        hitl_plan_approval_system_prompt = (
-            prompt_template.replace(
-                "{current_datetime}",
-                get_current_datetime_context(user_timezone, user_language),
-            )
-            .replace(
-                "{personnalite}",
-                personality_instruction or default_personality,
-            )
-            .replace(
-                "{user_language}",
-                user_language,
-            )
-            .replace(
-                "{action_summary}",
-                action_summary,
-            )
+        # Values are never parsed by str.format: JSON in ``action_summary`` is safe.
+        hitl_plan_approval_system_prompt = prompt_template.format(
+            current_datetime=get_current_datetime_context(user_timezone, user_language),
+            personnalite=personality_instruction or default_personality,
+            user_language=get_language_name(user_language),
+            action_summary=action_summary,
         )
 
         # Build human-readable step descriptions
@@ -778,23 +766,17 @@ Generate the approval question:"""
         # Get default personality in user's language if none provided (i18n)
         default_personality = HitlMessages.get_default_personality(user_language)
 
-        hitl_question_system_prompt = (
-            format_with_current_datetime(
-                load_prompt(
-                    "hitl_question_generator_prompt",
-                    version=settings.hitl_question_generator_prompt_version,
-                ),
-                user_timezone=user_timezone,
-                user_language=user_language,
-            )
-            .replace(
-                "{user_language}",
-                user_language,
-            )
-            .replace(
-                "{personnalite}",
-                personality_instruction or default_personality,
-            )
+        # ONE str.format pass: the file is a format template (its few-shot examples
+        # escape their JSON braces as ``{{``), and values are never parsed, so a
+        # personality written by a person may contain braces. A ``.replace()``
+        # chain shipped the examples with doubled braces for 30 releases.
+        hitl_question_system_prompt = load_prompt(
+            "hitl_question_generator_prompt",
+            version=settings.hitl_question_generator_prompt_version,
+        ).format(
+            user_language=get_language_name(user_language),
+            personnalite=personality_instruction or default_personality,
+            current_datetime=get_current_datetime_context(user_timezone, user_language),
         )
 
         # User message with specific action details

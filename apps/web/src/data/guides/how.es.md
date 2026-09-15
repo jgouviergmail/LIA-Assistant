@@ -6,7 +6,7 @@
 
 **Versión**: 5.0
 **Fecha**: 2026-08-23
-**Aplicación**: LIA v1.44.5
+**Aplicación**: LIA v1.44.6
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -70,7 +70,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Soberanía de datos | PostgreSQL local (sin SaaS DB), cifrado Fernet en reposo, sesiones Redis locales |
 | Multi-proveedor LLM | Factory pattern con 7 adaptadores, configuración por nodo, sin acoplamiento fuerte a un provider |
 | Transparencia total | 555 métricas Prometheus, debug panel integrado, seguimiento token por token |
-| Fiabilidad en producción | 282 ADRs, ~28.583 tests recogidos por pytest en 1.685 archivos, observabilidad nativa, HITL de 6 niveles |
+| Fiabilidad en producción | 284 ADRs, ~28.983 tests recogidos por pytest en 1.703 archivos, observabilidad nativa, HITL de 6 niveles |
 | Costes controlados | Smart Services (89 % de ahorro en tokens), embeddings semánticos, prompt caching, filtrado de catálogo |
 
 ### 1.2. Principios arquitecturales
@@ -88,10 +88,10 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 
 | Métrica | Valor |
 |----------|--------|
-| Tests | 28.583 recopilados por pytest en 1.685 archivos de prueba + 8.314 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
+| Tests | 28.983 recopilados por pytest en 1.703 archivos de prueba + 8.316 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
 | Fixtures pytest | 969, de las cuales 46 compartidas mediante conftest |
 | Documentos de documentación | 647 |
-| ADRs (Architecture Decision Records) | 282 |
+| ADRs (Architecture Decision Records) | 284 |
 | Métricas Prometheus | 553 definiciones |
 | Dashboards Grafana | 29 |
 | Idiomas soportados (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -171,7 +171,7 @@ apps/api/src/
 │   │   ├── registry/             # AgentRegistry, domain_taxonomy, catalogue
 │   │   ├── semantic/             # Semantic router, expansion service
 │   │   ├── middleware/           # Memory injection, personality injection
-│   │   ├── prompts/v1/           # 86 archivos .txt de prompts versionados
+│   │   ├── prompts/v1/           # archivos .txt de prompts versionados
 │   │   ├── graphs/               # 15 builders de agentes (uno por dominio)
 │   │   ├── context/              # Context store (Data Registry), decorators
 │   │   └── models.py             # MessagesState (TypedDict + custom reducer)
@@ -730,6 +730,8 @@ La tabla `llm_models` lleva el catálogo completo: provider, capacidades funcion
 
 La pantalla Tarificación LLM escribe esa escala **directamente**: muestra las profundidades que ofrece la familia del modelo — resueltas en vivo por `GET /admin/llm/reasoning-family`, con la misma función que el traductor y el validador — y se **desmarca** lo que este modelo concreto rechaza. Marcarlo todo no almacena nada: se aplica la escala de la familia tal cual. El libro Excel (ADR-228) lleva las mismas dos columnas, y su importación rechaza una profundidad fuera de la familia **nombrando las que sí se habrían aceptado**: una hoja de cálculo no puede mostrar casillas, así que la garantía se traslada a la importación. Aquí hubo un mecanismo de plantillas — «copiar la forma de tal modelo existente» — que agrupaba modelos por su escala *almacenada* y no por familia, de modo que copiar entre familias quitaba profundidades en silencio. Ver `docs/technical/LLM_REASONING_IDENTITY.md`.
 
+**Una familia de modelos se declara una vez, y una respuesta corta se pide sin razonamiento** (ADR-285). La *familia* de un modelo es la forma de su API de razonamiento — un conmutador y una escala de esfuerzo en DeepSeek, un presupuesto en Gemini 2.5, un nivel en OpenAI — y se deriva de una única declaración en `reasoning/profiles.py` que el adaptador, el validador y el desvío de salida estructurada leen todos: tres pruebas de prefijo privadas dejaron pasar una vez el modelo estrella renombrado de un proveedor por las tres a la vez, sin escala ofrecida ni interruptor enviado. La misma costura sirve a los llamantes que necesitan dos frases: en un modelo que razona por defecto, el proveedor factura el razonamiento *dentro* de `max_tokens` (OpenAI, Anthropic, Gemini y DeepSeek lo hacen todos), de modo que un presupuesto pequeño compra razonamiento oculto y ninguna respuesta. `short_answer_config` declara por tanto *ningún razonamiento* allí donde el perfil resuelto puede apagarlo y solo ahí conserva su presupuesto pequeño; en otro caso queda el presupuesto del slot, porque un techo que incluye el razonamiento no es un techo sobre la respuesta. El techo de salida de una familia, igualmente, se lee en la fila del catálogo y no en un literal.
+
 ### 12.5. Prompt caching agnóstico del proveedor
 
 Todos los proveedores facturan menos (y responden más rápido) cuando el inicio del prompt es byte-idéntico entre peticiones — pero cada uno con su propio mecanismo: los bloques `cache_control` de Anthropic, el enrutado `prompt_cache_key` de OpenAI, las cachés implícitas de prefijo en DeepSeek/Qwen/Gemini. LIA separa las responsabilidades: cada prompt de sistema versionado coloca su contenido estático (rol, reglas, ejemplos, formato de salida) al principio, luego un marcador canónico `--- DYNAMIC CONTEXT ---`, y después todo el contenido por petición (fecha, consulta, contexto, catálogo de herramientas). Las plantillas permanecen neutrales respecto al modelo; la capa de infraestructura traduce el marcador al dialecto de cada proveedor — el split `cache_control` para Anthropic, la clave de enrutado de caché para OpenAI, nada para las cachés implícitas, que aprovechan el prefijo estable tal cual. El prompt del planner — el más costoso del pipeline — expone así un prefijo cacheable byte-estable de ~77 % entre dos peticiones cualesquiera. Guardas CI shrink-only bloquean la convención: todo prompt dinámico debe llevar el marcador, ningún placeholder puede precederlo sin una excepción justificada, y la estabilidad byte del prefijo del planner se verifica en cada build.
@@ -854,6 +856,8 @@ APScheduler con leader election Redis (SETNX, TTL 120s, recheck 5s) para el bucl
 Los topes se **inyectan desde el consumidor**, nunca se leen en el modelo: 12 disparos al día para una rutina, 48 para un recordatorio. Cada herramienta de conversación publica los límites que aplica (ADR-184), de modo que un número fuera de rango lo repara el clamp del planificador en lugar de reportarse como defecto.
 
 Cada tick termina con una fila en un **historial de ejecuciones**, escrita en el resultado dentro de la transacción de marcado — cinco desenlaces, uno por salida del ejecutor, en un savepoint y nunca bloqueante. La semana en curso se calcula en el servidor con el mismo motor: una celda toma la última ejecución cuyo instante servido **es igual** al del hueco, nunca una ventana de tolerancia, así que un cambio de horario reinicia la cuadrícula por construcción y el navegador nunca relee la planificación — la pinta.
+
+La frase del recordatorio sigue la misma regla que cualquier respuesta corta: se pide **sin razonamiento** allí donde el modelo puede detenerse, con un presupuesto de respuesta pequeño — y una respuesta que vuelve vacía, o que el proveedor declara cortada en su presupuesto, es un rechazo y no un mensaje. La frase de reserva escrita sale en su lugar, el gasto que tuvo lugar se conserva, y la advertencia nombra el modelo y sus tokens de razonamiento. Una notificación es el único acto de la propia iniciativa de LIA que una persona experimenta de verdad; nunca llega como una campana y nada más.
 
 ### 16.4. Una notificación push que desemboca en una decisión
 
@@ -1202,7 +1206,9 @@ Todos los tools devuelven `ToolResponse` (éxito) o `ToolErrorModel` (fallo) con
 
 ### 23.4. Sistema de Prompts
 
-86 archivos `.txt` versionados en `src/domains/agents/prompts/v1/`, cargados vía `load_prompt()` con caché LRU (32 entradas). Versiones configurables por variables de entorno.
+Archivos `.txt` versionados en `src/domains/agents/prompts/v1/` (uno por prompt, el literal `PromptName` mantenido en sincronía por un test), cargados vía `load_prompt()` con una caché LRU dimensionada por encima de todo el corpus. Versiones configurables por variables de entorno.
+
+**Un prompt enuncia lo que el código impone, y nada más** (ADR-284). Todo `{placeholder}` de un archivo tiene un productor en el módulo que lo carga, y un archivo que contiene `{{` se renderiza con `.format()` — un guardián AST lee ambas cosas por archivo. Una instrucción por contexto vive en el archivo y solo se emite cuando el contenido existe (`response_context_sections.txt`), de modo que un turno desnudo no lleva ninguna envoltura vacía ni instrucción sobre un documento ausente. El límite que un prompt publica es el límite que la herramienta impone, desde una constante; un número viene de un ajuste y un hecho del código que lo aplica; una capacidad solo se promete si el turno puede ejecutarla. La prosa nunca vive en un `.py`, ni tampoco un texto de reserva: los andamiajes de una línea viven en archivos de líneas `clave|plantilla` leídos por un único analizador (`parse_prompt_sections`), y un archivo ausente es un despliegue roto que falla ruidosamente en lugar de una segunda formulación silenciosa.
 
 ### 23.5. Activación Centralizada de Componentes (ADR-061)
 
@@ -1393,7 +1399,7 @@ Una regla CSS gobierna los espaciados del design system: los márgenes verticale
 
 ## 24. Arquitectura de decisiones (ADR)
 
-282 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
+284 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
 
 | ADR | Decisión | Problema resuelto | Impacto medido |
 |-----|----------|----------------|---------------|
@@ -1667,8 +1673,8 @@ El presupuesto de conexiones tiene un suelo, no solo un techo. La auditoría F00
 
 LIA es un ejercicio de ingeniería de software que intenta resolver un problema concreto: construir un asistente IA multi-agente de calidad producción, transparente, seguro y extensible, capaz de funcionar en un Raspberry Pi.
 
-Los 282 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~27.290 tests en 1.601 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
+Los 284 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~27.290 tests en 1.601 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
 
 La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesiano, enrutamiento semántico, HITL sistemático, proactividad LLM-driven, diarios introspectivos — crea un sistema donde cada componente refuerza a los demás. El HITL alimenta el pattern learning, que reduce los costes, que permiten más funcionalidades, que generan más datos para la memoria, que mejora las respuestas. Es un círculo virtuoso por diseño, no por accidente.
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (490+ documentos), de los 282 ADRs y del changelog (v1.0 a v1.44.5). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (490+ documentos), de los 284 ADRs y del changelog (v1.0 a v1.44.6). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

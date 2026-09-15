@@ -27,11 +27,13 @@ from __future__ import annotations
 
 import json
 import re
+from functools import lru_cache
 from typing import Any
 
 import structlog
 
-from src.core.i18n_types import get_language_name
+from src.core.i18n import get_language_name
+from src.core.prompt_store import parse_prompt_sections, read_prompt_file
 from src.domains.agents.constants import DEFAULT_CONTACT_NAME
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.instrumentation import create_instrumented_config
@@ -95,6 +97,12 @@ CONTENT_FIELDS: dict[str, list[str]] = {
     "contact_delete": ["name", "email", "phone", "organization", "notes", "address"],
     "task_delete": ["title", "notes", "due", "status"],
 }
+
+
+@lru_cache(maxsize=1)
+def _modifier_lines() -> dict[str, str]:
+    """Scaffolds of the draft-modifier prompt, read once from the store (by path)."""
+    return dict(parse_prompt_sections(read_prompt_file("hitl_draft_modifier_lines"), 2))
 
 
 class DraftModificationService:
@@ -293,7 +301,9 @@ class DraftModificationService:
         contact_info = self._build_contact_context_info(contact_context)
 
         # Sender identity for signature instructions ("sign with my name")
-        sender_info = f"SENDER (the user writing this): {sender_name}" if sender_name else ""
+        sender_info = (
+            _modifier_lines()["sender_info"].format(sender_name=sender_name) if sender_name else ""
+        )
 
         # Load externalized prompt and replace placeholders
         from src.domains.agents.prompts import load_prompt
@@ -310,7 +320,7 @@ class DraftModificationService:
             .replace("{expected_fields}", self._format_expected_fields(content_fields))
         )
 
-        user_message = f"Modify the draft according to the instructions: {instructions}"
+        user_message = _modifier_lines()["user_message"].format(instructions=instructions)
 
         return [
             {"role": "system", "content": system_prompt},
@@ -333,13 +343,13 @@ class DraftModificationService:
         if not contact_context:
             return ""
 
-        lines = ["\n## Contact email addresses available"]
+        templates = _modifier_lines()
+        lines = ["\n" + templates["contacts_header"]]
         for contact in contact_context:
             name = contact.get("name", DEFAULT_CONTACT_NAME)
             emails = contact.get("emails", [])
             if emails:
-                emails_str = ", ".join(emails)
-                lines.append(f"- {name}: {emails_str}")
+                lines.append(templates["contact_line"].format(name=name, emails=", ".join(emails)))
 
         if len(lines) == 1:
             return ""  # No emails found
@@ -348,36 +358,37 @@ class DraftModificationService:
 
     def _build_context_info(self, draft: dict[str, Any], draft_type: str) -> str:
         """Build context information about preserved fields."""
+        templates = _modifier_lines()
         if draft_type in ("email", "email_reply", "email_forward"):
-            to_addr = draft.get("to", "not specified")
+            to_addr = draft.get("to", templates["recipient_unspecified"])
             cc = draft.get("cc", "")
             subject = draft.get("subject", "")
-            parts = [f"Current recipient (editable): {to_addr}"]
+            parts = [templates["recipient"].format(to=to_addr)]
             if cc:
-                parts.append(f"Current CC (editable): {cc}")
+                parts.append(templates["cc"].format(cc=cc))
             if subject and draft_type == "email":
-                parts.append(f"Current subject: {subject}")
+                parts.append(templates["subject"].format(subject=subject))
             return "\n".join(parts)
 
-        elif draft_type in ("event", "event_update"):
-            summary = draft.get("summary", "")
-            start = draft.get("start_datetime", "")
-            return f"Event: {summary}\nDate: {start}"
+        if draft_type in ("event", "event_update"):
+            return (
+                templates["event"].format(summary=draft.get("summary", ""))
+                + "\n"
+                + templates["event_date"].format(start=draft.get("start_datetime", ""))
+            )
 
-        elif draft_type in ("contact", "contact_update"):
-            name = draft.get("name", "")
-            return f"Contact: {name}"
+        if draft_type in ("contact", "contact_update"):
+            return templates["contact"].format(name=draft.get("name", ""))
 
-        elif draft_type in ("task", "task_update"):
-            title = draft.get("title", "")
-            return f"Task: {title}"
+        if draft_type in ("task", "task_update"):
+            return templates["task"].format(title=draft.get("title", ""))
 
-        else:
-            return "Generic draft"
+        return templates["generic"]
 
     def _format_expected_fields(self, fields: list[str]) -> str:
         """Format expected JSON fields for the prompt."""
-        return ",\n".join([f'  "{field}": "modified content"' for field in fields])
+        line = _modifier_lines()["expected_field"]
+        return ",\n".join("  " + line.format(field=field) for field in fields)
 
     # Regex for extracting email addresses from free-text instructions
     _EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}")

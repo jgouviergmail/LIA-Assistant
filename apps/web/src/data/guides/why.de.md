@@ -4,7 +4,7 @@
 
 **Version**: 6.0
 **Datum**: 2026-08-23
-**Anwendung**: LIA v1.44.5
+**Anwendung**: LIA v1.44.6
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -283,6 +283,7 @@ LIA läuft nicht nur auf bescheidener Hardware — sie **optimiert aktiv** ihren
 - **Pattern-Learning**: Validierte Pläne werden gespeichert und wiederverwendet, ohne erneut das LLM aufzurufen
 - **Message Windowing**: Jede Komponente sieht nur den unbedingt notwendigen Kontext
 - **Prompt-Cache**: Nutzung des nativen Caches der Anbieter zur Reduzierung wiederkehrender Kosten
+- **Prompts ohne Ballast**: Ein Kontext wird nur eingerahmt, wenn er existiert, sodass ein nackter Zug keine leere Hülle trägt, und eine Benachrichtigung von zwei Sätzen wird ohne Nachdenken angefordert — bei einem Modell, das standardmäßig nachdenkt, wird das Nachdenken innerhalb des Antwortbudgets abgerechnet
 
 Zusammengenommen erklären diese Optimierungen den Faktor 4 bis 8 zwischen dem Pipeline-Modus und dem autonomen Agentenmodus — bei gleicher Leistung.
 
@@ -457,7 +458,7 @@ Dieser Anspruch reicht bis auf die Maschine hinunter. Ein Server besteht aus meh
 
 ### 8.3. Eine Anti-Halluzinations-Pipeline
 
-Das Antwortsystem verfügt über einen dreischichtigen Anti-Halluzinations-Mechanismus: Datenformatierung mit expliziten Grenzen, Direktiven, die ausschließlich die Verwendung verifizierter Daten vorschreiben, und Behandlung von Grenzfällen. Das LLM ist gezwungen, nur zu synthetisieren, was aus den tatsächlichen Tool-Ergebnissen stammt.
+Das Antwortsystem verfügt über einen dreischichtigen Anti-Halluzinations-Mechanismus: Datenformatierung mit expliziten Grenzen, Direktiven, die ausschließlich die Verwendung verifizierter Daten vorschreiben, und Behandlung von Grenzfällen. Das LLM ist gezwungen, nur zu synthetisieren, was aus den tatsächlichen Tool-Ergebnissen stammt. Und was das Modell liest, ist wahr: Ein Prompt sagt nur, was der Code erzwingt — eine veröffentlichte Grenze ist die angewandte Grenze, eine Zahl kommt aus einer Einstellung — und eine Anweisung wird nur ausgegeben, wenn ihr Inhalt existiert.
 
 ### 8.4. Human-in-the-Loop auf 6 Ebenen
 

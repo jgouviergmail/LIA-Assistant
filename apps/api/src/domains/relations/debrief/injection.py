@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING
 import structlog
 
 from src.core.config import settings
+from src.core.prompt_store import parse_prompt_sections
 from src.core.time_utils import resolve_user_timezone
 from src.domains.relations.debrief.prompts import load_debrief_prompt
 from src.domains.relations.debrief.repository import RelationDebriefRepository
@@ -57,14 +58,8 @@ def _section_formats() -> list[tuple[str, str, str]]:
     prose in a ``.py`` is exactly what the versioned-prompt rule forbids,
     scaffolding included.
     """
-    formats: list[tuple[str, str, str]] = []
-    for line in load_debrief_prompt("relation_debrief_context_sections").splitlines():
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#") or stripped.count("|") < 2:
-            continue
-        field, header, template = stripped.split("|", 2)
-        formats.append((field.strip(), header.strip(), template.strip()))
-    return formats
+    rows = parse_prompt_sections(load_debrief_prompt("relation_debrief_context_sections"), 3)
+    return [(field, header, template) for field, header, template in rows]
 
 
 def _render_blocks(body: DebriefBody) -> list[str]:

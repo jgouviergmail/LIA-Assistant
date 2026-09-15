@@ -505,6 +505,31 @@ class BriefingResponse(BaseModel):
         ),
     )
     cards: CardsBundle
+    windows: BriefingWindows = Field(..., description="The windows the cards were built with.")
+
+
+class BriefingWindows(BaseModel):
+    """The time windows the cards were built with — what the fetchers looked at.
+
+    Published so the UI can say « nothing in the next N days » with the N the
+    fetcher actually used, instead of a number typed into six locale files
+    (prompt audit 2026-09-12, A.6: the locales said 14 while the fetcher looked
+    7 days ahead on any instance living on the constants).
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    birthdays_horizon_days: int = Field(
+        ..., description="Forward window of the birthdays card (days)."
+    )
+    health_window_days: int = Field(
+        ..., description="Rolling window of the health averages (days)."
+    )
+    agenda_lookahead_hours: int = Field(
+        ..., description="Forward window of the agenda card (hours)."
+    )
+    tasks_horizon_days: int = Field(..., description="Forward window of the tasks card (days).")
+    weather_forecast_days: int = Field(..., description="Forecast days shown on the weather card.")
 
 
 class CardsResponse(BaseModel):
@@ -517,6 +542,7 @@ class CardsResponse(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     cards: CardsBundle
+    windows: BriefingWindows = Field(..., description="The windows the cards were built with.")
 
 
 class SynthesisResponse(BaseModel):

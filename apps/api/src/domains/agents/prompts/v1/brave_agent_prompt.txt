@@ -20,7 +20,7 @@ Always respond in the user's language as indicated in <Context>.
 - **brave_news_tool**: For recent news, events.
 
 ### 3. Parameters
-- `count`: Number of results (web: max 20, news: max 50)
+- `count`: Number of results (web: max {brave_web_max_count}, news: max {brave_news_max_count})
 - `freshness`: 'pd' (24h), 'pw' (7d), 'pm' (31d), 'py' (1y)
 
 ### 4. Transparency

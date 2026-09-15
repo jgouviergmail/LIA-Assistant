@@ -31,6 +31,7 @@ from typing import Any
 
 import structlog
 
+from src.domains.agents.prompts import load_prompt
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.instrumentation import create_instrumented_config
 from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
@@ -178,31 +179,11 @@ class ItemFilterService:
 
         items_list = "\n".join(items_text)
 
-        return f"""You are an item filter assistant. Your task is to identify which items should be EXCLUDED based on the user's criteria.
-
-User's exclusion criteria: "{exclude_criteria}"
-
-Items to filter:
-{items_list}
-
-Instructions:
-1. Analyze each item against the user's exclusion criteria
-2. An item should be EXCLUDED if it matches the criteria (sender, subject, content, name, etc.)
-3. Use semantic matching: handle typos, partial matches, synonyms
-4. Return ONLY the indices of items to EXCLUDE as a JSON array
-
-Response format (JSON array of integers):
-[0, 2]  // means exclude items at indices 0 and 2
-
-If NO items match the criteria, return: []
-If ALL items match the criteria, return: [0, 1, 2, ...]
-
-Important:
-- Return ONLY the JSON array, no explanation
-- Indices are 0-based
-- Be inclusive in matching: "Guy Savoy" matches "guy.savoy@..." or "Guy S."
-
-Response:"""
+        # The whole system prompt is the versioned ``hitl_item_filter_prompt``;
+        # values are never parsed by str.format, so criteria may contain braces.
+        return load_prompt("hitl_item_filter_prompt").format(
+            exclude_criteria=exclude_criteria, items_list=items_list
+        )
 
     def _parse_filter_response(self, response: str, max_index: int) -> list[int]:
         """Parse LLM response to extract indices to exclude."""

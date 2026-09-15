@@ -1,0 +1,5 @@
+# One-line scaffolds of the interest extraction prompt, `key|template` per line;
+# blank lines and #-comments are ignored (prompt audit 2026-09-12, lot B: the
+# empty-list value was a French literal in Python).
+
+no_known_interest|(no known interest yet)

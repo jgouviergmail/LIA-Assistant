@@ -58,7 +58,7 @@ graph TB
 |----------|--------|----------------|
 | OpenAI | gpt-4.1-mini, gpt-4.1-mini-mini, gpt-4.1-nano, o1, o1-mini | Seeded in DB |
 | Anthropic | claude-sonnet-4, claude-opus-4 | Seeded in DB |
-| DeepSeek | deepseek-chat, deepseek-reasoner | Seeded in DB |
+| DeepSeek | deepseek-flash, deepseek-v4-pro, deepseek-v4-flash (retired alias), deepseek-chat, deepseek-reasoner | Seeded in DB (deepseek-flash also by migration `e9b5d7f3a2c4`) |
 | Perplexity | sonar-pro, sonar-reasoning | Seeded in DB |
 | Ollama | * (local models) | Free (0.00) |
 

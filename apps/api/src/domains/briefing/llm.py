@@ -146,6 +146,9 @@ async def generate_synthesis(
             personality_brief=await _resolve_personality(user.id),
             active_sections=_summarize_cards_for_llm(cards, verbose=True),
             user_model_block=await _resolve_user_model_block(user),
+            # The windows the fetchers used — never a number typed into the prose.
+            birthdays_horizon_days=app_settings.briefing_max_birthdays_horizon_days,
+            health_window_days=app_settings.briefing_health_window_days,
         )
         text, usage = await _invoke_and_track(
             rendered=rendered,

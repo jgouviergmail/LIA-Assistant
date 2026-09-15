@@ -1,0 +1,13 @@
+# Verdicts of the semantic validator's DETERMINISTIC rules (no model consulted),
+# `key|template` per line; blank lines and #-comments are ignored. The planner reads
+# these on replan, so they are prompt text (prompt audit 2026-09-12, lot B).
+# str.format templates: `{findings}`, `{writing_tools}`.
+
+ghost_dependency_description|$steps reference uses wrong result_key for step
+ghost_dependency_fix_fallback|Fix $steps references
+placeholder_contact_description|Fabricated placeholder contact detail: {findings}
+placeholder_contact_fix|NEVER invent contact details (emails, phone numbers). Either add a get_contacts_tool step and reference its output ($steps.step_N.contacts[0].emailAddresses[0].value), or OMIT the optional parameter entirely.
+for_each_description|for_each pattern issue detected
+for_each_fix_fallback|Fix for_each configuration
+scope_overflow_description|The request asks for information, but the plan performs action(s): {writing_tools}
+scope_overflow_fix|The user asked a QUESTION, not for an action. Answer it by READING: keep the lookup steps and replace every action tool ({writing_tools}) with a read tool of the same domain. Never contact anyone to obtain information the system can read itself.

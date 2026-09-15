@@ -4,7 +4,7 @@
 
 **Versión**: 6.0
 **Fecha**: 2026-08-23
-**Aplicación**: LIA v1.44.5
+**Aplicación**: LIA v1.44.6
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -283,6 +283,7 @@ LIA no solo funciona con hardware modesto — **optimiza activamente** su consum
 - **Aprendizaje de patrones**: los planes validados se memorizan y reutilizan sin volver a llamar al LLM
 - **Message Windowing**: cada componente ve únicamente el contexto estrictamente necesario
 - **Cache de prompts**: aprovechamiento de la caché nativa de los proveedores para limitar los costes recurrentes
+- **Prompts sin peso muerto**: un contexto solo se envuelve si existe, de modo que un turno desnudo no lleva ninguna envoltura vacía, y una notificación de dos frases se pide sin razonamiento — en un modelo que razona por defecto, el razonamiento se factura dentro del presupuesto de la respuesta
 
 Combinadas, estas optimizaciones explican el factor de 4 a 8 entre el modo Pipeline y el modo agente autónomo, con el mismo servicio prestado.
 
@@ -457,7 +458,7 @@ Esa exigencia baja hasta la máquina. Un servidor son varios procesos, y «el co
 
 ### 8.3. Un pipeline anti-alucinación
 
-El sistema de respuesta dispone de un mecanismo anti-alucinación en tres capas: formateo de datos con límites explícitos, directivas que imponen el uso exclusivo de datos verificados, y gestión de casos límite. El LLM está obligado a sintetizar únicamente lo que proviene de los resultados reales de las herramientas.
+El sistema de respuesta dispone de un mecanismo anti-alucinación en tres capas: formateo de datos con límites explícitos, directivas que imponen el uso exclusivo de datos verificados, y gestión de casos límite. El LLM está obligado a sintetizar únicamente lo que proviene de los resultados reales de las herramientas. Y lo que el modelo lee es cierto: un prompt solo enuncia lo que el código impone — un límite publicado es el límite aplicado, un número viene de un ajuste — y una instrucción solo se emite cuando su contenido existe.
 
 ### 8.4. Human-in-the-Loop en 6 niveles
 

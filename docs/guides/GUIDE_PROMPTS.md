@@ -221,43 +221,44 @@ class SummarizerOutput(BaseModel):
 
 ### Étape 3 : Rédiger le Prompt
 
-**Template** :
+**Template** — un fichier `.txt` est envoyé au modèle tel quel : il ne porte
+**ni en-tête `#`, ni changelog** (les 131 fichiers du store n'en ont plus depuis
+juillet 2026 ; l'historique est celui de git). Sa forme réelle :
 
-```markdown
-# [Node Name] System Prompt v1
-# Purpose: [Describe role]
-# Created: [Date]
+```text
+<Role>
+[Rôle et contexte — 2-3 phrases]
+</Role>
 
-[Rôle et contexte]
+<Rules>
+1. [Règle]
+2. [Règle]
+</Rules>
 
-## JSON SCHEMA ATTENDU
+<Examples>
+Input: [entrée concrète]
+Output: [sortie attendue]
+</Examples>
 
-```json
-{
-  "field1": "value",
-  "field2": 123
-}
+--- DYNAMIC CONTEXT (all variable data below) ---
+
+[Ce qui change à chaque requête : {user_language}, {current_datetime}, …]
 ```
 
-### Champs
+Trois règles que des gardes CI font respecter :
 
-**field1** :
-- Description
-- Valeurs possibles
+- **le marqueur `--- DYNAMIC CONTEXT` sépare le préfixe cachable de la queue**
+  (`test_prompt_cache_hygiene.py`) : aucun placeholder par requête au-dessus ;
+- **tout `{placeholder}` a un producteur** dans le module qui charge le fichier
+  (`test_prompt_placeholders_are_produced.py`) — un placeholder que personne ne
+  remplit arrive au modèle en texte littéral (mesuré 2026-09-12 sur trois
+  placeholders du générateur de questions HITL, depuis la v1.0.0) ;
+- **un fichier qui contient `{{` est un gabarit `str.format`** : son chargeur
+  appelle `.format()`, jamais `.replace()`, sinon les accolades doublées
+  atteignent le modèle.
 
-**field2** :
-- Description
-- Range
-
-## RÈGLES
-
-### Règle #1 : [Nom règle]
-[Description détaillée]
-
-### Règle #2 : [Nom règle]
-[Description détaillée]
-
-## EXEMPLES
+Un **nombre réglable** ne s'écrit jamais en prose : il arrive par un
+placeholder lu dans `settings` (`{semantic_broad_batch}`, ADR-184).
 
 ### Ex1: [Scénario]
 Input: [Input example]
@@ -679,48 +680,16 @@ router_prompt = ChatPromptTemplate.from_messages([
 
 ### 1. Structure de Prompt
 
-**Template recommandé** :
+**Structure recommandée** — voir le gabarit de l'étape 3 (blocs XML nommés,
+règles numérotées, exemples concrets, marqueur `--- DYNAMIC CONTEXT` en
+dernier). Pas d'en-tête de version ni de changelog dans le fichier : un
+`.txt` est envoyé au modèle tel quel, et son historique est celui de git.
 
-```markdown
-# [Node Name] System Prompt v[X]
-# Purpose: [One-liner]
-# Created: [Date]
-# Base: v[X-1] + [Changes summary]
-
-[Contexte et rôle - 2-3 phrases]
-
-## JSON SCHEMA ATTENDU
-
-[Schéma JSON exemple]
-
-### Champs
-
-[Description de chaque champ]
-
-## RÈGLES
-
-### Règle #1: [Nom]
-[Description]
-
-### Règle #2: [Nom]
-[Description]
-
-## EXEMPLES
-
-[3-5 exemples concrets]
-
-## PRINCIPES
-
-[Principes directeurs]
-
----
-
-Note: [Notes caching, optimisation]
-
-# Version [X].0 - [Title] ([Date])
-# - ADDED/FIXED/ENHANCED: [Change 1]
-# - Cache marker: v[X].0_[date]_[identifier]
-```
+Les **scaffolds courts** (une phrase, un libellé, une ligne de gabarit) vivent
+dans un fichier de lignes `clé|gabarit` lu par `parse_prompt_sections`
+(`core/prompt_store.py`) — `response_context_sections.txt`,
+`psyche_embodied_lines.txt`, `semantic_validator_lines.txt`… — jamais dans un
+f-string Python : une phrase dans un `.py` échappe à toutes les gardes.
 
 ### 2. Rédaction Efficace
 

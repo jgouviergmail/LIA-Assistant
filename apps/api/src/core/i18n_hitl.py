@@ -1295,41 +1295,6 @@ EARLY_RECIPIENT_PATTERNS: list[str] = [" to ", " for "]
 # the registry.
 
 # =============================================================================
-# DRAFT UPDATE BLOCK LABELS - Two-blocks structure for UPDATE critiques
-# =============================================================================
-# Two labels feed the hitl_draft_critique prompt for *_update drafts:
-#   - modifications:     section showing only fields that actually changed
-#   - full_post_update:  section showing the complete item AFTER the change
-# Labels are rendered AS-IS by the LLM (no "unchanged"/"inchangé" variant).
-
-_DRAFT_UPDATE_BLOCK_LABELS: dict[str, dict[str, str]] = {
-    "fr": {
-        "modifications": "Modifications",
-        "full_post_update": "Détails après modification",
-    },
-    "en": {
-        "modifications": "Changes",
-        "full_post_update": "Full details after update",
-    },
-    "es": {
-        "modifications": "Cambios",
-        "full_post_update": "Detalles completos tras la modificación",
-    },
-    "de": {
-        "modifications": "Änderungen",
-        "full_post_update": "Details nach der Änderung",
-    },
-    "it": {
-        "modifications": "Modifiche",
-        "full_post_update": "Dettagli dopo la modifica",
-    },
-    "zh-CN": {
-        "modifications": "修改内容",
-        "full_post_update": "更新后的完整详情",
-    },
-}
-
-# =============================================================================
 # DRAFT SUMMARIES - Templates for draft type summaries
 # =============================================================================
 
@@ -1833,24 +1798,6 @@ class HitlMessages:
         from src.domains.agents.drafts.display import get_draft_emoji as _get
 
         return _get(draft_type)
-
-    @staticmethod
-    def get_draft_update_labels(language: str) -> dict[str, str]:
-        """Get localized block labels for draft UPDATE templates.
-
-        Returns the localized strings for "Modifications" (what changed) and
-        "Full post-update" (complete item AFTER the change) used to structure
-        the HITL draft critique output in two distinct labelled blocks.
-
-        Args:
-            language: Language code (fr, en, es, de, it, zh-CN).
-
-        Returns:
-            Dict with keys "modifications" and "full_post_update".
-        """
-        lang = HitlMessages._normalize_language(language)
-        labels = _DRAFT_UPDATE_BLOCK_LABELS.get(lang, _DRAFT_UPDATE_BLOCK_LABELS["en"])
-        return labels
 
     @staticmethod
     def format_draft_critique_actions(

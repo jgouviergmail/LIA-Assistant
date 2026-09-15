@@ -1,0 +1,4 @@
+# One-line scaffolds of the heartbeat prompts, `key|template` per line; blank lines
+# and #-comments are ignored (prompt audit 2026-09-12, lot B).
+
+none_sent_recently|None sent recently.

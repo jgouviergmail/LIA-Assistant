@@ -1,0 +1,11 @@
+# Short scaffolds the planner service appends to its prompt, one `key|template`
+# per line; blank lines and #-comments are ignored (prompt audit 2026-09-12, lot B:
+# they were f-strings in smart_planner_service.py, unreadable by any prompt guard).
+#
+# Templates are str.format templates; the service joins lines with newlines.
+
+preserved_header|## PRESERVED PARAMETERS (FROM PREVIOUS CLARIFICATION)
+preserved_intro|The following parameters were already set in a previous step. You MUST preserve these exact values in the new plan:
+preserved_line|- {name}: "{value}"
+preserved_footer|Do NOT modify or regenerate these values.
+mcp_truncated_marker|... (truncated)

@@ -127,11 +127,12 @@ class TestLadderMembership:
         validate_reasoning_effort(_caps("gpt-5.2"), ReasoningIntent(level="medium"), "openai")
 
     def test_deepseek_rejects_a_level_its_ladder_does_not_carry(self) -> None:
+        """``medium`` is not on the vendor's documented ``low/high/max`` ladder."""
         with pytest.raises(HTTPException) as exc:
             validate_reasoning_effort(
-                _caps("deepseek-v4-flash"), ReasoningIntent(level="low"), "deepseek"
+                _caps("deepseek-flash"), ReasoningIntent(level="medium"), "deepseek"
             )
-        assert _detail(exc)["ctx"]["allowed"] == ["none", "high", "max"]
+        assert _detail(exc)["ctx"]["allowed"] == ["none", "low", "high", "max"]
 
     def test_the_catalogue_ladder_narrows_what_is_accepted(self) -> None:
         """A single-level row: everything else is refused."""

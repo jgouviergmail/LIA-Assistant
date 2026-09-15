@@ -9,7 +9,7 @@
  * Only a browser proves the sequence, because it is about what the SERVER is
  * asked twice: this spec counts the close requests and their ids.
  */
-import { test, expect, type MockRoute } from '../fixtures';
+import { test, expect, briefingWindowsMock, type MockRoute } from '../fixtures';
 
 const LOOP_ID = '772c69f3-e308-408b-84c5-ff654d939eb5';
 
@@ -22,6 +22,7 @@ function cards(withLoop: boolean) {
     error_message: null,
   };
   return {
+    windows: briefingWindowsMock,
     cards: {
       weather: empty,
       agenda: empty,

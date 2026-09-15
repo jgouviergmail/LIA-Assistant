@@ -32,8 +32,6 @@ from langgraph.types import interrupt
 
 from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
-from src.core.i18n_types import get_language_name
-from src.core.time_utils import get_prompt_datetime_formatted
 from src.domains.agents.analysis.query_intelligence_helpers import (
     get_qi_attr,
     get_query_intelligence_from_state,
@@ -44,8 +42,8 @@ from src.domains.agents.nodes import react_context
 from src.domains.agents.nodes.react_history import (
     window_messages_for_react as _window_messages_for_react,
 )
+from src.domains.agents.nodes.react_prompt import build_system_prompt, sandbox_available
 from src.domains.agents.orchestration.step_timeouts import compute_step_timeout
-from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.agents.services.connector_error_notice import (
     emit_connector_notice_for_exception,
 )
@@ -136,44 +134,6 @@ def _rebuild_wrapped_tools(
             )
         )
     return wrappers
-
-
-def _build_system_prompt(state: MessagesState) -> str:
-    """Build the ReAct agent system prompt with context variables.
-
-    Args:
-        state: Current graph state.
-
-    Returns:
-        Formatted system prompt string.
-    """
-    personality = state.get("personality_instruction") or "a helpful, friendly assistant"
-    user_tz = state.get("user_timezone", DEFAULT_USER_DISPLAY_TIMEZONE)
-    user_lang = state.get("user_language", "fr")
-
-    # Cross-domain type links (same section the pipeline planner receives,
-    # ontology ∪ live manifests). Without it, the ReAct LLM has no signal
-    # that e.g. a route destination should come from a contact's exact
-    # address rather than an approximate memory value.
-    from src.domains.agents.semantic.expansion_service import (
-        generate_semantic_dependencies_for_prompt,
-    )
-
-    domains = get_qi_attr(state, "domains", default=[]) or []
-    semantic_deps = generate_semantic_dependencies_for_prompt(
-        domains, include_jinja2_patterns=False
-    )
-
-    template = load_prompt("react_agent_prompt")
-    return template.format(
-        personnalite=personality,
-        current_datetime=get_prompt_datetime_formatted(),
-        user_timezone=user_tz,
-        # Human-readable name ("French") — clearer language directive for the
-        # LLM than a raw code ("fr"); same convention as get_response_prompt.
-        user_language=get_language_name(user_lang),
-        semantic_dependencies=semantic_deps,
-    )
 
 
 def _is_productive_result(raw_result: Any) -> bool:
@@ -308,8 +268,8 @@ async def react_setup_node(
     wrapped_tools, hitl_map = selector.select(intelligence) if intelligence else ([], {})
     tool_names = [t.name for t in wrapped_tools]
 
-    # Build system prompt
-    system_prompt = _build_system_prompt(state)
+    # Build system prompt — it promises only what this turn can actually run
+    system_prompt = build_system_prompt(state, computation=await sandbox_available(tool_names))
 
     # Context blocks, in injection ORDER — the order is meaningful. Standing
     # rules lead: they govern how everything after them is used. Each builder is

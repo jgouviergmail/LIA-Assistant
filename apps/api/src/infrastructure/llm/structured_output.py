@@ -68,6 +68,7 @@ from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.llm.model_capabilities_cache import ModelCapabilitiesCache
 from src.infrastructure.llm.model_profiles import ModelProfile
 from src.infrastructure.llm.output_truncation import is_output_truncated, raise_truncated
+from src.infrastructure.llm.reasoning.profiles import is_deepseek_thinking_model
 
 # Strict-mode schema analysis lives in its own module; re-exported here so
 # callers keep a single import surface.
@@ -226,18 +227,20 @@ def reset_reasoning_stream_negative_cache() -> None:
 
 
 def _is_v4_thinking_enabled(llm: BaseChatModel) -> bool:
-    """Detect whether ``llm`` is a DeepSeek V4 instance with thinking ON.
+    """Detect whether ``llm`` is a DeepSeek thinking-family instance with thinking ON.
 
-    Inspects the model name and the ``extra_body`` attribute populated by
-    our ``_create_deepseek_llm`` adapter. Used to route around the V4
-    ``tool_choice`` restriction in ``get_structured_output``.
+    The family (``deepseek-flash`` and the ``deepseek-v4-*`` aliases) is
+    recognised through the ONE declaration in ``reasoning/profiles.py``; the
+    ``extra_body`` attribute populated by ``_create_deepseek_llm`` says whether
+    thinking was switched off. Used to route around the ``tool_choice``
+    restriction in ``get_structured_output``.
 
     Returns False (safe default) for any non-DeepSeek instance, any V3
-    model, or any V4 instance with ``reasoning_effort=none`` (thinking
+    model, or any family instance with ``reasoning_effort=none`` (thinking
     explicitly disabled by the admin).
     """
     model_name = getattr(llm, "model_name", "") or ""
-    if not model_name.startswith("deepseek-v4-"):
+    if not is_deepseek_thinking_model(model_name):
         return False
 
     extra_body = getattr(llm, "extra_body", None) or {}

@@ -115,6 +115,53 @@ def tokens_from_callback(handler: object) -> UsageTokens:
     return UsageTokens(prompt, completion, cached)
 
 
+def reasoning_tokens_of(response: object) -> int:
+    """How many of a response's output tokens were hidden reasoning.
+
+    Read from the normalised ``output_token_details.reasoning`` a LangChain
+    message carries; zero when the provider reports none. Diagnostic only --
+    reasoning is already counted inside ``completion``, so this is never a
+    billing quantity -- but it is the number that says why a capped answer
+    came back empty (measured 2026-09-12: 150 requested, 150 of reasoning).
+
+    Args:
+        response: Any object that may expose ``usage_metadata``.
+
+    Returns:
+        The reasoning token count, or 0.
+    """
+    usage = getattr(response, "usage_metadata", None)
+    if not isinstance(usage, Mapping):
+        return 0
+    details = usage.get("output_token_details")
+    return _as_int(details.get("reasoning")) if isinstance(details, Mapping) else 0
+
+
+def model_name_of_response(response: object) -> str | None:
+    """The model a RESPONSE says it came from, or None when it does not say.
+
+    The response-side twin of :func:`model_name_of`: LangChain spells it
+    ``model_name`` in ``response_metadata`` on every chat model, and a few
+    older adapters ``model``. Two call sites read it before this helper
+    existed; one read ``model`` alone and billed every reminder to an unnamed
+    model at zero.
+
+    Args:
+        response: Any object that may expose ``response_metadata``.
+
+    Returns:
+        The model name, or None.
+    """
+    metadata = getattr(response, "response_metadata", None)
+    if not isinstance(metadata, Mapping):
+        return None
+    for key in ("model_name", "model"):
+        value = metadata.get(key)
+        if isinstance(value, str) and value.strip():
+            return value
+    return None
+
+
 def model_name_of(llm: object) -> str | None:
     """The model a client is configured with, or None when it will not say.
 

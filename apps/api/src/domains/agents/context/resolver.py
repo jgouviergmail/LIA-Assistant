@@ -89,7 +89,7 @@ class ReferenceResolver:
         if not items:
             return ResolutionResult.error_result(
                 error="no_context",
-                message="Aucun item dans le contexte actuel.",
+                message="No item in the current context.",
             )
 
         # Normalize reference: lowercase and extract meaningful words

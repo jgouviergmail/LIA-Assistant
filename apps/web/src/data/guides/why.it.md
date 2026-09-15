@@ -4,7 +4,7 @@
 
 **Versione**: 6.0
 **Data**: 2026-08-23
-**Applicazione**: LIA v1.44.5
+**Applicazione**: LIA v1.44.6
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -283,6 +283,7 @@ LIA non si limita a girare su hardware modesto — **ottimizza attivamente** il 
 - **Apprendimento di pattern**: i piani validati vengono memorizzati e riutilizzati senza richiamare il LLM
 - **Message Windowing**: ogni componente vede solo il contesto strettamente necessario
 - **Cache dei prompt**: sfruttamento della cache nativa dei provider per limitare i costi ricorrenti
+- **Prompt senza peso morto**: un contesto viene avvolto solo se esiste, così un turno nudo non porta alcun involucro vuoto, e una notifica di due frasi si chiede senza ragionamento — su un modello che ragiona per impostazione predefinita, il ragionamento si fattura dentro il budget della risposta
 
 Combinate, queste ottimizzazioni spiegano il fattore da 4 a 8 tra la modalità Pipeline e la modalità agente autonomo, a parità di servizio reso.
 
@@ -457,7 +458,7 @@ Questa esigenza scende fino alla macchina. Un server è più processi, e «il co
 
 ### 8.3. Una pipeline anti-allucinazione
 
-Il sistema di risposta dispone di un meccanismo anti-allucinazione a tre livelli: formattazione dei dati con limiti espliciti, direttive che impongono l'uso esclusivo di dati verificati, e gestione dei casi limite. Il LLM è costretto a sintetizzare solo ciò che proviene dai risultati reali degli strumenti.
+Il sistema di risposta dispone di un meccanismo anti-allucinazione a tre livelli: formattazione dei dati con limiti espliciti, direttive che impongono l'uso esclusivo di dati verificati, e gestione dei casi limite. Il LLM è costretto a sintetizzare solo ciò che proviene dai risultati reali degli strumenti. E ciò che il modello legge è vero: un prompt enuncia solo ciò che il codice impone — un limite pubblicato è il limite applicato, un numero viene da un'impostazione — e un'istruzione viene emessa solo quando il suo contenuto esiste.
 
 ### 8.4. Human-in-the-Loop a 6 livelli
 

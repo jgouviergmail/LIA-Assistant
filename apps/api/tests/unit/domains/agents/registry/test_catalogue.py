@@ -12,7 +12,6 @@ from datetime import datetime
 
 import pytest
 
-from src.core.constants import CONTACTS_AGENT_PROMPT_VERSION_DEFAULT
 from src.domains.agents.registry.catalogue import (
     AgentManifest,
     AgentManifestAlreadyRegistered,
@@ -458,7 +457,7 @@ class TestAgentManifest:
 
         assert manifest.max_parallel_runs == 1
         assert manifest.default_timeout_ms > 0
-        assert manifest.prompt_version == CONTACTS_AGENT_PROMPT_VERSION_DEFAULT
+        assert manifest.prompt_version == "v1"  # the dataclass default, the store's only version
         assert manifest.owner_team == "Team AI"
         assert manifest.version == "1.0.0"
         assert isinstance(manifest.updated_at, datetime)

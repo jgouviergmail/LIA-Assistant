@@ -177,9 +177,23 @@ export const dashboardShellMocks: MockRoute[] = [
  * which would leave the grid — and anything a scan or a test looks for inside
  * it — absent for a different reason.
  */
+/**
+ * The windows the cards were built with — REQUIRED on every cards payload
+ * (`CardsResponse.windows`, `BriefingResponse.windows`): the birthdays card
+ * names the horizon from here, never from a locale file.
+ */
+export const briefingWindowsMock = {
+  birthdays_horizon_days: 7,
+  health_window_days: 14,
+  agenda_lookahead_hours: 24,
+  tasks_horizon_days: 7,
+  weather_forecast_days: 5,
+};
+
 export const briefingCardsMock: MockRoute = {
   url: '**/api/v1/briefing/cards',
   json: {
+    windows: briefingWindowsMock,
     cards: Object.fromEntries(
       [
         'weather',

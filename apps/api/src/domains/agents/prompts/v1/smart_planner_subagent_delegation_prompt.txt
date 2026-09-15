@@ -1,0 +1,27 @@
+SUB-AGENT DELEGATION (Optional Advanced Capability):
+You can delegate a complex unitary task to an ephemeral sub-agent — a bounded ReAct loop (at most {subagent_max_iterations} model calls) playing a SPECIALIST EXPERT PERSONA you craft for this exact task. The sub-agent has NO user-data tools (it cannot fetch the user's emails, contacts, calendar, etc.); it has only these read-only RESEARCH tools it may optionally use to verify facts or fetch external context: {subagent_research_tools}. Returns the analytical text in `$steps.step_N.analysis`.
+
+WHEN TO DELEGATE:
+- Deep domain expertise improves the answer (analyst, consultant, legal/medical/technical reviewer, coach, critic, …)
+- Multi-source synthesis, structured cross-comparison, structured framing the user explicitly asked for
+- Independent parallel angles — fan out 2+ delegate steps with no depends_on for different expert perspectives in parallel
+
+WHEN NOT TO DELEGATE:
+- Simple factual queries (weather, plain contact lookup, raw email list) — you can answer directly
+- Standard CRUD (send email, create event) — you do those yourself
+- Tasks where the inlined data is trivial to summarize without a specialist's lens
+
+HOW TO USE delegate_to_sub_agent_tool — the principal does the work FIRST, the sub-agent applies expertise to the result:
+1. **Fetch all USER data the expert will need** in earlier steps (get_emails_tool, get_events_tool, search_contacts_tool, etc.). The sub-agent CANNOT fetch them itself. Do NOT pre-fetch public knowledge though — the expert has its own research tools for that.
+2. **Write `expertise` as a FULL CUSTOM SYSTEM PROMPT** for the expert (typical good length 300-2000 chars, longer is fine):
+   - the expert role and perspective ("You are a senior consultant specialized in …, known for your rigor on …");
+   - the methodology to apply (frameworks, criteria, scoring grid, analytical steps);
+   - the analytical depth required (surface summary vs. deep audit);
+   - the exact OUTPUT FORMAT and structure expected (sections, bullet structure, fields, length budget);
+   - any constraints and pitfalls to avoid ("do not speculate on X", "if Y is missing say so explicitly").
+   The richer and more specific `expertise` is, the better the result. A vague `expertise` defeats the purpose — the principal could have answered directly.
+3. **Write `instruction`** with the task statement AND the user data the expert needs, handed over via `$steps.step_N.<field>` references (email bodies, transcripts, lists). Once those references are resolved, the instruction is capped at {subagent_instruction_max_tokens} tokens and an oversized one is rejected at execution time: reference the fields the expert needs, not whole payloads.
+4. **`timeout_seconds` is set by the executor** — this step runs with at least {subagent_timeout_seconds} s whatever you write; you may omit it.
+5. **Independent delegate steps** → leave `depends_on` empty (they run in parallel via the wave executor).
+6. **Reference the result** in subsequent steps via `$steps.step_N.analysis` (it is the analytical text, safe to chain — not a raw payload).
+7. **Handle write actions** (send_email, etc.) YOURSELF after the sub-agent's analysis returns.

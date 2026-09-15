@@ -113,11 +113,12 @@ class TestReasoningValidationContract:
         }
 
     def test_a_level_the_model_does_not_offer_is_rejected(self):
-        exc = self._validate(_caps("deepseek-v4-flash"), ReasoningIntent(level="low"), "deepseek")
+        # ``medium`` is not on the vendor's documented ``low/high/max`` ladder
+        exc = self._validate(_caps("deepseek-flash"), ReasoningIntent(level="medium"), "deepseek")
         assert exc.status_code == 422
         assert exc.detail["type"] == "invalid_reasoning_effort"
-        assert exc.detail["ctx"]["allowed"] == ["none", "high", "max"]
-        assert exc.detail["ctx"]["submitted"] == "low"
+        assert exc.detail["ctx"]["allowed"] == ["none", "low", "high", "max"]
+        assert exc.detail["ctx"]["submitted"] == "medium"
 
     def test_a_budget_on_a_level_based_family_is_rejected(self):
         exc = self._validate(_caps("gpt-5.2"), ReasoningIntent(budget_tokens=1024))

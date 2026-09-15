@@ -13,7 +13,7 @@
  *    pointer.
  */
 
-import { test, expect, type MockRoute } from '../fixtures';
+import { test, expect, briefingWindowsMock, type MockRoute } from '../fixtures';
 
 const GENERATED_AT = '2026-08-04T08:00:00Z';
 const EMPTY_SECTION = {
@@ -33,6 +33,7 @@ const ROUTES: MockRoute[] = [
   {
     url: '**/api/v1/briefing/cards',
     json: {
+      windows: briefingWindowsMock,
       cards: {
         weather: EMPTY_SECTION,
         agenda: EMPTY_SECTION,

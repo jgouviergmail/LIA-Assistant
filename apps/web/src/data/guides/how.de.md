@@ -6,7 +6,7 @@
 
 **Version**: 5.0
 **Datum**: 2026-08-23
-**Application**: LIA v1.44.5
+**Application**: LIA v1.44.6
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -70,7 +70,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
 | Vollständige Transparenz | 555 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 282 ADRs, ~28.583 von pytest gesammelte Tests in 1.685 Dateien, native Observability, HITL auf 6 Ebenen |
+| Produktionszuverlässigkeit | 284 ADRs, ~28.983 von pytest gesammelte Tests in 1.703 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -88,10 +88,10 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 
 | Metrik | Wert |
 |----------|--------|
-| Tests | 28.583 von pytest über 1.685 Testdateien gesammelt + 8.314 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
+| Tests | 28.983 von pytest über 1.703 Testdateien gesammelt + 8.316 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
 | pytest-Fixtures | 969, davon 46 über conftest geteilt |
 | Dokumentationsdokumente | 647 |
-| ADRs (Architecture Decision Records) | 282 |
+| ADRs (Architecture Decision Records) | 284 |
 | Prometheus-Metriken | 553 Definitionen |
 | Grafana-Dashboards | 29 |
 | Unterstützte Sprachen (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -171,7 +171,7 @@ apps/api/src/
 │   │   ├── registry/             # AgentRegistry, domain_taxonomy, Catalogue
 │   │   ├── semantic/             # Semantic Router, Expansion Service
 │   │   ├── middleware/           # Memory Injection, Personality Injection
-│   │   ├── prompts/v1/           # 86 versionierte .txt-Prompt-Dateien
+│   │   ├── prompts/v1/           # versionierte .txt-Prompt-Dateien
 │   │   ├── graphs/               # 15 Agent-Builder (einer pro Domäne)
 │   │   ├── context/              # Context Store (Data Registry), Decorators
 │   │   └── models.py             # MessagesState (TypedDict + Custom Reducer)
@@ -730,6 +730,8 @@ Die Tabelle `llm_models` trägt den vollständigen Katalog: Provider, klassische
 
 Der Tarifierungs-LLM-Bildschirm schreibt diese Skala **direkt**: Er zeigt die Tiefen, die die Familie des Modells anbietet — live aufgelöst durch `GET /admin/llm/reasoning-family`, über dieselbe Funktion wie Übersetzer und Validator — und man **hakt ab**, was dieses konkrete Modell ablehnt. Alles angehakt speichert nichts: Die Skala der Familie gilt unverändert. Die Excel-Arbeitsmappe (ADR-228) führt dieselben zwei Spalten, und ihr Import lehnt eine Tiefe außerhalb der Familie ab und **nennt dabei die akzeptierten**: Eine Tabelle kann keine Kontrollkästchen darstellen, also wandert die Garantie zum Import. Ein Template-Mechanismus — „die Form jenes vorhandenen Modells kopieren“ — stand einst hier; er gruppierte Modelle nach ihrer *gespeicherten* Skala statt nach Familie, sodass ein Kopieren über Familien hinweg still Tiefen entfernte. Siehe `docs/technical/LLM_REASONING_IDENTITY.md`.
 
+**Eine Modellfamilie wird einmal deklariert, und eine kurze Antwort wird ohne Nachdenken angefordert** (ADR-285). Die *Familie* eines Modells ist die Form seiner Reasoning-API — ein Schalter und eine Aufwandsleiter bei DeepSeek, ein Budget bei Gemini 2.5, eine Stufe bei OpenAI — und sie leitet sich aus einer einzigen Deklaration in `reasoning/profiles.py` ab, die Adapter, Validator und der Umweg der strukturierten Ausgabe alle lesen: drei private Präfixtests ließen einmal das umbenannte Spitzenmodell eines Anbieters durch alle drei zugleich, ohne angebotene Leiter und ohne gesendeten Ausschalter. Dieselbe Naht dient den Aufrufern, die zwei Sätze brauchen: bei einem Modell, das standardmäßig nachdenkt, rechnet der Anbieter das Nachdenken *innerhalb* von `max_tokens` ab (OpenAI, Anthropic, Gemini und DeepSeek tun das alle), sodass ein kleines Budget verborgenes Nachdenken und keine Antwort kauft. `short_answer_config` deklariert daher *kein Nachdenken*, wo das aufgelöste Profil es abschalten kann, und behält sein kleines Budget nur dort; sonst bleibt das Budget des Slots, denn eine Grenze, die das Nachdenken einschließt, ist keine Grenze für die Antwort. Die Ausgabegrenze einer Familie wird ebenso aus der Katalogzeile gelesen statt aus einem Literal.
+
 ### 12.5. Provider-agnostisches Prompt-Caching
 
 Jeder Provider berechnet weniger (und antwortet schneller), wenn der Anfang eines Prompts über Anfragen hinweg byte-identisch ist — aber jeder mit eigenem Mechanismus: Anthropics `cache_control`-Blöcke, OpenAIs `prompt_cache_key`-Routing, implizite Präfix-Caches bei DeepSeek/Qwen/Gemini. LIA trennt die Verantwortlichkeiten: Jeder versionierte System-Prompt stellt seinen statischen Inhalt (Rolle, Regeln, Beispiele, Ausgabeformat) an den Anfang, dann einen kanonischen Marker `--- DYNAMIC CONTEXT ---`, dann alle anfragespezifischen Inhalte (Datum, Anfrage, Kontext, Tool-Katalog). Die Templates bleiben modellneutral; die Infrastrukturschicht übersetzt den Marker in den Dialekt jedes Providers — den `cache_control`-Split für Anthropic, den Cache-Routing-Schlüssel für OpenAI, gar nichts für die impliziten Caches, die vom stabilen Präfix direkt profitieren. Der Planner-Prompt — der teuerste der Pipeline — bietet so ein zu ~77 % byte-stabiles, cachebares Präfix zwischen zwei beliebigen Anfragen. Shrink-only-CI-Guards verriegeln die Konvention: Jeder dynamische Prompt muss den Marker tragen, kein Platzhalter darf ihm ohne begründete Ausnahme vorausgehen, und die Byte-Stabilität des Planner-Präfixes wird bei jedem Build geprüft.
@@ -854,6 +856,8 @@ APScheduler mit Redis Leader Election (SETNX, TTL 120s, Recheck 5s) für die Sch
 Die Obergrenzen werden **vom Verbraucher injiziert**, nie im Modell gelesen: 12 Auslösungen pro Tag für eine Routine, 48 für eine Erinnerung. Jedes Gesprächswerkzeug veröffentlicht die Grenzen, die es durchsetzt (ADR-184), sodass eine Zahl außerhalb der Grenzen vom Clamp des Planers repariert und nicht als Fehler gemeldet wird.
 
 Jeder Tick endet mit einer Zeile in einer **Ausführungshistorie**, beim Ergebnis in der Markierungstransaktion geschrieben — fünf Ausgänge, einer je Executor-Ausgang, in einem Savepoint und nie blockierend. Die laufende Woche wird serverseitig mit derselben Maschine berechnet: eine Zelle nimmt die letzte Ausführung, deren bedienter Zeitpunkt dem des Slots **gleicht**, nie ein Toleranzfenster — so setzt eine Planänderung das Raster konstruktionsbedingt zurück, und der Browser liest den Plan nie erneut, er zeichnet nur.
+
+Der Satz der Erinnerung folgt derselben Regel wie jede kurze Antwort: Er wird **ohne Nachdenken** angefordert, wo das Modell anhalten kann, mit einem kleinen Antwortbudget — und eine Antwort, die leer zurückkommt oder die der Anbieter als an seinem Budget abgeschnitten meldet, ist eine Verweigerung und keine Nachricht. Der geschriebene Ersatzsatz geht an ihrer Stelle hinaus, die entstandene Ausgabe bleibt verbucht, und die Warnung nennt das Modell und seine Nachdenk-Tokens. Eine Benachrichtigung ist die einzige Handlung aus LIAs eigener Initiative, die eine Person wirklich erlebt; sie kommt nie als Glocke und sonst nichts an.
 
 ### 16.4. Eine Push-Benachrichtigung, die zu einer Entscheidung führt
 
@@ -1202,7 +1206,9 @@ Alle Tools geben `ToolResponse` (Erfolg) oder `ToolErrorModel` (Fehler) mit eine
 
 ### 23.4. Prompt-System
 
-86 versionierte `.txt`-Dateien in `src/domains/agents/prompts/v1/`, geladen über `load_prompt()` mit LRU-Cache (32 Einträge). Versionen konfigurierbar über Umgebungsvariablen.
+Versionierte `.txt`-Dateien in `src/domains/agents/prompts/v1/` (eine pro Prompt, das `PromptName`-Literal durch einen Test synchron gehalten), geladen über `load_prompt()` mit einem LRU-Cache, der größer als der gesamte Korpus ist. Versionen konfigurierbar über Umgebungsvariablen.
+
+**Ein Prompt sagt, was der Code erzwingt, und sonst nichts** (ADR-284). Jeder `{placeholder}` einer Datei hat einen Erzeuger in dem Modul, das sie lädt, und eine Datei, die `{{` enthält, wird mit `.format()` gerendert — ein AST-Wächter liest beides pro Datei. Eine Anweisung pro Kontext lebt in der Datei und wird nur ausgegeben, wenn der Inhalt existiert (`response_context_sections.txt`), sodass ein nackter Zug keine leere Hülle und keine Anweisung zu einem fehlenden Dokument trägt. Die Grenze, die ein Prompt veröffentlicht, ist die Grenze, die das Werkzeug erzwingt, aus einer Konstante; eine Zahl kommt aus einer Einstellung und eine Tatsache aus dem Code, der sie anwendet; eine Fähigkeit wird nur versprochen, wenn der Zug sie ausführen kann. Prosa lebt nie in einer `.py`, ein Ersatztext auch nicht: einzeilige Gerüste liegen in `Schlüssel|Vorlage`-Zeilendateien, die ein einziger Parser liest (`parse_prompt_sections`), und eine fehlende Datei ist ein kaputtes Deployment, das laut scheitert, statt einer stillen zweiten Formulierung.
 
 ### 23.5. Zentralisierte Komponentenaktivierung (ADR-061)
 
@@ -1393,7 +1399,7 @@ Eine CSS-Regel bestimmt die Abstände des Design-Systems: Vertikale Ränder eine
 
 ## 24. Architekturentscheidungen (ADR)
 
-282 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
+284 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
 
 | ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
 |-----|----------|----------------|---------------|
@@ -1667,8 +1673,8 @@ Das Verbindungsbudget hat einen Boden, nicht nur eine Decke. Audit F004 begrenzt
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 282 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~27.290 Tests in 1.601 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 284 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~27.290 Tests in 1.601 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 282 ADRs und des Changelogs (v1.0 bis v1.44.5). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 284 ADRs und des Changelogs (v1.0 bis v1.44.6). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

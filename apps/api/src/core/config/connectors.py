@@ -32,6 +32,8 @@ from src.core.constants import (
     APPLE_SMTP_MAX_RECIPIENTS_DEFAULT,
     APPLE_SMTP_MAX_SIZE_MB_DEFAULT,
     APPLE_SMTP_PORT_DEFAULT,
+    BRAVE_RATE_LIMIT_CALLS_DEFAULT,
+    BRAVE_RATE_LIMIT_WINDOW_SECONDS_DEFAULT,
     BRAVE_SEARCH_CACHE_TTL,
     BRAVE_SEARCH_ENRICHMENT_TIMEOUT,
     CALENDAR_CACHE_DETAILS_TTL,
@@ -442,6 +444,23 @@ class ConnectorsSettings(BaseSettings):
             "MUST stay >= http_timeout_brave_search * 1.5 to avoid cascade "
             "inversion (TIMEOUT_REGISTRY G2). Was 3s historically (broken)."
         ),
+    )
+    brave_rate_limit_calls: int = Field(
+        default=BRAVE_RATE_LIMIT_CALLS_DEFAULT,
+        ge=1,
+        le=500,
+        description=(
+            "Max Brave tool calls (brave_search_tool, brave_news_tool — tracked "
+            "separately per tool) per user per window. Tool-layer anti-runaway "
+            "ceiling for a paid external API, beside the client-side per-second "
+            "shaper (client_rate_limit_brave_search_per_second)."
+        ),
+    )
+    brave_rate_limit_window: int = Field(
+        default=BRAVE_RATE_LIMIT_WINDOW_SECONDS_DEFAULT,
+        ge=10,
+        le=3600,
+        description="Rate limit window (seconds) for the Brave tools.",
     )
     http_timeout_connector_standard: float = Field(
         default=HTTP_TIMEOUT_CONNECTOR_STANDARD,

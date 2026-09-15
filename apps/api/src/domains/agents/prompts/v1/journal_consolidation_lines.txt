@@ -1,0 +1,8 @@
+# Size-management lines of the journal consolidation prompt, `key|template` per
+# line; blank lines and #-comments are ignored (prompt audit 2026-09-12, lot B).
+# The service picks the line by the measured usage; every word is here.
+
+size_exceeded|CRITICAL: You have EXCEEDED the size limit. You MUST summarize or delete entries to get back within the limit.
+size_approaching|WARNING: You are approaching the size limit. Consider summarizing or deleting older entries to make room.
+size_within|You are within the size limit. Only act if genuinely useful.
+size_reduce|You need to reduce total size. Summarize verbose entries or delete obsolete ones.

@@ -4,7 +4,7 @@
 
 **Version**: 6.0
 **Date**: 2026-08-23
-**Application**: LIA v1.44.5
+**Application**: LIA v1.44.6
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -283,6 +283,7 @@ LIA doesn't just run on modest hardware — it **actively optimizes** its AI res
 - **Pattern learning**: validated plans are memorized and reused without calling the LLM again
 - **Message Windowing**: each component sees only the strictly necessary context
 - **Prompt caching**: leveraging native provider caching to limit recurring costs
+- **Prompts with no dead weight**: a context is wrapped only when it exists, so a bare turn carries no empty envelope, and a two-sentence notification is asked for without reasoning — on a model that thinks by default, the thinking is billed inside the answer budget
 
 Combined, these optimizations account for the factor of 4 to 8 between Pipeline mode and the autonomous agent mode, for the same service rendered.
 
@@ -457,7 +458,7 @@ That demand reaches down to the machine. A server is several processes, and "the
 
 ### 8.3. An anti-hallucination pipeline
 
-The response system features a three-layer anti-hallucination mechanism: data formatting with explicit boundaries, directives enforcing exclusive use of verified data, and explicit edge case handling. The LLM is constrained to synthesize only what comes from actual tool results.
+The response system features a three-layer anti-hallucination mechanism: data formatting with explicit boundaries, directives enforcing exclusive use of verified data, and explicit edge case handling. The LLM is constrained to synthesize only what comes from actual tool results. And what the model reads is true: a prompt states only what the code enforces — a published bound is the applied bound, a number comes from a setting — and an instruction is emitted only when its content exists.
 
 ### 8.4. Human-in-the-Loop with 6 levels
 

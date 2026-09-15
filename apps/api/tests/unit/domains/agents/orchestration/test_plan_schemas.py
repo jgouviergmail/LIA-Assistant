@@ -2,7 +2,7 @@
 Unit tests for plan_schemas.py - ExecutionPlan DSL and Structured Output schemas.
 
 Phase 2 - Structured Output Migration:
-Tests for ExecutionPlanLLMOutput schema used with get_structured_output().
+Tests for the ExecutionPlan schemas.
 
 Created: 2025-11-24
 """
@@ -12,11 +12,7 @@ from pydantic import ValidationError
 
 from src.domains.agents.orchestration.plan_schemas import (
     ExecutionPlan,
-    ExecutionPlanLLMOutput,
     ExecutionStep,
-    ExecutionStepLLM,
-    ParameterItem,
-    ParameterValue,
     PlanValidationError,
     StepType,
 )
@@ -366,208 +362,6 @@ class TestExecutionPlan:
             ExecutionPlan(user_id="user_123", steps=[step], estimated_cost_usd=-0.5)
 
         assert "estimated_cost_usd" in str(exc_info.value)
-
-
-# ============================================================================
-# ExecutionPlanLLMOutput Tests (Phase 2 - Structured Output)
-# ============================================================================
-
-
-def _create_llm_step(
-    step_id: str,
-    agent_name: str = "contacts_agent",
-    tool_name: str = "search_contacts_tool",
-    parameters: dict | None = None,
-    step_type: StepType = StepType.TOOL,
-) -> ExecutionStepLLM:
-    """Helper to create ExecutionStepLLM with correct parameter format."""
-    param_items = []
-    if parameters:
-        for k, v in parameters.items():
-            param_items.append(
-                ParameterItem(
-                    name=k,
-                    value=ParameterValue(string_value=str(v), value_type="string"),
-                )
-            )
-    return ExecutionStepLLM(
-        step_id=step_id,
-        step_type=step_type,
-        agent_name=agent_name,
-        tool_name=tool_name,
-        parameters=param_items,
-    )
-
-
-class TestExecutionPlanLLMOutput:
-    """Tests for ExecutionPlanLLMOutput schema used with get_structured_output().
-
-    Note: ExecutionPlanLLMOutput uses ExecutionStepLLM (with list[ParameterItem])
-    for OpenAI strict mode compatibility, NOT ExecutionStep (with dict[str, Any]).
-    """
-
-    def test_llm_output_minimal(self):
-        """Test ExecutionPlanLLMOutput with minimal fields."""
-        step = _create_llm_step("step_1")
-
-        output = ExecutionPlanLLMOutput(steps=[step])
-
-        assert len(output.steps) == 1
-        assert output.execution_mode == "sequential"  # Default
-        assert output.estimated_cost_usd == 0.0  # Default
-
-    def test_llm_output_requires_steps(self):
-        """Test that ExecutionPlanLLMOutput requires at least one step."""
-        with pytest.raises(ValidationError) as exc_info:
-            ExecutionPlanLLMOutput(steps=[])
-
-        assert "Plan must contain at least one step" in str(exc_info.value)
-
-    def test_llm_output_unique_step_ids(self):
-        """Test that step_ids must be unique in LLM output."""
-        step1 = _create_llm_step("step_1", agent_name="contacts_agent")
-        step2 = _create_llm_step(
-            "step_1", agent_name="emails_agent", tool_name="search_emails_tool"
-        )
-
-        with pytest.raises(ValidationError) as exc_info:
-            ExecutionPlanLLMOutput(steps=[step1, step2])
-
-        assert "Duplicate step_ids" in str(exc_info.value)
-
-    def test_llm_output_estimated_cost_validation(self):
-        """Test that estimated_cost_usd must be non-negative."""
-        step = _create_llm_step("step_1")
-
-        with pytest.raises(ValidationError) as exc_info:
-            ExecutionPlanLLMOutput(steps=[step], estimated_cost_usd=-0.1)
-
-        assert "estimated_cost_usd" in str(exc_info.value)
-
-    def test_llm_output_to_execution_plan_basic(self):
-        """Test conversion from LLM output to ExecutionPlan."""
-        step = _create_llm_step("step_1", parameters={"query": "John"})
-
-        llm_output = ExecutionPlanLLMOutput(
-            steps=[step],
-            execution_mode="sequential",
-            estimated_cost_usd=0.05,
-        )
-
-        plan = llm_output.to_execution_plan(
-            user_id="user_123",
-            session_id="session_456",
-        )
-
-        # Verify injected fields
-        assert plan.user_id == "user_123"
-        assert plan.session_id == "session_456"
-        assert plan.plan_id  # Should be generated UUID
-        assert plan.version == "1.0.0"
-        assert plan.created_at  # Should be set
-
-        # Verify preserved fields
-        assert len(plan.steps) == 1
-        assert plan.steps[0].step_id == "step_1"
-        assert plan.execution_mode == "sequential"
-        assert plan.estimated_cost_usd == 0.05
-
-    def test_llm_output_to_execution_plan_with_all_params(self):
-        """Test conversion with all optional parameters."""
-        step = _create_llm_step("step_1")
-
-        llm_output = ExecutionPlanLLMOutput(steps=[step])
-
-        plan = llm_output.to_execution_plan(
-            user_id="user_123",
-            session_id="session_456",
-            max_cost_usd=1.0,
-            max_timeout_seconds=120,
-            metadata={"run_id": "run_789", "intention": "contacts_search"},
-        )
-
-        assert plan.max_cost_usd == 1.0
-        assert plan.max_timeout_seconds == 120
-        assert plan.metadata == {"run_id": "run_789", "intention": "contacts_search"}
-
-    def test_llm_output_to_execution_plan_multiple_steps(self):
-        """Test conversion with multiple steps."""
-        step1 = _create_llm_step("step_1", parameters={"query": "John"})
-        step2 = ExecutionStepLLM(
-            step_id="step_2",
-            step_type=StepType.TOOL,
-            agent_name="contacts_agent",
-            tool_name="get_contact_details_tool",
-            parameters=[
-                ParameterItem(
-                    name="resource_name",
-                    value=ParameterValue(
-                        string_value="$steps.step_1.contacts[0].resource_name",
-                        value_type="string",
-                    ),
-                )
-            ],
-            depends_on=["step_1"],
-        )
-
-        llm_output = ExecutionPlanLLMOutput(steps=[step1, step2])
-        plan = llm_output.to_execution_plan(user_id="user_123")
-
-        assert len(plan.steps) == 2
-        assert plan.steps[0].step_id == "step_1"
-        assert plan.steps[1].step_id == "step_2"
-        assert plan.steps[1].depends_on == ["step_1"]
-        # Verify parameters were converted to dict
-        assert plan.steps[0].parameters == {"query": "John"}
-        assert plan.steps[1].parameters == {
-            "resource_name": "$steps.step_1.contacts[0].resource_name"
-        }
-
-    def test_llm_output_is_frozen(self):
-        """Test that ExecutionPlanLLMOutput is immutable after creation."""
-        step = _create_llm_step("step_1")
-
-        llm_output = ExecutionPlanLLMOutput(steps=[step])
-
-        # Should raise error when trying to modify frozen model
-        with pytest.raises(ValidationError):
-            llm_output.execution_mode = "parallel"
-
-    def test_llm_output_generates_unique_plan_ids(self):
-        """Test that each conversion generates a unique plan_id."""
-        step = _create_llm_step("step_1")
-
-        llm_output = ExecutionPlanLLMOutput(steps=[step])
-
-        plan1 = llm_output.to_execution_plan(user_id="user_123")
-        plan2 = llm_output.to_execution_plan(user_id="user_123")
-
-        assert plan1.plan_id != plan2.plan_id
-
-    def test_llm_output_json_schema_has_correct_fields(self):
-        """Test that JSON schema only contains LLM-relevant fields."""
-        schema = ExecutionPlanLLMOutput.model_json_schema()
-        properties = schema.get("properties", {})
-
-        # Should have these fields (LLM generates)
-        assert "steps" in properties
-        assert "execution_mode" in properties
-        assert "estimated_cost_usd" in properties
-        assert "metadata" in properties  # LLM can set needs_clarification/missing_parameters
-
-        # Should NOT have these fields (injected at runtime)
-        assert "user_id" not in properties
-        assert "session_id" not in properties
-        assert "plan_id" not in properties
-        assert "created_at" not in properties
-        assert "version" not in properties
-        assert "max_cost_usd" not in properties
-        assert "max_timeout_seconds" not in properties
-
-
-# ============================================================================
-# PlanValidationError Tests
-# ============================================================================
 
 
 class TestPlanValidationError:

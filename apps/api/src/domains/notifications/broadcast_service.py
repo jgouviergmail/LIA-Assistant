@@ -20,8 +20,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.constants import MAX_UNREAD_BROADCASTS
 from src.core.exceptions_domains import raise_usage_limit_exceeded
-from src.core.i18n import _
-from src.core.i18n_types import LANGUAGE_NAMES, Language
+from src.core.i18n import _, get_language_name
+from src.core.i18n_types import Language
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.notifications.models import AdminBroadcast
 from src.domains.notifications.repository import BroadcastRepository
@@ -279,8 +279,8 @@ class BroadcastService:
         Returns:
             Translated message
         """
-        source_name = LANGUAGE_NAMES.get(source_language, source_language)
-        target_name = LANGUAGE_NAMES.get(target_language, target_language)
+        source_name = get_language_name(source_language)
+        target_name = get_language_name(target_language)
 
         system_prompt = prompt_template.format(
             source_language=source_name,

@@ -132,7 +132,7 @@ class TestRAGContextType:
 
         prompt = ctx.to_prompt_context()
         assert "USER KNOWLEDGE SPACES" in prompt
-        assert "personal document" in prompt
+        assert "[Space: " in prompt  # labels only: the instruction is the response prompt's
 
     def test_truncate_preserves_context_type(self) -> None:
         """Truncation should preserve context_type."""
