@@ -24,6 +24,7 @@ from typing import Any
 import pytest
 
 from src.core.i18n_hitl import HitlMessages
+from src.domains.agents.drafts.card_html import card_surface
 from src.domains.agents.drafts.display import DRAFT_DISPLAY_REGISTRY
 from src.domains.agents.drafts.models import Draft, DraftType
 from src.domains.agents.drafts.preview_renderer import render_confirmation_card
@@ -61,7 +62,9 @@ class TestTheCardIsTheStreamsCard:
 
         text = critique(interaction, "email", content)
 
-        card = render_confirmation_card(Draft(type=DraftType.EMAIL, content=content), "fr", PARIS)
+        card = render_confirmation_card(
+            Draft(type=DraftType.EMAIL, content=content), "fr", PARIS, surface=card_surface()
+        )
         assert text.startswith(card + CARD_SEPARATOR)
 
     def test_an_email_names_recipient_and_subject_and_shows_the_body(
@@ -155,7 +158,9 @@ class TestEveryTypeAndTheUnknown:
     ) -> None:
         text = critique(interaction, draft_type.value, {})
 
-        assert text.startswith(DRAFT_DISPLAY_REGISTRY[draft_type].emoji)
+        # The chat's card (ADR-289) carries the type's emoji on top of a lia-card.
+        assert text.startswith('<div class="lia-card lia-draft">')
+        assert DRAFT_DISPLAY_REGISTRY[draft_type].emoji in text
         assert CARD_SEPARATOR in text
         assert text.rstrip().endswith("?")
 

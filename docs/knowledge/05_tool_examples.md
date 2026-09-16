@@ -133,7 +133,7 @@ To protect your data, any modification action goes through a **draft system**:
 **🔒 How it works:**
 1. You request an action ("*Send an email to John*")
 2. LIA prepares a **draft**
-3. You see a **detailed preview**
+3. You see a **card** with every field (recipient, subject, body…)
 4. Three options:
    • ✅ **Approve**: the action is executed
    • ✏️ **Edit**: correct the draft
@@ -152,6 +152,9 @@ To protect your data, any modification action goes through a **draft system**:
 • Full control over your data
 • No irreversible action without your agreement
 • **What you approve is exactly what gets executed** — each edit is applied once, every revised version appears in its own chat bubble, and the confirmed content is guaranteed identical to the last version displayed (bulk operations included: the item list you confirm is exactly the list that gets processed)
+
+**📚 Several drafts at once:**
+Ask for two e-mails in one sentence: LIA first lists what it prepared, then shows one draft at a time ("*Draft 1 of 2*"), each with its own card and its own Approve / Edit / Cancel. Nothing is sent before your last answer, and the report says to whom and what went out — a cancelled draft is listed too. A bulk action you approved as a list ("*delete these 5 emails*") keeps a single confirmation.
 
 ## How do I use contextual references?
 LIA understands **references to previous items** in the conversation:
@@ -241,7 +244,12 @@ For any modification, LIA shows you a preview and asks for confirmation before e
 LIA displays a card per email with sender, subject, date and preview.
 
 **💡 By default:**
-LIA searches ALL your emails (not just inbox) for complete results.
+Recent mail with no other detail is your inbox; a targeted search (a sender, a subject, a date) looks through all your mail, archives included. Results come newest first and LIA can turn to the next page.
+
+**📝 Reading many at once:**
+• "*Summarise my unread emails*"
+• "*What do this week's newsletters say?*"
+LIA builds a short digest per message (see the question on e-mail summaries).
 
 ## How do I read an email in detail?
 **Gmail** - Full content display:
@@ -259,12 +267,29 @@ LIA searches ALL your emails (not just inbox) for complete results.
 • Sender and recipients
 • Date and time
 • Full subject
-• Message body (text and HTML)
+• Message body as clean text: quoted history and signature removed, HTML converted; a long message arrives in parts, just ask for the next one
 • List of attachments
 • Link to open in Gmail
+• The same for Outlook and iCloud Mail
 
 **💡 Navigation:**
 After reading an email, you can say "*reply to this email*" or "*forward it to Mary*".
+
+## How do I get a summary of many emails?
+LIA reads e-mails at three levels and picks the one your question needs:
+
+**📋 Listing** — sender, subject, date, preview: "*my emails from this week*".
+**📖 Reading** — the whole message as clean text: "*read the email from Peter*".
+**📝 Summaries** — one short digest per message (the gist, the key points, what you are asked to do, a category, an importance) to reason over many:
+• "*Summarise my unread emails*"
+• "*What do this week's newsletters say?*"
+• "*Anything urgent in my mail since Monday?*"
+
+**💡 Good to know:**
+• A digest is computed once per message and kept thirty days, so asking again costs nothing new
+• It runs on a small model and counts in your usage like any other call
+• If a digest cannot be produced, LIA reads the message itself rather than inventing one
+• Works for Gmail, Outlook and iCloud Mail alike
 
 ## How do I send an email?
 **Gmail** - Sending emails with preview:

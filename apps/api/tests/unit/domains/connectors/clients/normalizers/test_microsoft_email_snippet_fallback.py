@@ -102,7 +102,10 @@ class TestDetailPathUnchanged:
         result = normalize_graph_message(_graph_message(with_body=True))
 
         assert result["snippet"] == PREVIEW
-        assert result["body"] == BODY_HTML
+        # The body is TEXT at the client boundary (ADR-287): the markup is
+        # gone, the words are kept.
+        assert "<" not in result["body"]
+        assert result["body"]
 
     def test_body_wins_over_a_divergent_preview(self) -> None:
         """Graph truncates bodyPreview; the real body is the better source."""

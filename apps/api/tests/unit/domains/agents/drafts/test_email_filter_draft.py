@@ -13,6 +13,7 @@ from uuid import uuid4
 import pytest
 
 from src.core.i18n_drafts import get_draft_preview_labels
+from src.domains.agents.drafts.card_spec import to_markdown_lines
 from src.domains.agents.drafts.models import DraftType
 from src.domains.agents.drafts.preview_renderer import _render_email_filter
 from src.domains.agents.tools.gmail_settings_tools import execute_email_filter_draft
@@ -38,7 +39,7 @@ class TestPreview:
             labels,
             lambda s: s or "",
         )
-        joined = "\n".join(lines)
+        joined = "\n".join(to_markdown_lines(lines, labels["separator"]))
         assert "news@x.com" in joined
         assert "promo" in joined
         assert "Newsletters" in joined
@@ -53,7 +54,10 @@ class TestPreview:
             labels,
             lambda s: s or "",
         )
-        assert any("has:attachment larger:5M" in line for line in lines)
+        assert any(
+            "has:attachment larger:5M" in line
+            for line in to_markdown_lines(lines, labels["separator"])
+        )
 
 
 class TestExecutor:

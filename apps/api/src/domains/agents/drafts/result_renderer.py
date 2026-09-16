@@ -37,19 +37,28 @@ from __future__ import annotations
 from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
-from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, DRAFT_RESULT_EXCERPT_MAX_CHARS
 from src.core.i18n import _, normalize_language
 from src.core.i18n_drafts import (
+    EXCERPT_QUOTES,
     compose_result_header,
     get_draft_preview_labels,
+)
+from src.domains.agents.drafts.card_html import CardSurface, to_html_result
+from src.domains.agents.drafts.card_spec import (
+    Block,
+    Note,
+    PreviewLine,
+    ResultItem,
+    ResultSpec,
+    Row,
+    to_markdown_lines,
 )
 from src.domains.agents.drafts.display import (
     get_draft_display_config,
     resolve_nested_value,
 )
 from src.domains.agents.drafts.markdown_grammar import (
-    labelled_block,
-    labelled_row,
     plain_row,
     readable,
 )
@@ -60,7 +69,7 @@ if TYPE_CHECKING:
     from src.core.i18n import Language
     from src.domains.agents.drafts.display import DraftDisplayConfig
 
-__all__ = ["render_execution_result"]
+__all__ = ["describe_execution_result", "render_execution_result"]
 
 logger = get_logger(__name__)
 
@@ -68,12 +77,18 @@ logger = get_logger(__name__)
 #: does not reproduce the whole message.
 _TEXT_FIELDS = frozenset({"body", "description", "notes"})
 _TEXT_FIELD_MAX_CHARS = 200
+#: The fields a batch row quotes as its excerpt (ADR-289): the text the action
+#: carried — a body, a note, a peer message, a document's appended text.
+_EXCERPT_FIELDS = _TEXT_FIELDS | frozenset({"message", "text"})
 
 #: A batch row names its item; a 300-character title would push the outcome
 #: off the screen.
 _ITEM_LABEL_MAX_CHARS = 60
 
 #: What the reader is told, per status.
+#: The ``draft_type`` of a batch whose entries do not share one (ADR-288).
+MIXED_BATCH_TYPE = "batch"
+
 _STATUS_MARKS = {
     "success": "✅",
     "cancelled": "🚫",
@@ -151,14 +166,14 @@ def _detail_value(
     return text
 
 
-def _detail_rows(
+def _detail_lines(
     config: DraftDisplayConfig | None,
     draft: dict[str, Any],
     data: dict[str, Any],
     user_lang: Language,
     user_tz: str,
-) -> list[str]:
-    """One Markdown row per detail field the registry declares.
+) -> list[PreviewLine]:
+    """One described line per detail field the registry declares.
 
     Args:
         config: The type's display configuration, or None for an unknown type.
@@ -168,13 +183,12 @@ def _detail_rows(
         user_tz: Their IANA timezone.
 
     Returns:
-        The rows, in registry order, plus the permalink row when one exists.
+        The rows, in registry order, plus the permalink row when one exists,
+        then the blocks — a row after a block would land inside its paragraph.
     """
     labels = get_draft_preview_labels(user_lang)
-    separator = labels["separator"]
-    rows: list[str] = []
-    blocks: list[str] = []
-
+    rows: list[PreviewLine] = []
+    blocks: list[PreviewLine] = []
     for field in config.detail_fields if config else ():
         text = _detail_value(field, draft, data, user_tz, user_lang)
         if text is None:
@@ -183,7 +197,7 @@ def _detail_rows(
         if text.startswith(_URL_PREFIXES):
             # A URL-valued field (a conference link) reads as a link, never as
             # a raw URL dump.
-            rows.append(plain_row(f"{field.emoji} [{label}]({text})"))
+            rows.append(Note(f"{field.emoji} [{label}]({text})"))
         elif "\n" in text:
             # A value carrying its own paragraphs cannot live in a list item:
             # the second paragraph escapes the item and the list ends there.
@@ -191,15 +205,13 @@ def _detail_rows(
             # block, so the outcome does too — otherwise the same mail reads
             # one way before confirmation and another after (measured on a
             # two-paragraph body, which is most of them).
-            blocks.append(labelled_block(f"{field.emoji} {label}", text))
+            blocks.append(Block(f"{field.emoji} {label}", text))
         else:
-            rows.append(labelled_row(f"{field.emoji} {label}", separator, text))
-
+            rows.append(Row(label, text, key=field.label_key, emoji=field.emoji))
     html_link = data.get("html_link")
     if html_link:
         link_label = _("Link", user_lang)
-        rows.append(plain_row(f"🔗 [{link_label}]({html_link})"))
-    # Blocks last: a row appended after one would land inside its paragraph.
+        rows.append(Note(f"🔗 [{link_label}]({html_link})"))
     return rows + blocks
 
 
@@ -251,7 +263,7 @@ def _item_secondary(
     user_lang: Language,
     user_tz: str,
 ) -> str:
-    """The contextual datetime appended to a batch row, when the type declares one.
+    """The contextual datetime of a batch item, when the type declares one.
 
     Args:
         config: The type's display configuration.
@@ -260,7 +272,7 @@ def _item_secondary(
         user_tz: Their IANA timezone.
 
     Returns:
-        ``" — <formatted>"`` or ``""``.
+        The formatted datetime, or ``""``.
     """
     from src.core.time_utils import format_value_if_datetime_string
 
@@ -277,87 +289,249 @@ def _item_secondary(
         include_time=True,
         include_day_name=False,
     )
-    return f" — {formatted}" if formatted != value else ""
+    return formatted if formatted != value else ""
 
 
-def _batch_rows(
+def _excerpt(text: str, user_lang: Language) -> str:
+    """One bounded line of a text the action carried, quoted (ADR-289).
+
+    Args:
+        text: The body, the note — paragraphs and all.
+        user_lang: The person's language, which owns its quotation marks.
+
+    Returns:
+        The text whitespace-collapsed, cut at the excerpt bound with an
+        ellipsis, between the language's own quotation marks.
+    """
+    flat = " ".join(text.split())
+    if len(flat) > DRAFT_RESULT_EXCERPT_MAX_CHARS:
+        flat = flat[: DRAFT_RESULT_EXCERPT_MAX_CHARS - 1].rstrip() + "…"
+    opening, closing = EXCERPT_QUOTES.get(user_lang, EXCERPT_QUOTES["en"])
+    return f"{opening}{flat}{closing}"
+
+
+def _item_fields(
+    config: DraftDisplayConfig | None,
+    content: dict[str, Any],
+    user_lang: Language,
+    user_tz: str,
+) -> tuple[tuple[Row, ...], str | None]:
+    """The key fields of ONE batch item, and the excerpt of its text.
+
+    ADR-289: the person who approved two e-mails reads, in the answer, who
+    received what. The fields are the ones the registry declares for the
+    type, minus what the row already says (its label, its datetime), the
+    first text field becoming a bounded excerpt.
+
+    Args:
+        config: The type's display configuration.
+        content: That item's stored draft content.
+        user_lang: The person's language.
+        user_tz: Their IANA timezone.
+
+    Returns:
+        The rows and the excerpt (``None`` when the type carries no text).
+    """
+    if config is None:
+        return (), None
+    labels = get_draft_preview_labels(user_lang)
+    shown = set(config.item_label_fields)
+    if config.item_secondary_datetime_key:
+        shown.add(config.item_secondary_datetime_key)
+    rows: list[Row] = []
+    excerpt: str | None = None
+    for field in config.detail_fields:
+        if field.content_key in shown:
+            continue
+        text = _detail_value(field, content, {}, user_tz, user_lang)
+        if text is None:
+            continue
+        if field.content_key.rsplit(".", 1)[-1] in _EXCERPT_FIELDS:
+            if excerpt is None:
+                excerpt = _excerpt(text, user_lang)
+            continue
+        rows.append(Row(labels.get(field.label_key, field.content_key), text, key=field.label_key))
+    return tuple(rows), excerpt
+
+
+def _describe_items(
     draft_type: str,
     config: DraftDisplayConfig | None,
     batch_results: list[dict[str, Any]],
     user_lang: Language,
     user_tz: str,
-) -> list[str]:
-    """One Markdown row per batch item, each marked with its own outcome.
+) -> tuple[ResultItem, ...]:
+    """One described entry per batch item, each marked with its own outcome.
 
     Args:
         draft_type: The draft type string (for the diagnostic log).
-        config: The type's display configuration.
+        config: The batch's display configuration.
         batch_results: The per-item results.
         user_lang: The person's language.
         user_tz: Their IANA timezone.
 
     Returns:
-        The rows, in batch order.
+        The entries, in batch order.
     """
-    rows: list[str] = []
+    items: list[ResultItem] = []
     for item in batch_results:
         item_data = item.get("data") if isinstance(item.get("data"), dict) else {}
         content = (item_data or {}).get("_draft_content") or {}
-        mark = "✅" if item.get("status") == "success" else "❌"
-        label = _item_label(config, content)
+        # ADR-288: a sequence mixes types and decisions — an entry is named by
+        # ITS type (the batch's only when it carries none) and a cancelled
+        # entry keeps its row under the cancelled mark.
+        own_type = item.get("draft_type")
+        row_config = get_draft_display_config(str(own_type)) if own_type else None
+        row_config = row_config or config
+        status = item.get("status")
+        mark = _STATUS_MARKS[
+            "cancelled" if status == "cancelled" else "success" if status == "success" else "error"
+        ]
+        label = _item_label(row_config, content)
         if not label:
             logger.warning(
                 "draft_result_format_empty_label",
-                draft_type=draft_type,
+                draft_type=own_type or draft_type,
                 available_keys=sorted(content.keys()),
             )
-            rows.append(plain_row(f"{mark} {item.get('message', '')}"))
+            items.append(ResultItem(mark, str(item.get("message", "")), "", (), None))
             continue
-        secondary = _item_secondary(config, content, user_lang, user_tz)
-        rows.append(plain_row(f"{mark} **{label}**{secondary}"))
-    return rows
+        fields, excerpt = _item_fields(row_config, content, user_lang, user_tz)
+        secondary = _item_secondary(row_config, content, user_lang, user_tz)
+        items.append(ResultItem(mark, label, secondary, fields, excerpt))
+    return tuple(items)
 
 
-def _render_batch(
-    status: str,
-    draft_type: str,
-    domain_emoji: str,
-    config: DraftDisplayConfig | None,
-    data: dict[str, Any],
+def _batch_headline(
+    draft_type: str, config: DraftDisplayConfig | None, data: dict[str, Any], user_lang: Language
 ) -> str:
-    """Render the batch (``CONFIRM_BATCH``) execution result.
-
-    Args:
-        status: Either ``"success"`` or ``"partial_error"``.
-        draft_type: Draft type string from the execution result.
-        domain_emoji: Pre-resolved emoji from the registry (or ``""``).
-        config: Display config for the draft type, or None if unknown.
-        data: Execution data carrying ``batch_results``, ``success_count`` and
-            ``total_count``.
-
-    Returns:
-        The headline and one row per item.
-    """
-    batch_results = data.get("batch_results", []) or []
+    """What a batch is headed with: the count, the noun and the verb agreed."""
     success_count = data.get("success_count", 0)
     total_count = data.get("total_count", 0)
-    user_lang, user_tz = _batch_locale(batch_results)
-
     if config is not None:
-        header_text = compose_result_header(
+        return compose_result_header(
             success_count=success_count,
             total_count=total_count,
             noun_key=config.noun_key,
             verb_past_key=config.verb_past_key,
             language=user_lang,
         )
-    else:
-        # Unknown draft type — the legacy bare "X/Y" header.
-        header_text = f"{success_count}/{total_count}"
+    if draft_type == MIXED_BATCH_TYPE:
+        # ADR-288: several types decided one at a time — counted as actions.
+        return compose_result_header(
+            success_count=success_count,
+            total_count=total_count,
+            noun_key="action",
+            verb_past_key="executed",
+            language=user_lang,
+        )
+    # Unknown draft type — the legacy bare "X/Y" header.
+    return f"{success_count}/{total_count}"
 
-    mark = _STATUS_MARKS["success" if status == "success" else "partial_error"]
-    rows = _batch_rows(draft_type, config, batch_results, user_lang, user_tz)
-    return _joined(_headline(domain_emoji, mark, header_text), rows)
+
+def _describe_batch(
+    status: str,
+    draft_type: str,
+    domain_emoji: str,
+    config: DraftDisplayConfig | None,
+    data: dict[str, Any],
+) -> ResultSpec:
+    """The description of a batch result: the count on top, one entry per item."""
+    batch_results = data.get("batch_results", []) or []
+    user_lang, user_tz = _batch_locale(batch_results)
+    return ResultSpec(
+        emoji=domain_emoji,
+        mark=_STATUS_MARKS["success" if status == "success" else "partial_error"],
+        headline=_batch_headline(draft_type, config, data, user_lang),
+        separator=get_draft_preview_labels(user_lang)["separator"],
+        lines=(),
+        items=_describe_items(draft_type, config, batch_results, user_lang, user_tz),
+    )
+
+
+def _describe_single(
+    domain_emoji: str,
+    config: DraftDisplayConfig | None,
+    message: str,
+    data: dict[str, Any],
+) -> ResultSpec:
+    """The description of a single confirmed draft's success: its detail fields."""
+    draft = data.get("_draft_content", {}) if isinstance(data, dict) else {}
+    draft = draft if isinstance(draft, dict) else {}
+    user_lang = normalize_language(draft.get("user_language") or "fr")
+    user_tz = draft.get("user_timezone") or DEFAULT_USER_DISPLAY_TIMEZONE
+    return ResultSpec(
+        emoji=domain_emoji,
+        mark=_STATUS_MARKS["success"],
+        headline=message,
+        separator=get_draft_preview_labels(user_lang)["separator"],
+        lines=tuple(_detail_lines(config, draft, data, user_lang, user_tz)),
+        items=(),
+    )
+
+
+def describe_execution_result(result: dict[str, Any] | None) -> ResultSpec | None:
+    """Describe what a person reads once a confirmed draft has run (ADR-289).
+
+    Args:
+        result: Draft execution result dict with:
+            - status: ``"success"`` | ``"cancelled"`` | ``"error"`` |
+              ``"partial_error"``
+            - message: Localized message
+            - draft_type: Type of draft (contact, event, email, reminder_delete…)
+            - action: Optional, e.g. ``"confirm_batch"``
+            - data: Result data dict (may contain ``html_link``,
+              ``_draft_content``, ``batch_results``, ``success_count``,
+              ``total_count``)
+
+    Returns:
+        The description, or ``None`` when there is nothing to say — an empty
+        payload, or a status nobody declared.
+    """
+    if not result:
+        return None
+
+    status = result.get("status", "unknown")
+    message = result.get("message", "")
+    draft_type = result.get("draft_type", "action")
+    data = result.get("data", {}) if isinstance(result.get("data"), dict) else {}
+    action = result.get("action", "")
+
+    config = get_draft_display_config(draft_type)
+    domain_emoji = config.emoji if config else ""
+
+    if action == DraftAction.CONFIRM_BATCH.value and status in ("success", "partial_error"):
+        return _describe_batch(status, draft_type, domain_emoji, config, data)
+
+    if status == "success":
+        return _describe_single(domain_emoji, config, message, data)
+
+    if status == "partial_error":
+        # Non-batch partial_error fallback (defensive — batch is handled above).
+        counted = f"{data.get('success_count', 0)}/{data.get('total_count', 0)}"
+        return ResultSpec(
+            domain_emoji, _STATUS_MARKS["partial_error"], f"{message} ({counted})", " : ", (), ()
+        )
+
+    if status in ("cancelled", "error"):
+        return ResultSpec(domain_emoji, _STATUS_MARKS[status], message, " : ", (), ())
+
+    return None
+
+
+def _item_markdown(item: ResultItem, separator: str) -> str:
+    """One Markdown row per batch item: its outcome, its name, its key fields."""
+    if not item.label:
+        return plain_row(f"{item.mark} {item.label}".rstrip())
+    parts = [f"{item.mark} **{item.label}**"]
+    if item.secondary:
+        parts.append(item.secondary)
+    fields = " · ".join(f"{row.label}{separator}{readable(row.value)}" for row in item.fields)
+    if fields:
+        parts.append(fields)
+    if item.excerpt:
+        parts.append(item.excerpt)
+    return plain_row(" — ".join(parts))
 
 
 def _joined(headline: str, rows: list[str]) -> str:
@@ -377,73 +551,34 @@ def _joined(headline: str, rows: list[str]) -> str:
     return (headline + "\n\n" + "\n".join(rows)).rstrip()
 
 
-def _render_single_success(
-    domain_emoji: str,
-    config: DraftDisplayConfig | None,
-    message: str,
-    data: dict[str, Any],
+def _to_markdown(spec: ResultSpec) -> str:
+    """The lot-13 Markdown form of a described result."""
+    headline = _headline(spec.emoji, spec.mark, spec.headline)
+    rows = to_markdown_lines(spec.lines, spec.separator)
+    rows.extend(_item_markdown(item, spec.separator) for item in spec.items)
+    return _joined(headline, rows)
+
+
+def render_execution_result(
+    result: dict[str, Any] | None, surface: CardSurface = CardSurface.PLAIN
 ) -> str:
-    """Render a single confirmed draft's success.
-
-    Args:
-        domain_emoji: The draft family's emoji.
-        config: Display config for the draft type, or None if unknown.
-        message: The localized success sentence.
-        data: Execution data carrying ``_draft_content`` and any permalink.
-
-    Returns:
-        The headline and one row per detail field.
-    """
-    draft = data.get("_draft_content", {}) if isinstance(data, dict) else {}
-    draft = draft if isinstance(draft, dict) else {}
-    user_lang = normalize_language(draft.get("user_language") or "fr")
-    user_tz = draft.get("user_timezone") or DEFAULT_USER_DISPLAY_TIMEZONE
-    rows = _detail_rows(config, draft, data, user_lang, user_tz)
-    return _joined(_headline(domain_emoji, _STATUS_MARKS["success"], message), rows)
-
-
-def render_execution_result(result: dict[str, Any] | None) -> str:
     """What a person reads once a confirmed draft has run.
 
+    ADR-289: described once (:func:`describe_execution_result`), drawn per
+    surface — Markdown for a surface that renders no markup, the chat's
+    ``lia-card`` otherwise.
+
     Args:
-        result: Draft execution result dict with:
-            - status: ``"success"`` | ``"cancelled"`` | ``"error"`` |
-              ``"partial_error"``
-            - message: Localized message
-            - draft_type: Type of draft (contact, event, email, reminder_delete…)
-            - action: Optional, e.g. ``"confirm_batch"``
-            - data: Result data dict (may contain ``html_link``,
-              ``_draft_content``, ``batch_results``, ``success_count``,
-              ``total_count``)
+        result: The draft execution result (see :func:`describe_execution_result`).
+        surface: Where the result is drawn.
 
     Returns:
-        Markdown, with no leading or trailing whitespace. ``""`` when there is
-        nothing to say — an empty payload, or a status nobody declared.
+        Markdown or one line of HTML, with no leading or trailing whitespace.
+        ``""`` when there is nothing to say.
     """
-    if not result:
+    spec = describe_execution_result(result)
+    if spec is None:
         return ""
-
-    status = result.get("status", "unknown")
-    message = result.get("message", "")
-    draft_type = result.get("draft_type", "action")
-    data = result.get("data", {}) if isinstance(result.get("data"), dict) else {}
-    action = result.get("action", "")
-
-    config = get_draft_display_config(draft_type)
-    domain_emoji = config.emoji if config else ""
-
-    if action == DraftAction.CONFIRM_BATCH.value and status in ("success", "partial_error"):
-        return _render_batch(status, draft_type, domain_emoji, config, data)
-
-    if status == "success":
-        return _render_single_success(domain_emoji, config, message, data)
-
-    if status == "partial_error":
-        # Non-batch partial_error fallback (defensive — batch is handled above).
-        counted = f"{data.get('success_count', 0)}/{data.get('total_count', 0)}"
-        return _headline(domain_emoji, _STATUS_MARKS["partial_error"], f"{message} ({counted})")
-
-    if status in ("cancelled", "error"):
-        return _headline(domain_emoji, _STATUS_MARKS[status], message)
-
-    return ""
+    if surface is CardSurface.CHAT:
+        return to_html_result(spec)
+    return _to_markdown(spec)

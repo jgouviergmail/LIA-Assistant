@@ -1282,6 +1282,40 @@
         }
       },
       "description": "Delivered ReAct prompt as a fraction of the effective model context window (react_context_window_utilization, llm_models catalogue ADR-244). Sustained values above 0.7 call for compaction inside the turn."
+    },
+    {
+      "id": 63,
+      "type": "timeseries",
+      "title": "Tool Result Budget Cuts (by tool)",
+      "description": "Tool results the ReAct projection had to cut at an item boundary (ADR-286). A steady rate on one tool means the budget (REACT_TOOL_RESULT_MAX_TOKENS × REACT_TOOL_RESULT_WINDOW_FRACTION of the slot's window) is too small for that deployment's data, or that the tool returns items too large for any budget — opposite fixes. Every admitted item is complete; the model is told what was cut.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 71
+      },
+      "targets": [
+        {
+          "expr": "sum by (tool_name) (rate(react_tool_result_truncated_total[$__rate_interval])) or vector(0)",
+          "legendFormat": "{{tool_name}}",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ]
     }
   ]
 }

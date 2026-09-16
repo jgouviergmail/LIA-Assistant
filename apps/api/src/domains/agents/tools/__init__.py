@@ -40,9 +40,7 @@ from src.domains.agents.tools.drive_tools import (
 from src.domains.agents.tools.emails_tools import (
     delete_email_tool,
     forward_email_tool,
-    get_email_details_tool,
     reply_email_tool,
-    search_emails_tool,
     send_email_tool,
 )
 from src.domains.agents.tools.google_contacts_tools import (
@@ -172,8 +170,6 @@ __all__ = [
     "list_contacts_tool",
     "get_contact_details_tool",
     # Gmail Tools
-    "search_emails_tool",
-    "get_email_details_tool",
     "send_email_tool",
     "reply_email_tool",
     "forward_email_tool",

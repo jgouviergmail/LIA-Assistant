@@ -15,6 +15,7 @@ from uuid import uuid4
 import pytest
 
 from src.core.i18n_drafts import get_draft_preview_labels
+from src.domains.agents.drafts.card_spec import to_markdown_lines
 from src.domains.agents.drafts.models import EventDraftInput
 from src.domains.agents.drafts.preview_renderer import _render_event
 from src.domains.agents.tools.calendar_draft_execution import execute_event_draft
@@ -45,13 +46,13 @@ class TestPreviewShowsTheConference:
     def test_preview_line_present_when_flag_set(self) -> None:
         labels = get_draft_preview_labels("fr")
         lines = _render_event({**_DRAFT_CONTENT, "add_conference": True}, labels, lambda s: s or "")
-        joined = "\n".join(lines)
+        joined = "\n".join(to_markdown_lines(lines, labels["separator"]))
         assert "Visioconférence" in joined
 
     def test_no_preview_line_without_flag(self) -> None:
         labels = get_draft_preview_labels("fr")
         lines = _render_event(dict(_DRAFT_CONTENT), labels, lambda s: s or "")
-        assert "Visioconférence" not in "\n".join(lines)
+        assert "Visioconférence" not in "\n".join(to_markdown_lines(lines, labels["separator"]))
 
 
 class TestExecuteEventDraftPassesTheFlag:

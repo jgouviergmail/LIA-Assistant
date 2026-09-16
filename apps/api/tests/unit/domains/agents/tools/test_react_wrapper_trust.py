@@ -2,16 +2,17 @@
 
 ``ReactToolWrapper._process_result`` is the single funnel through which every
 tool result becomes a ``ToolMessage`` for the ReAct loop. Its ``Data:`` block is
-a JSON dump of the registry payloads — and, unlike the pipeline surface, it goes
-through no serializer that drops short fields: the payload is dumped raw, up to
-8000 characters. An email body therefore reached the ReAct model in full, with
-nothing marking it as third-party text.
+a JSON projection of the registry payloads, item by item under a token budget
+(ADR-286) — and, unlike the pipeline surface, it goes through no serializer that
+drops short fields: an admitted payload is dumped whole. An email body therefore
+reached the ReAct model in full, with nothing marking it as third-party text.
 
-Scope note pinned by ``test_structured_data_only_is_not_wrapped``: when a tool
-sets ``structured_data`` explicitly it takes priority in
-``_extract_data_for_llm``, and that shape is authored by the tool itself (server
-name, iteration count…). Raw third-party payloads only ever reach the model
-through ``registry_updates``, which carries a typed provenance.
+The block fails CLOSED (``TestNoRegression.test_structured_data_without_a_registry_is_wrapped``):
+a ``structured_data`` with no registry items is wrapped like an external one.
+The former "documented scope" — that such a shape is authored by the tool —
+was false: ``get_context_list`` and ``resolve_reference`` re-serve registry
+items (e-mail bodies) from ``structured_data`` alone, and the fix of
+``resolve_reference`` (ADR-286) had turned that into a live, unmarked door.
 """
 
 from __future__ import annotations
@@ -127,14 +128,30 @@ class TestNoRegression:
         out = ReactToolWrapper(_StubTool())._process_result(result)
         assert out == "Rappel cree pour demain 9h"
 
-    def test_structured_data_only_is_not_wrapped(self) -> None:
-        """Documented scope: structured_data is authored by the tool, not a third party."""
+    def test_structured_data_without_a_registry_is_wrapped(self) -> None:
+        """Fail closed: no provenance is not the same as a trusted provenance."""
         result = UnifiedToolOutput.data_success(
             message="ok", structured_data={"server_name": "x", "iterations": 2}
         )
         out = ReactToolWrapper(_StubTool())._process_result(result)
-        assert EXTERNAL_CONTENT_OPEN_TAG not in out
+        assert EXTERNAL_CONTENT_OPEN_TAG in out
+        assert 'type="structured_data"' in out
         assert '"server_name": "x"' in out
+
+    def test_a_registry_item_served_back_through_structured_data_is_wrapped(self) -> None:
+        """The shape of ``resolve_reference`` and ``get_context_list``: an e-mail
+        body in ``structured_data``, no ``registry_updates``."""
+        result = UnifiedToolOutput.action_success(
+            message="Reference '2' resolved successfully",
+            structured_data={
+                "item": {"message_id": "m2", "body": INJECTION},
+                "match_type": "index",
+            },
+        )
+        out = ReactToolWrapper(_StubTool())._process_result(result)
+        assert EXTERNAL_CONTENT_OPEN_TAG in out
+        assert EXTERNAL_CONTENT_WARNING in out
+        assert REGISTRY_INJECTION_NOTICE_PREFIX in out
 
     def test_registry_is_still_accumulated(self) -> None:
         """Marking must not disturb the wrapper's other job: collecting registry items."""

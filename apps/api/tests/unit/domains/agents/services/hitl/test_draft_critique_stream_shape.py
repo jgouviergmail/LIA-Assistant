@@ -16,6 +16,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from src.domains.agents.drafts.card_html import card_surface
 from src.domains.agents.drafts.models import Draft, DraftType
 from src.domains.agents.drafts.preview_renderer import render_confirmation_card
 from src.domains.agents.services.hitl.interactions.draft_critique import (
@@ -72,7 +73,7 @@ class TestTheOrder:
         text = await _collect(interaction, _context())
 
         card = render_confirmation_card(
-            Draft(type=DraftType.EMAIL, content=EMAIL), "fr", "Europe/Paris"
+            Draft(type=DraftType.EMAIL, content=EMAIL), "fr", "Europe/Paris", surface=card_surface()
         )
         assert text.startswith(card + CARD_SEPARATOR)
         assert text.endswith("Souhaitez-vous envoyer cet e-mail ?")

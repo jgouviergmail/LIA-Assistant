@@ -110,7 +110,7 @@ def _neutralize_assistant_formatting(content: str) -> str:
     # For HTML answers, keep only the leading prose (mirrors the non-neutralized
     # branch) so we do not pour entire card markup back into the context window.
     if 'class="lia-' in content or "class='lia-" in content:
-        text = _extract_text_before_html(content)
+        text = _prose_of_html_answer(content)
     else:
         text = content
 
@@ -118,6 +118,35 @@ def _neutralize_assistant_formatting(content: str) -> str:
     if not text:
         return CONTEXT_PRIOR_ANSWER_UNFORMATTED_MARKER
     return f"{CONTEXT_PRIOR_ANSWER_UNFORMATTED_MARKER} {text}"
+
+
+#: The card classes of a draft's confirmation and of its execution result
+#: (``drafts/card_html.py``). Their words ARE the turn — what was asked, what
+#: was sent and to whom — so the model reads them flattened, never dropped.
+_DRAFT_CARD_MARKERS = ('class="lia-card lia-draft', "class='lia-card lia-draft")
+
+
+def _prose_of_html_answer(content: str) -> str:
+    """What the model reads of an assistant answer that carries HTML.
+
+    A DATA card (weather, an e-mail listed) is reduced to the prose before it,
+    the historical rule: the data is in the registry, and markup poured back
+    into the context is markup the model re-emits. A DRAFT card (ADR-289) is
+    flattened to its text instead — reducing it would erase from the
+    conversation's memory what was sent and to whom (a result card opens on
+    its markup, so its prose is empty).
+
+    Args:
+        content: The assistant message content, HTML included.
+
+    Returns:
+        Text only.
+    """
+    if any(marker in content for marker in _DRAFT_CARD_MARKERS):
+        from src.domains.agents.display.plain_text import strip_html_if_markup
+
+        return " ".join(strip_html_if_markup(content).split())
+    return _extract_text_before_html(content)
 
 
 def _extract_text_before_html(content: str) -> str:
@@ -565,7 +594,7 @@ def filter_for_llm_context(
             if 'class="lia-' in content or "class='lia-" in content:
                 # Extract text before HTML, or use placeholder to indicate response was given
                 # This prevents LLM from thinking previous query is unanswered
-                text_before_html = _extract_text_before_html(content)
+                text_before_html = _prose_of_html_answer(content)
                 if text_before_html:
                     filtered.append(AIMessage(content=text_before_html))
                 else:

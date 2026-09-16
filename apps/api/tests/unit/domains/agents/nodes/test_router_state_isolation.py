@@ -24,6 +24,7 @@ from src.domains.agents.constants import (
     STATE_KEY_MESSAGES,
     STATE_KEY_ROUTING_HISTORY,
 )
+from src.domains.agents.nodes.draft_sequence import draft_turn_reset
 from src.domains.agents.nodes.router_node_v3 import get_router_v3_edge, router_node_v3
 from src.domains.agents.utils.react_budget import react_turn_reset
 
@@ -249,3 +250,33 @@ class TestRouterQueryExtraction:
         update = await router_node_v3(_state(), _config())
 
         assert STATE_KEY_ROUTING_HISTORY in update
+
+
+class TestRouterResetsTheDraftReview:
+    """A new human message means the previous review was abandoned (ADR-288).
+
+    The interrupt record expires after an hour; the checkpoint does not. A
+    draft still pending there was re-presented by the next actionable turn,
+    and the decisions banked along an abandoned sequence would have been
+    executed by a later one. What a turn starts with is ONE declaration,
+    spread here like the ReAct counters.
+    """
+
+    @pytest.mark.parametrize("key,expected", sorted(draft_turn_reset().items()))
+    async def test_every_draft_key_restarts(self, key: str, expected: Any) -> None:
+        state = _state(HumanMessage(content="cherche jean"))
+        stale: dict[str, Any] = {
+            "pending_draft_critique": {"draft_id": "stale"},
+            "pending_drafts_queue": [{"draft_id": "stale-2"}],
+            "pending_drafts_grouped": True,
+            "confirmed_drafts": [{"draft_id": "stale", "action": "confirm"}],
+            "draft_action_result": {"action": "confirm"},
+            "draft_edit_iteration": 3,
+            "draft_clarification_question": "stale?",
+        }
+        assert key in stale, f"{key} needs a stale value in this test"
+        state.update(stale)
+
+        update = await router_node_v3(state, _config())
+
+        assert update[key] == expected

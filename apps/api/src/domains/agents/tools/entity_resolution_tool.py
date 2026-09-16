@@ -207,12 +207,14 @@ async def _search_entities(
 
     tool_registry = ToolRegistry.get_instance()
 
-    # Map domain to search tool
+    # Map domain to search tool. E-mails: the unified tool (the legacy
+    # ``search_emails_tool`` was removed with ADR-287); tasks: the only
+    # listing tool that family has.
     search_tools = {
         "contacts": "search_contacts_tool",
-        "emails": "search_emails_tool",
+        "emails": "get_emails_tool",
         "events": "search_events_tool",
-        "tasks": "search_tasks_tool",
+        "tasks": "get_tasks_tool",
         "files": "search_files_tool",
     }
 

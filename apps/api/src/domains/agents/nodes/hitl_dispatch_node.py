@@ -50,9 +50,20 @@ from src.domains.agents.constants import (
     PEOPLE_API_FIELD_VALUE,
     REGISTRY_TYPE_CONTACT,
 )
-from src.domains.agents.drafts.models import DraftAction
 from src.domains.agents.models import MessagesState
 from src.domains.agents.nodes.draft_preapproval import decide_draft
+from src.domains.agents.nodes.draft_sequence import (
+    STATE_KEY_CONFIRMED_DRAFTS,
+    STATE_KEY_DRAFT_ACTION_RESULT,
+    STATE_KEY_DRAFT_CLARIFICATION_QUESTION,
+    STATE_KEY_DRAFT_EDIT_ITERATION,
+    STATE_KEY_PENDING_DRAFT_CRITIQUE,
+    STATE_KEY_PENDING_DRAFTS_GROUPED,
+    STATE_KEY_PENDING_DRAFTS_QUEUE,
+    advance_sequence,
+    decision_entry,
+    settle,
+)
 from src.domains.agents.orchestration.parallel_executor import PendingDraftInfo
 from src.domains.agents.services.hitl.protocols import HitlInteractionType
 from src.domains.agents.utils.state_tracking import track_state_updates
@@ -68,14 +79,8 @@ logger = structlog.get_logger(__name__)
 # STATE KEYS
 # ============================================================================
 
-# Draft Critique (existing)
-STATE_KEY_PENDING_DRAFT_CRITIQUE = "pending_draft_critique"
-STATE_KEY_PENDING_DRAFTS_QUEUE = "pending_drafts_queue"
-STATE_KEY_DRAFT_ACTION_RESULT = "draft_action_result"
-# Replay-safe EDIT loop (2026-07): the loop state lives in the graph state,
-# one interrupt per node execution (see _handle_draft_critique docstring).
-STATE_KEY_DRAFT_EDIT_ITERATION = "draft_edit_iteration"
-STATE_KEY_DRAFT_CLARIFICATION_QUESTION = "draft_clarification_question"
+# Draft Critique: the keys live with the sequence rules (ADR-288) and are
+# re-exported here for the node's readers.
 
 # Entity Disambiguation (new)
 STATE_KEY_PENDING_ENTITY_DISAMBIGUATION = "pending_entity_disambiguation"
@@ -235,6 +240,9 @@ def _build_draft_critique_payload(
     batch_total: int = 1,
     batch_drafts: list[dict[str, Any]] | None = None,
     clarification_question: str | None = None,
+    sequence_index: int = 1,
+    sequence_total: int = 1,
+    sequence_drafts: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """
     Build interrupt payload for draft critique HITL.
@@ -254,6 +262,12 @@ def _build_draft_critique_payload(
         clarification_question: Question produced by a previous "clarify"
             decision, surfaced with the re-presented draft so the user knows
             what to specify (previously logged but never shown).
+        sequence_index: 1-based position of this draft in a sequence of
+            independent drafts reviewed one at a time (ADR-288).
+        sequence_total: Number of drafts in that sequence (1 = alone).
+        sequence_drafts: Every draft of the sequence, in order — carried by
+            the FIRST interrupt only, for the summary the person reads before
+            the first card (ADR-289).
 
     Returns:
         Interrupt payload for HITL processing
@@ -272,6 +286,14 @@ def _build_draft_critique_payload(
     if batch_total > 1:
         action_request["batch_total"] = batch_total
         action_request["batch_drafts"] = batch_drafts or []
+
+    # Sequence context (ADR-288): this draft is one of several independent
+    # ones, each asked on its own — the position is shown, nothing else is.
+    if sequence_total > 1:
+        action_request["sequence_index"] = sequence_index
+        action_request["sequence_total"] = sequence_total
+        if sequence_index == 1 and sequence_drafts:
+            action_request["sequence_drafts"] = sequence_drafts
 
     # Clarify follow-up: unknown fields are ignored by older frontends, so
     # this is additive-only for the interrupt consumers.
@@ -628,12 +650,9 @@ async def _handle_draft_critique(
     edit_iteration = state.get(STATE_KEY_DRAFT_EDIT_ITERATION) or 0
     iteration = edit_iteration + 1  # 1-based, for logs (parity with the old loop)
 
-    # Every terminal result clears the loop state so the next draft of the
-    # thread starts fresh.
-    _loop_reset: dict[str, Any] = {
-        STATE_KEY_DRAFT_EDIT_ITERATION: 0,
-        STATE_KEY_DRAFT_CLARIFICATION_QUESTION: None,
-    }
+    # Every terminal result (``_settle``) and every step of a sequence
+    # (``_advance_sequence``) clears the loop state so the next draft starts
+    # fresh.
 
     # Max iterations reached - safety cancel (clear queue too)
     if edit_iteration >= max_iterations:
@@ -642,32 +661,35 @@ async def _handle_draft_critique(
             draft_id=pending_draft.draft_id,
             max_iterations=max_iterations,
         )
-        result: dict[str, Any] = {
-            STATE_KEY_PENDING_DRAFT_CRITIQUE: None,
-            STATE_KEY_PENDING_DRAFTS_QUEUE: [],
-            STATE_KEY_DRAFT_ACTION_RESULT: {
-                "action": "cancel",
-                "draft_id": pending_draft.draft_id,
-                "draft_type": pending_draft.draft_type,
-                "reason": "Maximum modification iterations reached",
-            },
-            **_loop_reset,
-        }
+        reason = "Maximum modification iterations reached"
+        result = settle(state, decision_entry(pending_draft, "cancel", reason), drop_reason=reason)
         track_state_updates(state, result, "hitl_dispatch", pending_draft.draft_id)
         return result
 
-    # Build and send interrupt (include batch context for UX) — exactly ONE
-    # interrupt per node execution.
+    # Build and send interrupt — exactly ONE interrupt per node execution.
+    # A pre-approved lot (FOR_EACH) is shown whole and confirmed whole; any
+    # other queue is a SEQUENCE: this draft alone, with its position (ADR-288).
     drafts_queue = state.get(STATE_KEY_PENDING_DRAFTS_QUEUE, [])
-    batch_total = 1 + len(drafts_queue)
-    # For batch: collect all draft contents (current + queued) for display
-    batch_drafts = [pending_draft.model_dump()] + drafts_queue if batch_total > 1 else None
+    grouped = bool(state.get(STATE_KEY_PENDING_DRAFTS_GROUPED)) and bool(drafts_queue)
+    batch_total = 1 + len(drafts_queue) if grouped else 1
+    batch_drafts = [pending_draft.model_dump()] + drafts_queue if grouped else None
+    banked_count = len(state.get(STATE_KEY_CONFIRMED_DRAFTS) or [])
+    sequence_total = 1 if grouped else banked_count + 1 + len(drafts_queue)
     interrupt_payload = _build_draft_critique_payload(
         pending_draft,
         user_language,
         batch_total=batch_total,
         batch_drafts=batch_drafts,
         clarification_question=state.get(STATE_KEY_DRAFT_CLARIFICATION_QUESTION),
+        sequence_index=banked_count + 1,
+        sequence_total=sequence_total,
+        # The summary is read once: before the first draft, on its first showing
+        # — a re-presentation after an edit or a clarification repeats nothing.
+        sequence_drafts=(
+            [pending_draft.model_dump(), *drafts_queue]
+            if banked_count == 0 and edit_iteration == 0
+            else None
+        ),
     )
     # The one interrupt of this node execution — unless the person already
     # approved this exact draft on their ticket (ADR-276 lot 7).
@@ -684,86 +706,32 @@ async def _handle_draft_critique(
 
     # Handle no decision
     if not decision_data:
-        result = {
-            STATE_KEY_DRAFT_ACTION_RESULT: {
-                "action": "cancel",
-                "draft_id": pending_draft.draft_id,
-                "reason": "No decision received",
-            },
-            STATE_KEY_PENDING_DRAFT_CRITIQUE: None,
-            **_loop_reset,
-        }
+        reason = "No decision received"
+        result = settle(state, decision_entry(pending_draft, "cancel", reason), drop_reason=reason)
         track_state_updates(state, result, "hitl_dispatch", pending_draft.draft_id)
         return result
 
     action = decision_data.get("action", "cancel")
+    # ADR-288: a queue that is not a pre-approved lot is walked one draft at a
+    # time — a decision on the draft on screen presents the next one.
+    sequence_continues = bool(drafts_queue) and not grouped
 
-    # === CONFIRM: Execute the draft (+ queued batch if any) ===
+    # === CONFIRM: bank it and ask the next, or execute what was decided ===
     if action == "confirm":
-        # Build batch result: current draft + all queued drafts
-        # When a FOR_EACH HITL was already approved, the user confirmed
-        # the batch operation. The per-item draft critique shows the first
-        # item; on confirm, ALL queued items are auto-confirmed too.
-        drafts_queue = state.get(STATE_KEY_PENDING_DRAFTS_QUEUE, [])
-
-        batch_results = [
-            {
-                "action": "confirm",
-                "draft_id": pending_draft.draft_id,
-                "draft_type": pending_draft.draft_type,
-                "draft_content": pending_draft.draft_content,
-            },
-        ]
-
-        # Auto-confirm queued drafts from the same FOR_EACH batch
-        for queued_draft_data in drafts_queue:
-            batch_results.append(
-                {
-                    "action": "confirm",
-                    "draft_id": queued_draft_data.get("draft_id", ""),
-                    "draft_type": queued_draft_data.get("draft_type", ""),
-                    "draft_content": queued_draft_data.get("draft_content", {}),
-                }
-            )
-
-        if len(batch_results) > 1:
-            logger.info(
-                "hitl_dispatch_batch_draft_confirmed",
-                primary_draft_id=pending_draft.draft_id,
-                batch_size=len(batch_results),
-                draft_ids=[r["draft_id"] for r in batch_results],
-            )
-
-        result = {
-            STATE_KEY_PENDING_DRAFT_CRITIQUE: None,
-            STATE_KEY_PENDING_DRAFTS_QUEUE: [],
-            STATE_KEY_DRAFT_ACTION_RESULT: (
-                batch_results[0]
-                if len(batch_results) == 1
-                else {
-                    "action": DraftAction.CONFIRM_BATCH.value,
-                    "batch": batch_results,
-                }
-            ),
-            **_loop_reset,
-        }
+        current = decision_entry(pending_draft, "confirm")
+        result = advance_sequence(state, current) if sequence_continues else settle(state, current)
         track_state_updates(state, result, "hitl_dispatch", pending_draft.draft_id)
         return result
 
-    # === CANCEL: Abort the draft (+ cancel all queued) ===
+    # === CANCEL: this draft only in a sequence; the whole lot otherwise ===
     elif action == "cancel":
         reason = decision_data.get("reason", "User cancelled")
-        result = {
-            STATE_KEY_PENDING_DRAFT_CRITIQUE: None,
-            STATE_KEY_PENDING_DRAFTS_QUEUE: [],
-            STATE_KEY_DRAFT_ACTION_RESULT: {
-                "action": "cancel",
-                "draft_id": pending_draft.draft_id,
-                "draft_type": pending_draft.draft_type,
-                "reason": reason,
-            },
-            **_loop_reset,
-        }
+        current = decision_entry(pending_draft, "cancel", reason)
+        result = (
+            advance_sequence(state, current)
+            if sequence_continues
+            else settle(state, current, drop_reason=reason)
+        )
         track_state_updates(state, result, "hitl_dispatch", pending_draft.draft_id)
         return result
 
@@ -910,18 +878,11 @@ async def _handle_draft_critique(
                 error=str(e),
                 iteration=iteration,
             )
-            # On error, treat as cancel (clear queue too)
-            result = {
-                STATE_KEY_PENDING_DRAFT_CRITIQUE: None,
-                STATE_KEY_PENDING_DRAFTS_QUEUE: [],
-                STATE_KEY_DRAFT_ACTION_RESULT: {
-                    "action": "cancel",
-                    "draft_id": pending_draft.draft_id,
-                    "draft_type": pending_draft.draft_type,
-                    "reason": f"Modification error: {e!s}",
-                },
-                **_loop_reset,
-            }
+            # On error, treat as cancel (what was decided before still runs)
+            reason = f"Modification error: {e!s}"
+            result = settle(
+                state, decision_entry(pending_draft, "cancel", reason), drop_reason=reason
+            )
             track_state_updates(state, result, "hitl_dispatch", pending_draft.draft_id)
             return result
 
@@ -957,17 +918,8 @@ async def _handle_draft_critique(
             action=action,
             iteration=iteration,
         )
-        result = {
-            STATE_KEY_PENDING_DRAFT_CRITIQUE: None,
-            STATE_KEY_PENDING_DRAFTS_QUEUE: [],
-            STATE_KEY_DRAFT_ACTION_RESULT: {
-                "action": "cancel",
-                "draft_id": pending_draft.draft_id,
-                "draft_type": pending_draft.draft_type,
-                "reason": f"Unknown action: {action}",
-            },
-            **_loop_reset,
-        }
+        reason = f"Unknown action: {action}"
+        result = settle(state, decision_entry(pending_draft, "cancel", reason), drop_reason=reason)
         track_state_updates(state, result, "hitl_dispatch", pending_draft.draft_id)
         return result
 
@@ -1109,6 +1061,8 @@ __all__ = [
     # State keys
     "STATE_KEY_PENDING_DRAFT_CRITIQUE",
     "STATE_KEY_PENDING_DRAFTS_QUEUE",
+    "STATE_KEY_PENDING_DRAFTS_GROUPED",
+    "STATE_KEY_CONFIRMED_DRAFTS",
     "STATE_KEY_DRAFT_ACTION_RESULT",
     "STATE_KEY_PENDING_ENTITY_DISAMBIGUATION",
     "STATE_KEY_ENTITY_DISAMBIGUATION_RESULT",

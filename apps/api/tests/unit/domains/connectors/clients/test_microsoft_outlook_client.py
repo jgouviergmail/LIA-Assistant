@@ -179,7 +179,7 @@ class TestSearchEmails:
 
         result = await client.search_emails("in:inbox", max_results=10)
 
-        assert result["resultSizeEstimate"] == 1
+        assert result["resultSizeEstimate"] is None, "the page size is not a count (ADR-185)"
         message = result["messages"][0]
         assert message["id"] == "AAMk-1"
         assert message["threadId"] == "conv-1"

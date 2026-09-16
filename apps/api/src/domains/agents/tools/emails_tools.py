@@ -25,7 +25,6 @@ Migration Note (2025-12-30):
 
 import json
 import time
-from contextlib import suppress
 from datetime import timedelta
 from typing import Annotated, Any
 from uuid import UUID
@@ -39,12 +38,8 @@ from src.core.config import settings
 from src.core.constants import (
     GMAIL_DATE_OPERATORS,
     GMAIL_FORMAT_FULL,
-    GMAIL_FORMAT_METADATA,
     GMAIL_INBOX_ONLY_KEYWORDS,
     GMAIL_TRASH_KEYWORDS,
-)
-from src.core.field_names import (
-    FIELD_CACHED_AT,
 )
 from src.core.i18n import get_language_name
 from src.core.i18n_api_messages import APIMessages, SupportedLanguage
@@ -57,6 +52,12 @@ from src.domains.agents.context.runtime_context import (
     tool_user_id_str,
 )
 from src.domains.agents.context.schemas import ContextSaveMode
+from src.domains.agents.emails.detail_levels import (
+    DEFAULT_DETAIL,
+    EmailDetail,
+    apply_detail_level,
+    coerce_detail,
+)
 from src.domains.agents.prompts import load_prompt
 from src.domains.agents.tools.base import ConnectorTool
 from src.domains.agents.tools.decorators import connector_tool
@@ -145,8 +146,11 @@ def _validate_email_addresses(
 # ============================================================================
 # LLM error normalizations for common bad queries
 _LLM_ERROR_NORMALIZATIONS: dict[str, str] = {
-    "inbox": "",  # Common LLM mistake for "latest emails"
-    "received": "-in:sent -in:draft",  # "received" = not sent by me
+    # A whole-query "inbox" or "received" is a LISTING of the inbox — what a
+    # person calls their mail (ADR-287; it used to become "everything but
+    # sent", archived threads included).
+    "inbox": "label:inbox",
+    "received": "label:inbox",
     "sent": "in:sent",  # "sent" should be in:sent operator
     # A whole-query "trash"/"deleted" is the natural-language ask for the trash
     # folder; map it to the operator (same pattern as "sent"). Matching these as
@@ -185,8 +189,10 @@ def normalize_gmail_query(
         Normalized Gmail query string
 
     Example:
-        >>> normalize_gmail_query("inbox")
-        "-in:sent -in:draft -in:trash after:2025/10/15"
+        >>> normalize_gmail_query("")
+        "label:inbox -in:trash after:2025/10/15"
+        >>> normalize_gmail_query("from:john")
+        "from:john -in:sent -in:draft -in:trash after:2025/10/15"
         >>> normalize_gmail_query("from:john in:inbox")
         "from:john in:inbox -in:trash after:2025/10/15"
     """
@@ -225,14 +231,16 @@ def normalize_gmail_query(
     # Track scope applied for logging
     scope_applied = "preserved"  # Default if label: or in: already present
 
-    # Add scope: exclude sent/drafts by default (user expects "received" emails), UNLESS user requested inbox only
+    # Add scope when none is given (ADR-287, the rule the prompts state):
+    # - a LISTING (no query at all, or an explicit inbox request) is the
+    #   inbox — what a person calls « my latest emails »;
+    # - a SEARCH (a needle with no scope) excludes sent and drafts and reaches
+    #   archived mail, where the message may well sit.
     if "label:" not in query_lower and "in:" not in query_lower:
-        if user_requested_inbox_only:
+        if user_requested_inbox_only or not query.strip():
             query = f"{query} label:inbox".strip()
             scope_applied = "inbox"
         else:
-            # Default behavior: return received emails only (exclude sent and drafts)
-            # This matches user expectations when asking for "my emails" or "latest emails"
             query = f"{query} -in:sent -in:draft".strip()
             scope_applied = "received"
 
@@ -368,11 +376,14 @@ class GetEmailsInput(BaseModel):
 
     # Query mode: search by text
     query: str | None = None
-    max_results: int = settings.emails_tool_default_max_results
+    max_results: int = settings.emails_tool_default_limit
+    page_token: str | None = None
     # ID mode: direct fetch by ID(s)
     message_id: str | None = None
     message_ids: list[str] | None = None
-    # Common options
+    # Common options (ADR-287)
+    detail: str = DEFAULT_DETAIL.value
+    part: int = 1
     use_cache: bool = True
 
 
@@ -383,17 +394,21 @@ class GetEmailsInput(BaseModel):
 
 class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
     """
-    Unified email retrieval tool - replaces search_emails_tool + get_email_details_tool.
-
-    Architecture Simplification (2026-01):
-    - Combines search and details into single tool
-    - Always returns FULL email content (body, headers, attachments)
-    - Supports query mode (search) OR ID mode (direct fetch)
+    Unified email retrieval tool — one tool, three detail levels (ADR-287).
 
     Modes:
-    1. Query mode: query provided → search + fetch full details for each result
-    2. ID mode: message_id/message_ids provided → fetch specific emails with full details
-    3. No params: returns latest emails with full details
+    1. Query mode: query provided → search, then what ``detail`` asks for
+    2. ID mode: message_id/message_ids provided → fetch specific emails
+    3. No params: latest emails
+
+    Detail levels (``detail``):
+    - ``metadata``: the listing as the client returned it, no body fetched
+    - ``full`` (default): bodies fetched, each served one PART at a time
+      (``part``, paginated by paragraph under ``emails_body_part_tokens``)
+    - ``summary``: a digest per message, computed once and cached
+
+    A search continues with ``page_token`` / ``next_page_token``; the total is
+    the provider's ESTIMATE (``result_size_estimate``), never the page size.
 
     Data Registry Mode (LOT 5.3):
     - registry_enabled=True: Returns UnifiedToolOutput with registry items
@@ -436,11 +451,12 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
         use_cache: bool = kwargs.get("use_cache", True)
         user_timezone: str = kwargs.get("user_timezone", "UTC")
         locale: str = kwargs.get("locale", "fr-FR")
+        detail = coerce_detail(kwargs.get("detail"))
+        part = validate_positive_int_or_default(kwargs.get("part"), 1)
 
         # Route to appropriate mode
         if message_id or message_ids:
-            # ID mode: direct fetch
-            return await self._execute_by_ids(
+            result = await self._execute_by_ids(
                 client,
                 user_id,
                 message_id,
@@ -450,8 +466,7 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
                 locale,
             )
         else:
-            # Query mode: search + fetch details
-            return await self._execute_by_query(
+            result = await self._execute_by_query(
                 client,
                 user_id,
                 query or "",
@@ -459,7 +474,41 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
                 use_cache,
                 user_timezone,
                 locale,
+                detail=detail,
+                page_token=kwargs.get("page_token"),
             )
+        await self._shape_for_detail(result["emails"], user_id, detail, part, locale)
+        result["detail"] = detail.value
+        return result
+
+    async def _shape_for_detail(
+        self,
+        emails: list[dict[str, Any]],
+        user_id: UUID,
+        detail: EmailDetail,
+        part: int,
+        locale: str,
+    ) -> None:
+        """Give each message the shape its level asks for (ADR-287).
+
+        ``summary`` condenses first — one digest per message, computed once
+        and cached — then the level sheds the bodies the digests replace.
+        """
+        if detail is EmailDetail.SUMMARY and emails:
+            from src.domains.agents.emails.digest import EmailDigestService
+
+            # The runtime's config carries the turn's token-tracking callback:
+            # without it the digests are spent and never recorded (ADR-272).
+            runtime = self.runtime
+            await EmailDigestService().digest_many(
+                user_id=str(user_id),
+                emails=emails,
+                language=locale,
+                config=runtime.config if runtime else None,
+            )
+        apply_detail_level(
+            emails, detail=detail, part=part, part_tokens=settings.emails_body_part_tokens
+        )
 
     async def _execute_by_query(
         self,
@@ -470,17 +519,22 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
         use_cache: bool,
         user_timezone: str,
         locale: str,
+        *,
+        detail: EmailDetail = DEFAULT_DETAIL,
+        page_token: str | None = None,
     ) -> dict[str, Any]:
         """
-        Search emails by query and return full details for each result.
+        Search emails by query; fetch the bodies only when the level needs them.
 
-        This is the unified behavior: search + fetch details in one call.
+        Before ADR-287 every search re-downloaded every hit in ``full`` — the
+        Gmail listing already carries the metadata (2N+1 requests for N hits),
+        and a ``metadata`` level reads the listing as it is.
         """
-        # Apply query normalization (from old SearchEmailsTool)
         query = self._normalize_query(query)
 
-        # Determine max_results
-        default_max_results = settings.emails_tool_default_max_results
+        # Determine max_results: the published default (ADR-184: one contract),
+        # not the maximum.
+        default_max_results = settings.emails_tool_default_limit
         if max_results is None or not isinstance(max_results, int) or max_results <= 0:
             max_results = default_max_results
 
@@ -494,15 +548,25 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
             )
             max_results = security_cap
 
-        # Execute search
-        search_result = await client.search_emails(
-            query=query,
-            max_results=max_results,
-            use_cache=use_cache,
-        )
+        # Execute search — an IMAP listing can skip the bodies at the wire
+        search_kwargs: dict[str, Any] = {
+            "query": query,
+            "max_results": max_results,
+            "use_cache": use_cache,
+            "page_token": page_token,
+        }
+        if detail is EmailDetail.METADATA:
+            # Every client accepts it (EmailClientProtocol); IMAP is the one that
+            # would otherwise fetch whole messages for a listing.
+            search_kwargs["headers_only"] = True
+        search_result = await client.search_emails(**search_kwargs)
 
-        # Get message IDs from search
         messages_metadata = search_result.get("messages", [])
+        # ADR-185: the provider's ESTIMATE, published as one — never the page size.
+        paging = {
+            "result_size_estimate": search_result.get("resultSizeEstimate"),
+            "next_page_token": search_result.get("next_page_token"),
+        }
 
         if not messages_metadata:
             logger.info(
@@ -517,21 +581,24 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
                 "user_timezone": user_timezone,
                 "locale": locale,
                 "mode": "query",
+                **paging,
             }
 
-        # Extract message IDs and fetch full details
-        message_ids = [msg.get("id") for msg in messages_metadata if msg.get("id")]
-
-        # Fetch full details for each email (parallel)
-        emails_with_details = await self._fetch_full_details(
-            client, user_id, message_ids, use_cache
-        )
+        if detail is EmailDetail.METADATA:
+            # The listing already carries the metadata: nothing to fetch.
+            emails_with_details = [dict(msg) for msg in messages_metadata if msg.get("id")]
+        else:
+            message_ids = [msg.get("id") for msg in messages_metadata if msg.get("id")]
+            emails_with_details = await self._fetch_full_details(
+                client, user_id, message_ids, use_cache
+            )
 
         logger.info(
             "get_emails_query_success",
             user_id=str(user_id),
             query_length=len(query) if query else 0,
             total_results=len(emails_with_details),
+            detail=detail.value,
             from_cache=search_result.get("from_cache", False),
         )
 
@@ -542,6 +609,7 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
             "user_timezone": user_timezone,
             "locale": locale,
             "mode": "query",
+            **paging,
         }
 
     async def _execute_by_ids(
@@ -648,14 +716,17 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
     def _enrich_email(self, result: dict[str, Any], message_id: str) -> None:
         """Enrich email with flattened body + attachments.
 
-        For Gmail: extracts body from base64 payload, truncates, adds web link.
-        For Apple: body is already at top-level, but may need truncation.
+        For Gmail: extracts the text body from the MIME tree. For Apple and
+        Microsoft: the body is already top-level text (ADR-287).
         """
         try:
             from src.domains.agents.tools.formatters import GmailFormatter
 
-            # Extract or truncate body (handles both Gmail payload and Apple top-level)
-            body = GmailFormatter._extract_body_truncated(result)
+            # The WHOLE clean body: the detail level paginates it by paragraph
+            # under a token budget (ADR-287); the cards truncate for display on
+            # their own. It used to be cut here at emails_body_max_length, a
+            # bound published nowhere.
+            body = GmailFormatter._extract_body(result)
             if body:
                 result["body"] = body
 
@@ -688,13 +759,18 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
         user_timezone = result.get("user_timezone", "UTC")
         locale = result.get("locale", settings.default_language)
 
-        # Use ToolOutputMixin helper (with timezone conversion)
+        # Use ToolOutputMixin helper (with timezone conversion); the level and
+        # the paging travel with the items (ADR-287, ADR-185: an estimate is
+        # published as one, never as a count).
         return self.build_emails_output(
             emails=emails,
             query=query,
             from_cache=from_cache,
             user_timezone=user_timezone,
             locale=locale,
+            detail=result.get("detail"),
+            result_size_estimate=result.get("result_size_estimate"),
+            next_page_token=result.get("next_page_token"),
         )
 
 
@@ -717,27 +793,34 @@ async def get_emails_tool(
         list[str] | None, "List of Gmail message IDs for batch fetch (optional)"
     ] = None,
     max_results: Annotated[
-        int, "Maximum number of results (default 10, max 50)"
-    ] = settings.emails_tool_default_max_results,
+        int, "Maximum number of results for query mode (see the catalogue for the bound)"
+    ] = settings.emails_tool_default_limit,
+    detail: Annotated[
+        str,
+        "What each message carries: 'metadata' (no body, for listings), 'full' "
+        "(default; the clean body, one part at a time) or 'summary' (a digest per "
+        "message for syntheses over many messages)",
+    ] = "full",
+    page_token: Annotated[
+        str | None, "next_page_token of a previous page, to continue the same search"
+    ] = None,
+    part: Annotated[int, "1-based part of a long body under 'full' (see body_parts)"] = 1,
     use_cache: Annotated[bool, "Use cached results if available (default True)"] = True,
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
-    Get emails with full details - unified search and retrieval.
-
-    Replaces search_emails_tool + get_email_details_tool with a single tool.
+    Get emails — unified search and retrieval, three detail levels (ADR-287).
 
     Modes:
-    - Query mode: get_emails_tool(query="from:john") → search + return full details
-    - ID mode: get_emails_tool(message_id="abc123") → fetch specific email with full details
-    - Batch mode: get_emails_tool(message_ids=["abc", "def"]) → fetch multiple emails
-    - List mode: get_emails_tool() → return latest emails with full details
+    - Query mode: get_emails_tool(query="from:john") → search, then ``detail``
+    - ID mode: get_emails_tool(message_id="abc123") → fetch one message
+    - Batch mode: get_emails_tool(message_ids=["abc", "def"]) → fetch several
+    - List mode: get_emails_tool() → latest messages
 
-    Always returns FULL email content including:
-    - Headers (From, To, Subject, Date, etc.)
-    - Body content (text extracted from HTML if needed)
-    - Labels and flags
-    - Attachments info
+    Detail levels:
+    - metadata: sender, subject, date, snippet, labels, attachments; no body
+    - full (default): the clean text body, paginated by paragraph (``part``)
+    - summary: a digest per message, computed once and cached
 
     Gmail search operators (for query mode):
     - from:john@example.com - Emails from specific sender
@@ -752,12 +835,16 @@ async def get_emails_tool(
         query: Gmail search query (optional)
         message_id: Specific message ID to fetch (optional)
         message_ids: List of message IDs for batch fetch (optional)
-        max_results: Maximum number of results for query mode (default 10, max 50)
+        max_results: Maximum number of results for query mode (the catalogue
+            publishes the default and the bound)
+        detail: ``metadata`` | ``full`` | ``summary``
+        page_token: Continuation token of a previous page
+        part: 1-based body part under ``full``
         use_cache: Use cached results if available (default True)
         runtime: Tool runtime (injected)
 
     Returns:
-        UnifiedToolOutput with registry items containing full email data
+        UnifiedToolOutput with registry items containing the messages
     """
     # Get user timezone/locale for formatting (cached per user, valid BCP 47)
     user_timezone, _, locale = await get_user_preferences(runtime)
@@ -769,6 +856,9 @@ async def get_emails_tool(
         message_id=message_id,
         message_ids=message_ids,
         max_results=max_results,
+        detail=detail,
+        page_token=page_token,
+        part=part,
         use_cache=use_cache,
         user_timezone=user_timezone,
         locale=locale,
@@ -813,798 +903,6 @@ async def get_emails_tool(
             result.context_save_mode = ContextSaveMode.CURRENT
         else:
             result.context_save_mode = ContextSaveMode.LIST
-
-    return result
-
-
-# ============================================================================
-# LEGACY TOOLS (Deprecated - kept for backward compatibility)
-# ============================================================================
-
-
-class SearchEmailsInput(BaseModel):
-    """Input schema for search_emails_tool (DEPRECATED - use GetEmailsInput)."""
-
-    query: str
-    max_results: int = settings.emails_tool_default_max_results
-    use_cache: bool = True
-
-
-class SearchEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
-    """
-    Search emails tool using new Phase 3.2 architecture with Data Registry support.
-
-    Benefits vs old implementation:
-    - Eliminates 100+ lines of DI boilerplate
-    - Standardizes error handling
-    - Reuses ConnectorTool base class
-    - Uses GmailFormatter (eliminates formatting duplication)
-
-    Data Registry Mode (LOT 5.3):
-    - registry_enabled=True: Returns UnifiedToolOutput with registry items
-    - Registry items contain full email data for frontend rendering
-    - Summary for LLM is compact text with subject, sender and IDs
-    - parallel_executor extracts registry and routes to SSE stream
-    """
-
-    connector_type = ConnectorType.GOOGLE_GMAIL
-    client_class = GoogleGmailClient
-    functional_category = "email"
-
-    # Data Registry mode enabled - returns StandardToolOutput instead of JSON string
-    registry_enabled = True
-
-    def __init__(self) -> None:
-        """Initialize search emails tool with Data Registry support."""
-        super().__init__(tool_name="get_emails_tool", operation="search")
-
-    async def execute_api_call(
-        self,
-        client: GoogleGmailClient,
-        user_id: UUID,
-        **kwargs: Any,
-    ) -> dict[str, Any]:
-        """Execute search emails API call - business logic only."""
-
-        query: str = kwargs["query"]
-        raw_max_results = kwargs.get("max_results")
-        default_max_results = settings.emails_tool_default_max_results
-        max_results = validate_positive_int_or_default(raw_max_results, default=default_max_results)
-        # Cap at the domain setting (settings.emails_tool_default_max_results)
-        security_cap = settings.emails_tool_default_max_results
-        if max_results > security_cap:
-            logger.warning(
-                "emails_search_limit_capped",
-                requested_max_results=raw_max_results,
-                capped_max_results=security_cap,
-                default_max_results=default_max_results,
-            )
-            max_results = security_cap
-        use_cache: bool = kwargs.get("use_cache", True)
-        user_timezone: str = kwargs.get("user_timezone", "UTC")
-        locale: str = kwargs.get("locale", "fr-FR")
-
-        # DEFENSE IN DEPTH: Normalize Gmail query using shared helper (DRY)
-        # Handles: quote removal, LLM errors, scope, trash exclusion, date range
-        original_query = kwargs["query"]
-        query = normalize_gmail_query(query, log_context={"original_query": original_query})
-
-        logger.debug(
-            "search_emails_query_normalized",
-            original_query=original_query,
-            final_query=query,
-        )
-
-        # Resolve user-friendly label names to Gmail label IDs
-        # This transforms "label:COPRO" to "label:Label_12345678"
-        resolved_query = await client.resolve_label_names_in_query(query, use_cache=True)
-        if resolved_query != query:
-            logger.debug(
-                "search_emails_labels_resolved",
-                original_query=query,
-                resolved_query=resolved_query,
-            )
-            query = resolved_query
-
-        # Execute API call
-        result = await client.search_emails(
-            query=query,
-            max_results=max_results,
-            use_cache=use_cache,
-        )
-
-        # Extract messages
-        messages = result.get("messages", [])
-        from_cache = result.get("from_cache", False)
-        cached_at = result.get(FIELD_CACHED_AT)
-
-        # Resolve label IDs to user-friendly names
-        # This translates technical IDs like "Label_12345678" to "Mon projet"
-        if messages:
-            labels_mapping = await client.list_labels(use_cache=True)
-            for msg in messages:
-                if "labelIds" in msg:
-                    msg["labelIds"] = [
-                        labels_mapping.get(label_id, label_id)
-                        for label_id in msg.get("labelIds", [])
-                    ]
-
-        logger.info(
-            "search_emails_success",
-            user_id=str(user_id),
-            query_preview=query[:20] if len(query) > 20 else query,
-            total_results=len(messages),
-            from_cache=from_cache,
-        )
-
-        return {
-            "messages": messages,
-            "query": query,
-            "from_cache": from_cache,
-            FIELD_CACHED_AT: cached_at,
-            "user_timezone": user_timezone,
-            "locale": locale,
-        }
-
-    def format_registry_response(self, result: dict[str, Any]) -> UnifiedToolOutput:
-        """
-        Format as Data Registry UnifiedToolOutput with registry items.
-
-        Uses ToolOutputMixin.build_emails_output() to create:
-        - message: Compact text with subject, sender and IDs
-        - registry_updates: Full email data for frontend rendering
-        - metadata: Query info, cache status, etc.
-
-        The summary is designed for LLM reasoning while registry
-        provides complete data for rich frontend display.
-
-        TIMEZONE: Dates are converted to user's timezone before storage.
-
-        Example summary:
-            Found 5 emails for "invoice":
-            - "Invoice #1234" from john@example.com [email_abc123]
-            - "Payment reminder" from billing@corp.com [email_def456]
-            - "Receipt attached" from shop@store.com [email_ghi789]
-        """
-        messages = result.get("messages", [])
-        query = result.get("query", "")
-        from_cache = result.get("from_cache", False)
-        user_timezone = result.get("user_timezone", "UTC")
-        locale = result.get("locale", settings.default_language)
-
-        # Use ToolOutputMixin helper method (with timezone conversion)
-        # build_emails_output returns UnifiedToolOutput directly
-        return self.build_emails_output(
-            emails=messages,
-            query=query,
-            from_cache=from_cache,
-            user_timezone=user_timezone,
-            locale=locale,
-        )
-
-
-# Create tool instance (singleton)
-_search_emails_tool_instance = SearchEmailsTool()
-
-
-@connector_tool(
-    name="search_emails",
-    agent_name=AGENT_EMAIL,
-    context_domain=CONTEXT_DOMAIN_EMAILS,
-    category="read",
-)
-async def search_emails_tool(
-    query: Annotated[str, "Gmail search query (supports all Gmail search operators)"],
-    max_results: Annotated[
-        int, "Maximum number of results to return (default 10, max 100)"
-    ] = settings.emails_tool_default_max_results,
-    use_cache: Annotated[bool, "Use cached results if available (default True)"] = True,
-    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
-) -> UnifiedToolOutput:
-    """
-    Search emails using Gmail search query syntax.
-
-    Supports all Gmail search operators:
-    - from:john@example.com - Emails from specific sender
-    - to:jane@example.com - Emails to specific recipient
-    - subject:meeting - Emails with keyword in subject
-    - is:unread - Unread emails
-    - has:attachment - Emails with attachments
-    - after:2025/01/01 - Emails after date
-    - before:2025/12/31 - Emails before date
-    - label:inbox - Emails with specific label
-
-    **IMPORTANT - Semantic Label Mappings (for natural language queries):**
-    When user asks for emails from specific folders, translate to label: syntax:
-    - "boîte de réception" / "inbox" / "received" → label:INBOX
-    - "envoyés" / "sent" / "emails I sent" → label:SENT
-    - "brouillons" / "drafts" → label:DRAFT
-    - "corbeille" / "trash" / "deleted" → label:TRASH
-    - "spam" / "indésirables" → label:SPAM
-    - "importants" / "starred" / "favoris" → label:STARRED
-    - "non lus" / "unread" → is:unread
-    - "lus" / "read" → is:read
-
-    Returns minimal email metadata (id, threadId, snippet, labels, date).
-    For full email content, use get_email_details_tool.
-
-    Examples:
-        - "from:john@example.com subject:invoice"
-        - "is:unread after:2025/01/01"
-        - "has:attachment label:inbox"
-        - "label:INBOX" (for inbox/boîte de réception)
-        - "label:SENT" (for sent/envoyés)
-        - "label:STARRED is:unread" (for unread starred emails)
-
-    Args:
-        query: Gmail search query string
-        max_results: Maximum number of emails to return (default 10, max 100)
-        use_cache: Use cached results if available (default True)
-        runtime: Tool runtime (injected)
-
-    Returns:
-        UnifiedToolOutput with registry items containing email data
-
-    **Phase 3.2 Migration:** This tool now uses the new architecture (ConnectorTool base class).
-    All boilerplate (DI, OAuth, error handling, formatting) is eliminated.
-
-    **Data Registry Mode (LOT 5.3):** Returns UnifiedToolOutput with registry items.
-    parallel_executor handles extraction and SSE streaming to frontend.
-    """
-    # Get user timezone/locale for formatting
-    try:
-        user_timezone, _, locale = await get_user_preferences(runtime)
-    except Exception:
-        # Fallback to defaults
-        user_timezone = "UTC"
-        locale = "fr-FR"
-
-    # Delegate to tool instance (new architecture)
-    result = await _search_emails_tool_instance.execute(
-        runtime=runtime,
-        query=query,
-        max_results=max_results,
-        use_cache=use_cache,
-        user_timezone=user_timezone,
-        locale=locale,
-    )
-
-    # Save to context (for $context.emails references)
-    # BUGFIX (Issue #38): Store with proper user-scoped namespace for automatic cleanup
-    # Format: (user_id, thread_id, "context", "emails") enables cleanup on conversation reset
-    if runtime and runtime.store:
-        # Context save is non-critical
-        with suppress(Exception):
-            # Extract user_id and thread_id from runtime.config
-            user_id_raw = tool_user_id_str(runtime)
-            thread_id = runtime.config.get("configurable", {}).get("thread_id")
-
-            if user_id_raw and thread_id:
-                user_id = parse_user_id(user_id_raw)
-                thread_id_str = str(thread_id)
-
-                # Data Registry LOT 5.3: Handle UnifiedToolOutput, StandardToolOutput, and legacy JSON string
-                messages = []
-                if isinstance(result, StandardToolOutput | UnifiedToolOutput):
-                    # Extract messages from registry_updates payload
-                    for item in result.registry_updates.values():
-                        messages.append(item.payload)
-                else:
-                    # Legacy mode: Parse JSON string
-                    parsed = json.loads(result)
-                    data = parsed.get("data", {})
-                    messages = data.get("emails", [])
-
-                # Store with proper namespace
-                # OLD BUG: ("emails", "list") - no user scope, orphaned data accumulation
-                # NEW FIX: (user_id, thread_id, "context", "emails") - user scoped, auto-cleanup
-                await runtime.store.aput(
-                    (str(user_id), thread_id_str, "context", "emails"),
-                    "list_current_search",
-                    {
-                        "emails": messages,
-                        "query": query,
-                        "timestamp": time.time(),
-                    },
-                )
-
-    return result
-
-
-# ============================================================================
-# TOOL 2: GET EMAIL DETAILS
-# ============================================================================
-
-
-class GetEmailDetailsInput(BaseModel):
-    """Input schema for get_email_details_tool (legacy, tool uses annotations)."""
-
-    # MULTI-ORDINAL FIX (2026-01-02): Support both single and batch modes
-    message_id: str | None = None  # Single mode
-    message_ids: list[str] | None = None  # Batch mode
-    include_body: bool = True
-    use_cache: bool = True
-
-
-class GetEmailDetailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
-    """
-    Get email details tool using new Phase 3.2 architecture with Data Registry support.
-
-    Benefits vs old implementation:
-    - Eliminates 80+ lines of DI boilerplate
-    - Standardizes error handling
-    - Reuses ConnectorTool base class
-    - Uses GmailFormatter (eliminates formatting duplication)
-
-    Data Registry Mode (LOT 5.3):
-    - registry_enabled=True: Returns UnifiedToolOutput with registry items
-    - Registry contains full email data including body for frontend rendering
-    - Summary for LLM includes subject, sender, and key metadata
-    - parallel_executor extracts registry and routes to SSE stream
-    """
-
-    connector_type = ConnectorType.GOOGLE_GMAIL
-    client_class = GoogleGmailClient
-    functional_category = "email"
-
-    # Data Registry mode enabled - returns StandardToolOutput instead of JSON string
-    registry_enabled = True
-
-    def __init__(self) -> None:
-        """Initialize get email details tool with Data Registry support."""
-        super().__init__(tool_name="get_emails_tool", operation="details")
-
-    async def execute_api_call(
-        self,
-        client: GoogleGmailClient,
-        user_id: UUID,
-        **kwargs: Any,
-    ) -> dict[str, Any]:
-        """
-        Execute get email details API call - business logic only.
-
-        Supports both single and batch modes:
-        - Single: message_id provided → fetch one email
-        - Batch: message_ids provided → fetch multiple emails in parallel
-
-        MULTI-ORDINAL FIX (2026-01-01): Added batch mode support for multi-reference queries.
-        Example: "detail du 1 et du 2" → message_ids=["id1", "id2"]
-        """
-        message_id: str | None = kwargs.get("message_id")
-        message_ids: list[str] | None = kwargs.get("message_ids")
-        use_cache: bool = kwargs.get("use_cache", True)
-        user_timezone: str = kwargs.get("user_timezone", "UTC")
-        locale: str = kwargs.get("locale", "fr-FR")
-
-        # Validation: exactly one of message_id or message_ids required
-        if not message_id and not message_ids:
-            raise ValueError("Either message_id or message_ids must be provided")
-        if message_id and message_ids:
-            raise ValueError("message_id and message_ids are mutually exclusive")
-
-        # Route to single or batch mode
-        if message_ids:
-            return await self._execute_batch(
-                client, user_id, message_ids, use_cache, user_timezone, locale
-            )
-        else:
-            return await self._execute_single(
-                client, user_id, message_id, use_cache, user_timezone, locale
-            )
-
-    async def _execute_single(
-        self,
-        client: GoogleGmailClient,
-        user_id: UUID,
-        message_id: str,
-        use_cache: bool,
-        user_timezone: str,
-        locale: str,
-    ) -> dict[str, Any]:
-        """Execute single email details fetch."""
-        # Force body/attachments for details: downstream formatting relies on rich payload
-        include_body: bool = True
-
-        # Get message with appropriate format
-        format_type = GMAIL_FORMAT_FULL if include_body else GMAIL_FORMAT_METADATA
-        result = await client.get_message(
-            message_id=message_id,
-            format=format_type,
-            use_cache=use_cache,
-        )
-
-        # Resolve label IDs to user-friendly names
-        if "labelIds" in result:
-            labels_mapping = await client.list_labels(use_cache=True)
-            result["labelIds"] = [
-                labels_mapping.get(label_id, label_id) for label_id in result.get("labelIds", [])
-            ]
-
-        # Enrich with flattened body + attachments for downstream consumption
-        self._enrich_email(result, message_id, include_body)
-
-        # Extract data
-        from_cache = result.get("from_cache", False)
-        cached_at = result.get(FIELD_CACHED_AT)
-
-        logger.info(
-            "get_email_details_success",
-            user_id=str(user_id),
-            message_id=message_id,
-            include_body=include_body,
-            from_cache=from_cache,
-        )
-
-        return {
-            "email": result,
-            "message_id": message_id,
-            "include_body": include_body,
-            "from_cache": from_cache,
-            FIELD_CACHED_AT: cached_at,
-            "user_timezone": user_timezone,
-            "locale": locale,
-            "mode": "single",
-        }
-
-    async def _execute_batch(
-        self,
-        client: GoogleGmailClient,
-        user_id: UUID,
-        message_ids: list[str],
-        use_cache: bool,
-        user_timezone: str,
-        locale: str,
-    ) -> dict[str, Any]:
-        """
-        Execute batch email details fetch using asyncio.gather.
-
-        MULTI-ORDINAL FIX (2026-01-01): Parallel fetch for multi-reference queries.
-        """
-        import asyncio
-
-        include_body: bool = True
-        format_type = GMAIL_FORMAT_FULL
-
-        # Cap batch size for safety
-        max_batch = 10
-        if len(message_ids) > max_batch:
-            logger.warning(
-                "get_email_details_batch_capped",
-                user_id=str(user_id),
-                requested=len(message_ids),
-                capped=max_batch,
-            )
-            message_ids = message_ids[:max_batch]
-
-        # Fetch all emails concurrently
-        tasks = [
-            client.get_message(message_id=mid, format=format_type, use_cache=use_cache)
-            for mid in message_ids
-        ]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        # Get labels mapping once for all emails
-        labels_mapping = await client.list_labels(use_cache=True)
-
-        # Process results (separate successes and errors)
-        emails_list = []
-        errors = []
-        for i, result in enumerate(results):
-            if isinstance(result, Exception):
-                errors.append(
-                    {
-                        "message_id": message_ids[i],
-                        "error": str(result),
-                        "error_type": type(result).__name__,
-                    }
-                )
-            else:
-                # Resolve label IDs
-                if "labelIds" in result:
-                    result["labelIds"] = [
-                        labels_mapping.get(label_id, label_id)
-                        for label_id in result.get("labelIds", [])
-                    ]
-                # Enrich email
-                self._enrich_email(result, message_ids[i], include_body)
-                emails_list.append(result)
-
-        logger.info(
-            "get_email_details_batch_success",
-            user_id=str(user_id),
-            total_requested=len(message_ids),
-            total_success=len(emails_list),
-            total_errors=len(errors),
-        )
-
-        return {
-            "emails": emails_list,
-            "message_ids": message_ids,
-            "include_body": include_body,
-            "from_cache": False,  # Batch mode doesn't track individual cache status
-            FIELD_CACHED_AT: None,
-            "user_timezone": user_timezone,
-            "locale": locale,
-            "mode": "batch",
-            "errors": errors if errors else None,
-        }
-
-    def _enrich_email(self, result: dict[str, Any], message_id: str, include_body: bool) -> None:
-        """Enrich email with flattened body + attachments for downstream consumption.
-
-        For Gmail: extracts body from base64 payload, truncates, adds web link.
-        For Apple: body is already at top-level, but may need truncation.
-        """
-        try:
-            from src.domains.agents.tools.formatters import GmailFormatter
-
-            if include_body:
-                body = GmailFormatter._extract_body_truncated(result)
-                if body:
-                    result["body"] = body
-
-            attachments = result.get("attachments")
-            if attachments is None:
-                attachments = GmailFormatter._extract_attachments(result)
-                result["attachments"] = attachments or []
-        except Exception as e:
-            logger.warning(
-                "get_email_details_enrich_failed",
-                message_id=message_id,
-                error=str(e),
-            )
-
-    def format_registry_response(self, result: dict[str, Any]) -> UnifiedToolOutput:
-        """
-        Format as Data Registry UnifiedToolOutput with registry items.
-
-        Handles both single and batch modes:
-        - Single mode: One email in registry with full details
-        - Batch mode: Multiple emails in registry, errors in metadata
-
-        Uses ToolOutputMixin.build_emails_output() for consistent formatting.
-
-        TIMEZONE: Dates are converted to user's timezone before storage.
-
-        MULTI-ORDINAL FIX (2026-01-01): Added batch mode support.
-
-        Example summary (single):
-            Email details: "Re: Project Update" from john@example.com
-            Content: 523 chars, 1 attachment
-
-        Example summary (batch):
-            Email details retrieved: 2 emails
-            1. "Re: Project Update" from john@example.com
-            2. "Meeting Tomorrow" from jane@example.com
-        """
-        mode = result.get("mode", "single")
-        from_cache = result.get("from_cache", False)
-        include_body = result.get("include_body", True)
-        user_timezone = result.get("user_timezone", "UTC")
-        locale = result.get("locale", settings.default_language)
-
-        # Handle single vs batch mode
-        errors = None
-        if mode == "batch":
-            emails = result.get("emails", [])
-            message_ids = result.get("message_ids", [])
-            errors = result.get("errors")
-        else:
-            email = result.get("email", {})
-            emails = [email] if email else []
-            message_ids = [result.get("message_id", "")]
-
-        # Build base output using mixin helper (with timezone conversion)
-        # build_emails_output returns UnifiedToolOutput directly
-        output = self.build_emails_output(
-            emails=emails,
-            query=None,  # Details operation doesn't use query
-            from_cache=from_cache,
-            user_timezone=user_timezone,
-            locale=locale,
-        )
-
-        # Add details-specific metadata
-        if mode == "batch":
-            output.metadata["message_ids"] = message_ids
-            output.metadata["mode"] = "batch"
-            if errors:
-                output.metadata["errors"] = errors
-        else:
-            output.metadata["message_id"] = message_ids[0] if message_ids else ""
-            output.metadata["mode"] = "single"
-        output.metadata["include_body"] = include_body
-
-        # Build summary based on mode
-        if mode == "batch" and emails:
-            # Batch summary
-            summary_lines = [f"Email details retrieved: {len(emails)} email(s)"]
-            for i, email in enumerate(emails[:5], 1):  # Limit to 5 for summary
-                headers = email.get("payload", {}).get("headers", [])
-                subject = ""
-                from_addr = ""
-                for header in headers:
-                    name = header.get("name", "").lower()
-                    if name == "subject":
-                        subject = header.get("value", "")[:40]
-                    elif name == "from":
-                        from_addr = header.get("value", "")
-                summary_lines.append(f'{i}. "{subject}" from {from_addr}')
-            if len(emails) > 5:
-                summary_lines.append(f"... and {len(emails) - 5} more")
-            output.message = "\n".join(summary_lines)
-        elif emails:
-            # Single email summary
-            email = emails[0]
-            headers = email.get("payload", {}).get("headers", [])
-            subject = ""
-            from_addr = ""
-            for header in headers:
-                name = header.get("name", "").lower()
-                if name == "subject":
-                    subject = header.get("value", "")[:50]
-                elif name == "from":
-                    from_addr = header.get("value", "")
-
-            body_length = len(email.get("body", "")) if include_body else 0
-            attachments = email.get("attachments", [])
-            attachment_info = f", {len(attachments)} attachment(s)" if attachments else ""
-
-            output.message = (
-                f'Email details: "{subject}" from {from_addr}\n'
-                f"Content: {body_length} chars{attachment_info}"
-            )
-
-        return output
-
-
-# Create tool instance (singleton)
-_get_email_details_tool_instance = GetEmailDetailsTool()
-
-
-@connector_tool(
-    name="get_email_details",
-    agent_name=AGENT_EMAIL,
-    context_domain=CONTEXT_DOMAIN_EMAILS,
-    category="read",
-)
-async def get_email_details_tool(
-    message_id: Annotated[str | None, "Gmail message ID to retrieve (single mode)"] = None,
-    message_ids: Annotated[
-        list[str] | None,
-        "List of Gmail message IDs to retrieve (batch mode for multi-ordinal queries)",
-    ] = None,
-    include_body: Annotated[bool, "Include email body content (default True)"] = True,
-    use_cache: Annotated[bool, "Use cached results if available (default True)"] = True,
-    runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
-) -> UnifiedToolOutput:
-    """
-    Get detailed information for one or more email messages.
-
-    Supports both single and batch modes:
-    - Single: message_id="abc123" → fetch one email
-    - Batch: message_ids=["abc123", "def456"] → fetch multiple emails in parallel
-
-    MULTI-ORDINAL FIX (2026-01-01): Added batch mode for multi-reference queries.
-    Example: "detail du 1 et du 2" → message_ids=["id1", "id2"]
-
-    Returns complete email metadata including:
-    - Headers (From, To, Subject, Date, etc.)
-    - Body content (text extracted from HTML if needed)
-    - Labels and flags
-    - Thread ID
-    - Attachments info
-
-    Use this after search_emails_tool to get full content of specific emails.
-
-    Args:
-        message_id: Gmail message ID for single mode (from search_emails_tool results)
-        message_ids: List of Gmail message IDs for batch mode
-        include_body: Include email body content (default True)
-        use_cache: Use cached results if available (default True)
-        runtime: Tool runtime (injected)
-
-    Returns:
-        UnifiedToolOutput with registry items containing email details
-
-    **Phase 3.2 Migration:** This tool now uses the new architecture (ConnectorTool base class).
-    All boilerplate (DI, OAuth, error handling, formatting) is eliminated.
-
-    **Data Registry Mode (LOT 5.3):** Returns UnifiedToolOutput with registry items.
-    parallel_executor handles extraction and SSE streaming to frontend.
-    """
-    # Get user timezone/locale for formatting (cached per user, valid BCP 47)
-    user_timezone, _, locale = await get_user_preferences(runtime)
-
-    # Delegate to tool instance (new architecture)
-    # Pass both message_id and message_ids - execute_api_call will validate
-    result = await _get_email_details_tool_instance.execute(
-        runtime=runtime,
-        message_id=message_id,
-        message_ids=message_ids,
-        include_body=include_body,
-        use_cache=use_cache,
-        user_timezone=user_timezone,
-        locale=locale,
-    )
-
-    # Save to context
-    # BUGFIX (Issue #38): Store with proper user-scoped namespace for automatic cleanup
-    # MULTI-ORDINAL FIX (2026-01-01): Support batch mode context saving
-    if runtime and runtime.store:
-        # Context save is non-critical
-        with suppress(Exception):
-            # Extract user_id and thread_id from runtime.config
-            user_id_raw = tool_user_id_str(runtime)
-            thread_id = runtime.config.get("configurable", {}).get("thread_id")
-
-            if user_id_raw and thread_id:
-                user_id = parse_user_id(user_id_raw)
-                thread_id_str = str(thread_id)
-
-                # Determine mode and extract emails
-                is_batch_mode = message_ids is not None and len(message_ids) > 0
-                emails_to_save: list[tuple[str, dict]] = []  # List of (msg_id, email_data)
-
-                if isinstance(result, StandardToolOutput | UnifiedToolOutput):
-                    # Data Registry mode: Extract from registry_updates
-                    for item in result.registry_updates.values():
-                        email_data = item.payload
-                        msg_id = email_data.get("id", "")
-                        if msg_id:
-                            emails_to_save.append((msg_id, email_data))
-                        if not is_batch_mode:
-                            break  # Single mode: only one email
-                else:
-                    # Legacy mode: Parse JSON string
-                    parsed = json.loads(result)
-                    data_wrapper = parsed.get("data", {})
-                    emails_array = data_wrapper.get("emails", [])
-                    for email_data in emails_array:
-                        msg_id = email_data.get("id", "")
-                        if msg_id:
-                            emails_to_save.append((msg_id, email_data))
-                        if not is_batch_mode:
-                            break  # Single mode: only one email
-
-                # Save each email to context
-                for msg_id, email_data in emails_to_save:
-                    # Extract subject/from for context storage
-                    subject = ""
-                    from_addr = ""
-                    body = None
-
-                    if isinstance(result, StandardToolOutput | UnifiedToolOutput):
-                        # Extract from payload headers
-                        headers = email_data.get("payload", {}).get("headers", [])
-                        for header in headers:
-                            name = header.get("name", "").lower()
-                            if name == "subject":
-                                subject = header.get("value", "")
-                            elif name == "from":
-                                from_addr = header.get("value", "")
-                        body = email_data.get("body") if include_body else None
-                    else:
-                        subject = email_data.get("subject", "")
-                        from_addr = email_data.get("from", "")
-                        body = email_data.get("body") if include_body else None
-
-                    # Store with proper namespace
-                    # OLD BUG: ("emails", "item") - no user scope, orphaned data accumulation
-                    # NEW FIX: (user_id, thread_id, "context", "emails") - user scoped, auto-cleanup
-                    await runtime.store.aput(
-                        (str(user_id), thread_id_str, "context", "emails"),
-                        f"item_{msg_id}",
-                        {
-                            "id": msg_id,
-                            "subject": subject,
-                            "from": from_addr,
-                            "body": body,
-                            # Store the full payload so reference resolution/details reuse all attributes
-                            "email": email_data,
-                            "timestamp": time.time(),
-                        },
-                    )
 
     return result
 
@@ -2834,20 +2132,15 @@ async def execute_email_delete_draft(
 # ============================================================================
 
 __all__ = [
-    # Unified tool (2026-01 - replaces search + details)
+    # Unified tool (2026-01 - replaces search + details; ADR-287: three detail levels)
     "get_emails_tool",
     "GetEmailsTool",
-    # Legacy tool functions (DEPRECATED - kept for backward compatibility)
-    "search_emails_tool",
-    "get_email_details_tool",
     # Write operations
     "send_email_tool",
     "reply_email_tool",
     "forward_email_tool",
     "delete_email_tool",
     # Tool classes (Phase 3.2 / LOT 5.4 architecture)
-    "SearchEmailsTool",
-    "GetEmailDetailsTool",
     "SendEmailDraftTool",
     "SendEmailDirectTool",
     "ReplyEmailDraftTool",

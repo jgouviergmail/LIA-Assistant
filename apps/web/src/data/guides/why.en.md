@@ -4,7 +4,7 @@
 
 **Version**: 6.0
 **Date**: 2026-08-23
-**Application**: LIA v1.44.6
+**Application**: LIA v1.44.7
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -122,7 +122,7 @@ Talk to LIA as you would to a human assistant — no commands to memorize, no sy
 
 ### 3.2. Personal connected services
 
-- **Email**: read, search, compose, send, reply, forward — via Gmail, Outlook or Apple Mail
+- **Email**: read, search, compose, send, reply, forward — via Gmail, Outlook or Apple Mail; a message arrives as clean text, and many of them are summarised message by message ("summarise my unread mail", "a synthesis of this week's newsletters")
 - **Calendar**: view, create, modify, delete events — via Google Calendar, Outlook Calendar or Apple Calendar
 - **Contacts**: search, create, modify contacts — via Google Contacts, Outlook Contacts or Apple Contacts
 - **Tasks**: manage your task lists — via Google Tasks or Microsoft To Do
@@ -462,7 +462,7 @@ The response system features a three-layer anti-hallucination mechanism: data fo
 
 ### 8.4. Human-in-the-Loop with 6 levels
 
-LIA doesn't refuse sensitive actions — it **submits** them to you with the appropriate level of detail: plan approval, clarification, draft critique, destructive confirmation, batch operation confirmation, modification review. Each approval feeds the learning system — the system accelerates over time. And the promise is kept to the letter: what you approve — after one, two or ten edits — is **exactly** what gets executed, never a version silently re-generated behind the scenes.
+LIA doesn't refuse sensitive actions — it **submits** them to you with the appropriate level of detail: plan approval, clarification, draft critique, destructive confirmation, batch operation confirmation, modification review. Each approval feeds the learning system — the system accelerates over time. And the promise is kept to the letter: what you approve — after one, two or ten edits — is **exactly** what gets executed, never a version silently re-generated behind the scenes. And when one request prepares several drafts, they are submitted one at a time, each on its own card, nothing executed before your last answer, the report saying to whom and what — only a bulk operation you approved as a list keeps a single confirmation.
 
 ### 8.5. Your answers don't need you
 

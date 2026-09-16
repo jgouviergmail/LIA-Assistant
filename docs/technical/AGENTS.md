@@ -1278,9 +1278,9 @@ class SemanticToolSelector:
 **Semantic Keywords dans les Manifests** :
 
 ```python
-# Exemple: emails/catalogue_manifests.py
-search_emails_catalogue_manifest = ToolManifest(
-    name="search_emails_tool",
+# Exemple: emails/get_emails_manifest.py
+get_emails_catalogue_manifest = ToolManifest(
+    name="get_emails_tool",
     semantic_keywords=[
         "search emails", "find messages", "inbox",
         "chercher emails", "mes messages",  # FR
@@ -1506,7 +1506,7 @@ def _build_domain_index(self) -> None:
         }
         _domain_to_tools = {
             "contacts": ["search_contacts_tool", "list_contacts_tool"],
-            "email": ["send_email_tool", "search_emails_tool"],
+            "email": ["send_email_tool", "get_emails_tool"],
         }
     """
     with self._catalogue_lock:
@@ -1964,17 +1964,15 @@ def build_emails_agent() -> Any:
 
     # Import tools
     from src.domains.agents.tools.emails_tools import (
+        get_emails_tool,
         send_email_tool,
-        search_emails_tool,
-        get_email_details_tool,
     )
 
     tools: list[BaseTool] = cast(
         list[BaseTool],
         [
+            get_emails_tool,
             send_email_tool,
-            search_emails_tool,
-            get_email_details_tool,
         ],
     )
 

@@ -2157,6 +2157,53 @@
      "description": "URL screening before web fetch / browser navigation. cache_hit costs nothing; error means fail-open (browsing unaffected, screening lost); flagged = blocked URLs."
     }
    ]
+  },
+  {
+   "id": 49,
+   "type": "row",
+   "title": "Email digests (ADR-287)",
+   "collapsed": false,
+   "gridPos": {
+    "h": 1,
+    "w": 24,
+    "x": 0,
+    "y": 131
+   },
+   "panels": []
+  },
+  {
+   "id": 50,
+   "type": "timeseries",
+   "title": "Email digest outcomes (by result)",
+   "description": "Every message handed to the e-mail digest step (detail=summary, ADR-287). 'hit' costs nothing; 'computed' is one short model call then cached; 'failed' a model refusal (the body is served instead, nothing invented); 'skipped_quota' a ceiling refusal; 'skipped_disabled' the operator switch; 'skipped_empty' a message with no body. A rising 'failed' share names a model that cannot hold the schema; a 'computed' share that never falls names a cache that never hits.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "custom": {},
+     "noValue": "0"
+    },
+    "overrides": []
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 0,
+    "y": 132
+   },
+   "targets": [
+    {
+     "expr": "sum by (result) (rate(email_digest_cache_total[$__rate_interval])) or vector(0)",
+     "legendFormat": "{{result}}",
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     }
+    }
+   ]
   }
  ]
 }

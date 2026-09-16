@@ -42,7 +42,7 @@ Le Semantic Tool Router remplace le routing basé sur mots-clés par une approch
 │  ┌──────────────────────────────────────────────────────────┐  │
 │  │              MAX-POOLING COMPARISON                       │  │
 │  │                                                            │  │
-│  │  search_emails_tool:                                       │  │
+│  │  get_emails_tool:                                          │  │
 │  │    keywords: ["emails récents", "messages", "inbox"]       │  │
 │  │    scores:   [0.85, 0.72, 0.45]                           │  │
 │  │    MAX = 0.85 ✓                                           │  │
@@ -102,7 +102,7 @@ result = await selector.select_tools(
 # Check results
 for tool in result.selected_tools:
     print(f"{tool.tool_name}: {tool.score:.2f} ({tool.confidence})")
-    # search_emails_tool: 0.85 (high)
+    # get_emails_tool: 0.85 (high)
     # list_emails_tool: 0.72 (high)
 ```
 
@@ -202,10 +202,10 @@ Les tools définissent leurs `semantic_keywords` dans leurs manifestes pour amé
 ### Example: Email Tool
 
 ```python
-# apps/api/src/domains/agents/emails/catalogue_manifests.py
+# apps/api/src/domains/agents/emails/get_emails_manifest.py
 
-search_emails_catalogue_manifest = ToolManifest(
-    name="search_emails_tool",
+get_emails_catalogue_manifest = ToolManifest(
+    name="get_emails_tool",
     agent="emails_agent",
     description="Search emails by query, sender, date range",
 
@@ -383,7 +383,7 @@ def reset_tool_selector() -> None
     "event": "semantic_tool_selection_debug_top5",
     "query": "mes derniers emails",
     "top_5_tools": [
-        ("search_emails_tool", 0.852, "derniers emails"),
+        ("get_emails_tool", 0.852, "derniers emails"),
         ("list_emails_tool", 0.721, "emails récents"),
         ("search_contacts_tool", 0.312, "contacts"),
         ...

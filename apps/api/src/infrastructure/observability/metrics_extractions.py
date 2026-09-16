@@ -54,3 +54,15 @@ memory_consolidation_pairs_total = Counter(
     "Near-duplicate memory pairs examined by the consolidation job, by outcome.",
     ["outcome"],  # merged | skipped_category | skipped_emotional | stale
 )
+
+email_digest_cache_total = Counter(
+    "email_digest_cache_total",
+    "Outcome of every message handed to the e-mail digest step (ADR-287). "
+    "'hit' costs nothing; 'computed' is one short model call, written to the cache; "
+    "'failed' is a model refusal (the body is served instead, nothing invented); "
+    "'skipped_quota' is a ceiling refusal; 'skipped_disabled' the operator switch; "
+    "'skipped_empty' a message with no body. A rising 'failed' share names a model "
+    "that cannot hold the schema; a 'computed' share that never falls names a cache "
+    "that never hits.",
+    ["result"],
+)

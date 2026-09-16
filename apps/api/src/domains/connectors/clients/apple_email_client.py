@@ -48,6 +48,17 @@ from src.infrastructure.cache.redis import get_redis_session
 logger = structlog.get_logger(__name__)
 
 
+def _page_offset(page_token: str | None) -> int:
+    """Read an IMAP page token (a decimal offset); anything else is page one."""
+    if not page_token:
+        return 0
+    try:
+        return max(0, int(page_token))
+    except ValueError:
+        logger.info("apple_email_page_token_ignored", token_length=len(page_token))
+        return 0
+
+
 class AppleEmailClient(BaseAppleClient):
     """
     Apple iCloud Email client using IMAP/SMTP.
@@ -75,8 +86,22 @@ class AppleEmailClient(BaseAppleClient):
         max_results: int = 10,
         fields: list[str] | None = None,
         use_cache: bool = True,
+        page_token: str | None = None,
+        headers_only: bool = False,
     ) -> dict[str, Any]:
-        """Search emails via IMAP, cache results in Redis."""
+        """Search emails via IMAP, cache results in Redis.
+
+        Args:
+            query: Gmail-style query, translated to IMAP criteria.
+            max_results: Page size.
+            fields: Unused, kept for interface parity.
+            use_cache: Unused for the listing itself (IMAP has no list cache).
+            page_token: The ``next_page_token`` of a previous page — an offset
+                into the newest-first listing (ADR-287).
+            headers_only: Fetch envelopes only (a ``metadata`` listing): no
+                body, no attachment payloads, and nothing written to the
+                per-message cache ``get_message`` reads later.
+        """
         return await self._execute_with_retry(
             "search_emails",
             self._search_emails_impl,
@@ -84,6 +109,8 @@ class AppleEmailClient(BaseAppleClient):
             max_results,
             fields,
             use_cache,
+            page_token=page_token,
+            headers_only=headers_only,
         )
 
     async def get_message(
@@ -226,12 +253,17 @@ class AppleEmailClient(BaseAppleClient):
         max_results: int,
         fields: list[str] | None,
         use_cache: bool,
+        page_token: str | None = None,
+        headers_only: bool = False,
     ) -> dict[str, Any]:
         """Search emails via IMAP and cache results in Redis."""
         import time as _time
 
         # Enforce the global per-request volumetry ceiling (centralized cap).
         max_results = apply_max_items_limit(max_results)
+        # IMAP has no cursor: the token is an offset into the newest-first
+        # listing, and a page is a slice of it.
+        offset = _page_offset(page_token)
 
         _email_start = _time.perf_counter()
         _email_status = "success"
@@ -249,9 +281,10 @@ class AppleEmailClient(BaseAppleClient):
                     messages = []
                     for msg in mailbox.fetch(
                         criteria,
-                        limit=max_results,
+                        limit=slice(offset, offset + max_results) if offset else max_results,
                         mark_seen=False,
                         reverse=True,
+                        headers_only=headers_only,
                     ):
                         # Extract ALL data within context manager
                         normalized = normalize_imap_message(msg, folder)
@@ -267,7 +300,9 @@ class AppleEmailClient(BaseAppleClient):
         # The write timestamp travels WITH the payload so a later cache hit can
         # report the real age — same contract as GoogleGmailClient, which
         # calculate_cache_age_seconds relies on to expose data freshness.
-        if messages:
+        # An envelope-only listing carries no body: caching it would hand a
+        # later full read a message without one.
+        if messages and not headers_only:
             try:
                 redis = await get_redis_session()
                 ttl = settings.apple_email_message_cache_ttl
@@ -294,9 +329,16 @@ class AppleEmailClient(BaseAppleClient):
             )
             email_results_count.labels(operation="search").observe(len(messages))
 
+        # The normalised messages themselves, like the Gmail search (which
+        # fetches metadata per hit): a ``metadata`` level reads them as they are.
+        # ADR-185: IMAP gives no total for a paged fetch, and the page size is
+        # not one — nothing is stated; ``next_page_token`` says whether more exist.
         return {
-            "messages": [{"id": msg["id"]} for msg in messages],
-            "resultSizeEstimate": len(messages),
+            "messages": messages,
+            "resultSizeEstimate": None,
+            "next_page_token": (
+                str(offset + len(messages)) if len(messages) >= max_results else None
+            ),
             "from_cache": False,
             FIELD_CACHED_AT: None,
         }
@@ -440,20 +482,22 @@ class AppleEmailClient(BaseAppleClient):
         """
         original = await self.get_message(message_id)
 
-        # Extract original headers
-        headers = {h["name"]: h["value"] for h in original.get("payload", {}).get("headers", [])}
+        # The normaliser's top-level fields (ADR-287) — it used to re-read a
+        # Gmail-shaped tree it had fabricated itself, which never carried the
+        # Message-ID, so no Apple reply was ever threaded.
+        original_from = str(original.get("from") or "")
 
         # Use override recipient if provided, otherwise reply to original sender
         if not to:
-            to = headers.get("From", "")
-        subject = headers.get("Subject", "")
+            to = original_from
+        subject = str(original.get("subject") or "")
         if not subject.lower().startswith("re:"):
             subject = f"Re: {subject}"
 
         cc = None
         if reply_all:
-            original_to = headers.get("To", "")
-            original_cc = headers.get("Cc", "")
+            original_to = str(original.get("to") or "")
+            original_cc = str(original.get("cc") or "")
             # Combine To and Cc, excluding sender
             all_recipients = []
             for addr in f"{original_to},{original_cc}".split(","):
@@ -463,8 +507,8 @@ class AppleEmailClient(BaseAppleClient):
             if all_recipients:
                 cc = ", ".join(all_recipients)
 
-        # Extract RFC 2822 Message-ID from original for threading headers
-        original_message_id = headers.get("Message-ID") or headers.get("Message-Id")
+        # RFC 2822 Message-ID from the normaliser, for the threading headers
+        original_message_id = original.get("rfc_message_id")
 
         msg = MIMEMultipart()
         msg["From"] = self.credentials.apple_id
@@ -478,8 +522,8 @@ class AppleEmailClient(BaseAppleClient):
 
         # Extract original body and append as quoted text
         original_body = original.get("body", "")
-        original_date = headers.get("Date", "")
-        original_from_header = headers.get("From", "")
+        original_date = str(original.get("date") or "")
+        original_from_header = original_from
 
         if original_body and not is_html:
             quoted_lines = "\n".join(f"> {line}" for line in original_body.strip().splitlines())
@@ -539,19 +583,19 @@ class AppleEmailClient(BaseAppleClient):
 
         original = await asyncio.to_thread(_fetch_with_attachments)
 
-        # Build forward headers
-        headers = {h["name"]: h["value"] for h in original.get("payload", {}).get("headers", [])}
-        subject = headers.get("Subject", "")
+        # Build forward headers from the normaliser's top-level fields (ADR-287)
+        original_subject = str(original.get("subject") or "")
+        subject = original_subject
         if not subject.lower().startswith("fwd:"):
             subject = f"Fwd: {subject}"
 
         # Build forward body
         forward_header = (
             f"\n\n---------- Forwarded message ----------\n"
-            f"From: {headers.get('From', '')}\n"
-            f"Date: {headers.get('Date', '')}\n"
-            f"Subject: {headers.get('Subject', '')}\n"
-            f"To: {headers.get('To', '')}\n\n"
+            f"From: {original.get('from') or ''}\n"
+            f"Date: {original.get('date') or ''}\n"
+            f"Subject: {original_subject}\n"
+            f"To: {original.get('to') or ''}\n\n"
         )
 
         # Get original body — Apple normalized messages store body at top-level

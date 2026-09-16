@@ -65,6 +65,7 @@ LLM_SPEND_ROADS: dict[str, SpendRoad] = {
     "domains/agents/services/semantic_pivot_service.py": SpendRoad.TURN,
     "domains/agents/services/smart_planner_service.py": SpendRoad.TURN,
     "domains/agents/tools/emails_tools.py": SpendRoad.TURN,
+    "domains/agents/emails/digest.py": SpendRoad.TURN,
     "domains/agents/tools/react_runner.py": SpendRoad.TURN,
     "domains/document_generation/service.py": SpendRoad.TURN,
     "domains/interests/services/extraction_service.py": SpendRoad.TURN,

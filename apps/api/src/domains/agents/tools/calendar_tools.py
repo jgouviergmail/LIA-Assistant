@@ -329,9 +329,12 @@ class SearchEventsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
         else:
             time_min = normalize_to_rfc3339(normalize_user_datetime(time_min, _user_tz) or time_min)
 
-        # Default time_max to 30 days from now if searching future events
+        # Default time_max to the configured window: one authority, published
+        # on the parameter the models read (ADR-184).
         if not time_max:
-            time_max = (now_utc() + timedelta(days=30)).isoformat()
+            time_max = (
+                now_utc() + timedelta(days=settings.calendar_tool_default_days_ahead)
+            ).isoformat()
         else:
             time_max = normalize_to_rfc3339(normalize_user_datetime(time_max, _user_tz) or time_max)
 
@@ -470,7 +473,8 @@ async def search_events_tool(
     ] = None,
     time_max: Annotated[
         str | None,
-        "End of time range in ISO format with timezone, e.g. '2025-01-31T23:59:59Z' (optional, defaults to +30 days)",
+        "End of time range in ISO format with timezone, e.g. '2025-01-31T23:59:59Z' "
+        f"(optional, defaults to now + {settings.calendar_tool_default_days_ahead} days)",
     ] = None,
     max_results: Annotated[
         int | None, "Maximum number of events to return (defaults to settings, max 100)"
@@ -518,7 +522,7 @@ async def search_events_tool(
     Args:
         query: Free text search query (optional)
         time_min: Start of time range in ISO format (optional, defaults to NOW)
-        time_max: End of time range in ISO format (optional, defaults to +30 days)
+        time_max: End of time range in ISO format (optional, defaults to the configured window)
         max_results: Maximum number of events (default 10, max 100)
         calendar_id: Calendar ID or name (default: "primary")
         fields: List of fields to return (optional, for optimization)
@@ -1831,15 +1835,26 @@ async def list_calendars_tool(
 )
 async def get_events_tool(
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
-    query: str | None = None,
-    event_id: str | None = None,
-    event_ids: list[str] | None = None,
-    time_min: str | None = None,
-    time_max: str | None = None,
-    days_ahead: int | None = None,
-    max_results: int | None = None,
-    calendar_id: str | None = None,
-    force_refresh: bool = False,
+    query: Annotated[str | None, "Search term (optional); triggers search mode"] = None,
+    event_id: Annotated[str | None, "Single event ID for direct fetch"] = None,
+    event_ids: Annotated[list[str] | None, "Multiple event IDs for batch fetch"] = None,
+    time_min: Annotated[str | None, "Start of time range (ISO 8601; defaults to now)"] = None,
+    time_max: Annotated[
+        str | None,
+        "End of time range (ISO 8601; defaults to now + "
+        f"{settings.calendar_tool_default_days_ahead} days)",
+    ] = None,
+    days_ahead: Annotated[
+        int | None,
+        "Relative window from now in days (e.g. 2 = today + tomorrow); "
+        "takes precedence over time_max when both are given",
+    ] = None,
+    max_results: Annotated[
+        int | None,
+        f"Maximum number of events (default and cap: {settings.calendar_tool_default_max_results})",
+    ] = None,
+    calendar_id: Annotated[str | None, "Target calendar ID or name (default: primary)"] = None,
+    force_refresh: Annotated[bool, "Bypass the cache (default False)"] = False,
 ) -> UnifiedToolOutput:
     """
     Get calendar events with full details - unified search and retrieval.
@@ -1855,18 +1870,18 @@ async def get_events_tool(
     - Batch mode: get_events_tool(event_ids=["abc", "def"]) → fetch multiple
     - Time range: get_events_tool(time_min="...", time_max="...") → range search
     - Relative range: get_events_tool(days_ahead=2) → today + next N days
-    - List mode: get_events_tool() → return upcoming events (default: next 30 days)
+    - List mode: get_events_tool() → upcoming events over the configured window (see time_max)
 
     Args:
         runtime: Runtime dependencies injected automatically.
         query: Search term - triggers search mode.
         event_id: Single event ID for direct fetch.
         event_ids: Multiple event IDs for batch fetch.
-        time_min: Start of time range (ISO 8601).
-        time_max: End of time range (ISO 8601).
+        time_min: Start of time range (ISO 8601; defaults to now).
+        time_max: End of time range (ISO 8601; defaults to the configured window).
         days_ahead: Relative time window from now in days (e.g. 2 = today + tomorrow).
                     Takes precedence over time_max if both are provided.
-        max_results: Maximum results (default 10, max 50).
+        max_results: Maximum results (default and cap: the calendar cap setting).
         calendar_id: Target calendar (default: primary).
         force_refresh: Bypass cache (default False).
 

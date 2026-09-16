@@ -55,10 +55,11 @@ class TestNormalizeImapMessage:
         assert result["labelIds"] == ["INBOX"]
         assert result["snippet"] == "Hello, world!"
 
-        headers = {h["name"]: h["value"] for h in result["payload"]["headers"]}
-        assert headers["From"] == "sender@example.com"
-        assert headers["To"] == "recipient@example.com"
-        assert headers["Subject"] == "Test Subject"
+        # The vocabulary is flat (ADR-287): no fabricated Gmail tree.
+        assert "payload" not in result
+        assert result["from"] == "sender@example.com"
+        assert result["to"] == "recipient@example.com"
+        assert result["subject"] == "Test Subject"
 
     def test_html_only_snippet(self) -> None:
         """When no text body exists, snippet is derived from stripped HTML."""
@@ -82,7 +83,6 @@ class TestNormalizeImapMessage:
         assert result["attachments"][0]["filename"] == "report.pdf"
         assert result["attachments"][0]["mimeType"] == "application/pdf"
         assert result["attachments"][0]["size"] == len(b"fake-bytes")
-        assert result["payload"]["filename"] == "report.pdf"
 
     def test_internal_date_epoch_ms(self) -> None:
         """internalDate is epoch milliseconds string."""

@@ -63,6 +63,8 @@ __all__ = [
     "react_exit_reason",
     "react_iteration_budget",
     "react_turn_reset",
+    "tool_result_budget_note",
+    "tool_result_token_budget",
     "tool_timeout_message",
     "uncharged_wall_seconds",
 ]
@@ -346,4 +348,61 @@ def tool_timeout_message(tool_name: str, *, bound_s: float, elapsed_s: float) ->
     return (
         f"Tool '{tool_name}' timed out on its own after {elapsed_s:.0f}s. "
         "Its result is unavailable — try a narrower request, or another tool."
+    )
+
+
+def tool_result_token_budget(
+    window_tokens: int | None, *, ceiling: int, window_fraction: float
+) -> int:
+    """Tokens ONE tool result may occupy in the loop's context (ADR-286).
+
+    ``min(ceiling, window × fraction)``: the ceiling is the documented
+    reference for agent tool results, the fraction keeps a small local window
+    from being swallowed by a single result. No window — an unknown model, the
+    boot window before the catalogue is loaded — means the ceiling alone.
+
+    Args:
+        window_tokens: The ReAct slot's effective context window (ADR-278), or
+            ``None`` / ``0`` when it cannot be read.
+        ceiling: ``react_tool_result_max_tokens``.
+        window_fraction: ``react_tool_result_window_fraction``.
+
+    Returns:
+        The budget, always at least 1.
+    """
+    if window_tokens and window_tokens > 0:
+        return max(1, min(ceiling, int(window_tokens * window_fraction)))
+    return ceiling
+
+
+def tool_result_budget_note(*, shown: int, total: int, key: str | None, budget_tokens: int) -> str:
+    """What the model is told when a result was cut (technical English, ADR-256).
+
+    A SILENT cut is what sent the loop re-searching each e-mail by subject
+    (measured 2026-09-15): the model saw a truncated blob, took the omitted
+    items for missing and went looking for them. The note names the count
+    shown, the total, and the way to the rest — and says the omitted items
+    exist, because the registry (and the user's cards) already hold them.
+
+    Args:
+        shown: Items that reached the model, complete.
+        total: Items the tool returned.
+        key: The item list's key in the structured data, ``None`` when the
+            result had no item list and was cut as a whole.
+        budget_tokens: The budget that decided the cut.
+
+    Returns:
+        One paragraph, appended AFTER the external-content block so it is
+        never read as third-party text.
+    """
+    if key is None:
+        return (
+            f"[Budget] The result was cut at {budget_tokens} tokens. "
+            "Narrow the request to see the rest."
+        )
+    return (
+        f"[Budget] {shown} of {total} '{key}' items shown (tool result budget: "
+        f"{budget_tokens} tokens). The omitted items exist and are complete in the "
+        "registry: narrow the query, lower max_results, or request specific ids. "
+        "Never report them as missing."
     )

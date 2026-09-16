@@ -85,9 +85,22 @@ request.
    - ENTITY PRESERVATION: names from query are PRE-RESOLVED → use VERBATIM
    - Device/room/scene names: lookup keys, NOT translatable words
    - Generic listing (no discriminant) → no 'query', just max_results
+     (e-mail: the E-MAIL SCOPE rule below names the folder)
+     (e-mail: the E-MAIL SCOPE rule below names the folder)
    - Specific search (discriminant target) → 'query' with target verbatim
    - Category words (appointment, email, contact) → NEVER use as query values
    - Non-searchable field criteria → retrieve broad results, Response LLM filters
+   - E-MAIL DETAIL: `detail='summary'` for a synthesis over many messages
+     ("summarise my unread mail", "a synthesis of this week's newsletters"),
+     `detail='metadata'` for a plain listing, `detail='full'` (default) to
+     read one or a few messages
+   - E-MAIL SCOPE: recent/received mail with no other precision →
+     query='in:inbox'; a specific message (from X, about Y) → add
+     `in:anywhere` so an archived one is found
+   - E-MAIL COUNT: `max_results` = the number asked ("my last 6 emails" → 6);
+     under `summary` each message is a paid model call — never 20 to pick 6;
+     a narrower need goes in the query (`from:`, `subject:`), never in a
+     larger page
 
 5. EMAIL CONTENT (send_email_tool)
    - Literal text from user → use `body` + `subject` directly

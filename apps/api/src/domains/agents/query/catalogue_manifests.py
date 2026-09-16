@@ -3,6 +3,7 @@ Catalogue manifests for Query (LocalQueryEngine) tools.
 Optimized for orchestration efficiency.
 """
 
+from src.core.constants import EXECUTION_MODE_PIPELINE
 from src.domains.agents.registry.catalogue import (
     CostProfile,
     DisplayMetadata,
@@ -80,6 +81,10 @@ local_query_engine_catalogue_manifest = ToolManifest(
         emoji="🧠", i18n_key="local_query_engine", visible=True, category="tool"
     ),
     initiative_eligible=False,  # Infrastructure tool, analyzes in-memory data not user sources
+    # Its registry is injected by parallel_executor alone: offered to ReAct it
+    # answered "No registry data available" on every call (ADR-286; the mirror
+    # of run_python_tool's ADR-249 rule — a mode never sees a tool it cannot run).
+    execution_modes=frozenset({EXECUTION_MODE_PIPELINE}),
 )
 
 __all__ = ["local_query_engine_catalogue_manifest"]

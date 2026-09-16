@@ -345,12 +345,25 @@ def _formatter_builders() -> dict[str, Any]:
     }
 
 
+def _build_emails() -> UnifiedToolOutput:
+    """The e-mail tool's real output: the builder, at the default level, with the
+    paging the tool always publishes (``GetEmailsTool.format_registry_response``,
+    ADR-287) — the level itself shapes the item (``body_parts``)."""
+    from src.domains.agents.emails.detail_levels import EmailDetail, apply_detail_level
+
+    emails = [dict(_MESSAGE)]
+    apply_detail_level(emails, detail=EmailDetail.FULL, part=1, part_tokens=1_500)
+    return _Builder().build_emails_output(
+        emails=emails, detail=EmailDetail.FULL.value, result_size_estimate=1
+    )
+
+
 def _build(tool_name: str) -> UnifiedToolOutput:
     """Build the tool's real output from a raw provider payload."""
     builder = _Builder()
     builders = {
         "get_contacts_tool": lambda: builder.build_contacts_output(contacts=[dict(_PERSON)]),
-        "get_emails_tool": lambda: builder.build_emails_output(emails=[dict(_MESSAGE)]),
+        "get_emails_tool": _build_emails,
         "get_events_tool": lambda: builder.build_events_output(events=[dict(_EVENT)]),
         "get_tasks_tool": lambda: builder.build_tasks_output(tasks=[dict(_TASK)]),
         "get_files_tool": lambda: builder.build_files_output(files=[dict(_FILE)]),

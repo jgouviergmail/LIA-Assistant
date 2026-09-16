@@ -578,8 +578,8 @@ class AgentRegistry:
             ValueError: If name is empty or tool_instance is None
 
         Example:
-            >>> from src.domains.agents.tools.emails_tools import search_emails_tool
-            >>> registry.register_tool_instance("search_emails_tool", search_emails_tool)
+            >>> from src.domains.agents.tools.emails_tools import get_emails_tool
+            >>> registry.register_tool_instance("get_emails_tool", get_emails_tool)
         """
         if not name:
             raise ValueError("Tool name cannot be empty")
@@ -617,7 +617,7 @@ class AgentRegistry:
             LangChain BaseTool/StructuredTool instance, or None if not found
 
         Example:
-            >>> tool = registry.get_tool_instance("search_emails_tool")
+            >>> tool = registry.get_tool_instance("get_emails_tool")
             >>> if tool:
             ...     result = await tool.ainvoke({"query": "test"}, config=config)
         """
@@ -1287,7 +1287,7 @@ class AgentRegistry:
             }
             _domain_to_tools = {
                 "contacts": ["search_contacts_tool", "list_contacts_tool"],
-                "email": ["send_email_tool", "search_emails_tool"],
+                "email": ["send_email_tool", "get_emails_tool"],
             }
 
         Design Notes:

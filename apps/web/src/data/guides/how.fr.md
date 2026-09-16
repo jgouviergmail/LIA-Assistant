@@ -6,7 +6,7 @@
 
 **Version** : 5.0
 **Date** : 2026-08-23
-**Application** : LIA v1.44.6
+**Application** : LIA v1.44.7
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -69,8 +69,8 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Auto-hébergement ARM64 | Docker multi-arch, embeddings sémantiques (multilingues), Playwright chromium cross-platform |
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
-| Transparence totale | 555 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 284 ADRs, ~28 983 tests collectés par pytest sur 1 703 fichiers, observabilité native, HITL à 6 niveaux |
+| Transparence totale | 557 métriques Prometheus, debug panel embarqué, suivi token par token |
+| Fiabilité en production | 288 ADRs, ~28 983 tests collectés par pytest sur 1 703 fichiers, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -91,7 +91,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Tests | 28 983 collectés par pytest sur 1 703 fichiers de test + 8 316 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
 | Fixtures pytest | 969, dont 46 partagées via conftest |
 | Documents de documentation | 647 |
-| ADRs (Architecture Decision Records) | 284 |
+| ADRs (Architecture Decision Records) | 288 |
 | Métriques Prometheus | 553 définitions |
 | Dashboards Grafana | 29 |
 | Langues supportées (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -347,6 +347,8 @@ La dépense d'un tour obéit à une loi de conservation (ADR-256) : le temps de 
 
 Les deux modes partagent le même registre d'outils, le système HITL, le response node et l'infrastructure d'observabilité. L'utilisateur bascule entre les deux via un toggle dans l'en-tête du chat.
 
+Ce qu'un outil renvoie est **projeté dans le contexte de la boucle item par item, sous un budget de tokens** (ADR-286). La liste d'items la plus lourde d'un résultat est paginée aux frontières d'items — un item admis est complet, le bloc reste du JSON valide, les scalaires voyagent entiers et le premier item passe toujours — sous `min(REACT_TOOL_RESULT_MAX_TOKENS, fenêtre × REACT_TOOL_RESULT_WINDOW_FRACTION)`, la fenêtre étant celle du slot ReAct. Une coupe est **dite** au modèle après la balise de contenu externe (combien sur combien, et la voie vers le reste) et comptée par outil, de sorte qu'une boîte de messages entiers n'atteint jamais le modèle sous la forme d'un vidage coupé au milieu des en-têtes du premier. L'arbre brut du fournisseur ne quitte jamais le builder d'e-mails, et un outil dont seul l'exécuteur du pipeline injecte les données se déclare réservé au pipeline plutôt que d'être offert à une boucle qui ne peut pas l'exécuter.
+
 Un tour se doit aussi une mémoire de travail qui lui survit. L'état est borné par une fenêtre de messages, et un tour ReAct y ajoute deux messages par itération — si bien qu'un tour assez long chasse **sa propre question** de cette fenêtre, après quoi le fenêtrage qui sépare l'historique de la boucle courante ne trouve plus aucun point de coupe. Le réducteur ré-épingle donc la question du tour quand la troncature l'a évincée, sur ses deux branches, et le couplage entre le budget d'itérations et la taille de la fenêtre porte un nom plutôt que de vivre comme une relation arithmétique tacite. Ce qu'un tour délivre réellement au modèle est mesuré aussi — taille du prompt par itération et part de la fenêtre de contexte du modèle — parce qu'une boucle qui mesurait ses itérations et sa durée mesurait tout sauf ce qui grossit.
 
 ### 5.4. Exécutions détachées : la génération survit à la connexion (ADR-117)
@@ -568,9 +570,11 @@ La Phase 8 (actuelle) soumet le **plan complet** à l'utilisateur **avant** tout
 | `FOR_EACH_CONFIRM` | Mutations en masse | `interrupt()` avec décompte opérations |
 | `MODIFIER_REVIEW` | Modifications IA suggérées | `interrupt()` avec comparaison before/after |
 
-### 9.3. Draft Critique enrichi
+### 9.3. Critique de brouillon : une description, une question par brouillon
 
-Pour les brouillons, un prompt dédié génère une critique structurée avec templates markdown par domaine, emojis de champs, comparaison before/after avec strikethrough pour les mises à jour, et avertissements d'irréversibilité. Les résultats post-HITL affichent labels i18n et liens cliquables.
+Un brouillon à confirmer et le compte rendu de son exécution sont **décrits une fois** — une spécification de carte faite de lignes libellées, de notes et de blocs, construite par un renderer par type de brouillon depuis le registre d'affichage — et **dessinés par surface** : dans le chat, le même balisage `lia-card` qu'un e-mail ou un événement (en-tête, illustration, champs avec leurs icônes, corps en bloc) ; sur un ticket, sur un canal externe ou sous l'affichage `markdown`, le Markdown que le commentaire de ticket sait aplatir. La surface est décidée par le run, jamais devinée par un appelant. Un compte rendu dit ce qui a été fait, à qui et avec quoi : chaque ligne d'un lot porte les champs clés que son type déclare et un extrait borné du texte envoyé, cité avec les guillemets de la langue. La comparaison avant/après des mises à jour, les avertissements d'irréversibilité, les libellés i18n et les liens cliquables font partie de cette description.
+
+Un tour qui prépare **plusieurs brouillons indépendants** — deux e-mails, un événement et une tâche, plusieurs appels d'outil d'une même itération ReAct — les soumet **un brouillon par interruption** : la suite s'ouvre sur la liste de tout ce que le tour a préparé, chaque brouillon a sa carte, sa question et sa modification, la position est dite (« Brouillon 2 sur 3 »), et rien ne s'exécute avant la dernière réponse ; les décisions banquées sont ensuite exécutées ensemble, chacune sous son propre type, et un brouillon annulé est rapporté plutôt que perdu. Seul un lot que la personne a **pré-approuvé comme liste** — les items d'une étape FOR_EACH approuvée dans ce tour, d'un seul type — garde sa confirmation groupée. Un ticket suit la même identité (le brouillon à l'écran), et un nouveau tour commence toujours sans brouillon en relecture.
 
 ### 9.4. Classification des Réponses
 
@@ -755,6 +759,8 @@ ConnectorTool (base.py) → ClientRegistry → resolve_client(type) → Protocol
 ### 13.2. Normalizers
 
 Chaque provider retourne des données dans son propre format. Des normalizers dédiés (`calendar_normalizer`, `contacts_normalizer`, `email_normalizer`, `tasks_normalizer`) convertissent les réponses spécifiques à chaque provider en modèles de domaine unifiés. Ajouter un nouveau provider nécessite uniquement d'implémenter le protocole et son normalizer — le code appelant reste inchangé.
+
+Pour l'e-mail, ce modèle unifié est mesuré, pas supposé : les trois normalizers produisent le même vocabulaire `EmailMessage` — un corps en texte, jamais en HTML, dont la citation de l'historique et la signature sont retirées au bord du client (en six langues, mesuré sur un corpus de 48 corps) — et aucun ne fabrique plus le format d'un autre. L'outil `get_emails_tool` choisit ensuite ce qu'il sert selon la question, avec son coût annoncé : `metadata` liste sans corps, `full` lit un corps propre paginé au paragraphe, `summary` raisonne sur un **condensé par message** (l'essentiel, les points clés, les actions, la catégorie, l'importance) calculé une fois par un petit modèle sans raisonnement, mis en cache trente jours et refusé par les plafonds de dépense — jamais inventé quand le modèle échoue. C'est ce qui permet « résume mes non lus » ou « une synthèse des newsletters de la semaine » sur vingt messages sans les charger tous, pour Gmail, Outlook et Apple pareillement (ADR-287).
 
 ### 13.3. Patterns réutilisables
 
@@ -988,7 +994,7 @@ La provenance est donc une propriété de la **donnée** : les 24 types du regis
 
 | Technologie | Rôle |
 |-------------|------|
-| Prometheus | 555 métriques custom (RED pattern) |
+| Prometheus | 557 métriques custom (RED pattern) |
 | Grafana | 29 dashboards production-ready |
 | Loki | Logs structurés JSON agrégés |
 | Tempo | Traces distribuées cross-service (OTLP gRPC) |
@@ -996,7 +1002,7 @@ La provenance est donc une propriété de la **donnée** : les 24 types du regis
 | Alertmanager | Noyau de 14 alertes vitales notifiées par e-mail (runbooks liés, seuils par environnement) + webhook vers LIA : chaque alerte devient un incident dans le produit (ADR-247) |
 | structlog | Logging structuré avec PII filtering |
 
-**Une métrique qui n'atteint aucun tableau de bord est une métrique sur laquelle personne n'agit.** L'écart entre ce que le code émet et ce qu'un opérateur peut voir est mesuré, jamais supposé : `scripts/audit/measure_metric_coverage.py` analyse chaque définition de métrique (par AST et non par expression régulière — une regex lit `ZoneInfo("UTC")` comme une métrique `Info`) et confronte chaque nom à tous les panels, règles d'enregistrement et expressions d'alerte. 555 définies ; les 44 qui n'atteignent rien sont listées explicitement dans une base **shrink-only**, si bien qu'une métrique nouvellement aveugle fait rougir le build et qu'une métrique devenue visible doit quitter la liste — sinon la prochaine aveugle prend sa place en silence. Le prix de ne pas l'avoir eu : une source de heartbeat tombant en panne ouverte a supprimé les signaux de santé sur 46,5 % des ticks pendant une semaine, sans aucune métrique pour s'en apercevoir (ADR-148). Deux pièges que la garde ferme par construction — un compteur à labels qui n'a jamais été incrémenté n'expose **aucune série**, donc un panel qui guette une panne rare a besoin de `or vector(0)`, faute de quoi il affiche « No data » là où l'opérateur attend un zéro vert ; et la couverture est lue dans les **expressions** de panels et de règles uniquement, car une métrique citée dans un commentaire n'est pas câblée.
+**Une métrique qui n'atteint aucun tableau de bord est une métrique sur laquelle personne n'agit.** L'écart entre ce que le code émet et ce qu'un opérateur peut voir est mesuré, jamais supposé : `scripts/audit/measure_metric_coverage.py` analyse chaque définition de métrique (par AST et non par expression régulière — une regex lit `ZoneInfo("UTC")` comme une métrique `Info`) et confronte chaque nom à tous les panels, règles d'enregistrement et expressions d'alerte. 557 définies ; les 44 qui n'atteignent rien sont listées explicitement dans une base **shrink-only**, si bien qu'une métrique nouvellement aveugle fait rougir le build et qu'une métrique devenue visible doit quitter la liste — sinon la prochaine aveugle prend sa place en silence. Le prix de ne pas l'avoir eu : une source de heartbeat tombant en panne ouverte a supprimé les signaux de santé sur 46,5 % des ticks pendant une semaine, sans aucune métrique pour s'en apercevoir (ADR-148). Deux pièges que la garde ferme par construction — un compteur à labels qui n'a jamais été incrémenté n'expose **aucune série**, donc un panel qui guette une panne rare a besoin de `or vector(0)`, faute de quoi il affiche « No data » là où l'opérateur attend un zéro vert ; et la couverture est lue dans les **expressions** de panels et de règles uniquement, car une métrique citée dans un commentaire n'est pas câblée.
 
 ### 20.2. Debug Panel embarqué
 
@@ -1406,7 +1412,7 @@ Une règle CSS gouverne les espacements du design system : les marges verticales
 
 ## 24. Architecture des décisions (ADR)
 
-284 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
+288 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
 
 | ADR | Décision | Problème résolu | Impact mesuré |
 |-----|----------|----------------|---------------|
@@ -1720,8 +1726,8 @@ Le budget de connexions a un plancher, pas seulement un plafond. L'audit F004 bo
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 284 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~28 983 tests sur 1 703 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 288 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~28 983 tests sur 1 703 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 284 ADRs, et du changelog (v1.0 à v1.44.6). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 288 ADRs, et du changelog (v1.0 à v1.44.7). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

@@ -9,8 +9,13 @@ from unittest.mock import patch
 import pytest
 
 from src.core.llm_agent_config import LLMAgentConfig
-from src.core.llm_config_helper import get_all_llm_configs, get_llm_config_for_agent
+from src.core.llm_config_helper import (
+    get_all_llm_configs,
+    get_llm_config_for_agent,
+    short_answer_config,
+)
 from src.core.reasoning_intent import ReasoningIntent
+from src.core.reasoning_profiles import ReasoningProfile
 from src.domains.llm_config.constants import LLM_DEFAULTS
 
 
@@ -305,3 +310,63 @@ class TestGetEffectiveContextWindow:
 
         with patch(f"{self._CACHE}.get", return_value=None):
             assert get_effective_context_window("totally-unknown-model") == DEFAULT_CONTEXT_WINDOW
+
+
+class TestShortAnswerConfig:
+    """A caller with a slot of its OWN keeps the slot's budget (ADR-244: the
+    configuration lives in ``llm_config_overrides``, edited by the admin); only
+    a caller borrowing a shared slot sizes its own cap. The digest used to pass
+    a constant that silently overrode what an administrator typed."""
+
+    @staticmethod
+    def _slot(max_tokens: int = 1_000) -> LLMAgentConfig:
+        return LLMAgentConfig(
+            provider="deepseek",
+            model="deepseek-flash",
+            temperature=0.2,
+            max_tokens=max_tokens,
+            top_p=1.0,
+            frequency_penalty=0.0,
+            presence_penalty=0.0,
+        )
+
+    @staticmethod
+    def _profile(can_disable: bool) -> ReasoningProfile:
+        return ReasoningProfile(
+            "deepseek_toggle", ("none", "low", "high", "max"), False, None, can_disable, True
+        )
+
+    def test_without_a_cap_the_slots_budget_stays_and_reasoning_is_off(self) -> None:
+        with (
+            patch("src.core.llm_config_helper.get_llm_config_for_agent", return_value=self._slot()),
+            patch(
+                "src.core.llm_config_helper.resolve_reasoning_profile",
+                return_value=self._profile(can_disable=True),
+            ),
+        ):
+            config = short_answer_config("email_digest")
+        assert config.max_tokens == 1_000
+        assert config.reasoning_effort == ReasoningIntent(level="none")
+
+    def test_a_caller_borrowing_a_shared_slot_still_sizes_its_own_cap(self) -> None:
+        with (
+            patch("src.core.llm_config_helper.get_llm_config_for_agent", return_value=self._slot()),
+            patch(
+                "src.core.llm_config_helper.resolve_reasoning_profile",
+                return_value=self._profile(can_disable=True),
+            ),
+        ):
+            config = short_answer_config("response", max_tokens=150)
+        assert config.max_tokens == 150
+
+    def test_where_reasoning_cannot_stop_nothing_is_touched(self) -> None:
+        with (
+            patch("src.core.llm_config_helper.get_llm_config_for_agent", return_value=self._slot()),
+            patch(
+                "src.core.llm_config_helper.resolve_reasoning_profile",
+                return_value=self._profile(can_disable=False),
+            ),
+        ):
+            config = short_answer_config("email_digest", max_tokens=150)
+        assert config.max_tokens == 1_000
+        assert config.reasoning_effort is None

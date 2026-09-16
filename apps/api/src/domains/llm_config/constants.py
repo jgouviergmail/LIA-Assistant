@@ -12,6 +12,7 @@ Created: 2026-03-08
 
 from dataclasses import dataclass
 
+from src.core.constants import EMAIL_DIGEST_MAX_OUTPUT_TOKENS
 from src.core.llm_agent_config import LLMAgentConfig
 from src.core.reasoning_intent import ReasoningIntent
 from src.domains.llm.models import LLMModelKindEnum
@@ -532,6 +533,17 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         description_key="settings.admin.llmConfig.types.image_generation",
         required_capabilities=[],  # Images API, not chat completions
         required_kind=LLMModelKindEnum.image,
+    ),
+    # E-mail digest (ADR-287): one short structured call per NEW message, then
+    # cached -- what "résume mes non lus" and a morning routine reason over.
+    "email_digest": LLMTypeMetadata(
+        llm_type="email_digest",
+        display_name="Email Digest",
+        category=CATEGORY_SPECIALIZED,
+        description_key="settings.admin.llmConfig.types.email_digest",
+        # Verified at the call site: this slot asks the model for a schema.
+        required_capabilities=["structured_output"],
+        power_tier=POWER_TIER_LOW,
     ),
     # AI Document Generation (ADR-226): writes whole structured documents
     # (csv/xlsx/docx/pptx/pdf/md/txt) in one structured-output call.
@@ -1176,6 +1188,20 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=16000,
         timeout_seconds=120.0,
+    ),
+    # E-mail digest (ADR-287): a short, schema-bound answer with no reasoning.
+    # `short_answer_config` declares `none` at the call site where the resolved
+    # profile can (ADR-285); this row is the seed's twin.
+    "email_digest": LLMAgentConfig(
+        provider="qwen",
+        model="qwen3.5-plus",
+        temperature=0.2,
+        top_p=1.0,
+        frequency_penalty=0.0,
+        presence_penalty=0.0,
+        max_tokens=EMAIL_DIGEST_MAX_OUTPUT_TOKENS,
+        timeout_seconds=60.0,
+        reasoning_effort=ReasoningIntent(level="none"),
     ),
     # Meeting minutes (ADR-258) — gpt-4.1 like document generation: a 1M-token
     # window swallows a three-hour transcript, the pricing rows are active, and

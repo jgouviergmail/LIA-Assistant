@@ -50,6 +50,7 @@ from src.core.field_names import FIELD_CONTENT, FIELD_CONVERSATION_ID
 from src.core.i18n_drafts import format_hitl_item_preview
 from src.core.i18n_hitl import HitlMessages, HitlMessageType
 from src.core.time_utils import format_value_if_datetime_string
+from src.domains.agents.drafts.card_html import card_surface
 from src.domains.agents.drafts.display import get_draft_display_config
 from src.domains.agents.drafts.models import Draft, DraftAction, DraftType
 from src.domains.agents.drafts.preview_renderer import render_confirmation_card
@@ -93,7 +94,7 @@ def _card_prefix(
     """
     try:
         draft = Draft(type=DraftType(draft_type), content=dict(draft_content or {}))
-        card = render_confirmation_card(draft, user_language, user_timezone)
+        card = render_confirmation_card(draft, user_language, user_timezone, surface=card_surface())
     except (ValueError, TypeError, KeyError, AttributeError) as card_error:
         logger.warning(
             "draft_critique_card_unavailable",
@@ -155,6 +156,37 @@ async def _with_markdown_hard_breaks(
     if pending:
         # Trailing text (possibly ending in newlines) — emit verbatim.
         yield pending
+
+
+def _sequence_summary(context: dict[str, Any], user_language: str, user_timezone: str) -> list[str]:
+    """The lines read before the first card of a sequence, or none.
+
+    Args:
+        context: The interrupt's action request.
+        user_language: The person's language.
+        user_timezone: Their IANA timezone for the dates a row may carry.
+
+    Returns:
+        The title, one row per draft (its own type's wording), and a blank
+        line — empty when the request carries no sequence to summarise.
+    """
+    drafts = context.get("sequence_drafts")
+    if not isinstance(drafts, list) or len(drafts) < 2:
+        return []
+    lines = [HitlMessages.get_draft_sequence_summary(len(drafts), user_language)]
+    for draft in drafts:
+        if not isinstance(draft, dict):
+            continue
+        row = format_hitl_item_preview(
+            draft_type=str(draft.get("draft_type", "")),
+            content=draft.get("draft_content") or {},
+            language=user_language,
+            user_timezone=user_timezone,
+        )
+        if row:
+            lines.append(f"- {row}")
+    lines.append("")
+    return lines
 
 
 @HitlInteractionRegistry.register(HitlInteractionType.DRAFT_CRITIQUE)
@@ -259,6 +291,21 @@ class DraftCritiqueInteraction:
 
         # Track metric
         registry_draft_critique_questions_total.labels(draft_type=draft_type).inc()
+
+        # ADR-288: one of several independent drafts — its position opens the
+        # question, above the card, whatever path renders the rest. Before the
+        # FIRST one, the person reads what the turn prepared (ADR-289): every
+        # draft of the sequence, each named by its own type — the overview a
+        # grouped question used to give, without its single confirmation.
+        sequence_total = int(context.get("sequence_total") or 1)
+        if sequence_total > 1:
+            for line in _sequence_summary(context, user_language, user_timezone):
+                yield line + "\n"
+            position = HitlMessages.get_draft_sequence_position(
+                int(context.get("sequence_index") or 1), sequence_total, user_language
+            )
+            yield position + "\n"
+            yield "\n"
 
         logger.info(
             "draft_critique_question_streaming_started",

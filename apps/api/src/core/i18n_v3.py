@@ -1035,6 +1035,34 @@ _DISPLAY_CC: dict[str, str] = {
     "zh-CN": "抄送",
 }
 
+# E-mail digest sections (ADR-287): what a condensed message shows instead of its body.
+_DISPLAY_DIGEST: dict[str, str] = {
+    "fr": "L'essentiel",
+    "en": "In short",
+    "es": "Lo esencial",
+    "de": "Das Wesentliche",
+    "it": "L'essenziale",
+    "zh-CN": "要点",
+}
+
+_DISPLAY_KEY_POINTS: dict[str, str] = {
+    "fr": "Points clés",
+    "en": "Key points",
+    "es": "Puntos clave",
+    "de": "Kernpunkte",
+    "it": "Punti chiave",
+    "zh-CN": "关键信息",
+}
+
+_DISPLAY_ACTIONS: dict[str, str] = {
+    "fr": "À faire",
+    "en": "To do",
+    "es": "Por hacer",
+    "de": "Zu erledigen",
+    "it": "Da fare",
+    "zh-CN": "待办",
+}
+
 _DISPLAY_EMAIL_CONTENT: dict[str, str] = {
     "fr": "Contenu du mail",
     "en": "Email content",
@@ -3442,6 +3470,24 @@ class V3Messages:
         """Get 'cc' label for email copy recipients."""
         lang = V3Messages._normalize_language(language)
         return _DISPLAY_CC.get(lang, _DISPLAY_CC["en"])
+
+    @staticmethod
+    def get_digest(language: str) -> str:
+        """Get the label of a condensed message's gist (ADR-287)."""
+        lang = V3Messages._normalize_language(language)
+        return _DISPLAY_DIGEST.get(lang, _DISPLAY_DIGEST["en"])
+
+    @staticmethod
+    def get_key_points(language: str) -> str:
+        """Get the label of a condensed message's key points (ADR-287)."""
+        lang = V3Messages._normalize_language(language)
+        return _DISPLAY_KEY_POINTS.get(lang, _DISPLAY_KEY_POINTS["en"])
+
+    @staticmethod
+    def get_actions(language: str) -> str:
+        """Get the label of a condensed message's expected actions (ADR-287)."""
+        lang = V3Messages._normalize_language(language)
+        return _DISPLAY_ACTIONS.get(lang, _DISPLAY_ACTIONS["en"])
 
     @staticmethod
     def get_email_content(language: str) -> str:

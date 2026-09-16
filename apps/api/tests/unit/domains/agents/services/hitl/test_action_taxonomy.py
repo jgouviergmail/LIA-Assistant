@@ -103,8 +103,6 @@ class TestRealRegistryInvariants:
         expected = {
             "delete_email_tool": ACTION_TYPE_DELETE,
             "get_emails_tool": ACTION_TYPE_GET,
-            "get_email_details_tool": ACTION_TYPE_GET,
-            "search_emails_tool": ACTION_TYPE_SEARCH,
             "send_email_tool": ACTION_TYPE_SEND,
             "reply_email_tool": ACTION_TYPE_REPLY,
             "forward_email_tool": ACTION_TYPE_FORWARD,

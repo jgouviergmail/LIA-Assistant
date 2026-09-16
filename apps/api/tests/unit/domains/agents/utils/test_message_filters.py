@@ -2160,3 +2160,55 @@ class TestHistoryRepairMetric:
 
         assert self._count("call_block", "replacement") == before_purge + 1
         assert self._count("tool_calls", "removal") == before_drop + 1
+
+
+class TestADraftCardKeepsItsWordsForTheModel:
+    """ADR-289: the confirmation card and the execution result are ``lia-card``
+    HTML in the chat. The context filter reduces an HTML answer to its leading
+    prose so the model never re-emits markup — which, applied to these two,
+    would erase from the conversation's memory WHAT was sent and TO WHOM. A
+    draft card is therefore flattened to its text; a data card keeps the
+    historical reduction."""
+
+    RESULT = (
+        '<div class="lia-card lia-draft-result"><div class="lia-card-top">'
+        '<div class="lia-card-top__title">✅ 2 emails envoyés</div></div>'
+        '<div class="lia-sec"><span class="lia-sec__label">✅ Tout va bien</span></div>'
+        '<div class="lia-d-row"><span class="material-symbols-outlined">person</span>'
+        "<span><strong>Destinataire</strong> : paul@example.org</span></div>"
+        '<div class="lia-desc-block">« Bonjour, je voulais te dire que tout va bien »</div></div>'
+    )
+    QUESTION = (
+        "**Brouillon 1 sur 2**\n\n"
+        '<div class="lia-card lia-draft"><div class="lia-card-top__title">Tout va bien</div>'
+        '<div class="lia-d-row"><span><strong>Destinataire</strong> : paul@example.org</span></div></div>'
+        "\n\n---\n\nSouhaitez-vous envoyer cet e-mail ?"
+    )
+
+    def test_the_result_card_reaches_the_model_as_text(self):
+        (kept,) = filter_for_llm_context([AIMessage(content=self.RESULT)])
+        text = str(kept.content)
+        assert "<" not in text
+        assert "2 emails envoyés" in text
+        assert "paul@example.org" in text
+        assert "tout va bien" in text
+
+    def test_the_question_keeps_the_question_after_the_card(self):
+        (kept,) = filter_for_llm_context([AIMessage(content=self.QUESTION)])
+        text = str(kept.content)
+        assert "<" not in text
+        assert "Brouillon 1 sur 2" in text
+        assert "paul@example.org" in text
+        assert "Souhaitez-vous envoyer cet e-mail ?" in text
+
+    def test_a_data_card_is_still_reduced_to_its_prose(self):
+        content = 'Voici la météo !\n\n<div class="lia-card lia-weather">22 °C</div>'
+        (kept,) = filter_for_llm_context([AIMessage(content=content)])
+        assert kept.content == "Voici la météo !"
+
+    def test_the_neutralized_mode_keeps_the_words_too(self):
+        (kept,) = filter_for_llm_context(
+            [AIMessage(content=self.RESULT)], neutralize_formatting=True
+        )
+        text = str(kept.content)
+        assert "paul@example.org" in text and "<" not in text

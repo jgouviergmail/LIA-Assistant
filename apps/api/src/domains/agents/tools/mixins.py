@@ -528,14 +528,20 @@ class ToolOutputMixin:
         from_cache: bool = False,
         user_timezone: str = "UTC",
         locale: str = settings.default_language,
+        **extra: Any,
     ) -> UnifiedToolOutput:
         """
         Build UnifiedToolOutput for email search results.
 
-        INTELLIA v10: Simplified - only builds registry_updates.
-        Formatting is handled by response_node._simplify_email_payload() + fewshots.
+        INTELLIA v10: Simplified - only builds registry_updates. The response
+        node renders the items through ``display/llm_serializer.payload_to_text``
+        and the ReAct loop through ``react_tool_wrapper.render_data_block``.
 
         TIMEZONE: Converts internalDate to user's timezone with formatted display string.
+
+        The provider's raw tree (Gmail ``payload``: SMTP headers, MIME parts,
+        base64 body) is dropped once its two readers below have run — it is
+        85-98 % of an item and nothing past this point reads it (ADR-286).
 
         Args:
             emails: List of email dicts from Gmail API
@@ -543,6 +549,9 @@ class ToolOutputMixin:
             from_cache: Whether results came from cache
             user_timezone: User's IANA timezone (e.g., "Europe/Paris")
             locale: User's locale for date formatting (e.g., "fr", "en")
+            **extra: Published alongside the items (``detail``,
+                ``result_size_estimate``, ``next_page_token`` — ADR-287);
+                ``None`` values are dropped.
 
         Returns:
             UnifiedToolOutput with emails in registry and minimal summary for debug
@@ -593,6 +602,8 @@ class ToolOutputMixin:
 
             # Convert dates to user's timezone
             convert_email_dates_in_payload(email, user_timezone, locale)
+            # Every reader of the raw tree ran above; from here it is dead weight.
+            email.pop("payload", None)
 
             item_id, registry_item = self.create_registry_item(
                 item_type=RegistryItemType.EMAIL,
@@ -624,12 +635,14 @@ class ToolOutputMixin:
                 query=query,
                 from_cache=from_cache,
                 user_timezone=user_timezone,
+                **extra,
             ),
             metadata={
                 "from_cache": from_cache,
                 "query": query,
                 "total_count": len(emails),
                 "user_timezone": user_timezone,
+                **{k: v for k, v in extra.items() if v is not None},
             },
         )
 

@@ -162,6 +162,28 @@ _ACTION_PROMPTS: dict[str, str] = {
 # CLARIFICATION HEADERS - Multi-question headers
 # =============================================================================
 
+# ADR-288: a draft asked as one of several opens on its position. ``{index}``
+# and ``{total}`` are the 1-based position and the count of the sequence.
+_DRAFT_SEQUENCE_POSITION: dict[str, str] = {
+    "fr": "**Brouillon {index} sur {total}**",
+    "en": "**Draft {index} of {total}**",
+    "es": "**Borrador {index} de {total}**",
+    "de": "**Entwurf {index} von {total}**",
+    "it": "**Bozza {index} di {total}**",
+    "zh-CN": "**草稿 {index} / {total}**",
+}
+
+# ADR-289: what the turn prepared, read once before the first card of a
+# sequence. ``{count}`` is the number of drafts (always 2 or more).
+_DRAFT_SEQUENCE_SUMMARY: dict[str, str] = {
+    "fr": "**{count} brouillons à relire**",
+    "en": "**{count} drafts to review**",
+    "es": "**{count} borradores por revisar**",
+    "de": "**{count} Entwürfe zur Durchsicht**",
+    "it": "**{count} bozze da rivedere**",
+    "zh-CN": "**{count} 份草稿待审阅**",
+}
+
 _CLARIFICATION_HEADERS: dict[str, str] = {
     "fr": "J'ai besoin de clarifications sur les points suivants :",
     "en": "I need clarification on the following points:",
@@ -1766,6 +1788,44 @@ class HitlMessages:
         lang = HitlMessages._normalize_language(language)
         descriptions = _ACTION_DESCRIPTIONS.get(lang, _ACTION_DESCRIPTIONS["en"])
         return descriptions.get(action, "")
+
+    @staticmethod
+    def get_draft_sequence_position(index: int, total: int, language: str) -> str:
+        """The line that opens the question of a draft asked as one of several.
+
+        ADR-288: independent drafts of one turn are reviewed one at a time;
+        the person is told where they stand, in their language.
+
+        Args:
+            index: 1-based position of the draft in the sequence.
+            total: Number of drafts in the sequence.
+            language: Language code (fr, en, es, de, it, zh-CN).
+
+        Returns:
+            The translated, emphasised position line.
+        """
+        lang = HitlMessages._normalize_language(language)
+        template = _DRAFT_SEQUENCE_POSITION.get(lang, _DRAFT_SEQUENCE_POSITION["en"])
+        return template.format(index=index, total=total)
+
+    @staticmethod
+    def get_draft_sequence_summary(count: int, language: str) -> str:
+        """The title of the list a person reads before the first card of a sequence.
+
+        ADR-289: the turn prepared several independent drafts; before the first
+        is asked, the person is shown what is coming. Always plural — a
+        sequence has two drafts or more.
+
+        Args:
+            count: Number of drafts in the sequence.
+            language: Language code (fr, en, es, de, it, zh-CN).
+
+        Returns:
+            The translated, emphasised title.
+        """
+        lang = HitlMessages._normalize_language(language)
+        template = _DRAFT_SEQUENCE_SUMMARY.get(lang, _DRAFT_SEQUENCE_SUMMARY["en"])
+        return template.format(count=count)
 
     @staticmethod
     def get_clarification_header(language: str) -> str:

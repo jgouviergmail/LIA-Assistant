@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 45 |
-| ADRs | 284 ADR files (ADR-285 latest — ADR-008 n'a pas de fichier séparé, d'où le numéro un cran au-dessus du décompte) |
+| ADRs | 288 ADR files (ADR-289 latest — ADR-008 n'a pas de fichier séparé, d'où le numéro un cran au-dessus du décompte) |
 | Fiches knowledge (RAG système) | 40 |
 
 ---
@@ -50,7 +50,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [PROVENANCE_AND_CAPABILITIES.md](./technical/PROVENANCE_AND_CAPABILITIES.md) | Provenance bornée des conclusions et carte des capacités (ADR-201, ADR-204) |
 | [DEMO_INSTANCE.md](./technical/DEMO_INSTANCE.md) | Démonstrateur libre : image standard isolée, plafond, capacités, purge nocturne, surface vérifiée (ADR-216→218) |
 | [DEBUG_PANEL.md](./technical/DEBUG_PANEL.md) | Panneau de debug : trace en ordre d'exécution, chronologie ancrée au run, waterfall LLM (ADR-209) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (284 ADR files) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (288 ADR files) |
 
 ### Pour les Product Managers
 
@@ -122,7 +122,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [TOOLS.md](./technical/TOOLS.md) | Architecture tools, @connector_tool | ✅ |
 | [AGENT_MANIFEST.md](./technical/AGENT_MANIFEST.md) | ToolManifest, catalogue, domain taxonomy | ✅ |
 | [GOOGLE_CONTACTS_INTEGRATION.md](./technical/GOOGLE_CONTACTS_INTEGRATION.md) | Intégration Google Contacts | ✅ |
-| [EMAIL_FORMATTER.md](./technical/EMAIL_FORMATTER.md) | Formatage emails, templates | ✅ |
+| [EMAIL_FORMATTER.md](./technical/EMAIL_FORMATTER.md) | E-mails : vocabulaire `EmailMessage`, niveaux de détail, condensés (ADR-287), formatage et dates | ✅ |
 | [CONNECTORS_PATTERNS.md](./technical/CONNECTORS_PATTERNS.md) | Patterns connecteurs OAuth/API Key | ✅ |
 | [CONNECTOR_PHILIPS_HUE.md](./technical/CONNECTOR_PHILIPS_HUE.md) | Philips Hue smart lighting connector (local + remote) | ✅ |
 | [APPLE_ICLOUD_INTEGRATION.md](./technical/APPLE_ICLOUD_INTEGRATION.md) | Intégration Apple iCloud (Mail, Calendar, Contacts — app-specific password) | ✅ |
@@ -225,7 +225,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | Document | Description | Statut |
 |----------|-------------|--------|
-| [HITL.md](./technical/HITL.md) | Architecture HITL, 6 couches, plan approval | ✅ |
+| [HITL.md](./technical/HITL.md) | Architecture HITL, 6 couches, plan approval, suite de brouillons un par un (ADR-288), cartes décrites une fois et dessinées par surface (ADR-289) | ✅ |
 
 ### Sécurité & Authentification
 

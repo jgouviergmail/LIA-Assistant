@@ -497,6 +497,61 @@ The list in the prompt is not decorative: it mirrors `DraftType` member for
 member. An action with **no** downstream confirmation (a payment, say) is not in
 it and still halts.
 
+## 🔢 Plusieurs brouillons dans un tour : un à la fois (ADR-288)
+
+Un tour peut préparer plusieurs brouillons — deux e-mails à deux personnes, un
+e-mail et un événement, plusieurs appels d'outil d'une itération ReAct. Le nœud
+`hitl_dispatch` en présente **un par interruption** ; les règles de
+`nodes/draft_sequence.py` disent ce qu'une décision sur celui-là fait aux autres.
+
+| La file est… | Ce que voit la personne | Ce que fait `confirm` / `cancel` |
+|---|---|---|
+| une **suite** (deux étapes indépendantes, un FOR_EACH que personne n'a approuvé, deux types, ReAct) | la carte du brouillon courant, précédée de « Brouillon 2 sur 3 » | la décision est **banquée** (`confirmed_drafts`), le suivant devient `pending_draft_critique`, son compteur d'édition repart ; rien ne s'exécute avant la dernière réponse |
+| un **lot pré-approuvé** (`pending_drafts_grouped`, `is_pre_approved_lot`) | la liste entière (`batch_total`, `batch_drafts`) | tout le lot, comme avant |
+
+La dernière réponse règle tout d'un coup (`settle`) : un `confirm_batch`
+ordonné dont chaque entrée porte **sa** décision et **son** type. Une sortie
+terminale (plafond d'éditions, erreur de modification, verbe inconnu) annule le
+brouillon à l'écran et **rapporte** les brouillons encore en file comme
+annulés — ce qui avait été confirmé avant s'exécute quand même. L'exécuteur
+saute une entrée annulée et la compte (`cancelled_count`), le rendu nomme chaque
+ligne par son propre type et titre un lot mélangé en « actions ».
+
+Mesuré le 2026-09-16 avant la correction : deux e-mails demandés, une question
+sur le premier, « Valider » envoyait les deux — le second jamais montré, jamais
+modifiable. Le mode est déclaré par le **producteur** (orchestrateur, nœud
+ReAct), qui écrit toujours les deux clés pour qu'aucune valeur d'un tour
+précédent ne fuie.
+
+**La suite s'ouvre sur ce que le tour a préparé** (ADR-289) : la première
+interruption porte `sequence_drafts`, et la question commence par « N brouillons
+à relire » puis une ligne par brouillon dans le vocabulaire de son type, avant
+« Brouillon 1 sur N » et la carte. Aucune interruption de plus.
+
+### La carte et le résultat : une description, deux formes (ADR-289)
+
+Les renderers par type (`drafts/preview_renderer.py`) **décrivent** la carte —
+`Row`, `Note`, `Block` (`drafts/card_spec.py`) — et une surface la dessine :
+
+| Surface | Comment elle est reconnue | Forme |
+|---|---|---|
+| le chat | ni origine hors-tour, ni `plain_surface_ctx`, ni affichage `markdown` (`card_surface()` → `CHAT`) | `lia-card` (`drafts/card_html.py`), les classes des cartes de données, valeurs échappées, une seule ligne |
+| un ticket | origine hors-tour posée (`PLAIN`) | le Markdown du lot 13, au caractère près, aplati ensuite par `markdown_to_plain_text` |
+| un canal externe | `plain_surface_ctx` déclaré par le gestionnaire autour du flux (`PLAIN`) | le même Markdown — le formateur Telegram coupe tout HTML dès le premier `<div` |
+| l'affichage `markdown` choisi | `runtime_display_mode()` (`PLAIN`) | le même Markdown : la personne a demandé du texte |
+
+Pour le modèle, `filter_for_llm_context` aplatit une carte `lia-draft*` en texte
+(ce qui a été envoyé, à qui) là où une carte de donnée est réduite à sa prose.
+Et un nouveau tour commence sans brouillon en relecture : le routeur étend
+`draft_sequence.draft_turn_reset()` comme `react_turn_reset()` (une reprise
+HITL ne passe jamais par le routeur).
+
+Le résultat d'exécution suit la même règle (`describe_execution_result` →
+`ResultSpec`, `to_html_result`) : chaque entrée d'un lot porte les champs clés
+que le registre d'affichage déclare pour son type, le premier champ texte
+réduit à un extrait d'une ligne (`DRAFT_RESULT_EXCERPT_MAX_CHARS`). Le
+propriétaire lit, dans la réponse, à qui et quoi.
+
 ## 💬 Question Generation
 
 ### hitl_plan_approval_question_generator

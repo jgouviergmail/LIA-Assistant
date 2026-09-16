@@ -255,6 +255,12 @@ The ReAct agent receives ALL available tools (not domain-filtered like the plann
 
 Tools are NOT stored in state (non-serializable). Tool names and HITL map are stored instead, and tools are rebuilt in each node that needs them.
 
+### Tool results (ADR-286)
+
+What a tool returns reaches the model through `ReactToolWrapper._process_result` → `compose_tool_message`: the tool's `message`, then a `Data:` block, then — only when something was left out — a budget note. The block is a **per-item projection** (`render_data_block`): the heaviest list of dicts in `structured_data` (or the registry payloads grouped by type) is paged at item boundaries under a **token** budget, `min(REACT_TOOL_RESULT_MAX_TOKENS, window × REACT_TOOL_RESULT_WINDOW_FRACTION)` where the window is the `react_agent` slot's own (ADR-278). An admitted item is complete and the block stays valid JSON; scalars (`count`, `query`…) travel whole, `<key>_shown` says how many items made it, at least one item always does. The note (`tool_result_budget_note`) goes **after** the `</external_content>` tag — it is ours, never third-party text — and names the count shown, the total, the budget and the way to the rest; every cut increments `react_tool_result_truncated_total{tool_name}` (dashboard 20, "Tool Result Budget Cuts").
+
+Measured before (2026-09-15): the block was a JSON dump cut at 8 000 **characters**, spent on the first Gmail message's SMTP headers and base64 body (85-98 % of a `format=full` item, tokenised at 1.45 characters per token) — the model read no subject, id or date of any e-mail, ran eleven iterations and answered wrong. The raw provider tree now never leaves `build_emails_output`.
+
 ### Tool resolution (shared with the pipeline)
 
 Both `ReactToolSelector` (binding) and `_rebuild_wrapped_tools` (execution) resolve a tool *name* to its instance through the shared `src/domains/agents/tools/tool_resolution.py` — the single source of truth used by the pipeline executor too. Resolution order: global `tool_registry` (native + admin MCP) → hallucinated-suffix strip → per-request `user_mcp_tools_ctx` (exact then fuzzy). Without this fallback the ReAct loop, which consulted only the global registry, silently dropped **user** MCP tools (whose instances live only in the ContextVar) — see ADR-070 amendment 2026-06-02.
@@ -411,7 +417,7 @@ During ReAct execution, the frontend displays accumulated execution steps in rea
 | `src/domains/agents/nodes/react_context.py` | Memory/context blocks, at pipeline parity (ADR-248) |
 | `src/domains/agents/tools/python_sandbox_tools.py` | `run_python_tool` + per-turn run budget (ADR-249) |
 | `src/domains/agents/python_sandbox/catalogue_manifests.py` | Manifest: ReAct-only, published bounds |
-| `src/domains/agents/tools/react_tool_wrapper.py` | Tool wrapper (string output + registry) |
+| `src/domains/agents/tools/react_tool_wrapper.py` | Tool wrapper: per-item projection under a token budget, stated cut, registry collection (ADR-286) |
 | `src/domains/agents/services/react_tool_selector.py` | Tool selection (all available, capped) |
 | `src/domains/agents/prompts/v1/react_agent_prompt.txt` | System prompt |
 | `src/domains/agents/nodes/routing.py` | `route_from_react_call_model()` |

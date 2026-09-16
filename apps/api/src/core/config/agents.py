@@ -275,6 +275,8 @@ from src.core.constants import (
     REACT_REPEATED_CALL_BLOCK_THRESHOLD_DEFAULT,
     REACT_REPEATED_CALL_TERMINAL_THRESHOLD_DEFAULT,
     REACT_TOOL_BUDGET_SECONDS_DEFAULT,
+    REACT_TOOL_RESULT_MAX_TOKENS_DEFAULT,
+    REACT_TOOL_RESULT_WINDOW_FRACTION_DEFAULT,
     RECENT_ENTITIES_MAX_TURN_AGE_DEFAULT,
     REGISTRY_MAX_ITEMS_DEFAULT,
     RESPONSE_CONTEXT_PREFETCH_AT_ROUTER_ENABLED_DEFAULT,
@@ -778,6 +780,24 @@ class AgentsSettings(BaseSettings):
             "per-server task tool. MCP App servers always keep the task tool. "
             "Set False to fall back to the task tool (instant rollback). "
             "Does not affect the pipeline."
+        ),
+    )
+    react_tool_result_max_tokens: int = Field(
+        default=REACT_TOOL_RESULT_MAX_TOKENS_DEFAULT,
+        ge=1_000,
+        le=200_000,
+        description=(
+            "Ceiling, in tokens, of ONE tool result handed to the ReAct model. Items "
+            "are never cut mid-way and a cut is stated to the model (ADR-286)."
+        ),
+    )
+    react_tool_result_window_fraction: float = Field(
+        default=REACT_TOOL_RESULT_WINDOW_FRACTION_DEFAULT,
+        ge=0.05,
+        le=0.5,
+        description=(
+            "Fraction of the ReAct slot's context window one tool result may occupy; "
+            "the effective budget is min(ceiling, window × fraction) (ADR-286)."
         ),
     )
 

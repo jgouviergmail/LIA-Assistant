@@ -4,7 +4,7 @@
 
 **Version**: 6.0
 **Datum**: 2026-08-23
-**Anwendung**: LIA v1.44.6
+**Anwendung**: LIA v1.44.7
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -122,7 +122,7 @@ Sprich mit LIA wie mit einem menschlichen Assistenten — keine Befehle auswendi
 
 ### 3.2. Persönliche verbundene Dienste
 
-- **E-Mail**: Lesen, Suchen, Verfassen, Senden, Antworten, Weiterleiten — via Gmail, Outlook oder Apple Mail
+- **E-Mail**: Lesen, Suchen, Verfassen, Senden, Antworten, Weiterleiten — via Gmail, Outlook oder Apple Mail; eine Nachricht kommt als sauberer Text an, und viele werden Nachricht für Nachricht zusammengefasst („fasse meine ungelesenen Mails zusammen“, „eine Synthese der Newsletter dieser Woche“)
 - **Kalender**: Termine einsehen, erstellen, bearbeiten, löschen — via Google Calendar, Outlook Calendar oder Apple Calendar
 - **Kontakte**: Kontakte suchen, erstellen, bearbeiten — via Google Contacts, Outlook Contacts oder Apple Contacts
 - **Aufgaben**: Deine Aufgabenlisten verwalten — via Google Tasks oder Microsoft To Do
@@ -462,7 +462,7 @@ Das Antwortsystem verfügt über einen dreischichtigen Anti-Halluzinations-Mecha
 
 ### 8.4. Human-in-the-Loop auf 6 Ebenen
 
-LIA lehnt sensible Aktionen nicht ab — sie **legt sie dir vor** mit dem jeweils passenden Detailgrad: Plangenehmigung, Klärung, Entwurfskritik, destruktive Bestätigung, Bestätigung von Massenoperationen, Überprüfung von Änderungen. Jede Genehmigung fließt in das Lernen ein — das System beschleunigt sich mit der Zeit. Und das Versprechen wird wortwörtlich gehalten: Was du bestätigst — nach einer, zwei oder zehn Überarbeitungen — wird **exakt** so ausgeführt, niemals eine im Hintergrund neu generierte Version.
+LIA lehnt sensible Aktionen nicht ab — sie **legt sie dir vor** mit dem jeweils passenden Detailgrad: Plangenehmigung, Klärung, Entwurfskritik, destruktive Bestätigung, Bestätigung von Massenoperationen, Überprüfung von Änderungen. Jede Genehmigung fließt in das Lernen ein — das System beschleunigt sich mit der Zeit. Und das Versprechen wird wortwörtlich gehalten: Was du bestätigst — nach einer, zwei oder zehn Überarbeitungen — wird **exakt** so ausgeführt, niemals eine im Hintergrund neu generierte Version. Und wenn eine Anfrage mehrere Entwürfe vorbereitet, werden sie dir einer nach dem anderen vorgelegt, jeder auf seiner Karte, nichts wird vor deiner letzten Antwort ausgeführt, und der Bericht sagt, an wen und was — nur eine Massenaktion, die du als Liste genehmigt hast, behält eine einzige Bestätigung.
 
 ### 8.5. Deine Antworten brauchen dich nicht
 

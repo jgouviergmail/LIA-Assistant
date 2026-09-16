@@ -152,12 +152,13 @@ class TestNormalizeGraphMessage:
         assert result["id"] == "AAMk-1"
         assert result["threadId"] == "conv-1"
 
-    def test_headers_are_exposed_as_a_gmail_header_list(self) -> None:
+    def test_headers_are_exposed_as_top_level_fields(self) -> None:
+        """The vocabulary is flat (ADR-287): no fabricated Gmail tree."""
         result = normalize_graph_message(self.GRAPH_MESSAGE)
-        headers = {h["name"]: h["value"] for h in result["payload"]["headers"]}
-        assert "bob@example.com" in headers["From"]
-        assert "jane@example.com" in headers["To"]
-        assert headers["Subject"] == "Quarterly report"
+        assert "payload" not in result
+        assert "bob@example.com" in result["from"]
+        assert "jane@example.com" in result["to"]
+        assert result["subject"] == "Quarterly report"
 
     def test_unread_message_carries_the_unread_label(self) -> None:
         result = normalize_graph_message(self.GRAPH_MESSAGE)

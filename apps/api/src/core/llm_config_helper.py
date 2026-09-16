@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Any
 from src.core.constants import CAPABILITY_PROVENANCE_DECLARED
 from src.core.llm_agent_config import LLMAgentConfig
 from src.core.reasoning_intent import ReasoningIntent
-from src.infrastructure.llm.reasoning.profiles import resolve_reasoning_profile
+from src.core.reasoning_profiles import resolve_reasoning_profile
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
@@ -131,7 +131,7 @@ def merge_config(defaults: LLMAgentConfig, overrides: dict[str, Any]) -> LLMAgen
 
 
 def short_answer_config(
-    agent_type: str, *, max_tokens: int, temperature: float | None = None
+    agent_type: str, *, max_tokens: int | None = None, temperature: float | None = None
 ) -> LLMAgentConfig:
     """The slot's own configuration, asked for a SHORT answer.
 
@@ -149,9 +149,17 @@ def short_answer_config(
     the answer; the caller's honesty guard then decides what an empty answer
     means.
 
+    A caller that BORROWS a shared slot (the reminder on ``response``) sizes
+    its own answer budget. A caller with a slot of its OWN (the e-mail digest)
+    passes none: the slot's ``max_tokens`` — seeded by its default and edited
+    by the administrator in ``llm_config_overrides`` (ADR-244) — is the cap,
+    and a constant overriding it would be a second authority the admin cannot
+    see.
+
     Args:
         agent_type: The LLM slot (``"response"``, ...).
-        max_tokens: The answer budget, applied only where it bounds the answer.
+        max_tokens: The answer budget, applied only where it bounds the answer;
+            ``None`` keeps the slot's own.
         temperature: Optional sampling override.
 
     Returns:
@@ -176,7 +184,8 @@ def short_answer_config(
     # the slot's budget.
     if profile.can_disable and profile.source != "unknown":
         updates["reasoning_effort"] = ReasoningIntent(level="none")
-        updates["max_tokens"] = max_tokens
+        if max_tokens is not None:
+            updates["max_tokens"] = max_tokens
     return config.model_copy(update=updates)
 
 

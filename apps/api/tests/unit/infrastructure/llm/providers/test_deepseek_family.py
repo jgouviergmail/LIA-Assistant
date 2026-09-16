@@ -37,7 +37,7 @@ from src.infrastructure.llm.structured_output import _is_v4_thinking_enabled
 pytestmark = pytest.mark.unit
 
 _SRC = Path(__file__).resolve().parents[5] / "src"
-_PROFILES = _SRC / "infrastructure" / "llm" / "reasoning" / "profiles.py"
+_PROFILES = _SRC / "core" / "reasoning_profiles.py"
 
 
 # ---------------------------------------------------------------------------

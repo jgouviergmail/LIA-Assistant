@@ -64,6 +64,7 @@ from src.domains.agents.utils.react_budget import (
     abandoned_call_message,
     effective_react_budget,
     react_exit_reason,
+    tool_result_token_budget,
     tool_timeout_message,
 )
 from src.domains.agents.utils.react_budget import (
@@ -375,6 +376,27 @@ def _observe_delivered_context(messages: list[BaseMessage]) -> None:
             react_context_window_utilization.observe(delivered / window)
 
 
+def _tool_result_budget() -> int:
+    """Tokens ONE tool result may occupy this pass: min(ceiling, window × fraction).
+
+    The window is the ReAct slot's own (ADR-278), read through the same seam as
+    the utilization metric above; a catalogue hiccup falls back to the ceiling
+    rather than breaking the loop (ADR-286).
+    """
+    window: int | None = None
+    # Best-effort read: an unreadable window means the ceiling alone bounds
+    # the result, which is the documented default.
+    with contextlib.suppress(Exception):
+        from src.core.llm_config_helper import get_effective_context_window_for_slot
+
+        window = get_effective_context_window_for_slot("react_agent")
+    return tool_result_token_budget(
+        window,
+        ceiling=settings.react_tool_result_max_tokens,
+        window_fraction=settings.react_tool_result_window_fraction,
+    )
+
+
 @trace_node("react_call_model")
 @track_metrics(node_name="react_call_model", duration_metric=agent_node_duration_seconds)
 async def react_call_model_node(
@@ -563,6 +585,8 @@ async def react_execute_tools_node(
     # ADR-256: the delegated half of the turn. Accumulated here and
     # returned to state, because the ContextVars do not survive the node.
     tool_seconds_spent = 0.0
+    # ADR-286: one budget per node pass, read from the slot's own window.
+    result_budget = _tool_result_budget()
 
     # ADR-249: load this invocation's script budget and data from STATE.
     from src.domains.agents.tools.python_sandbox_tools import runs_spent, seed_turn
@@ -771,7 +795,7 @@ async def react_execute_tools_node(
                     timeout=tool_timeout,
                 )
             # Process through wrapper for string conversion + registry collection
-            content = wrapper._process_result(raw_result)
+            content = wrapper._process_result(raw_result, budget_tokens=result_budget)
             productive_calls += _is_productive_result(raw_result)
             # Draft detection: a mutation tool (create/update/delete) returns
             # requires_confirmation=True — it prepared a DRAFT, not the real
@@ -883,6 +907,10 @@ async def react_execute_tools_node(
     # previous turn can never mis-route the loop — the router does not reset them.
     result["pending_draft_critique"] = pending_drafts[0] if pending_drafts else None
     result["pending_drafts_queue"] = pending_drafts[1:] if len(pending_drafts) > 1 else []
+    # ADR-288: several tool calls of one iteration are independent drafts,
+    # each asked on its own — never a pre-approved lot.
+    result["pending_drafts_grouped"] = False
+    result["confirmed_drafts"] = []
 
     if pending_drafts:
         # The draft handoff short-circuits the loop before react_finalize, so emit

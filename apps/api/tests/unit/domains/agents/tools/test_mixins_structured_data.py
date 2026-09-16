@@ -104,6 +104,89 @@ class TestBuildEmailsOutput:
         assert output.structured_data["query"] == "hello"
 
 
+class TestBuildEmailsOutputDropsTheProviderTree:
+    """ADR-286: the raw Gmail tree (SMTP headers, MIME parts, base64 body) is
+    85-98 % of an item — measured 2026-09-15, 12 241 to 130 444 characters —
+    and every reader of it runs INSIDE the builder (field promotion, date
+    conversion). Past that point it only weighs on the registry, the checkpoint,
+    the SSE stream and the ReAct data block, where base64 costs 1.45 characters
+    per token (measured)."""
+
+    def _gmail_full(self) -> dict[str, Any]:
+        return {
+            "id": "m1",
+            "threadId": "t1",
+            "labelIds": ["INBOX"],
+            "snippet": "hi",
+            "internalDate": "1789493085929",
+            "payload": {
+                "headers": [
+                    {"name": "Subject", "value": "Point"},
+                    {"name": "From", "value": "Alice <a@x.com>"},
+                    {"name": "To", "value": "b@x.com"},
+                ],
+                "body": {"data": "QmFzZTY0"},
+            },
+            "body": "Bonjour",
+            "attachments": [],
+        }
+
+    def test_gmail_raw_tree_is_not_carried(self) -> None:
+        output = _HelperAccessor().build_emails_output(
+            emails=[self._gmail_full()], user_timezone="UTC"
+        )
+        item = output.structured_data["emails"][0]
+        assert "payload" not in item
+        assert item["subject"] == "Point"
+        assert item["from"] == "Alice <a@x.com>"
+        assert item["to"] == "b@x.com"
+        assert item["date_formatted"] and item["date_iso"]
+        assert item["message_id"] == "m1"
+        registry_payload = next(iter(output.registry_updates.values())).payload
+        assert "payload" not in registry_payload
+
+    def test_apple_shape_without_tree_is_untouched(self) -> None:
+        apple = {
+            "id": "42",
+            "threadId": "42",
+            "labelIds": ["INBOX"],
+            "snippet": "s",
+            "subject": "S",
+            "from": "a@x.com",
+            "body": "B",
+            "attachments": [],
+            "_provider": "apple",
+            "internalDate": "1789493085929",
+        }
+        item = _HelperAccessor().build_emails_output(emails=[apple], user_timezone="UTC")
+        built = item.structured_data["emails"][0]
+        assert built["subject"] == "S"
+        assert built["_provider"] == "apple"
+        assert "payload" not in built
+
+    def test_every_published_item_path_exists_on_a_built_item(self) -> None:
+        """ADR-184 pointed at outputs: the manifest published ``emails[].headers``,
+        a path no built item ever carried (the headers live in the raw tree).
+        The default level (``full``) shapes the item too: ``body_parts`` is its doing."""
+        from src.domains.agents.emails.catalogue_manifests import (
+            get_emails_catalogue_manifest,
+        )
+        from src.domains.agents.emails.detail_levels import EmailDetail, apply_detail_level
+
+        emails = [self._gmail_full()]
+        apply_detail_level(emails, detail=EmailDetail.FULL, part=1, part_tokens=1_500)
+        item = _HelperAccessor().build_emails_output(emails=emails, user_timezone="UTC")
+        built = item.structured_data["emails"][0]
+        published = [
+            output.path.removeprefix("emails[].")
+            for output in get_emails_catalogue_manifest.outputs
+            if output.path.startswith("emails[].")
+        ]
+        assert published, "the manifest publishes item paths"
+        missing = [path for path in published if path not in built]
+        assert not missing, f"published but absent on a built item: {missing}"
+
+
 class TestBuildEventsOutput:
     """Tests for :meth:`ToolOutputMixin.build_events_output`."""
 

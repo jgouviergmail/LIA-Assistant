@@ -14,6 +14,7 @@ from uuid import uuid4
 import pytest
 
 from src.core.i18n_drafts import get_draft_preview_labels
+from src.domains.agents.drafts.card_spec import to_markdown_lines
 from src.domains.agents.drafts.models import DraftType
 from src.domains.agents.drafts.preview_renderer import _render_vacation_responder
 from src.domains.agents.tools.gmail_settings_tools import execute_vacation_responder_draft
@@ -39,7 +40,7 @@ class TestPreview:
     def test_enable_preview_shows_subject_message_and_dates(self) -> None:
         labels = get_draft_preview_labels("fr")
         lines = _render_vacation_responder(dict(_DRAFT_CONTENT), labels, lambda s: s or "")
-        joined = "\n".join(lines)
+        joined = "\n".join(to_markdown_lines(lines, labels["separator"]))
         assert "Absent jusqu'au 30/08" in joined
         assert "Je suis en congés" in joined
         assert "2026-08-24" in joined
@@ -49,7 +50,9 @@ class TestPreview:
         lines = _render_vacation_responder(
             {"enable": False, "user_language": "fr"}, labels, lambda s: s or ""
         )
-        assert any("désactiv" in line.lower() for line in lines)
+        assert any(
+            "désactiv" in line.lower() for line in to_markdown_lines(lines, labels["separator"])
+        )
 
 
 class TestExecutor:

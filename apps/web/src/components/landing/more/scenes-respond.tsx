@@ -1,8 +1,8 @@
 /**
  * Scenes of section 02 — "When LIA replies": follow-up chips, the floating
- * return-to-bottom button, the per-bubble action row, share/export, and the
- * execution-trace backstage. Timer-driven micro-demos; last phase = resting
- * frame.
+ * return-to-bottom button, the per-bubble action row, share/export, the
+ * one-draft-at-a-time review, and the execution-trace backstage. Timer-driven
+ * micro-demos; last phase = resting frame.
  */
 
 'use client';
@@ -22,6 +22,8 @@ import {
   Handshake,
   Languages,
   Link2,
+  Mail,
+  PenLine,
   Reply,
   Search,
   Share2,
@@ -29,6 +31,7 @@ import {
   TextSelect,
   ThumbsDown,
   ThumbsUp,
+  User,
   Wrench,
 } from 'lucide-react';
 
@@ -284,6 +287,108 @@ function KeepAnswerScene({ active, labels }: SceneProps) {
       >
         {labels.gone}
       </span>
+    </div>
+  );
+}
+
+type DraftSeqPhase = 'summary' | 'first' | 'confirm1' | 'second' | 'confirm2' | 'report';
+const DRAFT_SEQ_STEPS: readonly TimelineStep<DraftSeqPhase>[] = [
+  { at: 0, state: 'summary' },
+  { at: 900, state: 'first' },
+  { at: 1900, state: 'confirm1' },
+  { at: 2500, state: 'second' },
+  { at: 3500, state: 'confirm2' },
+  { at: 4100, state: 'report' },
+];
+
+/** One draft card of the sequence: a header with its position, two labelled rows, the confirm chip. */
+function MiniDraftCard({
+  position,
+  confirmed,
+  className,
+}: {
+  position: string;
+  confirmed: boolean;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        'w-4/5 self-start overflow-hidden rounded-lg border border-border bg-background text-[10px] transition-all duration-300',
+        className
+      )}
+    >
+      <div className="flex items-center gap-1.5 border-b border-border bg-muted/60 px-2 py-1 text-muted-foreground">
+        <Mail className="h-3 w-3 text-primary" />
+        <span>{position}</span>
+      </div>
+      <div className="space-y-1 px-2 py-1.5">
+        <div className="flex items-center gap-1.5">
+          <User className="h-2.5 w-2.5 text-muted-foreground" />
+          <SkeletonLine w="w-1/2" />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <FileText className="h-2.5 w-2.5 text-muted-foreground" />
+          <SkeletonLine w="w-3/4" />
+        </div>
+      </div>
+      <div className="flex gap-1.5 px-2 pb-1.5">
+        <MiniChip pressed={confirmed}>
+          <Check className="h-2.5 w-2.5" />
+        </MiniChip>
+        <MiniChip>
+          <PenLine className="h-2.5 w-2.5" />
+        </MiniChip>
+      </div>
+    </div>
+  );
+}
+
+function DraftSequenceScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(DRAFT_SEQ_STEPS, { active });
+  const onFirst = phase === 'first' || phase === 'confirm1';
+  const onSecond = phase === 'second' || phase === 'confirm2';
+  const reported = phase === 'report';
+  return (
+    <div className={cn(STAGE, 'items-stretch justify-center gap-1.5')}>
+      <MiniBubble
+        side="assistant"
+        className={cn(
+          'w-3/4 space-y-1 transition-opacity duration-300',
+          phase === 'summary' ? 'opacity-100' : 'opacity-40'
+        )}
+      >
+        <span className="font-medium">{labels.summary}</span>
+        <SkeletonLine w="w-2/3" />
+        <SkeletonLine w="w-1/2" />
+      </MiniBubble>
+      <MiniDraftCard
+        position={labels.first}
+        confirmed={phase === 'confirm1'}
+        className={cn(onFirst ? 'translate-y-0 opacity-100' : 'absolute translate-y-2 opacity-0')}
+      />
+      <MiniDraftCard
+        position={labels.second}
+        confirmed={phase === 'confirm2'}
+        className={cn(onSecond ? 'translate-y-0 opacity-100' : 'absolute translate-y-2 opacity-0')}
+      />
+      <MiniToast
+        icon={Check}
+        tone="success"
+        className={cn(
+          'self-start transition-all duration-300',
+          reported ? 'translate-y-0 opacity-100' : 'absolute translate-y-1 opacity-0'
+        )}
+      >
+        {labels.report}
+      </MiniToast>
+      <Cursor
+        className={cn(
+          phase === 'confirm1' || phase === 'confirm2'
+            ? 'left-[18%] top-[78%] opacity-100'
+            : 'left-[60%] top-[90%] opacity-0'
+        )}
+      />
     </div>
   );
 }
@@ -652,6 +757,7 @@ export const RESPOND_SCENES: Readonly<Record<string, SceneComponent>> = {
   selection_actions: SelectionActionsScene,
   share_export: ShareExportScene,
   keep_answer: KeepAnswerScene,
+  draft_sequence: DraftSequenceScene,
   backstage: BackstageScene,
   peer_actions: PeerActionsScene,
 };

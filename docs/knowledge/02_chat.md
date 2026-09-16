@@ -329,6 +329,8 @@ When LIA is about to do something sensitive (send an email, delete an event, val
 
 Both work in parallel — the conversation always wins. Once the action is handled, the card disappears and LIA's reply confirms what was done. This works the same way in both Pipeline and ReAct modes.
 
+If one request produces several drafts, they come one at a time: LIA first lists what it prepared, then shows "Draft 1 of 2" and so on, each with its own buttons. Nothing is sent before you have answered the last one.
+
 ## Can I see what LIA did to produce an answer?
 Yes. Under each answer, a small **"⚙ N steps · X s"** line summarizes the backstage. One click expands it to show what LIA actually did:
 

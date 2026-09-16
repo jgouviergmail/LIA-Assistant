@@ -180,7 +180,7 @@ def _from_manifest(tool_name: str, registry: AgentRegistry | None) -> str | None
 def _from_name(tool_name: str) -> str | None:
     """The domain the NAME names, matched against the taxonomy.
 
-    ``search_emails_tool`` gives ``emails`` gives ``email``;
+    ``get_emails_tool`` gives ``emails`` gives ``email``;
     ``browser_click_tool`` gives ``browser``; ``get_current_weather_tool``
     gives ``weather``, which is why the LAST segment is tried too — an
     adjective can lead ("current weather") as easily as a subject can.

@@ -144,6 +144,26 @@ class Search{Items}Tool(ConnectorTool[{Service}Client]):
 | Error handling | Hérité | Dupliqué |
 | Tests | Mock client | Mock tout |
 
+### Modèle neutre à la frontière du client (ADR-287)
+
+Un fournisseur ne parle jamais le dialecte d'un autre. Pour l'e-mail, ce que
+les trois clients rendent est le vocabulaire `EmailMessage`
+(`domains/connectors/clients/normalizers/email_message.py`) : champs de premier
+niveau (`subject`, `from`, `to`, `cc`, `date`, `rfc_message_id`, `snippet`,
+`body`, `attachments`, `_provider`), un corps **texte** (une seule conversion
+HTML → texte, `normalizers/html_text.py`) dont la citation et la signature
+sont retirées (`normalizers/reply_trimming.py`, `EMAILS_TRIM_QUOTED_REPLIES`).
+Graph et IMAP ne fabriquent aucun `payload` Gmail ; Gmail garde son arbre natif
+jusqu'au builder d'outil qui le retire (ADR-286). Un normaliseur neuf est
+mesuré contre `EmailMessage` sur une charge réelle
+(`tests/unit/domains/connectors/clients/normalizers/test_email_message_contract.py`),
+et la signature de `search_emails(query, max_results, fields, use_cache,
+page_token, headers_only)` est celle de `EmailClientProtocol` pour les trois —
+la garde de parité refuse un client qui l'étend seul. La pagination est
+opaque (`page_token` / `next_page_token` : `pageToken` Gmail, URL
+`@odata.nextLink` Graph — refusée hors de `api_base_url` —, décalage décimal
+IMAP), et un compte du fournisseur est publié comme ESTIMATION (ADR-185).
+
 ---
 
 ## 🔧 Helpers Centralisés

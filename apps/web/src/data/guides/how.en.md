@@ -6,7 +6,7 @@
 
 **Version**: 5.0
 **Date**: 2026-08-23
-**Application**: LIA v1.44.6
+**Application**: LIA v1.44.7
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -69,8 +69,8 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | ARM64 self-hosting | Multi-arch Docker, semantic embeddings (multilingual), Playwright chromium cross-platform |
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
-| Full transparency | 555 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 284 ADRs, ~28,983 pytest-collected tests across 1,703 files, native observability, 6-level HITL |
+| Full transparency | 557 Prometheus metrics, embedded debug panel, token-by-token tracking |
+| Production reliability | 288 ADRs, ~28,983 pytest-collected tests across 1,703 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -91,7 +91,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Tests | 28,983 collected by pytest across 1,703 test files + 8,316 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | pytest fixtures | 969, 46 of them shared through conftest |
 | Documentation documents | 647 |
-| ADRs (Architecture Decision Records) | 284 |
+| ADRs (Architecture Decision Records) | 288 |
 | Prometheus metrics | 553 definitions |
 | Grafana dashboards | 29 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -347,6 +347,8 @@ A turn's spending obeys a conservation law (ADR-256): reasoning time and tool ti
 
 Both modes share the same tool registry, HITL system, response node, and observability infrastructure. Users switch between them via a toggle in the chat header.
 
+What a tool returns is **projected into the loop's context item by item, under a token budget** (ADR-286). The heaviest item list of a result is paged at item boundaries — an admitted item is complete, the block stays valid JSON, the scalars travel whole and the first item always passes — under `min(REACT_TOOL_RESULT_MAX_TOKENS, window × REACT_TOOL_RESULT_WINDOW_FRACTION)`, the window being the ReAct slot's own. A cut is **stated** to the model after the external-content tag (how many of how many, and the way to the rest) and counted per tool, so that a mailbox of full messages never reaches the model as a dump cut in the middle of the first one's headers. The provider's raw tree never leaves the e-mail builder, and a tool whose data only the pipeline executor injects declares itself pipeline-only rather than being offered to a loop that cannot run it.
+
 A turn also owes itself a working memory that outlives it. State is bounded by a message window, and a ReAct turn appends two messages per iteration — so a long enough turn pushes **its own question** out of that window, after which the windowing that splits history from the current loop no longer finds a split point at all. The reducer therefore re-pins the turn's question when truncation evicts it, on both of its branches, and the coupling between the iteration budget and the window size carries a name rather than living as an unstated arithmetic relation. What a turn actually delivers to the model is measured too — the prompt size per iteration and its share of the model's context window — because a loop that measured its iterations and its duration was measuring everything except the thing that grows.
 
 ### 5.4. Detached executions: generation survives the connection (ADR-117)
@@ -568,9 +570,11 @@ Phase 8 (current) submits the **complete plan** to the user **before** any execu
 | `FOR_EACH_CONFIRM` | Bulk mutations | `interrupt()` with operation count |
 | `MODIFIER_REVIEW` | AI-suggested modifications | `interrupt()` with before/after comparison |
 
-### 9.3. Enriched Draft Critique
+### 9.3. Draft critique: one description, one question per draft
 
-For drafts, a dedicated prompt generates a structured critique with per-domain markdown templates, field emojis, before/after comparison with strikethrough for updates, and irreversibility warnings. Post-HITL results display i18n labels and clickable links.
+A draft to confirm and the report of its execution are **described once** — a card specification of labelled rows, notes and blocks, built by one renderer per draft type from the display registry — and **drawn per surface**: in the chat, the same `lia-card` markup as an e-mail or an event (header, illustration, fields with their icons, body in a block); on a ticket, on an external channel or under the `markdown` display mode, the Markdown the ticket comment can flatten. The surface is decided by the run, never guessed by a caller. A report says what was done, to whom and with what: each line of a batch carries the key fields its type declares and a bounded excerpt of the text sent, quoted with the language's own quotation marks. Before/after comparison for updates, irreversibility warnings, i18n labels and clickable links are part of that description.
+
+A turn that prepares **several independent drafts** — two e-mails, an event and a task, several tool calls of one ReAct iteration — submits them **one draft per interruption**: the sequence opens on the list of everything the turn prepared, each draft has its own card, its own question and its own edit, the position is stated ("Draft 2 of 3"), and nothing runs before the last answer; the banked decisions are then executed together, each under its own type, and a cancelled draft is reported rather than lost. Only a lot the person **pre-approved as a list** — the items of a FOR_EACH step approved in that turn, of one type — keeps its grouped confirmation. A ticket follows the same identity (the draft on screen), and a new turn always starts with no draft under review.
 
 ### 9.4. Response Classification
 
@@ -755,6 +759,8 @@ ConnectorTool (base.py) → ClientRegistry → resolve_client(type) → Protocol
 ### 13.2. Normalizers
 
 Each provider returns data in its own format. Dedicated normalizers (`calendar_normalizer`, `contacts_normalizer`, `email_normalizer`, `tasks_normalizer`) convert provider-specific responses into unified domain models. Adding a new provider requires only implementing the protocol and its normalizer — calling code remains unchanged.
+
+For e-mail that unified model is measured, not assumed: the three normalizers produce the same `EmailMessage` vocabulary — a text body, never HTML, with the quoted history and the signature removed at the client boundary (six languages, measured on a corpus of 48 bodies) — and none of them fabricates another provider's format any more. `get_emails_tool` then chooses what it serves from the question, with its cost stated: `metadata` lists without bodies, `full` reads a clean body paginated by paragraph, `summary` reasons over a **digest per message** (the gist, key points, actions, category, importance) computed once by a small model without reasoning, cached for thirty days and refused by the spend ceilings — never invented when the model fails. That is what makes "summarise my unread mail" or "a synthesis of this week's newsletters" possible over twenty messages without loading them all, for Gmail, Outlook and Apple alike (ADR-287).
 
 ### 13.3. Reusable patterns
 
@@ -985,7 +991,7 @@ Provenance is therefore a property of the **data**: the registry's 24 types are 
 
 | Technology | Role |
 |------------|------|
-| Prometheus | 555 custom metrics (RED pattern) |
+| Prometheus | 557 custom metrics (RED pattern) |
 | Grafana | 29 production-ready dashboards |
 | Loki | Aggregated structured JSON logs |
 | Tempo | Cross-service distributed traces (OTLP gRPC) |
@@ -993,7 +999,7 @@ Provenance is therefore a property of the **data**: the registry's 24 types are 
 | Alertmanager | 14-alert vital core delivered by email (linked runbooks, per-environment thresholds) + webhook to LIA: every alert becomes an in-product incident (ADR-247) |
 | structlog | Structured logging with PII filtering |
 
-**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 555 defined; the 44 that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. The price of not having had this: a heartbeat source failing open dropped the health signals on 46.5 % of ticks for a week, with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
+**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 557 defined; the 44 that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. The price of not having had this: a heartbeat source failing open dropped the health signals on 46.5 % of ticks for a week, with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
 
 ### 20.2. Embedded Debug Panel
 
@@ -1393,7 +1399,7 @@ One CSS rule governs the design system's spacing: vertical margins on an `inline
 
 ## 24. Architecture Decision Records (ADR)
 
-284 ADRs in MADR format document the major architectural decisions. Some representative examples:
+288 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1700,8 +1706,8 @@ The connection budget has a floor, not only a ceiling. Audit F004 bounded the bu
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 284 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~28,983 tests across 1,703 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 288 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~28,983 tests across 1,703 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 284 ADRs, and the changelog (v1.0 to v1.44.6). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 288 ADRs, and the changelog (v1.0 to v1.44.7). All metrics, versions, and patterns cited are verifiable in the codebase.*

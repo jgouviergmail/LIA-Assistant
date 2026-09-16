@@ -304,7 +304,7 @@ git commit -m "feat(tools): add send_email_tool implementation"
 git add apps/api/src/domains/agents/tools/emails_tools.py
 git commit -m "feat(tools): add get_email_tool implementation"
 
-git add apps/api/tests/unit/domains/agents/tools/test_emails_tools.py
+git add apps/api/tests/unit/domains/agents/emails/test_get_emails_tool_detail.py
 git commit -m "test(tools): add tests for Emails tools"
 
 # 4. Push feature branch

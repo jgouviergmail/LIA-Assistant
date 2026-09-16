@@ -144,7 +144,9 @@ class TestAnythingElseAsksAgain:
 
 
 class TestABatchIsOneIdentity:
-    """Approving three drafts approves those three, in that order, and nothing else."""
+    """A pre-approved FOR_EACH lot (ADR-288: ``pending_drafts_grouped``) is shown
+    whole and confirmed whole: approving three drafts approves those three, in
+    that order, and nothing else."""
 
     SECOND = {"tool_name": "mcp_x_delete", "tool_label": "x: delete", "tool_args": {"target": "b"}}
 
@@ -164,7 +166,11 @@ class TestABatchIsOneIdentity:
 
         token = ctx.set(origin)
         try:
-            payload = {**_input(_draft()), "pending_drafts_queue": [self._queued()]}
+            payload = {
+                **_input(_draft()),
+                "pending_drafts_queue": [self._queued()],
+                "pending_drafts_grouped": True,
+            }
             result: dict[str, Any] = await _graph().ainvoke(
                 payload, {"configurable": {"thread_id": "t-batch"}}
             )
@@ -196,3 +202,39 @@ class TestABatchIsOneIdentity:
 
         assert result["__interrupt__"]
         assert result["__interrupt__"][0].value["action_requests"][0]["batch_total"] == 2
+
+
+class TestASequenceIsOneIdentityPerDraft:
+    """Two independent drafts on a ticket (ADR-288): the person saw and
+    approved the FIRST; the replay lets that one through and ASKS the second —
+    identical to what was shown is confirmed, anything else is asked again."""
+
+    SECOND = {"tool_name": "mcp_x_delete", "tool_label": "x: delete", "tool_args": {"target": "b"}}
+
+    async def test_the_approved_first_passes_and_the_second_is_asked(self) -> None:
+        from src.domains.agents.api.run_origin import out_of_turn_origin_ctx as ctx
+
+        origin = _origin(ApprovedDraft(draft_type="tool_call", digest=drafts_digest([CONTENT])))
+        queued = {
+            "draft_id": "draft-2",
+            "draft_type": "tool_call",
+            "draft_content": dict(self.SECOND),
+            "draft_summary": "",
+            "registry_ids": [],
+            "tool_name": "mcp_x_delete",
+            "step_id": None,
+        }
+        token = ctx.set(origin)
+        try:
+            result: dict[str, Any] = await _graph().ainvoke(
+                {**_input(_draft()), "pending_drafts_queue": [queued]},
+                {"configurable": {"thread_id": "t-seq-ticket"}},
+            )
+        finally:
+            ctx.reset(token)
+
+        assert origin.approved_draft is None, "the approval was spent on the first"
+        request = result["__interrupt__"][0].value["action_requests"][0]
+        assert request["draft_id"] == "draft-2"
+        assert (request["sequence_index"], request["sequence_total"]) == (2, 2)
+        assert result["confirmed_drafts"][0]["draft_id"] == "draft-1"

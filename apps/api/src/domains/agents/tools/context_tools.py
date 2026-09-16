@@ -360,11 +360,14 @@ async def resolve_reference(
 
         # 8. Return structured result
         if result.success:
+            # ``structured_data``, not ``data``: the constructor never had that
+            # keyword, so every successful resolution raised TypeError from
+            # v1.0.0 to 2026-09-15 (ADR-286).
             return UnifiedToolOutput.action_success(
                 message=_("Reference '{reference}' resolved successfully").format(
                     reference=reference
                 ),
-                data=result.model_dump(exclude_none=True),
+                structured_data=result.model_dump(exclude_none=True),
             )
         else:
             # Resolution failed (not found, ambiguous, etc.)

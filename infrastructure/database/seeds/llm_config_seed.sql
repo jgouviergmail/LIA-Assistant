@@ -21,6 +21,7 @@ VALUES
     (gen_random_uuid(), 'compaction', 'openai', 'gpt-5.6-luna', NULL, NULL, NULL, NULL, 50000, 250, '{"level": "medium", "budget_tokens": null, "exclude_from_output": false}'::jsonb, NULL, NOW(), NOW()),
     (gen_random_uuid(), 'evaluator', NULL, NULL, NULL, NULL, NULL, NULL, 500, NULL, NULL, NULL, NOW(), NOW()),
     (gen_random_uuid(), 'heartbeat_decision', 'openai', 'gpt-5.6-luna', NULL, NULL, NULL, NULL, 10000, NULL, '{"level": "medium", "budget_tokens": null, "exclude_from_output": false}'::jsonb, NULL, NOW(), NOW()),
+    (gen_random_uuid(), 'email_digest', 'deepseek', 'deepseek-flash', 0.2, NULL, NULL, NULL, 1000, 60, '{"level": "none", "budget_tokens": null, "exclude_from_output": false}'::jsonb, NULL, NOW(), NOW()),
     (gen_random_uuid(), 'heartbeat_message', 'deepseek', 'deepseek-flash', 0.3, NULL, NULL, NULL, 10000, NULL, '{"level": "none", "budget_tokens": null, "exclude_from_output": false}'::jsonb, NULL, NOW(), NOW()),
     (gen_random_uuid(), 'hitl_classifier', NULL, 'gpt-5.6-luna', 0.2, NULL, NULL, NULL, 5000, NULL, '{"level": "none", "budget_tokens": null, "exclude_from_output": false}'::jsonb, NULL, NOW(), NOW()),
     (gen_random_uuid(), 'hitl_plan_approval_question_generator', 'deepseek', 'deepseek-flash', 0.3, NULL, NULL, NULL, 5000, NULL, '{"level": "none", "budget_tokens": null, "exclude_from_output": false}'::jsonb, NULL, NOW(), NOW()),

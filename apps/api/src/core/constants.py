@@ -523,9 +523,43 @@ GOOGLE_CONTACTS_ALL_FIELDS = (
 EMAILS_BODY_MAX_LENGTH_DEFAULT = 20000  # Characters
 
 # Emails URL shortening threshold (for readability in email body)
-# URLs longer than this threshold are replaced with [lien](url) markdown format
+# URLs longer than this threshold are replaced with [link](url) markdown format
 # Short URLs (e.g., https://google.com) are kept as-is for readability
 EMAILS_URL_SHORTEN_THRESHOLD_DEFAULT = 20  # Characters
+# The label of a link in a text body handed to a model: technical English
+# (ADR-256); the cards re-label it in the user's language at render time.
+HTML_TEXT_LINK_LABEL: str = "link"
+# ADR-287: a long body reaches the model in PARTS, each under this many
+# tokens, cut at paragraph boundaries and never mid-sentence; the tool says
+# ``body_part``/``body_parts`` and the next ``part`` to pass. ~6 000
+# characters of prose — most messages fit in one part, a newsletter in two.
+EMAIL_BODY_PART_TOKENS_DEFAULT: int = 1_500
+# ADR-287: one digest per message, computed once by a small model and cached —
+# the unit « résume mes non lus » and a morning routine reason over. The key
+# carries the language and the schema version (a prompt change is a version
+# bump, never a silent restatement); a message never changes, so 30 days.
+REDIS_KEY_EMAIL_DIGEST_PREFIX: str = "email:digest:"
+EMAIL_DIGEST_SCHEMA_VERSION: int = 2  # 2: the prompt asked for one-sentence key points
+# The DEFAULT output cap of the `email_digest` slot (LLM_DEFAULTS and the seed);
+# the live value is the slot's max_tokens in llm_config_overrides, edited by the
+# administrator — never a .env key, model configuration lives in the database
+# (ADR-244). Measured 2026-09-15 on 34 real digests: a dense newsletter runs to
+# 550-600 output tokens in French and one of twenty was cut at 600 — a refusal
+# (ADR-275) paid in full. A ceiling the model rarely reaches, never a target.
+EMAIL_DIGEST_MAX_OUTPUT_TOKENS: int = 1_000
+EMAIL_DIGEST_GIST_MAX_CHARS: int = 300
+EMAIL_DIGEST_MAX_KEY_POINTS: int = 5
+EMAIL_DIGEST_MAX_ACTIONS: int = 3
+# A batch result row quotes the text it acted on (an e-mail body, a note) as ONE
+# bounded line — the person reads what was done, not the whole message (ADR-289).
+DRAFT_RESULT_EXCERPT_MAX_CHARS: int = 120
+EMAILS_DIGEST_ENABLED_DEFAULT: bool = True
+EMAILS_DIGEST_INPUT_MAX_TOKENS_DEFAULT: int = 2_000
+EMAILS_DIGEST_CACHE_TTL_SECONDS_DEFAULT: int = 30 * 24 * 3600
+EMAILS_DIGEST_CONCURRENCY_DEFAULT: int = 4
+# ADR-287: the quoted history and the signature leave a reply body at the client
+# boundary (six languages of markers, measured on a 48-body corpus).
+EMAILS_TRIM_QUOTED_REPLIES_DEFAULT: bool = True
 
 # Minimal preview for listing/searching emails (~150 tokens/email)
 # Use case: "recherche mes emails de john" - quick overview
@@ -2707,9 +2741,6 @@ RETRY_INITIAL_DELAY_DEFAULT = 1.0
 RETRY_MAX_DELAY_DEFAULT = 60.0
 RETRY_JITTER_DEFAULT = True
 
-# Email formatting
-EMAIL_TRUNCATION_RATIO_DEFAULT = 0.8
-
 
 # --- Agents config defaults ---
 MAX_AGENT_RESULTS_DEFAULT = 10
@@ -3014,6 +3045,11 @@ RATE_LIMIT_DEFAULT_EXPENSIVE_WINDOW_DEFAULT = 300
 CONTACTS_TOOL_DEFAULT_MAX_RESULTS_DEFAULT = 20
 CONTACTS_TOOL_DEFAULT_LIMIT_DEFAULT = 10
 CALENDAR_TOOL_DEFAULT_MAX_RESULTS_DEFAULT = 25
+# The window a calendar LISTING covers when the person names no end: now + N
+# days. One authority, read by the tool and published on both surfaces the
+# models read (ADR-184). The Apple client's own default range is unreachable
+# from the tool, which always passes both bounds (measured 2026-09-16).
+CALENDAR_TOOL_DEFAULT_DAYS_AHEAD_DEFAULT = 30
 TASKS_TOOL_DEFAULT_MAX_RESULTS_DEFAULT = 20
 PLACES_TOOL_DEFAULT_MAX_RESULTS_DEFAULT = 20
 PLACES_TOOL_DEFAULT_RADIUS_METERS_DEFAULT = 500
@@ -5661,6 +5697,16 @@ REACT_AGENT_HISTORY_WINDOW_TURNS_DEFAULT: int = 5
 # (ADR-070 amendment). Default True = validated behaviour; set False to fall back
 # to the opaque per-server task tool (instant rollback without redeploy).
 REACT_MCP_EXPAND_ITERATIVE_ENABLED_DEFAULT: bool = True
+# ADR-286: a tool result is PROJECTED into the loop's context item by item
+# under a token budget — never cut mid-item, the cut stated to the model.
+# 25 000 tokens is the reference Anthropic documents for agent tool results
+# (Claude Code's own default); the fraction keeps a small local window from
+# being swallowed by one result: effective budget = min(ceiling, window ×
+# fraction), the window being the ReAct slot's own (ADR-278). Measured
+# 2026-09-15: an 8 000-CHARACTER cut on a raw JSON dump showed the model no
+# readable field of any e-mail — eleven iterations, a wrong answer.
+REACT_TOOL_RESULT_MAX_TOKENS_DEFAULT: int = 25_000
+REACT_TOOL_RESULT_WINDOW_FRACTION_DEFAULT: float = 0.25
 
 # ============================================================================
 # HEALTH METRICS (iPhone Shortcuts ingestion — heart rate, steps, …)

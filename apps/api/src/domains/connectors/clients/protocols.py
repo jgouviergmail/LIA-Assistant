@@ -22,6 +22,8 @@ class EmailClientProtocol(Protocol):
         max_results: int = 10,
         fields: list[str] | None = None,
         use_cache: bool = True,
+        page_token: str | None = None,
+        headers_only: bool = False,
     ) -> dict: ...
 
     async def get_message(

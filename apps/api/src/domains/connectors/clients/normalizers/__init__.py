@@ -1,8 +1,12 @@
 """
 Provider normalizers.
 
-Convert native provider formats to the dict format expected by Google API clients,
-enabling transparent provider switching in tools.
+Convert native provider formats to the dict shape the tools read, enabling
+transparent provider switching. For e-mail the shape is the neutral
+:class:`~src.domains.connectors.clients.normalizers.email_message.EmailMessage`
+vocabulary (ADR-287): a clean text body (``html_text``), the quoted history
+and the signature removed (``reply_trimming``), no fabricated Gmail tree.
+Calendar, contacts and tasks still speak the Google API dict shape.
 
 Supported providers:
 - Apple iCloud: IMAP MailMessage, CalDAV VEVENT, CardDAV vCard

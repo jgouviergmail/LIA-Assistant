@@ -39,6 +39,7 @@ from src.core.constants import (
     CALENDAR_CACHE_DETAILS_TTL,
     CALENDAR_CACHE_LIST_TTL,
     CALENDAR_CACHE_SEARCH_TTL,
+    CALENDAR_TOOL_DEFAULT_DAYS_AHEAD_DEFAULT,
     CALENDAR_TOOL_DEFAULT_MAX_RESULTS_DEFAULT,
     CIRCUIT_BREAKER_FAILURE_THRESHOLD_DEFAULT,
     CIRCUIT_BREAKER_HALF_OPEN_MAX_CALLS_DEFAULT,
@@ -58,14 +59,19 @@ from src.core.constants import (
     DRIVE_CACHE_LIST_TTL,
     DRIVE_CACHE_SEARCH_TTL,
     DRIVE_TOOL_DEFAULT_MAX_RESULTS_DEFAULT,
-    EMAIL_TRUNCATION_RATIO_DEFAULT,
+    EMAIL_BODY_PART_TOKENS_DEFAULT,
     EMAILS_BODY_MAX_LENGTH_DEFAULT,
     EMAILS_CACHE_DETAILS_TTL_SECONDS,
     EMAILS_CACHE_LIST_TTL_SECONDS,
     EMAILS_CACHE_SEARCH_TTL_SECONDS,
+    EMAILS_DIGEST_CACHE_TTL_SECONDS_DEFAULT,
+    EMAILS_DIGEST_CONCURRENCY_DEFAULT,
+    EMAILS_DIGEST_ENABLED_DEFAULT,
+    EMAILS_DIGEST_INPUT_MAX_TOKENS_DEFAULT,
     EMAILS_SEARCH_FETCH_CONCURRENCY_DEFAULT,
     EMAILS_TOOL_DEFAULT_LIMIT_DEFAULT,
     EMAILS_TOOL_DEFAULT_MAX_RESULTS_DEFAULT,
+    EMAILS_TRIM_QUOTED_REPLIES_DEFAULT,
     EMAILS_URL_SHORTEN_THRESHOLD_DEFAULT,
     GMAIL_DEFAULT_SEARCH_DAYS,
     GOOGLE_CONTACTS_DETAILS_CACHE_TTL,
@@ -615,6 +621,15 @@ class ConnectorsSettings(BaseSettings):
         gt=0,
         description="Default max results for calendar search operations",
     )
+    calendar_tool_default_days_ahead: int = Field(
+        default=CALENDAR_TOOL_DEFAULT_DAYS_AHEAD_DEFAULT,
+        gt=0,
+        le=366,
+        description=(
+            "Days from now a calendar listing covers when no end bound is given "
+            "(one authority, published to the models)"
+        ),
+    )
     tasks_tool_default_max_results: int = Field(
         default=TASKS_TOOL_DEFAULT_MAX_RESULTS_DEFAULT,
         gt=0,
@@ -695,23 +710,63 @@ class ConnectorsSettings(BaseSettings):
     emails_body_max_length: int = Field(
         default=EMAILS_BODY_MAX_LENGTH_DEFAULT,
         gt=0,
-        description="Maximum email body length in characters before truncation (default: 2000)",
+        description=(
+            "Maximum email body length in characters before truncation "
+            f"(default: {EMAILS_BODY_MAX_LENGTH_DEFAULT})"
+        ),
+    )
+
+    emails_body_part_tokens: int = Field(
+        default=EMAIL_BODY_PART_TOKENS_DEFAULT,
+        ge=200,
+        le=20_000,
+        description=(
+            "Tokens one part of an e-mail body may hold when served to the model "
+            "(cut at paragraphs, never mid-sentence; the continuation is stated) (ADR-287)."
+        ),
+    )
+
+    # ADR-287: one digest per message (detail=summary), computed once and cached
+    emails_digest_enabled: bool = Field(
+        default=EMAILS_DIGEST_ENABLED_DEFAULT,
+        description=(
+            "Compute a digest per message for detail=summary (one short model call per NEW "
+            "message, then cached). Off: summary serves the bodies like full (ADR-287)."
+        ),
+    )
+    emails_digest_input_max_tokens: int = Field(
+        default=EMAILS_DIGEST_INPUT_MAX_TOKENS_DEFAULT,
+        ge=200,
+        le=20_000,
+        description="Tokens of a message body handed to the digest model (cut at paragraphs).",
+    )
+    emails_digest_cache_ttl_seconds: int = Field(
+        default=EMAILS_DIGEST_CACHE_TTL_SECONDS_DEFAULT,
+        ge=3600,
+        description="How long a computed digest is served from Redis (a message never changes).",
+    )
+    emails_digest_concurrency: int = Field(
+        default=EMAILS_DIGEST_CONCURRENCY_DEFAULT,
+        ge=1,
+        le=16,
+        description="Digests computed at once for one request (a burst, not a volume — ADR-254).",
+    )
+
+    emails_trim_quoted_replies: bool = Field(
+        default=EMAILS_TRIM_QUOTED_REPLIES_DEFAULT,
+        description=(
+            "Drop the quoted history and the signature from a reply body at the client "
+            "boundary, so a thread is not read eight times over (ADR-287)."
+        ),
     )
 
     # Emails URL shortening threshold (for readability)
     emails_url_shorten_threshold: int = Field(
         default=EMAILS_URL_SHORTEN_THRESHOLD_DEFAULT,
         gt=0,
-        description="URL length threshold for shortening to [lien](url) format (default: 50)",
-    )
-
-    email_truncation_ratio: float = Field(
-        default=EMAIL_TRUNCATION_RATIO_DEFAULT,
-        ge=0.5,
-        le=1.0,
         description=(
-            "Minimum ratio of allowed email body length to keep when finding sentence breaks. "
-            "E.g., 0.8 means keep at least 80% of max_length when truncating at sentence boundary."
+            "URL length threshold above which a url in a text body becomes "
+            f"[link](url) (default: {EMAILS_URL_SHORTEN_THRESHOLD_DEFAULT})"
         ),
     )
 

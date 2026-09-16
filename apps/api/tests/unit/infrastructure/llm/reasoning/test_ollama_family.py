@@ -13,7 +13,7 @@ from __future__ import annotations
 import pytest
 
 from src.core.reasoning_intent import LEVELS, ReasoningIntent
-from src.infrastructure.llm.reasoning.profiles import (
+from src.core.reasoning_profiles import (
     _RULES,
     FAMILIES,
     ollama_declared_ladder,

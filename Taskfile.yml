@@ -390,6 +390,20 @@ tasks:
       - cmd: .venv/bin/python scripts/workboard/measure_routing.py {{.CLI_ARGS}}
         platforms: [linux, darwin]
 
+  emails:corpus:measure:
+    desc: Score the reply trimmer (and a third-party candidate when installed) on the 48-body corpus
+    dir: "{{.API_DIR}}"
+    # A MEASUREMENT, never a gate: the house trimmer is pinned by a unit test
+    # over the same corpus; this replays it and scores mail-parser-reply beside
+    # it when the running interpreter holds that package, so the choice between
+    # the two is a number with a date (ADR-287). Run it with the interpreter the
+    # candidate is installed in to score the candidate.
+    cmds:
+      - cmd: .venv/Scripts/python scripts/emails/measure_reply_trimming.py {{.CLI_ARGS}}
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/emails/measure_reply_trimming.py {{.CLI_ARGS}}
+        platforms: [linux, darwin]
+
   documents:corpus:render:
     desc: Render the document corpus in every format (a rendering step, never a gate)
     dir: "{{.API_DIR}}"

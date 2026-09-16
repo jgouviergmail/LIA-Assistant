@@ -1439,6 +1439,18 @@ DRAFT_RESULT_VERBS_PAST: dict[Language, dict[str, str | dict[str, str]]] = {
 
 # Header word-order template per language.
 # Placeholders: {count}, {noun}, {verb}.
+#: How a language quotes a text it cites — the excerpt of a batch result row
+#: (ADR-289). French, Spanish and Italian use spaced guillemets; English and
+#: Chinese curly double quotes; German its low-high pair.
+EXCERPT_QUOTES: dict[Language, tuple[str, str]] = {
+    "fr": ("« ", " »"),
+    "en": ("“", "”"),
+    "es": ("« ", " »"),
+    "de": ("„", "“"),
+    "it": ("« ", " »"),
+    "zh-CN": ("“", "”"),
+}
+
 RESULT_HEADER_TEMPLATES: dict[Language, str] = {
     "fr": "{count} {noun} {verb}",
     "en": "{count} {noun} {verb}",

@@ -60,6 +60,7 @@ KEY_FAMILIES: dict[str, KeyScope] = {
     "gmail:message": KeyScope.USER_CACHE,
     "gmail:search": KeyScope.USER_CACHE,
     "gmail:labels": KeyScope.USER_CACHE,
+    "email:digest": KeyScope.USER_CACHE,
     "relations:context:v2": KeyScope.USER_CACHE,
     "briefing:v2": KeyScope.USER_CACHE,
     "heartbeat:birthdays": KeyScope.USER_CACHE,

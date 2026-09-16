@@ -29,6 +29,7 @@ import pytest
 from src.core.field_names import FIELD_CACHED_AT
 from src.domains.connectors.clients.apple_email_client import AppleEmailClient
 from src.domains.connectors.clients.base_apple_client import AppleAuthenticationError
+from src.domains.connectors.clients.normalizers.email_normalizer import normalize_imap_message
 from src.domains.connectors.schemas import AppleCredentials
 
 pytestmark = pytest.mark.unit
@@ -118,8 +119,10 @@ class _FakeMailBox:
     def __exit__(self, *exc_info):
         return False
 
-    def fetch(self, criteria=None, limit=None, mark_seen=False, reverse=False):
+    def fetch(self, criteria=None, limit=None, mark_seen=False, reverse=False, headers_only=False):
         self.fetch_calls.append((criteria, limit, mark_seen, reverse))
+        if isinstance(limit, slice):
+            return list(self.messages[limit])
         return list(self.messages[:limit] if limit else self.messages)
 
     def move(self, uids, folder):
@@ -146,7 +149,7 @@ class TestMessageCacheFreshness:
         ):
             result = await client._search_emails_impl("in:inbox", 10, None, True)
 
-        assert result["messages"] == [{"id": "42"}]
+        assert [m["id"] for m in result["messages"]] == ["42"]
         assert result["from_cache"] is False
         assert result[FIELD_CACHED_AT] is None
 
@@ -261,9 +264,11 @@ class TestSearchEmails:
 
         assert mailbox.folder.set.called, "a non-INBOX query must select the target folder"
 
-    async def test_returns_ids_only_like_the_gmail_list_endpoint(
+    async def test_returns_the_normalised_messages_like_the_gmail_search(
         self, client: AppleEmailClient
     ) -> None:
+        """The Gmail search fetches metadata per hit and returns the messages;
+        so does this listing (ADR-287) — a ``metadata`` level reads them as is."""
         redis = _fake_redis()
         mailbox = _FakeMailBox([_mail_message(uid="1"), _mail_message(uid="2")])
 
@@ -273,8 +278,9 @@ class TestSearchEmails:
         ):
             result = await client._search_emails_impl("in:inbox", 10, None, True)
 
-        assert result["messages"] == [{"id": "1"}, {"id": "2"}]
-        assert result["resultSizeEstimate"] == 2
+        assert [m["id"] for m in result["messages"]] == ["1", "2"]
+        assert result["messages"][0]["subject"] == "Quarterly report"
+        assert result["resultSizeEstimate"] is None, "the page size is not a count (ADR-185)"
 
     async def test_imap_auth_failure_is_classified(self, client: AppleEmailClient) -> None:
         redis = _fake_redis()
@@ -343,19 +349,17 @@ class TestSendEmail:
 class TestReplyEmail:
     """Reply subject, threading headers, reply-all recipients and quoting."""
 
-    ORIGINAL = {
-        "body": "Original body",
-        "payload": {
-            "headers": [
-                {"name": "From", "value": "bob@example.com"},
-                {"name": "To", "value": "jane@icloud.com, carol@example.com"},
-                {"name": "Cc", "value": "dave@example.com"},
-                {"name": "Subject", "value": "Quarterly report"},
-                {"name": "Date", "value": "Mon, 20 Jul 2026 09:00:00 +0000"},
-                {"name": "Message-ID", "value": "<original@example.com>"},
-            ]
-        },
-    }
+    # Built from the PRODUCER, never typed by hand: the client reads what the
+    # normaliser writes (ADR-287), and a hand-written double once carried a
+    # Gmail-shaped tree the real normaliser had stopped producing.
+    ORIGINAL = normalize_imap_message(
+        _mail_message(
+            to=("jane@icloud.com", "carol@example.com"),
+            cc=("dave@example.com",),
+            text="Original body",
+        ),
+        "INBOX",
+    )
 
     async def _reply(self, client: AppleEmailClient, **kwargs) -> dict:
         captured: dict = {}
@@ -378,10 +382,7 @@ class TestReplyEmail:
         assert captured["msg"]["Subject"] == "Re: Quarterly report"
 
     async def test_existing_re_prefix_is_not_duplicated(self, client: AppleEmailClient) -> None:
-        original = {
-            **self.ORIGINAL,
-            "payload": {"headers": [{"name": "Subject", "value": "Re: X"}]},
-        }
+        original = {**self.ORIGINAL, "subject": "Re: X"}
         captured: dict = {}
 
         async def _capture(recipients, msg):

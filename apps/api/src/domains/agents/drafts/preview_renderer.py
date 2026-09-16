@@ -49,10 +49,15 @@ from typing import TYPE_CHECKING, Any
 
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.i18n_drafts import get_draft_preview_labels
-from src.domains.agents.drafts.markdown_grammar import (
-    labelled_block,
-    labelled_row,
-    plain_row,
+from src.domains.agents.drafts.card_html import CardSurface, to_html_card
+from src.domains.agents.drafts.card_spec import (
+    Block,
+    CardSpec,
+    Note,
+    PreviewLine,
+    Row,
+    first_block_index,
+    to_markdown_lines,
 )
 from src.domains.agents.drafts.models import DraftType
 
@@ -63,8 +68,9 @@ if TYPE_CHECKING:
 # to the user's language/timezone by render_detailed_preview().
 _FormatDt = Callable[[str | None], str]
 
-# One renderer per DraftType: (content, labels, format_dt) -> preview lines.
-_PreviewRenderer = Callable[[dict[str, Any], dict[str, str], _FormatDt], list[str]]
+# One renderer per DraftType: (content, labels, format_dt) -> the card's lines,
+# DESCRIBED (ADR-289) — the Markdown and the HTML forms are drawn from them.
+_PreviewRenderer = Callable[[dict[str, Any], dict[str, str], _FormatDt], list[PreviewLine]]
 
 #: A confirmation card is a question, not a payload dump.
 _TOOL_CALL_MAX_ARGS = 6
@@ -78,40 +84,38 @@ _TOOL_CALL_MAX_VALUE_CHARS = 80
 # =============================================================================
 
 
-def _row(lbl: dict[str, str], key: str, value: object) -> str:
-    """One field of a preview: a Markdown list item.
+def _row(lbl: dict[str, str], key: str, value: object) -> Row:
+    """One field of a card, described under its localized label.
 
-    Binds the shared grammar to this surface's labels — the label under
-    ``key`` and the language's own separator. The grammar itself lives in
-    :mod:`~src.domains.agents.drafts.markdown_grammar`, shared with the
-    execution-result renderer so a card and its outcome cannot speak two
-    vocabularies (they did until ADR-276 lot 13's rule reached the second one).
+    The form — a Markdown list item, a ``lia-card`` key/value row — is drawn
+    later by the surface's serializer (ADR-289); the grammar every surface
+    shares lives in :mod:`~src.domains.agents.drafts.markdown_grammar`.
 
     Args:
-        lbl: The localized labels, which carry their language's punctuation.
+        lbl: The localized labels.
         key: Which field this row is.
         value: What to show for it.
 
     Returns:
-        The row.
+        The described row.
     """
-    return labelled_row(lbl[key], lbl["separator"], value)
+    return Row(lbl[key], value, key=key)
 
 
-def _note(text: str) -> str:
+def _note(text: str) -> Note:
     """A line with no label: a statement, or one line of data.
 
     Args:
         text: The line, already localized or already rendered.
 
     Returns:
-        The row, in the same list as the labelled ones.
+        The described note.
     """
-    return plain_row(text)
+    return Note(text)
 
 
-def _block(lbl: dict[str, str], key: str, text: str) -> str:
-    """A field whose value is a TEXT: its own paragraph under a bold lead.
+def _block(lbl: dict[str, str], key: str, text: str) -> Block:
+    """A field whose value is a TEXT carrying its own paragraphs.
 
     Args:
         lbl: The localized labels.
@@ -119,23 +123,12 @@ def _block(lbl: dict[str, str], key: str, text: str) -> str:
         text: The value, newlines and all.
 
     Returns:
-        The block, carrying the blank lines that separate it from its
-        neighbours — so the join stays a plain newline for every row.
+        The described block.
     """
-    return labelled_block(lbl[key], text)
+    return Block(lbl[key], text)
 
 
-def _first_block_index(lines: list[str]) -> int:
-    """Where the rows end and the blocks begin.
-
-    Args:
-        lines: The preview lines built so far.
-
-    Returns:
-        The index of the first block, or the end of the list when there is
-        none — so a row inserted there always lands among the rows.
-    """
-    return next((i for i, line in enumerate(lines) if line.startswith("\n")), len(lines))
+_first_block_index = first_block_index
 
 
 # =============================================================================
@@ -145,7 +138,7 @@ def _first_block_index(lines: list[str]) -> int:
 
 def _updated_row(
     lbl: dict[str, str], key: str, new_value: str | None, current_value: str
-) -> str | None:
+) -> Row | None:
     """Render an update-preview row showing the new value or the current one.
 
     Args:
@@ -171,7 +164,7 @@ def _updated_datetime_row(
     new_raw: str | None,
     current_raw: str,
     format_dt: _FormatDt,
-) -> str | None:
+) -> Row | None:
     """Render an update-preview datetime row (new value marked, else current).
 
     Args:
@@ -207,9 +200,9 @@ def _first_item_value(items: list[dict[str, Any]], key: str, default: str = "") 
 
 def _render_email_send(
     content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
-) -> list[str]:
+) -> list[PreviewLine]:
     """Render email send/reply previews (to, cc, bcc, subject, body)."""
-    lines: list[str] = []
+    lines: list[PreviewLine] = []
     to = content.get("to", "")
     cc = content.get("cc", "")
     bcc = content.get("bcc", "")
@@ -235,7 +228,7 @@ def _render_email_send(
 
 def _render_email_forward(
     content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
-) -> list[str]:
+) -> list[PreviewLine]:
     """Render an email forward preview: send fields plus attachments.
 
     The attachments row is inserted BEFORE the message, not appended after it:
@@ -253,7 +246,7 @@ def _render_email_forward(
 
 def _render_email_delete(
     content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
-) -> list[str]:
+) -> list[PreviewLine]:
     """Render an email delete preview (sender, subject, date)."""
     # The stored subject is the raw truth ("" when the email has none); the
     # localized fallback is applied here, at render time.
@@ -262,7 +255,7 @@ def _render_email_delete(
     date_raw = content.get("date", "")
     date = format_dt(date_raw) if date_raw else ""
 
-    lines = [
+    lines: list[PreviewLine] = [
         _row(lbl, "from", from_addr),
         _row(lbl, "subject", subject),
     ]
@@ -273,7 +266,7 @@ def _render_email_delete(
 
 def _render_ticket_delete(
     content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
-) -> list[str]:
+) -> list[PreviewLine]:
     """Render a workboard ticket delete preview (title, steps that go with it).
 
     The "?" fallback keeps the delete-preview convention of the other types.
@@ -281,7 +274,7 @@ def _render_ticket_delete(
     the deletion of one ticket must not read a zero and wonder what it counts.
     """
     title = content.get("title") or "?"
-    lines = [_row(lbl, "title", title)]
+    lines: list[PreviewLine] = [_row(lbl, "title", title)]
     children = int(content.get("children") or 0)
     if children:
         lines.append(_row(lbl, "steps", children))
@@ -290,7 +283,7 @@ def _render_ticket_delete(
 
 def _render_reminder_delete(
     content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
-) -> list[str]:
+) -> list[PreviewLine]:
     """Render a reminder delete preview (content, trigger datetime)."""
     # "?" fallback keeps the delete-preview convention of the other types
     # (task/contact/file/event delete all render "?" for a missing label).
@@ -298,13 +291,15 @@ def _render_reminder_delete(
     trigger_at = content.get("trigger_at", "")
     trigger_formatted = format_dt(trigger_at) if trigger_at else ""
 
-    lines = [_row(lbl, "event", reminder_content)]
+    lines: list[PreviewLine] = [_row(lbl, "event", reminder_content)]
     if trigger_formatted:
         lines.append(_row(lbl, "date", trigger_formatted))
     return lines
 
 
-def _render_event(content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt) -> list[str]:
+def _render_event(
+    content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
+) -> list[PreviewLine]:
     """Render an event creation preview (summary, times, place, attendees)."""
     summary = content.get("summary", "")
     start = format_dt(content.get("start_datetime", ""))
@@ -315,7 +310,7 @@ def _render_event(content: dict[str, Any], lbl: dict[str, str], format_dt: _Form
 
     # An event with no times is a draft the model left incomplete; « Début: »
     # over nothing states less than saying nothing at all.
-    lines = [_row(lbl, "event", summary)]
+    lines: list[PreviewLine] = [_row(lbl, "event", summary)]
     if start:
         lines.append(_row(lbl, "start", start))
     if end:
@@ -333,11 +328,11 @@ def _render_event(content: dict[str, Any], lbl: dict[str, str], format_dt: _Form
 
 def _render_event_update(
     content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
-) -> list[str]:
+) -> list[PreviewLine]:
     """Render an event update preview: resulting state, modified fields marked."""
     current = content.get("current_event", {})
     summary = content.get("summary") or current.get("summary", "?")
-    lines = [_row(lbl, "event", summary)]
+    lines: list[PreviewLine] = [_row(lbl, "event", summary)]
 
     current_start = current.get("start", {}).get(
         "dateTime", current.get("start", {}).get("date", "")
@@ -371,14 +366,14 @@ def _render_event_update(
 
 def _render_event_delete(
     content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
-) -> list[str]:
+) -> list[PreviewLine]:
     """Render an event delete preview (summary, start date)."""
     event = content.get("event", {})
     summary = event.get("summary", "?")
     start_raw = event.get("start", {}).get("dateTime", event.get("start", {}).get("date", ""))
     start = format_dt(start_raw) if start_raw else ""
 
-    lines = [_row(lbl, "event", summary)]
+    lines: list[PreviewLine] = [_row(lbl, "event", summary)]
     if start:
         lines.append(_row(lbl, "date", start))
     return lines
@@ -386,14 +381,14 @@ def _render_event_delete(
 
 def _render_contact(
     content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
-) -> list[str]:
+) -> list[PreviewLine]:
     """Render a contact creation preview (name, email, phone, organization)."""
     name = content.get("name", "")
     email = content.get("email", "")
     phone = content.get("phone", "")
     organization = content.get("organization", "")
 
-    lines = [_row(lbl, "contact", name)]
+    lines: list[PreviewLine] = [_row(lbl, "contact", name)]
     if email:
         lines.append(_row(lbl, "email", email))
     if phone:
@@ -405,14 +400,14 @@ def _render_contact(
 
 def _render_contact_update(
     content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
-) -> list[str]:
+) -> list[PreviewLine]:
     """Render a contact update preview: resulting state, modified fields marked."""
     current = content.get("current_contact", {})
     current_name = _first_item_value(current.get("names", []), "displayName", "?")
     new_name = content.get("name")
     name_value = new_name or current_name
     mark = " ✏️" if new_name else ""
-    lines = [_row(lbl, "contact", f"{name_value}{mark}")]
+    lines: list[PreviewLine] = [_row(lbl, "contact", f"{name_value}{mark}")]
 
     email_row = _updated_row(
         lbl,
@@ -445,26 +440,28 @@ def _render_contact_update(
 
 def _render_contact_delete(
     content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
-) -> list[str]:
+) -> list[PreviewLine]:
     """Render a contact delete preview (name, primary email)."""
     contact = content.get("contact", {})
     name = _first_item_value(contact.get("names", []), "displayName", "?")
     email = _first_item_value(contact.get("emailAddresses", []), "value")
 
-    lines = [_row(lbl, "contact", name)]
+    lines: list[PreviewLine] = [_row(lbl, "contact", name)]
     if email:
         lines.append(_row(lbl, "email", email))
     return lines
 
 
-def _render_task(content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt) -> list[str]:
+def _render_task(
+    content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
+) -> list[PreviewLine]:
     """Render a task creation preview (title, due date, notes)."""
     title = content.get("title", "")
     notes = content.get("notes", "")
     due_raw = content.get("due", "")
     due = format_dt(due_raw) if due_raw else ""
 
-    lines = [_row(lbl, "task", title)]
+    lines: list[PreviewLine] = [_row(lbl, "task", title)]
     if due:
         lines.append(_row(lbl, "due", due))
     if notes:
@@ -474,13 +471,13 @@ def _render_task(content: dict[str, Any], lbl: dict[str, str], format_dt: _Forma
 
 def _render_task_update(
     content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
-) -> list[str]:
+) -> list[PreviewLine]:
     """Render a task update preview: resulting state, modified fields marked."""
     current = content.get("current_task", {})
     new_title = content.get("title")
     title_value = new_title or current.get("title", "?")
     mark = " ✏️" if new_title else ""
-    lines = [_row(lbl, "task", f"{title_value}{mark}")]
+    lines: list[PreviewLine] = [_row(lbl, "task", f"{title_value}{mark}")]
 
     due_row = _updated_datetime_row(
         lbl, "due", content.get("due"), current.get("due", ""), format_dt
@@ -496,7 +493,7 @@ def _render_task_update(
 
 def _render_task_delete(
     content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
-) -> list[str]:
+) -> list[PreviewLine]:
     """Render a task delete preview (title only)."""
     title = content.get("title", "?")
     return [_row(lbl, "task", title)]
@@ -504,13 +501,13 @@ def _render_task_delete(
 
 def _render_file_delete(
     content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
-) -> list[str]:
+) -> list[PreviewLine]:
     """Render a Drive file delete preview (name, MIME type)."""
     file_data = content.get("file", {})
     name = file_data.get("name", "?")
     mime_type = file_data.get("mimeType", "")
 
-    lines = [_row(lbl, "file", name)]
+    lines: list[PreviewLine] = [_row(lbl, "file", name)]
     if mime_type:
         lines.append(_row(lbl, "type", mime_type))
     return lines
@@ -518,13 +515,13 @@ def _render_file_delete(
 
 def _render_label_delete(
     content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
-) -> list[str]:
+) -> list[PreviewLine]:
     """Render a Gmail label delete preview (label, sublabels, truncated at 5)."""
     label_name = content.get("label_name", "?")
     sublabels = content.get("sublabels", [])
     children_only = content.get("children_only", False)
 
-    lines: list[str] = []
+    lines: list[PreviewLine] = []
     if children_only:
         lines.append(_row(lbl, "label_parent", label_name))
         lines.append(_row(lbl, "sublabels_to_delete", len(sublabels)))
@@ -569,7 +566,7 @@ def _argument_value(value: Any) -> str:
 
 def _render_tool_call(
     content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
-) -> list[str]:
+) -> list[PreviewLine]:
     """Render a tool call awaiting confirmation (ADR-263).
 
     Shows WHAT will run and with WHICH arguments, because that is exactly what
@@ -579,7 +576,7 @@ def _render_tool_call(
     not a payload dump.
     """
     tool_label = content.get("tool_label") or content.get("tool_name") or "?"
-    lines = [_row(lbl, "tool", tool_label)]
+    lines: list[PreviewLine] = [_row(lbl, "tool", tool_label)]
     arguments = content.get("tool_args")
     if isinstance(arguments, dict) and arguments:
         shown = list(arguments.items())[:_TOOL_CALL_MAX_ARGS]
@@ -592,7 +589,7 @@ def _render_tool_call(
 
 def _render_phone_call(
     content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
-) -> list[str]:
+) -> list[PreviewLine]:
     """Render an outbound phone-call preview (callee, phone, objective)."""
     # "?" callee fallback matches the other types when the name is missing;
     # the phone/objective rows are omitted when empty, like optional fields
@@ -601,7 +598,7 @@ def _render_phone_call(
     phone = content.get("callee_phone", "")
     objective = content.get("objective", "")
 
-    lines = [_row(lbl, "callee", callee)]
+    lines: list[PreviewLine] = [_row(lbl, "callee", callee)]
     if phone:
         lines.append(_row(lbl, "phone", phone))
     if objective:
@@ -611,7 +608,7 @@ def _render_phone_call(
 
 def _render_devops_task(
     content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
-) -> list[str]:
+) -> list[PreviewLine]:
     """Render a remote-server task preview (server, task, extra instructions).
 
     Everything that reaches the remote CLI is shown, in full and untruncated:
@@ -629,7 +626,7 @@ def _render_devops_task(
     task = content.get("task", "")
     extra = content.get("context", "")
 
-    lines = [_row(lbl, "server", server)]
+    lines: list[PreviewLine] = [_row(lbl, "server", server)]
     if task:
         lines.append(_row(lbl, "task", task))
     if extra:
@@ -639,7 +636,7 @@ def _render_devops_task(
 
 def _render_peer_message(
     content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
-) -> list[str]:
+) -> list[PreviewLine]:
     """Render a relayed-message preview (recipient, full message — peers A3).
 
     The message is shown in full and untruncated: the recipient's assistant
@@ -649,7 +646,7 @@ def _render_peer_message(
     recipient = content.get("recipient_name") or "?"
     message = content.get("message", "")
 
-    lines = [_row(lbl, "recipient", recipient)]
+    lines: list[PreviewLine] = [_row(lbl, "recipient", recipient)]
     if message:
         lines.append(_block(lbl, "message", message))
     return lines
@@ -657,7 +654,7 @@ def _render_peer_message(
 
 def _render_vacation_responder(
     content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
-) -> list[str]:
+) -> list[PreviewLine]:
     """Render a Gmail vacation-responder preview (lot I).
 
     Enable: subject, full body and the activation window — the auto-reply is
@@ -671,7 +668,7 @@ def _render_vacation_responder(
     if not content.get("enable", False):
         return [_note(lbl["vacation_disabled"])]
 
-    lines: list[str] = []
+    lines: list[PreviewLine] = []
     subject = content.get("subject", "")
     body = content.get("body", "")
     start_date = content.get("start_date", "")
@@ -695,7 +692,7 @@ _SPREADSHEET_PREVIEW_MAX_ROWS = 10
 
 def _render_spreadsheet_write(
     content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
-) -> list[str]:
+) -> list[PreviewLine]:
     """Render a Sheets write preview (lot F phase write).
 
     Shows the file, the sheet, the target range (update mode) and the rows
@@ -703,7 +700,7 @@ def _render_spreadsheet_write(
     remainder stated (count doctrine): the user must know what will land in
     their spreadsheet before confirming.
     """
-    lines: list[str] = []
+    lines: list[PreviewLine] = []
     title = content.get("spreadsheet_title", "")
     sheet = content.get("sheet_name", "")
     a1_range = content.get("a1_range", "")
@@ -726,13 +723,13 @@ def _render_spreadsheet_write(
 
 def _render_document_append(
     content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
-) -> list[str]:
+) -> list[PreviewLine]:
     """Render a Docs append preview (lot F phase write).
 
     The text is shown in FULL and untruncated: it lands verbatim in the
     user's document, so they must be able to read every word they approve.
     """
-    lines: list[str] = []
+    lines: list[PreviewLine] = []
     title = content.get("document_title", "")
     text = content.get("text", "")
     if title:
@@ -744,7 +741,7 @@ def _render_document_append(
 
 def _render_email_filter(
     content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
-) -> list[str]:
+) -> list[PreviewLine]:
     """Render a Gmail filter creation preview (lot I).
 
     Criteria first (who it matches), then every requested action as a
@@ -752,7 +749,7 @@ def _render_email_filter(
     reads exactly what the filter will do and nothing else.
     """
     criteria = content.get("criteria") or {}
-    lines: list[str] = []
+    lines: list[PreviewLine] = []
     if criteria.get("from"):
         lines.append(_row(lbl, "from", criteria["from"]))
     if criteria.get("subject"):
@@ -770,7 +767,7 @@ def _render_email_filter(
 
 def _render_scheduled_action(
     content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
-) -> list[str]:
+) -> list[PreviewLine]:
     """Render a recurring-automation preview (title, schedule, instruction).
 
     ``schedule_human`` is pre-localized at draft creation (the tool knows the
@@ -780,7 +777,7 @@ def _render_scheduled_action(
     schedule = content.get("schedule_human", "")
     instruction = content.get("action_prompt", "")
 
-    lines = [_row(lbl, "title", title)]
+    lines: list[PreviewLine] = [_row(lbl, "title", title)]
     if schedule:
         lines.append(_row(lbl, "schedule", schedule))
     if instruction:
@@ -851,7 +848,37 @@ def render_detailed_preview(
         depth — the startup completeness assert makes this unreachable for
         ``DraftType`` values).
     """
+    if _PREVIEW_RENDERERS.get(draft.type) is None:
+        return draft.get_summary(user_language)
+
+    spec = build_card_spec(draft, user_language, user_timezone)
+    # Stripped: a block carries its own blank lines, so a preview ending on
+    # one would trail a gap — and every preview used to OPEN with one.
+    return "\n".join(to_markdown_lines(spec.lines, spec.separator)).strip()
+
+
+def build_card_spec(
+    draft: Draft,
+    user_language: str = "fr",
+    user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
+) -> CardSpec:
+    """Describe the card a person confirms (ADR-289).
+
+    The description is what every surface draws from: the Markdown form for
+    a surface that renders no markup, the ``lia-card`` form for the chat.
+
+    Args:
+        draft: The draft to describe.
+        user_language: Language for the labels (fr, en, es, de, it, zh-CN).
+        user_timezone: The person's IANA timezone for the dates.
+
+    Returns:
+        The emoji, the title, the language's separator and the lines — no
+        lines at all for a type with no renderer (unreachable for
+        ``DraftType`` values, which the startup assert keeps complete).
+    """
     from src.core.time_utils import format_datetime_for_display
+    from src.domains.agents.drafts.display import get_draft_emoji
 
     def format_dt(dt_str: str | None) -> str:
         """Format an ISO datetime string for display."""
@@ -859,14 +886,15 @@ def render_detailed_preview(
             return ""
         return format_datetime_for_display(dt_str, user_timezone, user_language, include_time=True)
 
-    renderer = _PREVIEW_RENDERERS.get(draft.type)
-    if renderer is None:
-        return draft.get_summary(user_language)
-
     lbl = get_draft_preview_labels(user_language)
-    # Stripped: a block carries its own blank lines, so a preview ending on
-    # one would trail a gap — and every preview used to OPEN with one.
-    return "\n".join(renderer(draft.content, lbl, format_dt)).strip()
+    renderer = _PREVIEW_RENDERERS.get(draft.type)
+    lines = renderer(draft.content, lbl, format_dt) if renderer else []
+    return CardSpec(
+        emoji=get_draft_emoji(draft.type.value),
+        title=card_title(draft, user_language),
+        separator=lbl["separator"],
+        lines=tuple(lines),
+    )
 
 
 def card_title(draft: Draft, user_language: str = "fr") -> str:
@@ -899,6 +927,7 @@ def render_confirmation_card(
     draft: Draft,
     user_language: str = "fr",
     user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
+    surface: CardSurface = CardSurface.PLAIN,
 ) -> str:
     """The card a person confirms: the thing's emoji and name over its preview.
 
@@ -910,15 +939,23 @@ def render_confirmation_card(
     e-mail twice. The card is now rendered here, streamed before the model's
     first token, and the model is asked for the question alone.
 
+    ADR-289: the card is DESCRIBED once (:func:`build_card_spec`) and drawn
+    per surface — the lot-13 Markdown for a surface that renders no markup,
+    the chat's ``lia-card`` otherwise.
+
     Args:
         draft: The draft to show.
         user_language: Language for the labels (fr, en, es, de, it, zh-CN).
         user_timezone: The person's IANA timezone for the dates.
+        surface: Where the card is drawn (see :func:`card_surface`).
 
     Returns:
-        ``{emoji} **{title}**``, a blank line, the detailed preview — Markdown
-        only, stripped at both ends.
+        For ``PLAIN``: ``{emoji} **{title}**``, a blank line, the detailed
+        preview — Markdown only, stripped at both ends. For ``CHAT``: one line
+        of ``lia-card`` HTML.
     """
+    if surface is CardSurface.CHAT:
+        return to_html_card(build_card_spec(draft, user_language, user_timezone))
     from src.domains.agents.drafts.display import get_draft_emoji
 
     header = f"{get_draft_emoji(draft.type.value)} **{card_title(draft, user_language)}**".strip()

@@ -52,6 +52,7 @@ from src.domains.agents.models import MessagesState
 from src.domains.agents.nodes.for_each_hitl_prep import (
     extract_item_previews_for_hitl,
     filter_registry_by_items,
+    is_pre_approved_lot,
     pre_execute_for_each_providers,
     refresh_for_each_scope_claims,
 )
@@ -1009,9 +1010,14 @@ async def _handle_execution_plan(
         # - tool_confirmation → pending_tool_confirmation (for tools without drafts)
         # - Other types (email, event, contact) → pending_draft_critique (for draft preview)
         #
-        # Batch draft support: When FOR_EACH produces multiple drafts of the same type,
-        # we store them all in pending_draft_critique as a batch for grouped confirmation.
+        # Several draft critiques (ADR-288): the first is presented, the rest
+        # queued. They are ONE lot — shown whole, confirmed whole — only when
+        # they are the members of a FOR_EACH the person approved this turn;
+        # otherwise the dispatch node asks for each in turn. Both keys are
+        # ALWAYS written so a previous turn's values can never leak into this one.
         pending_drafts = execution_result_obj.pending_drafts
+        result["pending_drafts_grouped"] = False
+        result["confirmed_drafts"] = []
 
         if pending_drafts:
             # Separate drafts by routing type
@@ -1071,16 +1077,24 @@ async def _handle_execution_plan(
                     draft_type=draft_critiques[0].get("draft_type"),
                 )
             elif len(draft_critiques) > 1:
-                # Batch: store first as pending_draft_critique, rest in queue
-                # hitl_dispatch_node will handle batch confirmation
+                # First presented, the rest queued; grouped only for a
+                # pre-approved FOR_EACH lot (ADR-288).
+                grouped = is_pre_approved_lot(
+                    draft_critiques,
+                    state.get(STATE_KEY_FOR_EACH_HITL_CTX),
+                    plan_id=execution_plan.plan_id,
+                    turn_id=current_turn_id,
+                )
                 result["pending_draft_critique"] = draft_critiques[0]
                 result["pending_drafts_queue"] = draft_critiques[1:]
+                result["pending_drafts_grouped"] = grouped
                 logger.info(
                     "registry_pending_batch_drafts_added_to_state",
                     run_id=run_id,
                     plan_id=execution_plan.plan_id,
                     batch_size=len(draft_critiques),
-                    draft_type=draft_critiques[0].get("draft_type"),
+                    grouped=grouped,
+                    draft_types=sorted({str(d.get("draft_type")) for d in draft_critiques}),
                     draft_ids=[d.get("draft_id") for d in draft_critiques],
                 )
 

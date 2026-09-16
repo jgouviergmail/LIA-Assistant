@@ -84,6 +84,11 @@ FIELD_METADATA = "metadata"  # Metadata dictionaries (LangChain, LangGraph, cust
 FIELD_PARAMETERS = "parameters"  # Tool/function parameters
 FIELD_RESULT = "result"  # Tool/agent result data
 FIELD_REACT_SYNTHESIS = "react_synthesis"  # ReAct loop's final answer (response passthrough key)
+# E-mail message body and its pagination (ADR-287): the clean text, the part
+# served, the number of parts — read by the detail levels and the digest step.
+FIELD_BODY = "body"
+FIELD_BODY_PART = "body_part"
+FIELD_BODY_PARTS = "body_parts"
 
 # Connectors & OAuth
 FIELD_CONNECTOR = "connector"

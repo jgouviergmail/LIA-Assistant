@@ -119,6 +119,47 @@ class TestTextMessageHandling:
     @pytest.mark.asyncio
     @patch(_PATCH_MD_TO_HTML, side_effect=lambda x: x)
     @patch(_PATCH_AGENT_SERVICE)
+    async def test_the_stream_runs_on_a_plain_surface(
+        self,
+        mock_agent_cls: MagicMock,
+        mock_md_html: MagicMock,
+        handler: InboundMessageHandler,
+        mock_sender: AsyncMock,
+        text_message: ChannelInboundMessage,
+    ) -> None:
+        """A channel renders no card (ADR-289): the draft question and the
+        execution result must be drawn as text for the whole stream, and the
+        declaration must not outlive the stream."""
+        from src.domains.agents.api.run_origin import plain_surface_ctx
+
+        seen: list[bool] = []
+
+        async def _observing_stream(*_args, **_kwargs):
+            seen.append(plain_surface_ctx.get())
+            yield _make_chunk("token", "ok")
+            yield _make_chunk("done", "")
+
+        mock_agent = mock_agent_cls.return_value
+        mock_agent.stream_chat_response = MagicMock(side_effect=_observing_stream)
+
+        await handler.handle(
+            message=text_message,
+            user_id=uuid4(),
+            user_language="fr",
+            user_timezone="Europe/Paris",
+            user_memory_enabled=True,
+            user_journals_enabled=True,
+            user_psyche_enabled=True,
+            conversation_id=None,
+            pending_hitl=None,
+        )
+
+        assert seen == [True]
+        assert plain_surface_ctx.get() is False
+
+    @pytest.mark.asyncio
+    @patch(_PATCH_MD_TO_HTML, side_effect=lambda x: x)
+    @patch(_PATCH_AGENT_SERVICE)
     async def test_empty_response_not_sent(
         self,
         mock_agent_cls: MagicMock,

@@ -34,6 +34,62 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 
+#: How a FOR_EACH item names its step (``dependency_graph`` expansion).
+_ITEM_STEP_INFIX = "_item_"
+
+
+def is_pre_approved_lot(
+    drafts: list[dict[str, Any]],
+    for_each_ctx: dict[str, Any] | None,
+    *,
+    plan_id: str,
+    turn_id: Any,
+) -> bool:
+    """Whether these drafts may be confirmed as ONE lot (ADR-288).
+
+    A lot is what the person already approved as a whole: every draft is an
+    ITEM of a FOR_EACH step of the context they approved in this turn, and
+    they all share one type. Anything else — two independent steps, a FOR_EACH
+    nobody approved, a stranger among the members, two types — is reviewed one
+    draft at a time.
+
+    Args:
+        drafts: The turn's draft critiques (``PendingDraftInfo`` dumps).
+        for_each_ctx: The persisted FOR_EACH HITL context, if any.
+        plan_id: The plan being executed.
+        turn_id: The current turn.
+
+    Returns:
+        True only for a homogeneous, fully pre-approved lot of two or more.
+    """
+    approved_steps = _approved_for_each_steps(for_each_ctx, plan_id=plan_id, turn_id=turn_id)
+    if len(drafts) < 2 or not approved_steps:
+        return False
+    if len({str(draft.get("draft_type", "")) for draft in drafts}) != 1:
+        return False
+    return all(_parent_for_each_step(draft.get("step_id")) in approved_steps for draft in drafts)
+
+
+def _approved_for_each_steps(
+    for_each_ctx: dict[str, Any] | None, *, plan_id: str, turn_id: Any
+) -> set[str]:
+    """The FOR_EACH steps the person approved in THIS turn — none otherwise."""
+    if not isinstance(for_each_ctx, dict) or not for_each_ctx.get("approved"):
+        return set()
+    if for_each_ctx.get("plan_id") != plan_id or for_each_ctx.get("turn_id") != turn_id:
+        return set()
+    return {
+        str(step.get("step_id"))
+        for step in for_each_ctx.get("steps") or []
+        if isinstance(step, dict) and step.get("step_id")
+    }
+
+
+def _parent_for_each_step(step_id: Any) -> str | None:
+    """The FOR_EACH step an ITEM step belongs to; ``None`` for a plain step."""
+    parent, infix, _ = str(step_id or "").rpartition(_ITEM_STEP_INFIX)
+    return parent if infix == _ITEM_STEP_INFIX else None
+
 
 async def pre_execute_for_each_providers(
     execution_plan: ExecutionPlan,

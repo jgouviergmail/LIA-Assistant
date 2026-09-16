@@ -17,7 +17,6 @@ from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formataddr, getaddresses
-from html.parser import HTMLParser
 from typing import Any
 from uuid import UUID
 
@@ -40,145 +39,13 @@ from src.domains.connectors.clients.base_google_client import (
     apply_max_items_limit,
 )
 from src.domains.connectors.clients.gmail_threads_mixin import GmailThreadsMixin
+from src.domains.connectors.clients.normalizers.html_text import html_to_text
+from src.domains.connectors.clients.normalizers.reply_trimming import clean_reply_body
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import ConnectorCredentials
 from src.infrastructure.cache.redis import get_redis_cache
 
 logger = structlog.get_logger(__name__)
-
-
-class HTMLToTextConverter(HTMLParser):
-    """
-    Convert HTML to readable plain text.
-
-    Preserves important structure:
-    - Paragraphs: Adds double newlines between <p> tags
-    - Line breaks: Converts <br> to single newline
-    - Links: Converts <a href="url">text</a> to "text (url)"
-    - Lists: Adds bullets/numbers for <li> items
-    - Headers: Adds newlines before/after headers
-    - Ignores: <style>, <script>, and other non-content tags
-
-    Example:
-        >>> converter = HTMLToTextConverter()
-        >>> converter.feed("<p>Hello <b>world</b>!</p><p>Second paragraph.</p>")
-        >>> text = converter.get_text()
-        >>> # Returns: "Hello world!\\n\\nSecond paragraph.\\n\\n"
-    """
-
-    def __init__(self, url_shorten_threshold: int = 50) -> None:
-        """
-        Initialize HTML parser.
-
-        Args:
-            url_shorten_threshold: URLs longer than this are shortened to [lien](url)
-        """
-        super().__init__()
-        self.text_parts: list[str] = []
-        self.ignore_content = False  # For <style>, <script> tags
-        self.current_link_url: str | None = None
-        self.in_list_item = False
-        self.url_shorten_threshold = url_shorten_threshold
-
-    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        """Handle opening HTML tags."""
-        # Block-level elements: Add newlines before
-        if tag in ("p", "div", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote"):
-            self.text_parts.append("\n")
-        elif tag == "br":
-            self.text_parts.append("\n")
-        elif tag == "li":
-            self.text_parts.append("\n• ")
-            self.in_list_item = True
-        elif tag == "a":
-            # Extract href attribute
-            for attr_name, attr_value in attrs:
-                if attr_name == "href" and attr_value:
-                    self.current_link_url = attr_value
-                    break
-        elif tag in ("style", "script"):
-            self.ignore_content = True
-
-    def handle_endtag(self, tag: str) -> None:
-        """Handle closing HTML tags."""
-        # Block-level elements: Add newlines after
-        if tag in ("p", "div", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote"):
-            self.text_parts.append("\n")
-        elif tag == "li":
-            self.in_list_item = False
-        elif tag == "a":
-            # Add clickable [lien](url) in markdown format
-            if self.current_link_url:
-                self.text_parts.append(f" [lien]({self.current_link_url})")
-                self.current_link_url = None
-        elif tag in ("style", "script"):
-            self.ignore_content = False
-
-    def handle_data(self, data: str) -> None:
-        """Handle text content."""
-        if not self.ignore_content and data.strip():
-            # Normalize whitespace (multiple spaces/tabs/newlines → single space)
-            normalized = " ".join(data.split())
-            if normalized:
-                # Add space before inline content if needed
-                # This ensures "This is <b>bold</b> text" becomes "This is bold text"
-                # instead of "This isbold text"
-                if self.text_parts:
-                    last_part = self.text_parts[-1]
-                    # If last part doesn't end with whitespace/newline and
-                    # current text doesn't start with punctuation, add space
-                    if (
-                        last_part
-                        and not last_part[-1].isspace()
-                        and not last_part.endswith("\n")
-                        and normalized[0] not in ".,;:!?'\")]}—"
-                    ):
-                        self.text_parts.append(" ")
-                self.text_parts.append(normalized)
-
-    def get_text(self) -> str:
-        """
-        Get extracted plain text.
-
-        Returns:
-            Cleaned plain text with normalized whitespace.
-        """
-        # Join all parts
-        text = "".join(self.text_parts)
-
-        # Replace standalone URLs (not in <a> tags) with clickable [lien](url)
-        # Pattern: https?://... with many characters (tracking params, etc.)
-        # Keep short URLs as-is, replace longer ones with clickable [lien](url)
-        threshold = self.url_shorten_threshold
-
-        def replace_long_url(match: re.Match[str]) -> str:
-            url = match.group(0)
-            # Skip if already in markdown format [text](url)
-            if url.endswith(")"):
-                return url
-            if len(url) > threshold:
-                return f"[lien]({url})"
-            return url
-
-        text = re.sub(
-            r"https?://[^\s<>\"'\)]+",  # Match URLs not followed by HTML/quotes/parens
-            replace_long_url,
-            text,
-        )
-
-        # Clean up excessive newlines (more than 2 consecutive → 2)
-        text = re.sub(r"\n{3,}", "\n\n", text)
-
-        # Remove leading/trailing whitespace from each line
-        lines = [line.strip() for line in text.split("\n")]
-
-        # Remove empty lines at start/end
-        while lines and not lines[0]:
-            lines.pop(0)
-        while lines and not lines[-1]:
-            lines.pop()
-
-        return "\n".join(lines)
 
 
 class GoogleGmailClient(GmailThreadsMixin, BaseGoogleClient):
@@ -331,7 +198,7 @@ class GoogleGmailClient(GmailThreadsMixin, BaseGoogleClient):
             if payload:
                 body = GoogleGmailClient._extract_body_recursive(payload)
                 if body:
-                    message["body"] = body
+                    message["body"] = clean_reply_body(body, subject=message.get("subject"))
 
         # Mark provider for downstream identification (same as Apple/Microsoft)
         if "_provider" not in message:
@@ -379,24 +246,8 @@ class GoogleGmailClient(GmailThreadsMixin, BaseGoogleClient):
         if mime_type == "text/html":
             body_data = payload.get("body", {}).get("data", "")
             if body_data:
-                html = GoogleGmailClient._decode_base64url(body_data)
-                # Convert HTML to readable plain text using HTMLParser
-                # Use configured URL shortening threshold
-                converter = HTMLToTextConverter(
-                    url_shorten_threshold=settings.emails_url_shorten_threshold
-                )
-                try:
-                    converter.feed(html)
-                    return converter.get_text()
-                except Exception as e:
-                    logger.warning(
-                        "html_to_text_conversion_failed",
-                        error=str(e),
-                        html_preview=html[:100],
-                    )
-                    # Fallback to basic regex stripping if parser fails
-                    text = re.sub(r"<[^>]+>", "", html)
-                    return text.strip()
+                # One HTML → text for every provider (ADR-287).
+                return html_to_text(GoogleGmailClient._decode_base64url(body_data))
 
         # Recursive case: Multipart message (with bounded depth)
         if mime_type.startswith("multipart/"):
@@ -605,6 +456,8 @@ class GoogleGmailClient(GmailThreadsMixin, BaseGoogleClient):
         max_results: int = settings.emails_tool_default_max_results,
         fields: list[str] | None = None,
         use_cache: bool = True,
+        page_token: str | None = None,
+        headers_only: bool = False,
     ) -> dict[str, Any]:
         """
         Search emails using Gmail search query syntax.
@@ -622,11 +475,17 @@ class GoogleGmailClient(GmailThreadsMixin, BaseGoogleClient):
             max_results: Maximum number of results (default 10, max 500).
             fields: Field projection (default: GOOGLE_GMAIL_SEARCH_FIELDS).
             use_cache: Use Redis cache (default True).
+            page_token: The ``next_page_token`` of a previous page, to continue
+                the same search (ADR-287).
+            headers_only: Accepted for provider parity; the Gmail listing is
+                metadata-only by construction (``format=metadata`` per hit).
 
         Returns:
             Dict with:
             - messages: List of message objects
-            - resultSizeEstimate: Approximate total matches
+            - resultSizeEstimate: Approximate total matches (an ESTIMATE:
+              Gmail never counts exactly)
+            - next_page_token: Token of the next page, or None
             - from_cache: Boolean (True if served from cache)
             - cached_at: Cache timestamp (if from cache)
 
@@ -636,8 +495,13 @@ class GoogleGmailClient(GmailThreadsMixin, BaseGoogleClient):
             ...     max_results=20
             ... )
         """
-        # Generate cache key
-        cache_key = f"{REDIS_KEY_GMAIL_SEARCH_PREFIX}{self.user_id}:{hashlib.md5(query.encode()).hexdigest()}:{max_results}"
+        # Generate cache key — the page is part of the identity, or page 2
+        # would be served from page 1's entry.
+        page_part = f":{page_token}" if page_token else ""
+        cache_key = (
+            f"{REDIS_KEY_GMAIL_SEARCH_PREFIX}{self.user_id}:"
+            f"{hashlib.md5(query.encode()).hexdigest()}:{max_results}{page_part}"
+        )
 
         # Try cache first
         if use_cache:
@@ -661,10 +525,12 @@ class GoogleGmailClient(GmailThreadsMixin, BaseGoogleClient):
         effective_max_results = apply_max_items_limit(max_results)
 
         # Search messages (list API with query parameter)
-        params = {
+        params: dict[str, Any] = {
             "q": query,
             "maxResults": effective_max_results,
         }
+        if page_token:
+            params["pageToken"] = page_token
 
         response = await self._make_request("GET", "/users/me/messages", params=params)
 
@@ -695,7 +561,9 @@ class GoogleGmailClient(GmailThreadsMixin, BaseGoogleClient):
 
         result = {
             "messages": messages,
-            "resultSizeEstimate": response.get("resultSizeEstimate", len(messages)),
+            # Gmail always states its estimate; absent, nothing is stated (ADR-185).
+            "resultSizeEstimate": response.get("resultSizeEstimate"),
+            "next_page_token": response.get("nextPageToken"),
         }
 
         # Cache result
@@ -1372,7 +1240,6 @@ class GoogleGmailClient(GmailThreadsMixin, BaseGoogleClient):
             >>> print(resolved)
             "label:Label_12345678 is:unread"
         """
-        import re
 
         # System labels that don't need resolution (Gmail understands them as-is)
         SYSTEM_LABELS = {

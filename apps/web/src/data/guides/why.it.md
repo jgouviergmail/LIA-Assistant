@@ -4,7 +4,7 @@
 
 **Versione**: 6.0
 **Data**: 2026-08-23
-**Applicazione**: LIA v1.44.6
+**Applicazione**: LIA v1.44.7
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -122,7 +122,7 @@ Parla a LIA come faresti con un assistente umano — niente comandi da memorizza
 
 ### 3.2. Servizi connessi personali
 
-- **Email**: leggere, cercare, redigere, inviare, rispondere, inoltrare — via Gmail, Outlook o Apple Mail
+- **Email**: leggere, cercare, redigere, inviare, rispondere, inoltrare — via Gmail, Outlook o Apple Mail; un messaggio arriva come testo pulito, e molti si riassumono messaggio per messaggio («riassumi le mie non lette», «una sintesi delle newsletter della settimana»)
 - **Calendario**: consultare, creare, modificare, eliminare eventi — via Google Calendar, Outlook Calendar o Apple Calendar
 - **Contatti**: cercare, creare, modificare contatti — via Google Contacts, Outlook Contacts o Apple Contacts
 - **Attività**: gestire le tue liste di attività — via Google Tasks o Microsoft To Do
@@ -462,7 +462,7 @@ Il sistema di risposta dispone di un meccanismo anti-allucinazione a tre livelli
 
 ### 8.4. Human-in-the-Loop a 6 livelli
 
-LIA non rifiuta le azioni sensibili — te le **sottopone** con il livello di dettaglio appropriato: approvazione del piano, chiarimento, critica della bozza, conferma distruttiva, conferma di operazioni in massa, revisione delle modifiche. Ogni approvazione alimenta l'apprendimento — il sistema si velocizza nel tempo. E la promessa è mantenuta alla lettera: ciò che approvi — dopo una, due o dieci modifiche — è **esattamente** ciò che viene eseguito, mai una versione rigenerata dietro le quinte.
+LIA non rifiuta le azioni sensibili — te le **sottopone** con il livello di dettaglio appropriato: approvazione del piano, chiarimento, critica della bozza, conferma distruttiva, conferma di operazioni in massa, revisione delle modifiche. Ogni approvazione alimenta l'apprendimento — il sistema si velocizza nel tempo. E la promessa è mantenuta alla lettera: ciò che approvi — dopo una, due o dieci modifiche — è **esattamente** ciò che viene eseguito, mai una versione rigenerata dietro le quinte. E quando una richiesta prepara più bozze, ti vengono sottoposte una alla volta, ciascuna sulla sua scheda, senza eseguire nulla prima della tua ultima risposta, e il resoconto dice a chi e cosa — solo un'operazione in massa che hai approvato come elenco conserva un'unica conferma.
 
 ### 8.5. Le tue risposte non hanno bisogno di te
 

@@ -118,14 +118,17 @@ get_events_catalogue_manifest = ToolManifest(
             name="time_min",
             type="string",
             required=False,
-            description="Start of search window (ISO format)",
+            description="Start of search window (ISO format; default: now)",
             semantic_type="datetime",
         ),
         ParameterSchema(
             name="time_max",
             type="string",
             required=False,
-            description="End of search window (ISO format)",
+            description=(
+                "End of search window (ISO format; default: now + "
+                f"{settings.calendar_tool_default_days_ahead} days)"
+            ),
             # Emptied by the validator for open/relative queries with no user
             # temporal reference, so the tool's default window applies instead of
             # a planner-hallucinated narrow bound (e.g. "my next medical appts").

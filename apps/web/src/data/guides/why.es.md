@@ -4,7 +4,7 @@
 
 **Versión**: 6.0
 **Fecha**: 2026-08-23
-**Aplicación**: LIA v1.44.6
+**Aplicación**: LIA v1.44.7
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -122,7 +122,7 @@ Habla con LIA como lo harías con un asistente humano — sin comandos que memor
 
 ### 3.2. Servicios conectados personales
 
-- **Correo**: leer, buscar, redactar, enviar, responder, reenviar — vía Gmail, Outlook o Apple Mail
+- **Correo**: leer, buscar, redactar, enviar, responder, reenviar — vía Gmail, Outlook o Apple Mail; un mensaje llega como texto limpio, y muchos se resumen mensaje a mensaje («resume mis no leídos», «una síntesis de los boletines de la semana»)
 - **Calendario**: consultar, crear, modificar y eliminar eventos — vía Google Calendar, Outlook Calendar o Apple Calendar
 - **Contactos**: buscar, crear y modificar contactos — vía Google Contacts, Outlook Contacts o Apple Contacts
 - **Tareas**: gestionar tus listas de tareas — vía Google Tasks o Microsoft To Do
@@ -462,7 +462,7 @@ El sistema de respuesta dispone de un mecanismo anti-alucinación en tres capas:
 
 ### 8.4. Human-in-the-Loop en 6 niveles
 
-LIA no rechaza las acciones sensibles — te las **presenta** con el nivel de detalle adecuado: aprobación de plan, clarificación, revisión de borrador, confirmación destructiva, confirmación de operaciones masivas, revisión de modificaciones. Cada aprobación alimenta el aprendizaje — el sistema se acelera con el tiempo. Y la promesa se cumple al pie de la letra: lo que apruebas — tras una, dos o diez retoques — es **exactamente** lo que se ejecuta, nunca una versión regenerada a escondidas.
+LIA no rechaza las acciones sensibles — te las **presenta** con el nivel de detalle adecuado: aprobación de plan, clarificación, revisión de borrador, confirmación destructiva, confirmación de operaciones masivas, revisión de modificaciones. Cada aprobación alimenta el aprendizaje — el sistema se acelera con el tiempo. Y la promesa se cumple al pie de la letra: lo que apruebas — tras una, dos o diez retoques — es **exactamente** lo que se ejecuta, nunca una versión regenerada a escondidas. Y cuando una petición prepara varios borradores, se te presentan uno a uno, cada uno en su tarjeta, sin ejecutar nada antes de tu última respuesta, y el informe dice a quién y qué — solo una operación en masa que aprobaste como lista conserva una confirmación única.
 
 ### 8.5. Tus respuestas no te necesitan
 

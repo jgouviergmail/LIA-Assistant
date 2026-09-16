@@ -191,6 +191,8 @@ LLMType = Literal[
     "telephony_agent",
     # Document generation — dedicated whole-document writer (ADR-226)
     "document_generation",
+    # E-mail digest: one short structured call per message, cached (ADR-287)
+    "email_digest",
     # Meeting minutes — structured synthesis of a transcribed recording (ADR-258)
     "meeting_synthesis",
     # Relationship debrief — daily synthesis of one contact's file (personal CRM)

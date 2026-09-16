@@ -87,6 +87,7 @@ from src.domains.agents.display.config import config_for_viewport
 # ResponseFormatter removed - pure HTML mode only
 from src.domains.agents.display.html_renderer import NestedData, get_html_renderer
 from src.domains.agents.display.sentinel_filter import strip_widget_sentinels
+from src.domains.agents.drafts.card_html import card_surface
 from src.domains.agents.drafts.models import DraftAction
 from src.domains.agents.drafts.result_renderer import render_execution_result
 from src.domains.agents.expressivity.turn import inject_tone_instruction, take_tone_annotation
@@ -2246,7 +2247,8 @@ async def _resolve_response_context_summary(
     draft_execution_result = await _execute_draft_if_confirmed(state, config, run_id)
     if draft_execution_result:
         # Format draft execution result for response synthesis
-        draft_summary = render_execution_result(draft_execution_result)
+        # ADR-289: the chat draws the result as a card, a ticket keeps Markdown.
+        draft_summary = render_execution_result(draft_execution_result, surface=card_surface())
         if draft_summary:
             # After HITL confirmation, REPLACE the entire agent_results_summary
             # with only the execution result. The user already saw intermediate results

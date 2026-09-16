@@ -56,14 +56,16 @@ class TestNormalizeGmailQueryScope:
     @pytest.mark.parametrize(
         ("raw", "expected_fragment"),
         [
-            ("inbox", "-in:sent"),  # LLM mistake for "latest emails"
-            ("received", "-in:sent"),
+            ("inbox", "label:inbox"),  # the inbox IS the inbox
+            ("received", "label:inbox"),  # what a person calls their received mail (ADR-287)
             ("sent", "in:sent"),
         ],
     )
     def test_llm_error_normalizations(self, raw: str, expected_fragment: str) -> None:
         """Whole-query search terms the LLM emits instead of operators."""
-        assert expected_fragment in normalize_gmail_query(raw, default_days_back=0)
+        result = normalize_gmail_query(raw, default_days_back=0)
+        assert expected_fragment in result
+        assert "-in:sent" not in result or raw == "sent" or "in:sent" in result
 
     def test_sent_normalization_does_not_exclude_sent(self) -> None:
         """'sent' → in:sent, and the received-scope default must NOT also fire."""
@@ -71,8 +73,19 @@ class TestNormalizeGmailQueryScope:
         assert "in:sent" in result
         assert "-in:sent" not in result
 
-    def test_empty_query_gets_received_scope(self) -> None:
+    def test_empty_query_is_a_listing_of_the_inbox(self) -> None:
+        """No query is « my latest emails »: the inbox, never « everything but
+        sent » — measured 2026-09-15, the pipeline listed archived mail while
+        ReAct listed the inbox for the same words (ADR-287)."""
         result = normalize_gmail_query("", default_days_back=0)
+        assert "label:inbox" in result
+        assert "-in:sent" not in result
+
+    def test_a_search_without_scope_still_reaches_archived_mail(self) -> None:
+        """A needle (« from:john ») may sit in an archived thread: sent and
+        drafts are excluded, the rest is searched."""
+        result = normalize_gmail_query("from:john", default_days_back=0)
+        assert "label:inbox" not in result
         assert "-in:sent" in result and "-in:draft" in result
 
 

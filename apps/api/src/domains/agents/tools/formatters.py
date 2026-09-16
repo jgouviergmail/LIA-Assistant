@@ -25,7 +25,7 @@ Usage Example:
 
     # Extract specific fields from raw API data
     emails = ContactsFormatter._extract_emails(person)
-    body = GmailFormatter._extract_body_truncated(message)
+    body = GmailFormatter._extract_body(message)
     attachments = GmailFormatter._extract_attachments(message)
 """
 
@@ -764,34 +764,15 @@ class GmailFormatter:
     def _extract_body(message: dict[str, Any]) -> str:
         """Extract email body content (provider-aware).
 
-        - Apple: body is at top-level (plain text, returned as-is)
-        - Microsoft: body is at top-level (HTML, converted to plain text)
+        - Apple and Microsoft: body is at top-level, already text (ADR-287)
         - Gmail: body is in payload.parts (base64url encoded, needs recursive extraction)
         """
         # Fast path: top-level body (Apple/Microsoft normalizer, or already enriched)
         top_level_body = message.get("body")
         if isinstance(top_level_body, str) and top_level_body:
-            provider = message.get("_provider")
-            if provider == "microsoft":
-                # Microsoft Graph returns HTML body — convert to readable plain text
-                from src.domains.connectors.clients.google_gmail_client import (
-                    HTMLToTextConverter,
-                )
-
-                try:
-                    from src.core.config import settings
-
-                    converter = HTMLToTextConverter(
-                        url_shorten_threshold=settings.emails_url_shorten_threshold
-                    )
-                    converter.feed(top_level_body)
-                    return converter.get_text()
-                except Exception:
-                    # Fallback: basic HTML stripping
-                    import re
-
-                    text = re.sub(r"<[^>]+>", "", top_level_body)
-                    return html.unescape(text).strip()
+            # Every provider hands TEXT at its client boundary (ADR-287): the
+            # Graph HTML used to be converted here, late, after the raw markup
+            # had travelled through the registry.
             return top_level_body
 
         # Gmail path: extract from payload parts
@@ -803,60 +784,6 @@ class GmailFormatter:
         from src.domains.connectors.clients.google_gmail_client import GoogleGmailClient
 
         return GoogleGmailClient._extract_body_recursive(payload)
-
-    @staticmethod
-    def _extract_body_truncated(message: dict[str, Any], locale: str = "fr-FR") -> str:
-        """
-        Extract email body with truncation for long emails.
-
-        Truncates body at configured max length and adds a continuation link.
-        Provider-aware: Gmail gets a clickable link, Apple gets plain truncation.
-
-        Args:
-            message: Normalized email message dict (Gmail or Apple format).
-            locale: User's locale for i18n messages.
-
-        Returns:
-            Body text, truncated with continuation marker if too long.
-        """
-        from src.core.config import settings
-
-        body = GmailFormatter._extract_body(message)
-        if not body:
-            return ""
-
-        # Decode HTML entities (&#39; -> ', &amp; -> &, etc.)
-        body = html.unescape(body)
-
-        max_length = settings.emails_body_max_length
-
-        # Check if truncation is needed
-        if len(body) <= max_length:
-            return body
-
-        # Get language from locale
-        lang = normalize_language(locale or "")
-
-        # Truncate and add continuation link (provider-aware)
-        email_url = GmailFormatter._extract_email_web_url(message)
-        truncated_body = body[:max_length].rstrip()
-
-        # Find last complete sentence or paragraph for cleaner cut
-        # Look for sentence endings near the cut point
-        for end_marker in ["\n\n", ". ", ".\n", "! ", "!\n", "? ", "?\n"]:
-            last_end = truncated_body.rfind(end_marker)
-            if last_end > max_length * settings.email_truncation_ratio:
-                truncated_body = truncated_body[: last_end + len(end_marker)]
-                break
-
-        # Add continuation link (with web URL for Gmail, plain truncation for Apple)
-        truncated_body = truncated_body.rstrip()
-        if email_url:
-            truncated_body += "\n\n" + APIMessages.email_read_more(email_url, lang)
-        else:
-            truncated_body += "\n\n" + APIMessages.message_truncated(lang)
-
-        return truncated_body
 
     @staticmethod
     def _extract_all_headers(message: dict[str, Any]) -> dict[str, str]:

@@ -310,43 +310,11 @@ class TestGmailBodyExtraction:
         message = {"_provider": "apple", "body": "Plain text body"}
         assert GmailFormatter._extract_body(message) == "Plain text body"
 
-    def test_microsoft_html_body_is_flattened(self) -> None:
-        message = {"_provider": "microsoft", "body": "<p>Hello <b>world</b></p>"}
-        text = GmailFormatter._extract_body(message)
-        assert "<p>" not in text
-        assert "Hello" in text
+    def test_top_level_body_is_returned_as_is_whatever_the_provider(self) -> None:
+        """Every provider hands TEXT at its client boundary (ADR-287); the
+        formatter no longer converts a Graph body late."""
+        message = {"_provider": "microsoft", "body": "Hello world"}
+        assert GmailFormatter._extract_body(message) == "Hello world"
 
     def test_message_without_body_or_payload_yields_empty(self) -> None:
         assert GmailFormatter._extract_body({}) == ""
-
-    def test_short_body_is_not_truncated(self) -> None:
-        message = {"_provider": "apple", "body": "Short body", "id": "1"}
-        assert GmailFormatter._extract_body_truncated(message) == "Short body"
-
-    def test_long_body_is_truncated_with_a_continuation_marker(self) -> None:
-        from src.core.config import settings
-
-        body = "Sentence. " * (settings.emails_body_max_length // 5)
-        message = {"_provider": "apple", "body": body, "id": "1"}
-
-        truncated = GmailFormatter._extract_body_truncated(message, "fr-FR")
-
-        assert len(truncated) < len(body)
-        assert truncated != body
-
-    def test_gmail_truncation_offers_a_link_to_the_full_message(self) -> None:
-        from src.core.config import settings
-
-        body = "Sentence. " * (settings.emails_body_max_length // 5)
-        message = {"body": body, "id": "abc123"}
-
-        truncated = GmailFormatter._extract_body_truncated(message, "fr-FR")
-
-        assert "abc123" in truncated
-
-    def test_entities_in_the_body_are_decoded(self) -> None:
-        message = {"_provider": "apple", "body": "caf&eacute; &amp; th&eacute;", "id": "1"}
-        assert GmailFormatter._extract_body_truncated(message) == "café & thé"
-
-    def test_empty_body_stays_empty(self) -> None:
-        assert GmailFormatter._extract_body_truncated({"_provider": "apple", "body": ""}) == ""

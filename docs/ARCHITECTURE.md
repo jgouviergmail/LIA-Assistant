@@ -1063,10 +1063,9 @@ if "label:" not in query and "in:" not in query:
 | "importants" / "starred" | `label:STARRED` |
 | "non lus" / "unread" | `is:unread` |
 
-**Tools LangChain** : 3 outils exposés
-- `search_emails_tool` : Recherche intelligente
-- `get_email_details_tool` : Détails email + body parsing
-- `send_email_tool` : Envoi email (HITL approval obligatoire)
+**Tools LangChain** : lecture par un seul outil, écriture par trois
+- `get_emails_tool` : recherche ou lecture par id, à trois niveaux de détail (`metadata` | `summary` | `full`), corps paginé au paragraphe, pagination opaque (ADR-287)
+- `send_email_tool` / `reply_email_tool` / `forward_email_tool` : envoi, réponse, transfert (HITL approval obligatoire)
 
 #### OAuth Flow & Token Management
 

@@ -4,7 +4,7 @@
 
 **Version** : 6.0
 **Date** : 2026-08-23
-**Application** : LIA v1.44.6
+**Application** : LIA v1.44.7
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -122,7 +122,7 @@ Parle à LIA comme à un assistant humain — pas de commandes à mémoriser, pa
 
 ### 3.2. Services connectés personnels
 
-- **Email** : lire, rechercher, rédiger, envoyer, répondre, transférer — via Gmail, Outlook ou Apple Mail
+- **Email** : lire, rechercher, rédiger, envoyer, répondre, transférer — via Gmail, Outlook ou Apple Mail ; un message arrive en texte propre, et beaucoup se résument message par message (« résume mes non lus », « une synthèse des newsletters de la semaine »)
 - **Calendrier** : consulter, créer, modifier, supprimer des événements — via Google Calendar, Outlook Calendar ou Apple Calendar
 - **Contacts** : rechercher, créer, modifier des contacts — via Google Contacts, Outlook Contacts ou Apple Contacts
 - **Tâches** : gérer tes listes de tâches — via Google Tasks ou Microsoft To Do
@@ -462,7 +462,7 @@ Le système de réponse dispose d'un mécanisme anti-hallucination en trois couc
 
 ### 8.4. Human-in-the-Loop à 6 niveaux
 
-LIA ne refuse pas les actions sensibles — elle te les **soumet** avec le niveau de détail adapté : approbation de plan, clarification, critique de brouillon, confirmation destructive, confirmation d'opérations en masse, review de modifications. Chaque approbation alimente l'apprentissage — le système s'accélère avec le temps. Et la promesse est tenue au mot près : ce que tu valides — après une, deux ou dix retouches — est **exactement** ce qui est exécuté, jamais une version re-générée en coulisses.
+LIA ne refuse pas les actions sensibles — elle te les **soumet** avec le niveau de détail adapté : approbation de plan, clarification, critique de brouillon, confirmation destructive, confirmation d'opérations en masse, review de modifications. Chaque approbation alimente l'apprentissage — le système s'accélère avec le temps. Et la promesse est tenue au mot près : ce que tu valides — après une, deux ou dix retouches — est **exactement** ce qui est exécuté, jamais une version re-générée en coulisses. Et quand une demande prépare plusieurs brouillons, ils te sont soumis un par un, chacun sur sa carte, rien n'étant exécuté avant ta dernière réponse, le compte rendu disant à qui et quoi — seule une opération en masse que tu as approuvée comme liste garde une confirmation unique.
 
 ### 8.5. Tes réponses n'ont pas besoin de toi
 

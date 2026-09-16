@@ -35,10 +35,7 @@ from src.core.config import settings
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.react_runner import ReactSubAgentRunner
-from src.domains.agents.tools.react_tool_wrapper import (
-    extract_data_for_llm,
-    mark_untrusted_data,
-)
+from src.domains.agents.tools.react_tool_wrapper import compose_tool_message
 from src.domains.agents.tools.tool_registry import get_all_tools
 from src.domains.agents.utils.rate_limiting import rate_limit
 from src.infrastructure.mcp.tool_adapter import MCPToolAdapter
@@ -141,14 +138,11 @@ class _MCPReActWrapper(BaseTool):
         # left the sub-agent unable to restitute ANY detail (measured
         # 2026-09-02: "les transactions ont ete identifiees, mais leurs
         # details ne me sont pas restitues", or a fabricated table). Same
-        # contract as ReactToolWrapper: message + Data block, third-party
-        # payloads wrapped as external content.
+        # contract as ReactToolWrapper: message + Data block projected item by
+        # item under the token budget (ADR-286), third-party payloads wrapped
+        # as external content.
         if hasattr(result, "message"):
-            data_for_llm = extract_data_for_llm(result)
-            if data_for_llm:
-                wrapped = mark_untrusted_data(result, data_for_llm)
-                return f"{result.message}\n\nData:\n{wrapped}"
-            return result.message
+            return compose_tool_message(result, tool_name=self.name)
         return str(result)
 
     def _run(self, **kwargs: Any) -> str:

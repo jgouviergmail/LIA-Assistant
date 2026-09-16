@@ -1,16 +1,21 @@
 """
-Email normalizer: IMAP MailMessage → dict format Gmail API.
+Email normalizer: IMAP MailMessage → the provider-neutral e-mail vocabulary.
 
-Converts imap_tools MailMessage objects to the dict structure
-expected by emails_tools.py (same format as GoogleGmailClient).
+Converts imap_tools MailMessage objects to the flat dict every provider
+produces (``normalizers/email_message.EmailMessage``, ADR-287): top-level
+headers, a clean TEXT body (HTML converted by the shared door, structure and
+links kept — a regex used to flatten it), an attachment list, a provider
+marker. It fabricates no Gmail ``payload`` tree.
 """
 
 import re
 from datetime import UTC, date, datetime
-from html import unescape
 from typing import Any
 
 import structlog
+
+from src.domains.connectors.clients.normalizers.html_text import html_to_text, strip_html_to_line
+from src.domains.connectors.clients.normalizers.reply_trimming import clean_reply_body
 
 logger = structlog.get_logger(__name__)
 
@@ -61,30 +66,22 @@ def normalize_imap_message(msg: Any, folder: str) -> dict[str, Any]:
     # =========================================================================
     body_text = msg.text or ""
     if not body_text and msg.html:
-        body_text = _strip_html(msg.html)
-    snippet = body_text[:_SNIPPET_MAX_LENGTH].strip()
+        body_text = html_to_text(msg.html)
+    body_text = clean_reply_body(body_text, subject=msg.subject or "")
+    snippet = strip_html_to_line(body_text, max_length=_SNIPPET_MAX_LENGTH)
 
     # =========================================================================
-    # Headers: both as nested list (Gmail API compat) and top-level (card compat)
+    # Headers: top-level fields (the vocabulary), no fabricated Gmail tree
     # =========================================================================
-    headers = []
     subject = msg.subject or ""
     from_value = msg.from_ or ""
-    to_value = ""
-    cc_value = ""
-
-    if from_value:
-        headers.append({"name": "From", "value": from_value})
-    if msg.to:
-        to_value = ", ".join(msg.to) if isinstance(msg.to, list | tuple) else str(msg.to)
-        headers.append({"name": "To", "value": to_value})
-    if subject:
-        headers.append({"name": "Subject", "value": subject})
-    if msg.date_str:
-        headers.append({"name": "Date", "value": msg.date_str})
-    if msg.cc:
-        cc_value = ", ".join(msg.cc) if isinstance(msg.cc, list | tuple) else str(msg.cc)
-        headers.append({"name": "Cc", "value": cc_value})
+    to_value = ", ".join(msg.to) if isinstance(msg.to, list | tuple) else str(msg.to or "")
+    cc_value = ", ".join(msg.cc) if isinstance(msg.cc, list | tuple) else str(msg.cc or "")
+    date_value = msg.date_str or ""
+    # RFC 2822 Message-ID, for In-Reply-To / References on a reply. imap_tools
+    # keys its headers in lower case; a test double may carry none.
+    rfc_ids = (getattr(msg, "headers", None) or {}).get("message-id") or ()
+    rfc_message_id = str(rfc_ids[0]).strip() if rfc_ids else None
 
     # =========================================================================
     # Attachments: top-level for direct access by _enrich_email()
@@ -131,20 +128,15 @@ def normalize_imap_message(msg: Any, folder: str) -> dict[str, Any]:
         "threadId": uid,  # IMAP has no thread concept
         "labelIds": label_ids,
         "snippet": snippet,
-        # Top-level fields for EmailCard (bypass Gmail-specific extraction)
         "subject": subject,
         "from": from_value,
         "to": to_value,
         "cc": cc_value,
+        "date": date_value,
+        "rfc_message_id": rfc_message_id,
         "body": body_text,
         "unread": "UNREAD" in label_ids,
         "hasAttachment": len(attachments) > 0,
-        # Nested payload for Gmail API compatibility
-        "payload": {
-            "headers": headers,
-            "parts": [],  # Not needed — body is at top-level
-            "filename": attachments[0]["filename"] if attachments else "",
-        },
         "attachments": attachments,
         "internalDate": internal_date,
         # Provider marker for downstream formatters and display components.
@@ -274,12 +266,3 @@ def _parse_date(date_str: str) -> date | None:
             continue
     logger.warning("imap_query_invalid_date", date_str=date_str)
     return None
-
-
-def _strip_html(html: str) -> str:
-    """Strip HTML tags and decode entities for snippet generation."""
-    text = _HTML_TAG_RE.sub(" ", html)
-    text = unescape(text)
-    # Collapse whitespace
-    text = re.sub(r"\s+", " ", text)
-    return text.strip()

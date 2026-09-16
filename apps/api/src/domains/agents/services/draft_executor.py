@@ -813,10 +813,14 @@ async def _execute_confirmed_batch(
     user_language: str = "fr",
 ) -> DraftExecutionResult:
     """
-    Execute a batch of confirmed drafts from FOR_EACH approval.
+    Execute a batch of decided drafts — a FOR_EACH lot or a sequence.
 
-    When a FOR_EACH HITL confirms a batch operation, all drafts in the batch
-    are executed sequentially. Returns a composite result.
+    Entries run in order, each under its own type. An entry the person
+    CANCELLED (ADR-288: a sequence of independent drafts decided one at a
+    time) is never run and never dropped: it keeps its row, marked
+    ``cancelled``, and is counted apart. ``total_count`` is what was
+    ATTEMPTED; a mixed batch declares no single type (``"batch"``), so the
+    renderer names each row by its own.
 
     Args:
         draft_action_result: Batch result with {"action": "confirm_batch", "batch": [...]}
@@ -848,8 +852,24 @@ async def _execute_confirmed_batch(
     results: list[dict[str, Any]] = []
     success_count = 0
     error_count = 0
+    cancelled_count = 0
 
     for i, single_draft in enumerate(batch):
+        if single_draft.get("action") == DraftAction.CANCEL.value:
+            cancelled_count += 1
+            registry_drafts_executed_total.labels(
+                draft_type=single_draft.get("draft_type", "unknown"), outcome="cancelled"
+            ).inc()
+            results.append(
+                {
+                    "status": "cancelled",
+                    "draft_id": single_draft.get("draft_id", "unknown"),
+                    "draft_type": single_draft.get("draft_type", "unknown"),
+                    "data": {"_draft_content": single_draft.get("draft_content", {}) or {}},
+                    "message": "",
+                }
+            )
+            continue
         try:
             single_result = await _execute_confirmed_draft(
                 single_draft, config, run_id, user_language
@@ -883,19 +903,22 @@ async def _execute_confirmed_batch(
         batch_size=len(batch),
         success_count=success_count,
         error_count=error_count,
+        cancelled_count=cancelled_count,
     )
 
-    # Return composite result
+    # Return composite result — typed only when every entry shares one type.
+    types = {str(d.get("draft_type", "")) for d in batch}
     return DraftExecutionResult(
         success=error_count == 0,
         draft_id="batch",
-        draft_type=batch[0].get("draft_type", "batch"),
+        draft_type=types.pop() if len(types) == 1 else "batch",
         action=DraftAction.CONFIRM_BATCH.value,
         result_data={
             "batch_results": results,
             "success_count": success_count,
             "error_count": error_count,
-            "total_count": len(batch),
+            "cancelled_count": cancelled_count,
+            "total_count": len(batch) - cancelled_count,
         },
         user_language=user_language,
     )

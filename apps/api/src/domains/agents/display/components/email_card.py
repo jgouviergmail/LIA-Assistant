@@ -31,6 +31,7 @@ from src.domains.agents.display.components.base import (
     render_chip,
     render_chip_row,
     render_collapsible,
+    render_d_row,
     render_desc_block,
     render_part_list,
     render_section_header,
@@ -51,13 +52,6 @@ class EmailCard(BaseComponent):
     - Clean typography: proper spacing and line heights
     - Domain-specific accent: Gmail red theme
     """
-
-    # Default suggested actions for emails
-    DEFAULT_ACTIONS = [
-        {"icon": Icons.REPLY, "label": "Répondre", "action": "reply"},
-        {"icon": Icons.FORWARD, "label": "Transférer", "action": "forward"},
-        {"icon": Icons.ARCHIVE, "label": "Archiver", "action": "archive"},
-    ]
 
     def render(
         self,
@@ -249,6 +243,9 @@ class EmailCard(BaseComponent):
             else ""
         )
 
+        # --- Digest (detail=summary, ADR-287): drawn instead of a body ---
+        digest_html = self._render_digest(data, ctx)
+
         # --- Collapsible body (recipients + content + attachments) ---
         body_html = self._render_body_v4(data, url, ctx)
         collapsible_attachments = self._render_collapsible_details(attachments, ctx)
@@ -259,10 +256,38 @@ class EmailCard(BaseComponent):
                 {chip_row_html}
                 {subject_html}
                 {snippet_html}
+                {digest_html}
                 {body_html}
                 {collapsible_attachments}
             </div>
         """)
+
+    def _render_digest(self, data: dict[str, Any], ctx: RenderContext) -> str:
+        """Draw the digest a condensed message carries: gist, key points, actions.
+
+        Under ``detail=summary`` the message reaches the card with these fields
+        instead of a body (ADR-287). Empty lists draw no row; a message with no
+        digest draws nothing.
+        """
+        gist = str(data.get("gist") or "").strip()
+        if not gist:
+            return ""
+        parts: list[str] = [
+            render_section_header(
+                V3Messages.get_digest(ctx.language), Icons.NOTE, "indigo", first=True
+            ),
+            render_desc_block(escape_html(gist), with_border=False),
+        ]
+        for label, icon_name, key in (
+            (V3Messages.get_key_points(ctx.language), Icons.CHECKLIST, "key_points"),
+            (V3Messages.get_actions(ctx.language), Icons.TASK, "actions"),
+        ):
+            items = [str(item).strip() for item in (data.get(key) or []) if str(item).strip()]
+            if not items:
+                continue
+            parts.append(render_section_header(label, icon_name, "indigo"))
+            parts.extend(render_d_row(icon_name, escape_html(item)) for item in items)
+        return "".join(parts)
 
     def _render_body_v4(
         self,
@@ -341,11 +366,8 @@ class EmailCard(BaseComponent):
                 with_separator=False,
             )
 
-        elif data.get("snippet"):
-            return (
-                f'<p class="lia-email__snippet">{escape_html(truncate(data["snippet"], 200))}</p>'
-            )
-
+        # No body: the card already drew the snippet above, once (the fallback
+        # used to draw it a second time here — measured on a digested message).
         return ""
 
     def _recipients_to_part_data(self, recipients: list[Any] | Any) -> list[dict[str, Any]]:

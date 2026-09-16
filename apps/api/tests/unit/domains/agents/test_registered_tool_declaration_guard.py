@@ -45,7 +45,6 @@ UNDECLARED_TOOLS: dict[str, str] = {
     # catalogue. No manifest means no selector can reach them.
     "get_calls_tool": "legacy reader, superseded in the catalogue",
     "get_contact_details_tool": "legacy reader, superseded in the catalogue",
-    "get_email_details_tool": "legacy reader, superseded in the catalogue",
     "get_event_details_tool": "legacy reader, superseded in the catalogue",
     "get_file_details_tool": "legacy reader, superseded in the catalogue",
     "get_peer_messages_tool": "legacy reader, superseded in the catalogue",
@@ -56,7 +55,6 @@ UNDECLARED_TOOLS: dict[str, str] = {
     "list_places_tool": "legacy reader, superseded in the catalogue",
     "list_tasks_tool": "legacy reader, superseded in the catalogue",
     "search_contacts_tool": "legacy reader, superseded in the catalogue",
-    "search_emails_tool": "legacy reader, superseded in the catalogue",
     "search_events_tool": "legacy reader, superseded in the catalogue",
     "search_files_tool": "legacy reader, superseded in the catalogue",
     "search_places_tool": "legacy reader, superseded in the catalogue",

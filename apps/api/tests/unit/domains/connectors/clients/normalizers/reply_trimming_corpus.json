@@ -1,0 +1,153 @@
+{
+  "_comment": "What a reply carries besides its own words: the quoted history and the signature, in the six languages LIA speaks. Grouped by FAMILY: the expected kept text is language-independent, only the marker changes, so each expectation is written ONCE and checked against six bodies. Two consumers: the deterministic test (48 cases, CI, no network) and the on-demand measurement script (`task emails:corpus:measure`), which also scores a third-party trimmer when one is installed, so the choice between the two is measured, never assumed (ADR-287).",
+  "families": {
+    "reply_on_wrote": {
+      "kept": "Merci pour le point, je valide la version 2 du budget.\n\nOn se voit jeudi.",
+      "bodies": {
+        "fr": "Merci pour le point, je valide la version 2 du budget.\n\nOn se voit jeudi.\n\nLe mar. 15 sept. 2026 à 10:24, Alice Vernier <alice@example.com> a écrit :\n> Bonjour,\n> voici le budget révisé.\n> Alice",
+        "en": "Merci pour le point, je valide la version 2 du budget.\n\nOn se voit jeudi.\n\nOn Tue, Sep 15, 2026 at 10:24 AM Alice Vernier <alice@example.com> wrote:\n> Hello,\n> here is the revised budget.\n> Alice",
+        "de": "Merci pour le point, je valide la version 2 du budget.\n\nOn se voit jeudi.\n\nAm Di., 15. Sept. 2026 um 10:24 Uhr schrieb Alice Vernier <alice@example.com>:\n> Hallo,\n> hier das überarbeitete Budget.\n> Alice",
+        "es": "Merci pour le point, je valide la version 2 du budget.\n\nOn se voit jeudi.\n\nEl mar, 15 sept 2026 a las 10:24, Alice Vernier <alice@example.com> escribió:\n> Hola,\n> aquí está el presupuesto revisado.\n> Alice",
+        "it": "Merci pour le point, je valide la version 2 du budget.\n\nOn se voit jeudi.\n\nIl giorno mar 15 set 2026 alle ore 10:24 Alice Vernier <alice@example.com> ha scritto:\n> Ciao,\n> ecco il budget rivisto.\n> Alice",
+        "zh": "Merci pour le point, je valide la version 2 du budget.\n\nOn se voit jeudi.\n\n在 2026年9月15日 10:24，Alice Vernier <alice@example.com> 写道：\n> 你好，\n> 这是修订后的预算。\n> Alice"
+      }
+    },
+    "reply_on_wrote_wrapped": {
+      "kept": "Parfait, je réserve la salle pour 14h.",
+      "bodies": {
+        "fr": "Parfait, je réserve la salle pour 14h.\n\nLe mar. 15 sept. 2026 à 10:24, Alice Vernier\n<alice@example.com> a écrit :\n> Peux-tu réserver la salle ?",
+        "en": "Parfait, je réserve la salle pour 14h.\n\nOn Tue, Sep 15, 2026 at 10:24 AM Alice Vernier <alice@example.com>\nwrote:\n> Can you book the room?",
+        "de": "Parfait, je réserve la salle pour 14h.\n\nAm Di., 15. Sept. 2026 um 10:24 Uhr schrieb Alice Vernier\n<alice@example.com>:\n> Kannst du den Raum buchen?",
+        "es": "Parfait, je réserve la salle pour 14h.\n\nEl mar, 15 sept 2026 a las 10:24, Alice Vernier\n<alice@example.com> escribió:\n> ¿Puedes reservar la sala?",
+        "it": "Parfait, je réserve la salle pour 14h.\n\nIl giorno mar 15 set 2026 alle ore 10:24 Alice Vernier\n<alice@example.com> ha scritto:\n> Puoi prenotare la sala?",
+        "zh": "Parfait, je réserve la salle pour 14h.\n\n在 2026年9月15日 10:24，Alice Vernier\n<alice@example.com> 写道：\n> 你能预订会议室吗？"
+      }
+    },
+    "original_message_block": {
+      "kept": "Ci-joint le compte rendu corrigé, avec les deux remarques de Marc intégrées.",
+      "bodies": {
+        "fr": "Ci-joint le compte rendu corrigé, avec les deux remarques de Marc intégrées.\n\n-----Message d'origine-----\nDe : Marc <marc@example.com>\nEnvoyé : mardi 15 septembre 2026 10:24\nObjet : CR\n\nDeux remarques sur le CR.",
+        "en": "Ci-joint le compte rendu corrigé, avec les deux remarques de Marc intégrées.\n\n-----Original Message-----\nFrom: Marc <marc@example.com>\nSent: Tuesday, September 15, 2026 10:24 AM\nSubject: Minutes\n\nTwo remarks on the minutes.",
+        "de": "Ci-joint le compte rendu corrigé, avec les deux remarques de Marc intégrées.\n\n-----Ursprüngliche Nachricht-----\nVon: Marc <marc@example.com>\nGesendet: Dienstag, 15. September 2026 10:24\nBetreff: Protokoll\n\nZwei Anmerkungen zum Protokoll.",
+        "es": "Ci-joint le compte rendu corrigé, avec les deux remarques de Marc intégrées.\n\n-----Mensaje original-----\nDe: Marc <marc@example.com>\nEnviado el: martes, 15 de septiembre de 2026 10:24\nAsunto: Acta\n\nDos comentarios sobre el acta.",
+        "it": "Ci-joint le compte rendu corrigé, avec les deux remarques de Marc intégrées.\n\n-----Messaggio originale-----\nDa: Marc <marc@example.com>\nInviato: martedì 15 settembre 2026 10:24\nOggetto: Verbale\n\nDue osservazioni sul verbale.",
+        "zh": "Ci-joint le compte rendu corrigé, avec les deux remarques de Marc intégrées.\n\n-----原始邮件-----\n发件人: Marc <marc@example.com>\n发送时间: 2026年9月15日 10:24\n主题: 会议纪要\n\n关于纪要的两点意见。"
+      }
+    },
+    "header_block": {
+      "kept": "Oui pour mercredi, je confirme le créneau de 9h30.",
+      "bodies": {
+        "fr": "Oui pour mercredi, je confirme le créneau de 9h30.\n\nDe : Alice Vernier <alice@example.com>\nEnvoyé : mardi 15 septembre 2026 10:24\nÀ : Bob <bob@example.com>\nObjet : Créneau\n\nMercredi 9h30, ça te va ?",
+        "en": "Oui pour mercredi, je confirme le créneau de 9h30.\n\nFrom: Alice Vernier <alice@example.com>\nSent: Tuesday, September 15, 2026 10:24 AM\nTo: Bob <bob@example.com>\nSubject: Slot\n\nWednesday 9:30, does it work?",
+        "de": "Oui pour mercredi, je confirme le créneau de 9h30.\n\nVon: Alice Vernier <alice@example.com>\nGesendet: Dienstag, 15. September 2026 10:24\nAn: Bob <bob@example.com>\nBetreff: Termin\n\nMittwoch 9:30, passt das?",
+        "es": "Oui pour mercredi, je confirme le créneau de 9h30.\n\nDe: Alice Vernier <alice@example.com>\nEnviado el: martes, 15 de septiembre de 2026 10:24\nPara: Bob <bob@example.com>\nAsunto: Franja\n\nMiércoles 9:30, ¿te va bien?",
+        "it": "Oui pour mercredi, je confirme le créneau de 9h30.\n\nDa: Alice Vernier <alice@example.com>\nInviato: martedì 15 settembre 2026 10:24\nA: Bob <bob@example.com>\nOggetto: Fascia\n\nMercoledì 9:30, ti va?",
+        "zh": "Oui pour mercredi, je confirme le créneau de 9h30.\n\n发件人: Alice Vernier <alice@example.com>\n发送时间: 2026年9月15日 10:24\n收件人: Bob <bob@example.com>\n主题: 时间段\n\n周三 9:30 可以吗？"
+      }
+    },
+    "trailing_gt_quotes": {
+      "kept": "D'accord, je relance le fournisseur demain matin et je te tiens au courant.",
+      "bodies": {
+        "fr": "D'accord, je relance le fournisseur demain matin et je te tiens au courant.\n\n> Tu peux relancer le fournisseur ?\n> Il n'a toujours pas répondu.\n>\n> Alice",
+        "en": "D'accord, je relance le fournisseur demain matin et je te tiens au courant.\n\n> Can you chase the supplier?\n> Still no answer.\n>\n> Alice",
+        "de": "D'accord, je relance le fournisseur demain matin et je te tiens au courant.\n\n> Kannst du beim Lieferanten nachhaken?\n> Immer noch keine Antwort.\n>\n> Alice",
+        "es": "D'accord, je relance le fournisseur demain matin et je te tiens au courant.\n\n> ¿Puedes insistir al proveedor?\n> Sigue sin responder.\n>\n> Alice",
+        "it": "D'accord, je relance le fournisseur demain matin et je te tiens au courant.\n\n> Puoi sollecitare il fornitore?\n> Ancora nessuna risposta.\n>\n> Alice",
+        "zh": "D'accord, je relance le fournisseur demain matin et je te tiens au courant.\n\n> 你能催一下供应商吗？\n> 还是没有回复。\n>\n> Alice"
+      }
+    },
+    "signature_dashes": {
+      "kept": "Le dossier est complet, je l'envoie au notaire ce soir.",
+      "bodies": {
+        "fr": "Le dossier est complet, je l'envoie au notaire ce soir.\n\n-- \nJeanne Martin\nResponsable administrative\n01 23 45 67 89",
+        "en": "Le dossier est complet, je l'envoie au notaire ce soir.\n\n-- \nJeanne Martin\nAdministrative manager\n01 23 45 67 89",
+        "de": "Le dossier est complet, je l'envoie au notaire ce soir.\n\n-- \nJeanne Martin\nVerwaltungsleiterin\n01 23 45 67 89",
+        "es": "Le dossier est complet, je l'envoie au notaire ce soir.\n\n-- \nJeanne Martin\nResponsable administrativa\n01 23 45 67 89",
+        "it": "Le dossier est complet, je l'envoie au notaire ce soir.\n\n-- \nJeanne Martin\nResponsabile amministrativa\n01 23 45 67 89",
+        "zh": "Le dossier est complet, je l'envoie au notaire ce soir.\n\n-- \nJeanne Martin\n行政负责人\n01 23 45 67 89"
+      }
+    },
+    "sent_from_device": {
+      "kept": "Je suis dans le train, je regarde ça en arrivant au bureau.",
+      "bodies": {
+        "fr": "Je suis dans le train, je regarde ça en arrivant au bureau.\n\nEnvoyé de mon iPhone",
+        "en": "Je suis dans le train, je regarde ça en arrivant au bureau.\n\nSent from my iPhone",
+        "de": "Je suis dans le train, je regarde ça en arrivant au bureau.\n\nVon meinem iPhone gesendet",
+        "es": "Je suis dans le train, je regarde ça en arrivant au bureau.\n\nEnviado desde mi iPhone",
+        "it": "Je suis dans le train, je regarde ça en arrivant au bureau.\n\nInviato da iPhone",
+        "zh": "Je suis dans le train, je regarde ça en arrivant au bureau.\n\n发自我的 iPhone"
+      }
+    },
+    "no_quote_at_all": {
+      "kept": "Bonjour à tous,\n\nla réunion de rentrée est fixée au 22 septembre à 9h en salle B.\n\nPensez à apporter vos rapports d'activité.\n\nBonne journée,\nClaire",
+      "bodies": {
+        "fr": "Bonjour à tous,\n\nla réunion de rentrée est fixée au 22 septembre à 9h en salle B.\n\nPensez à apporter vos rapports d'activité.\n\nBonne journée,\nClaire",
+        "en": "Bonjour à tous,\n\nla réunion de rentrée est fixée au 22 septembre à 9h en salle B.\n\nPensez à apporter vos rapports d'activité.\n\nBonne journée,\nClaire",
+        "de": "Bonjour à tous,\n\nla réunion de rentrée est fixée au 22 septembre à 9h en salle B.\n\nPensez à apporter vos rapports d'activité.\n\nBonne journée,\nClaire",
+        "es": "Bonjour à tous,\n\nla réunion de rentrée est fixée au 22 septembre à 9h en salle B.\n\nPensez à apporter vos rapports d'activité.\n\nBonne journée,\nClaire",
+        "it": "Bonjour à tous,\n\nla réunion de rentrée est fixée au 22 septembre à 9h en salle B.\n\nPensez à apporter vos rapports d'activité.\n\nBonne journée,\nClaire",
+        "zh": "Bonjour à tous,\n\nla réunion de rentrée est fixée au 22 septembre à 9h en salle B.\n\nPensez à apporter vos rapports d'activité.\n\nBonne journée,\nClaire"
+      }
+    }
+  },
+  "guards": {
+    "_comment": "Bodies the trimmer must return UNCHANGED although a marker appears: the person's own words are too short to stand alone, or the quote is interleaved with answers.",
+    "bare_thanks_reply": "Merci !\n\nLe mar. 15 sept. 2026 à 10:24, Alice Vernier <alice@example.com> a écrit :\n> Le budget est validé.",
+    "interleaved_answers": "> Peux-tu venir lundi ?\nOui, à 10h.\n> Et apporter le contrat ?\nNon, il est chez le notaire jusqu'à mercredi."
+  },
+  "forwards": {
+    "_comment": "A FORWARD carries the useful text UNDER the header block — trimming it as a quote would hand the reader « here is Marc's request » and nothing else. Recognised by the subject prefix (Fwd/TR/WG/RV/I/转发) or by the forwarding banner in the body; the body is returned unchanged either way.",
+    "by_subject": {
+      "fr": {
+        "subject": "TR: Devis salle B",
+        "body": "Voici la demande de Marc, peux-tu la traiter ?\n\nDe : Marc <marc@example.com>\nEnvoyé : mardi 15 septembre 2026 10:24\nÀ : Alice <alice@example.com>\nObjet : Devis salle B\n\nBonjour, le devis pour la salle B est de 420 EUR la journée, réponse attendue avant vendredi."
+      },
+      "en": {
+        "subject": "Fwd: Quote for room B",
+        "body": "Here is Marc's request, can you take care of it?\n\nFrom: Marc <marc@example.com>\nSent: Tuesday, September 15, 2026 10:24 AM\nTo: Alice <alice@example.com>\nSubject: Quote for room B\n\nBonjour, le devis pour la salle B est de 420 EUR la journée, réponse attendue avant vendredi."
+      },
+      "de": {
+        "subject": "WG: Angebot Raum B",
+        "body": "Hier ist Marcs Anfrage, kannst du dich darum kümmern?\n\nVon: Marc <marc@example.com>\nGesendet: Dienstag, 15. September 2026 10:24\nAn: Alice <alice@example.com>\nBetreff: Angebot Raum B\n\nBonjour, le devis pour la salle B est de 420 EUR la journée, réponse attendue avant vendredi."
+      },
+      "es": {
+        "subject": "RV: Presupuesto sala B",
+        "body": "Aquí está la solicitud de Marc, ¿puedes ocuparte?\n\nDe: Marc <marc@example.com>\nEnviado el: martes, 15 de septiembre de 2026 10:24\nPara: Alice <alice@example.com>\nAsunto: Presupuesto sala B\n\nBonjour, le devis pour la salle B est de 420 EUR la journée, réponse attendue avant vendredi."
+      },
+      "it": {
+        "subject": "I: Preventivo sala B",
+        "body": "Ecco la richiesta di Marc, puoi occupartene?\n\nDa: Marc <marc@example.com>\nInviato: martedì 15 settembre 2026 10:24\nA: Alice <alice@example.com>\nOggetto: Preventivo sala B\n\nBonjour, le devis pour la salle B est de 420 EUR la journée, réponse attendue avant vendredi."
+      },
+      "zh": {
+        "subject": "转发: B 会议室报价",
+        "body": "这是 Marc 的请求，你能处理一下吗？\n\n发件人: Marc <marc@example.com>\n发送时间: 2026年9月15日 10:24\n收件人: Alice <alice@example.com>\n主题: B 会议室报价\n\nBonjour, le devis pour la salle B est de 420 EUR la journée, réponse attendue avant vendredi."
+      }
+    },
+    "by_banner": {
+      "fr": {
+        "subject": "Devis salle B",
+        "body": "Voici la demande de Marc, peux-tu la traiter ?\n\n---------- Message transféré ---------\nDe : Marc <marc@example.com>\nEnvoyé : mardi 15 septembre 2026 10:24\nÀ : Alice <alice@example.com>\nObjet : Devis salle B\n\nBonjour, le devis pour la salle B est de 420 EUR la journée, réponse attendue avant vendredi."
+      },
+      "en": {
+        "subject": "Quote for room B",
+        "body": "Here is Marc's request, can you take care of it?\n\n---------- Forwarded message ---------\nFrom: Marc <marc@example.com>\nSent: Tuesday, September 15, 2026 10:24 AM\nTo: Alice <alice@example.com>\nSubject: Quote for room B\n\nBonjour, le devis pour la salle B est de 420 EUR la journée, réponse attendue avant vendredi."
+      },
+      "de": {
+        "subject": "Angebot Raum B",
+        "body": "Hier ist Marcs Anfrage, kannst du dich darum kümmern?\n\n---------- Weitergeleitete Nachricht ---------\nVon: Marc <marc@example.com>\nGesendet: Dienstag, 15. September 2026 10:24\nAn: Alice <alice@example.com>\nBetreff: Angebot Raum B\n\nBonjour, le devis pour la salle B est de 420 EUR la journée, réponse attendue avant vendredi."
+      },
+      "es": {
+        "subject": "Presupuesto sala B",
+        "body": "Aquí está la solicitud de Marc, ¿puedes ocuparte?\n\n---------- Mensaje reenviado ---------\nDe: Marc <marc@example.com>\nEnviado el: martes, 15 de septiembre de 2026 10:24\nPara: Alice <alice@example.com>\nAsunto: Presupuesto sala B\n\nBonjour, le devis pour la salle B est de 420 EUR la journée, réponse attendue avant vendredi."
+      },
+      "it": {
+        "subject": "Preventivo sala B",
+        "body": "Ecco la richiesta di Marc, puoi occupartene?\n\n---------- Messaggio inoltrato ---------\nDa: Marc <marc@example.com>\nInviato: martedì 15 settembre 2026 10:24\nA: Alice <alice@example.com>\nOggetto: Preventivo sala B\n\nBonjour, le devis pour la salle B est de 420 EUR la journée, réponse attendue avant vendredi."
+      },
+      "zh": {
+        "subject": "B 会议室报价",
+        "body": "这是 Marc 的请求，你能处理一下吗？\n\n---------- 转发的邮件 ---------\n发件人: Marc <marc@example.com>\n发送时间: 2026年9月15日 10:24\n收件人: Alice <alice@example.com>\n主题: B 会议室报价\n\nBonjour, le devis pour la salle B est de 420 EUR la journée, réponse attendue avant vendredi."
+      }
+    }
+  }
+}

@@ -93,6 +93,14 @@ out_of_turn_origin_ctx: ContextVar[RunOrigin | None] = ContextVar(
     "out_of_turn_origin", default=None
 )
 
+#: True while a run's answer goes to a surface that renders NO markup — an
+#: external channel (Telegram strips every card from the first ``<div``, so a
+#: card there truncates the question and empties the result). Declared by the
+#: surface's own handler around the whole stream, read by the draft renderers
+#: (``drafts/card_html.card_surface``, ADR-289). A ticket run needs no flag:
+#: its out-of-turn origin already says it.
+plain_surface_ctx: ContextVar[bool] = ContextVar("plain_surface", default=False)
+
 
 def current_origin() -> RunOrigin | None:
     """The run driving this turn.

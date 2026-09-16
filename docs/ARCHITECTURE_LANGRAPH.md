@@ -459,7 +459,9 @@ exécutée.** Le ctx est gardé par `plan_id` + `turn_id` et purgé au résultat
 │   3. UN SEUL interrupt() par exécution de nœud                  │
 │   4. Attendre Command(resume={action: ...})                     │
 │   5. Traiter UNE décision :                                     │
-│      - confirm/cancel → résultat terminal (+ reset boucle)      │
+│      - confirm/cancel, file non groupée → décision BANQUÉE      │
+│        (confirmed_drafts), brouillon suivant → self-loop        │
+│      - dernière réponse ou lot pré-approuvé → settle (terminal) │
 │      - edit/replan/clarify → draft modifié UNE fois, persisté   │
 │        dans le state (checkpoint) → self-loop → nouvel interrupt│
 ├─────────────────────────────────────────────────────────────────┤
@@ -467,6 +469,7 @@ exécutée.** Le ctx est gardé par `plan_id` + `turn_id` et purgé au résultat
 │   • draft_action_result / hitl_result: {action, result}         │
 │   • pending_draft_critique (si self-loop edit/replan/clarify)   │
 │   • draft_edit_iteration, draft_clarification_question          │
+│   • confirmed_drafts, pending_drafts_grouped (ADR-288)          │
 ├─────────────────────────────────────────────────────────────────┤
 │ ROUTING (route_from_hitl_dispatch)                              │
 │   • pending_draft_critique truthy → hitl_dispatch (self-loop)   │
@@ -481,6 +484,19 @@ dernière version affichée. Désormais chaque exécution du nœud traite exacte
 l'état de boucle transite par le state, checkpointé **avant** l'interrupt suivant. Invariant :
 le contenu exécuté est exactement le dernier contenu affiché. Détails : `docs/technical/HITL.md`
 §HITL Dispatch Node.
+
+**Suite de brouillons (ADR-288) et surfaces (ADR-289)** : une file de brouillons qui n'est
+pas un lot pré-approuvé (`is_pre_approved_lot` : les items d'une étape FOR_EACH approuvée dans
+ce tour, d'un seul type) se consomme **un brouillon par interruption** — la décision est
+banquée dans `confirmed_drafts`, le suivant devient `pending_draft_critique`, et la dernière
+réponse règle tout (`settle` : un `confirm_batch` ordonné dont chaque entrée porte sa décision
+et son type ; une sortie terminale rapporte les brouillons restants comme annulés). La position
+(« Brouillon 2 sur 3 ») et le sommaire de la première présentation sont des lignes du serveur ;
+la carte est décrite une fois (`drafts/card_spec.py`) et dessinée par surface
+(`card_surface()` : `lia-card` dans le chat, Markdown sur un ticket, un canal externe ou
+l'affichage `markdown`). Un nouveau tour repart sans brouillon en relecture
+(`draft_turn_reset()`, étendu par le routeur comme `react_turn_reset()`). Détails :
+`docs/technical/HITL.md` §🔢.
 
 ### 2.9 response_node (INTELLIA v10)
 
@@ -1424,7 +1440,7 @@ User Request → APIKeyConnectorTool.execute()
 │     "search_contacts_tool", "list_contacts_tool",                    │
 │     "get_contact_details_tool",                                      │
 │     # Emails (OAuth)                                                 │
-│     "search_emails_tool", "get_email_details_tool", "send_email_tool"│
+│     "get_emails_tool", "send_email_tool", "reply_email_tool"         │
 │     # Calendar (OAuth)                                               │
 │     "search_events_tool", "get_event_details_tool",                  │
 │     "create_event_tool", "update_event_tool", "delete_event_tool",   │
@@ -1473,8 +1489,7 @@ User Request → APIKeyConnectorTool.execute()
 
 | Tool | Description | Catégorie |
 |------|-------------|-----------|
-| `search_emails_tool` | Recherche Gmail (query syntax) | READ |
-| `get_email_details_tool` | Contenu email complet | READ |
+| `get_emails_tool` | Recherche (query syntax) ou lecture par id ; `detail=metadata\|summary\|full` (ADR-287) | READ |
 | `send_email_tool` | Envoi email (→ Draft HITL) | WRITE |
 
 ##### Calendar Agent

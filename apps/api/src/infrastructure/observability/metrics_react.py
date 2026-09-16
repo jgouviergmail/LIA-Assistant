@@ -36,6 +36,17 @@ react_agent_iterations = Histogram(
     buckets=[1, 2, 3, 5, 8, 10, 15],
 )
 
+react_tool_result_truncated_total = Counter(
+    "react_tool_result_truncated_total",
+    "Tool results the ReAct projection had to cut at an item boundary (ADR-286). "
+    "A steady rate on one tool means the budget is too small for that "
+    "deployment's data, or that the tool returns items too large for any budget "
+    "— opposite fixes, which is why the tool is a label. Its NAME comes from the "
+    "bound catalogue, so its cardinality is bounded (the same choice "
+    "react_agent_tools_called_total made)",
+    ["tool_name"],
+)
+
 react_agent_tools_called_total = Counter(
     "react_agent_tools_called_total",
     "Tools called by ReAct agent",

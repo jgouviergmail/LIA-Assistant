@@ -1,11 +1,31 @@
 # Email Formatting - Technical Documentation
 
-> **Version**: 1.2.0
-> **Date**: 2025-11-21 (Updated - ADR-010 Email Domain Renaming)
+> **Version**: 1.3.0
+> **Date**: 2026-09-15 (Updated - ADR-287 content first, detail levels, digests)
 > **Auteur**: Claude Code Implementation
 > **Status**: ✅ Production Ready
+> **Changelog v1.3.0**: one tool `get_emails_tool` with `detail` levels, `EmailMessage` vocabulary, per-message digest (ADR-287); the legacy `search_emails_tool` / `get_email_details_tool` are GONE — the sections below that still name them describe the formatter's history, not a callable surface
 > **Changelog v1.2.0**: Renamed Gmail → Emails (multi-provider architecture - ADR-010)
 > **Changelog v1.1.0**: Added attachments support + refactored email display in response_node
+
+---
+
+## 📌 État au 2026-09-15 — un outil, trois niveaux, un condensé (ADR-287)
+
+Ce que le modèle lit d'un e-mail est décidé par [ADR-286](../architecture/ADR-286-Tool-Result-Projected-Per-Item-Under-A-Token-Budget.md) (le volume d'un résultat, projeté item par item sous un budget de tokens) et [ADR-287](../architecture/ADR-287-Email-Content-First-Detail-Levels-Digests-And-Neutral-Message.md) (le contenu). Les surfaces courantes :
+
+| Surface | Fichier | Rôle |
+|---|---|---|
+| `EmailMessage` | `domains/connectors/clients/normalizers/email_message.py` | Le vocabulaire neutre que les trois normaliseurs produisent : `id`, `threadId`, `labelIds`, `snippet`, `subject`, `from`, `to`, `cc`, `date`, `rfc_message_id`, `internalDate`, `body` (texte propre, jamais HTML ni base64), `attachments`, `_provider`. Graph et IMAP ne fabriquent plus d'arbre Gmail ; Gmail garde son arbre natif jusqu'au builder, qui le retire. |
+| `html_to_text` / `strip_html_to_line` | `normalizers/html_text.py` | La seule conversion HTML → texte (liens conservés sous une étiquette technique) et la seule ligne d'aperçu. |
+| `trim_quoted_reply` / `clean_reply_body` | `normalizers/reply_trimming.py` | La citation et la signature quittent le corps au bord du client (marqueurs en six langues ; gardiens : moins de 20 caractères restants, réponses entrelacées, message transféré jamais rogné). Interrupteur `EMAILS_TRIM_QUOTED_REPLIES`. Mesuré 48/48 sur `reply_trimming_corpus.json` ; `task emails:corpus:measure` rejoue le corpus. |
+| `get_emails_tool(detail, part, page_token)` | `domains/agents/tools/emails_tools.py` | `metadata` liste sans corps ; `full` (défaut) sert le corps paginé au paragraphe (`body_part` / `body_parts`, `EMAILS_BODY_PART_TOKENS`) ; `summary` sert un condensé par message. Pagination opaque (`next_page_token`), `result_size_estimate` publié comme ESTIMATION, `count` compte la page. |
+| `EmailDetail`, `paginate_body`, `apply_detail_level` | `domains/agents/emails/detail_levels.py` | Le niveau, la coupe au paragraphe, la forme de chaque item. |
+| `EmailDigest`, `EmailDigestService` | `domains/agents/emails/digest.py` | `gist`, `key_points`, `actions`, `category`, `importance` — calculés une fois par message par le slot `email_digest` (prompt `email_digest_prompt.txt`, sans raisonnement), cache Redis `email:digest:{user}:{provider}:{message}:{langue}:{version}` (`USER_CACHE`, `EMAILS_DIGEST_CACHE_TTL_SECONDS`), refusés par `spend_blocked`, un vol par clé, un échec laisse le corps ; `email_digest_cache_total{result}`. La dépense voyage sur le `RunnableConfig` du tour. |
+| `get_emails_catalogue_manifest` | `domains/agents/emails/get_emails_manifest.py` | Le contrat publié au planificateur et au ReAct : `detail` (enum), `part`, `page_token`, les sorties de chaque niveau. |
+| `email_card` | `domains/agents/display/components/email_card.py` | Dessine « L'essentiel », « Points clés », « À faire » (six langues, `core/i18n_v3.py`) entre l'aperçu et le corps. |
+
+Réglages (section `[34]` des `.env`) : `EMAILS_BODY_PART_TOKENS`, `EMAILS_DIGEST_ENABLED`, `EMAILS_DIGEST_INPUT_MAX_TOKENS`, `EMAILS_DIGEST_CACHE_TTL_SECONDS`, `EMAILS_DIGEST_CONCURRENCY`, `EMAILS_TRIM_QUOTED_REPLIES` ; `EMAILS_BODY_MAX_LENGTH` ne borne plus ce que le modèle lit. `EMAIL_TRUNCATION_RATIO` n'existe plus.
 
 ---
 
@@ -68,7 +88,7 @@
 1. **`EmailFormatter`** (anciennement `EmailFormatter`) : Formatter spécialisé pour emails (supports Gmail, future: Outlook, IMAP)
 2. **`format_google_datetime()`** : Fonction générique de formatage dates (Google services)
 3. **`format_google_time_only()`** : Fonction formatage heures
-4. Intégration dans `search_emails_tool` et `get_email_details_tool` (domain: `emails/`)
+4. Intégration dans `get_emails_tool` (domain: `emails/`) — les deux outils hérités `search_emails_tool` / `get_email_details_tool` ont été supprimés (ADR-287)
 
 ---
 
@@ -115,19 +135,19 @@ apps/api/src/domains/connectors/clients/
 
 ### Normalisation unifiée (tri-provider)
 
-Les trois providers email retournent un format normalisé identique avec des champs top-level (`from`, `subject`, `to`, `cc`, `body`, `snippet`, `internalDate`) et un marqueur `_provider` :
+Les trois providers email produisent le vocabulaire `EmailMessage` (ADR-287) — champs top-level `from`, `subject`, `to`, `cc`, `date`, `rfc_message_id`, `body`, `snippet`, `internalDate`, `attachments` et un marqueur `_provider` :
 
-- **Google** : `GoogleGmailClient._normalize_message_fields()` extrait depuis `payload.headers` → top-level. Body extrait uniquement en format `full`.
-- **Apple** : `normalize_imap_message()` dans `email_normalizer.py`.
-- **Microsoft** : `normalize_graph_message()` dans `microsoft_email_normalizer.py`.
+- **Google** : `GoogleGmailClient._normalize_message_fields()` promeut `payload.headers` → top-level et extrait le corps (format `full`) par `html_to_text` quand seule une partie HTML existe ; l'arbre natif `payload` reste sur le message jusqu'au builder (`build_emails_output`), qui le retire (ADR-286).
+- **Apple** : `normalize_imap_message()` dans `email_normalizer.py` — `msg.text`, sinon `html_to_text(msg.html)`.
+- **Microsoft** : `normalize_graph_message()` dans `microsoft_email_normalizer.py` — un corps `contentType: html` est converti par `html_to_text` à la frontière.
 
-La structure `payload.headers` originale est conservée pour rétrocompatibilité.
+Aucun `payload` n'est fabriqué par Apple ni Microsoft. Les trois corps passent par `clean_reply_body` (citation et signature retirées, `EMAILS_TRIM_QUOTED_REPLIES`). Contrat : `tests/unit/domains/connectors/clients/normalizers/test_email_message_contract.py`.
 
 ### Pattern d'architecture
 
 ```
 ┌─────────────────┐
-│  LangChain Tool │  (search_emails_tool, get_email_details_tool)
+│  LangChain Tool │  (get_emails_tool — detail=metadata|summary|full)
 │  emails_tools.py │
 └────────┬────────┘
          │ 1. Récupère user timezone/locale

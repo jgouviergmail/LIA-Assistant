@@ -224,6 +224,7 @@ class InboundMessageHandler:
         Returns:
             Complete response text (may be empty if HITL keyboard was sent).
         """
+        from src.domains.agents.api.run_origin import plain_surface_ctx
         from src.domains.agents.api.service import AgentService
         from src.infrastructure.channels.telegram.formatter import strip_html_cards
 
@@ -232,63 +233,71 @@ class InboundMessageHandler:
         hitl_metadata: dict[str, Any] | None = None
         content_replacement_text: str | None = None
 
-        async for chunk in agent_service.stream_chat_response(
-            user_message=user_message,
-            user_id=user_id,
-            session_id=session_id,
-            user_timezone=user_timezone,
-            user_language=user_language,
-            user_display_name=user_display_name,
-            original_run_id=original_run_id,
-            user_memory_enabled=user_memory_enabled,
-            user_journals_enabled=user_journals_enabled,
-            user_psyche_enabled=user_psyche_enabled,
-        ):
-            if chunk.type == "token" and chunk.content and isinstance(chunk.content, str):
-                content_parts.append(chunk.content)
+        # ADR-289: a channel renders no card — the draft question and the
+        # execution result are drawn as text for the WHOLE stream; the
+        # strip below stays the safety net for data cards, not the contract.
+        surface_token = plain_surface_ctx.set(True)
+        try:
+            async for chunk in agent_service.stream_chat_response(
+                user_message=user_message,
+                user_id=user_id,
+                session_id=session_id,
+                user_timezone=user_timezone,
+                user_language=user_language,
+                user_display_name=user_display_name,
+                original_run_id=original_run_id,
+                user_memory_enabled=user_memory_enabled,
+                user_journals_enabled=user_journals_enabled,
+                user_psyche_enabled=user_psyche_enabled,
+            ):
+                if chunk.type == "token" and chunk.content and isinstance(chunk.content, str):
+                    content_parts.append(chunk.content)
 
-            elif chunk.type == "content_replacement":
-                # The streaming service emits this after response_node injects
-                # HTML cards.  Store the clean version (HTML stripped) — this
-                # is the AUTHORITATIVE response text, used as primary source
-                # in the post-loop logic (avoids token duplication).
-                if isinstance(chunk.content, str) and chunk.content:
-                    content_replacement_text = strip_html_cards(chunk.content)
+                elif chunk.type == "content_replacement":
+                    # The streaming service emits this after response_node injects
+                    # HTML cards.  Store the clean version (HTML stripped) — this
+                    # is the AUTHORITATIVE response text, used as primary source
+                    # in the post-loop logic (avoids token duplication).
+                    if isinstance(chunk.content, str) and chunk.content:
+                        content_replacement_text = strip_html_cards(chunk.content)
 
-            elif chunk.type == "hitl_interrupt_metadata":
-                hitl_metadata = chunk.metadata
-                logger.info(
-                    "channel_inbound_hitl_interrupt",
-                    user_id=str(user_id),
-                    channel_user_id=channel_user_id,
-                )
-
-            elif chunk.type == "hitl_interrupt_complete":
-                if hitl_metadata:
-                    await self._send_hitl_keyboard(
+                elif chunk.type == "hitl_interrupt_metadata":
+                    hitl_metadata = chunk.metadata
+                    logger.info(
+                        "channel_inbound_hitl_interrupt",
+                        user_id=str(user_id),
                         channel_user_id=channel_user_id,
-                        content_parts=content_parts,
-                        hitl_metadata=hitl_metadata,
-                        conversation_id=conversation_id,
-                        user_language=user_language,
                     )
-                    # Return empty — keyboard message was already sent
-                    return ""
-                break
 
-            elif chunk.type == "error":
-                error_content = (
-                    chunk.content if isinstance(chunk.content, str) else str(chunk.content)
-                )
-                logger.error(
-                    "channel_inbound_stream_error",
-                    user_id=str(user_id),
-                    error=error_content,
-                )
-                break
+                elif chunk.type == "hitl_interrupt_complete":
+                    if hitl_metadata:
+                        await self._send_hitl_keyboard(
+                            channel_user_id=channel_user_id,
+                            content_parts=content_parts,
+                            hitl_metadata=hitl_metadata,
+                            conversation_id=conversation_id,
+                            user_language=user_language,
+                        )
+                        # Return empty — keyboard message was already sent
+                        return ""
+                    break
 
-            elif chunk.type == "done":
-                break
+                elif chunk.type == "error":
+                    error_content = (
+                        chunk.content if isinstance(chunk.content, str) else str(chunk.content)
+                    )
+                    logger.error(
+                        "channel_inbound_stream_error",
+                        user_id=str(user_id),
+                        error=error_content,
+                    )
+                    break
+
+                elif chunk.type == "done":
+                    break
+
+        finally:
+            plain_surface_ctx.reset(surface_token)
 
         # Primary: prefer content_replacement when available.
         # The streaming pipeline emits a content_replacement chunk after

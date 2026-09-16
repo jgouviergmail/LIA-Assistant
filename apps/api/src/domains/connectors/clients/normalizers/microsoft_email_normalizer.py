@@ -1,21 +1,23 @@
 """
-Email normalizer: Microsoft Graph message → dict format Gmail API.
+Email normalizer: Microsoft Graph message → the provider-neutral e-mail vocabulary.
 
-Converts Microsoft Graph API message objects to the dict structure
-expected by emails_tools.py (same format as GoogleGmailClient).
+Converts Microsoft Graph API message objects to the flat dict every provider
+produces (``normalizers/email_message.EmailMessage``, ADR-287): top-level
+headers, a clean TEXT body, an attachment list, a provider marker. It
+fabricates no Gmail ``payload`` tree — the vocabulary is the contract, not
+the first provider's wire format.
 """
 
 import re
 from datetime import datetime
-from html import unescape
 from typing import Any
 
 import structlog
 
-logger = structlog.get_logger(__name__)
+from src.domains.connectors.clients.normalizers.html_text import html_to_text, strip_html_to_line
+from src.domains.connectors.clients.normalizers.reply_trimming import clean_reply_body
 
-# HTML tag stripping for snippet generation
-_HTML_TAG_RE = re.compile(r"<[^>]+>")
+logger = structlog.get_logger(__name__)
 
 _SNIPPET_MAX_LENGTH = 200
 
@@ -82,15 +84,6 @@ def _normalize_date_to_iso8601(date_str: str) -> str:
     return date_str
 
 
-def _strip_html(html: str) -> str:
-    """Strip HTML tags and decode entities for plain text snippet."""
-    text = _HTML_TAG_RE.sub("", html)
-    text = unescape(text)
-    # Collapse whitespace
-    text = re.sub(r"\s+", " ", text).strip()
-    return text
-
-
 def _parse_datetime_to_epoch_ms(dt_str: str | None) -> str:
     """Convert ISO datetime string to epoch milliseconds (Gmail internalDate format)."""
     if not dt_str:
@@ -140,7 +133,7 @@ def _build_snippet(body_content: str, body_type: str, body_preview: Any) -> str:
         payload carries neither a body nor a preview.
     """
     if body_type == "html":
-        snippet = _strip_html(body_content)[:_SNIPPET_MAX_LENGTH]
+        snippet = strip_html_to_line(body_content, max_length=_SNIPPET_MAX_LENGTH)
     else:
         snippet = body_content[:_SNIPPET_MAX_LENGTH]
 
@@ -148,21 +141,22 @@ def _build_snippet(body_content: str, body_type: str, body_preview: Any) -> str:
         return snippet
 
     preview = str(body_preview or "").strip()
-    return _strip_html(preview)[:_SNIPPET_MAX_LENGTH] if preview else snippet
+    return strip_html_to_line(preview, max_length=_SNIPPET_MAX_LENGTH) if preview else snippet
 
 
 def normalize_graph_message(msg: dict[str, Any]) -> dict[str, Any]:
     """
-    Normalize a Microsoft Graph message to Gmail API dict format.
+    Normalize a Microsoft Graph message to the provider-neutral vocabulary.
 
-    Converts the Microsoft Graph message structure to match what
-    emails_tools.py expects (same format as GoogleGmailClient).
+    The body is converted to TEXT here, at the client boundary — it used to
+    travel as raw HTML through the registry and be converted late, by the
+    agent formatter — and no Gmail ``payload`` tree is fabricated (ADR-287).
 
     Args:
         msg: Microsoft Graph message dict from /me/messages endpoint.
 
     Returns:
-        Dict in Gmail API message format with _provider marker.
+        Dict in the ``EmailMessage`` vocabulary with the ``_provider`` marker.
     """
     msg_id = msg.get("id", "")
     thread_id = msg.get("conversationId", msg_id)
@@ -185,6 +179,10 @@ def normalize_graph_message(msg: dict[str, Any]) -> dict[str, Any]:
     body_type = body_data.get("contentType", "html")
 
     snippet = _build_snippet(body_content, body_type, msg.get("bodyPreview"))
+    body_text = clean_reply_body(
+        html_to_text(body_content) if body_type == "html" else body_content,
+        subject=msg.get("subject"),
+    )
 
     # Build label IDs (Gmail-compatible)
     label_ids: list[str] = []
@@ -210,33 +208,19 @@ def normalize_graph_message(msg: dict[str, Any]) -> dict[str, Any]:
                 }
             )
 
-    # Build Gmail-compatible headers
-    headers = [
-        {"name": "From", "value": from_str},
-        {"name": "To", "value": to_str},
-        {"name": "Subject", "value": subject},
-        {"name": "Date", "value": msg.get("receivedDateTime", "")},
-    ]
-    if cc_str:
-        headers.append({"name": "Cc", "value": cc_str})
-    if bcc_str:
-        headers.append({"name": "Bcc", "value": bcc_str})
-
     return {
         "id": msg_id,
         "threadId": thread_id,
         "snippet": snippet,
         "labelIds": label_ids,
         "internalDate": _parse_datetime_to_epoch_ms(msg.get("receivedDateTime")),
-        "payload": {
-            "headers": headers,
-            "mimeType": "text/html" if body_type == "html" else "text/plain",
-        },
         "subject": subject,
         "from": from_str,
         "to": to_str,
+        "cc": cc_str,
+        "bcc": bcc_str,
         "date": msg.get("receivedDateTime", ""),
-        "body": body_content,
+        "body": body_text,
         "hasAttachment": msg.get("hasAttachments", False),
         "attachments": attachments,
         "sizeEstimate": msg.get("size", 0),

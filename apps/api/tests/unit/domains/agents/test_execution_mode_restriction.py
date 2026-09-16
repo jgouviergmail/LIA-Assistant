@@ -62,6 +62,30 @@ class TestTheFilter:
         assert [m.name for m in kept] == ["legacy_tool"]
 
 
+class TestLocalQueryEngineIsPipelineOnly:
+    """Its registry is injected by ``parallel_executor`` alone: offered to ReAct
+    it answered 'No registry data available' on every call, right after a search
+    had collected five items (measured 2026-09-15, ADR-286). The mirror of the
+    ``run_python_tool`` rule: a tool the mode cannot run is never offered to it."""
+
+    def test_react_never_sees_it(self) -> None:
+        from src.domains.agents.query.catalogue_manifests import (
+            local_query_engine_catalogue_manifest,
+        )
+
+        assert (
+            manifests_for_mode([local_query_engine_catalogue_manifest], EXECUTION_MODE_REACT) == []
+        )
+
+    def test_the_pipeline_keeps_it(self) -> None:
+        from src.domains.agents.query.catalogue_manifests import (
+            local_query_engine_catalogue_manifest,
+        )
+
+        kept = manifests_for_mode([local_query_engine_catalogue_manifest], EXECUTION_MODE_PIPELINE)
+        assert kept == [local_query_engine_catalogue_manifest]
+
+
 class TestEveryReaderApplotIt:
     """A filter one reader forgets is a filter that does not exist."""
 

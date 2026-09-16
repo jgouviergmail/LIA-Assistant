@@ -46,6 +46,7 @@ from src.domains.agents.constants import (
 from src.domains.agents.context.runtime_context import runtime_context_if_running
 from src.domains.agents.domain_schemas import RouterOutput
 from src.domains.agents.models import MessagesState
+from src.domains.agents.nodes.draft_sequence import draft_turn_reset
 from src.domains.agents.utils.react_budget import react_turn_reset
 from src.domains.agents.utils.state_tracking import track_state_updates
 from src.domains.agents.utils.turn_type import normalize_turn_type
@@ -367,6 +368,9 @@ async def router_node_v3(
         # tool time carried by the checkpoint, every ReAct turn of the thread
         # dead at iteration 1 (react_budget.react_turn_reset).
         **react_turn_reset(),
+        # ADR-288: a new turn starts with no draft under review — the previous
+        # review was abandoned with its interrupt (draft_sequence.draft_turn_reset).
+        **draft_turn_reset(),
         # Store intelligence for planner (as serializable dict for LangGraph checkpointing)
         # Also store the object for in-memory access by streaming service
         STATE_KEY_QUERY_INTELLIGENCE: intelligence.to_serializable_dict(),

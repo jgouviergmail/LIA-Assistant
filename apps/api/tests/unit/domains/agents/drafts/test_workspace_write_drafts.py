@@ -14,6 +14,7 @@ from uuid import uuid4
 import pytest
 
 from src.core.i18n_drafts import get_draft_preview_labels
+from src.domains.agents.drafts.card_spec import to_markdown_lines
 from src.domains.agents.drafts.models import DraftType
 from src.domains.agents.drafts.preview_renderer import (
     _render_document_append,
@@ -46,7 +47,7 @@ class TestPreviews:
             labels,
             lambda s: s or "",
         )
-        joined = "\n".join(lines)
+        joined = "\n".join(to_markdown_lines(lines, labels["separator"]))
         assert "Budget 2026" in joined
         assert "Dépenses" in joined
         assert "Loyer | 1200" in joined
@@ -65,7 +66,7 @@ class TestPreviews:
             labels,
             lambda s: s or "",
         )
-        assert any("B2:B3" in line for line in lines)
+        assert any("B2:B3" in line for line in to_markdown_lines(lines, labels["separator"]))
 
     def test_long_value_list_is_truncated_with_exact_count(self) -> None:
         labels = get_draft_preview_labels("fr")
@@ -80,7 +81,7 @@ class TestPreviews:
             labels,
             lambda s: s or "",
         )
-        joined = "\n".join(lines)
+        joined = "\n".join(to_markdown_lines(lines, labels["separator"]))
         # Shown rows are bounded, and the hidden remainder is stated exactly.
         assert "(+15)" in joined
 
@@ -91,7 +92,7 @@ class TestPreviews:
             labels,
             lambda s: s or "",
         )
-        joined = "\n".join(lines)
+        joined = "\n".join(to_markdown_lines(lines, labels["separator"]))
         assert "Compte-rendu" in joined
         assert "Décision: reporter la réunion." in joined
 

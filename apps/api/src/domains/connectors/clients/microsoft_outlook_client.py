@@ -13,6 +13,7 @@ Scopes required:
 """
 
 from typing import Any
+from urllib.parse import urlsplit
 from uuid import UUID
 
 import structlog
@@ -73,12 +74,31 @@ class MicrosoftOutlookClient(BaseMicrosoftClient):
     # SEARCH & RETRIEVAL
     # =========================================================================
 
+    def _is_graph_continuation(self, url: str) -> bool:
+        """Whether ``url`` is a continuation of THIS API: same scheme, same host,
+        under the API's own path — decided on the parsed url, never on a string
+        prefix (a prefix check is only as safe as the path the base happens to
+        carry). The request that follows carries the person's bearer token.
+        """
+        base = urlsplit(self.api_base_url)
+        try:
+            candidate = urlsplit(url)
+        except ValueError:
+            return False
+        return (
+            candidate.scheme == base.scheme
+            and candidate.netloc == base.netloc
+            and candidate.path.startswith(base.path.rstrip("/") + "/")
+        )
+
     async def search_emails(
         self,
         query: str,
         max_results: int = settings.emails_tool_default_max_results,
         fields: list[str] | None = None,
         use_cache: bool = True,
+        page_token: str | None = None,
+        headers_only: bool = False,
     ) -> dict[str, Any]:
         """
         Search emails using Microsoft Graph.
@@ -97,10 +117,27 @@ class MicrosoftOutlookClient(BaseMicrosoftClient):
             max_results: Maximum results to return.
             fields: Field projection (unused, kept for interface compatibility).
             use_cache: Whether to use cache (unused, kept for interface compatibility).
+            page_token: The ``next_page_token`` of a previous page — Graph's
+                ``@odata.nextLink`` url, followed as is (ADR-287). It is
+                accepted ONLY on the Graph host: the request carries the
+                person's bearer token, and a model can hand back any string.
+            headers_only: Accepted for provider parity; the Graph listing already
+                selects ``bodyPreview`` and never ``body``.
 
         Returns:
-            Dict with 'messages' list in Gmail API format.
+            Dict with the normalised ``messages`` list, ``resultSizeEstimate``
+            (Graph's ``@odata.count`` when the response carries one, else
+            ``None`` — never the page size, ADR-185) and ``next_page_token``.
+
+        Raises:
+            ValueError: A ``page_token`` that does not point at the Graph host.
         """
+        if page_token:
+            if not self._is_graph_continuation(page_token):
+                raise ValueError("page_token must be a Graph continuation url")
+            response = await self._make_request_full_url("GET", page_token)
+            return self._search_page(response, query)
+
         max_results = apply_max_items_limit(max_results)
 
         # Translate Gmail-style query to Microsoft Graph parameters
@@ -149,8 +186,10 @@ class MicrosoftOutlookClient(BaseMicrosoftClient):
         )
 
         response = await self._make_request("GET", endpoint, params)
+        return self._search_page(response, query)
 
-        # Normalize to Gmail API format
+    def _search_page(self, response: dict[str, Any], query: str) -> dict[str, Any]:
+        """Shape one page of a Graph listing — first page and continuations alike."""
         messages = [normalize_graph_message(msg) for msg in response.get("value", [])]
 
         logger.info(
@@ -163,9 +202,13 @@ class MicrosoftOutlookClient(BaseMicrosoftClient):
         # Graph reads are always live: the freshness metadata is stated
         # explicitly so every email provider answers the same contract
         # (see GoogleGmailClient / AppleEmailClient).
+        # ADR-185: a count is exact or does not exist. Graph states a total only
+        # when asked (``@odata.count``); the page size is neither an estimate nor
+        # a total, so it is never published as one.
         return {
             "messages": messages,
-            "resultSizeEstimate": len(messages),
+            "resultSizeEstimate": response.get("@odata.count"),
+            "next_page_token": response.get("@odata.nextLink"),
             "from_cache": False,
             FIELD_CACHED_AT: None,
         }

@@ -6,7 +6,7 @@
 
 **Version**: 5.0
 **Datum**: 2026-08-23
-**Application**: LIA v1.44.6
+**Application**: LIA v1.44.7
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -69,8 +69,8 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Self-Hosting ARM64 | Docker Multi-Arch, semantische Embeddings (mehrsprachig), Playwright Chromium Cross-Platform |
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
-| Vollständige Transparenz | 555 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 284 ADRs, ~28.983 von pytest gesammelte Tests in 1.703 Dateien, native Observability, HITL auf 6 Ebenen |
+| Vollständige Transparenz | 557 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
+| Produktionszuverlässigkeit | 288 ADRs, ~28.983 von pytest gesammelte Tests in 1.703 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -91,7 +91,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Tests | 28.983 von pytest über 1.703 Testdateien gesammelt + 8.316 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
 | pytest-Fixtures | 969, davon 46 über conftest geteilt |
 | Dokumentationsdokumente | 647 |
-| ADRs (Architecture Decision Records) | 284 |
+| ADRs (Architecture Decision Records) | 288 |
 | Prometheus-Metriken | 553 Definitionen |
 | Grafana-Dashboards | 29 |
 | Unterstützte Sprachen (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -347,6 +347,8 @@ Die Ausgaben eines Zuges gehorchen einem Erhaltungssatz (ADR-256): Denkzeit und 
 
 Beide Modi teilen sich dasselbe Tool-Register, HITL-System, den Response-Knoten und die Observability-Infrastruktur. Benutzer wechseln über einen Schalter im Chat-Header zwischen den Modi.
 
+Was ein Werkzeug zurückgibt, wird **Element für Element unter einem Token-Budget in den Kontext der Schleife projiziert** (ADR-286). Die schwerste Elementliste eines Ergebnisses wird an Elementgrenzen geblättert — ein zugelassenes Element ist vollständig, der Block bleibt gültiges JSON, Skalare reisen ganz, und das erste Element kommt immer durch — unter `min(REACT_TOOL_RESULT_MAX_TOKENS, Fenster × REACT_TOOL_RESULT_WINDOW_FRACTION)`, wobei das Fenster das des ReAct-Slots ist. Ein Schnitt wird dem Modell nach dem Tag für externe Inhalte **gesagt** (wie viele von wie vielen, und der Weg zum Rest) und je Werkzeug gezählt, sodass ein Postfach voller Nachrichten das Modell nie als Auszug erreicht, der mitten in den Kopfzeilen der ersten abgeschnitten ist. Der rohe Anbieterbaum verlässt den E-Mail-Builder nie, und ein Werkzeug, dessen Daten nur der Pipeline-Executor einspeist, erklärt sich als Pipeline-only, statt einer Schleife angeboten zu werden, die es nicht ausführen kann.
+
 Ein Durchgang schuldet sich außerdem ein Arbeitsgedächtnis, das ihn überdauert. Der Zustand ist durch ein Nachrichtenfenster begrenzt, und ein ReAct-Durchgang fügt pro Iteration zwei Nachrichten hinzu — ein hinreichend langer Durchgang verdrängt somit **seine eigene Frage** aus diesem Fenster, woraufhin die Fensterung, die Historie und laufende Schleife trennt, überhaupt keinen Trennpunkt mehr findet. Der Reducer heftet die Frage des Durchgangs daher wieder an, wenn die Kürzung sie verdrängt hat, auf beiden Zweigen, und die Kopplung zwischen Iterationsbudget und Fenstergröße trägt einen Namen, statt als unausgesprochene arithmetische Beziehung zu existieren. Auch was ein Durchgang dem Modell tatsächlich liefert, wird gemessen — Prompt-Größe pro Iteration und ihr Anteil am Kontextfenster des Modells — denn eine Schleife, die ihre Iterationen und ihre Dauer maß, maß alles außer dem, was wächst.
 
 ### 5.4. Entkoppelte Ausführungen: Die Generierung überlebt die Verbindung (ADR-117)
@@ -568,9 +570,11 @@ Phase 8 (aktuell) legt den **vollständigen Plan** dem Benutzer **vor** jeder Au
 | `FOR_EACH_CONFIRM` | Massenmutationen | `interrupt()` mit Operationszählung |
 | `MODIFIER_REVIEW` | Von KI vorgeschlagene Änderungen | `interrupt()` mit Vorher/Nachher-Vergleich |
 
-### 9.3. Erweitertes Draft Critique
+### 9.3. Entwurfskritik: eine Beschreibung, eine Frage je Entwurf
 
-Für Entwürfe generiert ein dedizierter Prompt eine strukturierte Kritik mit Markdown-Templates pro Domäne, Feld-Emojis, Vorher/Nachher-Vergleich mit Durchstreichen für Aktualisierungen und Irreversibilitätswarnungen. Die Post-HITL-Ergebnisse zeigen i18n-Labels und anklickbare Links an.
+Ein zu bestätigender Entwurf und der Bericht seiner Ausführung werden **einmal beschrieben** — eine Kartenspezifikation aus beschrifteten Zeilen, Notizen und Blöcken, die je Entwurfstyp ein Renderer aus dem Anzeigeregister baut — und **je Oberfläche gezeichnet**: im Chat dasselbe `lia-card`-Markup wie eine E-Mail oder ein Termin (Kopfzeile, Illustration, Felder mit ihren Symbolen, Text als Block); auf einem Ticket, in einem externen Kanal oder im Anzeigemodus `markdown` das Markdown, das der Ticket-Kommentar glätten kann. Die Oberfläche entscheidet der Run, nie rät sie ein Aufrufer. Ein Bericht sagt, was getan wurde, an wen und womit: Jede Zeile eines Stapels trägt die Schlüsselfelder, die ihr Typ deklariert, und einen begrenzten Auszug des gesendeten Textes, zitiert mit den Anführungszeichen der Sprache. Vorher/Nachher-Vergleich bei Aktualisierungen, Irreversibilitätswarnungen, i18n-Beschriftungen und anklickbare Links gehören zu dieser Beschreibung.
+
+Ein Zug, der **mehrere unabhängige Entwürfe** vorbereitet — zwei E-Mails, einen Termin und eine Aufgabe, mehrere Werkzeugaufrufe einer ReAct-Iteration — legt sie **einen Entwurf je Unterbrechung** vor: Die Folge beginnt mit der Liste all dessen, was der Zug vorbereitet hat, jeder Entwurf hat seine Karte, seine Frage und seine Änderung, die Position wird genannt („Entwurf 2 von 3“), und nichts läuft vor der letzten Antwort; die gesammelten Entscheidungen werden dann gemeinsam ausgeführt, jede unter ihrem eigenen Typ, und ein abgebrochener Entwurf wird gemeldet statt verloren. Nur ein Stapel, den die Person **als Liste vorab genehmigt** hat — die Einträge eines in diesem Zug genehmigten FOR_EACH-Schritts, eines Typs — behält seine gebündelte Bestätigung. Ein Ticket folgt derselben Identität (dem Entwurf auf dem Bildschirm), und ein neuer Zug beginnt immer ohne Entwurf in Prüfung.
 
 ### 9.4. Antwortklassifikation
 
@@ -755,6 +759,8 @@ ConnectorTool (base.py) → ClientRegistry → resolve_client(type) → Protocol
 ### 13.2. Normalizer
 
 Jeder Provider gibt Daten in seinem eigenen Format zurück. Dedizierte Normalizer (`calendar_normalizer`, `contacts_normalizer`, `email_normalizer`, `tasks_normalizer`) konvertieren providerspezifische Antworten in einheitliche Domain-Modelle. Ein neuer Provider erfordert nur die Implementierung des Protokolls und seines Normalizers — der aufrufende Code bleibt unverändert.
+
+Für E-Mail ist dieses einheitliche Modell gemessen, nicht angenommen: Die drei Normalizer erzeugen dasselbe `EmailMessage`-Vokabular — einen Textkörper, nie HTML, aus dem der zitierte Verlauf und die Signatur an der Client-Grenze entfernt werden (sechs Sprachen, gemessen an einem Korpus von 48 Texten) — und keiner fabriziert mehr das Format eines anderen Anbieters. `get_emails_tool` wählt dann anhand der Frage, was es liefert, mit ausgewiesenen Kosten: `metadata` listet ohne Text, `full` liest einen sauberen, absatzweise paginierten Text, `summary` argumentiert über eine **Zusammenfassung pro Nachricht** (das Wesentliche, Kernpunkte, Aufgaben, Kategorie, Wichtigkeit), einmal von einem kleinen Modell ohne Reasoning berechnet, dreißig Tage zwischengespeichert und von den Ausgabengrenzen verweigert — nie erfunden, wenn das Modell scheitert. Das ermöglicht „fasse meine ungelesenen Mails zusammen“ oder „eine Synthese der Newsletter dieser Woche“ über zwanzig Nachrichten, ohne alle zu laden, für Gmail, Outlook und Apple gleichermaßen (ADR-287).
 
 ### 13.3. Wiederverwendbare Patterns
 
@@ -987,7 +993,7 @@ Herkunft ist daher eine Eigenschaft der **Daten**: Die 24 Registry-Typen werden 
 
 | Technologie | Rolle |
 |-------------|------|
-| Prometheus | 555 benutzerdefinierte Metriken (RED Pattern) |
+| Prometheus | 557 benutzerdefinierte Metriken (RED Pattern) |
 | Grafana | 29 produktionsreife Dashboards |
 | Loki | Aggregierte strukturierte JSON-Logs |
 | Tempo | Verteiltes Cross-Service-Tracing (OTLP gRPC) |
@@ -995,7 +1001,7 @@ Herkunft ist daher eine Eigenschaft der **Daten**: Die 24 Registry-Typen werden 
 | Alertmanager | Kern aus 14 vitalen Alerts per E-Mail (verknüpfte Runbooks, Schwellenwerte je Umgebung) + Webhook zu LIA: jeder Alarm wird zum Vorfall im Produkt (ADR-247) |
 | structlog | Strukturiertes Logging mit PII-Filterung |
 
-**Eine Metrik, die kein Dashboard erreicht, ist eine Metrik, auf die niemand reagiert.** Der Abstand zwischen dem, was der Code ausgibt, und dem, was ein Operator sehen kann, wird gemessen, nie angenommen: `scripts/audit/measure_metric_coverage.py` liest jede Metrikdefinition per AST (nicht per Regex — eine Regex liest `ZoneInfo("UTC")` als `Info`-Metrik) und prüft jeden Namen gegen sämtliche Dashboard-Panels, Recording Rules und Alert-Ausdrücke. 555 definiert; die 44, die nichts erreichen, stehen ausdrücklich in einer **ausschließlich schrumpfenden** Baseline — eine neu erblindete Metrik lässt den Build rot werden, und eine sichtbar gewordene Metrik muss die Liste verlassen, sonst nimmt die nächste blinde stillschweigend ihren Platz ein. Der Preis dafür, dies nicht gehabt zu haben: Eine offen ausfallende Heartbeat-Quelle verwarf die Gesundheitssignale bei 46,5 % der Ticks eine Woche lang, ohne dass eine Metrik es bemerkt hätte (ADR-148). Zwei Fallen, die der Wächter konstruktiv schließt — ein Zähler mit Labels, der nie ausgelöst hat, liefert **überhaupt keine Serie**, sodass ein Panel für einen seltenen Fehler `or vector(0)` braucht, sonst zeigt es „No data“, wo ein Operator eine grüne Null erwartet; und Abdeckung wird ausschließlich aus **Ausdrücken** von Panels und Regeln gelesen, denn eine in einem Kommentar genannte Metrik ist nicht verdrahtet.
+**Eine Metrik, die kein Dashboard erreicht, ist eine Metrik, auf die niemand reagiert.** Der Abstand zwischen dem, was der Code ausgibt, und dem, was ein Operator sehen kann, wird gemessen, nie angenommen: `scripts/audit/measure_metric_coverage.py` liest jede Metrikdefinition per AST (nicht per Regex — eine Regex liest `ZoneInfo("UTC")` als `Info`-Metrik) und prüft jeden Namen gegen sämtliche Dashboard-Panels, Recording Rules und Alert-Ausdrücke. 557 definiert; die 44, die nichts erreichen, stehen ausdrücklich in einer **ausschließlich schrumpfenden** Baseline — eine neu erblindete Metrik lässt den Build rot werden, und eine sichtbar gewordene Metrik muss die Liste verlassen, sonst nimmt die nächste blinde stillschweigend ihren Platz ein. Der Preis dafür, dies nicht gehabt zu haben: Eine offen ausfallende Heartbeat-Quelle verwarf die Gesundheitssignale bei 46,5 % der Ticks eine Woche lang, ohne dass eine Metrik es bemerkt hätte (ADR-148). Zwei Fallen, die der Wächter konstruktiv schließt — ein Zähler mit Labels, der nie ausgelöst hat, liefert **überhaupt keine Serie**, sodass ein Panel für einen seltenen Fehler `or vector(0)` braucht, sonst zeigt es „No data“, wo ein Operator eine grüne Null erwartet; und Abdeckung wird ausschließlich aus **Ausdrücken** von Panels und Regeln gelesen, denn eine in einem Kommentar genannte Metrik ist nicht verdrahtet.
 
 ### 20.2. Eingebettetes Debug-Panel
 
@@ -1399,7 +1405,7 @@ Eine CSS-Regel bestimmt die Abstände des Design-Systems: Vertikale Ränder eine
 
 ## 24. Architekturentscheidungen (ADR)
 
-284 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
+288 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
 
 | ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
 |-----|----------|----------------|---------------|
@@ -1673,8 +1679,8 @@ Das Verbindungsbudget hat einen Boden, nicht nur eine Decke. Audit F004 begrenzt
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 284 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~27.290 Tests in 1.601 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 288 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~27.290 Tests in 1.601 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 284 ADRs und des Changelogs (v1.0 bis v1.44.6). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 288 ADRs und des Changelogs (v1.0 bis v1.44.7). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

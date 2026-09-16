@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pytest
 
-from src.infrastructure.llm.reasoning.profiles import (
+from src.core.reasoning_profiles import (
     _RULES,
     FAMILIES,
     ReasoningProfile,
