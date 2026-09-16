@@ -440,11 +440,13 @@ def initialize_catalogue(registry: AgentRegistry) -> None:
     if getattr(_get_settings(), "telephony_enabled", False):
         from src.domains.agents.telephony.catalogue_manifests import (
             TELEPHONY_AGENT_MANIFEST,
+            call_me_catalogue_manifest,
             place_phone_call_catalogue_manifest,
         )
 
         registry.register_agent_manifest(TELEPHONY_AGENT_MANIFEST)
         registry.register_tool_manifest(place_phone_call_catalogue_manifest)
+        registry.register_tool_manifest(call_me_catalogue_manifest)
 
     # Interdomain-program manifests (ADR-140/141+) — registration delegated
     # to one aggregator (loader is frozen at its size cap; net-zero here).

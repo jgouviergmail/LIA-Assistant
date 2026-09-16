@@ -285,7 +285,7 @@
       "title": "Call duration (p50/p95)",
       "type": "timeseries",
       "datasource": "$datasource",
-      "description": "Billed-by-the-user call duration (1h window — calls are sparse). The hard cap is TELEPHONY_MAX_CALL_DURATION_SECONDS.",
+      "description": "Billed-by-the-user call duration (1h window — calls are sparse). The hard cap is the agent's maximum duration on the ElevenLabs portal.",
       "gridPos": {
         "h": 8,
         "w": 12,
@@ -419,6 +419,198 @@
       }
     },
     {
+      "id": 103,
+      "title": "Owner calls — relay into the chat (phone as a channel)",
+      "type": "row",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 22
+      },
+      "panels": []
+    },
+    {
+      "id": 10,
+      "title": "Relay outcomes (by outcome)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "description": "After LIA calls the account holder, what the person said is relayed into the chat as their own turn. answered/waiting = the turn ran (waiting = drafts to confirm); empty/not_owner/pending_question/busy/quota_blocked/failed = the person got a notification saying why. A labelled counter that never fired exposes no series: the fallback keeps the panel at 0 rather than « No data ».",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 23
+      },
+      "targets": [
+        {
+          "expr": "sum by (outcome) (rate(telephony_relay_total[$__rate_interval])) or vector(0)",
+          "legendFormat": "{{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "0",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 11,
+      "title": "Relays not run (24h)",
+      "type": "stat",
+      "datasource": "$datasource",
+      "description": "Owner calls whose words did NOT become a chat turn over the last day (every outcome but answered/waiting). A steady non-zero here means the person keeps getting a notification instead of an answer.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 23
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(telephony_relay_total{outcome!~\"answered|waiting\"}[24h])) or vector(0)",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      }
+    },
+    {
+      "id": 12,
+      "title": "Live lookups during owner calls (by tool, outcome)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "description": "Lookups the voice agent asked LIA for during an owner call (lot 7, TELEPHONY_LIVE_TOOLS_ENABLED). A refusal names why: the flag, the call, the secret, the tool, or the call's budget. `or vector(0)`: a counter that never fired exposes no series.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 31
+      },
+      "targets": [
+        {
+          "expr": "sum by (tool, outcome) (rate(telephony_live_tool_calls_total[$__rate_interval])) or vector(0)",
+          "legendFormat": "{{tool}} · {{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "0",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 13,
+      "title": "Live lookup duration (p50/p95, by tool)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "description": "How long a live lookup takes to answer the voice agent. The vendor waits TELEPHONY_LIVE_TOOL_TIMEOUT_SECONDS; the lookup itself is bounded a few seconds under it.",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 31
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le, tool) (rate(telephony_live_tool_duration_seconds_bucket[1h])))",
+          "legendFormat": "p50 {{tool}}",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, tool) (rate(telephony_live_tool_duration_seconds_bucket[1h])))",
+          "legendFormat": "p95 {{tool}}",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
       "type": "row",
       "id": 102,
       "title": "Webhooks",
@@ -427,7 +619,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 22
+        "y": 39
       },
       "panels": []
     },
@@ -441,7 +633,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 23
+        "y": 40
       },
       "targets": [
         {

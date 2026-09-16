@@ -26,6 +26,7 @@ import { describe, it, expect } from 'vitest';
 
 import {
   callOutcomeTone,
+  relayOutcomeTone,
   skillTraitTone,
   directionTone,
   lifecycleTone,
@@ -293,6 +294,25 @@ describe('callOutcomeTone', () => {
 
   it('renders an unknown outcome NEUTRAL', () => {
     expect(callOutcomeTone('renegotiated')).toBe('secondary');
+  });
+});
+
+describe('relayOutcomeTone', () => {
+  it('reads a call nobody picked up as a normal end, and a line that failed as a failure', () => {
+    // Production 2026-09-16: a call that died at pickup was drawn as « someone
+    // else answered ». The two are told apart now, and toned accordingly.
+    expect(relayOutcomeTone('unanswered')).toBe('secondary');
+    expect(relayOutcomeTone('not_owner')).toBe('secondary');
+    expect(relayOutcomeTone('call_failed')).toBe('destructive');
+  });
+
+  it('paints the turn that ran green and the drafts it left warning', () => {
+    expect(relayOutcomeTone('answered')).toBe('success');
+    expect(relayOutcomeTone('waiting')).toBe('warning');
+  });
+
+  it('renders an unknown outcome NEUTRAL', () => {
+    expect(relayOutcomeTone('relayed_by_pigeon')).toBe('secondary');
   });
 });
 

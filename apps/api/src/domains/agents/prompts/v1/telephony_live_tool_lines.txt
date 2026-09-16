@@ -1,0 +1,9 @@
+# What a live lookup answers the voice agent besides the data itself
+# (phone-as-a-channel, lot 7). `key|template` per line, str.format templates:
+# `tool` is the registry name of the tool, `shown` and `total` the item counts
+# of a projected result. Read by domains/agents/telephony/live_tools.py.
+
+result_cut|(Only {shown} of {total} items are shown; ask a narrower question to see the rest.)
+failed|The lookup {tool} could not be completed; say so in a few words and carry on without it.
+timeout|The lookup {tool} took too long; say so in a few words and carry on without it.
+budget_exhausted|No more lookups are available on this call; carry on with what you already know.

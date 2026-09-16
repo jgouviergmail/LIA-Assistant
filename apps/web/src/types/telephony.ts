@@ -82,6 +82,18 @@ export interface StructuredCallData {
 }
 
 /** One call, as `GET /telephony/calls` returns it (newest first). */
+/**
+ * What a call cost, cumulated — its live lookups, its synthesis, its relayed
+ * turn under ONE run id — in the chat meter's own vocabulary.
+ */
+export interface TelephonyCallUsage {
+  tokens_in: number;
+  tokens_out: number;
+  tokens_cache: number;
+  cost_eur: number;
+  google_api_requests: number;
+}
+
 export interface TelephonyCallSummary {
   id: string;
   /** Human-readable callee name — never the number. */
@@ -99,4 +111,53 @@ export interface TelephonyCallSummary {
   call_seconds: number | null;
   created_at: string;
   completed_at: string | null;
+  /** Which mandate the call ran under; `third_party` for every pre-lot-2 row. */
+  call_kind: CallKind;
+  /** The call's cumulated bill (lot 8); absent or null while nothing was spent. */
+  usage?: TelephonyCallUsage | null;
+  /** How an owner call's words reached the chat, or why they did not; null otherwise. */
+  relay_outcome: RelayOutcome | null;
+}
+
+/** Which mandate a call ran under — `CallKind` in the backend models. */
+export type CallKind = 'third_party' | 'self' | 'verification';
+
+/**
+ * How an owner call's words reached the chat (`answered`, `waiting`), or why
+ * they did not. Null while the relay runs, and for every other kind.
+ */
+export type RelayOutcome =
+  | 'answered'
+  | 'waiting'
+  | 'empty'
+  | 'not_owner'
+  | 'unanswered'
+  | 'call_failed'
+  | 'pending_question'
+  | 'busy'
+  | 'quota_blocked'
+  | 'failed';
+
+/**
+ * The person's own phone identity — `TelephonyIdentityResponse`.
+ *
+ * The number is the person's own and travels whole: a masked number cannot be
+ * checked for the typo that would send an owner call to a stranger.
+ */
+export interface TelephonyIdentity {
+  phone_number: string | null;
+  verified: boolean;
+  verified_at: string | null;
+  rich_context_enabled: boolean;
+  /** The phone domains the person switched OFF for their own calls (lot 8). */
+  disabled_domains: string[];
+  /** Every domain the phone may read — the server's vocabulary, never guessed here. */
+  available_domains: string[];
+  verification_pending: boolean;
+}
+
+/** What the page learns when the verification call leaves. */
+export interface TelephonyIdentityVerifyStart {
+  call_id: string | null;
+  expires_in_seconds: number;
 }

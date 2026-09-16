@@ -13,6 +13,7 @@ import {
   Download,
   FileText,
   Globe,
+  PhoneCall,
   RotateCcw,
   User,
   X,
@@ -270,6 +271,29 @@ function MeetingMinutesBlock({
 }) {
   if (!isMeetingNotificationMetadata(metadata)) return null;
   return <MeetingMinutesCard lng={lng} metadata={metadata} showCosts={showCosts} />;
+}
+
+/**
+ * Said on the phone (phone as a channel): the relay of a call LIA placed to the
+ * person is archived as THEIR message, visible and stamped — the mark says
+ * where the words came from. Renders nothing on a typed message.
+ */
+function PhoneOriginMark({ metadata }: { metadata?: Record<string, unknown> }) {
+  const { t } = useTranslation();
+  if (!metadata?.phone_call) return null;
+  return (
+    <>
+      {' | '}
+      <span
+        className="inline-flex items-center gap-1 text-primary"
+        role="img"
+        aria-label={t('chat.phone_call_badge')}
+        title={t('chat.phone_call_badge')}
+      >
+        <PhoneCall className="inline h-3 w-3" aria-hidden="true" />
+      </span>
+    </>
+  );
 }
 
 function PhoneCallDebriefBlock({ metadata }: { metadata?: Record<string, unknown> }) {
@@ -1181,6 +1205,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
         </div>
         <span className="text-[11px] mobile:text-xs text-muted-foreground mt-1.5 px-1 font-medium whitespace-nowrap w-full text-left">
           {formatTime(message.timestamp)}
+          <PhoneOriginMark metadata={message.metadata} />
           {/* Voice source indicator (only for voice messages) */}
           {message.source === 'voice' && (
             <span className="hidden mobile:inline">

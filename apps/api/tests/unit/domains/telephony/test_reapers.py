@@ -13,7 +13,7 @@ import pytest
 import src.domains.telephony.reapers as rp
 import src.domains.telephony.router as rt
 from src.core.config import settings
-from src.domains.telephony.models import PhoneCallOutcome, PhoneCallStatus
+from src.domains.telephony.models import CallKind, PhoneCallOutcome, PhoneCallStatus
 
 
 def _install_reaper_db(monkeypatch, repo_cls) -> dict:
@@ -95,6 +95,10 @@ def _install_notification_reaper(monkeypatch, *, pending, user, dispatch_error=N
         ) -> None:  # noqa: ANN001
             actions["failed"].append(call_id)
 
+        async def recover_stale_relays(self, *, max_age_cutoff) -> int:  # noqa: ANN001
+            actions["stale_relay_cutoff"] = max_age_cutoff
+            return 0
+
     class _Dispatcher:
         async def dispatch(self, **kwargs):
             if dispatch_error is not None:
@@ -175,7 +179,11 @@ async def test_notification_reaper_skips_when_user_gone(monkeypatch) -> None:
 async def test_notification_reaper_noop_when_nothing_pending(monkeypatch) -> None:
     actions = _install_notification_reaper(monkeypatch, pending=[], user=None)
     await rp.telephony_notification_reaper()
-    assert actions == {"dispatched": [], "delivered": [], "failed": []}
+    assert {k: v for k, v in actions.items() if k != "stale_relay_cutoff"} == {
+        "dispatched": [],
+        "delivered": [],
+        "failed": [],
+    }
 
 
 @pytest.mark.unit
@@ -202,6 +210,28 @@ async def test_list_calls_omits_encrypted_phone(monkeypatch) -> None:
 
     monkeypatch.setattr(rt, "TelephonyRepository", _FakeRepo)
 
+    from decimal import Decimal as _D
+
+    from src.domains.telephony.spend import phone_call_run_id
+
+    class _FakeChat:
+        def __init__(self, db) -> None:  # noqa: ANN001
+            pass
+
+        async def get_token_summaries_by_run_ids(self, run_ids):  # noqa: ANN001
+            assert run_ids == [phone_call_run_id(call.id)]
+            return {
+                phone_call_run_id(call.id): SimpleNamespace(
+                    total_prompt_tokens=1200,
+                    total_completion_tokens=300,
+                    total_cached_tokens=100,
+                    total_cost_eur=_D("0.0421"),
+                    google_api_requests=2,
+                )
+            }
+
+    monkeypatch.setattr(rt, "ChatRepository", _FakeChat)
+
     result = await rt.list_calls(user=SimpleNamespace(id=uuid4()), db=None, limit=20)
 
     assert len(result) == 1
@@ -213,3 +243,67 @@ async def test_list_calls_omits_encrypted_phone(monkeypatch) -> None:
     # The encrypted phone is not a field on the summary — it can never leak.
     assert "callee_phone" not in dumped
     assert "ENCRYPTED_SECRET_BLOB" not in str(dumped)
+    # Lot 8: the call's cumulated bill — live lookups, synthesis and relay
+    # under ONE run id — read from the per-run summary the chat meter uses.
+    assert dumped["usage"] == {
+        "tokens_in": 1200,
+        "tokens_out": 300,
+        "tokens_cache": 100,
+        "cost_eur": 0.0421,
+        "google_api_requests": 2,
+    }
+
+
+@pytest.mark.unit
+async def test_list_calls_carries_no_bill_for_a_call_that_spent_nothing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    call = SimpleNamespace(
+        id=uuid4(),
+        callee_display="Marie",
+        objective="ask",
+        status=PhoneCallStatus.DIALING,
+        outcome=None,
+        summary=None,
+        call_seconds=None,
+        created_at=datetime.now(UTC),
+        completed_at=None,
+        call_kind=CallKind.SELF,
+        notification_payload=None,
+        callee_phone="ENCRYPTED_SECRET_BLOB",
+    )
+
+    class _FakeRepo:
+        def __init__(self, db) -> None:  # noqa: ANN001
+            pass
+
+        async def list_recent_for_user(self, _user_id, limit: int = 20):
+            return [call]
+
+    class _FakeChat:
+        def __init__(self, db) -> None:  # noqa: ANN001
+            pass
+
+        async def get_token_summaries_by_run_ids(self, run_ids):  # noqa: ANN001
+            return {}
+
+    monkeypatch.setattr(rt, "TelephonyRepository", _FakeRepo)
+    monkeypatch.setattr(rt, "ChatRepository", _FakeChat)
+    (summary,) = await rt.list_calls(user=SimpleNamespace(id=uuid4()), db=None, limit=20)
+    assert summary.usage is None
+
+
+@pytest.mark.unit
+async def test_notification_reaper_first_hands_stale_relays_to_itself(monkeypatch) -> None:
+    """A RELAYING row a crash left behind is flipped to PENDING before the
+    scan, so the same tick can deliver its fallback (phone-as-a-channel, lot 4)."""
+    from datetime import UTC, datetime, timedelta
+
+    actions = _install_notification_reaper(monkeypatch, pending=[], user=None)
+    before = datetime.now(UTC)
+
+    await rp.telephony_notification_reaper()
+
+    cutoff = actions["stale_relay_cutoff"]
+    expected = before - timedelta(minutes=rp.settings.telephony_relay_max_age_minutes)
+    assert abs((cutoff - expected).total_seconds()) < 5

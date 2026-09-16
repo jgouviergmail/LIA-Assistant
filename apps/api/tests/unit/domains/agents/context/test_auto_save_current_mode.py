@@ -245,3 +245,35 @@ async def test_none_mode_noop(manager, store, config_ok):
     assert context_list is not None
     assert len(context_list.items) == 1
     assert context_list.items[0]["name"] == "Alice"
+
+
+@pytest.mark.asyncio
+async def test_auto_save_takes_the_acting_user_from_the_runtime_it_was_handed(
+    manager, store, config_ok
+):
+    """A tool run OUTSIDE a graph — a live lookup during an owner call
+    (ADR-290) — has no ambient run, only the typed ``ToolRuntime`` it was
+    given. The decorator reads the acting user from that runtime and hands it
+    down; measured on Docker dev 2026-09-16, the ambient-only read logged
+    ``auto_save_failed_missing_user_id`` on every lookup."""
+    from tests.helpers.runtime_context import no_runtime_context
+
+    result_data = {
+        "success": True,
+        "contacts_current_tests": [{"resource_name": "people/z", "name": "Zoe"}],
+        "tool_name": "get_contacts",
+    }
+    with no_runtime_context():
+        await manager.auto_save(
+            context_type="contacts_current_test",
+            result_data=result_data,
+            config=config_ok,
+            store=store,
+            explicit_mode=ContextSaveMode.LIST,
+            user_id=USER_ID,
+        )
+    context_list = await manager.get_list(
+        user_id=USER_ID, session_id="thread-1", domain="contacts_current_test", store=store
+    )
+    assert context_list is not None
+    assert [item["name"] for item in context_list.items] == ["Zoe"]

@@ -4,7 +4,7 @@
 
 **Version**: 6.0
 **Datum**: 2026-08-23
-**Anwendung**: LIA v1.44.7
+**Anwendung**: LIA v1.45.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -201,6 +201,8 @@ LIA kann für dich zum Hörer greifen. Bitte sie, „die Werkstatt anzurufen, um
 Du bleibst stets eingebunden: Vor dem Wählen sagt dir LIA genau, **wen** sie anruft und **warum**, und wartet auf dein Einverständnis. Und diese Kontrolle endet nicht während des Anrufs: Der Assistent arbeitet unter einem strikten Mandat — bietet der Gesprächspartner einen Aufpreis, eine Option oder eine ungeplante Verpflichtung an (selbst eine kleine), akzeptiert er niemals in deinem Namen; er notiert Angebot und Preis, kündigt einen Rückruf an, und die Zusammenfassung legt dir jeden Betrag und jeden offenen Punkt zur Entscheidung vor. Die Zusammenfassung landet asynchron im Chat, sodass du während des Anrufs anderes erledigen kannst.
 
 Und es bleibt konstruktionsbedingt privat. Während eines Anrufs kann LIA nur mitteilen, ob du zu einem bestimmten Zeitpunkt frei oder gebucht bist — nie die Titel, Gäste oder Orte in deinem Kalender. Nichts wird aufgezeichnet, das Gespräch wird nie gespeichert, und nur eine kurze Zusammenfassung bleibt erhalten, bevor sie abläuft. Anrufe laufen über deinen eigenen ElevenLabs-Connector, abgerechnet über dein Konto, und die Funktion ist nur vorhanden, wenn dein Administrator sie aktiviert hat.
+
+Und LIA kann *dich* anrufen. Hinterlege deine Nummer unter *Telefonie · Meine Identität*, lass LIA sie anrufen und einen Code vorlesen, den du eintippst, und von da an lässt „ruf mich um acht an, um meinen Tag durchzugehen“ — oder eine Routine, die das sagt — dein Telefon ohne Bestätigungskarte klingeln: wer bestätigen würde, ist die Person, die abnimmt. Am Telefon weiß LIA, was sie im Chat weiß — deine Erinnerungen, deinen Kalender, deine Erinnerungshinweise, was mit anderen offen ist — und schlägt, wenn dein Administrator es freigeschaltet hat, nach, während du sprichst: eine E-Mail, einen Kontakt, eine Datei, einen Ort in der Nähe, das Wetter, was sie zu einem Thema behält. Sie liest alles und handelt in nichts; jeder Bereich hat einen Schalter, der dir gehört, und die Assistentin spricht mit der Persönlichkeit, die du ihr gegeben hast. Wenn du auflegst, kommt das Gesagte als deine eigene Nachricht in den Chat zurück, mit einem Telefon-Abzeichen, und was du erbeten hast, wartet dort auf deine Bestätigung.
 
 ### 3.11. Mit deinen Menschen sprechen, von Assistent zu Assistent
 

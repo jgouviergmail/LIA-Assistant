@@ -279,7 +279,7 @@ Feature journaux : extraction (volume, duree, erreurs), actions sur les entrees 
 
 ### 24 - Telephony (9 panels)
 
-Appels sortants agentiques : appels par statut terminal, duree des appels (plafonnee par TELEPHONY_MAX_CALL_DURATION_SECONDS), reapers de recuperation T1 (notifications et syntheses de retour re-dispatchees apres crash), webhooks post-appel ignores par le filtre HMAC/foreign.
+Appels sortants agentiques : appels par statut terminal, duree des appels (plafonnee par la duree maximale de l'agent sur le portail ElevenLabs), reapers de recuperation T1 (notifications et syntheses de retour re-dispatchees apres crash), webhooks post-appel ignores par le filtre HMAC/foreign.
 
 ### 25 - Today Briefing (10 panels)
 

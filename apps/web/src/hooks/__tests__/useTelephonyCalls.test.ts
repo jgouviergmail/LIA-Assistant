@@ -41,6 +41,8 @@ function call(overrides: Partial<TelephonyCallSummary> = {}): TelephonyCallSumma
     debrief: null,
     call_seconds: 62,
     created_at: '2026-07-26T09:00:00Z',
+    call_kind: 'third_party',
+    relay_outcome: null,
     completed_at: '2026-07-26T09:01:02Z',
     ...overrides,
   };

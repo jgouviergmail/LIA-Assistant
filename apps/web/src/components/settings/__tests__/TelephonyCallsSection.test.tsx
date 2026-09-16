@@ -37,6 +37,8 @@ function call(overrides: Partial<TelephonyCallSummary> = {}): TelephonyCallSumma
     debrief: null,
     call_seconds: 62,
     created_at: '2026-07-26T09:00:00Z',
+    call_kind: 'third_party',
+    relay_outcome: null,
     completed_at: '2026-07-26T09:01:02Z',
     ...overrides,
   };
@@ -141,5 +143,48 @@ describe('TelephonyCallsSection', () => {
     mockCalls([call(), call({ id: 'c2', callee_display: 'Le garage' })]);
     renderWithProviders(<TelephonyCallsSection lng="fr" />);
     expect(screen.getAllByRole('listitem')).toHaveLength(2);
+  });
+});
+
+describe('TelephonyCallsSection — calls with the person (phone as a channel)', () => {
+  it('names the kind and the relay verdict of an owner call', () => {
+    mockCalls([
+      call({
+        callee_display: 'Alex',
+        call_kind: 'self',
+        relay_outcome: 'waiting',
+        outcome: 'objective_met',
+      }),
+    ]);
+    renderWithProviders(<TelephonyCallsSection lng="fr" />);
+    expect(screen.getByText('settings.telephony.calls.kind.self')).toBeInTheDocument();
+    expect(screen.getByText('settings.telephony.calls.relay.waiting')).toBeInTheDocument();
+  });
+
+  it('draws the cumulated bill of a call that spent, and nothing otherwise', () => {
+    // Lot 8: live lookups, synthesis and relay under one run id — the calls
+    // list reads the same summary the chat meter does.
+    mockCalls([
+      call({
+        id: 'c-spent',
+        usage: {
+          tokens_in: 1200,
+          tokens_out: 300,
+          tokens_cache: 100,
+          cost_eur: 0.0421,
+          google_api_requests: 2,
+        },
+      }),
+      call({ id: 'c-free', callee_display: 'Paul Martin' }),
+    ]);
+    renderWithProviders(<TelephonyCallsSection lng="fr" />);
+    expect(screen.getAllByText('settings.telephony.calls.usage')).toHaveLength(1);
+  });
+
+  it('says nothing of the kind on a third-party call', () => {
+    mockCalls([call()]);
+    renderWithProviders(<TelephonyCallsSection lng="fr" />);
+    expect(screen.queryByText(/settings\.telephony\.calls\.kind\./)).not.toBeInTheDocument();
+    expect(screen.queryByText(/settings\.telephony\.calls\.relay\./)).not.toBeInTheDocument();
   });
 });

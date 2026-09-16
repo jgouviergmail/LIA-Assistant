@@ -1062,7 +1062,9 @@
     "active_call": {
       "dialing": "LIA 正在拨打 {{name}}…",
       "in_progress": "LIA 正在与 {{name}} 通话",
-      "details": "详情"
+      "details": "详情",
+      "self_dialing": "LIA 正在打给你",
+      "self_in_progress": "LIA 正在与你通话"
     },
     "peer": {
       "reply": "回复",
@@ -1079,7 +1081,8 @@
     "effects": {
       "failed": "失败",
       "title": "已执行的操作"
-    }
+    },
+    "phone_call_badge": "电话中所说"
   },
   "skill_apps": {
     "loading": "正在加载技能……",
@@ -2177,7 +2180,7 @@
           "briefing": "生成主页仪表盘的问候和概要 (Today)",
           "telephony_synthesis": "智能体通话的通话后小结（摘要 + 后续建议）",
           "relation_debrief": "关系简报：每日综合一位联系人的资料（个人 CRM）",
-          "telephony_agent": "创建需确认的电话草稿的领域智能体（智能体电话）",
+          "telephony_agent": "电话领域智能体：向第三方发起需确认的电话草稿，以及拨打用户已验证号码的电话（智能体电话）",
           "hue_agent": "用于控制 Philips Hue 智能灯光的领域智能体",
           "health_agent": "回答已导入健康数据相关事实问题的领域智能体",
           "voice_transcription": "语音模式的语音识别（本地 Sherpa 或远程 ElevenLabs Scribe）",
@@ -3571,7 +3574,48 @@
           "partial": "部分达成",
           "declined": "被拒绝",
           "unreachable": "无法接通"
-        }
+        },
+        "kind": {
+          "third_party": "为你拨打的电话",
+          "self": "与你的通话",
+          "verification": "号码验证"
+        },
+        "relay": {
+          "answered": "已转达到聊天",
+          "waiting": "聊天中有草稿待确认",
+          "empty": "无需转达",
+          "not_owner": "其他人接听了",
+          "unanswered": "无人接听",
+          "call_failed": "通话失败",
+          "pending_question": "未转达：有问题等你回答",
+          "busy": "未转达：对话占用中",
+          "quota_blocked": "未转达：已达上限",
+          "failed": "未转达：失败"
+        },
+        "usage": "{{tokens}} 个令牌 · {{cost}}"
+      },
+      "identity": {
+        "title": "电话 · 我的身份",
+        "description": "验证后，LIA 可以拨打的号码",
+        "number_label": "我的电话号码",
+        "number_placeholder": "+86 138 0013 8000",
+        "number_help": "建议使用国际格式。号码验证通过后，LIA 才会拨打。",
+        "remove": "移除号码",
+        "verification_title": "验证",
+        "verified": "已验证",
+        "unverified": "未验证",
+        "verified_at": "验证于 {{date}}",
+        "verification_help": "LIA 会打给你并读出一个验证码；在此输入它，证明这个号码是你的。",
+        "verify_by_call": "通过来电验证",
+        "call_again": "再打一次",
+        "code_pending": "LIA 正在打给你并读出验证码，{{minutes}} 分钟内有效。",
+        "code_label": "听到的验证码",
+        "confirm_code": "确认",
+        "rich_context_label": "通话时携带完整上下文",
+        "rich_context_help": "LIA 打给你时，会带上它对你的了解：记忆、日程、提醒、未决事项和最近的对话。关闭后，它只知道你的空闲时段。",
+        "domains_title": "通话中 LIA 可以查阅的内容",
+        "domains_help": "与你通话时，LIA 可以为你读取这些内容，仅此而已——绝不执行操作。把你不想在电话交谈中提及的内容关闭即可。",
+        "domain_memory": "记忆"
       },
       "decisions": {
         "title": "待决定",
@@ -3619,6 +3663,7 @@
         "image-generation": "图像, 图片, 绘画, 插图, 生成, 艺术",
         "connectors": "Google, Gmail, 日历, 联系人, Apple, Microsoft, Outlook, 集成, 账户, OAuth, 重新连接, 已断开, 服务, 位置, 定位, 地理位置, 家庭地址, 地址, 位置记忆, 天气, 空气质量, 花粉, 环境, 电子表格, 文档, 自动回复, 外出, 过滤器",
         "telephony-calls": "电话, 通话, 通话记录, 拨号",
+        "telephony-identity": "电话, 号码, 身份, 验证, 验证码, 来电, 打给我, 上下文, 领域, 记忆, 邮件, 日历, 查询, 个性",
         "admin-mcp-servers": "MCP, 模型上下文协议, 应用服务器, 内置工具，连接，集成，服务器",
         "mcp-servers": "MCP, 模型上下文协议, 我的服务器, 工具, 扩展, oauth, 授权，连接，集成，服务器",
         "debug-panel": "开发者, 诊断, 调试, 技术, 故障排查, 瀑布图, 异常, 时间线, 流水线",
@@ -4714,8 +4759,8 @@
           "description": "请求完成之后，助手会看看结果里有没有值得一提的关联：周六预报有雨，那日历上有哪些户外安排？评估环节拿到的是语义类型注册表预先算好的候选关联，并且并行准备最终回答的上下文以压住延迟。这一步严格只读——某个工具能不能在这里执行，由它声明的类别决定，绝不靠名字猜——所以主动补充可以去查，但绝不会擅自改动你的数据。"
         },
         "telephony": {
-          "title": "📞 智能体电话",
-          "description": "LIA 可以通过一个以目标为导向的语音代理拨打外呼电话，用的是你自己的凭据。数据保护靠能力边界执行，而不是靠提示词：通话代理只拿到一个只读的空闲查询工具，返回有空/没空的时段——绝不含标题、参与人或地点。全程不录音，也不保留转写；通话结束后，一个带签名的 webhook 会把一段简短纪要发回聊天。每通电话都由你确认后才拨出，代理在严格授权下行事：不得产生目标之外的花费或承诺，任何越界的提议都会在纪要中点明。"
+          "title": "📞 智能电话",
+          "description": "LIA 通过目标导向的语音助手用你自己的凭据拨打外呼电话——也会打给你：号码由你登记并经语音验证码确认，无需确认卡片。第三方只能听到你的空闲与忙碌；而你拥有聊天的上下文、按领域的只读实时查询和你设置的个性。不录音；你说的话会作为你自己的消息回到聊天中，任何承诺都等待你决定。"
         },
         "todayBriefing": {
           "title": "🌅 Today Briefing",
@@ -4792,6 +4837,17 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_45_0": {
+          "title": "v1.45.0 — 📞 LIA 打电话给你，你说的话会作为你自己的消息回到聊天中",
+          "date": "2026 年 9 月",
+          "count": "4",
+          "items": {
+            "i1": "<b>📞 LIA 打电话给你</b> — 在<b>电话 · 我的身份</b>中登记你的号码，LIA 会拨打并读出一个验证码，你输入确认；此后“八点打给我，说说我的日程”就会真的打给你，无需确认卡片——包括来自例程的呼叫。号码完整显示，从不按姓名识别；如果是陌生人接听，什么也不会透露。",
+            "i2": "<b>🧠 在电话里，LIA 知道她在聊天中知道的一切</b> — 打开上下文开关，通话会带上你的记忆、日程、提醒、未了事项和最近的交流；管理员启用实时查询后，她能读取聊天中可读的一切——邮件、日历、任务、联系人、文件、地点、天气、记忆——但不会执行任何操作。每个领域在<b>我的身份</b>中都有自己的开关，助手会以你设置的个性说话。",
+            "i3": "<b>💬 通话以你的消息形式回到聊天</b> — 挂断后，你说过的话会作为你自己的一轮对话回放到聊天中，带有电话标记；由此产生的草稿会在那里等待你的确认。若无人接听、线路故障或他人接听，通知会准确说明是哪一种情况。",
+            "i4": "<b>💶 一次通话让 LIA 花了多少</b> — 实时查询、摘要和回放的对话计入同一张账单，显示在回放的回复和通话列表上。使用你自己的 ElevenLabs 密钥运行的部分——语音、线路——由 ElevenLabs 在你的账户上计费，这里从不统计。"
+          }
+        },
         "v1_44_7": {
           "title": "v1.44.7 — ✉️ 多份草稿逐一审阅，邮件以三种详细程度干净到达",
           "date": "2026 年 9 月",
@@ -7564,7 +7620,7 @@
       "telephony": {
         "title": "电话呼叫",
         "description": "LIA 可以代你拨打真实的电话。完整配置指南（Twilio + ElevenLabs）与日常使用。",
-        "count": "14",
+        "count": "18",
         "questions": {
           "q1": {
             "question": "LIA 在电话里能做什么？",
@@ -7621,6 +7677,22 @@
           "q14": {
             "question": "LIA 会接受通话中提出的日期或额外费用吗？",
             "answer": "不会，绝不自动接受。通话小结先显示<b>对方实际提出的内容</b>——日期、地点、额外费用、待定决定——然后单独列出可选的后续操作：创建提醒、作出承诺、安排会面。每一项都只在编辑框中<b>预填</b>消息而不发送，且每个对外写入的操作都保留各自的确认环节。没有任何路径会把「对方提出了 X」变成「你接受了 X」。"
+          },
+          "q15": {
+            "question": "LIA 能打电话给我吗？",
+            "answer": "能。在<b>设置 → 电话 · 我的身份</b>中输入你自己的号码（建议国际格式），并申请验证来电：LIA 会打给你，读出一个四位验证码，你输入确认。此后，“打给我”“八点打给我，聊聊我的一天”，或者一条这样说的例程，都会真的打给你——<b>无需确认卡片</b>，因为该确认的人就是接电话的人，而号码已证明属于你。<br><br><strong>🔒 身份是号码，从不是姓名：</strong><br>LIA 从不拨打名为“我”的联系人，第三方通话工具也会拒绝你已验证的号码。如果是他人接听，助手会致歉、不透露任何内容并挂断。更换号码会取消验证。"
+          },
+          "q16": {
+            "question": "和我通话时 LIA 知道些什么？",
+            "answer": "两个层面，都由你掌握。<br><br><strong>🧾 她带上的上下文：</strong><br>打开<b>电话中的丰富上下文</b>后，通话会带上聊天里会知道的内容——相关记忆、你的日程、提醒、与他人未了的事项、最近的交流。关闭后，LIA 只知道你的空闲与忙碌时段。<br><br><strong>🔎 她能实时查询的内容：</strong><br>如果管理员启用了实时查询，助手会在通话中读取 LIA——最新邮件、某一天的日程、一位联系人、一个文件、附近的地点、天气、她对某个主题的记忆——并用语言把结果读给你听。她只读取，从不执行：不发消息、不建日程、不删任何东西。在<b>我的身份</b>中，每个领域都有自己的开关；你关闭的领域根本不会挂到这次通话上。"
+          },
+          "q17": {
+            "question": "通话之后会发生什么？",
+            "answer": "你说的话会<b>作为你自己的消息</b>回来：LIA 把它整理成文字，在聊天中作为你的一轮对话回放——带有电话标记——并像你亲手输入一样作答。你请她去做的事会变成一份草稿，在聊天中等待你的确认；助手从不承诺在通话期间已经完成了什么。<br><br><strong>📣 如果她没能做到：</strong><br>通知会准确说明原因——无人接听、线路故障、他人接听、已有问题在等你回答、对话正忙、达到上限——通话列表也显示同样的结论。"
+          },
+          "q18": {
+            "question": "和我通话要花多少钱？",
+            "answer": "两张账单，其中一张只属于你。<br><br><strong>💶 LIA 统计的部分：</strong><br>通话期间的实时查询、事后的摘要和回放的对话计入同一张账单，显示在聊天中回放的回复和通话列表上——和其他任何请求一样。<br><br><strong>📞 ElevenLabs 计费的部分：</strong><br>语音助手自己的模型、语音、线路——所有使用你的 ElevenLabs 密钥运行的部分——由 ElevenLabs 在你的账户上计费，LIA 中从不统计也不显示。你用自己密钥使用的每一项服务都适用同一规则。"
           }
         }
       },
@@ -8986,6 +9058,10 @@
       "draft_sequence": {
         "title": "多份草稿，一次一份",
         "desc": "在一句话里要求两封邮件：LIA 先列出它准备好的内容，然后一次显示一份草稿——各有卡片、各自确认或修改，并告诉你进度。在你最后一次回答之前什么都不会发出，报告会说明发给了谁、发了什么。"
+      },
+      "phone_channel": {
+        "title": "LIA 打电话给你",
+        "desc": "号码由你登记并经语音验证码确认后，LIA 无需确认卡片就能拨给你——来自聊天或例程。在电话里她读取聊天能读取的内容，却不执行任何操作；挂断后，你说的话会作为你自己的消息出现在聊天中。"
       }
     },
     "scenes": {
@@ -9131,6 +9207,11 @@
         "first": "第一份草稿，共两份",
         "second": "第二份草稿，共两份",
         "report": "已发送——发给了谁、发了什么"
+      },
+      "phone_channel": {
+        "calling": "LIA 正在打给你…",
+        "spoken": "提醒我明天给银行打电话。",
+        "answer": "已记下——明天上午 9 点提醒。"
       }
     },
     "craft": {
@@ -10141,8 +10222,8 @@
         "description": "LIA 通过透明的统计方法学习你的节奏和重复请求——绝不使用不透明的模型。一切可见：24 小时热力图、解锁进度、真实观察到的日期和应用的阈值。显示的习惯必然经过证明，否则就不存在——而且一切都可以一键暂停、屏蔽或遗忘。默认关闭。 已确认的习惯带有连续记录——连续坚持的天数、里程碑与您的最佳纪录——由同一份可信台账计算得出。 阅读也算在场：打开应用、为通知点赞或点踩都会计入作息，而 LIA 发出的通知永远不计为你的活动。它学到的东西现在也能挺过一次新对话——重置清除的是对话，不是学习成果。你设置的状态处处生效——通知、它们的时间安排和助手的上下文一视同仁——学到的习惯由夜间任务升级、刷新或降级，拿不准时绝不降级；错过的例行动作会被点名提议：LIA 记住的不只是你何时提出请求，还有你通常请求什么。"
       },
       "telephony": {
-        "title": "LIA 可以替你打电话",
-        "description": "让 LIA 代你拨打一通真实的电话 —— 联系某个联系人、问个小问题、确认一个时间段。拨号前你先确认它打给谁、为什么打；LIA 完成通话后，会在聊天中留下一份书面小结，并在合适时提供一键后续操作。而且绝不会替你做主：任何计划外的花费或选项都只会连同价格一起记录下来，绝不擅自接受——最终由你决定。 通话进行时，你能看到她正与谁通话、进行到哪一步——从你同意到收到摘要之间，产品不再保持沉默。"
+        "title": "LIA 可以替你打电话——也可以打给你",
+        "description": "让 LIA 代你拨打一通真实的电话——联系某个联系人、问个小问题、确认一个时间段。拨号前你先确认它打给谁、为什么打；LIA 完成通话后，会在聊天中留下一份书面小结，并在合适时提供一键后续操作。而且绝不会替你做主：任何计划外的花费或选项都只会连同价格一起记录下来，绝不擅自接受——最终由你决定。她也能打给你：号码由你登记并经语音验证码确认，无需任何卡片；在电话里她知道聊天知道的一切，边聊边查，不执行任何操作，你说的话会作为你自己的消息回到聊天中。"
       },
       "reminders_scheduling": {
         "title": "提醒与自动化",
@@ -10997,7 +11078,7 @@
       "human-in-the-loop": {
         "title": "人在回路中：6级审批保持你的控制",
         "excerpt": "LIA从不在未经你同意的情况下执行关键操作。其6级HITL系统保护你免受错误和幻觉的影响。",
-        "body": "<h2>为什么人工验证至关重要</h2><p>语言模型可能产生幻觉或误解意图。LIA通过将<strong>人类置于每个关键决策的中心</strong>来解决这一问题。未经你的明确验证，不会发送任何邮件、创建任何日程或修改任何数据。</p><h2>6个审批级别</h2><p>LIA的HITL系统根据6个级别对每个操作进行分类：</p><ul><li><strong>计划审批</strong> — 在执行多步骤计划之前，LIA生成包含计划摘要和可修改参数的<code>PlanApprovalRequest</code>，然后等待你的批准。</li><li><strong>澄清</strong> — 如果意图不明确，LIA会请求更多信息，而不是猜测。</li><li><strong>草稿审查</strong> — 对于邮件或消息，LIA在发送前提交草稿供你审核。</li><li><strong>破坏性确认</strong> — 任何不可逆的删除或修改都需要明确确认。</li><li><strong>FOR_EACH确认</strong> — 对于批量操作，每个元素都可以单独验证。</li><li><strong>修改审查</strong> — 参数变更需提交验证。</li></ul><h2>5种决策与置信度</h2><p>HITL分类器生成包含5种可能决策的<strong>ClassificationResult</strong>，每种决策附带0.0到1.0之间的置信度分数：</p><ul><li><strong>APPROVE</strong> — 操作已验证，传递给<code>task_orchestrator</code></li><li><strong>REJECT</strong> — 操作被拒绝，流程重定向到<code>response</code>节点</li><li><strong>EDIT</strong> — 用户通过<code>edited_params</code>修改参数，<code>PlanEditor</code>应用修改</li><li><strong>REPLAN</strong> — 用户通过<code>reformulated_intent</code>重新表述意图，流程返回<code>planner</code></li><li><strong>AMBIGUOUS</strong> — 系统提出<code>clarification_question</code>以消除歧义</li></ul><h2>LangGraph原生中断</h2><p>从技术上讲，<code>approval_gate</code>节点使用LangGraph的<code>interrupt()</code>函数<strong>暂停图的执行</strong>并等待用户响应。状态持久化在PostgreSQL中，即使断开连接后也支持异步恢复。</p><h2>你始终拥有最终决定权</h2><p>在每个验证点，分类策略都是可组合的：基于工具清单、估计成本、数据敏感性和用户角色。LIA永远不会绕过这一步骤。</p><p>而且这个最终决定权得到严格尊重：审阅循环遵循 replay-safe 模式（每次节点执行仅一个 <code>interrupt()</code>，循环状态通过 checkpoint 保存——ADR-092），因此恢复执行绝不会重放过去的 LLM 或 API 调用。无论经过多少次修改，你确认的内容正是实际执行的内容。</p><h2>确认一次，绝不两次</h2><p>放错位置的防护会背离自己的初衷。在计划的上游，语义校验器可能因为认定某个动作「不可撤销」而停下来——发送邮件、预约日程、拨打电话——而紧接着，针对完全相同的动作，本就会出现预览和明确的确认。用户必须<strong>反复坚持才能被执行</strong>。</p><p>如今这条规则已经写明：下游已经自带确认的动作，绝不在上游被拦截。校验器只判断计划的<strong>结构</strong>——参数缺失、工具选错、数量对应不一致——而不判断这个动作看起来有多严重。把同一个问题问两遍并不会带来更多安全：它只是把负担转嫁给用户，最终教会他们不读就点。</p><h2>每份草稿一个问题，以及一张值得一读的卡片</h2><p>产生多份草稿的请求——“给 X 发一封邮件，再给 Y 发一封”、两个日程、一封邮件加一项任务——会<strong>一次审阅一份草稿</strong>。序列先列出这一轮准备好的全部内容，然后每份草稿都有自己的卡片、自己的问题和自己的修改，并说明进度（“第 2 份草稿，共 3 份”）。在最后一次回答之前什么都不会执行；随后各项决定一起执行，报告会说明<strong>发给了谁、发了什么</strong>，包括被取消的草稿。你已经以列表形式批准的批量操作仍保留它唯一的一次确认：区别在于你给出的批准，而不是条目的数量。</p><p>草稿和报告<strong>只描述一次，按界面分别绘制</strong>：在聊天中，是与邮件或日程相同的卡片——标题栏、带图标的字段、成块的正文；在工单或 Telegram 上，是可读的文本。模型从一张卡片中记住的是它的文字：下一轮知道发了什么、发给了谁。</p><h2>同样的层级，只是不在对话里</h2><p>一个独自工作的助手会撞上同一堵墙：它准备好了一件自己无权独立完成的事，而面前没有人。直接拒绝会浪费已经完成的工作；照做则破坏了规则。在工单板上，它两者都不做——它<strong>在工单上提问</strong>。你本会在聊天里看到的那张卡片就写在那里，逐项列明，而答复只需要一条评论：好、不要，或者要改什么。</p><p>你批准的正是将要执行的，不会更宽：助手会公布自己所展示内容的精确身份，而这个动作只会在同一身份下被重放。只要有一处不同，它就会重新构建并再次询问，而不是假定你的回答仍然适用。你以列表形式预先批准的一批算作一件事：每一项都会展示，被批准的是整批——绝不是其中的第一项；相互独立的草稿在那里同样逐一询问。</p>"
+        "body": "<h2>为什么人工验证至关重要</h2><p>语言模型可能产生幻觉或误解意图。LIA通过将<strong>人类置于每个关键决策的中心</strong>来解决这一问题。未经你的明确验证，不会发送任何邮件、创建任何日程或修改任何数据。</p><h2>6个审批级别</h2><p>LIA的HITL系统根据6个级别对每个操作进行分类：</p><ul><li><strong>计划审批</strong> — 在执行多步骤计划之前，LIA生成包含计划摘要和可修改参数的<code>PlanApprovalRequest</code>，然后等待你的批准。</li><li><strong>澄清</strong> — 如果意图不明确，LIA会请求更多信息，而不是猜测。</li><li><strong>草稿审查</strong> — 对于邮件或消息，LIA在发送前提交草稿供你审核。</li><li><strong>破坏性确认</strong> — 任何不可逆的删除或修改都需要明确确认。</li><li><strong>FOR_EACH确认</strong> — 对于批量操作，每个元素都可以单独验证。</li><li><strong>修改审查</strong> — 参数变更需提交验证。</li></ul><h2>5种决策与置信度</h2><p>HITL分类器生成包含5种可能决策的<strong>ClassificationResult</strong>，每种决策附带0.0到1.0之间的置信度分数：</p><ul><li><strong>APPROVE</strong> — 操作已验证，传递给<code>task_orchestrator</code></li><li><strong>REJECT</strong> — 操作被拒绝，流程重定向到<code>response</code>节点</li><li><strong>EDIT</strong> — 用户通过<code>edited_params</code>修改参数，<code>PlanEditor</code>应用修改</li><li><strong>REPLAN</strong> — 用户通过<code>reformulated_intent</code>重新表述意图，流程返回<code>planner</code></li><li><strong>AMBIGUOUS</strong> — 系统提出<code>clarification_question</code>以消除歧义</li></ul><h2>LangGraph原生中断</h2><p>从技术上讲，<code>approval_gate</code>节点使用LangGraph的<code>interrupt()</code>函数<strong>暂停图的执行</strong>并等待用户响应。状态持久化在PostgreSQL中，即使断开连接后也支持异步恢复。</p><h2>你始终拥有最终决定权</h2><p>在每个验证点，分类策略都是可组合的：基于工具清单、估计成本、数据敏感性和用户角色。LIA永远不会绕过这一步骤。</p><p>而且这个最终决定权得到严格尊重：审阅循环遵循 replay-safe 模式（每次节点执行仅一个 <code>interrupt()</code>，循环状态通过 checkpoint 保存——ADR-092），因此恢复执行绝不会重放过去的 LLM 或 API 调用。无论经过多少次修改，你确认的内容正是实际执行的内容。</p><h2>确认一次，绝不两次</h2><p>放错位置的防护会背离自己的初衷。在计划的上游，语义校验器可能因为认定某个动作「不可撤销」而停下来——发送邮件、预约日程、拨打电话——而紧接着，针对完全相同的动作，本就会出现预览和明确的确认。用户必须<strong>反复坚持才能被执行</strong>。</p><p>如今这条规则已经写明：下游已经自带确认的动作，绝不在上游被拦截。校验器只判断计划的<strong>结构</strong>——参数缺失、工具选错、数量对应不一致——而不判断这个动作看起来有多严重。把同一个问题问两遍并不会带来更多安全：它只是把负担转嫁给用户，最终教会他们不读就点。</p><h2>每份草稿一个问题，以及一张值得一读的卡片</h2><p>产生多份草稿的请求——“给 X 发一封邮件，再给 Y 发一封”、两个日程、一封邮件加一项任务——会<strong>一次审阅一份草稿</strong>。序列先列出这一轮准备好的全部内容，然后每份草稿都有自己的卡片、自己的问题和自己的修改，并说明进度（“第 2 份草稿，共 3 份”）。在最后一次回答之前什么都不会执行；随后各项决定一起执行，报告会说明<strong>发给了谁、发了什么</strong>，包括被取消的草稿。你已经以列表形式批准的批量操作仍保留它唯一的一次确认：区别在于你给出的批准，而不是条目的数量。</p><p>草稿和报告<strong>只描述一次，按界面分别绘制</strong>：在聊天中，是与邮件或日程相同的卡片——标题栏、带图标的字段、成块的正文；在工单或 Telegram 上，是可读的文本。模型从一张卡片中记住的是它的文字：下一轮知道发了什么、发给了谁。</p><h2>同样的层级，只是不在对话里</h2><p>一个独自工作的助手会撞上同一堵墙：它准备好了一件自己无权独立完成的事，而面前没有人。直接拒绝会浪费已经完成的工作；照做则破坏了规则。在工单板上，它两者都不做——它<strong>在工单上提问</strong>。你本会在聊天里看到的那张卡片就写在那里，逐项列明，而答复只需要一条评论：好、不要，或者要改什么。</p><p>你批准的正是将要执行的，不会更宽：助手会公布自己所展示内容的精确身份，而这个动作只会在同一身份下被重放。只要有一处不同，它就会重新构建并再次询问，而不是假定你的回答仍然适用。你以列表形式预先批准的一批算作一件事：每一项都会展示，被批准的是整批——绝不是其中的第一项；相互独立的草稿在那里同样逐一询问。</p><p>例外恰恰印证了规则。卡片的存在是为了保护从未提出任何请求的第三方——一位受话人、一位收件人。当 LIA 打给<em>你</em>时——号码由你登记并经语音验证码确认——该确认的人正是接电话的人：这次通话不带卡片，这也让例程得以安排它。你在电话里说的话会作为你自己的消息回到聊天中，其中请 LIA 去做的事在那里同样要经过这六个层级。</p>"
       },
       "llm-providers": {
         "title": "多供应商AI：为每个任务选择合适的模型",
@@ -11027,7 +11108,7 @@
       "voice-mode": {
         "title": "语音模式：像与个人助手一样与LIA对话",
         "excerpt": "LIA 的语音领域结合了免费的本地 STT（Sherpa-onnx Whisper，可选远程 ElevenLabs Scribe 以获得更高精度）和目录驱动的 TTS（Edge / OpenAI / ElevenLabs）。按句级流式合成在约 1 秒内带来第一段音频。按消息的成本归属使付费语音调用完全可审计。",
-        "body": "<h2>三种激活模式</h2><p>LIA 支持三种语音交互方式：</p><ul><li><strong>唤醒词</strong> — 说\"OK Guy\"启动免提聆听。检测完全在浏览器中通过 Sherpa-onnx WASM 进行（仅英语模型）。唤醒词检测不会有任何音频离开浏览器。</li><li><strong>按住说话</strong> — 按住麦克风按钮说话。已针对移动端优化。</li><li><strong>自动语音结束检测 (VAD)</strong> — 静音 ~0.75 秒后自动停止聆听。</li></ul><h2>语音识别：本地默认，远程可选</h2><p>每位用户在 <strong>设置 → 语音模式</strong> 选择 STT 模式：</p><ul><li><strong>本地</strong>（默认，免费）— 在 LIA 服务器上以 <strong>16 kHz 单声道</strong> 运行的 Sherpa-onnx Whisper，采用 INT8 量化。支持 <strong>99+ 种语言</strong>。音频从不离开 LIA 服务器。</li><li><strong>远程</strong>（可选启用）— ElevenLabs Scribe，0.22 美元/小时，按音频时长计费。在对话语音上精度更高，尤其在嘈杂环境下。每条用户气泡上的低调 🎤 徽章显示时长和欧元成本；成本汇入仪表板的常规 <strong>成本</strong> 磁贴和你的使用上限——无独立配额。</li></ul><p>启用远程时，两个管理员侧的安全杠杆可防范成本激增：全局总开关（<code>ELEVENLABS_STT_ENABLED</code>）和按片段的时长上限（<code>ELEVENLABS_STT_MAX_AUDIO_DURATION_SECONDS</code>，默认 300 秒），在任何提供商调用前都会校验。</p><h2>目录驱动的语音合成</h2><p>语音合成现在通过单一管理表单（LLM 配置 → Voice TTS）配置，第一天即提供三家提供商：</p><ul><li><strong>Edge TTS</strong> — Microsoft 神经语音、免费、默认。SSML rate / pitch / volume 微调。</li><li><strong>OpenAI TTS</strong> — <code>tts-1</code> 或 <code>tts-1-hd</code>，高品质语音（alloy、echo、fable、onyx、nova、shimmer）。speed + response_format 微调。</li><li><strong>ElevenLabs</strong> — <code>eleven_multilingual_v2</code>、<code>eleven_turbo_v2_5</code>、<code>eleven_flash_v2_5</code>。stability、similarity_boost、style、use_speaker_boost 微调。从已配置账户实时选择声音（自定义 + 库声音）。</li></ul><p>对于付费提供商，助手消息上的 🔊 徽章显示字符数和欧元成本；Edge 保持免费，无徽章。支持的音频格式：<strong>MP3、Opus、AAC、FLAC、WAV、PCM</strong>——按提供商选择。</p><h2>按句级流式合成实现亚秒级延迟</h2><p>语音管线现在 <strong>按完整句子并行</strong> 触发 TTS 合成，而不再等待完整的 LLM 响应。第一句在 <strong>约 1 秒</strong> 内开始播放，而助手仍在撰写答案的其余部分。ElevenLabs 上的持久 HTTP 长连接在 #2…N 调用中每句再节省约 100–300 毫秒。有序送达由缓冲队列保证——失败槽位会被跳过，不阻塞整体流。</p><h2>一句话在哪里结束</h2><p>「按句」切分的前提是知道一句话在哪里结束 —— 而仅凭一个句点说明不了这一点。只有<strong>后面跟着空格</strong>，或位于输入末尾时，分隔符才会结束一句话：「现在 3.5 度」因此保持完整，而不会先读成「现在三。」再在另一段音频里读「五度」。价格、版本号和网址同理。在逐句流式路径上，这条规则更是必需的：缓冲区是逐个 token 增长的，所以 <code>\"3.\"</code> 是一个完全正常的中间状态 —— 在它上面分发，等于还没读完就开口。管线中的两个切分器由一张共享的用例表以及一个要求二者一致的测试共同钉住。</p><h2>语音评论与导出</h2><p>LIA 可在其响应上附加简短的 <strong>语音评论</strong>（一种 TTS 叙述插入）。音频通过 WebSocket 流式传输，使用一次性 BFF 票据（TTL 60 秒）确保安全。两项新的 CSV 导出——<code>stt-usage</code> 和 <code>tts-usage</code>——列出每次付费语音调用的对话、消息 ID、提供商、时长 / 字符数与欧元成本。现有的 <code>consumption-summary</code> 导出也新增 STT 和 TTS 列，使总计始终位于一处。</p><h2>从一句语音指令到两小时的会议</h2><p>同一个麦克风现在可以录下整场会议。这对语音引擎的改变比对界面更大：本地 Whisper 只解码一个三十秒的窗口，对更长的内容会默默返回前三十秒——语音输入从未遇到这个缺陷，因为一句指令很短。长音频现在由语音活动检测器切成语音窗口，每个窗口单独解码，因此再长的录音也不成问题。远程引擎一次请求处理整个文件并区分发言人；引擎链从管理员的引擎依次到 ElevenLabs、OpenAI 和本地模型，拒绝的提供商会把接力交给下一个。纪要是一次填充用户模板的结构化调用，而每一项付费单位——引擎处的音频、模型处的 token——都会写在生成的卡片、会议页面和列表上。</p>"
+        "body": "<h2>三种激活模式</h2><p>LIA 支持三种语音交互方式：</p><ul><li><strong>唤醒词</strong> — 说\"OK Guy\"启动免提聆听。检测完全在浏览器中通过 Sherpa-onnx WASM 进行（仅英语模型）。唤醒词检测不会有任何音频离开浏览器。</li><li><strong>按住说话</strong> — 按住麦克风按钮说话。已针对移动端优化。</li><li><strong>自动语音结束检测 (VAD)</strong> — 静音 ~0.75 秒后自动停止聆听。</li></ul><h2>语音识别：本地默认，远程可选</h2><p>每位用户在 <strong>设置 → 语音模式</strong> 选择 STT 模式：</p><ul><li><strong>本地</strong>（默认，免费）— 在 LIA 服务器上以 <strong>16 kHz 单声道</strong> 运行的 Sherpa-onnx Whisper，采用 INT8 量化。支持 <strong>99+ 种语言</strong>。音频从不离开 LIA 服务器。</li><li><strong>远程</strong>（可选启用）— ElevenLabs Scribe，0.22 美元/小时，按音频时长计费。在对话语音上精度更高，尤其在嘈杂环境下。每条用户气泡上的低调 🎤 徽章显示时长和欧元成本；成本汇入仪表板的常规 <strong>成本</strong> 磁贴和你的使用上限——无独立配额。</li></ul><p>启用远程时，两个管理员侧的安全杠杆可防范成本激增：全局总开关（<code>ELEVENLABS_STT_ENABLED</code>）和按片段的时长上限（<code>ELEVENLABS_STT_MAX_AUDIO_DURATION_SECONDS</code>，默认 300 秒），在任何提供商调用前都会校验。</p><h2>目录驱动的语音合成</h2><p>语音合成现在通过单一管理表单（LLM 配置 → Voice TTS）配置，第一天即提供三家提供商：</p><ul><li><strong>Edge TTS</strong> — Microsoft 神经语音、免费、默认。SSML rate / pitch / volume 微调。</li><li><strong>OpenAI TTS</strong> — <code>tts-1</code> 或 <code>tts-1-hd</code>，高品质语音（alloy、echo、fable、onyx、nova、shimmer）。speed + response_format 微调。</li><li><strong>ElevenLabs</strong> — <code>eleven_multilingual_v2</code>、<code>eleven_turbo_v2_5</code>、<code>eleven_flash_v2_5</code>。stability、similarity_boost、style、use_speaker_boost 微调。从已配置账户实时选择声音（自定义 + 库声音）。</li></ul><p>对于付费提供商，助手消息上的 🔊 徽章显示字符数和欧元成本；Edge 保持免费，无徽章。支持的音频格式：<strong>MP3、Opus、AAC、FLAC、WAV、PCM</strong>——按提供商选择。</p><h2>按句级流式合成实现亚秒级延迟</h2><p>语音管线现在 <strong>按完整句子并行</strong> 触发 TTS 合成，而不再等待完整的 LLM 响应。第一句在 <strong>约 1 秒</strong> 内开始播放，而助手仍在撰写答案的其余部分。ElevenLabs 上的持久 HTTP 长连接在 #2…N 调用中每句再节省约 100–300 毫秒。有序送达由缓冲队列保证——失败槽位会被跳过，不阻塞整体流。</p><h2>一句话在哪里结束</h2><p>「按句」切分的前提是知道一句话在哪里结束 —— 而仅凭一个句点说明不了这一点。只有<strong>后面跟着空格</strong>，或位于输入末尾时，分隔符才会结束一句话：「现在 3.5 度」因此保持完整，而不会先读成「现在三。」再在另一段音频里读「五度」。价格、版本号和网址同理。在逐句流式路径上，这条规则更是必需的：缓冲区是逐个 token 增长的，所以 <code>\"3.\"</code> 是一个完全正常的中间状态 —— 在它上面分发，等于还没读完就开口。管线中的两个切分器由一张共享的用例表以及一个要求二者一致的测试共同钉住。</p><h2>语音评论与导出</h2><p>LIA 可在其响应上附加简短的 <strong>语音评论</strong>（一种 TTS 叙述插入）。音频通过 WebSocket 流式传输，使用一次性 BFF 票据（TTL 60 秒）确保安全。两项新的 CSV 导出——<code>stt-usage</code> 和 <code>tts-usage</code>——列出每次付费语音调用的对话、消息 ID、提供商、时长 / 字符数与欧元成本。现有的 <code>consumption-summary</code> 导出也新增 STT 和 TTS 列，使总计始终位于一处。</p><h2>当 LIA 打给你</h2><p>语音并不止步于浏览器。在<em>电话 · 我的身份</em>中登记你的号码，让 LIA 打过来并读出一个验证码，你输入确认；此后，“八点打给我，聊聊我的一天”——或者一条这样说的例程——就会让你的电话响起，无需确认卡片：卡片保护的是第三方，而这里该确认的人正是接电话的人。在电话里，语音助手带着聊天所知的一切，并在启用实时查询后边聊边读取 LIA——邮件、日历、任务、联系人、文件、地点、天气、记忆——使用与聊天相同的只读工具，每个结果都压缩为语音能说出的内容；她不执行任何操作。挂断后，你说的话会作为你自己的一轮对话回放到聊天中，带有电话标记，任何请求都在那里等待你的确认。</p><h2>从一句语音指令到两小时的会议</h2><p>同一个麦克风现在可以录下整场会议。这对语音引擎的改变比对界面更大：本地 Whisper 只解码一个三十秒的窗口，对更长的内容会默默返回前三十秒——语音输入从未遇到这个缺陷，因为一句指令很短。长音频现在由语音活动检测器切成语音窗口，每个窗口单独解码，因此再长的录音也不成问题。远程引擎一次请求处理整个文件并区分发言人；引擎链从管理员的引擎依次到 ElevenLabs、OpenAI 和本地模型，拒绝的提供商会把接力交给下一个。纪要是一次填充用户模板的结构化调用，而每一项付费单位——引擎处的音频、模型处的 token——都会写在生成的卡片、会议页面和列表上。</p>"
       },
       "knowledge-spaces": {
         "title": "知识空间：将文档转化为AI智能",
@@ -11065,9 +11146,9 @@
         "body": "<h2>隐私设计</h2><p>LIA从一开始就以数据保护为基本原则来设计，而非事后补充。</p><h2>Fernet对称加密</h2><p>所有敏感数据通过<strong>Fernet</strong>（AES-128 CBC + HMAC-SHA256）使用<code>encrypt_data()</code>函数加密。覆盖范围包括OAuth令牌、连接器凭据、PII和MCP服务器凭据。OAuth凭据在写入数据库前加密，读取时即时解密。加密密钥与数据分开管理。</p><h2>最小化数据收集</h2><p>LIA仅收集运行所需的最少数据：</p><ul><li>个人资料信息（姓名、邮箱、偏好设置）</li><li>对话历史（加密）</li><li>服务连接令牌（加密）</li><li>匿名使用指标</li></ul><h2>删除与级联</h2><p>删除用户账户会触发完整的<strong>级联删除</strong>：连接器、对话、设置、会话、记忆和所有关联数据都将不可逆地删除。数据库中不会保留任何孤立数据。</p><h2>安全会话与Cookie</h2><p>会话Cookie配置了<code>HttpOnly</code>、<code>Secure</code>（生产环境）和<code>SameSite=lax</code>属性。默认会话持续时间为7天，选择\"记住我\"可延长至30天。一次性令牌在首次使用后通过Redis黑名单机制失效。</p><h2>外部内容防护</h2><p>从外部来源（邮件、网页、文档）获取的内容在注入提示前标记为<code>UNTRUSTED</code>，并进行可配置封装。web_fetch工具限制为每个用户在60秒窗口内最多10次调用，以防止滥用。</p><h2>日志中PII过滤</h2><p>日志系统应用<strong>OWASP日志备忘录</strong>建议，自动从应用日志中过滤个人数据。敏感数据不会出现在日志中。</p><h2>数据可移植性 (v1.9.1)</h2><p>LIA允许每个用户从设置 > 功能中<strong>导出个人消费数据</strong>为CSV格式。三种导出类型：LLM消费（每次调用的Token和成本）、Google API消费和汇总摘要。安全性：<code>user_id</code>在服务器端强制设置——不暴露任何参数（IDOR防护）。</p><h2>恢复经过验证的备份</h2><p>保护数据也意味着确保数据能扛住事故。生产数据库每晚自动备份，保留 7 天、4 周和 6 个月的历史，存放在权限受限的专用目录中。而且，只有恢复被证明可行，备份才算数：恢复流程经过真实测试——将最新转储恢复到一次性容器中，并与线上数据库比对（模式修订、行数）——这一演练随技术栈一同交付。</p><h2>一份完整的记录，而不是一份样本</h2><p>三本自动维护的登记簿分别说明 LIA 为你<strong>做</strong>了什么、为回答你而<strong>查阅</strong>了什么，以及她<strong>自行着手</strong>做了什么。它们不承载任何内容：一次查阅只保留能力本身——「你的日程」——绝不保留搜索内容，因为写下来就等于抄录了这本登记簿正是为其问责而存在的那份数据。</p><p>你从<strong>设置 &gt; 登记簿</strong>下载的记录是<strong>完整</strong>的。它此前带有行数上限：那是一种真实的保护，因为整份文档要在 Raspberry Pi 上于内存中拼装——但它被施加在了错误的变量上。稀缺的是内存；被限制的却是真相。服务端游标如今限制的是缓冲区：无论数据量多大，文件都承载你的筛选条件所指定的全部内容，文件头写明确切行数与生成时刻，并在你的浏览器接受时顺带压缩。</p>"
       },
       "observability": {
-        "title": "557个Prometheus指标、29个Grafana仪表板和Langfuse追踪",
+        "title": "560个Prometheus指标、29个Grafana仪表板和Langfuse追踪",
         "excerpt": "LIA提供企业级可观测性：553 指标、Grafana仪表板、通过Langfuse的LLM追踪，以及带处置指南的邮件告警。",
-        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 557个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中并带有PII过滤</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>23个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。23个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>29个Grafana仪表板</h2><p>LIA提供29个编号01至29的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony、briefing、product-value、meetings、effect-ledger 和 workboard。每个仪表板提供按用户、时间段和环境可过滤的视图。 第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 14 项关键告警组成的核心——API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成拥有8个专用指标来追踪每次LLM调用：消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p><h2>而自 v1.34 起：助手读取自身遥测</h2><p>以上一切原本只为人类而存在；助手自己什么都不读。ADR-247 闭合了这个环路：周期性自检把黄金指标与直接探针汇成带精确数值的健康快照；警报与严重判定按故障收敛为唯一事件，由预算受限、以运维手册为依据的 LLM 诊断；管理员拥有平台健康面板、主动通知和只读聊天工具。已知故障如今还会塑造回答——规划阶段即绕开降级能力，失败步骤用类型化错误码解释，绝不引用原始日志。此后，诊断不再只凭一个数字：按事件类型声明的配方规定要读取哪些细分指标和日志事件，证据包在诊断时收集并去除个人数据，无法访问的来源被声明为不可用而非当作沉默，模型读到的内容会展示在判定下方。</p><h2>统计结果，而非尝试</h2><p>v1.38.3 重新审视了一个计数器。统计抵达服务商的调用次数，是关于服务商的事实——可一旦这些调用会被重试，它就成了错误的分母：被重试救回的失败会抬高错误率，尽管什么都没丢失。如今第二个计数器按逻辑操作各记一行，重试折叠其中，回答运维人员唯一会据以行动的问题：调用方拿到结果了吗？第三个计数器则说明限流对每次尝试做了什么，因为「预算太小」与「Redis 宕机」在布尔值里毫无区别，却需要相反的处置。</p><p>最近的一课，关乎选择度量什么。自主循环有迭代次数和时长的计数器，却唯独没有度量真正增长的东西：每一步交付给模型的提示词。在生产代码上实测，第一次迭代是 2.3k tokens，第九十次是 112k——因为每个工具结果都留在模型会反复重读的对话里。现在有两个直方图记录交付体积及其占模型上下文窗口的比例，由状态归约器本就维护的那个带记忆化的计数器供数，因此这项度量在热路径上不产生额外开销。它们并未附带任何压缩策略，这是刻意的：一个对从未观测过的量采取行动的系统，优化的只是一个猜测。</p>"
+        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 560个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中并带有PII过滤</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>23个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。23个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>29个Grafana仪表板</h2><p>LIA提供29个编号01至29的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony、briefing、product-value、meetings、effect-ledger 和 workboard。每个仪表板提供按用户、时间段和环境可过滤的视图。 第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 14 项关键告警组成的核心——API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成拥有8个专用指标来追踪每次LLM调用：消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p><h2>而自 v1.34 起：助手读取自身遥测</h2><p>以上一切原本只为人类而存在；助手自己什么都不读。ADR-247 闭合了这个环路：周期性自检把黄金指标与直接探针汇成带精确数值的健康快照；警报与严重判定按故障收敛为唯一事件，由预算受限、以运维手册为依据的 LLM 诊断；管理员拥有平台健康面板、主动通知和只读聊天工具。已知故障如今还会塑造回答——规划阶段即绕开降级能力，失败步骤用类型化错误码解释，绝不引用原始日志。此后，诊断不再只凭一个数字：按事件类型声明的配方规定要读取哪些细分指标和日志事件，证据包在诊断时收集并去除个人数据，无法访问的来源被声明为不可用而非当作沉默，模型读到的内容会展示在判定下方。</p><h2>统计结果，而非尝试</h2><p>v1.38.3 重新审视了一个计数器。统计抵达服务商的调用次数，是关于服务商的事实——可一旦这些调用会被重试，它就成了错误的分母：被重试救回的失败会抬高错误率，尽管什么都没丢失。如今第二个计数器按逻辑操作各记一行，重试折叠其中，回答运维人员唯一会据以行动的问题：调用方拿到结果了吗？第三个计数器则说明限流对每次尝试做了什么，因为「预算太小」与「Redis 宕机」在布尔值里毫无区别，却需要相反的处置。</p><p>最近的一课，关乎选择度量什么。自主循环有迭代次数和时长的计数器，却唯独没有度量真正增长的东西：每一步交付给模型的提示词。在生产代码上实测，第一次迭代是 2.3k tokens，第九十次是 112k——因为每个工具结果都留在模型会反复重读的对话里。现在有两个直方图记录交付体积及其占模型上下文窗口的比例，由状态归约器本就维护的那个带记忆化的计数器供数，因此这项度量在热路径上不产生额外开销。它们并未附带任何压缩策略，这是刻意的：一个对从未观测过的量采取行动的系统，优化的只是一个猜测。</p>"
       },
       "prompt-engineering": {
         "title": "版本化提示系统：78个提示作为代码管理",
@@ -12820,6 +12901,7 @@
       "update_ticket_tool": "已修改工单「{{target}}」",
       "comment_ticket_tool": "已对工单「{{target}}」发表评论",
       "create_reminder_tool": "已创建提醒「{{target}}」",
+      "call_me_tool": "已给您打电话（{{target}}）",
       "proactive_notification": "已发送通知（{{kind}}）"
     },
     "export": {

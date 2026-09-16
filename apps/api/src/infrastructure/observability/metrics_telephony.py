@@ -47,3 +47,25 @@ telephony_return_recovered_total = Counter(
     # result: recovered (re-synthesized) | failed (decode/synthesis error this tick)
     #       | expired (past max-age, retired to FAILED + transcript purged)
 )
+
+telephony_relay_total = Counter(
+    "telephony_relay_total",
+    "Owner calls relayed into the chat as the person's own turn, by outcome (lot 4).",
+    ["outcome"],
+)
+
+telephony_live_tool_calls_total = Counter(
+    "telephony_live_tool_calls_total",
+    "Live lookups the voice agent asked for during an owner call, by tool and outcome (lot 7).",
+    ["tool", "outcome"],
+    # tool: the allow-listed registry name, or "unknown" before one is resolved
+    # outcome: ok | failed | timeout | budget_exceeded | refused_flag
+    #        | refused_call | refused_secret | refused_tool
+)
+
+telephony_live_tool_duration_seconds = Histogram(
+    "telephony_live_tool_duration_seconds",
+    "Wall-clock duration of a live lookup run for the voice agent (lot 7).",
+    ["tool"],
+    buckets=(0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0),
+)

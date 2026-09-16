@@ -79,6 +79,11 @@ class RunOrigin:
         approved_draft: The action the person approved on the ticket, when the
             run is its replay. Spent by :func:`consume_approved_draft` on the
             first draft that matches it.
+        hidden: Whether the run's archived rows stay out of the chat. A
+            ticket's do (the board shows them); a relayed phone call's do NOT
+            (phone-as-a-channel, lot 4): the person SAID those words, the
+            answer is for them, and a hidden turn would be a conversation
+            they had and cannot see.
     """
 
     kind: str
@@ -87,6 +92,7 @@ class RunOrigin:
     refusals: list[tuple[str, str]] = field(default_factory=list)
     can_carry_draft: bool = False
     approved_draft: ApprovedDraft | None = None
+    hidden: bool = True
 
 
 out_of_turn_origin_ctx: ContextVar[RunOrigin | None] = ContextVar(
@@ -162,21 +168,24 @@ def record_refusal(tool_name: str, error_code: str) -> None:
         origin.refusals.append((tool_name, error_code))
 
 
-def with_hidden_stamp(metadata: dict[str, Any]) -> dict[str, Any]:
+def with_origin_stamp(metadata: dict[str, Any]) -> dict[str, Any]:
     """Mark an archived row as belonging to an out-of-turn run.
 
     Args:
         metadata: What the caller assembled.
 
     Returns:
-        A NEW dict carrying the stamp when a run is driving; the caller's own
-        object, untouched, when none is.
+        A NEW dict carrying the stamp when a run is driving — and the hidden
+        mark only when the origin hides its rows; the caller's own object,
+        untouched, when no run is driving.
     """
     origin = out_of_turn_origin_ctx.get()
     if origin is None:
         return metadata
-    return {
+    stamped = {
         **metadata,
-        FIELD_HIDDEN: True,
         origin.kind: {"ticket_id": origin.ticket_id, "run_id": origin.run_id},
     }
+    if origin.hidden:
+        stamped[FIELD_HIDDEN] = True
+    return stamped

@@ -26,7 +26,8 @@ import { CallDebrief } from '@/components/telephony/CallDebrief';
 import { CallDecisions } from '@/components/telephony/CallDecisions';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { useTelephonyCalls } from '@/hooks/useTelephonyCalls';
-import { callOutcomeTone, lifecycleTone } from '@/lib/status-tone';
+import { formatEuro } from '@/lib/format';
+import { callOutcomeTone, lifecycleTone, relayOutcomeTone } from '@/lib/status-tone';
 import { ACTIVE_CALL_STATUSES, type TelephonyCallSummary } from '@/types/telephony';
 import type { BaseSettingsProps } from '@/types/settings';
 import type { Language } from '@/i18n/settings';
@@ -63,6 +64,19 @@ function CallRow({ call, lng }: { call: TelephonyCallSummary; lng: Language }) {
             {t(`settings.telephony.calls.outcome.${call.outcome}`)}
           </Badge>
         )}
+        {/* Phone as a channel: a call WITH the person (or the verification of
+            their number) is not an errand for them — the kind says which, and
+            the relay verdict says whether their words reached the chat. */}
+        {call.call_kind !== 'third_party' && (
+          <Badge variant="secondary" size="sm">
+            {t(`settings.telephony.calls.kind.${call.call_kind}`)}
+          </Badge>
+        )}
+        {call.relay_outcome && (
+          <Badge variant={relayOutcomeTone(call.relay_outcome)} size="sm">
+            {t(`settings.telephony.calls.relay.${call.relay_outcome}`)}
+          </Badge>
+        )}
       </div>
       <p className="mt-1 text-sm text-muted-foreground">{call.objective}</p>
       {call.summary && <p className="mt-1 text-sm">{call.summary}</p>}
@@ -84,6 +98,18 @@ function CallRow({ call, lng }: { call: TelephonyCallSummary; lng: Language }) {
           ? null
           : started.toLocaleString(lng, { dateStyle: 'short', timeStyle: 'short' })}
         {call.call_seconds !== null && ` · ${formatDuration(call.call_seconds)}`}
+        {/* Lot 8: the call's cumulated bill — the same summary the chat meter reads. */}
+        {call.usage && (
+          <>
+            {' · '}
+            <span>
+              {t('settings.telephony.calls.usage', {
+                tokens: (call.usage.tokens_in + call.usage.tokens_out).toLocaleString(lng),
+                cost: formatEuro(call.usage.cost_eur, 4, lng),
+              })}
+            </span>
+          </>
+        )}
       </p>
     </li>
   );

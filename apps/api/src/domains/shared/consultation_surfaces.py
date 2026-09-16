@@ -45,6 +45,7 @@ from typing import Final
 import structlog
 
 from src.domains.shared.consultation_sink import record_consultation
+from src.domains.shared.phone_domains import PHONE_DOMAINS
 
 logger = structlog.get_logger(__name__)
 
@@ -198,6 +199,37 @@ CONSULTATION_SURFACES: Final[Mapping[str, ConsultationSurface]] = {
         source="proactive",
         domains={
             "event_followup": "event",
+        },
+    ),
+    # A phone call the person asked for opens their CALENDAR before dialling
+    # — the free/busy projection the voice agent may share — from the draft
+    # executor, through a client, never through a tool: the gate never saw it,
+    # and ``direct_client_callers`` had filed the module as « not a read »
+    # (found 2026-09-16, the fifth surface found by someone noticing). An
+    # owner call (lot 4) reads more sections; each is declared here as it is
+    # added.
+    "phone_call": ConsultationSurface(
+        key="phone_call",
+        prefix="phone_call:",
+        source="user",
+        domains={
+            "availability": "event",
+            # The owner mandate (lot 4) carries what the chat would know, each
+            # section read through the reader the chat already uses.
+            "memories": "context",
+            "agenda": "event",
+            "reminders": "reminder",
+            "open_loops": "peer",
+            "recent_exchanges": "automation",
+            # A live lookup during the call (lot 7) files under the section of
+            # what it read; the tasks list is the one the context block does
+            # not carry.
+            "tasks": "task",
+            # Lot 8: every read-only tool of a phone domain may be looked up
+            # live, and files under the section NAMED AFTER its domain — one
+            # entry per domain the phone offers, from the shared vocabulary
+            # both halves read.
+            **{domain: domain for domain in PHONE_DOMAINS},
         },
     ),
     # Geocoding the address the person is setting: their own action, their own

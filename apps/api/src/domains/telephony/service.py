@@ -11,9 +11,10 @@ Vendor call costs are the user's own (D-9): nothing here is metered to money.
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 from uuid import UUID
 
 import structlog
@@ -27,16 +28,24 @@ from src.core.time_utils import format_datetime_for_display
 from src.core.user_display import resolve_user_display_name
 from src.domains.connectors.models import Connector, ConnectorType
 from src.domains.connectors.service import ConnectorService
+from src.domains.personalities.service import PersonalityService
+from src.domains.shared.consultation_surfaces import record_surface_consultations
 from src.domains.telephony.agent_prompt import agent_config_fingerprint, build_agent_config
-from src.domains.telephony.availability import build_availability_summary
+from src.domains.telephony.availability import AvailabilityRead, build_availability
 from src.domains.telephony.client import ElevenLabsAgentsClient, ElevenLabsAgentsError
 from src.domains.telephony.connector import TelephonyConnectorService
-from src.domains.telephony.models import PhoneCall, PhoneCallStatus
+from src.domains.telephony.live_tools import (
+    LiveToolBinding,
+    attach_live_tools,
+    live_tools_attached,
+)
+from src.domains.telephony.mandates import MandateInputs, build_override, mandate_for
+from src.domains.telephony.models import CallKind, PhoneCall, PhoneCallStatus
 from src.domains.telephony.repository import TelephonyRepository
 from src.domains.users.models import User
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Sequence
 
 logger = structlog.get_logger(__name__)
 
@@ -44,9 +53,24 @@ logger = structlog.get_logger(__name__)
 # "rejected" → the vendor DECLINED for a configuration reason (unverified
 #              source number, exhausted credit). Retrying changes nothing, so
 #              the two must not share a message that says "try again".
+# "agent_sync_failed" → an owner or verification mandate could not be
+#              installed on the vendor agent (the PATCH failed). Dialling
+#              anyway would serve the owner the stranger's rules, so the
+#              call is refused; retrying can work once the vendor answers.
 _InitiateStatus = Literal[
-    "placed", "already_active", "not_configured", "failed", "rejected", "auth_failed"
+    "placed",
+    "already_active",
+    "not_configured",
+    "failed",
+    "rejected",
+    "auth_failed",
+    "agent_sync_failed",
 ]
+
+#: The consultation surface the dial path records on (ADR-263): the calendar
+#: is opened from here, not from a tool, so the gate never sees it.
+_SURFACE = "phone_call"
+_AVAILABILITY_SECTION = "availability"
 
 # Vendor conversation statuses meaning the call itself is over ("processing" =
 # ended, transcript still being prepared). spike: values per the conversations
@@ -68,6 +92,16 @@ class InitiateCallResult:
 
     status: _InitiateStatus
     call_id: UUID | None = None
+
+
+@dataclass(frozen=True)
+class _ActiveConnector:
+    """The provisioned agent, its number and its key — what a dial needs."""
+
+    connector: Connector
+    agent_id: str
+    agent_phone_number_id: str
+    api_key: str
 
 
 class TelephonyService:
@@ -160,27 +194,28 @@ class TelephonyService:
         agent_id: str,
         user_language: str,
         user_name: str,
-    ) -> None:
+    ) -> bool:
         """PATCH the vendor agent in place when the local config drifted.
 
-        Compares the current config fingerprint (prompt file + voice/TTS/format/
-        duration settings) against the one stored at activation. Best-effort: a
-        vendor failure logs a warning and the call proceeds on the old config —
-        a sync must never block a call. On success the new fingerprint is
-        committed (short transaction, before the dialing-row one).
+        Compares the current config fingerprint (prompt file + greeting + data
+        contract + the override permission — nothing the portal administers)
+        against the one stored at activation. Best-effort for the THIRD-PARTY
+        mandate: a vendor failure
+        logs a warning and the call proceeds on the old config — a sync must
+        never block a call. The owner and verification mandates read the
+        verdict instead: without the permission the vendor refuses their
+        override, and dialling would serve the owner the stranger's rules.
+        On success the new fingerprint is committed (short transaction, before
+        the dialing-row one).
+
+        Returns:
+            True when the agent is in sync (already, or after this PATCH).
         """
         cfg = build_agent_config(user_language, user_name)
-        current = agent_config_fingerprint(
-            cfg,
-            llm_model=settings.telephony_agent_llm_model or None,
-            tts_model_id=settings.telephony_agent_tts_model_id,
-            voice_id=settings.telephony_agent_voice_id or None,
-            audio_format=settings.telephony_agent_audio_format or None,
-            max_duration_seconds=settings.telephony_max_call_duration_seconds,
-        )
+        current = agent_config_fingerprint(cfg)
         metadata = connector.connector_metadata or {}
         if metadata.get("agent_config_hash") == current:
-            return
+            return True
 
         try:
             await self._client_factory(api_key).update_agent(
@@ -188,12 +223,6 @@ class TelephonyService:
                 name=cfg.name,
                 system_prompt=cfg.system_prompt,
                 first_message=cfg.first_message,
-                language=cfg.language,
-                llm_model=settings.telephony_agent_llm_model or None,
-                tts_model_id=settings.telephony_agent_tts_model_id,
-                voice_id=settings.telephony_agent_voice_id or None,
-                audio_format=settings.telephony_agent_audio_format or None,
-                max_duration_seconds=settings.telephony_max_call_duration_seconds,
                 data_collection=cfg.data_collection,
             )
         except ElevenLabsAgentsError as exc:
@@ -202,7 +231,7 @@ class TelephonyService:
                 agent_id=agent_id,
                 status_code=exc.status_code,
             )
-            return
+            return False
 
         # JSONB rule: always assign a NEW dict (in-place mutation is silently
         # dropped by SQLAlchemy). Committed now — the dialing row opens its own
@@ -210,6 +239,91 @@ class TelephonyService:
         connector.connector_metadata = {**metadata, "agent_config_hash": current}
         await self.db.commit()
         logger.info("telephony_agent_synced", agent_id=agent_id)
+        return True
+
+    async def _arm_live_tools(
+        self,
+        active: _ActiveConnector,
+        kind: CallKind,
+        live_tools: Sequence[LiveToolBinding],
+    ) -> tuple[LiveToolBinding, ...]:
+        """Put the agent in the tool state THIS call needs (lot 7).
+
+        The live tools serve the owner's call only, and the vendor refuses
+        them per call (measured 2026-09-16: « Tool IDs not attached to this
+        agent », the call dies at pickup), so they live on the AGENT between
+        the dial and the end of the owner call. Before an owner call with
+        tools they are attached; before any other call, an agent still
+        carrying them (a webhook that never came) is detached first — a
+        stranger is never phoned by an agent holding the owner's lookups.
+        Vendor HTTP outside any transaction; the connector's new state is
+        committed before the dialing row opens its own.
+
+        Args:
+            active: The provisioned agent and its key.
+            kind: The mandate of the call about to leave.
+            live_tools: The bindings an owner call was handed.
+
+        Returns:
+            The bindings the prompt may name: what was attached, or nothing
+            when the attach was refused (a call without lookups beats a
+            prompt promising lookups the agent cannot make).
+        """
+        wanted = tuple(live_tools) if kind is CallKind.SELF else ()
+        if not wanted and not live_tools_attached(active.connector):
+            return ()
+        client = self._client_factory(active.api_key)
+        ids = [binding.vendor_id for binding in wanted]
+        if not await attach_live_tools(client, active.connector, ids):
+            return ()
+        await self.db.commit()
+        return wanted
+
+    async def _personality_for(self, user_id: UUID) -> str:
+        """The instruction the person configured for LIA's personality (lot 9).
+
+        The same door the chat and the voice flow read; best-effort, because
+        a voice with the default manner beats no call at all.
+        """
+        try:
+            return str(await PersonalityService(self.db).get_prompt_instruction_for_user(user_id))
+        except Exception as exc:  # noqa: BLE001 — a personality is colour, never a gate
+            logger.warning(
+                "telephony_personality_unreadable",
+                user_id=str(user_id),
+                error_type=type(exc).__name__,
+            )
+            return ""
+
+    async def _read_availability(
+        self,
+        *,
+        user_id: UUID,
+        window_start: datetime,
+        window_end: datetime,
+        user_tz: str,
+        user_language: str,
+    ) -> AvailabilityRead:
+        """Read the free/busy projection and RECORD that the calendar was opened.
+
+        The read happens on the dial path, through a client, so the tool gate
+        never sees it: the service files the consultation itself (ADR-263). A
+        calendar that could not be read files ``failed``; no calendar at all
+        opened nothing and files nothing.
+        """
+        started = time.monotonic()
+        read = await build_availability(
+            user_id, window_start, window_end, ConnectorService(self.db), user_tz, user_language
+        )
+        if read.opened:
+            record_surface_consultations(
+                surface=_SURFACE,
+                user_id=user_id,
+                opened=[_AVAILABILITY_SECTION],
+                failed=[_AVAILABILITY_SECTION] if read.failed else [],
+                duration_ms=int((time.monotonic() - started) * 1000),
+            )
+        return read
 
     async def initiate_call(
         self,
@@ -220,6 +334,10 @@ class TelephonyService:
         objective: str,
         date_window: str | None,
         user_language: str,
+        kind: CallKind = CallKind.THIRD_PARTY,
+        user_context: str = "",
+        verification_code: str = "",
+        live_tools: Sequence[LiveToolBinding] = (),
     ) -> InitiateCallResult:
         """Dial the callee via the user's ElevenLabs agent.
 
@@ -231,21 +349,23 @@ class TelephonyService:
             date_window: Free-text availability window hint (currently advisory —
                 the pre-fetch window is [now, now + prefetch_window_days]).
             user_language: Language for the availability summary + agent.
+            kind: Which mandate the call runs under (lot 2). The baked agent
+                serves ``THIRD_PARTY``; ``SELF`` and ``VERIFICATION`` send a
+                per-call override the agent must have been synced to allow.
+            user_context: The rendered context block of an owner call (lot 4);
+                "" when the person switched it off or none was built.
+            verification_code: The digits a ``VERIFICATION`` call reads aloud.
+            live_tools: The webhook tools an owner call may use (lot 7),
+                already provisioned vendor-side by the caller and attached
+                to the agent here for the call; empty when the flag is off
+                or nothing is available.
 
         Returns:
             InitiateCallResult with the terminal status and the call id.
         """
-        connector = await TelephonyConnectorService(self.db).get_active(user_id)
-        if connector is None:
-            return InitiateCallResult(status="not_configured")
-
-        metadata = connector.connector_metadata or {}
-        agent_id = metadata.get("agent_id")
-        agent_phone_number_id = metadata.get("agent_phone_number_id")
-        creds = await ConnectorService(self.db).get_api_key_credentials(
-            user_id, ConnectorType.ELEVENLABS_TELEPHONY
-        )
-        if not agent_id or not agent_phone_number_id or creds is None:
+        mandate = mandate_for(kind)
+        active = await self._active_connector(user_id)
+        if active is None:
             return InitiateCallResult(status="not_configured")
 
         # One-active-call guard with SELF-HEALING: a row stuck DIALING because
@@ -257,7 +377,7 @@ class TelephonyService:
         repo = TelephonyRepository(self.db)
         existing = await repo.get_active_for_user(user_id)
         if existing is not None:
-            cleared = await self._resolve_zombie_call(existing, repo, creds.api_key)
+            cleared = await self._resolve_zombie_call(existing, repo, active.api_key)
             if not cleared:
                 return InitiateCallResult(status="already_active", call_id=existing.id)
 
@@ -269,57 +389,73 @@ class TelephonyService:
         user_name = resolve_user_display_name(user.full_name, user.email) if user else ""
         user_tz = user.timezone if user and user.timezone else DEFAULT_USER_DISPLAY_TIMEZONE
 
-        # Lazy agent re-sync (best-effort, vendor HTTP outside any transaction):
-        # prompt/settings changes reach the provisioned agent on the next call
-        # instead of requiring a connector deactivate/reactivate cycle.
-        await self._sync_agent_config(
-            connector=connector,
-            api_key=creds.api_key,
-            agent_id=agent_id,
+        # Lazy agent re-sync (vendor HTTP outside any transaction): prompt and
+        # settings changes reach the provisioned agent on the next call instead
+        # of requiring a connector deactivate/reactivate cycle. Best-effort for
+        # the baked mandate; MANDATORY for an override, whose permission travels
+        # in this very sync.
+        synced = await self._sync_agent_config(
+            connector=active.connector,
+            api_key=active.api_key,
+            agent_id=active.agent_id,
             user_language=user_language,
             user_name=user_name,
         )
+        if mandate.overrides_agent and not synced:
+            logger.warning(
+                "telephony_override_refused_unsynced_agent",
+                user_id=str(user_id),
+                kind=kind.value,
+            )
+            return InitiateCallResult(status="agent_sync_failed")
+        live_tools = await self._arm_live_tools(active, kind, live_tools)
 
-        availability_summary = await build_availability_summary(
-            user_id,
-            window_start,
-            window_end,
-            ConnectorService(self.db),
-            user_tz,
-            user_language,
+        personality = await self._personality_for(user_id)
+        availability_summary = ""
+        if mandate.prefetch_availability:
+            read = await self._read_availability(
+                user_id=user_id,
+                window_start=window_start,
+                window_end=window_end,
+                user_tz=user_tz,
+                user_language=user_language,
+            )
+            availability_summary = read.summary
+
+        override = build_override(
+            kind,
+            MandateInputs(
+                language=user_language,
+                user_name=user_name,
+                objective=objective,
+                user_context=user_context if mandate.rich_context else "",
+                availability_summary=availability_summary,
+                now=now,
+                timezone=user_tz,
+                verification_code=verification_code,
+                live_tool_domains=tuple(sorted({binding.domain for binding in live_tools})),
+                personality=personality,
+            ),
         )
 
-        # Persist the dialing row AND COMMIT it BEFORE dialing. Two reasons:
-        #  1. Crash-safety / reconciliation: the call_id is sent to the vendor as a
-        #     dynamic variable, so the row MUST exist before the call is placed — a
-        #     crash after dialing still leaves a row for the post-call webhook (or
-        #     the stale reaper). Committing after the vendor call would risk an
-        #     orphan call whose webhook can never reconcile (lost return).
-        #  2. The vendor HTTP call is then never held inside a DB transaction (no
-        #     connection nor uncommitted F12 row locked across external I/O).
-        # The F12 partial unique index keeps "one active call per user" atomic.
-        try:
-            call = await repo.create(
-                {
-                    "user_id": user_id,
-                    "callee_display": callee_display,
-                    "callee_phone": encrypt_data(callee_phone),  # PII encrypted at rest
-                    "objective": objective,
-                    "objective_window_start": window_start,
-                    "objective_window_end": window_end,
-                    "status": PhoneCallStatus.DIALING,
-                    "initiated_at": now,
-                    "expires_at": now + timedelta(days=settings.telephony_call_retention_days),
-                }
-            )
-            call_id = call.id  # capture before commit (may expire the ORM object)
-            await self.db.commit()
-        except IntegrityError:
-            await self.db.rollback()
-            racing = await repo.get_active_for_user(user_id)
-            return InitiateCallResult(
-                status="already_active", call_id=racing.id if racing else None
-            )
+        created = await self._create_dialing_row(
+            repo,
+            {
+                "user_id": user_id,
+                "callee_display": callee_display,
+                "callee_phone": encrypt_data(callee_phone),  # PII encrypted at rest
+                "objective": objective,
+                "call_kind": kind,
+                "objective_window_start": window_start,
+                "objective_window_end": window_end,
+                "status": PhoneCallStatus.DIALING,
+                "initiated_at": now,
+                "expires_at": now + timedelta(days=settings.telephony_call_retention_days),
+            },
+        )
+        if isinstance(created, InitiateCallResult):
+            return created
+        call_id = created
 
         dynamic_variables = {
             "user_name": user_name,
@@ -333,19 +469,79 @@ class TelephonyService:
             "current_datetime": format_datetime_for_display(now, user_tz, user_language),
             "recording_disclosure": "",  # D-8: recording disabled → no disclosure
             "call_id": str(call_id),  # webhook reconciliation key
+            # Lot 9: the baked third-party agent reads the person's configured
+            # personality per call — a variable, so no re-sync on a change.
+            "personality_profile": personality,
         }
 
         # Vendor HTTP call — OUTSIDE any DB transaction.
         return await self._dial_and_interpret(
-            api_key=creds.api_key,
+            api_key=active.api_key,
             repo=repo,
             user_id=user_id,
             call_id=call_id,
-            agent_id=agent_id,
-            agent_phone_number_id=agent_phone_number_id,
+            agent_id=active.agent_id,
+            agent_phone_number_id=active.agent_phone_number_id,
             callee_phone=callee_phone,
             dynamic_variables=dynamic_variables,
+            conversation_config_override=override,
         )
+
+    async def _active_connector(self, user_id: UUID) -> _ActiveConnector | None:
+        """The user's active telephony connector with everything a dial needs.
+
+        Returns:
+            None when the connector is absent, incomplete, or without a key —
+            the three ``not_configured`` cases, one answer.
+        """
+        connector = await TelephonyConnectorService(self.db).get_active(user_id)
+        if connector is None:
+            return None
+        metadata = connector.connector_metadata or {}
+        agent_id = metadata.get("agent_id")
+        agent_phone_number_id = metadata.get("agent_phone_number_id")
+        creds = await ConnectorService(self.db).get_api_key_credentials(
+            user_id, ConnectorType.ELEVENLABS_TELEPHONY
+        )
+        if not agent_id or not agent_phone_number_id or creds is None:
+            return None
+        return _ActiveConnector(
+            connector=connector,
+            agent_id=str(agent_id),
+            agent_phone_number_id=str(agent_phone_number_id),
+            api_key=creds.api_key,
+        )
+
+    async def _create_dialing_row(
+        self, repo: TelephonyRepository, data: dict[str, Any]
+    ) -> UUID | InitiateCallResult:
+        """Persist the DIALING row and COMMIT it BEFORE dialing.
+
+        Two reasons:
+         1. Crash-safety / reconciliation: the call_id is sent to the vendor as
+            a dynamic variable, so the row MUST exist before the call is placed
+            — a crash after dialing still leaves a row for the post-call
+            webhook (or the stale reaper). Committing after the vendor call
+            would risk an orphan call whose webhook can never reconcile.
+         2. The vendor HTTP call is then never held inside a DB transaction
+            (no connection nor uncommitted F12 row locked across external I/O).
+        The F12 partial unique index keeps "one active call per user" atomic.
+
+        Returns:
+            The committed call id, or the ``already_active`` result when the
+            index refused a concurrent second call.
+        """
+        try:
+            call = await repo.create(data)
+            call_id = call.id  # capture before commit (may expire the ORM object)
+            await self.db.commit()
+            return call_id
+        except IntegrityError:
+            await self.db.rollback()
+            racing = await repo.get_active_for_user(data["user_id"])
+            return InitiateCallResult(
+                status="already_active", call_id=racing.id if racing else None
+            )
 
     async def _dial_and_interpret(
         self,
@@ -358,6 +554,7 @@ class TelephonyService:
         agent_phone_number_id: str,
         callee_phone: str,
         dynamic_variables: dict[str, str],
+        conversation_config_override: dict[str, Any] | None = None,
     ) -> InitiateCallResult:
         """Place the call and turn the vendor's answer into a terminal status.
 
@@ -378,6 +575,8 @@ class TelephonyService:
             agent_phone_number_id: Vendor-side source number.
             callee_phone: Plaintext E.164 number sent to the vendor.
             dynamic_variables: Per-call variables, ``call_id`` included.
+            conversation_config_override: The rendered mandate of an owner or
+                verification call; None for the baked third-party agent.
 
         Returns:
             ``placed``, ``failed`` (transient) or ``rejected`` (configuration).
@@ -389,6 +588,7 @@ class TelephonyService:
                 to_number=callee_phone,  # plaintext to the vendor; only the column is encrypted
                 dynamic_variables=dynamic_variables,
                 ringing_timeout_secs=settings.telephony_ringing_timeout_seconds,
+                conversation_config_override=conversation_config_override,
             )
         except ElevenLabsAgentsError as exc:
             # A credential rejection is NOT transient: "try again in a moment"

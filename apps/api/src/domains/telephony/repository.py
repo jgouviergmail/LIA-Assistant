@@ -7,7 +7,7 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.repository import BaseRepository
@@ -140,6 +140,7 @@ class TelephonyRepository(BaseRepository[PhoneCall]):
         completed_at: datetime,
         notification_content: str,
         notification_title: str,
+        notification_status: NotificationStatus = NotificationStatus.PENDING,
     ) -> bool:
         """Atomically transition an in-flight call to terminal + arm the return.
 
@@ -153,6 +154,11 @@ class TelephonyRepository(BaseRepository[PhoneCall]):
         return is therefore committed as an outbox record BEFORE it is dispatched,
         so a crash between the commit and the dispatch cannot lose it — the
         notification reaper re-dispatches it from the payload without re-synthesizing.
+
+        ``notification_status`` is ``PENDING`` for a return the dispatcher
+        delivers, ``RELAYING`` for an owner call whose return becomes the
+        person's own chat turn (lot 4) — the payload is then the FALLBACK the
+        reaper sends if the relay never settles.
 
         Returns:
             ``True`` if this call transitioned the row (winner), ``False`` if the
@@ -169,12 +175,140 @@ class TelephonyRepository(BaseRepository[PhoneCall]):
                 debrief=debrief,
                 outcome=outcome,
                 completed_at=completed_at,
-                notification_status=NotificationStatus.PENDING,
+                notification_status=notification_status,
                 notification_payload={"content": notification_content, "title": notification_title},
                 notification_attempts=0,
                 # T1 approach A: synthesis is done — close the pre-synthesis inbox and
                 # PURGE the encrypted transcript (it only rested for the synthesis window).
                 return_status=ReturnSynthesisStatus.SYNTHESIZED,
+                return_webhook_encrypted=None,
+            )
+            .execution_options(synchronize_session=False)
+        )
+        result = await self.db.execute(stmt)
+        await self.db.commit()
+        return bool(result.rowcount)  # type: ignore[attr-defined]
+
+    @staticmethod
+    def _payload_with(field: str, value: str) -> Any:
+        """``notification_payload`` with one string field set (JSONB, server-side)."""
+        return func.jsonb_set(
+            func.coalesce(PhoneCall.notification_payload, text("'{}'::jsonb")),
+            text(f"'{{{field}}}'"),
+            func.to_jsonb(value),
+        )
+
+    async def mark_relay_delivered(self, call_id: UUID, *, outcome: str = "answered") -> bool:
+        """The relayed turn ran: the return is delivered, nothing for the reaper.
+
+        Conditional on ``RELAYING`` so a fallback and a delivery can never both
+        happen: whichever settles first wins. The verdict is written on the
+        outbox payload so the calls list can say how the words reached the chat.
+
+        Returns:
+            ``True`` when this call settled the row.
+        """
+        stmt = (
+            update(PhoneCall)
+            .where(
+                PhoneCall.id == call_id,
+                PhoneCall.notification_status == NotificationStatus.RELAYING,
+            )
+            .values(
+                notification_status=NotificationStatus.DELIVERED,
+                notification_payload=self._payload_with("relay_outcome", outcome),
+            )
+            .execution_options(synchronize_session=False)
+        )
+        result = await self.db.execute(stmt)
+        await self.db.commit()
+        return bool(result.rowcount)  # type: ignore[attr-defined]
+
+    async def mark_relay_fallback(
+        self, call_id: UUID, *, content: str, outcome: str = "failed"
+    ) -> bool:
+        """The relay could not run: hand the return to the notification reaper.
+
+        Replaces the payload's content with the sentence that says WHY (the
+        title is kept), writes the verdict beside it, and flips
+        ``RELAYING → PENDING`` conditionally, so a relay that settled meanwhile
+        is never overwritten.
+
+        Returns:
+            ``True`` when this call settled the row.
+        """
+        stmt = (
+            update(PhoneCall)
+            .where(
+                PhoneCall.id == call_id,
+                PhoneCall.notification_status == NotificationStatus.RELAYING,
+            )
+            .values(
+                notification_status=NotificationStatus.PENDING,
+                notification_payload=func.jsonb_set(
+                    self._payload_with("relay_outcome", outcome),
+                    text("'{content}'"),
+                    func.to_jsonb(content),
+                ),
+            )
+            .execution_options(synchronize_session=False)
+        )
+        result = await self.db.execute(stmt)
+        await self.db.commit()
+        return bool(result.rowcount)  # type: ignore[attr-defined]
+
+    async def recover_stale_relays(self, *, max_age_cutoff: datetime) -> int:
+        """Hand RELAYING rows a crash left behind to the notification reaper.
+
+        A relay that neither delivered nor fell back within the max age died
+        mid-flight; its fallback payload is still in the row, so the reaper
+        can deliver it. A rare duplicate is preferred over a lost return (T1).
+
+        Returns:
+            How many rows were flipped to ``PENDING``.
+        """
+        stmt = (
+            update(PhoneCall)
+            .where(
+                PhoneCall.notification_status == NotificationStatus.RELAYING,
+                PhoneCall.completed_at < max_age_cutoff,
+            )
+            .values(notification_status=NotificationStatus.PENDING)
+            .execution_options(synchronize_session=False)
+        )
+        result = await self.db.execute(stmt)
+        await self.db.commit()
+        return int(result.rowcount)  # type: ignore[attr-defined]
+
+    async def close_without_return(
+        self,
+        call_id: UUID,
+        *,
+        status: PhoneCallStatus,
+        call_seconds: Decimal | None,
+        completed_at: datetime,
+    ) -> bool:
+        """Close a call that has NOTHING to return (a verification call, lot 2).
+
+        The same atomic, exactly-once transition as :meth:`mark_completed`, with
+        no synthesis and no outbox: ``notification_status`` stays NULL (« no
+        return to deliver », which is what the notification reaper reads) and
+        the pre-synthesis inbox closes as ``SKIPPED`` while its encrypted
+        transcript is purged — the code was spoken, nothing of it is worth
+        keeping.
+
+        Returns:
+            ``True`` if this call transitioned the row, ``False`` if it was
+            already terminal.
+        """
+        stmt = (
+            update(PhoneCall)
+            .where(PhoneCall.id == call_id, PhoneCall.status.in_(_ACTIVE_STATUSES))
+            .values(
+                status=status,
+                call_seconds=call_seconds,
+                completed_at=completed_at,
+                return_status=ReturnSynthesisStatus.SKIPPED,
                 return_webhook_encrypted=None,
             )
             .execution_options(synchronize_session=False)

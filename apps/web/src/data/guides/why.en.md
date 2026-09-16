@@ -4,7 +4,7 @@
 
 **Version**: 6.0
 **Date**: 2026-08-23
-**Application**: LIA v1.44.7
+**Application**: LIA v1.45.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -201,6 +201,8 @@ LIA can pick up the phone for you. Ask it to "call the garage to check if the ca
 You are always in the loop: before dialing, LIA tells you exactly **who** it will call and **why**, and waits for your go-ahead. And that control doesn't stop during the call: the assistant operates under a strict mandate — if the person offers an extra, an option or any unplanned commitment (even a small one), it never accepts on your behalf; it notes the offer and its price, announces a call-back, and the summary hands you every cost and every open point so you decide. The summary lands in the chat asynchronously, so you can keep doing other things while the call happens.
 
 And it stays private by construction. During a call LIA can only tell whether you're free or busy at a given time — never the titles, guests or places on your calendar. Nothing is recorded, the conversation is never stored, and only a short summary is kept before it expires. Phone calls run through your own ElevenLabs connector, billed on your account, and the feature is there only if your administrator turned it on.
+
+And LIA can call *you*. Declare your number under *Telephony · My identity*, let LIA call it and read a code you type back, and from then on "call me at eight to go over my day" — or a routine that says it — rings your phone with no confirmation card: the person who would confirm is the one who picks up. On the line, LIA knows what it knows in the chat — your memories, your agenda, your reminders, what is open with people — and, if your administrator enabled it, looks things up as you talk: an e-mail, a contact, a file, a place nearby, the weather, what it remembers about a subject. It reads everything and acts on nothing; each domain has a switch that is yours, and the assistant speaks with the personality you gave it. When you hang up, what you said comes back in the chat as your own message, with a phone badge, and anything you asked for waits there for your confirmation.
 
 ### 3.11. Talking to your people, assistant to assistant
 

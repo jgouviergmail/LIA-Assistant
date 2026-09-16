@@ -32,6 +32,8 @@ function call(overrides: Partial<TelephonyCallSummary> = {}): TelephonyCallSumma
     debrief: null,
     call_seconds: null,
     created_at: '2026-07-26T09:00:00Z',
+    call_kind: 'third_party',
+    relay_outcome: null,
     completed_at: null,
     ...overrides,
   };
@@ -111,5 +113,21 @@ describe('ActiveCallBanner', () => {
     ]);
     renderWithProviders(<ActiveCallBanner lng="fr" />);
     expect(screen.getByRole('status')).toBeInTheDocument();
+  });
+});
+
+describe('ActiveCallBanner — an owner call', () => {
+  it('says LIA is calling the person, not a third party', () => {
+    mockCalls([call({ status: 'dialing', call_kind: 'self', callee_display: 'Alex' })]);
+    renderWithProviders(<ActiveCallBanner lng="fr" />);
+    expect(screen.getByText('chat.active_call.self_dialing')).toBeInTheDocument();
+  });
+
+  it('a verification call is also a call to the person', () => {
+    mockCalls([
+      call({ status: 'in_progress', call_kind: 'verification', callee_display: 'Alex' }),
+    ]);
+    renderWithProviders(<ActiveCallBanner lng="fr" />);
+    expect(screen.getByText('chat.active_call.self_in_progress')).toBeInTheDocument();
   });
 });

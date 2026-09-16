@@ -19,17 +19,28 @@ from src.core.exceptions import raise_invalid_webhook_signature
 from src.core.security.utils import encrypt_data
 from src.core.session_dependencies import get_current_active_session
 from src.core.user_display import resolve_user_display_name
+from src.domains.chat.repository import ChatRepository
 from src.domains.feature_switches.guard import capability_dependencies
 from src.domains.feature_switches.registry import PlatformCapability
+from src.domains.shared.phone_domains import PHONE_DOMAINS
 from src.domains.telephony.connector import TelephonyConnectorService
+from src.domains.telephony.identity import PhoneIdentity, TelephonyIdentityService
 from src.domains.telephony.repository import TelephonyRepository
 from src.domains.telephony.schemas import (
     TelephonyActivateRequest,
     TelephonyCallSummary,
+    TelephonyCallUsage,
     TelephonyConnectorResponse,
+    TelephonyIdentityConfirmRequest,
+    TelephonyIdentityNumberRequest,
+    TelephonyIdentityResponse,
+    TelephonyIdentityUpdateRequest,
+    TelephonyIdentityVerifyResponse,
     TelephonyKeyValidateRequest,
     TelephonyKeyValidateResponse,
 )
+from src.domains.telephony.spend import phone_call_run_id
+from src.domains.telephony.verification import TelephonyVerificationService
 from src.domains.telephony.webhook_handler import (
     SIGNATURE_HEADER,
     WebhookOutcome,
@@ -37,6 +48,7 @@ from src.domains.telephony.webhook_handler import (
 )
 from src.domains.users.models import User
 from src.infrastructure.async_utils import safe_fire_and_forget
+from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_telephony import telephony_webhook_ignored_total
 
@@ -180,4 +192,154 @@ async def list_calls(
     """
     calls = await TelephonyRepository(db).list_recent_for_user(user.id, limit=limit)
     logger.info("telephony_calls_listed", user_id=str(user.id), count=len(calls))
-    return [TelephonyCallSummary.model_validate(call) for call in calls]
+    # Lot 8: the bill of a call is the per-run summary under its own run id —
+    # one batch read for the page, the meter's own vocabulary.
+    summaries = await ChatRepository(db).get_token_summaries_by_run_ids(
+        [phone_call_run_id(call.id) for call in calls]
+    )
+    listed: list[TelephonyCallSummary] = []
+    for call in calls:
+        summary = TelephonyCallSummary.model_validate(call)
+        row = summaries.get(phone_call_run_id(call.id))
+        if row is not None:
+            summary = summary.model_copy(
+                update={
+                    "usage": TelephonyCallUsage(
+                        tokens_in=row.total_prompt_tokens,
+                        tokens_out=row.total_completion_tokens,
+                        tokens_cache=row.total_cached_tokens,
+                        cost_eur=float(row.total_cost_eur),
+                        google_api_requests=row.google_api_requests,
+                    )
+                }
+            )
+        listed.append(summary)
+    return listed
+
+
+# ---------------------------------------------------------------------------
+# The person's own number (lot 1 of the phone-as-a-channel programme)
+# ---------------------------------------------------------------------------
+
+
+def _identity_response(
+    identity: PhoneIdentity, *, verification_pending: bool = False
+) -> TelephonyIdentityResponse:
+    """Project the service's identity onto the public schema."""
+    return TelephonyIdentityResponse(
+        phone_number=identity.phone_number,
+        verified=identity.verified,
+        verified_at=identity.verified_at,
+        rich_context_enabled=identity.rich_context_enabled,
+        disabled_domains=list(identity.disabled_domains),
+        available_domains=list(PHONE_DOMAINS),
+        verification_pending=verification_pending,
+    )
+
+
+async def _verification(db: AsyncSession) -> TelephonyVerificationService:
+    return TelephonyVerificationService(db, redis=await get_redis_cache())
+
+
+@router.get(
+    "/identity",
+    response_model=TelephonyIdentityResponse,
+    summary="The current user's own phone number and its verification state",
+)
+async def get_identity(
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> TelephonyIdentityResponse:
+    """Read the declared number, whether it was verified, and the context switch."""
+    identity = await TelephonyIdentityService(db).get_identity(user.id)
+    pending = await (await _verification(db)).pending(user.id)
+    return _identity_response(identity, verification_pending=pending)
+
+
+@router.post(
+    "/identity/verify",
+    response_model=TelephonyIdentityVerifyResponse,
+    summary="Call the declared number and read a verification code aloud",
+)
+async def start_identity_verification(
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> TelephonyIdentityVerifyResponse:
+    """Place the verification call; the code is kept server-side for its TTL."""
+    started = await (await _verification(db)).start(
+        user.id,
+        language=user.language or settings.default_language,
+        display_name=resolve_user_display_name(user.full_name, user.email),
+    )
+    return TelephonyIdentityVerifyResponse(
+        call_id=started.call_id, expires_in_seconds=started.expires_in_seconds
+    )
+
+
+@router.post(
+    "/identity/confirm",
+    response_model=TelephonyIdentityResponse,
+    summary="Type the spoken code back; the number is verified on a match",
+)
+async def confirm_identity_verification(
+    body: TelephonyIdentityConfirmRequest,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> TelephonyIdentityResponse:
+    """Judge the typed code (bounded attempts, constant-time compare)."""
+    identity = await (await _verification(db)).confirm(
+        user.id, body.code, language=user.language or settings.default_language
+    )
+    return _identity_response(identity)
+
+
+@router.put(
+    "/identity/number",
+    response_model=TelephonyIdentityResponse,
+    summary="Declare the current user's own phone number (stored encrypted, unverified)",
+)
+async def set_identity_number(
+    body: TelephonyIdentityNumberRequest,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> TelephonyIdentityResponse:
+    """Store the number in E.164; a changed number loses its verification."""
+    identity = await TelephonyIdentityService(db).set_number(
+        user.id, body.phone_number, language=user.language or settings.default_language
+    )
+    return _identity_response(identity)
+
+
+@router.delete(
+    "/identity/number",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Forget the current user's own phone number",
+)
+async def clear_identity_number(
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Drop the number and its verification."""
+    await TelephonyIdentityService(db).clear_number(user.id)
+
+
+@router.patch(
+    "/identity",
+    response_model=TelephonyIdentityResponse,
+    summary="Switch the rich context or the domains of owner calls",
+)
+async def update_identity(
+    body: TelephonyIdentityUpdateRequest,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> TelephonyIdentityResponse:
+    """Persist the switches the body carries."""
+    service = TelephonyIdentityService(db)
+    identity = await service.get_identity(user.id)
+    if body.rich_context_enabled is not None:
+        identity = await service.set_rich_context(user.id, body.rich_context_enabled)
+    if body.disabled_domains is not None:
+        identity = await service.set_disabled_domains(
+            user.id, body.disabled_domains, language=user.language or settings.default_language
+        )
+    return _identity_response(identity)

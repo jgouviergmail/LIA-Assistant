@@ -597,6 +597,8 @@ USER_COLUMNS: dict[str, UserColumnClass] = {
     "journal_portrait_full": _SCRUBBED,
     "journal_portrait_brief": _SCRUBBED,
     "journal_portrait_compiled_at": _SCRUBBED,
+    "phone_number_encrypted": _SCRUBBED,
+    "phone_number_verified_at": _SCRUBBED,
     # Billing contact (ADR-067).
     "email": _IDENTITY,
     "full_name": _IDENTITY,
@@ -684,4 +686,6 @@ USER_COLUMNS: dict[str, UserColumnClass] = {
     "onboarding_checklist": _PREFERENCE,
     "chat_shortcuts": _PREFERENCE,
     "settings_shortcuts": _PREFERENCE,
+    "phone_rich_context_enabled": _PREFERENCE,
+    "phone_disabled_domains": _PREFERENCE,
 }

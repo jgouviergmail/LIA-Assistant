@@ -20,7 +20,7 @@ from uuid import uuid4
 import pytest
 
 import src.domains.telephony.return_synthesis as rs
-from src.domains.telephony.models import PhoneCallStatus
+from src.domains.telephony.models import CallKind, PhoneCallStatus
 from src.domains.telephony.schemas import ReturnProposal
 
 
@@ -90,6 +90,7 @@ def _active_call() -> SimpleNamespace:
         status=PhoneCallStatus.IN_PROGRESS,
         objective="ask availability",
         callee_display="Marie",
+        call_kind=CallKind.THIRD_PARTY,
         created_at=datetime.now(UTC),
     )
 

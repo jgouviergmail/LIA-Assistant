@@ -17,9 +17,7 @@ The delivery strings (notification title / synthesis-failure fallback) live in
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
 from datetime import UTC, datetime
-from decimal import Decimal, InvalidOperation
 from typing import Any, Final, Literal
 from uuid import UUID
 from zoneinfo import ZoneInfo
@@ -34,10 +32,23 @@ from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.i18n import get_language_name
 from src.core.i18n_telephony import get_return_phrases
 from src.core.llm_config_helper import get_llm_config_for_agent
-from src.domains.telephony.models import PhoneCallOutcome, PhoneCallStatus
+from src.domains.telephony.models import CallKind, PhoneCallOutcome, PhoneCallStatus
+from src.domains.telephony.payload import (
+    current_datetime_line,
+    extract_call_seconds,
+    extract_transcript_summary,
+    extract_transcript_text,
+    map_status,
+    nested,
+)
 from src.domains.telephony.prompts.loader import load_telephony_prompt
 from src.domains.telephony.repository import TelephonyRepository
 from src.domains.telephony.schemas import ReturnProposal, StructuredCallData
+from src.domains.telephony.synthesis_usage import (
+    SynthUsage,
+    capture_to_usage,
+    track_synthesis_usage,
+)
 from src.domains.users.models import User
 from src.infrastructure.database.session import get_db_context
 from src.infrastructure.llm.factory import get_llm
@@ -48,7 +59,6 @@ from src.infrastructure.observability.metrics_telephony import (
     telephony_calls_total,
 )
 from src.infrastructure.proactive.notification import NotificationDispatcher
-from src.infrastructure.proactive.tracking import track_proactive_tokens
 
 logger = structlog.get_logger(__name__)
 
@@ -57,80 +67,13 @@ _TASK_TYPE = "phone_call"
 _ACTIVE = (PhoneCallStatus.DIALING, PhoneCallStatus.IN_PROGRESS)
 
 
-@dataclass(frozen=True)
-class _SynthUsage:
-    """Token usage of the synthesis LLM call, for proactive token tracking (G-1)."""
-
-    tokens_in: int
-    tokens_out: int
-    tokens_cache: int
-    model_name: str
-
-
-def _capture_to_usage(capture: TokenCaptureHandler) -> _SynthUsage | None:
-    """Convert the captured callback counters to the billable usage record.
-
-    Mirrors the briefing pipeline: subtract cached from input to expose the
-    non-cached billable count. Returns None when the provider reported no
-    usage at all.
-    """
-    if not capture.has_usage:
-        return None
-    return _SynthUsage(
-        tokens_in=max(capture.tokens_in - capture.tokens_cache, 0),
-        tokens_out=capture.tokens_out,
-        tokens_cache=capture.tokens_cache,
-        model_name=get_llm_config_for_agent(settings, _LLM_TYPE).model,
-    )
-
-
-def _nested(payload: dict[str, Any], *path: str) -> Any:
-    """Walk a dotted path through nested dicts, returning None if any hop misses."""
-    current: Any = payload
-    for key in path:
-        if not isinstance(current, dict):
-            return None
-        current = current.get(key)
-    return current
-
-
-def _extract_call_seconds(payload: dict[str, Any]) -> Decimal | None:
-    raw = _nested(payload, "data", "metadata", "call_duration_secs")
-    if raw is None:
-        return None
-    try:
-        return Decimal(str(raw))
-    except InvalidOperation, ValueError:
-        return None
-
-
-def _extract_transcript_summary(payload: dict[str, Any]) -> str:
-    value = _nested(payload, "data", "analysis", "transcript_summary")
-    return value if isinstance(value, str) else ""
-
-
-def _extract_transcript_text(payload: dict[str, Any], limit: int = 4000) -> str:
-    """Join the transcript turns to plain text for synthesis (never persisted)."""
-    turns = _nested(payload, "data", "transcript")
-    if not isinstance(turns, list):
-        return ""
-    lines: list[str] = []
-    for turn in turns:
-        if not isinstance(turn, dict):
-            continue
-        message = turn.get("message") or turn.get("text") or ""
-        if message:
-            lines.append(f"{turn.get('role', '')}: {message}".strip())
-    return "\n".join(lines)[:limit]
-
-
 def _extract_structured(payload: dict[str, Any]) -> StructuredCallData:
     """Map ElevenLabs data-collection results to the minimized StructuredCallData.
 
     Defensive: a wrongly-typed collected value (e.g. ``agreed="maybe"``) must not
     lose the whole return — it degrades to an empty StructuredCallData.
     """
-    raw = _nested(payload, "data", "analysis", "data_collection_results")
+    raw = nested(payload, "data", "analysis", "data_collection_results")
     if not isinstance(raw, dict):
         return StructuredCallData()
     flat = {k: (v.get("value") if isinstance(v, dict) else v) for k, v in raw.items()}
@@ -141,20 +84,6 @@ def _extract_structured(payload: dict[str, Any]) -> StructuredCallData:
         # input value, which could be a collected detail (location/notes) → PII.
         logger.warning("telephony_structured_data_invalid", error_type=type(exc).__name__)
         return StructuredCallData()
-
-
-def _map_status(payload: dict[str, Any]) -> PhoneCallStatus:
-    """Map the webhook payload to a terminal call status (spike: confirm values)."""
-    status = str(_nested(payload, "data", "status") or "").lower()
-    reason = str(_nested(payload, "data", "metadata", "termination_reason") or "").lower()
-    if "voicemail" in status or "voicemail" in reason:
-        return PhoneCallStatus.VOICEMAIL
-    if "no_answer" in reason or "no-answer" in reason or "unanswered" in reason:
-        return PhoneCallStatus.NO_ANSWER
-    if status in ("failed", "error") or "failed" in reason:
-        return PhoneCallStatus.FAILED
-    # A post-call transcription webhook implies the call connected.
-    return PhoneCallStatus.COMPLETED
 
 
 def _derive_outcome(
@@ -168,31 +97,6 @@ def _derive_outcome(
     if structured.agreed is False:
         return PhoneCallOutcome.DECLINED
     return PhoneCallOutcome.PARTIAL
-
-
-# Deterministic English weekday — `%A` depends on the C locale (a documented
-# trap). The model reasons in English on the ISO date, then writes its output in
-# the user's language.
-_EN_WEEKDAYS: Final = (
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
-    "Sunday",
-)
-
-
-def _current_datetime_line(user_timezone: str) -> str:
-    """A 'now' the synthesis resolves relative dates against ('this weekend')."""
-    now = datetime.now(ZoneInfo(user_timezone))
-    return (
-        f"CURRENT DATE AND TIME: {now.strftime('%Y-%m-%d %H:%M')} "
-        f"({_EN_WEEKDAYS[now.weekday()]}), timezone {user_timezone}. Resolve every "
-        "relative reference (today, this weekend, tomorrow) to an ABSOLUTE "
-        "weekday + date against this."
-    )
 
 
 def _render_context(
@@ -210,7 +114,7 @@ def _render_context(
     parts = [
         f"LANGUAGE: {language_name} ({language}). Write EVERYTHING you output "
         f"ENTIRELY in {language_name}.",
-        _current_datetime_line(user_timezone),
+        current_datetime_line(user_timezone),
         f"OBJECTIVE: {objective}",
         f"CALLEE: {callee_display}",
         f"SUMMARY: {transcript_summary or '(none provided)'}",
@@ -237,7 +141,7 @@ async def synthesize_return(
     user_language: str,
     user_timezone: str,
     user_id: UUID | None = None,
-) -> tuple[ReturnProposal, _SynthUsage | None]:
+) -> tuple[ReturnProposal, SynthUsage | None]:
     """Single tool-less LLM call → factual ``summary`` + first-person ``proposal_text``.
 
     Uses the ``telephony_synthesis`` LLM type + versioned prompt, routed through
@@ -281,7 +185,7 @@ async def synthesize_return(
         # check at all until 2026-09-07.
         user_id=user_id,
     )
-    return proposal, _capture_to_usage(token_capture)
+    return proposal, capture_to_usage(token_capture)
 
 
 def build_appointment_suggestion(
@@ -400,7 +304,7 @@ async def _synthesize_with_fallback(
     user_timezone: str,
     fallback_phrase: str,
     user_id: UUID | None = None,
-) -> tuple[ReturnProposal, _SynthUsage | None]:
+) -> tuple[ReturnProposal, SynthUsage | None]:
     """Run the synthesis; a failure degrades to the plain-summary proposal.
 
     Extracted from ``process_completed_call`` (CC discipline). The fallback
@@ -423,31 +327,6 @@ async def _synthesize_with_fallback(
         return ReturnProposal(summary=transcript_summary or "", proposal_text=fallback), None
 
 
-async def _track_synthesis_usage(
-    usage: _SynthUsage | None, *, call_id: UUID, user_id: UUID
-) -> None:
-    """Best-effort proactive-token tracking (G-1) — never loses the delivery.
-
-    Extracted from ``process_completed_call`` (CC discipline).
-    """
-    if usage is None:
-        return
-    try:
-        await track_proactive_tokens(
-            user_id=user_id,
-            task_type=_TASK_TYPE,
-            target_id=str(call_id),
-            conversation_id=None,
-            tokens_in=usage.tokens_in,
-            tokens_out=usage.tokens_out,
-            tokens_cache=usage.tokens_cache,
-            model_name=usage.model_name,
-            source="user",
-        )
-    except Exception as exc:  # noqa: BLE001 — tracking must not lose the delivery
-        logger.warning("telephony_token_tracking_failed", call_id=str(call_id), error=str(exc))
-
-
 async def process_completed_call(call_id: UUID, payload: dict[str, Any]) -> None:
     """Reconcile a finished call, synthesize the return, persist + deliver it.
 
@@ -461,15 +340,41 @@ async def process_completed_call(call_id: UUID, payload: dict[str, Any]) -> None
         if call is None or call.status not in _ACTIVE:
             return  # unknown or already processed
 
-        status = _map_status(payload)
-        call_seconds = _extract_call_seconds(payload)
-        transcript_summary = _extract_transcript_summary(payload)
-        transcript = _extract_transcript_text(payload)
-        structured = _extract_structured(payload)
-
+        status = map_status(payload)
+        call_seconds = extract_call_seconds(payload)
         user = await db.get(User, call.user_id)
         language = user.language if user else settings.default_language
         user_timezone = _user_display_timezone(user)
+        if call.call_kind is CallKind.SELF:
+            # The owner's call becomes their own chat turn (lot 4): its own
+            # path, its own module — the two mandates share nothing past here.
+            from src.domains.telephony.owner_call import process_owner_call
+
+            await process_owner_call(
+                db=db,
+                repo=repo,
+                call=call,
+                payload=payload,
+                user=user,
+                language=language,
+                user_timezone=user_timezone,
+                status=status,
+                call_seconds=call_seconds,
+            )
+            return
+        if call.call_kind is CallKind.VERIFICATION:
+            # A verification call read a code aloud; its transcript is worth
+            # nothing to anyone. No model, no return, no notification — the row
+            # closes and the identity service decides from the typed code.
+            await repo.close_without_return(
+                call_id, status=status, call_seconds=call_seconds, completed_at=datetime.now(UTC)
+            )
+            telephony_calls_total.labels(status=status.value).inc()
+            logger.info("telephony_verification_call_closed", call_id=str(call_id))
+            return
+        transcript_summary = extract_transcript_summary(payload)
+        transcript = extract_transcript_text(payload)
+        structured = _extract_structured(payload)
         phrases = get_return_phrases(language)
 
         proposal, usage = await _synthesize_with_fallback(
@@ -518,7 +423,7 @@ async def process_completed_call(call_id: UUID, payload: dict[str, Any]) -> None
             return  # lost the race — another worker already delivered
 
         # Track the synthesis LLM spend (G-1) — like briefing/heartbeat. Best-effort.
-        await _track_synthesis_usage(usage, call_id=call_id, user_id=call.user_id)
+        await track_synthesis_usage(usage, call_id=call_id, user_id=call.user_id)
 
         telephony_calls_total.labels(status=status.value).inc()
         if call_seconds is not None:

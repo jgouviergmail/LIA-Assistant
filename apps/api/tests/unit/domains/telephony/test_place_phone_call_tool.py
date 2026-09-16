@@ -16,12 +16,21 @@ from src.core.config import settings
 from src.domains.agents.tools.telephony_tools import (
     _build_place_phone_call_output,
     _extract_candidates,
-    _looks_like_phone,
-    _normalize_phone,
     _person_first_phone,
     _resolve_callee,
     _strip_trailing_annotations,
 )
+from src.domains.telephony.phone_numbers import looks_like_phone, normalize_phone
+
+
+@pytest.fixture(autouse=True)
+def _no_verified_number(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The third-party path with no owner number declared (lot 3 seam)."""
+
+    async def _none(_user_id) -> None:
+        return None
+
+    monkeypatch.setattr(tmod, "_verified_number", _none)
 
 
 def _patch_connector(monkeypatch: pytest.MonkeyPatch, *, active: bool) -> None:
@@ -51,7 +60,7 @@ def _patch_search(monkeypatch: pytest.MonkeyPatch, candidates, first_match_name)
     ],
 )
 def test_looks_like_phone(value: str, expected: bool) -> None:
-    assert _looks_like_phone(value) is expected
+    assert looks_like_phone(value) is expected
 
 
 @pytest.mark.unit
@@ -59,22 +68,22 @@ def test_normalize_phone_keeps_plus_and_digits(monkeypatch: pytest.MonkeyPatch) 
     # Pin the deployment knob: this test asserts the WITHOUT-country-code
     # behavior and must not depend on the ambient .env value.
     monkeypatch.setattr(settings, "telephony_default_country_code", "", raising=False)
-    assert _normalize_phone("+33 6 12-34.56 78") == "+33612345678"
-    assert _normalize_phone("06 12 34 56 78") == "0612345678"
+    assert normalize_phone("+33 6 12-34.56 78") == "+33612345678"
+    assert normalize_phone("06 12 34 56 78") == "0612345678"
 
 
 @pytest.mark.unit
 def test_normalize_phone_applies_default_country_code(monkeypatch: pytest.MonkeyPatch) -> None:
     """A national number (single leading 0) gains the configured E.164 prefix."""
     monkeypatch.setattr(settings, "telephony_default_country_code", "+33", raising=False)
-    assert _normalize_phone("06.82.51.16.39") == "+33682511639"
+    assert normalize_phone("06.82.51.16.39") == "+33682511639"
     # International forms are never rewritten
-    assert _normalize_phone("0033682511639") == "0033682511639"
-    assert _normalize_phone("+33682511639") == "+33682511639"
+    assert normalize_phone("0033682511639") == "0033682511639"
+    assert normalize_phone("+33682511639") == "+33682511639"
     # Too short to be a national subscriber number (short codes stay untouched,
     # even 0-leading ones — the length guard)
-    assert _normalize_phone("3631") == "3631"
-    assert _normalize_phone("08000") == "08000"
+    assert normalize_phone("3631") == "3631"
+    assert normalize_phone("08000") == "08000"
 
 
 @pytest.mark.unit
@@ -82,7 +91,7 @@ def test_normalize_phone_without_country_code_keeps_national(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(settings, "telephony_default_country_code", "", raising=False)
-    assert _normalize_phone("06.82.51.16.39") == "0682511639"
+    assert normalize_phone("06.82.51.16.39") == "0682511639"
 
 
 @pytest.mark.unit

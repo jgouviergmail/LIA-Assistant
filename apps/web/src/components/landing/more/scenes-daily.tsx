@@ -19,11 +19,20 @@ import {
   FileText,
   Sparkles,
   LifeBuoy,
+  Phone,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
-import { Cursor, MiniChip, MiniSettingRow, PhoneFrame, SkeletonLine, STAGE } from './primitives';
+import {
+  Cursor,
+  MiniBubble,
+  MiniChip,
+  MiniSettingRow,
+  PhoneFrame,
+  SkeletonLine,
+  STAGE,
+} from './primitives';
 import type { SceneComponent, SceneProps } from './scene-types';
 import { useLoopedTimeline, type TimelineStep } from './useLoopedTimeline';
 
@@ -493,6 +502,61 @@ function WeekGridScene({ active }: SceneProps) {
   );
 }
 
+type PhoneChannelPhase = 'ringing' | 'talking' | 'spoken' | 'answered';
+const PHONE_CHANNEL_STEPS: readonly TimelineStep<PhoneChannelPhase>[] = [
+  { at: 0, state: 'ringing' },
+  { at: 900, state: 'talking' },
+  { at: 2200, state: 'spoken' },
+  { at: 3200, state: 'answered' },
+];
+
+/**
+ * LIA calls the person: the banner while it rings, then what was said lands
+ * in the chat as the person's own bubble with a phone mark, then the answer.
+ */
+function PhoneChannelScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(PHONE_CHANNEL_STEPS, { active });
+  const spoken = phase === 'spoken' || phase === 'answered';
+  return (
+    <div className={cn(STAGE, 'justify-end gap-1.5')}>
+      <div
+        className={cn(
+          'flex items-center gap-1.5 self-stretch rounded-md border border-primary/30 bg-primary/5 px-2 py-1 text-[10px] transition-all duration-300',
+          phase === 'ringing' || phase === 'talking'
+            ? 'translate-y-0 opacity-100'
+            : '-translate-y-1 opacity-0'
+        )}
+      >
+        <Phone
+          className={cn('h-3 w-3 text-primary', phase === 'ringing' && 'motion-safe:animate-pulse')}
+        />
+        <span className="truncate">{labels.calling}</span>
+      </div>
+      <MiniBubble
+        side="user"
+        className={cn(
+          'transition-all duration-300',
+          spoken ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
+        )}
+      >
+        <span className="flex items-center gap-1">
+          <Phone className="h-2.5 w-2.5 shrink-0 text-primary" />
+          {labels.spoken}
+        </span>
+      </MiniBubble>
+      <MiniBubble
+        side="assistant"
+        className={cn(
+          'transition-all duration-300',
+          phase === 'answered' ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
+        )}
+      >
+        {labels.answer}
+      </MiniBubble>
+    </div>
+  );
+}
+
 export const DAILY_SCENES: Readonly<Record<string, SceneComponent>> = {
   alerts_hub: AlertsHubScene,
   briefing_custom: BriefingCustomScene,
@@ -502,5 +566,6 @@ export const DAILY_SCENES: Readonly<Record<string, SceneComponent>> = {
   starter_checklist: StarterChecklistScene,
   empty_starters: EmptyStartersScene,
   pwa: PwaScene,
+  phone_channel: PhoneChannelScene,
   server_escape_hatch: ServerEscapeHatchScene,
 };

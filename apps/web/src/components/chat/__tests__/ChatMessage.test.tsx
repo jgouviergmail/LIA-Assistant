@@ -776,3 +776,22 @@ describe('ChatMessage — proactive bubble tint (owner request 2026-08-05)', () 
     expect(bubble).toHaveClass('bg-card/70');
   });
 });
+
+describe('ChatMessage — a message said on the phone (phone as a channel)', () => {
+  it('wears a phone badge with a translated accessible name', () => {
+    renderMessage(
+      makeMessage({
+        role: 'user',
+        content: 'Remind me to call the bank on Thursday.',
+        metadata: { phone_call: { ticket_id: 'call-1', run_id: 'run-1' } },
+      }),
+      true
+    );
+    expect(screen.getByLabelText('chat.phone_call_badge')).toBeInTheDocument();
+  });
+
+  it('an ordinary typed message wears none', () => {
+    renderMessage(makeMessage({ role: 'user', content: 'hello' }), true);
+    expect(screen.queryByLabelText('chat.phone_call_badge')).not.toBeInTheDocument();
+  });
+});

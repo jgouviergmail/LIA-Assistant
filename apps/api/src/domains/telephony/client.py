@@ -7,6 +7,7 @@ slice against a real account before go-live.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any
 
 import httpx
@@ -26,18 +27,25 @@ def _agent_config_body(
     name: str,
     system_prompt: str,
     first_message: str,
-    language: str,
-    llm_model: str | None,
-    tts_model_id: str | None,
-    voice_id: str | None,
-    audio_format: str | None,
-    max_duration_seconds: int | None,
     data_collection: list[dict[str, str]] | None,
 ) -> dict[str, Any]:
     """Build the agent config body shared by create_agent and update_agent.
 
     One source of truth: whatever is covered by the config fingerprint
     (``agent_prompt.agent_config_fingerprint``) is exactly what gets sent.
+
+    The body carries what is LIA's and nothing the portal administers (owner
+    decision, 2026-09-16): the model and its reasoning effort, the language,
+    the voice, the audio format and the duration cap are configured on the
+    ElevenLabs portal, for the agent, and changed there without restarting
+    the application. Sent from here they would overwrite the portal on every
+    sync — and the vendor MERGES a PATCH with what the agent stores, then
+    validates the pair: measured on production 2026-09-16, a pinned ``llm``
+    collided with the portal's ``reasoning_effort`` (« Not supported
+    reasoning effort ») and every verification and owner call was refused.
+    What LIA sends is its own: the name, the prompt, the greeting, the system
+    tools the prompt relies on, the data-collection contract and the override
+    permission for the two fields a mandate renders per call.
     """
     prompt_config: dict[str, Any] = {
         "prompt": system_prompt,
@@ -49,50 +57,55 @@ def _agent_config_body(
             "voicemail_detection": {"name": "voicemail_detection"},
         },
     }
-    if llm_model:
-        # Pin the agent's LLM: the platform default (gemini-2.5-flash, a
-        # thinking model — verified on a fresh agent) was observed reciting
-        # its English reasoning ALOUD on a real French call. PATCH contract
-        # verified on a throwaway agent (200, stored, echoed by GET).
-        prompt_config["llm"] = llm_model
     body: dict[str, Any] = {
         "name": name,
         "conversation_config": {
-            "agent": {
-                "prompt": prompt_config,
-                "first_message": first_message,
-                "language": language,
-            },
+            "agent": {"prompt": prompt_config, "first_message": first_message},
         },
     }
-    tts: dict[str, Any] = {}
-    if tts_model_id:
-        tts["model_id"] = tts_model_id
-    if voice_id:
-        tts["voice_id"] = voice_id
-    if audio_format:
-        # Telephony is 8 kHz mu-law end to end: Twilio requires ulaw_8000 and a
-        # format mismatch is the vendor's documented cause of garbled/poor call
-        # audio. Set BOTH directions (TTS out + ASR in).
-        # spike: field paths per the agent config schema
-        # (tts.agent_output_audio_format / asr.user_input_audio_format).
-        tts["agent_output_audio_format"] = audio_format
-        body["conversation_config"]["asr"] = {"user_input_audio_format": audio_format}
-    if tts:
-        body["conversation_config"]["tts"] = tts
-    if max_duration_seconds:
-        body["conversation_config"]["conversation"] = {"max_duration_seconds": max_duration_seconds}
+    # The per-call override permission (lot 2). The owner's own call and the
+    # verification call replace the prompt and the greeting of the ONE
+    # provisioned agent through
+    # ``conversation_initiation_client_data.conversation_config_override``;
+    # the vendor refuses the override unless the agent allows each field.
+    # Measured 2026-09-16: a PATCH carrying this block REPLACES the omitted
+    # booleans with false, so the whole block is sent every time — and only
+    # what a mandate uses is opened (a permission nobody uses is a surface
+    # nobody watches).
+    body["platform_settings"] = {"overrides": override_permissions()}
     if data_collection:
-        body["platform_settings"] = {
-            "data_collection": {
-                field["identifier"]: {
-                    "type": field["type"],
-                    "description": field["description"],
-                }
-                for field in data_collection
+        body["platform_settings"]["data_collection"] = {
+            field["identifier"]: {
+                "type": field["type"],
+                "description": field["description"],
             }
+            for field in data_collection
         }
     return body
+
+
+def override_permissions() -> dict[str, Any]:
+    """What a per-call override may replace on the provisioned agent.
+
+    One function read by the body AND the fingerprint, so they cannot
+    disagree. Exactly the two fields a mandate renders per call — the prompt
+    and the greeting. The language and the duration cap are the portal's
+    (owner decision, 2026-09-16), and the live tools are attached to the
+    AGENT rather than named per call: measured on a real owner call
+    2026-09-16, the vendor refuses ``tool_ids`` inside an override (« Tool
+    IDs not attached to this agent ») and the call dies at pickup.
+
+    Returns:
+        The ``platform_settings.overrides`` block, complete — the vendor
+        replaces every omitted boolean with false on PATCH.
+    """
+    return {
+        "conversation_config_override": {
+            "agent": {"prompt": {"prompt": True}, "first_message": True},
+        },
+        "custom_llm_extra_body": False,
+        "enable_conversation_initiation_client_data_from_webhook": False,
+    }
 
 
 class ElevenLabsAgentsError(RuntimeError):
@@ -199,48 +212,34 @@ class ElevenLabsAgentsClient:
         name: str,
         system_prompt: str,
         first_message: str,
-        language: str,
-        llm_model: str | None = None,
-        tts_model_id: str | None = None,
-        voice_id: str | None = None,
-        audio_format: str | None = None,
-        max_duration_seconds: int | None = None,
         data_collection: list[dict[str, str]] | None = None,
     ) -> str:
         """Create a LIA-controlled agent; returns its ``agent_id``.
 
-        ``tts_model_id`` selects the agent's voice model. ElevenLabs REJECTS
-        non-English agents without a turbo/flash v2.5 model (real 400 observed:
-        "Non-english Agents must use turbo or flash v2_5"), so callers must pass
-        one whenever ``language`` is not English. ``voice_id`` overrides the
-        vendor default voice (an ENGLISH voice — garbled speech observed on
-        French calls with it).
+        The agent is created in the vendor's default language with the
+        vendor's default voice and audio format: those, the model and the
+        duration cap are administered on the ElevenLabs portal afterwards
+        (owner decision, 2026-09-16 — see ``docs/technical/TELEPHONY.md``,
+        activation runbook). A sync never touches them.
 
         The ``end_call`` system tool is always enabled — without it the agent
         can NEVER hang up and the line stays open after the goodbyes (observed).
-        ``voicemail_detection`` supports the prompt's voicemail behavior, and
-        ``max_duration_seconds`` caps runaway calls at the vendor level.
+        ``voicemail_detection`` supports the prompt's voicemail behavior.
 
         ``data_collection`` declares the structured fields the agent must extract
         during the call (their identifiers are the contract with the post-call
         webhook — see ``return_synthesis._extract_structured``). Without it the
         agent collects nothing and ``structured_data`` stays empty.
 
-        spike: confirm the exact prompt-text key (``conversation_config.agent.
-        prompt.prompt``), the data-collection config path (assumed
-        ``platform_settings.data_collection``) and the ``built_in_tools`` shape
-        (docs: ``agent.prompt.built_in_tools`` object keyed by tool name).
+        Field paths measured against a real account (2026-09-16): the prompt
+        text under ``conversation_config.agent.prompt.prompt``, the
+        data-collection contract under ``platform_settings.data_collection``,
+        ``built_in_tools`` an object keyed by tool name.
         """
         body = _agent_config_body(
             name=name,
             system_prompt=system_prompt,
             first_message=first_message,
-            language=language,
-            llm_model=llm_model,
-            tts_model_id=tts_model_id,
-            voice_id=voice_id,
-            audio_format=audio_format,
-            max_duration_seconds=max_duration_seconds,
             data_collection=data_collection,
         )
         resp = await self._request("POST", "/agents/create", json=body)
@@ -255,34 +254,44 @@ class ElevenLabsAgentsClient:
         name: str,
         system_prompt: str,
         first_message: str,
-        language: str,
-        llm_model: str | None = None,
-        tts_model_id: str | None = None,
-        voice_id: str | None = None,
-        audio_format: str | None = None,
-        max_duration_seconds: int | None = None,
         data_collection: list[dict[str, str]] | None = None,
     ) -> None:
         """Update an existing agent in place with the SAME config body as create.
 
-        Powers the lazy config re-sync: prompt/voice/format changes reach the
+        Powers the lazy config re-sync: a prompt or greeting change reaches the
         provisioned agent on the next call, without deactivating the connector.
-        spike: PATCH semantics per the agents API (config fields replaced).
+        Measured 2026-09-16: a PATCH is MERGED with the stored config, so what
+        the portal administers survives a sync untouched.
         """
         body = _agent_config_body(
             name=name,
             system_prompt=system_prompt,
             first_message=first_message,
-            language=language,
-            llm_model=llm_model,
-            tts_model_id=tts_model_id,
-            voice_id=voice_id,
-            audio_format=audio_format,
-            max_duration_seconds=max_duration_seconds,
             data_collection=data_collection,
         )
         await self._request("PATCH", f"/agents/{agent_id}", json=body)
         logger.info("elevenlabs_agent_updated", agent_id=agent_id)
+
+    async def set_agent_tool_ids(self, agent_id: str, tool_ids: Sequence[str]) -> None:
+        """Attach exactly ``tool_ids`` to the agent (lot 7, an empty list detaches).
+
+        The live tools serve the OWNER's call only, so they are attached to
+        the agent before that call and detached after it, as one small PATCH
+        of the prompt's ``tool_ids`` — the rest of the config is untouched
+        (the vendor merges a PATCH). Measured 2026-09-16: the PATCH answers
+        200 and reads back; naming the ids per call in the override instead is
+        refused on a real call (« Tool IDs not attached to this agent »).
+
+        Args:
+            agent_id: The provisioned agent.
+            tool_ids: The vendor tool ids the agent may call, or nothing.
+
+        Raises:
+            ElevenLabsAgentsError: On a vendor refusal.
+        """
+        body = {"conversation_config": {"agent": {"prompt": {"tool_ids": list(tool_ids)}}}}
+        await self._request("PATCH", f"/agents/{agent_id}", json=body)
+        logger.info("elevenlabs_agent_tools_set", agent_id=agent_id, tool_count=len(tool_ids))
 
     async def delete_agent(self, agent_id: str) -> None:
         """Best-effort delete of a LIA-created agent (deactivation cleanup)."""
@@ -291,6 +300,37 @@ class ElevenLabsAgentsClient:
         except ElevenLabsAgentsError as exc:
             # The agent lives in the user's workspace — cleanup failure is non-fatal.
             logger.warning("elevenlabs_agent_delete_failed", agent_id=agent_id, detail=exc.detail)
+
+    async def create_tool(self, body: dict[str, Any]) -> str:
+        """Create a workspace webhook tool (lot 7); returns the vendor id.
+
+        Measured 2026-09-16: ``POST /convai/tools`` answers 200 with the id
+        under ``id``.
+
+        Args:
+            body: The ``tool_config`` envelope (``live_tools.webhook_tool_body``).
+
+        Returns:
+            The vendor's tool id.
+        """
+        resp = await self._request("POST", "/tools", json=body)
+        tool_id: str = resp.json()["id"]
+        logger.info("elevenlabs_tool_created", tool_id=tool_id)
+        return tool_id
+
+    async def delete_tool(self, tool_id: str) -> None:
+        """Best-effort delete of a workspace tool, forced.
+
+        Measured 2026-09-16: a tool still referenced by an agent — even a
+        deleted one — answers 409 until ``?force=true``.
+
+        Args:
+            tool_id: The vendor's tool id.
+        """
+        try:
+            await self._request("DELETE", f"/tools/{tool_id}", params={"force": "true"})
+        except ElevenLabsAgentsError as exc:
+            logger.warning("elevenlabs_tool_delete_failed", tool_id=tool_id, detail=exc.detail)
 
     async def get_conversation_status(self, conversation_id: str) -> str:
         """Return the vendor-side status of a conversation (empty if absent).
@@ -313,15 +353,25 @@ class ElevenLabsAgentsClient:
         to_number: str,
         dynamic_variables: dict[str, Any],
         ringing_timeout_secs: int,
+        conversation_config_override: dict[str, Any] | None = None,
     ) -> OutboundCallResult:
-        """Place an outbound call. Recording is disabled at the API level (D-8)."""
+        """Place an outbound call. Recording is disabled at the API level (D-8).
+
+        ``conversation_config_override`` replaces the agent's prompt and
+        greeting for THIS call only (lot 2, owner and verification mandates);
+        the agent must allow each field (``override_permissions``). None keeps
+        the baked third-party mandate.
+        """
+        initiation: dict[str, Any] = {"dynamic_variables": dynamic_variables}
+        if conversation_config_override is not None:
+            initiation["conversation_config_override"] = conversation_config_override
         body = {
             "agent_id": agent_id,
             "agent_phone_number_id": agent_phone_number_id,
             "to_number": to_number,
             "call_recording_enabled": False,  # D-8: no recording, ever
             "telephony_call_config": {"ringing_timeout_secs": ringing_timeout_secs},
-            "conversation_initiation_client_data": {"dynamic_variables": dynamic_variables},
+            "conversation_initiation_client_data": initiation,
         }
         resp = await self._request("POST", "/twilio/outbound-call", json=body)
         payload = resp.json()

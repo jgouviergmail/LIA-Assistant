@@ -692,3 +692,64 @@ class TestTheStreamsOwnRefusalIsRead:
         with patch("src.domains.agents.api.service.AgentService", return_value=service):
             result = await stream_instruction(_request())
         assert result.outcome is RunOutcome.WAITING
+
+
+class TestATurnSpokenByThePerson:
+    """An owner call's relay is the person's OWN turn (phone-as-a-channel, lot 4).
+
+    Unattended runs are automated and pre-approved by construction; a relay is
+    the opposite on every flag: the six extractions run, a plan is not
+    auto-approved, the person's own execution mode and preferences apply.
+    """
+
+    async def test_it_is_not_automated_and_carries_the_persons_preferences(self) -> None:
+        service = _service_yielding([_chunk("token", "ok")])
+        with patch("src.domains.agents.api.service.AgentService", return_value=service):
+            await stream_instruction(
+                _request(
+                    spoken_by_person=True,
+                    execution_mode="react",
+                    memory_enabled=True,
+                    journals_enabled=True,
+                    psyche_enabled=False,
+                )
+            )
+        kwargs = service.calls[0]
+        assert kwargs["is_automated_source"] is False
+        assert kwargs["auto_approve_plan"] is False
+        assert kwargs["user_execution_mode"] == "react"
+        assert kwargs["user_memory_enabled"] is True
+        assert kwargs["user_journals_enabled"] is True
+        assert kwargs["user_psyche_enabled"] is False
+
+    async def test_an_unattended_run_is_untouched(self) -> None:
+        service = _service_yielding([_chunk("token", "ok")])
+        with patch("src.domains.agents.api.service.AgentService", return_value=service):
+            await stream_instruction(_request())
+        kwargs = service.calls[0]
+        assert kwargs["is_automated_source"] is True
+        assert kwargs["auto_approve_plan"] is True
+        assert kwargs.get("user_memory_enabled", False) is False
+
+    async def test_the_context_carries_the_flags_and_the_mode(self) -> None:
+        user = SimpleNamespace(
+            is_active=True,
+            language="fr",
+            timezone="Europe/Paris",
+            full_name="Alice Martin",
+            email="alice@example.test",
+            response_display_mode="cards",
+            execution_mode="react",
+            memory_enabled=True,
+            journals_enabled=False,
+            psyche_enabled=True,
+        )
+        service = MagicMock()
+        service.get_user_by_id = AsyncMock(return_value=user)
+        with patch("src.domains.users.service.UserService", return_value=service):
+            context = await resolve_run_context(MagicMock(), USER)
+        assert context is not None
+        assert context.execution_mode == "react"
+        assert context.memory_enabled is True
+        assert context.journals_enabled is False
+        assert context.psyche_enabled is True

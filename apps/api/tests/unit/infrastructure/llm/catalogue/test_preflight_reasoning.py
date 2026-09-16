@@ -141,14 +141,14 @@ def test_an_unreachable_instance_gets_a_sentence_not_a_traceback() -> None:
 def test_a_model_pinned_only_by_the_environment_counts_as_referenced(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Production pins the telephony agent's model that way, and only that way.
+    """A deployment may pin a model through the environment alone.
 
     Enumerating the domains that may pin one is how the list goes stale; every
     ``*_MODEL`` variable is read instead, and a value matching no catalogue row
     merely widens a set used for membership.
     """
     module = _load()
-    monkeypatch.setenv("TELEPHONY_AGENT_LLM_MODEL", "gpt-5.4-mini")
+    monkeypatch.setenv("SOME_ASSISTANT_LLM_MODEL", "gpt-5.4-mini")
     monkeypatch.setenv("SOME_EMBEDDING_MODEL", "  models/gemini-embedding-001  ")
     monkeypatch.setenv("NOT_A_MODEL_SETTING", "gpt-4.1-nano")
     monkeypatch.setenv("EMPTY_MODEL", "   ")

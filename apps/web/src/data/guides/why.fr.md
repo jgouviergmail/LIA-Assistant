@@ -4,7 +4,7 @@
 
 **Version** : 6.0
 **Date** : 2026-08-23
-**Application** : LIA v1.44.7
+**Application** : LIA v1.45.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -201,6 +201,8 @@ LIA peut décrocher le téléphone pour toi. Demande-lui d'« appeler le garage 
 Tu gardes toujours la main : avant de composer, LIA t’indique précisément **qui** elle va appeler et **pourquoi**, et attend ton feu vert. Et pendant l'appel, ce contrôle ne s'arrête pas : l'assistant opère sous un mandat strict — si l'interlocuteur propose un supplément, une option ou un engagement imprévu (même minime), il n'accepte jamais à ta place ; il note l'offre et son prix, annonce qu'on rappellera, et le résumé te restitue chaque coût et chaque point en suspens pour que tu décides. Le résumé arrive dans le chat de façon asynchrone, tu peux donc faire autre chose pendant l'appel.
 
 Et cela reste confidentiel par construction. Pendant un appel, LIA peut seulement indiquer si tu es libre ou occupé à un moment donné — jamais les titres, invités ou lieux de ton agenda. Rien n'est enregistré, la conversation n'est jamais conservée, et seul un résumé court est gardé avant d'expirer. Les appels passent par ton propre connecteur ElevenLabs, facturés sur ton compte, et la fonctionnalité n'est là que si ton administrateur l'a activée.
+
+Et LIA peut *t'*appeler. Déclare ton numéro dans *Téléphonie · Mon identité*, laisse LIA l'appeler et lire un code que tu retapes, et dès lors « appelle-moi à huit heures pour faire le point sur ma journée » — ou une routine qui le dit — fait sonner ton téléphone sans carte de confirmation : la personne qui confirmerait est celle qui décroche. En ligne, LIA sait ce qu'elle sait dans le chat — tes mémoires, ton agenda, tes rappels, ce qui est ouvert avec les gens — et, si ton administrateur l'a activé, consulte pendant que tu parles : un e-mail, un contact, un fichier, un lieu à proximité, la météo, ce qu'elle retient d'un sujet. Elle lit tout et n'agit sur rien ; chaque domaine a un interrupteur qui est à toi, et l'assistante parle avec la personnalité que tu lui as donnée. Quand tu raccroches, ce que tu as dit revient dans le chat comme ton propre message, avec un badge téléphone, et ce que tu as demandé y attend ta confirmation.
 
 ### 3.11. Parler à tes proches, d’assistant à assistant
 

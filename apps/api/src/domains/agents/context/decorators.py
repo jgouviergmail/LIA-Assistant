@@ -35,7 +35,7 @@ from typing import TYPE_CHECKING, Any
 from langchain.tools import ToolRuntime
 
 from src.domains.agents.context.manager import ToolContextManager
-from src.domains.agents.context.runtime_context import LiaRuntimeContext
+from src.domains.agents.context.runtime_context import LiaRuntimeContext, tool_user_id_str
 from src.domains.agents.context.schemas import ContextSaveMode
 from src.infrastructure.observability.logging import get_logger
 
@@ -233,6 +233,7 @@ def auto_save_context(
                                 config=config,
                                 store=store,
                                 explicit_mode=effective_mode,
+                                user_id=tool_user_id_str(runtime),
                             )
 
                             # Mark as saved so parallel_executor.auto_save_wave_contexts
@@ -329,6 +330,7 @@ def auto_save_context(
                     config=config,
                     store=store,
                     explicit_mode=context_save_mode,
+                    user_id=tool_user_id_str(runtime),
                 )
 
                 logger.debug(

@@ -21,12 +21,13 @@ import asyncio
 
 import pytest
 
+from src.core.field_names import FIELD_HIDDEN
 from src.domains.agents.api.run_origin import (
     RunOrigin,
     current_origin,
     out_of_turn_origin_ctx,
     record_refusal,
-    with_hidden_stamp,
+    with_origin_stamp,
 )
 
 pytestmark = pytest.mark.unit
@@ -44,7 +45,7 @@ class TestOutsideARun:
 
     def test_the_stamp_changes_nothing(self) -> None:
         payload = {"type": "answer"}
-        assert with_hidden_stamp(payload) is payload
+        assert with_origin_stamp(payload) is payload
 
     def test_recording_a_refusal_is_harmless(self) -> None:
         """The gate calls this on every refusal, run or no run."""
@@ -56,7 +57,7 @@ class TestInsideARun:
         origin = _origin()
         token = out_of_turn_origin_ctx.set(origin)
         try:
-            stamped = with_hidden_stamp({"type": "answer"})
+            stamped = with_origin_stamp({"type": "answer"})
         finally:
             out_of_turn_origin_ctx.reset(token)
         assert stamped["hidden"] is True
@@ -70,7 +71,7 @@ class TestInsideARun:
         token = out_of_turn_origin_ctx.set(origin)
         original = {"type": "answer"}
         try:
-            stamped = with_hidden_stamp(original)
+            stamped = with_origin_stamp(original)
         finally:
             out_of_turn_origin_ctx.reset(token)
         assert stamped is not original
@@ -340,3 +341,29 @@ class TestAnApprovalTravelsWithTheRun:
             assert current_origin_carries_drafts() is True
         finally:
             out_of_turn_origin_ctx.reset(token)
+
+
+class TestAVisibleOrigin:
+    """A relayed phone call is the person's own turn: stamped, never hidden (lot 4)."""
+
+    def test_the_stamp_names_the_call_and_leaves_the_row_visible(self) -> None:
+        token = out_of_turn_origin_ctx.set(
+            RunOrigin(kind="phone_call", ticket_id="call-1", run_id="run-9", hidden=False)
+        )
+        try:
+            stamped = with_origin_stamp({"type": "answer"})
+        finally:
+            out_of_turn_origin_ctx.reset(token)
+        assert stamped["phone_call"] == {"ticket_id": "call-1", "run_id": "run-9"}
+        assert FIELD_HIDDEN not in stamped
+        assert stamped["type"] == "answer"
+
+    def test_a_ticket_origin_still_hides(self) -> None:
+        token = out_of_turn_origin_ctx.set(
+            RunOrigin(kind="workboard", ticket_id="t-1", run_id="run-1")
+        )
+        try:
+            stamped = with_origin_stamp({})
+        finally:
+            out_of_turn_origin_ctx.reset(token)
+        assert stamped[FIELD_HIDDEN] is True

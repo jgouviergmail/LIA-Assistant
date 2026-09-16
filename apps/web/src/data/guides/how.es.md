@@ -6,7 +6,7 @@
 
 **Versión**: 5.0
 **Fecha**: 2026-08-23
-**Aplicación**: LIA v1.44.7
+**Aplicación**: LIA v1.45.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -69,8 +69,8 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Auto-hospedaje ARM64 | Docker multi-arch, embeddings semánticos (multilingües), Playwright chromium cross-platform |
 | Soberanía de datos | PostgreSQL local (sin SaaS DB), cifrado Fernet en reposo, sesiones Redis locales |
 | Multi-proveedor LLM | Factory pattern con 7 adaptadores, configuración por nodo, sin acoplamiento fuerte a un provider |
-| Transparencia total | 557 métricas Prometheus, debug panel integrado, seguimiento token por token |
-| Fiabilidad en producción | 288 ADRs, ~28.983 tests recogidos por pytest en 1.703 archivos, observabilidad nativa, HITL de 6 niveles |
+| Transparencia total | 560 métricas Prometheus, debug panel integrado, seguimiento token por token |
+| Fiabilidad en producción | 289 ADRs, ~29.531 tests recogidos por pytest en 1.737 archivos, observabilidad nativa, HITL de 6 niveles |
 | Costes controlados | Smart Services (89 % de ahorro en tokens), embeddings semánticos, prompt caching, filtrado de catálogo |
 
 ### 1.2. Principios arquitecturales
@@ -88,10 +88,10 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 
 | Métrica | Valor |
 |----------|--------|
-| Tests | 28.983 recopilados por pytest en 1.703 archivos de prueba + 8.316 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
+| Tests | 29.531 recopilados por pytest en 1.737 archivos de prueba + 8.355 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
 | Fixtures pytest | 969, de las cuales 46 compartidas mediante conftest |
 | Documentos de documentación | 647 |
-| ADRs (Architecture Decision Records) | 288 |
+| ADRs (Architecture Decision Records) | 289 |
 | Métricas Prometheus | 553 definiciones |
 | Dashboards Grafana | 29 |
 | Idiomas soportados (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -782,6 +782,8 @@ LIA puede realizar una llamada saliente en nombre del usuario, mantener una conv
 
 **Vía de retorno.** La llamada nunca se graba y la transcripción nunca se conserva. Al terminar la llamada, un webhook firmado con HMAC propio de cada usuario lanza una síntesis LLM sin herramientas que produce un resumen breve y efímero, reinyectado de forma asíncrona en la conversación (el mismo canal de ejecución desacoplada que el ADR-117) con un borrador de seguimiento opcional en un toque. Cada llamada requiere una confirmación HITL antes de marcar, y todo el subsistema está protegido por un feature flag.
 
+**El teléfono como canal (ADR-290).** La tarjeta de confirmación protege a un tercero que no pidió nada; cuando LIA llama a *la propia persona*, quien confirmaría es quien descuelga — siempre que el número esté probado como suyo. La identidad es por tanto un número declarado en los ajustes, mostrado entero, luego verificado por una llamada en la que LIA lee un código que la persona teclea (intentos acotados, un código efímero ligado al número, una comparación en tiempo constante, el mismo tope horario que toda llamada de pago); nunca una coincidencia por nombre, y la herramienta de llamadas a terceros rechaza ese número. El **mismo** agente de voz sirve tres mandatos — el de terceros horneado en el agente, el del titular y el de verificación enviados como override por llamada renderizado en el servidor — para que nada del contexto de la persona se hornee jamás en un agente que también llama a desconocidos; y cómo *suena* el agente (modelo, idioma, voz, formato de audio, tope de duración) pertenece al portal del proveedor, nunca a un ajuste, porque el proveedor fusiona un PATCH con lo que almacena y un modelo fijado chocaba con el esfuerzo de razonamiento del portal en cada sincronización. `call_me` no lleva tarjeta por construcción, lo que también permite a una rutina planificarlo. La llamada lleva el contexto del chat bajo un presupuesto de tokens (recuerdos, agenda, recordatorios, hilos abiertos, últimos intercambios — un interruptor lo apaga) y la personalidad configurada para la asistente, cada lectura registrada en el registro de consultas. Tras una segunda bandera, el agente **lee LIA en directo** durante la llamada, y no actúa sobre nada: el conjunto de herramientas es una regla sobre el catálogo y no una lista — toda herramienta que solo lee, de un ámbito que el teléfono ofrece, cuyos parámetros obligatorios una voz puede decir (55 herramientas en 22 ámbitos, más una recuperación nativa de la memoria) — adjunta al agente solo durante la llamada del titular, ya que el proveedor rechaza identificadores de herramientas en un override por llamada, y cada resultado se reduce a lo que una voz puede decir antes de la paginación elemento a elemento (un identificador, un enlace, una estructura anidada nunca llegan a la voz; cuatro eventos de fin de semana caben donde antes cabía uno en bruto). Cada ámbito tiene un interruptor propio de la persona, releído en su fila en cada retorno. Cuando la llamada termina, lo dicho vuelve como **el propio mensaje de la persona**: la transcripción se sintetiza y se reproduce en el motor fuera de turno como un turno *hablado por la persona* — las extracciones de memoria, diario y psique corren como en el chat, el mensaje lleva una insignia de teléfono, un borrador espera confirmación en el chat. El traslado se reclama antes del turno y se liquida por actualización condicional, un fallo en pleno traslado vuelve a una notificación que dice por qué, y diez veredictos de traslado se cuentan y se dibujan en la lista de llamadas — «nadie descolgó» y «la línea falló» distinguidos de «contestó otra persona». Cada euro de una llamada cae bajo un único run id — las consultas en directo, la síntesis, el turno trasladado — de modo que el resumen por run que el contador del chat ya lee es la factura de la llamada, en la respuesta trasladada y en la lista de llamadas; lo que corre con la clave propia del proveedor se factura allí y nunca se cuenta aquí.
+
 ---
 
 ## 14. MCP: Model Context Protocol
@@ -993,7 +995,7 @@ La procedencia es por tanto una propiedad del **dato**: los 24 tipos del registr
 
 | Tecnología | Rol |
 |-------------|------|
-| Prometheus | 557 métricas custom (RED pattern) |
+| Prometheus | 560 métricas custom (RED pattern) |
 | Grafana | 29 dashboards production-ready |
 | Loki | Logs estructurados JSON agregados |
 | Tempo | Trazas distribuidas cross-service (OTLP gRPC) |
@@ -1001,7 +1003,7 @@ La procedencia es por tanto una propiedad del **dato**: los 24 tipos del registr
 | Alertmanager | Núcleo de 14 alertas vitales notificadas por correo (runbooks enlazados, umbrales por entorno) + webhook hacia LIA: cada alerta se convierte en un incidente dentro del producto (ADR-247) |
 | structlog | Logging estructurado con PII filtering |
 
-**Una métrica que no llega a ningún panel es una métrica sobre la que nadie actúa.** La distancia entre lo que el código emite y lo que un operador puede ver se mide, nunca se supone: `scripts/audit/measure_metric_coverage.py` analiza cada definición de métrica (por AST y no por expresión regular — una regex lee `ZoneInfo("UTC")` como una métrica `Info`) y coteja cada nombre con todos los paneles, reglas de registro y expresiones de alerta. 557 definidas; las 44 que no llegan a nada figuran explícitamente en una base **que solo puede encogerse**, de modo que una métrica recién ciega hace fallar la compilación y una métrica que se vuelve visible debe salir de la lista — si no, la siguiente ciega ocupa su hueco en silencio. El precio de no haberlo tenido: una fuente de heartbeat que falló en abierto descartó las señales de salud en el 46,5 % de los ticks durante una semana, sin ninguna métrica que lo advirtiera (ADR-148). Dos trampas que la guarda cierra por construcción — un contador con etiquetas que nunca se incrementó no expone **ninguna serie**, así que un panel que vigila un fallo raro necesita `or vector(0)` o mostrará «No data» donde el operador espera un cero verde; y la cobertura se lee únicamente de las **expresiones** de paneles y reglas, porque una métrica citada en un comentario no está cableada.
+**Una métrica que no llega a ningún panel es una métrica sobre la que nadie actúa.** La distancia entre lo que el código emite y lo que un operador puede ver se mide, nunca se supone: `scripts/audit/measure_metric_coverage.py` analiza cada definición de métrica (por AST y no por expresión regular — una regex lee `ZoneInfo("UTC")` como una métrica `Info`) y coteja cada nombre con todos los paneles, reglas de registro y expresiones de alerta. 560 definidas; las 44 que no llegan a nada figuran explícitamente en una base **que solo puede encogerse**, de modo que una métrica recién ciega hace fallar la compilación y una métrica que se vuelve visible debe salir de la lista — si no, la siguiente ciega ocupa su hueco en silencio. El precio de no haberlo tenido: una fuente de heartbeat que falló en abierto descartó las señales de salud en el 46,5 % de los ticks durante una semana, sin ninguna métrica que lo advirtiera (ADR-148). Dos trampas que la guarda cierra por construcción — un contador con etiquetas que nunca se incrementó no expone **ninguna serie**, así que un panel que vigila un fallo raro necesita `or vector(0)` o mostrará «No data» donde el operador espera un cero verde; y la cobertura se lee únicamente de las **expresiones** de paneles y reglas, porque una métrica citada en un comentario no está cableada.
 
 ### 20.2. Debug Panel integrado
 
@@ -1405,7 +1407,7 @@ Una regla CSS gobierna los espaciados del design system: los márgenes verticale
 
 ## 24. Arquitectura de decisiones (ADR)
 
-288 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
+289 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
 
 | ADR | Decisión | Problema resuelto | Impacto medido |
 |-----|----------|----------------|---------------|
@@ -1679,8 +1681,8 @@ El presupuesto de conexiones tiene un suelo, no solo un techo. La auditoría F00
 
 LIA es un ejercicio de ingeniería de software que intenta resolver un problema concreto: construir un asistente IA multi-agente de calidad producción, transparente, seguro y extensible, capaz de funcionar en un Raspberry Pi.
 
-Los 288 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~27.290 tests en 1.601 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
+Los 289 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~27.290 tests en 1.601 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
 
 La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesiano, enrutamiento semántico, HITL sistemático, proactividad LLM-driven, diarios introspectivos — crea un sistema donde cada componente refuerza a los demás. El HITL alimenta el pattern learning, que reduce los costes, que permiten más funcionalidades, que generan más datos para la memoria, que mejora las respuestas. Es un círculo virtuoso por diseño, no por accidente.
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (490+ documentos), de los 288 ADRs y del changelog (v1.0 a v1.44.7). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (490+ documentos), de los 289 ADRs y del changelog (v1.0 a v1.45.0). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

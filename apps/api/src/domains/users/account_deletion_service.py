@@ -856,6 +856,10 @@ class AccountDeletionService:
         # GDPR (audit N-207.2): GPS trail — scrubbed like home_location.
         user.last_known_location_encrypted = None
         user.last_known_location_updated_at = None
+        # The person's own phone number and its verification (lot 1 of the
+        # phone-as-a-channel programme) — an identity, scrubbed like the address.
+        user.phone_number_encrypted = None
+        user.phone_number_verified_at = None
         # ADR-079 commit 3 — Personal Journals portrait (synthesis of user
         # description, PII by content). Source entries in `journal_entries`
         # are already purged by `_purge_user_data_tables` via FK CASCADE.

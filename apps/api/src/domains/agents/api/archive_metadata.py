@@ -38,7 +38,7 @@ import structlog
 
 from src.core.config import settings
 from src.core.field_names import FIELD_RUN_ID
-from src.domains.agents.api.run_origin import with_hidden_stamp
+from src.domains.agents.api.run_origin import with_origin_stamp
 from src.domains.agents.data_registry.message_widgets import with_persisted_widgets
 from src.domains.agents.services.streaming.followup_metadata import (
     with_followup_suggestions,
@@ -115,7 +115,7 @@ def build_assistant_metadata(
     # decision register points at them — and it is the READ that keeps them out
     # of the chat. Branch-free like every enricher beside it: the stamp decides
     # for itself whether a run is driving.
-    return with_hidden_stamp(metadata)
+    return with_origin_stamp(metadata)
 
 
 def build_hitl_question_metadata(*, run_id: str, intention: str | None) -> dict[str, Any]:
@@ -134,7 +134,7 @@ def build_hitl_question_metadata(*, run_id: str, intention: str | None) -> dict[
     Returns:
         The metadata to archive with the question.
     """
-    return with_hidden_stamp({FIELD_RUN_ID: run_id, "hitl_question": True, "intention": intention})
+    return with_origin_stamp({FIELD_RUN_ID: run_id, "hitl_question": True, "intention": intention})
 
 
 def build_interrupted_stream_metadata(*, run_id: str, reason: str) -> dict[str, Any]:
@@ -147,7 +147,7 @@ def build_interrupted_stream_metadata(*, run_id: str, reason: str) -> dict[str, 
     Returns:
         The metadata to archive with what was produced before the break.
     """
-    return with_hidden_stamp(
+    return with_origin_stamp(
         {FIELD_RUN_ID: run_id, "interrupted": True, "interrupt_reason": reason}
     )
 

@@ -6,7 +6,7 @@
 
 **Version**: 5.0
 **Datum**: 2026-08-23
-**Application**: LIA v1.44.7
+**Application**: LIA v1.45.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -69,8 +69,8 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Self-Hosting ARM64 | Docker Multi-Arch, semantische Embeddings (mehrsprachig), Playwright Chromium Cross-Platform |
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
-| Vollständige Transparenz | 557 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 288 ADRs, ~28.983 von pytest gesammelte Tests in 1.703 Dateien, native Observability, HITL auf 6 Ebenen |
+| Vollständige Transparenz | 560 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
+| Produktionszuverlässigkeit | 289 ADRs, ~29.531 von pytest gesammelte Tests in 1.737 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -88,10 +88,10 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 
 | Metrik | Wert |
 |----------|--------|
-| Tests | 28.983 von pytest über 1.703 Testdateien gesammelt + 8.316 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
+| Tests | 29.531 von pytest über 1.737 Testdateien gesammelt + 8.355 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
 | pytest-Fixtures | 969, davon 46 über conftest geteilt |
 | Dokumentationsdokumente | 647 |
-| ADRs (Architecture Decision Records) | 288 |
+| ADRs (Architecture Decision Records) | 289 |
 | Prometheus-Metriken | 553 Definitionen |
 | Grafana-Dashboards | 29 |
 | Unterstützte Sprachen (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -782,6 +782,8 @@ LIA kann im Namen des Nutzers einen ausgehenden Anruf tätigen, ein zielorientie
 
 **Rückweg.** Der Anruf wird nie aufgezeichnet und das Transkript nie gespeichert. Am Ende des Anrufs löst ein pro Nutzer HMAC-signierter Webhook eine werkzeuglose LLM-Synthese aus, die eine kurze, ablaufende Zusammenfassung erzeugt, asynchron in das Gespräch zurückgespielt (derselbe Kanal für abgekoppelte Ausführungen wie ADR-117) mit einem optionalen Ein-Tipp-Folgeentwurf. Jeder Anruf erfordert vor dem Wählen eine HITL-Bestätigung, und das gesamte Subsystem steht hinter einem Feature-Flag.
 
+**Das Telefon als Kanal (ADR-290).** Die Bestätigungskarte schützt einen Dritten, der nie um etwas gebeten hat; ruft LIA *die Person selbst* an, ist die, die bestätigen würde, die, die abnimmt — sofern die Nummer nachweislich ihre ist. Die Identität ist daher eine in den Einstellungen hinterlegte Nummer, vollständig angezeigt, dann durch einen Anruf bestätigt, in dem LIA einen Code vorliest, den die Person eintippt (begrenzte Versuche, ein kurzlebiger, an die Nummer gebundener Code, ein Vergleich in konstanter Zeit, dieselbe Stundengrenze wie jeder bezahlte Anruf); nie ein Namensabgleich, und das Werkzeug für Dritte lehnt diese Nummer ab. **Derselbe** Sprachagent bedient drei Mandate — das für Dritte im Agenten eingebrannt, das der Inhaberin und das der Bestätigung als serverseitig gerendertes Override pro Anruf — damit nichts vom Kontext der Person je in einen Agenten eingebrannt wird, der auch Fremde anruft; und wie der Agent *klingt* (Modell, Sprache, Stimme, Audioformat, Dauerobergrenze) gehört dem Portal des Anbieters, nie einer Einstellung, weil der Anbieter ein PATCH mit dem Gespeicherten verschmilzt und ein festgelegtes Modell bei jeder Synchronisation mit der Denk-Einstellung des Portals kollidierte. `call_me` trägt konstruktionsbedingt keine Karte, was auch einer Routine erlaubt, es einzuplanen. Der Anruf nimmt den Kontext des Chats unter einem Token-Budget mit (Erinnerungen, Kalender, Erinnerungshinweise, offene Fäden, letzte Austausche — ein Schalter schaltet ihn ab) und die für die Assistentin eingestellte Persönlichkeit, jeder Lesezugriff im Register der Konsultationen abgelegt. Hinter einem zweiten Schalter **liest der Agent LIA live** während des Anrufs und handelt in nichts: das Werkzeugset ist eine Regel über den Katalog statt einer Liste — jedes Werkzeug, das nur liest, aus einem Bereich, den das Telefon anbietet, dessen Pflichtparameter eine Stimme aussprechen kann (55 Werkzeuge in 22 Bereichen, plus ein natives Gedächtnis-Abrufen) — für den Anruf der Inhaberin an den Agenten gehängt, weil der Anbieter Werkzeug-IDs in einem Override pro Anruf ablehnt, und jedes Ergebnis wird vor der Seitenaufteilung Element für Element auf das reduziert, was eine Stimme sagen kann (eine Kennung, ein Link, eine verschachtelte Struktur erreichen die Stimme nie; vier Wochenendtermine passen, wo zuvor ein einziger roher hineinpasste). Jeder Bereich hat einen eigenen Schalter der Person, bei jedem Rückruf aus ihrer Zeile gelesen. Endet der Anruf, kommt das Gesagte als **eigene Nachricht der Person** zurück: das Transkript wird zusammengefasst und dann durch die Engine außerhalb des Zuges als ein *von der Person gesprochener* Zug wiedergegeben — Gedächtnis-, Journal- und Psyche-Extraktionen laufen wie im Chat, die Nachricht trägt ein Telefon-Abzeichen, ein Entwurf wartet im Chat auf Bestätigung. Die Übernahme wird vor dem Zug beansprucht und per bedingter Aktualisierung abgeschlossen, ein Absturz mitten in der Übernahme fällt an eine Benachrichtigung zurück, die sagt, warum, und zehn Übernahme-Urteile werden gezählt und in der Anrufliste gezeichnet — „niemand hat abgenommen“ und „die Leitung ist ausgefallen“ unterschieden von „jemand anderes hat geantwortet“. Jeder Euro eines Anrufs landet unter einer Lauf-ID — die Live-Abfragen, die Zusammenfassung, der übernommene Zug —, sodass die Zusammenfassung pro Lauf, die der Chat-Zähler ohnehin liest, die Rechnung des Anrufs ist, an der übernommenen Antwort und in der Anrufliste; was auf dem eigenen Anbieterschlüssel der Person läuft, wird dort abgerechnet und hier nie gezählt.
+
 ---
 
 ## 14. MCP: Model Context Protocol
@@ -993,7 +995,7 @@ Herkunft ist daher eine Eigenschaft der **Daten**: Die 24 Registry-Typen werden 
 
 | Technologie | Rolle |
 |-------------|------|
-| Prometheus | 557 benutzerdefinierte Metriken (RED Pattern) |
+| Prometheus | 560 benutzerdefinierte Metriken (RED Pattern) |
 | Grafana | 29 produktionsreife Dashboards |
 | Loki | Aggregierte strukturierte JSON-Logs |
 | Tempo | Verteiltes Cross-Service-Tracing (OTLP gRPC) |
@@ -1001,7 +1003,7 @@ Herkunft ist daher eine Eigenschaft der **Daten**: Die 24 Registry-Typen werden 
 | Alertmanager | Kern aus 14 vitalen Alerts per E-Mail (verknüpfte Runbooks, Schwellenwerte je Umgebung) + Webhook zu LIA: jeder Alarm wird zum Vorfall im Produkt (ADR-247) |
 | structlog | Strukturiertes Logging mit PII-Filterung |
 
-**Eine Metrik, die kein Dashboard erreicht, ist eine Metrik, auf die niemand reagiert.** Der Abstand zwischen dem, was der Code ausgibt, und dem, was ein Operator sehen kann, wird gemessen, nie angenommen: `scripts/audit/measure_metric_coverage.py` liest jede Metrikdefinition per AST (nicht per Regex — eine Regex liest `ZoneInfo("UTC")` als `Info`-Metrik) und prüft jeden Namen gegen sämtliche Dashboard-Panels, Recording Rules und Alert-Ausdrücke. 557 definiert; die 44, die nichts erreichen, stehen ausdrücklich in einer **ausschließlich schrumpfenden** Baseline — eine neu erblindete Metrik lässt den Build rot werden, und eine sichtbar gewordene Metrik muss die Liste verlassen, sonst nimmt die nächste blinde stillschweigend ihren Platz ein. Der Preis dafür, dies nicht gehabt zu haben: Eine offen ausfallende Heartbeat-Quelle verwarf die Gesundheitssignale bei 46,5 % der Ticks eine Woche lang, ohne dass eine Metrik es bemerkt hätte (ADR-148). Zwei Fallen, die der Wächter konstruktiv schließt — ein Zähler mit Labels, der nie ausgelöst hat, liefert **überhaupt keine Serie**, sodass ein Panel für einen seltenen Fehler `or vector(0)` braucht, sonst zeigt es „No data“, wo ein Operator eine grüne Null erwartet; und Abdeckung wird ausschließlich aus **Ausdrücken** von Panels und Regeln gelesen, denn eine in einem Kommentar genannte Metrik ist nicht verdrahtet.
+**Eine Metrik, die kein Dashboard erreicht, ist eine Metrik, auf die niemand reagiert.** Der Abstand zwischen dem, was der Code ausgibt, und dem, was ein Operator sehen kann, wird gemessen, nie angenommen: `scripts/audit/measure_metric_coverage.py` liest jede Metrikdefinition per AST (nicht per Regex — eine Regex liest `ZoneInfo("UTC")` als `Info`-Metrik) und prüft jeden Namen gegen sämtliche Dashboard-Panels, Recording Rules und Alert-Ausdrücke. 560 definiert; die 44, die nichts erreichen, stehen ausdrücklich in einer **ausschließlich schrumpfenden** Baseline — eine neu erblindete Metrik lässt den Build rot werden, und eine sichtbar gewordene Metrik muss die Liste verlassen, sonst nimmt die nächste blinde stillschweigend ihren Platz ein. Der Preis dafür, dies nicht gehabt zu haben: Eine offen ausfallende Heartbeat-Quelle verwarf die Gesundheitssignale bei 46,5 % der Ticks eine Woche lang, ohne dass eine Metrik es bemerkt hätte (ADR-148). Zwei Fallen, die der Wächter konstruktiv schließt — ein Zähler mit Labels, der nie ausgelöst hat, liefert **überhaupt keine Serie**, sodass ein Panel für einen seltenen Fehler `or vector(0)` braucht, sonst zeigt es „No data“, wo ein Operator eine grüne Null erwartet; und Abdeckung wird ausschließlich aus **Ausdrücken** von Panels und Regeln gelesen, denn eine in einem Kommentar genannte Metrik ist nicht verdrahtet.
 
 ### 20.2. Eingebettetes Debug-Panel
 
@@ -1405,7 +1407,7 @@ Eine CSS-Regel bestimmt die Abstände des Design-Systems: Vertikale Ränder eine
 
 ## 24. Architekturentscheidungen (ADR)
 
-288 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
+289 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
 
 | ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
 |-----|----------|----------------|---------------|
@@ -1679,8 +1681,8 @@ Das Verbindungsbudget hat einen Boden, nicht nur eine Decke. Audit F004 begrenzt
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 288 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~27.290 Tests in 1.601 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 289 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~27.290 Tests in 1.601 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 288 ADRs und des Changelogs (v1.0 bis v1.44.7). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 289 ADRs und des Changelogs (v1.0 bis v1.45.0). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

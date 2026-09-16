@@ -112,6 +112,14 @@ KEY_FAMILIES: dict[str, KeyScope] = {
     "channel": KeyScope.USER_RUNTIME,
     "channel_otp": KeyScope.USER_RUNTIME,
     "channel_otp_attempts": KeyScope.USER_RUNTIME,
+    # The spoken code of a phone-number verification and its attempt counter
+    # (phone-as-a-channel, lot 2): one-time, short-lived, never learning.
+    "telephony_verify": KeyScope.USER_RUNTIME,
+    "telephony_verify_attempts": KeyScope.USER_RUNTIME,
+    "telephony_verify_starts": KeyScope.USER_RUNTIME,
+    # How many live lookups one owner call has made (lot 7): bounded to the
+    # call's own lifetime, never learning.
+    "telephony_live_tool": KeyScope.USER_RUNTIME,
     "channel_rate": KeyScope.USER_RUNTIME,
     "mcp_oauth_state": KeyScope.USER_RUNTIME,
     # --- global ---------------------------------------------------------------

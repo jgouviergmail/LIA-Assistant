@@ -9,8 +9,9 @@ from uuid import uuid4
 
 import pytest
 
+import src.domains.telephony.payload as payload_mod
 import src.domains.telephony.return_synthesis as rs
-from src.domains.telephony.models import PhoneCallOutcome, PhoneCallStatus
+from src.domains.telephony.models import CallKind, PhoneCallOutcome, PhoneCallStatus
 from src.domains.telephony.schemas import ReturnProposal, StructuredCallData
 
 # --------------------------------------------------------------------------- #
@@ -60,7 +61,7 @@ def test_extract_structured_empty() -> None:
     ],
 )
 def test_map_status(payload: dict, expected: PhoneCallStatus) -> None:
-    assert rs._map_status(payload) == expected
+    assert payload_mod.map_status(payload) == expected
 
 
 @pytest.mark.unit
@@ -79,11 +80,14 @@ def test_derive_outcome(agreed, status, expected) -> None:
 
 @pytest.mark.unit
 def test_extract_call_seconds() -> None:
-    assert rs._extract_call_seconds({"data": {"metadata": {"call_duration_secs": 42}}}) == Decimal(
-        "42"
+    assert payload_mod.extract_call_seconds(
+        {"data": {"metadata": {"call_duration_secs": 42}}}
+    ) == Decimal("42")
+    assert payload_mod.extract_call_seconds({}) is None
+    assert (
+        payload_mod.extract_call_seconds({"data": {"metadata": {"call_duration_secs": "bad"}}})
+        is None
     )
-    assert rs._extract_call_seconds({}) is None
-    assert rs._extract_call_seconds({"data": {"metadata": {"call_duration_secs": "bad"}}}) is None
 
 
 # --------------------------------------------------------------------------- #
@@ -122,16 +126,19 @@ def _install_synthesis(
 
     monkeypatch.setattr(rs, "get_llm", lambda _t: object())
     monkeypatch.setattr(rs, "load_telephony_prompt", lambda _n, _v: "SYSTEM")
-    monkeypatch.setattr(
-        rs,
-        "get_llm_config_for_agent",
-        lambda _s, _t: SimpleNamespace(provider="deepseek", model="deepseek-v4-flash"),
-    )
+    import src.domains.telephony.synthesis_usage as usage_mod
+
+    def fake_config(_s, _t):  # noqa: ANN001, ANN202
+        return SimpleNamespace(provider="deepseek", model="deepseek-v4-flash")
+
+    monkeypatch.setattr(rs, "get_llm_config_for_agent", fake_config)
+    # The usage record names the model through the usage module (lot 4 extraction).
+    monkeypatch.setattr(usage_mod, "get_llm_config_for_agent", fake_config)
     monkeypatch.setattr(rs, "get_structured_output_with_retry", _fake_chokepoint)
     return captured
 
 
-async def _run_synthesis() -> tuple[ReturnProposal, rs._SynthUsage | None]:
+async def _run_synthesis() -> tuple[ReturnProposal, rs.SynthUsage | None]:
     return await rs.synthesize_return(
         transcript="raw transcript",
         transcript_summary="she agreed",
@@ -202,7 +209,7 @@ async def test_synthesize_return_tracks_usage_from_capture(monkeypatch) -> None:
 
     _, usage = await _run_synthesis()
 
-    assert usage == rs._SynthUsage(
+    assert usage == rs.SynthUsage(
         tokens_in=250,  # 400 raw input - 150 cached
         tokens_out=90,
         tokens_cache=150,
@@ -245,6 +252,10 @@ def _install_pipeline(
             captured["mark"] = {"call_id": cid, **kwargs}
             return mark_result
 
+        async def close_without_return(self, cid, **kwargs):
+            captured["closed_silently"] = {"call_id": cid, **kwargs}
+            return mark_result
+
         async def mark_notification_delivered(self, cid) -> None:
             captured.setdefault("delivered", []).append(cid)
 
@@ -269,7 +280,7 @@ def _install_pipeline(
         captured["synth_in"] = kwargs
         return (
             ReturnProposal(summary="Recap", proposal_text="J'ai appelé Marie"),
-            rs._SynthUsage(tokens_in=40, tokens_out=20, tokens_cache=0, model_name="gpt-4.1-nano"),
+            rs.SynthUsage(tokens_in=40, tokens_out=20, tokens_cache=0, model_name="gpt-4.1-nano"),
         )
 
     async def _fake_track(**kwargs):
@@ -280,7 +291,9 @@ def _install_pipeline(
     monkeypatch.setattr(rs, "get_db_context", _ctx)
     monkeypatch.setattr(rs, "NotificationDispatcher", lambda: _FakeDispatcher())
     monkeypatch.setattr(rs, "synthesize_return", _fake_synth)
-    monkeypatch.setattr(rs, "track_proactive_tokens", _fake_track)
+    import src.domains.telephony.synthesis_usage as usage_mod
+
+    monkeypatch.setattr(usage_mod, "track_proactive_tokens", _fake_track)
     return captured
 
 
@@ -306,6 +319,7 @@ async def test_process_persists_minimized_and_delivers_once(monkeypatch) -> None
         status=PhoneCallStatus.DIALING,
         objective="ask availability",
         callee_display="Marie",
+        call_kind=CallKind.THIRD_PARTY,
     )
     captured = _install_pipeline(monkeypatch, call=call)
 
@@ -334,6 +348,10 @@ async def test_process_persists_minimized_and_delivers_once(monkeypatch) -> None
     assert captured["track"]["tokens_in"] == 40
     assert captured["track"]["task_type"] == "phone_call"
     assert captured["track"]["model_name"] == "gpt-4.1-nano"
+    # Lot 8: under the call's own run id, beside the live lookups and the relay.
+    from src.domains.telephony.spend import phone_call_run_id
+
+    assert captured["track"]["run_id"] == phone_call_run_id(call.id)
 
 
 @pytest.mark.unit
@@ -350,6 +368,7 @@ async def test_process_dispatch_failure_leaves_notification_pending(monkeypatch)
         status=PhoneCallStatus.DIALING,
         objective="ask availability",
         callee_display="Marie",
+        call_kind=CallKind.THIRD_PARTY,
     )
     captured = _install_pipeline(monkeypatch, call=call, dispatch_error=RuntimeError("fcm down"))
 
@@ -369,6 +388,7 @@ async def test_process_skips_when_already_terminal(monkeypatch) -> None:
         status=PhoneCallStatus.COMPLETED,  # already processed
         objective="x",
         callee_display="Marie",
+        call_kind=CallKind.THIRD_PARTY,
     )
     captured = _install_pipeline(monkeypatch, call=call)
     await rs.process_completed_call(call.id, _payload())
@@ -384,6 +404,7 @@ async def test_process_no_delivery_when_lost_race(monkeypatch) -> None:
         status=PhoneCallStatus.DIALING,
         objective="x",
         callee_display="Marie",
+        call_kind=CallKind.THIRD_PARTY,
     )
     captured = _install_pipeline(monkeypatch, call=call, mark_result=False)
     await rs.process_completed_call(call.id, _payload())
@@ -399,6 +420,7 @@ async def test_process_falls_back_on_synthesis_failure(monkeypatch) -> None:
         status=PhoneCallStatus.DIALING,
         objective="x",
         callee_display="Marie",
+        call_kind=CallKind.THIRD_PARTY,
     )
     captured = _install_pipeline(monkeypatch, call=call)
 
@@ -465,3 +487,28 @@ async def test_deliver_return_with_retry_gives_up_without_raising(monkeypatch) -
     # Must not raise — a lost return must not crash the background task runner.
     await rs.deliver_return_with_retry(uuid4(), {"x": 1})
     assert calls["n"] == 3  # exhausted all attempts
+
+
+@pytest.mark.unit
+async def test_verification_call_is_closed_without_synthesis_or_notification(monkeypatch) -> None:
+    """A verification call reads a code aloud; its transcript is worth nothing
+    to anyone. No model call, no return, no notification — the row just closes
+    (lot 2)."""
+    call = SimpleNamespace(
+        id=uuid4(),
+        user_id=uuid4(),
+        status=PhoneCallStatus.DIALING,
+        objective="",
+        callee_display="Alex",
+        call_kind=CallKind.VERIFICATION,
+    )
+    captured = _install_pipeline(monkeypatch, call=call)
+
+    await rs.process_completed_call(call.id, _payload())
+
+    assert "synth_in" not in captured
+    assert "dispatch" not in captured
+    assert "mark" not in captured
+    closed = captured["closed_silently"]
+    assert closed["status"] == PhoneCallStatus.COMPLETED
+    assert closed["call_seconds"] == Decimal("30")

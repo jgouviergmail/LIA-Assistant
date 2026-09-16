@@ -2,6 +2,7 @@
 
 **Status**: ✅ IMPLEMENTED (2026-07-13, à blanc — vendor E2E gated on the P2.0 spike)
 **Author**: Claude Code (Opus 4.8)
+**Amended by**: [ADR-290](ADR-290-Phone-As-A-Channel-Owner-Calls.md) (2026-09-16) — the ONE provisioned agent now serves THREE mandates: the third-party mandate stays baked in exactly as decided here; the owner's own call (`SELF`) and the number-verification call (`VERIFICATION`) travel as a per-call `conversation_config_override`. « Every call confirmed by a draft » no longer holds for a call to the ACCOUNT HOLDER on a number they declared and verified by a spoken code: that call has no card, by construction (`mutation_policy="reversible"` with a written reason), and its transcript is relayed into the chat as the person's own turn. The read-only, free/busy-only, no-recording, no-metering invariants of this ADR are unchanged.
 **Related**: [ADR-070] ReAct Execution Mode (draft/HITL flow reused), [ADR-085](ADR-085-Draft-Display-Registry.md) (boot-time completeness assert pattern reused for the new draft type), [ADR-117] Background Chat Runs (fire-and-forget + own-session background task precedent), spec `docs/superpowers/specs/2026-07-07-telephony-agentic-calls-design.md` (v5, decisions D-1…D-9), technical doc `docs/technical/TELEPHONY.md`.
 
 ## Context

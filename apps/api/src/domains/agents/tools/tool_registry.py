@@ -467,6 +467,9 @@ def _import_tool_modules() -> None:
     # Telephony: agentic outbound calls (per-user connector), only when enabled.
     if getattr(get_settings(), "telephony_enabled", False):
         tool_modules.append(("src.domains.agents.tools.telephony_tools", "telephony_tools"))
+        tool_modules.append(
+            ("src.domains.agents.tools.telephony_self_tools", "telephony_self_tools")
+        )
 
     # MCP ReAct tools (ADR-062): loaded by _register_iterative_task_tool()
     # in registration.py at MCP startup, NOT here. The generic mcp_server_task_tool

@@ -167,6 +167,27 @@ const LIFECYCLE: Record<string, BadgeTone> = {
   blocked: NEUTRAL,
 };
 
+/**
+ * How an owner call's words reached the chat (phone as a channel). The turn
+ * ran: green; it ran and left drafts to confirm: warning; the person was NOT
+ * the one on the line, nobody picked up, or nothing was said: neutral — a
+ * normal end of a call; a refusal, a line that failed or a failure:
+ * destructive, because a notification stood in for an answer and the person
+ * should know why.
+ */
+const RELAY_OUTCOME: Record<string, BadgeTone> = {
+  answered: 'success',
+  waiting: 'warning',
+  empty: NEUTRAL,
+  not_owner: NEUTRAL,
+  unanswered: NEUTRAL,
+  call_failed: 'destructive',
+  pending_question: 'warning',
+  busy: 'warning',
+  quota_blocked: 'destructive',
+  failed: 'destructive',
+};
+
 /** What a finished call achieved. */
 const CALL_OUTCOME: Record<string, BadgeTone> = {
   objective_met: 'success',
@@ -291,6 +312,20 @@ export function lifecycleTone(status: string): BadgeTone {
  */
 export function callOutcomeTone(outcome: string): BadgeTone {
   return CALL_OUTCOME[outcome] ?? NEUTRAL;
+}
+
+/**
+ * Tone for the relay verdict of an owner call.
+ *
+ * Args:
+ *   outcome: `answered`, `waiting`, `empty`, `not_owner`, `unanswered`,
+ *     `call_failed`, `pending_question`, `busy`, `quota_blocked` or `failed`.
+ *
+ * Returns:
+ *   The badge tone; neutral for anything this build does not know.
+ */
+export function relayOutcomeTone(outcome: string): BadgeTone {
+  return RELAY_OUTCOME[outcome] ?? NEUTRAL;
 }
 
 /** Typed traits a skill card can wear. */

@@ -121,6 +121,11 @@ class RunContext:
         timezone: IANA zone the person reads wall clocks in.
         display_name: What the assistant calls them.
         display_mode: ``cards`` | ``html`` | ``markdown``.
+        execution_mode: The person's OWN chat mode — read by a turn spoken by
+            them (a relayed phone call, lot 4); an unattended run never uses it.
+        memory_enabled: Their long-term memory switch.
+        journals_enabled: Their journals switch.
+        psyche_enabled: Their psyche-engine switch.
     """
 
     user: Any
@@ -128,6 +133,10 @@ class RunContext:
     timezone: str
     display_name: str
     display_mode: str
+    execution_mode: str = "pipeline"
+    memory_enabled: bool = False
+    journals_enabled: bool = False
+    psyche_enabled: bool = False
 
 
 @dataclass(frozen=True)
@@ -156,7 +165,18 @@ class StreamRequest:
             the person's chat preference. Nothing here reads
             ``user.execution_mode``: a routine keeps the deterministic pipeline
             it has always run on, a ticket asks for the autonomous loop, and
-            the chat header's toggle keeps meaning the chat alone.
+            the chat header's toggle keeps meaning the chat alone. A turn
+            SPOKEN by the person is the exception, and its caller passes the
+            person's own mode explicitly.
+        spoken_by_person: True when the prompt is the person's OWN words
+            (the relay of a phone call they had with LIA, lot 4). The turn
+            is then NOT automated — the six extractions run, a plan is not
+            pre-approved, the three preference flags below apply — because
+            a message the person spoke deserves exactly what a message they
+            typed gets.
+        memory_enabled: Their long-term memory switch (spoken turns only).
+        journals_enabled: Their journals switch (spoken turns only).
+        psyche_enabled: Their psyche-engine switch (spoken turns only).
     """
 
     user_id: UUID
@@ -172,6 +192,10 @@ class StreamRequest:
     origin: RunOrigin | None = None
     run_id: str | None = None
     execution_mode: str = "pipeline"
+    spoken_by_person: bool = False
+    memory_enabled: bool = False
+    journals_enabled: bool = False
+    psyche_enabled: bool = False
 
 
 @dataclass(frozen=True)
@@ -244,6 +268,10 @@ async def resolve_run_context(db: Any, user_id: UUID) -> RunContext | None:
         timezone=user.timezone or DEFAULT_USER_DISPLAY_TIMEZONE,
         display_name=resolve_user_display_name(user.full_name, user.email),
         display_mode=getattr(user, "response_display_mode", None) or "cards",
+        execution_mode=getattr(user, "execution_mode", None) or "pipeline",
+        memory_enabled=bool(getattr(user, "memory_enabled", False)),
+        journals_enabled=bool(getattr(user, "journals_enabled", False)),
+        psyche_enabled=bool(getattr(user, "psyche_enabled", False)),
     )
 
 
@@ -420,8 +448,13 @@ async def _one_attempt(
         # every out-of-turn run silently ignored the mode until a ticket asked
         # for the loop — and then the CALLER decides, never the chat toggle.
         user_execution_mode=request.execution_mode,
-        is_automated_source=True,
-        auto_approve_plan=True,
+        # A turn the person SPOKE is theirs: not automated (the extractions
+        # run), no plan pre-approved, their own preference flags (lot 4).
+        is_automated_source=not request.spoken_by_person,
+        auto_approve_plan=not request.spoken_by_person,
+        user_memory_enabled=request.spoken_by_person and request.memory_enabled,
+        user_journals_enabled=request.spoken_by_person and request.journals_enabled,
+        user_psyche_enabled=request.spoken_by_person and request.psyche_enabled,
         # Archive-first persisted the question on attempt one; a retry must not
         # duplicate the row.
         archive_user_message=(attempt == 1),

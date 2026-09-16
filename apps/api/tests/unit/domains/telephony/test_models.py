@@ -42,3 +42,17 @@ def test_structured_call_data_ignores_unknown_fields():
 @pytest.mark.unit
 def test_phone_call_tablename():
     assert PhoneCall.__tablename__ == "phone_calls"
+
+
+@pytest.mark.unit
+def test_call_kind_column_defaults_to_third_party() -> None:
+    """One agent, two mandates (lot 2): every row says which mandate it ran."""
+    from src.domains.telephony.models import CallKind
+
+    assert {k.value for k in CallKind} == {"third_party", "self", "verification"}
+    column = PhoneCall.__table__.c.call_kind
+    assert column.nullable is False
+    # native_enum=False stores the member NAME: the server default must be the
+    # NAME too, or every pre-existing row reads as an unknown kind.
+    assert column.server_default.arg == "THIRD_PARTY"
+    assert column.default.arg is CallKind.THIRD_PARTY

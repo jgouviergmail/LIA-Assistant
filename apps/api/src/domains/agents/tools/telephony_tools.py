@@ -31,12 +31,15 @@ from src.domains.agents.drafts.service import DraftService
 from src.domains.agents.tools.decorators import connector_tool, with_user_preferences
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import parse_user_id, validate_runtime_config
+from src.domains.telephony.identity import PhoneIdentity
+from src.domains.telephony.phone_numbers import (
+    looks_like_phone,
+    normalize_phone,
+    number_search_variants,
+    same_line,
+)
 
 logger = structlog.get_logger(__name__)
-
-# A callee looks like a phone number when it is a '+'-prefixed / digit run with
-# only phone punctuation — a contact name never matches this.
-_PHONE_RE = re.compile(r"^\+?\d[\d\s().\-]{6,}$")
 
 # Non-placed initiate outcomes → the locale key that explains them. Module level
 # so the completeness test can IMPORT it: this lookup is unguarded, and a status
@@ -55,37 +58,11 @@ _STATUS_TO_PHRASE: dict[str, str] = {
     # stopped accepting legacy key-ID-shaped credentials). Same doctrine:
     # only reconnecting the connector with a valid key can fix it.
     "auth_failed": "auth_failed",
+    # The vendor agent could not be PATCHed to allow the per-call override an
+    # owner or verification mandate needs (lot 2): refused rather than dialled
+    # under the stranger's rules. Transient — the next attempt re-syncs.
+    "agent_sync_failed": "agent_sync_failed",
 }
-
-
-# A national number keeps enough digits to identify a line on its own; below
-# that, a suffix match would be a coincidence.
-_MIN_SIGNIFICANT_DIGITS = 8
-# Longest country calling code (3 digits) plus the leading '+'.
-_MAX_COUNTRY_PREFIX = 4
-
-
-def _looks_like_phone(value: str) -> bool:
-    """True when the raw callee is already a dialable number (skip resolution)."""
-    return bool(_PHONE_RE.match(value.strip()))
-
-
-def _normalize_phone(value: str) -> str:
-    """Collapse a raw number to a compact E.164-ish form (keep leading '+').
-
-    When ``TELEPHONY_DEFAULT_COUNTRY_CODE`` is configured, a national number
-    (single leading 0, e.g. ``0682511639``) is converted to E.164 by replacing
-    the trunk 0 (``+33682511639``). ``00``-prefixed international numbers and
-    numbers already carrying ``+`` are left untouched.
-    """
-    stripped = value.strip()
-    if stripped.startswith("+"):
-        return f"+{re.sub(r'[^0-9]', '', stripped)}"
-    digits = re.sub(r"[^0-9]", "", stripped)
-    country_code = get_settings().telephony_default_country_code
-    if country_code and len(digits) >= 6 and digits.startswith("0") and not digits.startswith("00"):
-        return f"{country_code}{digits[1:]}"
-    return digits
 
 
 def _strip_trailing_annotations(contact: str) -> str:
@@ -118,7 +95,7 @@ def _person_first_phone(person: dict) -> str:
     if canonical:
         return canonical
     value = phones[0].get("value", "")
-    return _normalize_phone(value) if value else ""
+    return normalize_phone(value) if value else ""
 
 
 @dataclass(frozen=True)
@@ -222,51 +199,10 @@ def _person_all_phones(person: dict) -> list[str]:
     numbers: list[str] = []
     for entry in person.get("phoneNumbers") or []:
         canonical = entry.get("canonicalForm") or ""
-        value = canonical or _normalize_phone(entry.get("value", "") or "")
+        value = canonical or normalize_phone(entry.get("value", "") or "")
         if value:
             numbers.append(value)
     return numbers
-
-
-def _same_line(a: str, b: str) -> bool:
-    """Whether two raw numbers designate the same line.
-
-    Equality after normalization is the nominal case. The national/E.164 pair
-    is handled ONLY when one side could not be promoted — i.e. when no
-    ``TELEPHONY_DEFAULT_COUNTRY_CODE`` is configured: the international form
-    must then END with the whole national number minus its trunk zero, and
-    differ by a country prefix at most. A loose suffix comparison would merge
-    two lines in different countries.
-    """
-    na, nb = _normalize_phone(a), _normalize_phone(b)
-    if not na or not nb:
-        return False
-    if na == nb:
-        return True
-    if na.startswith("+") == nb.startswith("+"):
-        return False
-    intl, local = (na, nb) if na.startswith("+") else (nb, na)
-    significant = local.lstrip("0")
-    if len(significant) < _MIN_SIGNIFICANT_DIGITS or not intl.endswith(significant):
-        return False
-    return len(intl) - len(significant) <= _MAX_COUNTRY_PREFIX
-
-
-def _number_search_variants(number: str) -> list[str]:
-    """The spellings to search a number under, most canonical first.
-
-    Providers index the string AS STORED: a contact saved ``06 12 34 56 78`` is
-    invisible to a ``+33612345678`` search. Without the national variant the
-    reverse lookup would miss the most common case and fail silently.
-    """
-    normalized = _normalize_phone(number)
-    variants = [normalized]
-    country_code = get_settings().telephony_default_country_code
-    if normalized.startswith("+") and country_code and normalized.startswith(country_code):
-        variants.append("0" + normalized[len(country_code) :])
-    if not normalized.startswith("+") and normalized.startswith("0"):
-        variants.append(normalized.lstrip("0"))
-    return list(dict.fromkeys(variant for variant in variants if variant))
 
 
 async def _lookup_name_for_number(user_id: UUID, number: str) -> str | None:
@@ -285,7 +221,7 @@ async def _lookup_name_for_number(user_id: UUID, number: str) -> str | None:
         unnamed one, or any provider failure. A naming aid never blocks a call.
     """
     try:
-        for variant in _number_search_variants(number):
+        for variant in number_search_variants(number):
             payload = await _search_contacts_raw(user_id, variant)
             persons = [
                 (r.get("person") or r)
@@ -296,7 +232,7 @@ async def _lookup_name_for_number(user_id: UUID, number: str) -> str | None:
                 person
                 for person in persons
                 if _person_display_name(person) != "?"
-                and any(_same_line(candidate, number) for candidate in _person_all_phones(person))
+                and any(same_line(candidate, number) for candidate in _person_all_phones(person))
             ]
             if len(named) == 1:
                 return _person_display_name(named[0])
@@ -314,8 +250,8 @@ async def _lookup_name_for_number(user_id: UUID, number: str) -> str | None:
 
 async def _resolve_callee(user_id: UUID, contact: str) -> _CalleeResolution:
     """Resolve a callee reference (raw number or contact name) to name + phone."""
-    if _looks_like_phone(contact):
-        number = _normalize_phone(contact)
+    if looks_like_phone(contact):
+        number = normalize_phone(contact)
         # The NUMBER is settled; only its label is looked up. A raw number used
         # to become its own callee_display, and the CRM keys relationships on
         # that display name — so calling "0612345678" and calling "Alice Vernier"
@@ -350,6 +286,31 @@ async def _telephony_connector_active(user_id: UUID) -> bool:
 
     async with get_db_context() as db:
         return await TelephonyConnectorService(db).get_active(user_id) is not None
+
+
+async def _owner_identity(user_id: UUID) -> PhoneIdentity:
+    """The person's phone identity — the one seam both tools read."""
+    from src.domains.telephony.identity import TelephonyIdentityService
+    from src.infrastructure.database.session import get_db_context
+
+    async with get_db_context() as db:
+        return await TelephonyIdentityService(db).get_identity(user_id)
+
+
+async def _verified_number(user_id: UUID) -> str | None:
+    """The person's own VERIFIED number, or None."""
+    identity = await _owner_identity(user_id)
+    return identity.phone_number if identity.verified else None
+
+
+#: Technical English for the model (ADR-256): the planner reached for the
+#: stranger's mandate to call the account holder, and the fix is a different
+#: tool, not a different argument.
+_CALLEE_IS_THE_USER = (
+    "This number is the user's own verified phone number. Calling the user "
+    "themselves is done with the call_me tool, which needs no confirmation and "
+    "carries their context; do not use place_phone_call for it."
+)
 
 
 def _create_phone_call_draft(
@@ -413,6 +374,14 @@ async def _build_place_phone_call_output(
         return UnifiedToolOutput.failure(
             message=phrases["ambiguous"].format(name=contact, candidates=listed),
             error_code="contact_ambiguous",
+        )
+    own_number = await _verified_number(user_id)
+    if own_number is not None and same_line(resolution.phone, own_number):
+        # The stranger's mandate must never ring the owner: it would greet
+        # them as a third party and share nothing of theirs. The owner's
+        # tool exists for this (lot 3).
+        return UnifiedToolOutput.failure(
+            message=_CALLEE_IS_THE_USER, error_code="callee_is_the_user"
         )
 
     logger.info(

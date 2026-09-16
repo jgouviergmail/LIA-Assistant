@@ -261,9 +261,13 @@ if getattr(settings, "usage_limits_enabled", False):
     api_router.include_router(usage_limits_router)
     api_router.include_router(usage_limits_ws_router)
 if getattr(settings, "telephony_enabled", False):
+    from src.domains.agents.telephony.live_tools_router import router as telephony_tools_router
     from src.domains.telephony.router import router as telephony_router
 
     api_router.include_router(telephony_router)
+    # The vendor's call-back during an owner call (lot 7) — agents-side, because
+    # it runs a registered tool; hides itself while TELEPHONY_LIVE_TOOLS_ENABLED is off.
+    api_router.include_router(telephony_tools_router)
 if getattr(settings, "meetings_enabled", False):
     from src.domains.meetings.router import router as meetings_router
 

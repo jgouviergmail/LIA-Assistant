@@ -53,15 +53,18 @@ def card_surface() -> CardSurface:
     """The surface of the current run, decided by the run, never by a caller.
 
     Plain — the lot-13 Markdown — for a ticket run (its out-of-turn origin
-    says it), for an external channel (its handler declares
-    ``plain_surface_ctx`` around the stream), and for a person who chose the
-    ``markdown`` rendering (they asked for text). The chat's ``lia-card``
-    otherwise.
+    is HIDDEN: the board shows the rows, not the chat), for an external
+    channel (its handler declares ``plain_surface_ctx`` around the stream),
+    and for a person who chose the ``markdown`` rendering (they asked for
+    text). The chat's ``lia-card`` otherwise — including a relayed phone
+    turn (ADR-290), whose origin is out-of-turn but VISIBLE: its rows are
+    the chat's, and so is their card.
 
     Returns:
         The surface.
     """
-    if out_of_turn_origin_ctx.get() is not None or plain_surface_ctx.get():
+    origin = out_of_turn_origin_ctx.get()
+    if (origin is not None and origin.hidden) or plain_surface_ctx.get():
         return CardSurface.PLAIN
     if runtime_display_mode() == RESPONSE_DISPLAY_MODE_MARKDOWN:
         return CardSurface.PLAIN

@@ -27,11 +27,10 @@ import src.domains.agents.tools.telephony_tools as tmod
 from src.core.config import settings
 from src.domains.agents.tools.telephony_tools import (
     _lookup_name_for_number,
-    _number_search_variants,
     _person_all_phones,
     _resolve_callee,
-    _same_line,
 )
+from src.domains.telephony.phone_numbers import number_search_variants, same_line
 
 pytestmark = pytest.mark.unit
 
@@ -97,7 +96,7 @@ class TestSameLine:
         ],
     )
     def test_pairs(self, a: str, b: str, expected: bool) -> None:
-        assert _same_line(a, b) is expected
+        assert same_line(a, b) is expected
 
 
 class TestSearchVariants:
@@ -105,13 +104,13 @@ class TestSearchVariants:
         """Providers index the string as STORED. A contact saved '06 12 34 56 78'
         is invisible to a '+33612345678' search — the reverse lookup would die
         silently on the most common case."""
-        variants = _number_search_variants("+33612345678")
+        variants = number_search_variants("+33612345678")
 
         assert "+33612345678" in variants
         assert "0612345678" in variants
 
     def test_variants_are_deduplicated_and_ordered(self) -> None:
-        variants = _number_search_variants("0612345678")
+        variants = number_search_variants("0612345678")
 
         assert variants[0] == "+33612345678"  # the normalized form first
         assert len(variants) == len(set(variants))

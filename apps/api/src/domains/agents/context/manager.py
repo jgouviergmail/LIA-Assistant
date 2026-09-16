@@ -794,6 +794,7 @@ class ToolContextManager:
         config: RunnableConfig,
         store: BaseStore,
         explicit_mode: ContextSaveMode | None = None,
+        user_id: str | None = None,
     ) -> None:
         """Auto-save context from tool result (called by @auto_save_context decorator).
 
@@ -813,6 +814,11 @@ class ToolContextManager:
             store: LangGraph BaseStore instance.
             explicit_mode: Save mode from UnifiedToolOutput.context_save_mode.
                 If None, defaults to LIST (conservative).
+            user_id: The acting user, read by the decorator from the typed
+                ``ToolRuntime`` the tool was handed (ADR-231). A tool run
+                outside any graph — a live lookup during an owner call,
+                ADR-290 — has no ambient run to read it from; the ambient
+                context stays the fallback for every other caller.
         """
         logger.info(
             "auto_save_entered",
@@ -847,8 +853,8 @@ class ToolContextManager:
             )
             return
 
-        # Extract user_id and session_id from config
-        user_id = runtime_user_id_str()
+        # The acting user: the typed runtime the decorator read, else the run.
+        user_id = user_id or runtime_user_id_str()
         if not user_id:
             logger.error(
                 "auto_save_failed_missing_user_id",

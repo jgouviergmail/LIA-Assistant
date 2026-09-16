@@ -57,11 +57,11 @@ const STATIC_KEYS = [
 ] as const;
 
 describe('more-data structural contract', () => {
-  it('has 68 unique cards across 6 sections', () => {
+  it('has 69 unique cards across 6 sections', () => {
     expect(MORE_SECTIONS).toHaveLength(6);
-    expect(MORE_CARD_KEYS).toHaveLength(68);
-    expect(new Set(MORE_CARD_KEYS).size).toBe(68);
-    expect(MORE_SECTIONS.map(s => s.cards.length)).toEqual([4, 12, 9, 12, 9, 22]);
+    expect(MORE_CARD_KEYS).toHaveLength(69);
+    expect(new Set(MORE_CARD_KEYS).size).toBe(69);
+    expect(MORE_SECTIONS.map(s => s.cards.length)).toEqual([4, 12, 9, 12, 10, 22]);
   });
 
   it('presents the air-quality honesty rule among the unseen attentions', () => {

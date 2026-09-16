@@ -116,6 +116,9 @@ EFFECT_LABEL_BUILDERS: dict[str, LabelValuesBuilder] = {
     # therefore recorded nowhere until 2026-09-06 (ADR-268). The label names
     # what the reader asked to be reminded of, never the whole request.
     "create_reminder_tool": _target("content", "original_message"),
+    # LIA calls the account holder (phone-as-a-channel, lot 3): the objective
+    # is what the row can name; an empty one reads as a catch-up in the wording.
+    "call_me_tool": _target("objective"),
     "toggle_scheduled_action_tool": _target("name", "action_name", "action_id"),
     # Workboard (ADR-276). `create` names the title it was given; the three
     # others name the ticket as the person referred to it — an id or a

@@ -270,3 +270,122 @@ async def test_list_recent_for_user_orders_newest_first(async_session, test_user
 
     recent = await repo.list_recent_for_user(test_user.id, limit=10)
     assert [c.id for c in recent] == [second.id, first.id]
+
+
+# ---------------------------------------------------------------------------
+# Phone-as-a-channel (lots 2 and 4): the verification close and the relay outbox
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.integration
+async def test_close_without_return_is_exactly_once_and_arms_no_outbox(async_session, test_user):
+    from src.domains.telephony.models import CallKind, ReturnSynthesisStatus
+
+    repo = TelephonyRepository(async_session)
+    call = await repo.create(_call_data(test_user.id, call_kind=CallKind.VERIFICATION))
+    await repo.persist_return_inbox(call.id, encrypted_payload="enc", received_at=datetime.now(UTC))
+
+    first = await repo.close_without_return(
+        call.id,
+        status=PhoneCallStatus.COMPLETED,
+        call_seconds=Decimal("12"),
+        completed_at=datetime.now(UTC),
+    )
+    second = await repo.close_without_return(
+        call.id,
+        status=PhoneCallStatus.COMPLETED,
+        call_seconds=Decimal("12"),
+        completed_at=datetime.now(UTC),
+    )
+    assert (first, second) == (True, False)
+
+    await async_session.refresh(call)
+    assert call.status is PhoneCallStatus.COMPLETED
+    assert call.notification_status is None  # nothing to deliver, nothing for the reaper
+    assert call.return_status is ReturnSynthesisStatus.SKIPPED
+    assert call.return_webhook_encrypted is None
+    assert call.call_kind is CallKind.VERIFICATION
+    assert await repo.get_active_for_user(test_user.id) is None
+
+
+@pytest.mark.integration
+async def test_relaying_outbox_is_delivered_or_falls_back_but_never_both(async_session, test_user):
+    from src.domains.telephony.models import CallKind
+
+    repo = TelephonyRepository(async_session)
+    call = await repo.create(_call_data(test_user.id, call_kind=CallKind.SELF))
+    assert await _complete(
+        repo,
+        call.id,
+        notification_status=NotificationStatus.RELAYING,
+        notification_content="fallback text",
+    )
+    await async_session.refresh(call)
+    assert call.notification_status is NotificationStatus.RELAYING
+    # A RELAYING row is invisible to the notification reaper.
+    assert (
+        await repo.fetch_recoverable_notifications(
+            cutoff=datetime.now(UTC) + timedelta(hours=1), max_attempts=5, limit=10
+        )
+        == []
+    )
+
+    assert await repo.mark_relay_delivered(call.id, outcome="waiting") is True
+    await async_session.refresh(call)
+    assert call.notification_status is NotificationStatus.DELIVERED
+    assert call.notification_payload["relay_outcome"] == "waiting"
+    # Already delivered: a late fallback changes nothing.
+    assert await repo.mark_relay_fallback(call.id, content="late") is False
+    await async_session.refresh(call)
+    assert call.notification_payload["content"] == "fallback text"
+
+
+@pytest.mark.integration
+async def test_relay_fallback_hands_the_row_to_the_notification_reaper(async_session, test_user):
+    from src.domains.telephony.models import CallKind
+
+    repo = TelephonyRepository(async_session)
+    call = await repo.create(_call_data(test_user.id, call_kind=CallKind.SELF))
+    assert await _complete(repo, call.id, notification_status=NotificationStatus.RELAYING)
+
+    assert (
+        await repo.mark_relay_fallback(
+            call.id, content="the call could not be relayed", outcome="busy"
+        )
+        is True
+    )
+    await async_session.refresh(call)
+    assert call.notification_status is NotificationStatus.PENDING
+    assert call.notification_payload["content"] == "the call could not be relayed"
+    assert call.notification_payload["title"] == "Call back"
+    assert call.notification_payload["relay_outcome"] == "busy"
+    rows = await repo.fetch_recoverable_notifications(
+        cutoff=datetime.now(UTC) + timedelta(hours=1), max_attempts=5, limit=10
+    )
+    assert [row.id for row in rows] == [call.id]
+
+
+@pytest.mark.integration
+async def test_stale_relays_are_handed_to_the_reaper_after_the_max_age(async_session, test_user):
+    """A crash mid-relay leaves RELAYING forever; the sweep flips it to PENDING."""
+    from src.domains.telephony.models import CallKind
+
+    repo = TelephonyRepository(async_session)
+    old = await repo.create(_call_data(test_user.id, call_kind=CallKind.SELF))
+    assert await _complete(
+        repo,
+        old.id,
+        notification_status=NotificationStatus.RELAYING,
+        completed_at=datetime.now(UTC) - timedelta(minutes=30),
+    )
+    fresh = await repo.create(_call_data(test_user.id, call_kind=CallKind.SELF))
+    assert await _complete(repo, fresh.id, notification_status=NotificationStatus.RELAYING)
+
+    flipped = await repo.recover_stale_relays(
+        max_age_cutoff=datetime.now(UTC) - timedelta(minutes=15)
+    )
+    assert flipped == 1
+    await async_session.refresh(old)
+    await async_session.refresh(fresh)
+    assert old.notification_status is NotificationStatus.PENDING
+    assert fresh.notification_status is NotificationStatus.RELAYING

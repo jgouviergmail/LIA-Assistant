@@ -2,7 +2,6 @@
 
 import pytest
 
-from src.core.config import settings
 from src.core.exceptions import ExternalServiceError
 from src.domains.telephony.client import ElevenLabsAgentsError
 from src.domains.telephony.connector import TelephonyConnectorService
@@ -107,9 +106,10 @@ async def test_deactivate_deletes_via_connector_service(monkeypatch: pytest.Monk
 
 
 @pytest.mark.unit
-async def test_activate_passes_tts_model_and_maps_vendor_error():
-    """activate() must send the settings-driven TTS model (non-English agents
-    require turbo/flash v2.5) and translate a vendor 400 into the domain
+async def test_activate_sends_only_lias_config_and_maps_vendor_error():
+    """activate() sends the prompt, the greeting and the data contract — the
+    model, language, voice, audio format and duration cap are the portal's
+    (owner decision 2026-09-16) — and translates a vendor 400 into the domain
     ExternalServiceError (503) instead of leaking an unhandled 500."""
     from uuid import uuid4
 
@@ -125,13 +125,53 @@ async def test_activate_passes_tts_model_and_maps_vendor_error():
             user_name="Jean",
         )
     assert client.create_agent_kwargs is not None
-    assert client.create_agent_kwargs["tts_model_id"] == settings.telephony_agent_tts_model_id
-    assert (
-        client.create_agent_kwargs["max_duration_seconds"]
-        == settings.telephony_max_call_duration_seconds
+    assert set(client.create_agent_kwargs) == {
+        "name",
+        "system_prompt",
+        "first_message",
+        "data_collection",
+    }
+
+
+@pytest.mark.unit
+async def test_deactivate_deletes_the_live_tools_after_the_agent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Lot 7: the webhook tools provisioned for owner calls live in the
+    person's workspace like the agent; deactivation removes them, forced,
+    AFTER the agent that referenced them."""
+    from types import SimpleNamespace
+    from uuid import uuid4
+
+    import src.domains.telephony.connector as cmod
+
+    connector = SimpleNamespace(
+        id=uuid4(),
+        connector_metadata={"agent_id": "ag_1", "live_tool_ids": {"get_events_tool": "tool_a"}},
     )
-    assert client.create_agent_kwargs["voice_id"] == (settings.telephony_agent_voice_id or None)
-    assert client.create_agent_kwargs["audio_format"] == (
-        settings.telephony_agent_audio_format or None
-    )
-    assert client.create_agent_kwargs["llm_model"] == (settings.telephony_agent_llm_model or None)
+    order: list[str] = []
+
+    class _FakeConnectorService:
+        def __init__(self, _db):
+            self.repository = SimpleNamespace(get_by_user_and_type=self._get)
+
+        async def _get(self, _uid, _ctype):
+            return connector
+
+        async def get_api_key_credentials(self, _uid, _ctype):
+            return SimpleNamespace(api_key="sk")
+
+        async def delete_connector(self, uid, cid):
+            order.append("row")
+
+    class _FakeVendorClient:
+        async def delete_agent(self, agent_id: str) -> None:
+            order.append(f"agent:{agent_id}")
+
+        async def delete_tool(self, tool_id: str) -> None:
+            order.append(f"tool:{tool_id}")
+
+    monkeypatch.setattr(cmod, "ConnectorService", _FakeConnectorService)
+    service = TelephonyConnectorService(db=None, client_factory=lambda _k: _FakeVendorClient())  # type: ignore[arg-type]
+    await service.deactivate(uuid4())
+    assert order == ["agent:ag_1", "tool:tool_a", "row"]

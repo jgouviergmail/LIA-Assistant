@@ -4,7 +4,7 @@
 
 **Versión**: 6.0
 **Fecha**: 2026-08-23
-**Aplicación**: LIA v1.44.7
+**Aplicación**: LIA v1.45.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -201,6 +201,8 @@ LIA puede coger el teléfono por ti. Pídele que «llame al taller para comproba
 Siempre mantienes el control: antes de marcar, LIA te dice exactamente **a quién** va a llamar y **por qué**, y espera tu visto bueno. Y ese control no se detiene durante la llamada: el asistente opera bajo un mandato estricto — si el interlocutor propone un extra, una opción o un compromiso imprevisto (aunque sea pequeño), nunca acepta en tu nombre; anota la oferta y su precio, anuncia que se devolverá la llamada, y el resumen te entrega cada coste y cada punto pendiente para que decidas tú. El resumen aparece en el chat de forma asíncrona, así que puedes seguir haciendo otras cosas mientras se realiza la llamada.
 
 Y sigue siendo privado por construcción. Durante una llamada LIA solo puede indicar si estás libre u ocupado en un momento dado — nunca los títulos, invitados ni lugares de tu calendario. No se graba nada, la conversación nunca se almacena y solo se conserva un breve resumen antes de que caduque. Las llamadas pasan por tu propio conector de ElevenLabs, facturadas en tu cuenta, y la función solo está disponible si tu administrador la ha activado.
+
+Y LIA puede llamarte *a ti*. Declara tu número en *Telefonía · Mi identidad*, deja que LIA lo llame y lea un código que tú tecleas, y desde entonces «llámame a las ocho para repasar mi día» — o una rutina que lo diga — hace sonar tu teléfono sin tarjeta de confirmación: quien confirmaría es quien descuelga. Al teléfono, LIA sabe lo que sabe en el chat — tus recuerdos, tu agenda, tus recordatorios, lo que tienes abierto con la gente — y, si tu administrador lo activó, consulta mientras hablas: un correo, un contacto, un archivo, un lugar cercano, el tiempo, lo que recuerda de un tema. Lo lee todo y no actúa sobre nada; cada ámbito tiene un interruptor que es tuyo, y la asistente habla con la personalidad que le diste. Cuando cuelgas, lo que dijiste vuelve al chat como tu propio mensaje, con una insignia de teléfono, y lo que pediste espera allí tu confirmación.
 
 ### 3.11. Hablar con los tuyos, de asistente a asistente
 

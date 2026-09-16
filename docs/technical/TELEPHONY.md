@@ -2,9 +2,15 @@
 
 Per-user, agentic **outbound calls**: LIA phones a third party on the user's
 behalf, pursues a stated objective (read-only), and reports back asynchronously
-in the chat. Vendor: **ElevenLabs Agents** (dials via Twilio/SIP).
+in the chat. Vendor: **ElevenLabs Agents** (dials via Twilio/SIP). Since
+ADR-290 the phone is also a **channel**: LIA calls the account holder on a
+number they declared and verified, with no confirmation card, and what they say
+on the call comes back as their own turn (see
+[Phone as a channel](#phone-as-a-channel-adr-290)).
 
-- Architecture decision: [ADR-127](../architecture/ADR-127-Agentic-Telephony.md)
+- Architecture decisions: [ADR-127](../architecture/ADR-127-Agentic-Telephony.md)
+  (third-party calls), [ADR-290](../architecture/ADR-290-Phone-As-A-Channel-Owner-Calls.md)
+  (owner calls, verified number, relay, live tools)
 - Feature flag: `TELEPHONY_ENABLED` (default off). Per-user connector
   `ELEVENLABS_TELEPHONY` in *Préférences → Mes Connecteurs*.
 - Status: implemented à blanc; vendor E2E gated on the P2.0 spike (see below).
@@ -42,8 +48,17 @@ flowchart TD
 | `return_synthesis.py` | Tool-less synthesis (structured output **through the central `get_structured_output_with_retry` chokepoint** — a direct `with_structured_output` bypasses the provider constraints it carries, e.g. DeepSeek V4 thinking rejects the forced `tool_choice` with a 400 (prod incident 2026-07-29: every return degraded to the raw English vendor summary); enforced repo-wide by the AST guard `test_no_direct_structured_output_guard`. Token usage is read via the shared `TokenCaptureHandler`, and the `telephony_synthesis` budget is calibrated for the debrief-era output *plus* reasoning tokens on thinking models) + `process_completed_call` (exactly-once, minimized persistence, token tracking, **arms + delivers the durable return outbox**). |
 | `repository.py` | `PhoneCall` data access: F12 active-guard, `mark_completed` (atomic conditional UPDATE **+ PENDING outbox arm + SYNTHESIZED inbox close + transcript purge**), `mark_notification_delivered` / `fetch_recoverable_notifications` / `record_notification_failure`, **`persist_return_inbox` / `fetch_recoverable_returns` / `expire_stale_returns` (T1-A inbox)**, reaper queries. |
 | `reapers.py` | Stale-call recovery (interval) + **return-notification recovery (interval, T1)** + **pre-synthesis return recovery (interval, T1-A)** + retention purge (daily). |
-| Tool | `agents/tools/telephony_tools.py::place_phone_call` (draft-producing) + `execute_phone_call_draft`. |
+| Tool | `agents/tools/telephony_tools.py::place_phone_call` (draft-producing) + `execute_phone_call_draft`; refuses the owner's own verified number (`callee_is_the_user`). |
 | i18n | `core/i18n_telephony.py` (all backend strings, 6 languages). |
+| `phone_numbers.py` | ONE normaliser to E.164 (`normalize_phone`, `to_e164`, `same_line`) — the section shows the number WHOLE so a typo is visible. |
+| `identity.py` | `TelephonyIdentityService`: the declared number (encrypted), its verification date, the rich-context switch; `verified_number` is the ONE seam the no-card exception rests on. |
+| `verification.py` | `TelephonyVerificationService`: places a `VERIFICATION` call reading a `secrets`-drawn code aloud; code + attempt counter in Redis (`telephony_verify*`, `USER_RUNTIME`), constant-time compare, 429 lock past the attempt cap. |
+| `mandates.py` | One vendor agent, three mandates (`CallKind`): the baked third-party mandate, and the owner / verification overrides rendered server-side (`build_override`), boot-asserted (ADR-085). |
+| `self_call_context.py` | The context block an owner call carries — memories, agenda, reminders, open loops, recent exchanges — under `TELEPHONY_SELF_CONTEXT_MAX_TOKENS`, cuts stated, every read filed on the `phone_call` surface. |
+| `self_call_relay.py` / `owner_call.py` | Relay synthesis (chokepoint, `SelfCallRelay`: `owner_confirmed`, `relay_message`, `summary`) and the owner-call completion path (RELAYING outbox, fallback notification, `RelayOutcome`). |
+| `infrastructure/scheduler/phone_relay_runner.py` | Runs the relayed turn through `stream_instruction(spoken_by_person=True)` with a VISIBLE `phone_call` origin; retries a busy thread, stands aside for a pending question, settles the outbox. Lives outside `telephony` so the domain never imports `agents`. |
+| `live_tools.py` (telephony) + `agents/telephony/live_tools.py` + `live_tools_router.py` | Live read-only lookups during an owner call (flagged): derived token, vendor tool bodies, fingerprinted provisioning, the session-less call-back. |
+| Tool | `agents/tools/telephony_self_tools.py::call_me` — `reversible` with a written reason: no card, and a routine may plan it. |
 
 ## Security invariants (do not weaken)
 
@@ -72,6 +87,32 @@ flowchart TD
    that the synthesis MUST surface (every cost stated, every open point flagged
    with a how-to-proceed question). Enforced in the system prompt (Goal step 4 +
    guardrail) and in the synthesis prompt's hard rules.
+7. **No card only for a VERIFIED number (ADR-290).** `call_me` runs without a
+   confirmation card because the person who would confirm is the one who picks
+   up — and that holds only if the number is proven theirs: declared in the
+   settings, then heard reading a code LIA spoke. Never a name match. The
+   third-party tool refuses that same number, so an owner call can never go
+   through the stranger's mandate by another door. **The spoken code is bound
+   to the number it was dialled on**: the Redis value carries the number, and
+   a code heard on A never verifies B (declare A, hear the code, switch to B,
+   type it — refused, the code voided). A verification call counts against
+   the same hourly cap as every paid call (`TELEPHONY_RATE_LIMIT_PER_HOUR`),
+   so a stolen session cannot make LIA ring arbitrary numbers at will.
+8. **Nothing of the owner's context is ever baked into the agent.** The
+   provisioned agent also phones strangers; the owner mandate travels as a
+   per-call override. Its live tools (lot 7) are attached to the agent for the
+   owner's call ONLY — the vendor refuses `tool_ids` inside an override
+   (measured on a real call 2026-09-16, the call died at pickup) — and the
+   connector remembers it: they come off when the call ends, and the dial path
+   detaches them again before any third-party or verification call leaves,
+   while the third-party prompt names any attached lookup as refused.
+9. **The live-tool call-back opens only for an active owner call.** No session;
+   a token DERIVED from the connector's webhook secret (never the secret
+   itself); the call must be `SELF`, on the line and younger than the
+   stale-call timeout; the tool must be allow-listed, read-only by
+   construction, and currently offered; a per-call budget bounds the lookups.
+   Every refusal short of a wrong secret on a qualifying call reads « not
+   found ».
 
 ## Data model — `phone_calls`
 
@@ -195,36 +236,186 @@ there is nothing to stream and the hook does not pretend otherwise. A 404
 conversation turn, because a chat opened *before* the call would otherwise never
 see one start.
 
+## Phone as a channel (ADR-290)
+
+```mermaid
+flowchart TD
+    S[Settings: number declared] -->|PUT /telephony/identity/number| ID[(users.phone_number_encrypted)]
+    S -->|POST /telephony/identity/verify| V[VERIFICATION call reads a code]
+    V -->|POST /telephony/identity/confirm| OK[phone_number_verified_at]
+    C[call_me_tool — chat or routine] -->|verified number only| Ctx[self_call_context — budgeted sections]
+    Ctx --> Svc[TelephonyService.initiate_call kind=SELF]
+    Svc -->|sync agent — permission in fingerprint| EL[one vendor agent]
+    Svc -->|attach live tools to the agent, then conversation_config_override| EL
+    EL -. webhook tool call-back .-> LT["POST /telephony/tools/{name}"]
+    EL -. post-call webhook .-> WH["POST /telephony/webhook"]
+    WH --> OC[owner_call.process_owner_call]
+    OC -->|synthesis: owner_confirmed, relay_message| RL[phone_relay_runner]
+    RL -->|stream_instruction spoken_by_person| Turn[the person's own turn]
+    Turn -->|drafts wait in the chat| Chat
+```
+
+- **Identity**: `GET/PUT/DELETE /telephony/identity[/number]`,
+  `POST /telephony/identity/verify` and `/confirm`, `PATCH /telephony/identity`
+  (the rich-context switch). The settings section `TelephonyIdentitySection`
+  shows the number whole, offers the verification call, and asks for the code
+  only while one is pending; a 409 (the code expired, the number changed)
+  re-reads the identity so the form stops asking for a code nobody can type.
+- **Mandates**: `THIRD_PARTY` (baked), `SELF` (owner prompt
+  `telephony_self_call_system_prompt` and greeting), `VERIFICATION`
+  (`telephony_verification_prompt` and greeting). An override is the prompt
+  and the greeting, nothing else: the language and the duration cap are the
+  portal's (owner decision, 2026-09-16). The override is rendered with
+  `str.format`; a `{{…}}` inside a value is neutralised so the vendor never
+  reads it as a variable.
+- **Relay**: exactly-once and crash-safe. Once the turn ran, a push (and only
+  a push: the rows are already in the chat) tells the person LIA acted —
+  `relay_answered`, or `relay_drafts_waiting` when a draft waits for them —
+  because the person who hung up may not be looking at the app. Their draft
+  cards render as the chat's `lia-card`: `card_surface()` reads the origin's
+  VISIBILITY, not its mere presence (a hidden origin is a ticket, a visible
+  one is the chat). `mark_completed` arms the outbox as
+  `RELAYING` BEFORE the turn; `mark_relay_delivered` / `mark_relay_fallback`
+  settle it by conditional update; `recover_stale_relays` (notification
+  reaper) hands a `RELAYING` row older than `TELEPHONY_RELAY_MAX_AGE_MINUTES`
+  back to `PENDING`. `RelayOutcome` (`answered`, `waiting`, `empty`,
+  `not_owner`, `pending_question`, `busy`, `quota_blocked`, `failed`) is
+  counted (`telephony_relay_total`), stored in
+  `notification_payload.relay_outcome` and drawn on the calls list. The relayed
+  turn is a `phone_call` origin with `hidden=False`, so the archived message
+  carries the badge the chat draws.
+- **Live tools (lots 7-8, `TELEPHONY_LIVE_TOOLS_ENABLED`)**: the phone
+  reads everything the chat reads (owner decision 2026-09-16). The tool set
+  is a RULE over the catalogue, not a list (`derive_live_tool_specs` in
+  `agents/telephony/live_tools.py`): every tool that only reads (`search`
+  category or an explicit `read` policy — never the `readonly` inference
+  fallback), is not a `system` tool (those answer inside a turn), runs
+  outside the pipeline's executor, belongs to a domain the phone offers
+  (`domains/shared/phone_domains.PHONE_DOMAINS`, the register's own
+  vocabulary), and whose required parameters a voice can speak (an
+  identifier — by `semantic_type` or by name — hides its parameter; a tool
+  whose required parameter is an id is left out). Measured on the real
+  catalogue: 55 tools over 22 domains, plus the native `recall_memories`
+  lookup (the chat has no memory tool; it reads through the chat's own
+  profile builder). The vendor description is the voice line of
+  `telephony_live_tools.txt` when one exists, else the manifest's own first
+  paragraph. Provisioned per connector by fingerprint
+  (`connector_metadata.live_tool_ids` / `live_tools_hash`), concurrently
+  under `TELEPHONY_LIVE_TOOL_PROVISIONING_CONCURRENCY` (sixty sequential
+  creations would hold a dial for a minute; the vendor accepted sixty on one
+  agent — measured), deleted at deactivation after the agent; attached to
+  the AGENT before an owner call (`set_agent_tool_ids`,
+  `connector_metadata.live_tools_attached`) — the subset the PERSON left on
+  (`users.phone_disabled_domains`, the DISABLED set so a new domain is on by
+  default; switches in *Téléphonie · Mon identité*, vocabulary published by
+  the API as `available_domains`) — and detached once it ended (`owner_call`)
+  or before the next stranger is dialled (`_arm_live_tools`); measured
+  2026-09-16 on a real owner call, the vendor refuses `tool_ids` inside the
+  per-call override (« Tool IDs not attached to this agent ») and the call
+  dies at pickup. The owner prompt names the DOMAINS it may look into, in
+  words, never fifty tool names. The call-back runs the
+  registered tool on a synthetic runtime, arguments validated through the
+  tool's own call schema, bounded `TELEPHONY_LIVE_TOOL_INNER_MARGIN_SECONDS`
+  under `TELEPHONY_LIVE_TOOL_TIMEOUT_SECONDS`, result reduced to what a
+  VOICE can say (`agents/telephony/voice_projection.py`: identifiers, links
+  and wire details dropped, a nested value spoken through its `formatted` /
+  `name`, a list of records counted — measured 2026-09-16: four weekend
+  events were returned and the agent heard ONE, the raw event JSON having
+  eaten the budget) then paged under `TELEPHONY_LIVE_TOOL_RESULT_MAX_TOKENS`
+  (the cut stated), consultation filed under the section named after the
+  tool's domain, inside a collector the route opens itself. The call-back
+  reads the person's switches from THEIR row at every call: a tool still
+  attached by a stale PATCH answers « not found » on a domain switched off
+  since. Needs a PUBLIC `API_URL` the vendor can reach.
+- **The assistant's personality (lot 9)**: the instruction the person
+  configured for LIA (`PersonalityService.get_prompt_instruction_for_user`,
+  the chat's and the voice flow's own door) is read once at the dial,
+  best-effort, and reaches both mandates — rendered into the owner prompt's
+  `<personality_profile>` (neutralised like every value; a scaffold says when
+  none is configured) and handed to the baked third-party agent as the
+  `personality_profile` dynamic variable, so a personality change needs no
+  re-sync. Both prompts say it colours how the agent speaks, never what it
+  may share or do.
+- **The call's bill (lot 8)**: the live lookups during the call, the
+  synthesis after it and the relayed turn all spend under ONE run id
+  (`telephony/spend.phone_call_run_id`, `phone_call_<hex>`): each lookup
+  opens a `TrackingContext` on it and hands its `TokenTrackingCallback` to
+  the synthetic runtime's config (a structured door handed no config builds
+  one nobody tracks), the synthesis passes it to `track_proactive_tokens`,
+  the relay drives the turn under it. The per-run summary the chat meter
+  already reads (`message_token_summary`, unique on `run_id`, accumulated by
+  column arithmetic) is therefore the call's cumulated bill by construction:
+  the relayed answer's bubble shows it, and `GET /telephony/calls` carries it
+  as `usage` (tokens in/out/cache, euros, Maps requests) drawn on the calls
+  list. **It is the bill of what LIA pays, and nothing else — by decision,
+  not omission** (owner rule 2026-09-16, `cost_bearers`): the voice agent's
+  own LLM, the TTS, the ASR and the line run on the person's ElevenLabs key
+  and are never counted nor shown in LIA. Measured on a 198 s owner call with
+  eight lookups: LIA 28 k tokens / 0,0065 €; the vendor 409 k voice-LLM
+  tokens, 2 079 credits ≈ 0,41 $ on the person's account — twenty times more,
+  and not ours to account.
+- **Measured on production, 2026-09-16**: the verification call succeeded
+  (19 s, the code read twice). Two owner calls died at pickup with the
+  vendor's `tool_ids` refusal above — and were reported to the person as
+  « someone else answered ». Both fixed (agent-level attachment;
+  `unanswered` / `call_failed` told apart from `not_owner` — ten
+  `RelayOutcome`s). A third owner call then ran end to end: 179 s, four live
+  lookups (agenda ×3, tasks ×1, 478-783 ms each), detached at the webhook,
+  relayed as the person's turn in 38 s, `answered`. What that call revealed
+  is what lot 8 fixed: no e-mail or memory lookup existed, and the agenda
+  projection showed 1 event of 4. The flag stays off by default: an owner
+  call under the derived tool set has not been measured end to end yet.
+
 ## Configuration
 
 All knobs are deployment-wide (`TelephonySettings`, `.env`); per-user secrets
-live in the connector. Notable: `TELEPHONY_AGENT_LLM_MODEL` (LLM behind the
-vendor voice agent — NEVER left to the platform default: that default is
-gemini-2.5-flash, a thinking model observed reciting its English reasoning
-aloud on a real French call; gpt-4o-mini is fast, thinking-free and
-voice-proven), `TELEPHONY_PROBE_NOT_FOUND_GRACE_SECONDS` (age before a 404
+live in the connector. **What the voice agent SOUNDS like is NOT a setting**
+(owner decision, 2026-09-16): its LLM and reasoning effort, its language, its
+voice, its audio format and its duration cap are administered on the
+ElevenLabs portal, for the agent, and changed there without restarting the
+application. LIA sends none of them at creation or on sync — it passes only
+what is its own: the prompts, the greeting, the tools, the context, the
+data-collection contract. The reason is measured: the vendor MERGES a PATCH
+with what the agent already stores and validates the pair, so a model pinned
+by LIA collided with the portal's `reasoning_effort` (« Not supported
+reasoning effort ») on every sync — and since the sync is mandatory for the
+owner and verification mandates, every such call was refused while
+third-party calls kept running on the stored config. A freshly provisioned
+agent therefore starts on the vendor's defaults until they are set on the
+portal (runbook step 5 below); the vendor's own constraints apply there (a
+non-English agent needs a turbo/flash v2.5 TTS model; a Twilio line wants
+`ulaw_8000` in both directions — a mismatch is the vendor's documented cause
+of garbled call audio). Notable knobs:
+`TELEPHONY_PROBE_NOT_FOUND_GRACE_SECONDS` (age before a 404
 conversation-status probe closes an active row as gone — a mid-call connector
 deactivation deletes the vendor agent and its conversation, so the end-of-call
 webhook can never arrive; the grace window protects freshly dialed calls whose
-conversation may not be readable yet), `TELEPHONY_AGENT_TTS_MODEL_ID` (voice
-model of the provisioned agent — non-English agents REQUIRE a turbo/flash v2.5
-model, vendor 400 otherwise; switch to `eleven_turbo_v2_5` if speech quality
-matters more than latency), `TELEPHONY_AGENT_VOICE_ID` (empty = vendor default,
-an ENGLISH voice — set a multilingual voice for non-English calls),
-`TELEPHONY_AGENT_AUDIO_FORMAT` (default `ulaw_8000` — the telephony-native
-format Twilio requires; the phone line is 8 kHz anyway, so higher formats are
-inaudible and only add latency, and a mismatch is the vendor's documented cause
-of garbled call audio),
+conversation may not be readable yet),
 `TELEPHONY_DEFAULT_COUNTRY_CODE` (e.g. `+33` — converts
 national numbers with a single leading 0 to E.164 before dialing; empty = as-is),
-`TELEPHONY_PREFETCH_WINDOW_DAYS`,
-`TELEPHONY_MAX_CALL_DURATION_SECONDS`, `TELEPHONY_CALL_RETENTION_DAYS`,
-`TELEPHONY_STALE_CALL_TIMEOUT_MINUTES`, `TELEPHONY_RATE_LIMIT_PER_HOUR`,
+`TELEPHONY_PREFETCH_WINDOW_DAYS`, `TELEPHONY_CALL_RETENTION_DAYS`,
+`TELEPHONY_STALE_CALL_TIMEOUT_MINUTES` (also the age past which a live-tool
+call-back and its budget no longer recognise an owner call, since the
+application cannot read the portal's cap), `TELEPHONY_RATE_LIMIT_PER_HOUR`,
 `TELEPHONY_WEBHOOK_TOLERANCE_SECONDS`, `TELEPHONY_STALE_REAPER_INTERVAL_MINUTES`,
 and the return-outbox knobs `TELEPHONY_NOTIFICATION_GRACE_SECONDS`,
 `TELEPHONY_NOTIFICATION_REAPER_INTERVAL_MINUTES`, `TELEPHONY_NOTIFICATION_MAX_ATTEMPTS`,
 plus the pre-synthesis inbox knobs (T1 approach A) `TELEPHONY_RETURN_GRACE_SECONDS`,
 `TELEPHONY_RETURN_MAX_AGE_MINUTES`, `TELEPHONY_RETURN_REAPER_INTERVAL_MINUTES`.
+
+Phone as a channel (ADR-290):
+`TELEPHONY_VERIFICATION_CODE_LENGTH`, `TELEPHONY_VERIFICATION_CODE_TTL_SECONDS`,
+`TELEPHONY_VERIFICATION_MAX_ATTEMPTS`, `TELEPHONY_SELF_CONTEXT_MAX_TOKENS`,
+`TELEPHONY_RELAY_TRANSCRIPT_MAX_TOKENS`, `TELEPHONY_RELAY_TIMEOUT_SECONDS`,
+`TELEPHONY_RELAY_BUSY_RETRIES`, `TELEPHONY_RELAY_BUSY_DELAY_SECONDS`,
+`TELEPHONY_RELAY_MAX_AGE_MINUTES`, and the live-tool knobs
+`TELEPHONY_LIVE_TOOLS_ENABLED`, `TELEPHONY_LIVE_TOOL_TIMEOUT_SECONDS`,
+`TELEPHONY_LIVE_TOOL_RESULT_MAX_TOKENS` (spent on WORDS since lot 8 — the
+items reach the budget reduced to what a voice can say),
+`TELEPHONY_LIVE_TOOL_MAX_CALLS_PER_CALL`. Which DOMAINS a call may read is
+the person's own setting, not the deployment's (`users.phone_disabled_domains`).
+Defaults in `core/constants.py`; every one present in the four application
+`.env` files.
 
 ## Observability
 
@@ -234,9 +425,11 @@ Prometheus (`metrics_telephony.py`): `telephony_calls_total{status}`,
 reaper's recovery outcomes; a non-zero `failed` means returns exhausted their retries).
 The synthesis LLM spend is tracked via `track_proactive_tokens` (task type
 `phone_call`) — visible in the user's consumption export alongside briefing /
-heartbeat. **Dashboards note**: add a Grafana panel row for the three counters
-(calls by status, p50/p95 duration, ignored-webhook reasons) next to the
-briefing/heartbeat proactive panels.
+heartbeat. ADR-290 adds `telephony_relay_total{outcome}`,
+`telephony_live_tool_calls_total{tool,outcome}` and
+`telephony_live_tool_duration_seconds{tool}`; dashboard 24 draws all of them
+(rows « Calls », « Recovery reapers », « Owner calls — relay into the chat »,
+« Webhooks »).
 
 ## Setup runbook (per user, spec §17)
 
@@ -249,7 +442,21 @@ briefing/heartbeat proactive panels.
    webhook** pointing at the URL LIA shows you
    (`<public-host>/api/v1/telephony/webhook`), and copy its **signing secret**.
 5. Paste the secret in LIA and activate. LIA provisions a guardrailed agent in
-   your workspace and the connector goes active.
+   your workspace and the connector goes active. Then open that agent on the
+   ElevenLabs portal and set what it sounds like — LIA never overwrites any
+   of it, and none of it needs a restart:
+   - its **LLM** (and reasoning effort): the vendor's default is a thinking
+     model that was once observed reciting its reasoning aloud, so pick a
+     fast, thinking-free one;
+   - its **language** (the greeting LIA sends is already in the account's
+     language, but the agent speaks the portal's);
+   - its **voice** (the vendor default is an ENGLISH voice — garbled speech
+     was observed on French calls with it) and **TTS model** (a non-English
+     agent needs a turbo/flash v2.5 model, the vendor refuses otherwise);
+   - its **audio format** in BOTH directions (`ulaw_8000` on a Twilio line —
+     the phone network is 8 kHz mu-law, anything higher is inaudible and a
+     mismatch is the vendor's documented cause of garbled audio);
+   - its **maximum call duration** (the vendor's cap on a runaway call).
 6. Calls are billed on **your own** ElevenLabs/telephony accounts (D-9).
 
 ## Spike owed (P2.0 — before go-live)
@@ -265,6 +472,6 @@ Confirm against a real ElevenLabs + Twilio account (all marked `spike:` in code)
   `transcript_summary`, `data_collection_results`, `call_duration_secs`).
 - `built_in_tools` shape (`agent.prompt.built_in_tools` keyed by tool name —
   `end_call` + `voicemail_detection` are now sent; without `end_call` the agent
-  can never hang up). Max duration is wired at
-  `conversation_config.conversation.max_duration_seconds` (confirmed in the
-  create-agent OpenAPI spec).
+  can never hang up). The maximum call duration is the portal's
+  (`conversation_config.conversation.max_duration_seconds` there, never sent
+  by LIA).

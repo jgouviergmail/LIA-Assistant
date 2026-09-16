@@ -266,6 +266,32 @@ async def init_agent_registry(
             registry.register_agent("telephony_agent", build_telephony_agent)
             logger.info("telephony_agent_registered")
 
+            # One agent, three mandates (phone-as-a-channel, lot 2): the dial
+            # path indexes the mandate table without a fallback, so a call
+            # kind nobody declared refuses the boot rather than running the
+            # owner's call under the stranger's rules (ADR-085).
+            try:
+                from src.domains.telephony.mandates import assert_mandate_completeness
+
+                assert_mandate_completeness()
+            except RuntimeError as exc:
+                logger.error("telephony_mandates_incomplete", error=str(exc), exc_info=True)
+                raise StartupCompletenessError(f"Telephony mandates incomplete: {exc}") from exc
+
+            # Live read-only tools of an owner call (lot 7): every allow-listed
+            # tool must be a catalogue tool that only reads, exposing only
+            # parameters its manifest declares — checked whether or not the
+            # flag is on, so switching it on never discovers a stale list.
+            try:
+                from src.domains.agents.telephony.live_tools import (
+                    assert_live_tools_completeness,
+                )
+
+                assert_live_tools_completeness(registry.list_tool_manifests(), registry=registry)
+            except RuntimeError as exc:
+                logger.error("telephony_live_tools_incomplete", error=str(exc), exc_info=True)
+                raise StartupCompletenessError(f"Telephony live tools incomplete: {exc}") from exc
+
         # Browser agent (F7 - lazy-initialized, Chromium only starts on first browser tool call)
         # Pool.initialize() deferred to first acquire_session() to save ~1.5 GB RAM at boot.
         # Cleanup job is registered on ALL workers (leader election requires it) but is

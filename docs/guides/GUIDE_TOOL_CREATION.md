@@ -545,6 +545,14 @@ Un **Tool Manifest** déclare les **métadonnées** d'un tool : paramètres, per
   `artefact` ou `sandboxed`, les trois dernières avec une raison écrite. Sans
   elle, l'application refuse de démarrer : voir
   [AGENT_MANIFEST.md](../technical/AGENT_MANIFEST.md)
+- **Le téléphone** ([ADR-290](../architecture/ADR-290-Phone-As-A-Channel-Owner-Calls.md)) :
+  un outil de catégorie `search` ou à politique `read` explicite, d'un domaine
+  offert par le téléphone (`shared/phone_domains.PHONE_DOMAINS`), dont les
+  paramètres obligatoires se disent à la voix (jamais un identifiant), est
+  offert à l'agent vocal pendant un appel du titulaire **par construction** —
+  aucune allowlist à compléter. Un outil qui agit n'y entre jamais ; une ligne
+  vocale facultative dans `telephony_live_tools.txt` remplace la description du
+  manifeste quand celle-ci parle au planificateur plutôt qu'à une voix.
 - **Pricing Service** : Calcule coût estimé avant exécution
 
 ### Manifest Schema

@@ -73,6 +73,7 @@ import { ScheduledActionsSettings } from './ScheduledActionsSettings';
 import { SecuritySettings } from './SecuritySettings';
 import { SkillsSettings } from './SkillsSettings';
 import TelephonyCallsSection from './TelephonyCallsSection';
+import TelephonyIdentitySection from './TelephonyIdentitySection';
 import { MeetingsSettings } from './MeetingsSettings';
 import { WorkboardSettings } from '@/components/settings/WorkboardSettings';
 import { TimezoneSelector } from './TimezoneSelector';
@@ -128,6 +129,10 @@ export const SETTINGS_SECTION_REGISTRY: Readonly<
   'telephony-calls': {
     feature: 'telephony-calls',
     render: lng => <TelephonyCallsSection lng={lng} />,
+  },
+  'telephony-identity': {
+    feature: 'telephony-identity',
+    render: lng => <TelephonyIdentitySection lng={lng} />,
   },
   'admin-mcp-servers': {
     feature: 'admin-mcp-servers',

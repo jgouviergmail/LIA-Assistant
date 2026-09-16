@@ -23,6 +23,7 @@ The structural phrases (header / all-free / unavailable) live in
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
@@ -119,6 +120,25 @@ async def _resolve_calendar_id(
     )
 
 
+@dataclass(frozen=True)
+class AvailabilityRead:
+    """What the free/busy pre-fetch produced, and whether a calendar was opened.
+
+    The consultation register needs the second half (ADR-263): a read that
+    happened is recorded, a read that failed is recorded as ``failed``, and
+    « no calendar connected » opened nothing and records nothing.
+
+    Attributes:
+        summary: The localized free/busy text handed to the voice agent.
+        opened: True when a calendar was actually queried.
+        failed: True when the query was attempted and could not be read.
+    """
+
+    summary: str
+    opened: bool
+    failed: bool
+
+
 async def build_availability_summary(
     user_id: UUID,
     window_start: datetime,
@@ -127,6 +147,25 @@ async def build_availability_summary(
     user_timezone: str,
     user_language: str = "en",
 ) -> str:
+    """The free/busy summary alone — see :func:`build_availability`.
+
+    Kept for callers that only want the text; the dial path reads the
+    structured door so it can record the consultation.
+    """
+    read = await build_availability(
+        user_id, window_start, window_end, connector_service, user_timezone, user_language
+    )
+    return read.summary
+
+
+async def build_availability(
+    user_id: UUID,
+    window_start: datetime,
+    window_end: datetime,
+    connector_service: ConnectorService,
+    user_timezone: str,
+    user_language: str = "en",
+) -> AvailabilityRead:
     """Build the free/busy summary injected as the ``{{availability_summary}}`` var.
 
     Resolves the user's active calendar connector, pulls events over
@@ -144,16 +183,18 @@ async def build_availability_summary(
             ``"fr"``, ``"zh-CN"``).
 
     Returns:
-        The localized free/busy summary string.
+        The localized summary, plus whether a calendar was opened and whether
+        the read failed.
     """
     phrases = get_availability_phrases(user_language)
+    not_opened = AvailabilityRead(summary=phrases["unavailable"], opened=False, failed=False)
     try:
         from src.domains.connectors.clients.registry import ClientRegistry
         from src.domains.connectors.provider_resolver import resolve_active_connector
 
         resolved_type = await resolve_active_connector(user_id, "calendar", connector_service)
         if resolved_type is None:
-            return phrases["unavailable"]
+            return not_opened
 
         credentials = (
             await connector_service.get_apple_credentials(user_id, resolved_type)
@@ -161,11 +202,11 @@ async def build_availability_summary(
             else await connector_service.get_connector_credentials(user_id, resolved_type)
         )
         if not credentials:
-            return phrases["unavailable"]
+            return not_opened
 
         client_class = ClientRegistry.get_client_class(resolved_type)
         if client_class is None:
-            return phrases["unavailable"]
+            return not_opened
         client = client_class(user_id, credentials, connector_service)
 
         calendar_id = await _resolve_calendar_id(user_id, resolved_type, client, connector_service)
@@ -198,6 +239,10 @@ async def build_availability_summary(
         logger.warning(
             "telephony_availability_prefetch_failed", user_id=str(user_id), error=str(exc)
         )
-        return phrases["unavailable"]
+        return AvailabilityRead(summary=phrases["unavailable"], opened=True, failed=True)
 
-    return summarize_busy_periods(events, user_timezone, user_language)
+    return AvailabilityRead(
+        summary=summarize_busy_periods(events, user_timezone, user_language),
+        opened=True,
+        failed=False,
+    )

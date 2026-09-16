@@ -42,7 +42,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.44.7</strong> — <strong>Several drafts are reviewed one at a time, and an e-mail arrives clean at three levels of detail.</strong> A request that prepares several drafts submits them one per question, each on a card drawn like the data it announces, nothing executed before the last answer and a report that says to whom and what; an e-mail reaches the assistant as clean text in one vocabulary whatever its provider, listed, read whole or digested once per message; and a ReAct tool result is projected item by item under a token budget, the cut stated — 16 September 2026.
+  <strong>Version 1.45.0</strong> — <strong>LIA calls you, reads everything the chat reads on the line, and what you said comes back as your own message.</strong> A number you declared and verified by a spoken code lets LIA call you with no confirmation card — from the chat or a routine — carrying the chat's context and the personality you configured; during the call the voice agent looks anything up through the chat's own read-only tools and acts on nothing, each domain a switch of your own; when you hang up, the transcript is replayed as your turn, ten relay verdicts say what happened otherwise, and every euro LIA spent on the call lands on one bill — 16 September 2026.
 </p>
 
 ---
@@ -112,8 +112,8 @@ The result is measured, not proclaimed:
 
 |                           |                                         |                             |                                                                         |
 | ------------------------- | --------------------------------------- | --------------------------- | ----------------------------------------------------------------------- |
-| **49** functional domains | **660,000** lines of code (excl. tests) | **37,000+** automated tests | **288** ADRs                                                           |
-| **260** versions shipped  | **6 languages**, parity enforced in CI  | **557** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
+| **49** functional domains | **660,000** lines of code (excl. tests) | **37,000+** automated tests | **289** ADRs                                                           |
+| **261** versions shipped  | **6 languages**, parity enforced in CI  | **560** Prometheus metrics  | [**8.3/10** technical audit, 24 normalized areas](docs/audit/README.md) |
 
 - **The full story** — method, trade-offs, results and what remains to be done, weaknesses included: [lia.jeyswork.com/story](https://lia.jeyswork.com/story)
 - **The audit itself** — 24 normalized areas mapped to ISO/IEC 25010:2023, every score backed by executed evidence, open worksites included, with the protocol and the full standalone report: [docs/audit/](docs/audit/README.md)
@@ -215,7 +215,7 @@ Every capability below is documented in an architecture decision record (ADR) or
 
 - **Two execution modes, one toggle** — the *pipeline* (planner → semantic validator → approval gate → parallel orchestrator) is deterministic and 4–8× cheaper in tokens; *ReAct* lets the model reason step by step for exploratory or ambiguous requests; both stream through the same response node ([ADR-070](docs/architecture/ADR-070-ReAct-Execution-Mode.md), [PLANNER](docs/technical/PLANNER.md)); a ReAct tool result is projected item by item under a token budget derived from the slot's own window, never cut mid-item, the cut stated to the model and counted ([ADR-286](docs/architecture/ADR-286-Tool-Result-Projected-Per-Item-Under-A-Token-Budget.md)).
 - **Human-in-the-Loop** — five interrupting approval levels (clarification, draft critique, destructive confirmation, bulk `FOR_EACH` confirmation, modifier review) plus plan approval, currently auto-approved because tool-level approval supersedes it ([HITL](docs/technical/HITL.md), [ADR-106](docs/architecture/ADR-106-HITL-Contract-Coherence.md)); several independent drafts in one turn are reviewed one per question, with their position stated and nothing executed before the last answer, while a lot you pre-approved as a list keeps its grouped confirmation ([ADR-288](docs/architecture/ADR-288-Independent-Drafts-Reviewed-One-At-A-Time.md)); a draft and its report are described once and drawn per surface — a `lia-card` in the chat, Markdown on a ticket or an external channel — the report naming to whom and what ([ADR-289](docs/architecture/ADR-289-Draft-Surfaces-Drawn-From-One-Description.md)).
-- **Phone calls on your behalf** — through your own ElevenLabs + Twilio connector, every call confirmed before dialing, a strict mandate that forbids any expense beyond the objective, free/busy visibility only, no recording, and a post-call summary that states every cost ([ADR-127](docs/architecture/ADR-127-Agentic-Telephony.md), [TELEPHONY](docs/technical/TELEPHONY.md)).
+- **Phone calls on your behalf — and to you** — through your own ElevenLabs + Twilio connector, every call to a third party confirmed before dialing, a strict mandate that forbids any expense beyond the objective, free/busy visibility only, no recording, and a post-call summary that states every cost ([ADR-127](docs/architecture/ADR-127-Agentic-Telephony.md), [TELEPHONY](docs/technical/TELEPHONY.md)); and **the phone as a channel** — LIA calls *you* on a number you declared and verified by a spoken code, with no confirmation card, the chat's own context and your configured personality on the line; the voice agent reads everything the chat reads through the same read-only tools (mails, calendar, tasks, contacts, files, places, weather, memory — one switch per domain, yours) and acts on nothing; what you say comes back as your own message, with drafts to confirm in the chat, ten relay verdicts and one bill per call for what LIA spent ([ADR-290](docs/architecture/ADR-290-Phone-As-A-Channel-Owner-Calls.md)).
 - **Documents and images** — CSV, Excel, Word, PowerPoint, PDF, Markdown or text produced by local renderers with each format's native mechanisms (styles, fields, layouts, typed tables, bookmarks); nothing overflows by construction, and a truncated model answer is refused rather than rescued into a shorter file ([ADR-226](docs/architecture/ADR-226-Document-Generation-Agent.md), [ADR-274](docs/architecture/ADR-274-Document-Craft-Renderer-Owned-Model-Semantic.md), [ADR-275](docs/architecture/ADR-275-Truncated-Structured-Output-Is-A-Refusal.md)); image generation and natural-language editing with per-user quality and size preferences ([IMAGE_GENERATION](docs/technical/IMAGE_GENERATION.md)).
 - **A browser, a sandbox, delegates** — browser control with progressive screenshot streaming ([ADR-059](docs/architecture/ADR-059-Browser-Control.md)); a short Python script run in the skills sandbox when a step needs real computation, ReAct only ([ADR-249](docs/architecture/ADR-249-Ephemeral-Python-In-The-Existing-Sandbox.md)); persistent read-only sub-agents with their own instructions, skills and budgets ([SUB_AGENTS](docs/technical/SUB_AGENTS.md)).
 - **The workboard** — a ticket has a lifecycle, a holder and a result ([ADR-276](docs/architecture/ADR-276-Workboard.md), [WORKBOARD](docs/technical/WORKBOARD.md)):
@@ -286,7 +286,7 @@ A 24-section panel embedded in the chat, organised into six groups; an empty sec
 
 ### Observability
 
-- **Prometheus**: 557 custom metrics (agents, LLM, infrastructure). A metric nobody can see is a metric nobody acts on: every one must be wired to a Grafana panel, a recording rule or an alert, and a shrink-only ratchet fails the build on a newly blind metric.
+- **Prometheus**: 560 custom metrics (agents, LLM, infrastructure). A metric nobody can see is a metric nobody acts on: every one must be wired to a Grafana panel, a recording rule or an alert, and a shrink-only ratchet fails the build on a newly blind metric.
 - **Grafana**: 29 dashboards, including a product-value cockpit · **Loki**: structured JSON logs with PII filtering · **Tempo**: distributed tracing · **Langfuse**: LLM tracing with prompt versions.
 - **Probes**: liveness (`GET /health`) split from readiness (`GET /ready`, 503 unless PostgreSQL **and** Redis answer) — [ADR-115](docs/architecture/ADR-115-Liveness-Readiness-Probes.md).
 - **Alerting**: a vital core (service, database and Redis down, disk, OOM, 5xx rate, SSE latency, backup failure, public-endpoint and TLS probes, chain self-monitoring) evaluated by Prometheus, emailed by a dedicated Alertmanager, unit-tested with `promtool`, every alert linking its runbook — [ADR-119](docs/architecture/ADR-119-Alerting-Reactivation-Minimal-Core.md).
@@ -531,9 +531,9 @@ task test:e2e                      # Playwright + axe journeys (hermetic, mocked
 
 | Metric                  | Value                                                                                                 |
 | ----------------------- | ----------------------------------------------------------------------------------------------------- |
-| Backend tests           | 28,983 collected over `tests/` (`pytest --collect-only -q`, 1,703 files, 2026-09-15)                  |
-| Frontend tests (vitest) | 8,316 across 652 files, plus hermetic Playwright journeys with axe, dark-mode and zoom checks          |
-| Coverage floor          | 72% enforced in CI on the backend — a shrink-only ratchet, never lowered; frontend thresholds per glob |
+| Backend tests           | 29,531 collected over `tests/` (`pytest --collect-only -q`, 1,737 files, 2026-09-16)                  |
+| Frontend tests (vitest) | 8,355 across 654 files, plus hermetic Playwright journeys with axe, dark-mode and zoom checks          |
+| Coverage floor          | 73% enforced in CI on the backend — a shrink-only ratchet, never lowered; frontend thresholds per glob |
 | Technical audit         | **8.3/10** across 24 normalized areas — [full public report & protocol](docs/audit/README.md)         |
 
 Tests are risk-driven and behavioural: a module never disables itself on a missing provider key, a test double that receives a coroutine owns it, and an unawaited coroutine or a post-summary warning is a failure ([GUIDE_TESTING](docs/guides/GUIDE_TESTING.md)).
@@ -623,7 +623,7 @@ Instrumentation and caching are in place — per-node message windowing, LLM con
 
 ### Architecture Decision Records
 
-288 ADR files (ADR-001 through ADR-289 — ADR-008 has no separate file) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
+289 ADR files (ADR-001 through ADR-290 — ADR-008 has no separate file) record every major architectural decision with its context, the alternatives and, increasingly, the production measurement that motivated it. Three to start with, and [the full index](docs/architecture/ADR_INDEX.md):
 
 - [ADR-070: ReAct Execution Mode](docs/architecture/ADR-070-ReAct-Execution-Mode.md) — why two execution modes rather than one
 - [ADR-263: Execution Authority Chain and Effect Register](docs/architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md) — how every act is claimed, closed and recorded

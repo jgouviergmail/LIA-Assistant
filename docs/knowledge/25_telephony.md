@@ -205,3 +205,56 @@ a meeting.
 Each follow-up **prepares** the message in the composer instead of sending it,
 and every action that writes to an external service keeps its own confirmation
 prompt. No path turns "the other party proposed X" into "you accepted X".
+
+## Can LIA call me?
+Yes. Under **Settings → Telephony · My identity**, type your own number
+(international format preferred) and ask for a verification call: LIA calls
+you, reads a four-digit code aloud, and you type it in. From then on, "call
+me", "call me at eight to go over my day" or a routine that says it places a
+real call to you — **without a confirmation card**, because the person who
+would confirm is the one who picks up, and the number is proven yours.
+
+**🔒 The identity is the number, never a name:** LIA never calls a contact
+named "me", and the third-party call tool refuses your verified number. If
+someone else answers, the assistant apologises, shares nothing and hangs up.
+Changing the number cancels the verification.
+
+## What does LIA know during a call with me?
+Two layers, both yours to switch.
+
+**🧾 The context it brings:** with **Rich context on the phone** on, the call
+carries what the chat would know — relevant memories, your agenda, your
+reminders, the open threads with people, your latest exchanges. Off, LIA only
+knows your free/busy times.
+
+**🔎 What it can look up live:** if your administrator enabled live lookups,
+the assistant reads LIA during the call — the latest e-mails, a day in the
+calendar, a contact, a file, a place nearby, the weather, what it remembers
+about a subject — and reads the result back in words. It reads, and never
+acts: no message sent, no event created, nothing deleted. In **My identity**
+every domain has its own switch; what you switch off is not even attached to
+the call. The assistant speaks with the personality you configured for LIA.
+
+## What happens after a call with me?
+What you said comes back **as your own message**: LIA writes it up, replays
+it in the chat as your turn — with a phone badge — and answers as it would
+have if you had typed it. Something you asked it to do becomes a draft waiting
+for your confirmation in the chat; the assistant never promises to have done
+something during the call.
+
+**📣 And if it could not:** the notification says exactly why — nobody picked
+up, the line failed, someone else answered, a question was already waiting for
+you, the conversation was busy, a ceiling was reached — and the calls list
+shows the same verdict.
+
+## How much does a call with me cost?
+Two bills, one of them yours alone.
+
+**💶 What LIA counts:** the live lookups made during the call, the synthesis
+after it and the relayed turn are counted under one bill, shown on the relayed
+answer in the chat and on the calls list — like any other request.
+
+**📞 What ElevenLabs bills:** the voice agent's own model, the speech, the
+line — everything that runs on your ElevenLabs key — is billed by ElevenLabs
+on your account and is never counted nor shown in LIA. Same rule for every
+service you use with your own keys.

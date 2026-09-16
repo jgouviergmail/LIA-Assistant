@@ -17,7 +17,13 @@ injected as ElevenLabs dynamic variables.
 The config is baked into the vendor agent at ACTIVATION, but
 ``TelephonyService._sync_agent_config`` re-PATCHes the agent lazily on the next
 call whenever the config fingerprint (see ``agent_config_fingerprint``) drifts —
-prompt/settings edits no longer require a connector deactivate/reactivate.
+a prompt or greeting edit no longer requires a connector deactivate/reactivate.
+
+What is NOT here is as deliberate as what is (owner decision, 2026-09-16): the
+model, the language, the voice, the audio format and the duration cap are
+administered on the ElevenLabs portal, for the agent, and changed there without
+restarting the application. LIA passes only what is its own — prompts, greeting,
+tools, context, data contract.
 """
 
 from __future__ import annotations
@@ -27,6 +33,7 @@ import json
 from dataclasses import dataclass
 
 from src.core.i18n_telephony import get_greeting_first_message
+from src.domains.telephony.client import override_permissions
 from src.domains.telephony.prompts.loader import load_telephony_prompt
 
 # Structured data the agent must collect during the call. The identifiers MUST
@@ -76,6 +83,26 @@ _DATA_COLLECTION: list[dict[str, str]] = [
             "and flagged for a call-back. Empty if nothing was deferred."
         ),
     },
+    # Owner mandate (lot 4). The collection is PER AGENT, and one agent serves
+    # both mandates, so these ride along on every call; on a third-party call
+    # they simply come back empty. Contract: SelfCallData.model_fields.
+    {
+        "identifier": "owner_confirmed",
+        "type": "boolean",
+        "description": (
+            "True only when the person on the line confirmed being the account holder "
+            "the assistant was calling. False for a wrong number, a refusal, a voicemail, "
+            "or a call where the identity was never confirmed."
+        ),
+    },
+    {
+        "identifier": "requests",
+        "type": "string",
+        "description": (
+            "On a call with the account holder: everything they asked for, told or decided, "
+            "as a faithful list in their own words. Empty on any other call."
+        ),
+    },
 ]
 
 
@@ -86,26 +113,21 @@ class AgentConfig:
     name: str
     system_prompt: str
     first_message: str
-    language: str  # ISO code for ElevenLabs (fr, en, de, es, it, zh)
     data_collection: list[dict[str, str]]  # fields the agent extracts (contract w/ webhook)
-
-
-def _el_language(user_language: str) -> str:
-    """Map an app language code to the ElevenLabs ISO code (e.g. 'zh-CN' -> 'zh')."""
-    return user_language.split("-")[0].lower()
 
 
 def build_agent_config(user_language: str, user_name: str) -> AgentConfig:
     """Build the create-agent config for a user's telephony connector.
 
     Args:
-        user_language: The user's app language code (e.g. 'fr', 'zh-CN').
+        user_language: The user's app language code (e.g. 'fr', 'zh-CN') —
+            it localizes the greeting; the agent's spoken language is the
+            portal's.
         user_name: Display name used in the agent's name (never the raw phone).
 
     Returns:
         The immutable :class:`AgentConfig`.
     """
-    lang = _el_language(user_language)
     return AgentConfig(
         name=f"LIA telephony — {user_name}",
         system_prompt=load_telephony_prompt("telephony_agent_system_prompt", "v1"),
@@ -116,38 +138,29 @@ def build_agent_config(user_language: str, user_name: str) -> AgentConfig:
         # instantly, then the LLM continues with objective + first question at
         # the person's first response (Opening mandate in the prompt).
         first_message=get_greeting_first_message(user_language),
-        language=lang,
         data_collection=_DATA_COLLECTION,
     )
 
 
-def agent_config_fingerprint(
-    cfg: AgentConfig,
-    *,
-    llm_model: str | None,
-    tts_model_id: str | None,
-    voice_id: str | None,
-    audio_format: str | None,
-    max_duration_seconds: int | None,
-) -> str:
+def agent_config_fingerprint(cfg: AgentConfig) -> str:
     """Stable fingerprint of everything baked into the vendor agent.
 
     Stored in ``connector_metadata`` at activation and compared on every call:
-    a mismatch (prompt edit, settings change, new deployment) triggers a lazy
+    a mismatch (prompt edit, greeting change, new deployment) triggers a lazy
     in-place ``update_agent`` — no connector deactivation needed. Covers exactly
-    the fields ``client._agent_config_body`` sends.
+    the fields ``client._agent_config_body`` sends, and therefore nothing the
+    portal administers: a portal change never triggers a sync, and a sync
+    never overwrites the portal.
     """
     payload = {
         "name": cfg.name,
         "system_prompt": cfg.system_prompt,
         "first_message": cfg.first_message,
-        "language": cfg.language,
         "data_collection": cfg.data_collection,
-        "llm_model": llm_model,
-        "tts_model_id": tts_model_id,
-        "voice_id": voice_id,
-        "audio_format": audio_format,
-        "max_duration_seconds": max_duration_seconds,
+        # The per-call override permission (lot 2) is part of the body, so a
+        # connector provisioned before it drifts and is re-synced before the
+        # owner is dialled — without it the vendor refuses the override.
+        "overrides": override_permissions(),
     }
     canonical = json.dumps(payload, sort_keys=True, ensure_ascii=False)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:16]

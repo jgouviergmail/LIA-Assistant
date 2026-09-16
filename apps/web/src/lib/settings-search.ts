@@ -285,6 +285,16 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
       reason: 'renders nothing when telephony is off or no call was placed',
     },
   },
+  'telephony-identity': {
+    titleKey: 'settings.telephony.identity.title',
+    descriptionKey: 'settings.telephony.identity.description',
+    keywordsKey: `${KEYWORDS_PREFIX}.telephony-identity`,
+    group: 'connections_integrations',
+    gate: {
+      kind: 'runtime',
+      reason: 'renders nothing when telephony is off (the identity endpoint answers 404)',
+    },
+  },
   // Sits in the "connections" group because that is where the page puts it —
   // the index reports the page as it is, it does not tidy it up.
   'debug-panel': {

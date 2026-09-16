@@ -76,7 +76,11 @@ LLM_SPEND_ROADS: dict[str, SpendRoad] = {
     "domains/briefing/llm.py": SpendRoad.ACCOUNTED,
     "domains/interests/services/content_sources/llm_reflection_source.py": SpendRoad.ACCOUNTED,
     "domains/psyche/service.py": SpendRoad.ACCOUNTED,
-    "domains/telephony/return_synthesis.py": SpendRoad.ACCOUNTED,
+    # The two telephony syntheses spend through ONE usage record whose
+    # tracking door lives in ``telephony/synthesis_usage.py`` (extracted in
+    # lot 4 so the owner path never imports the third-party one).
+    "domains/telephony/return_synthesis.py": SpendRoad.CALLER,
+    "domains/telephony/self_call_relay.py": SpendRoad.CALLER,
     "domains/user_mcp/description_generation.py": SpendRoad.ACCOUNTED,
     "infrastructure/scheduler/interest_subject_clustering.py": SpendRoad.ACCOUNTED,
     "infrastructure/scheduler/peer_message_delivery.py": SpendRoad.ACCOUNTED,
@@ -158,6 +162,8 @@ CALLER_ROAD_ACCOUNTANTS: dict[str, str] = {
     "domains/meetings/template_resolution.py": "domains/meetings/processing.py",
     "domains/meetings/transcript_rewrite.py": "domains/meetings/processing.py",
     "domains/relations/debrief/llm.py": "domains/relations/debrief/service.py",
+    "domains/telephony/return_synthesis.py": "domains/telephony/synthesis_usage.py",
+    "domains/telephony/self_call_relay.py": "domains/telephony/synthesis_usage.py",
 }
 
 

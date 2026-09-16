@@ -6,7 +6,7 @@
 
 **Version**: 5.0
 **Date**: 2026-08-23
-**Application**: LIA v1.44.7
+**Application**: LIA v1.45.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -69,8 +69,8 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | ARM64 self-hosting | Multi-arch Docker, semantic embeddings (multilingual), Playwright chromium cross-platform |
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
-| Full transparency | 557 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 288 ADRs, ~28,983 pytest-collected tests across 1,703 files, native observability, 6-level HITL |
+| Full transparency | 560 Prometheus metrics, embedded debug panel, token-by-token tracking |
+| Production reliability | 289 ADRs, ~29,531 pytest-collected tests across 1,737 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -88,10 +88,10 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | 28,983 collected by pytest across 1,703 test files + 8,316 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | 29,531 collected by pytest across 1,737 test files + 8,355 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | pytest fixtures | 969, 46 of them shared through conftest |
 | Documentation documents | 647 |
-| ADRs (Architecture Decision Records) | 288 |
+| ADRs (Architecture Decision Records) | 289 |
 | Prometheus metrics | 553 definitions |
 | Grafana dashboards | 29 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -782,6 +782,8 @@ LIA can place an outbound phone call on the user's behalf, hold a goal-directed 
 
 **Return path.** The call is never recorded and the transcript is never persisted. When the call ends, a per-user HMAC-signed webhook triggers a tool-less LLM synthesis that produces a short, expiring summary, reinjected asynchronously into the conversation (the same detached-run channel as ADR-117) with an optional one-tap follow-up draft. Every call is gated by a HITL confirmation before dialing, and the whole subsystem sits behind a feature flag.
 
+**The phone as a channel (ADR-290).** The confirmation card protects a third party who never asked for anything; when LIA calls *the person*, the one who would confirm is the one who picks up — provided the number is proven theirs. The identity is therefore a number declared in the settings, shown whole, then verified by a call in which LIA reads a code the person types back (bounded attempts, a short-lived code bound to the number, a constant-time comparison, the same hourly cap as every paid call); never a name match, and the third-party tool refuses that number. The **same** vendor agent serves three mandates — the third-party one baked in, the owner's and the verification one sent as a per-call override rendered on the server — so nothing of the person's context is ever baked into an agent that also phones strangers; and what the agent *sounds like* (its model, language, voice, audio format, duration cap) is the vendor portal's, never a setting, because the vendor merges a PATCH with what it stores and a pinned model collided with the portal's reasoning effort on every sync. `call_me` carries no card by construction, which is also what lets a routine plan it. The call takes the chat's own context under a token budget (memories, agenda, reminders, open loops, recent exchanges — a switch turns it off) and the personality configured for the assistant, every read filed in the consultation register. Behind a second flag, the agent **reads LIA live** during the call, and acts on nothing: the tool set is a rule over the catalogue rather than a list — every tool that only reads, in a domain the phone offers, whose required parameters a voice can speak (55 tools over 22 domains, plus a native memory recall) — attached to the agent for the owner's call only, since the vendor refuses tool ids inside a per-call override, and each result is reduced to what a voice can say before the item-by-item paging (an identifier, a link, a nested structure never reach the voice; four weekend events used to fit where one raw one did). Each domain has a switch of the person's own, read from their row at every call-back. When the call ends, what was said comes back as **the person's own message**: the transcript is synthesised, then replayed through the out-of-turn engine as a turn *spoken by the person* — memory, journal and psyche extractions run as in the chat, the message wears a phone badge, a draft waits for confirmation in the chat. The relay is claimed before the turn and settled by conditional update, a crash mid-relay is swept back to a notification that says why, and ten relay verdicts are counted and drawn on the calls list — « nobody picked up » and « the line failed » told apart from « someone else answered ». Every euro of a call lands under one run id — the live lookups, the synthesis, the relayed turn — so the per-run summary the chat meter already reads is the call's bill, on the relayed answer and on the calls list; what runs on the person's own vendor key is billed there and never counted here.
+
 ---
 
 ## 14. MCP: Model Context Protocol
@@ -991,7 +993,7 @@ Provenance is therefore a property of the **data**: the registry's 24 types are 
 
 | Technology | Role |
 |------------|------|
-| Prometheus | 557 custom metrics (RED pattern) |
+| Prometheus | 560 custom metrics (RED pattern) |
 | Grafana | 29 production-ready dashboards |
 | Loki | Aggregated structured JSON logs |
 | Tempo | Cross-service distributed traces (OTLP gRPC) |
@@ -999,7 +1001,7 @@ Provenance is therefore a property of the **data**: the registry's 24 types are 
 | Alertmanager | 14-alert vital core delivered by email (linked runbooks, per-environment thresholds) + webhook to LIA: every alert becomes an in-product incident (ADR-247) |
 | structlog | Structured logging with PII filtering |
 
-**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 557 defined; the 44 that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. The price of not having had this: a heartbeat source failing open dropped the health signals on 46.5 % of ticks for a week, with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
+**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 560 defined; the 44 that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. The price of not having had this: a heartbeat source failing open dropped the health signals on 46.5 % of ticks for a week, with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
 
 ### 20.2. Embedded Debug Panel
 
@@ -1399,7 +1401,7 @@ One CSS rule governs the design system's spacing: vertical margins on an `inline
 
 ## 24. Architecture Decision Records (ADR)
 
-288 ADRs in MADR format document the major architectural decisions. Some representative examples:
+289 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1706,8 +1708,8 @@ The connection budget has a floor, not only a ceiling. Audit F004 bounded the bu
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 288 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~28,983 tests across 1,703 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 289 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~29,531 tests across 1,737 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 288 ADRs, and the changelog (v1.0 to v1.44.7). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 289 ADRs, and the changelog (v1.0 to v1.45.0). All metrics, versions, and patterns cited are verifiable in the codebase.*

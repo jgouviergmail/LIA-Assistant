@@ -27,6 +27,20 @@ class PhoneCallStatus(str, enum.Enum):
     CANCELLED = "cancelled"
 
 
+class CallKind(str, enum.Enum):
+    """Which mandate a call ran under — one vendor agent, two ways of speaking.
+
+    ``THIRD_PARTY`` is the baked agent (read-only, free/busy, a stated
+    objective); ``SELF`` is LIA calling the account holder on their verified
+    number with the chat's context, under a per-call override; ``VERIFICATION``
+    reads a code aloud so the person can prove the declared number is theirs.
+    """
+
+    THIRD_PARTY = "third_party"
+    SELF = "self"
+    VERIFICATION = "verification"
+
+
 class PhoneCallOutcome(str, enum.Enum):
     """Semantic outcome of a completed call, set by the return synthesis."""
 
@@ -49,6 +63,12 @@ class NotificationStatus(str, enum.Enum):
     PENDING = "pending"
     DELIVERED = "delivered"
     FAILED = "failed"
+    # An owner call's return is being RELAYED as the person's own chat turn
+    # (lot 4). The payload holds the FALLBACK notification: the relay runner
+    # flips the row to DELIVERED when the turn ran, to PENDING (the reaper's
+    # queue) when it could not, and a crash mid-relay is caught by the
+    # stale-relay sweep, which flips it to PENDING past a max age.
+    RELAYING = "relaying"
 
 
 class ReturnSynthesisStatus(str, enum.Enum):
@@ -68,6 +88,10 @@ class ReturnSynthesisStatus(str, enum.Enum):
     RECEIVED = "received"
     SYNTHESIZED = "synthesized"
     FAILED = "failed"
+    # The inbox was closed WITHOUT a synthesis because the call had nothing to
+    # return (a number-verification call, lot 2). Distinct from SYNTHESIZED so
+    # the column never claims a model call that did not happen.
+    SKIPPED = "skipped"
 
 
 # Predicate for the "active call" partial unique index (F12).
@@ -98,6 +122,19 @@ class PhoneCall(BaseModel):
     callee_display: Mapped[str] = mapped_column(Text, nullable=False)
     callee_phone: Mapped[str] = mapped_column(Text, nullable=False)  # encrypted by the service
     objective: Mapped[str] = mapped_column(Text, nullable=False)
+    # Which mandate the call ran under (lot 2). native_enum=False stores the
+    # NAME, so the server default is the NAME too — a value default would read
+    # every pre-existing row as an unknown kind. SQL comment mirrors the
+    # migration EXACTLY (replay check compares them).
+    call_kind: Mapped[CallKind] = mapped_column(
+        Enum(CallKind, native_enum=False, length=20),
+        nullable=False,
+        default=CallKind.THIRD_PARTY,
+        server_default="THIRD_PARTY",
+        comment=(
+            "Mandate the call ran under: THIRD_PARTY (baked agent), SELF (owner), VERIFICATION."
+        ),
+    )
     objective_window_start: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
@@ -192,6 +229,12 @@ class PhoneCall(BaseModel):
             "ix_phone_calls_return_received",
             "return_received_at",
             postgresql_where=text("return_status = 'RECEIVED'"),
+        ),
+        # Lot 4: the stale-relay sweep scans only RELAYING rows by completion time.
+        Index(
+            "ix_phone_calls_notification_relaying",
+            "completed_at",
+            postgresql_where=text("notification_status = 'RELAYING'"),
         ),
     )
 

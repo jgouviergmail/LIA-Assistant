@@ -39,9 +39,10 @@ def build_telephony_agent() -> Any:
     """
     logger.info("building_telephony_agent_with_generic_template")
 
+    from src.domains.agents.tools.telephony_self_tools import call_me_tool
     from src.domains.agents.tools.telephony_tools import place_phone_call_tool
 
-    tools: list[BaseTool] = cast(list[BaseTool], [place_phone_call_tool])
+    tools: list[BaseTool] = cast(list[BaseTool], [place_phone_call_tool, call_me_tool])
 
     # Load versioned prompt template
     telephony_agent_prompt_template = load_prompt("telephony_agent_prompt", version="v1")

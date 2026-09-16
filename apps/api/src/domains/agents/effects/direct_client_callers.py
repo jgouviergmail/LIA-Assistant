@@ -48,6 +48,11 @@ CLIENT_CALL_RECORDERS: Final[dict[str, str]] = {
     "domains/rag_spaces/drive_sync.py": "space",
     "domains/rag_spaces/mail_source_service.py": "space",
     "domains/users/geocoding.py": "profile",
+    # Reads the person's CALENDAR (free/busy) before a call is dialled;
+    # recorded by the dial path in ``telephony/service.py``. It was filed as
+    # « not a read » until 2026-09-16 on the strength of a wrong reading of
+    # what the module opens.
+    "domains/telephony/availability.py": "phone_call",
     "infrastructure/scheduler/heartbeat_wake_sweep.py": "wake",
     "domains/heartbeat/context_aggregator.py": "heartbeat",
     "domains/heartbeat/context_sources.py": "heartbeat",
@@ -66,10 +71,6 @@ NOT_A_CAPABILITY_READ: Final[dict[str, str]] = {
     "domains/relations/providers/client.py": (
         "The 360° assembly's own client factory. What it fetches is recorded "
         "by the relation_debrief surface, at the assembly that asked for it."
-    ),
-    "domains/telephony/availability.py": (
-        "Reads whether the telephony provider is reachable — the deployment's "
-        "own configuration, never the person's data."
     ),
     "domains/push_channels/sync.py": (
         "Registers and renews Google push WATCH subscriptions. It tells "

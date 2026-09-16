@@ -3,14 +3,13 @@
 import pytest
 
 from src.core.i18n_telephony import GREETING_FIRST_MESSAGE
-from src.domains.telephony.agent_prompt import build_agent_config
-from src.domains.telephony.schemas import StructuredCallData
+from src.domains.telephony.agent_prompt import agent_config_fingerprint, build_agent_config
+from src.domains.telephony.schemas import SelfCallData, StructuredCallData
 
 
 @pytest.mark.unit
-def test_build_agent_config_maps_language_and_includes_name():
+def test_build_agent_config_localizes_the_greeting_and_includes_name():
     cfg = build_agent_config("zh-CN", "Jean")
-    assert cfg.language == "zh"  # zh-CN -> zh for ElevenLabs
     assert "Jean" in cfg.name
     # Instant localized greeting (identity only — an empty first message caused
     # a silent standoff at pickup; the LLM continues with objective + question).
@@ -25,41 +24,32 @@ def test_build_agent_config_maps_language_and_includes_name():
 
 
 @pytest.mark.unit
-def test_build_agent_config_fr_language():
+def test_build_agent_config_carries_no_portal_setting():
+    """The agent's language, model, voice, audio format and duration cap are
+    administered on the ElevenLabs portal (owner decision 2026-09-16): the
+    config LIA bakes is its prompt, its greeting and its data contract."""
     cfg = build_agent_config("fr", "Jean")
-    assert cfg.language == "fr"
+    assert set(cfg.__dataclass_fields__) == {
+        "name",
+        "system_prompt",
+        "first_message",
+        "data_collection",
+    }
     assert cfg.first_message == GREETING_FIRST_MESSAGE["fr"]
 
 
 @pytest.mark.unit
 def test_agent_config_fingerprint_stable_and_sensitive():
     """Same inputs → same hash (no false re-syncs); any knob change → new hash."""
-    from src.domains.telephony.agent_prompt import agent_config_fingerprint
-
     cfg = build_agent_config("fr", "Jean")
-    knobs = {
-        "llm_model": "gpt-4o-mini",
-        "tts_model_id": "eleven_flash_v2_5",
-        "voice_id": None,
-        "audio_format": "ulaw_8000",
-        "max_duration_seconds": 600,
-    }
-    a = agent_config_fingerprint(cfg, **knobs)
-    b = agent_config_fingerprint(build_agent_config("fr", "Jean"), **knobs)
+    a = agent_config_fingerprint(cfg)
+    b = agent_config_fingerprint(build_agent_config("fr", "Jean"))
     assert a == b  # deterministic across rebuilds
 
-    changed = agent_config_fingerprint(cfg, **{**knobs, "voice_id": "voice_x"})
-    assert changed != a
-    changed_llm = agent_config_fingerprint(cfg, **{**knobs, "llm_model": "gemini-2.5-flash"})
-    assert changed_llm != a  # LLM pin drift must trigger the lazy re-sync
-    other_user = agent_config_fingerprint(build_agent_config("fr", "Paul"), **knobs)
+    other_user = agent_config_fingerprint(build_agent_config("fr", "Paul"))
     assert other_user != a  # name is part of the baked config
-
-
-@pytest.mark.unit
-def test_build_agent_config_truncates_regional_codes():
-    cfg = build_agent_config("fr-FR", "Jean")
-    assert cfg.language == "fr"  # regional app codes truncate to the ISO base
+    other_greeting = agent_config_fingerprint(build_agent_config("en", "Jean"))
+    assert other_greeting != a  # the greeting is LIA's, and localized
 
 
 @pytest.mark.unit
@@ -72,7 +62,9 @@ def test_data_collection_identifiers_match_extraction_contract():
     """
     cfg = build_agent_config("fr", "Jean")
     identifiers = {field["identifier"] for field in cfg.data_collection}
-    assert identifiers == set(StructuredCallData.model_fields)
+    # ONE agent serves both mandates (lot 4): the collection is the union of
+    # what the third-party return and the owner relay each read.
+    assert identifiers == set(StructuredCallData.model_fields) | set(SelfCallData.model_fields)
     # Mandate-boundary fields must be part of the contract (cost never dropped,
     # out-of-mandate decisions surfaced for the user).
     assert {"additional_costs", "pending_user_decision"} <= identifiers

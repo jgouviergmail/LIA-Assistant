@@ -5,9 +5,14 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from src.domains.telephony.models import PhoneCallOutcome, PhoneCallStatus
+from src.core.constants import (
+    PHONE_NUMBER_INPUT_MAX_LENGTH,
+    PHONE_VERIFICATION_CODE_INPUT_MAX_LENGTH,
+)
+from src.domains.shared.phone_domains import PHONE_DOMAINS
+from src.domains.telephony.models import CallKind, PhoneCallOutcome, PhoneCallStatus
 
 
 class StructuredCallData(BaseModel):
@@ -37,6 +42,46 @@ class StructuredCallData(BaseModel):
         "surcharge or new information outside the assistant's mandate that it did not accept "
         "and flagged for a call-back. None if nothing was deferred.",
     )
+
+
+class SelfCallData(BaseModel):
+    """What the voice agent collects on an OWNER call (lot 4).
+
+    Two fields beside the third-party ones on the same agent: whether the
+    person confirmed being the account holder, and what they asked for.
+    Both optional; unknown keys are ignored like their sibling's.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    owner_confirmed: bool | None = Field(
+        default=None, description="Did the callee confirm being the account holder?"
+    )
+    requests: str | None = Field(
+        default=None, description="Everything the person asked for or told, as a faithful list."
+    )
+
+
+class SelfCallRelay(BaseModel):
+    """Structured output of the relay synthesis after an owner call (lot 4).
+
+    ``relay_message`` is what the person would have typed — it becomes their
+    own turn in the chat; ``summary`` is the calls-list recap; the owner flag
+    gates the relay: nothing is relayed for a call the account holder did not
+    answer.
+    """
+
+    owner_confirmed: bool = Field(
+        ..., description="True when the account holder was the person on the line."
+    )
+    relay_message: str = Field(
+        default="",
+        description=(
+            "The message the person would have typed, first person, absolute dates; "
+            "EMPTY when nothing is worth relaying."
+        ),
+    )
+    summary: str = Field(..., description="Neutral third-person recap of the call.")
 
 
 class ReturnProposal(BaseModel):
@@ -188,6 +233,19 @@ class TelephonyConnectorResponse(BaseModel):
     agent_phone_number_id: str = Field(..., description="Bound phone number id.")
 
 
+class TelephonyCallUsage(BaseModel):
+    """What a call cost, cumulated (lot 8): its live lookups, its synthesis, its
+    relayed turn — one run id, one summary row, the chat meter's vocabulary."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    tokens_in: int = Field(..., description="Prompt tokens, cached ones excluded.")
+    tokens_out: int = Field(..., description="Completion tokens.")
+    tokens_cache: int = Field(..., description="Cached prompt tokens.")
+    cost_eur: float = Field(..., description="Model cost in euros.")
+    google_api_requests: int = Field(..., description="Maps/Places requests made for the call.")
+
+
 class TelephonyCallSummary(BaseModel):
     """Public view of a past call for the calls surface.
 
@@ -227,3 +285,116 @@ class TelephonyCallSummary(BaseModel):
     call_seconds: float | None = Field(default=None, description="Call duration in seconds.")
     created_at: datetime = Field(..., description="When the call was created.")
     completed_at: datetime | None = Field(default=None, description="When the call ended.")
+    call_kind: CallKind = Field(
+        default=CallKind.THIRD_PARTY,
+        description="Which mandate the call ran under (third party, the person, verification).",
+    )
+    usage: TelephonyCallUsage | None = Field(
+        default=None,
+        description="The call's cumulated bill (lot 8); null while nothing was spent.",
+    )
+    relay_outcome: str | None = Field(
+        default=None,
+        description=(
+            "For an owner call: how its words reached the chat (answered, waiting) or "
+            "why they did not (empty, not_owner, pending_question, busy, quota_blocked, "
+            "failed). Null while the relay runs, and for every other kind."
+        ),
+    )
+
+    @field_validator("call_kind", mode="before")
+    @classmethod
+    def _kind_defaults_to_third_party(cls, value: object) -> object:
+        """A row built in memory (never flushed) carries no kind yet: read it as
+        the baked mandate, which is what every row before lot 2 was."""
+        return CallKind.THIRD_PARTY if value is None else value
+
+    @model_validator(mode="before")
+    @classmethod
+    def _relay_outcome_from_payload(cls, value: object) -> object:
+        """Read the relay verdict off the outbox payload the settle wrote."""
+        payload = getattr(value, "notification_payload", None)
+        if isinstance(payload, dict) and payload.get("relay_outcome"):
+            outcome = payload["relay_outcome"]
+            if isinstance(value, dict):
+                return {**value, "relay_outcome": outcome}
+            data = {name: getattr(value, name) for name in cls.model_fields if hasattr(value, name)}
+            data["relay_outcome"] = outcome
+            return data
+        return value
+
+
+class TelephonyIdentityResponse(BaseModel):
+    """The person's own phone identity, as the settings page shows it (lot 1).
+
+    The number is the person's own and is shown whole: a masked number cannot
+    be checked for the typo that would send an owner call to a stranger.
+    """
+
+    phone_number: str | None = Field(default=None, description="Declared number in E.164, if any.")
+    verified: bool = Field(..., description="Whether LIA heard the person answer this number.")
+    verified_at: datetime | None = Field(default=None, description="When the number was verified.")
+    disabled_domains: list[str] = Field(
+        default_factory=list,
+        description="Phone domains the person switched off for their own calls (lot 8).",
+    )
+    available_domains: list[str] = Field(
+        default_factory=list,
+        description="Every domain the phone may read, in the register's vocabulary.",
+    )
+    rich_context_enabled: bool = Field(
+        ..., description="Whether an owner call carries the chat's context beyond free/busy."
+    )
+    verification_pending: bool = Field(
+        default=False,
+        description="Whether a spoken verification code is still waiting to be typed.",
+    )
+
+
+class TelephonyIdentityVerifyResponse(BaseModel):
+    """What the page learns when the verification call leaves."""
+
+    call_id: UUID | None = Field(default=None, description="The placed verification call.")
+    expires_in_seconds: int = Field(..., description="How long the spoken code stays valid.")
+
+
+class TelephonyIdentityConfirmRequest(BaseModel):
+    """Body for typing the spoken code back."""
+
+    code: str = Field(
+        ...,
+        min_length=1,
+        max_length=PHONE_VERIFICATION_CODE_INPUT_MAX_LENGTH,
+        description="The code the call read aloud, as typed.",
+    )
+
+
+class TelephonyIdentityNumberRequest(BaseModel):
+    """Body for declaring the person's number."""
+
+    phone_number: str = Field(
+        ...,
+        min_length=1,
+        max_length=PHONE_NUMBER_INPUT_MAX_LENGTH,
+        description="The number as typed; normalised to E.164 server-side.",
+    )
+
+
+class TelephonyIdentityUpdateRequest(BaseModel):
+    """Body for the identity switches — each optional, at least one given."""
+
+    rich_context_enabled: bool | None = Field(
+        default=None,
+        description="Whether an owner call carries the chat's context beyond free/busy.",
+    )
+    disabled_domains: list[str] | None = Field(
+        default=None,
+        max_length=len(PHONE_DOMAINS),
+        description="The phone domains to switch off for the person's own calls (lot 8).",
+    )
+
+    @model_validator(mode="after")
+    def _at_least_one_switch(self) -> TelephonyIdentityUpdateRequest:
+        if self.rich_context_enabled is None and self.disabled_domains is None:
+            raise ValueError("Nothing to update: give rich_context_enabled or disabled_domains.")
+        return self

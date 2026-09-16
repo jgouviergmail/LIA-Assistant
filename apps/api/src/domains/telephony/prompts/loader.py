@@ -23,6 +23,9 @@ from src.core.prompt_store import PromptFileError, read_prompt_file
 TelephonyPromptName = Literal[
     "telephony_agent_system_prompt",
     "telephony_synthesis_prompt",
+    "telephony_self_call_system_prompt",
+    "telephony_verification_prompt",
+    "telephony_self_call_relay_prompt",
 ]
 
 

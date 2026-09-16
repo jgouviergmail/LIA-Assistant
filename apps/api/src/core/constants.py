@@ -821,33 +821,22 @@ SCHEDULED_ACTIONS_SSE_PREVIEW_MAX_LENGTH = 500
 # never here. See docs/superpowers/specs/2026-07-07-telephony-agentic-calls-design.md
 TELEPHONY_RINGING_TIMEOUT_SECONDS_DEFAULT = 30
 TELEPHONY_PREFETCH_WINDOW_DAYS_DEFAULT = 10
-TELEPHONY_MAX_CALL_DURATION_SECONDS_DEFAULT = 600
 TELEPHONY_CALL_RETENTION_DAYS_DEFAULT = 30
 TELEPHONY_STALE_CALL_TIMEOUT_MINUTES_DEFAULT = 15
 TELEPHONY_RATE_LIMIT_PER_HOUR_DEFAULT = 10
-# TTS model of the provisioned voice agent. ElevenLabs REQUIRES a turbo/flash
-# v2.5 model for non-English agents (real 400 observed: "Non-english Agents
-# must use turbo or flash v2_5"); flash v2.5 is the low-latency phone choice.
-TELEPHONY_AGENT_TTS_MODEL_ID_DEFAULT = "eleven_turbo_v2_5"
 # Default country calling code applied to NATIONAL numbers (single leading 0,
 # no '+'): "0682511639" -> "+33682511639" when set to "+33". Empty = keep the
 # number as-is (telephony vendors may reject non-E.164 numbers).
 TELEPHONY_DEFAULT_COUNTRY_CODE_DEFAULT = "+33"
-# Voice of the provisioned agent (ElevenLabs voice id). Empty = vendor default,
-# which is an ENGLISH voice — set a multilingual/native voice for non-English
-# deployments (garbled speech reported with the default voice on French calls).
-TELEPHONY_AGENT_VOICE_ID_DEFAULT = "nr2EGJNe96rzn9FRlTId"
-# Audio format of the agent (output TTS + input ASR). The phone network runs
-# 8 kHz mu-law: Twilio telephony REQUIRES ulaw_8000 (vendor troubleshooting for
-# garbled/poor audio names exactly this), higher formats are inaudible on a
-# call and only add latency. Empty = vendor default (pcm_16000).
-TELEPHONY_AGENT_AUDIO_FORMAT_DEFAULT = "ulaw_8000"
-# LLM behind the vendor voice agent. NEVER left to the platform default: that
-# default is gemini-2.5-flash (verified on a fresh agent), a thinking model
-# observed reciting its English reasoning/directives ALOUD on a real French
-# call. gpt-4o-mini is fast, thinking-free and voice-proven. Empty = platform
-# default (not recommended).
-TELEPHONY_AGENT_LLM_MODEL_DEFAULT = "gpt-5.4-mini"
+# What the vendor voice agent SOUNDS like is NOT a setting (owner decision
+# 2026-09-16): its LLM and reasoning effort, its language, its voice, its audio
+# format and its duration cap are configured on the ElevenLabs portal, for the
+# agent, and changed there without restarting the application. LIA sends none
+# of them — the vendor merges a PATCH with what the agent stores and validates
+# the pair, so a pinned model collided with the portal's reasoning effort on
+# every sync. The vendor's own constraints still apply when an operator sets
+# them there: a non-English agent needs a turbo/flash v2.5 TTS model, and a
+# Twilio line wants ulaw_8000 in both directions.
 # Grace window before a 404 conversation-status probe may close an active call
 # row as gone. A conversation can vanish vendor-side (observed: connector
 # deactivation deleted the agent mid-call → its conversation with it → the
@@ -883,6 +872,50 @@ SCHEDULER_JOB_TELEPHONY_STALE_REAPER = "telephony_stale_call_reaper"
 SCHEDULER_JOB_TELEPHONY_RETENTION_REAPER = "telephony_retention_reaper"
 SCHEDULER_JOB_TELEPHONY_NOTIFICATION_REAPER = "telephony_notification_reaper"
 SCHEDULER_JOB_TELEPHONY_RETURN_REAPER = "telephony_return_reaper"
+# The person's own number (phone-as-a-channel, lot 1): longest E.164 line is 15
+# digits; the input tolerates display punctuation on top of that.
+PHONE_NUMBER_INPUT_MAX_LENGTH = 32
+# A typed code: at most the longest code the settings allow, plus the spaces or
+# dashes a person may type around its digits.
+PHONE_VERIFICATION_CODE_INPUT_MAX_LENGTH = 16
+# Owner and verification mandates (phone-as-a-channel, lot 2).
+TELEPHONY_VERIFICATION_CODE_LENGTH_DEFAULT = 4
+TELEPHONY_VERIFICATION_CODE_TTL_SECONDS_DEFAULT = 600
+TELEPHONY_VERIFICATION_MAX_ATTEMPTS_DEFAULT = 5
+REDIS_KEY_TELEPHONY_VERIFY_PREFIX = "telephony_verify:"
+REDIS_KEY_TELEPHONY_VERIFY_ATTEMPTS_PREFIX = "telephony_verify_attempts:"
+# How many verification calls one account started this hour: the same cap as
+# the paid call tools, on the same line and the same bill.
+REDIS_KEY_TELEPHONY_VERIFY_STARTS_PREFIX = "telephony_verify_starts:"
+TELEPHONY_VERIFICATION_RATE_WINDOW_SECONDS = 3600
+# What an owner call carries and returns (phone-as-a-channel, lot 4): the
+# context block's budget, and the transcript budget of the relay synthesis —
+# a five-minute conversation is ~1 500 tokens, so 6 000 covers twenty minutes.
+TELEPHONY_SELF_CONTEXT_MAX_TOKENS_DEFAULT = 2500
+TELEPHONY_RELAY_TRANSCRIPT_MAX_TOKENS_DEFAULT = 6000
+# The relayed turn (lot 4): one attempt's bound, how long a busy thread is
+# waited for, and the age past which a RELAYING row a crash left behind is
+# handed to the notification reaper.
+TELEPHONY_RELAY_TIMEOUT_SECONDS_DEFAULT = 240
+TELEPHONY_RELAY_BUSY_RETRIES_DEFAULT = 3
+TELEPHONY_RELAY_BUSY_DELAY_SECONDS_DEFAULT = 30
+TELEPHONY_RELAY_MAX_AGE_MINUTES_DEFAULT = 15
+# Live read-only tools on an owner call (lot 7, behind a flag): the vendor's
+# own timeout on the webhook tool, our inner bound under it (so the agent hears
+# a refusal rather than a vendor timeout), the projection budget of a result
+# read aloud, and how many lookups one call may make.
+TELEPHONY_LIVE_TOOL_TIMEOUT_SECONDS_DEFAULT = 20
+TELEPHONY_LIVE_TOOL_INNER_MARGIN_SECONDS = 3
+TELEPHONY_LIVE_TOOL_RESULT_MAX_TOKENS_DEFAULT = 2000
+TELEPHONY_LIVE_TOOL_MAX_CALLS_PER_CALL_DEFAULT = 40
+REDIS_KEY_TELEPHONY_LIVE_TOOL_PREFIX = "telephony_live_tool:"
+# Lot 8: a live tool with no voice line is described by its catalogue
+# manifest, cut at this length (the vendor reads every description on every
+# turn of the call). Vendor tools are created concurrently, under this bound —
+# measured 2026-09-16: sixty sequential creations would hold a dial for a
+# minute, and the vendor accepted sixty on one agent.
+TELEPHONY_LIVE_TOOL_DESCRIPTION_MAX_CHARS = 400
+TELEPHONY_LIVE_TOOL_PROVISIONING_CONCURRENCY = 8
 
 # Proactive OAuth Token Refresh Configuration
 # Background job refreshes tokens BEFORE they expire to prevent disconnections

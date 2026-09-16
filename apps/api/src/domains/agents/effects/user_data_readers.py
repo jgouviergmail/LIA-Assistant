@@ -37,6 +37,12 @@ CONSULTATION_RECORDERS: Final[dict[str, str]] = {
     "space": "domains/rag_spaces/consultations.py",
     "wake": "infrastructure/scheduler/heartbeat_wake_sweep.py",
     "profile": "domains/users/geocoding.py",
+    # The dial path opens the calendar for the free/busy projection (and, for
+    # an owner call, the context sections of lot 4); the return synthesis that
+    # spends under the same task type reads nothing of its own. A live lookup
+    # DURING the call (lot 7, ``agents/telephony/live_tools.py``) files on the
+    # same surface through the same door.
+    "phone_call": "domains/telephony/service.py",
     "moment": "infrastructure/scheduler/moment_sweep.py",
 }
 
@@ -59,10 +65,6 @@ NOT_A_READER: Final[dict[str, str]] = {
     "psyche_summary": (
         "Summarises the psychological profile the assistant already keeps; it "
         "opens no connector and no mailbox."
-    ),
-    "phone_call": (
-        "Writes the return message from a transcript the call produced. The "
-        "call itself is an ACTION and sits in the effect register."
     ),
     "peer_message": (
         "Composes the wording of a message the sender already asked to send; "

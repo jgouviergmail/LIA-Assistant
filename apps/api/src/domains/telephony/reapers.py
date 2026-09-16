@@ -73,6 +73,17 @@ async def telephony_notification_reaper() -> None:
 
     async with get_db_context() as db:
         repo = TelephonyRepository(db)
+        # Phone-as-a-channel (lot 4): an owner call's return is RELAYING while
+        # its chat turn runs; a crash mid-relay would leave it so forever. Past
+        # the max age the row is handed to THIS reaper as PENDING, with the
+        # fallback text the claim armed — flipped first, so the same tick can
+        # deliver it.
+        stale_relays = await repo.recover_stale_relays(
+            max_age_cutoff=datetime.now(UTC)
+            - timedelta(minutes=settings.telephony_relay_max_age_minutes)
+        )
+        if stale_relays:
+            logger.warning("telephony_relay_stale_recovered", count=stale_relays)
         pending = await repo.fetch_recoverable_notifications(
             cutoff=cutoff, max_attempts=max_attempts, limit=_NOTIFICATION_REAP_BATCH
         )

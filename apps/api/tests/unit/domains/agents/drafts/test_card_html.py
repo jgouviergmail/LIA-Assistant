@@ -113,6 +113,17 @@ class TestTheSurface:
             out_of_turn_origin_ctx.reset(token)
         assert card.startswith("📧 **Réunion <lundi> & co**\n\n- **Destinataire**")
 
+    def test_a_relayed_phone_call_gets_the_card(self) -> None:
+        """A relayed phone turn (ADR-290) is an out-of-turn run whose rows are
+        VISIBLE in the chat: its drafts are drawn as the chat draws them. Only a
+        HIDDEN origin (a ticket) renders the Markdown."""
+        origin = RunOrigin(kind="phone_call", ticket_id="c-1", run_id="r-1", hidden=False)
+        token = out_of_turn_origin_ctx.set(origin)
+        try:
+            assert card_surface() is CardSurface.CHAT
+        finally:
+            out_of_turn_origin_ctx.reset(token)
+
     def test_a_channel_run_gets_the_markdown(self) -> None:
         """Telegram strips every card from the first ``<div`` (channels formatter):
         a card there would truncate the question and empty the result."""

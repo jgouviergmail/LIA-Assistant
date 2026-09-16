@@ -223,6 +223,16 @@ PromptName = Literal[
     "telephony_agent_prompt",
     "telephony_agent_system_prompt",
     "telephony_synthesis_prompt",
+    # Owner and verification mandates (lot 2): rendered server-side by
+    # telephony/mandates.py into the per-call override.
+    "telephony_self_call_system_prompt",
+    "telephony_verification_prompt",
+    "telephony_self_call_relay_prompt",
+    "telephony_self_call_lines",
+    # Live read-only tools during an owner call (lot 7): the vendor-facing
+    # description of each tool, and what a lookup answers besides its data.
+    "telephony_live_tools",
+    "telephony_live_tool_lines",
     # Today Dashboard — Briefing (greeting + synthesis)
     "briefing_greeting_prompt",
     "briefing_synthesis_prompt",

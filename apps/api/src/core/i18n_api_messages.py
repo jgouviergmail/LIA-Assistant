@@ -3038,6 +3038,143 @@ class APIMessages:
         }
         return messages.get(language, messages["en"])
 
+    # =========================================================================
+    # TELEPHONY IDENTITY (the person's own verified number)
+    # =========================================================================
+
+    @staticmethod
+    def phone_domain_unknown(language: SupportedLanguage = "fr") -> str:
+        """A phone domain switch names something the phone does not offer (400)."""
+        messages = {
+            "fr": "Ce domaine n'existe pas pour les appels téléphoniques.",
+            "en": "This domain does not exist for phone calls.",
+            "es": "Este ámbito no existe para las llamadas telefónicas.",
+            "de": "Diesen Bereich gibt es für Telefonanrufe nicht.",
+            "it": "Questo ambito non esiste per le chiamate telefoniche.",
+            "zh-CN": "电话通话中不存在这个领域。",
+        }
+        return messages.get(language, messages["fr"])
+
+    @staticmethod
+    def phone_number_invalid(language: SupportedLanguage = "fr") -> str:
+        """The number typed is not a dialable line (400)."""
+        messages = {
+            "fr": (
+                "Ce numéro n'est pas un numéro de téléphone valide. "
+                "Indiquez-le au format international (+33…)."
+            ),
+            "en": ("This is not a valid phone number. " "Enter it in international format (+33…)."),
+            "es": (
+                "Este no es un número de teléfono válido. "
+                "Indícalo en formato internacional (+34…)."
+            ),
+            "de": (
+                "Dies ist keine gültige Telefonnummer. "
+                "Geben Sie sie im internationalen Format an (+49…)."
+            ),
+            "it": (
+                "Questo non è un numero di telefono valido. "
+                "Inseriscilo nel formato internazionale (+39…)."
+            ),
+            "zh-CN": "这不是有效的电话号码。请使用国际格式（+86…）。",
+        }
+        return messages.get(language, messages["en"])
+
+    @staticmethod
+    def phone_number_missing(language: SupportedLanguage = "fr") -> str:
+        """A verification or an owner call needs a declared number first (409)."""
+        messages = {
+            "fr": "Aucun numéro de téléphone n'est déclaré sur votre compte.",
+            "en": "No phone number is declared on your account.",
+            "es": "No hay ningún número de teléfono declarado en tu cuenta.",
+            "de": "Auf Ihrem Konto ist keine Telefonnummer hinterlegt.",
+            "it": "Nessun numero di telefono è dichiarato sul tuo account.",
+            "zh-CN": "您的账户尚未登记电话号码。",
+        }
+        return messages.get(language, messages["en"])
+
+    @staticmethod
+    def phone_verification_not_pending(language: SupportedLanguage = "fr") -> str:
+        """A code was typed while no verification call is in flight (409)."""
+        messages = {
+            "fr": "Aucune vérification n'est en cours. Lancez d'abord l'appel de vérification.",
+            "en": "No verification is in progress. Start the verification call first.",
+            "es": "No hay ninguna verificación en curso. Inicia primero la llamada de verificación.",
+            "de": "Es läuft keine Überprüfung. Starten Sie zuerst den Bestätigungsanruf.",
+            "it": "Nessuna verifica in corso. Avvia prima la chiamata di verifica.",
+            "zh-CN": "当前没有进行中的验证。请先发起验证来电。",
+        }
+        return messages.get(language, messages["en"])
+
+    @staticmethod
+    def phone_verification_code_wrong(
+        attempts_left: int, language: SupportedLanguage = "fr"
+    ) -> str:
+        """The typed code does not match (400); says how many tries remain."""
+        messages = {
+            "fr": f"Code incorrect. Il vous reste {attempts_left} essai(s).",
+            "en": f"Wrong code. {attempts_left} attempt(s) left.",
+            "es": f"Código incorrecto. Te quedan {attempts_left} intento(s).",
+            "de": f"Falscher Code. Noch {attempts_left} Versuch(e).",
+            "it": f"Codice errato. Hai ancora {attempts_left} tentativo/i.",
+            "zh-CN": f"验证码错误。剩余 {attempts_left} 次尝试。",
+        }
+        return messages.get(language, messages["en"])
+
+    @staticmethod
+    def phone_verification_locked(language: SupportedLanguage = "fr") -> str:
+        """Too many wrong codes: the pending verification is void (429)."""
+        messages = {
+            "fr": "Trop de tentatives. Relancez un appel de vérification.",
+            "en": "Too many attempts. Start a new verification call.",
+            "es": "Demasiados intentos. Inicia una nueva llamada de verificación.",
+            "de": "Zu viele Versuche. Starten Sie einen neuen Bestätigungsanruf.",
+            "it": "Troppi tentativi. Avvia una nuova chiamata di verifica.",
+            "zh-CN": "尝试次数过多。请重新发起验证来电。",
+        }
+        return messages.get(language, messages["en"])
+
+    @staticmethod
+    def phone_verification_too_many_calls(language: SupportedLanguage = "fr") -> str:
+        """Too many verification calls in the hour (429)."""
+        messages = {
+            "fr": "Trop d'appels de vérification pour l'heure. Réessayez plus tard.",
+            "en": "Too many verification calls this hour. Try again later.",
+            "es": "Demasiadas llamadas de verificación en esta hora. Inténtalo más tarde.",
+            "de": "Zu viele Bestätigungsanrufe in dieser Stunde. Versuchen Sie es später erneut.",
+            "it": "Troppe chiamate di verifica in quest'ora. Riprova più tardi.",
+            "zh-CN": "本小时内的验证来电过多。请稍后再试。",
+        }
+        return messages.get(language, messages["en"])
+
+    @staticmethod
+    def phone_verification_call_not_placed(language: SupportedLanguage = "fr") -> str:
+        """The verification call could not be placed (409)."""
+        messages = {
+            "fr": (
+                "L'appel de vérification n'a pas pu être passé. "
+                "Vérifiez votre connecteur téléphonie et réessayez."
+            ),
+            "en": (
+                "The verification call could not be placed. "
+                "Check your telephony connector and try again."
+            ),
+            "es": (
+                "No se ha podido realizar la llamada de verificación. "
+                "Comprueba tu conector de telefonía e inténtalo de nuevo."
+            ),
+            "de": (
+                "Der Bestätigungsanruf konnte nicht getätigt werden. "
+                "Prüfen Sie Ihren Telefonie-Konnektor und versuchen Sie es erneut."
+            ),
+            "it": (
+                "Non è stato possibile effettuare la chiamata di verifica. "
+                "Controlla il connettore di telefonia e riprova."
+            ),
+            "zh-CN": "无法发起验证来电。请检查您的电话连接器后重试。",
+        }
+        return messages.get(language, messages["en"])
+
 
 # =============================================================================
 # CACHED MESSAGE SETS FOR PERFORMANCE

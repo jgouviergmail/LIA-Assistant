@@ -182,6 +182,14 @@ export const SETTINGS_SECTIONS = {
     accordionValue: 'telephony-calls',
     declaredIn: 'components/settings/TelephonyCallsSection.tsx',
   },
+  // Phone as a channel: the number LIA may call the person on, declared and
+  // verified by a call. Renders nothing when telephony is off, like its
+  // neighbour above.
+  'telephony-identity': {
+    tab: 'preferences',
+    accordionValue: 'telephony-identity',
+    declaredIn: 'components/settings/TelephonyIdentitySection.tsx',
+  },
   // Rendered by the NON-superuser layout only: a superuser gets the richer
   // `debug-settings` section in the administration tab instead.
   'debug-panel': {

@@ -1,0 +1,24 @@
+# Vendor-facing description of a live tool an owner call may attach
+# (phone-as-a-channel, lots 7-8). `key|description` per line — the key is the
+# registry name of the tool. A tool with no line here is described by its
+# catalogue manifest's own words; a NATIVE lookup (one the catalogue has no
+# tool for) MUST have a line. The parameters travel from the catalogue
+# manifest, or from the native declaration.
+# Read by domains/agents/telephony/live_tools.py.
+
+recall_memories|Recall what LIA remembers about the person: their habits, preferences, people, places and past decisions relevant to a question. Use it whenever the person refers to something they expect you to know, or asks what you remember.
+get_events_tool|Read the person's calendar: the events of a day or a period, or those matching a few words. Use it when they ask what they have planned, when something is, or whether they are free.
+find_availability_tool|Find the free slots of the person's calendar between two instants, for a given duration. Use it when they ask when they are free.
+get_emails_tool|Read the person's mailbox: the latest messages, or those matching a few words — sender, subject, date, and the gist of each. Ask for `summary` detail when they want to know what a message says, `metadata` when they only want the list.
+get_tasks_tool|Read the person's to-do list: their pending tasks, and the finished ones on request. Use it when they ask what is left to do.
+list_reminders_tool|Read the reminders the person set with LIA: what, and when each one rings.
+get_contacts_tool|Look a person up in the address book by name: how to reach them, and what is known about them.
+get_person_overview_tool|Everything LIA knows about one person the account holder names: recent exchanges, appointments, commitments. Use it when they ask about someone.
+get_open_loops_tool|Read the open commitments between the person and someone they name: what each side still owes the other, and since when.
+get_files_tool|Find the person's files by name or a few words: what exists, and when it changed. Use it when they ask where a document is or what they have on a subject.
+search_user_documents_tool|Search inside the person's own documents for a question, and answer from their content.
+get_current_weather_tool|The weather right now at a place the person names, or where they are.
+get_weather_forecast_tool|The weather forecast for the coming days at a place the person names.
+get_places_tool|Find places around: shops, restaurants, services — by name or kind, near a location the person names or where they are. Use it when they ask what is nearby, whether it is open, or how it is rated.
+get_route_tool|How to get from one place to another: duration, distance, the way. Use it when they ask how long a trip takes or how to go somewhere.
+list_tickets_tool|Read the person's workboard: the tickets in progress, what is waiting on them, what is late.

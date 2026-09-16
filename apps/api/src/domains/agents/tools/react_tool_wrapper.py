@@ -26,6 +26,7 @@ a cut to the model and counts it per tool.
 
 import asyncio
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -195,7 +196,12 @@ def render_data_block(data: dict[str, Any], budget_tokens: int) -> DataBlock:
     )
 
 
-def extract_data_block(result: Any, budget_tokens: int) -> DataBlock | None:
+def extract_data_block(
+    result: Any,
+    budget_tokens: int,
+    *,
+    reshape: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
+) -> DataBlock | None:
     """Pick the data a tool result carries and project it.
 
     Priority:
@@ -206,6 +212,9 @@ def extract_data_block(result: Any, budget_tokens: int) -> DataBlock | None:
     Args:
         result: Tool output with structured_data and/or registry_updates.
         budget_tokens: Tokens the block may occupy.
+        reshape: An optional reduction of the data BEFORE the paging — the
+            phone channel reduces every item to what a voice can say, so the
+            budget is spent on words rather than on identifiers.
 
     Returns:
         The projected block, or ``None`` when the result carries no data.
@@ -233,6 +242,8 @@ def extract_data_block(result: Any, budget_tokens: int) -> DataBlock | None:
 
     if not data:
         return None
+    if reshape is not None:
+        data = reshape(data)
     try:
         return render_data_block(data, budget_tokens)
     except TypeError, ValueError:

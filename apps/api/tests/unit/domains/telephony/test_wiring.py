@@ -39,6 +39,9 @@ def test_telephony_routes_mounted() -> None:
     paths = {getattr(route, "path", "") for route in api_router.routes}
     assert any(p.endswith("/telephony/webhook") for p in paths)
     assert any(p.endswith("/telephony/calls") for p in paths)
+    # The live tool call-back (lot 7) mounts with the feature, and hides itself
+    # behind its own flag at request time.
+    assert any(p.endswith("/telephony/tools/{tool_name}") for p in paths)
 
 
 def test_notification_reaper_is_wired_into_the_scheduler() -> None:

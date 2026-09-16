@@ -67,7 +67,10 @@ export function ActiveCallBanner({ lng, conversationTick = 0 }: ActiveCallBanner
     >
       <PhoneCall className="h-3.5 w-3.5 shrink-0 animate-pulse text-primary" aria-hidden="true" />
       <span className="font-semibold text-primary">
-        {t(`chat.active_call.${active.status}`, { name: active.callee_display })}
+        {/* An owner call and a verification call both ring the PERSON (ADR-290). */}
+        {active.call_kind !== 'third_party'
+          ? t(`chat.active_call.self_${active.status}`)
+          : t(`chat.active_call.${active.status}`, { name: active.callee_display })}
       </span>
       <span className="text-muted-foreground">{active.objective}</span>
       <Link

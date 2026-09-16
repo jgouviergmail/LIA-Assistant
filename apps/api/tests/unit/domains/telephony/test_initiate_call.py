@@ -17,8 +17,9 @@ import pytest
 
 import src.domains.telephony.service as svc
 from src.core.security import decrypt_data
+from src.domains.telephony.availability import AvailabilityRead
 from src.domains.telephony.client import ElevenLabsAgentsError
-from src.domains.telephony.models import PhoneCallStatus
+from src.domains.telephony.models import CallKind, PhoneCallStatus
 from src.domains.telephony.schemas import OutboundCallResult
 from src.domains.telephony.service import TelephonyService
 
@@ -59,6 +60,7 @@ def _install_fakes(
         if connector == "default"
         else connector
     )
+    captured["connector"] = conn
 
     class _FakeConnSvc:
         def __init__(self, db) -> None:  # noqa: ANN001
@@ -100,8 +102,12 @@ def _install_fakes(
         async def mark_dial_failed(self, call_id, error):  # noqa: ANN001
             captured["dial_failed_error"] = error
 
-    async def _fake_availability(*_args, **_kwargs) -> str:
-        return "BUSY: Tue 09:00 → 10:30"
+    async def _fake_availability(*_args, **_kwargs) -> AvailabilityRead:
+        captured["availability_read"] = True
+        return AvailabilityRead(summary="BUSY: Tue 09:00 → 10:30", opened=True, failed=False)
+
+    def _fake_record(**kwargs) -> None:  # noqa: ANN003
+        captured.setdefault("consultations", []).append(kwargs)
 
     class _FakeClient:
         async def initiate_outbound_call(self, **kwargs) -> OutboundCallResult:
@@ -123,6 +129,9 @@ def _install_fakes(
             captured["updated_agent"] = agent_id
             captured["update_kwargs"] = kwargs
 
+        async def set_agent_tool_ids(self, agent_id, tool_ids) -> None:  # noqa: ANN001
+            captured.setdefault("tool_ids_patches", []).append((agent_id, list(tool_ids)))
+
         async def get_conversation_status(self, conversation_id: str) -> str:
             captured["probed_conversation"] = conversation_id
             if isinstance(vendor_conversation_status, Exception):
@@ -132,7 +141,8 @@ def _install_fakes(
     monkeypatch.setattr(svc, "TelephonyConnectorService", _FakeConnSvc)
     monkeypatch.setattr(svc, "ConnectorService", _FakeConnectorService)
     monkeypatch.setattr(svc, "TelephonyRepository", _FakeRepo)
-    monkeypatch.setattr(svc, "build_availability_summary", _fake_availability)
+    monkeypatch.setattr(svc, "build_availability", _fake_availability)
+    monkeypatch.setattr(svc, "record_surface_consultations", _fake_record)
     return captured, (lambda _api_key: _FakeClient())
 
 
@@ -149,6 +159,56 @@ async def _call(service: TelephonyService) -> object:
         date_window="cette semaine",
         user_language="fr",
     )
+
+
+@pytest.mark.unit
+async def test_the_dial_reads_the_assistant_s_personality_for_both_mandates(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Lot 9: the personality the person configured for LIA travels with every
+    call — a dynamic variable for the baked third-party agent, the rendered
+    block for the owner override — read at the dial, best-effort."""
+
+    class _Personalities:
+        def __init__(self, _db) -> None:  # noqa: ANN001
+            pass
+
+        async def get_prompt_instruction_for_user(self, _user_id):  # noqa: ANN001
+            return "Warm and playful."
+
+    monkeypatch.setattr(svc, "PersonalityService", _Personalities)
+    db = _FakeDB(_user())
+    captured, factory = _install_fakes(monkeypatch)
+    result = await _call(TelephonyService(db, client_factory=factory))
+    assert result.status == "placed"
+    assert captured["call_kwargs"]["dynamic_variables"]["personality_profile"] == (
+        "Warm and playful."
+    )
+
+    captured, factory = _install_fakes(monkeypatch)
+    result = await _owner_call(TelephonyService(db, client_factory=factory))
+    assert result.status == "placed"
+    override = captured["call_kwargs"]["conversation_config_override"]
+    assert "Warm and playful." in override["agent"]["prompt"]["prompt"]
+
+
+@pytest.mark.unit
+async def test_a_personality_that_cannot_be_read_never_blocks_a_call(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class _Broken:
+        def __init__(self, _db) -> None:  # noqa: ANN001
+            pass
+
+        async def get_prompt_instruction_for_user(self, _user_id):  # noqa: ANN001
+            raise RuntimeError("personalities down")
+
+    monkeypatch.setattr(svc, "PersonalityService", _Broken)
+    db = _FakeDB(_user())
+    captured, factory = _install_fakes(monkeypatch)
+    result = await _call(TelephonyService(db, client_factory=factory))
+    assert result.status == "placed"
+    assert captured["call_kwargs"]["dynamic_variables"]["personality_profile"] == ""
 
 
 @pytest.mark.unit
@@ -246,21 +306,13 @@ async def test_drifted_agent_config_is_synced_before_dialing(
 
 @pytest.mark.unit
 async def test_matching_fingerprint_skips_the_sync(monkeypatch: pytest.MonkeyPatch) -> None:
-    from src.core.config import settings as app_settings
     from src.domains.telephony.agent_prompt import agent_config_fingerprint, build_agent_config
 
     user = _user()
     from src.core.user_display import resolve_user_display_name
 
     cfg = build_agent_config("fr", resolve_user_display_name(user.full_name, user.email))
-    current = agent_config_fingerprint(
-        cfg,
-        llm_model=app_settings.telephony_agent_llm_model or None,
-        tts_model_id=app_settings.telephony_agent_tts_model_id,
-        voice_id=app_settings.telephony_agent_voice_id or None,
-        audio_format=app_settings.telephony_agent_audio_format or None,
-        max_duration_seconds=app_settings.telephony_max_call_duration_seconds,
-    )
+    current = agent_config_fingerprint(cfg)
     connector = SimpleNamespace(
         connector_metadata={
             "agent_id": "ag_1",
@@ -497,3 +549,193 @@ def test_every_failure_status_has_a_phrase_in_every_language() -> None:
         for status, phrase_key in _STATUS_TO_PHRASE.items():
             assert phrase_key in phrases, f"{language}: {status} → {phrase_key} missing"
             assert phrases[phrase_key].strip(), f"{language}: {phrase_key} is empty"
+
+
+# ---------------------------------------------------------------------------
+# One agent, two mandates (lot 2)
+# ---------------------------------------------------------------------------
+
+
+async def _owner_call(service: TelephonyService, **kwargs: object) -> object:
+    return await service.initiate_call(
+        user_id=uuid4(),
+        callee_display="Alex",
+        callee_phone="+33612345678",
+        objective="go over the week",
+        date_window=None,
+        user_language="fr",
+        kind=CallKind.SELF,
+        user_context="## Agenda - 10:00 dentist",
+        **kwargs,
+    )
+
+
+@pytest.mark.unit
+async def test_owner_call_sends_the_rendered_override_and_records_its_kind(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db = _FakeDB(_user())
+    captured, factory = _install_fakes(monkeypatch)
+    result = await _owner_call(TelephonyService(db, client_factory=factory))
+
+    assert result.status == "placed"
+    override = captured["call_kwargs"]["conversation_config_override"]
+    assert "10:00 dentist" in override["agent"]["prompt"]["prompt"]
+    assert "BUSY: Tue 09:00 → 10:30" in override["agent"]["prompt"]["prompt"]
+    assert set(override["agent"]) == {"prompt", "first_message"}
+    assert captured["create_data"]["call_kind"] is CallKind.SELF
+    # The permission is part of the fingerprint, so a connector provisioned
+    # before lot 2 is re-synced before the owner is dialled.
+    assert captured["updated_agent"] == "ag_1"
+
+
+@pytest.mark.unit
+async def test_owner_call_refuses_when_the_agent_cannot_be_synced(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A failed PATCH must not serve the owner the stranger's mandate."""
+    db = _FakeDB(_user())
+    captured, factory = _install_fakes(monkeypatch, sync_error=True)
+    result = await _owner_call(TelephonyService(db, client_factory=factory))
+
+    assert result.status == "agent_sync_failed"
+    assert "call_kwargs" not in captured  # never dialled
+    assert "create_data" not in captured  # no row left behind
+
+
+@pytest.mark.unit
+async def test_third_party_call_keeps_no_override(monkeypatch: pytest.MonkeyPatch) -> None:
+    db = _FakeDB(_user())
+    captured, factory = _install_fakes(monkeypatch)
+    result = await _call(TelephonyService(db, client_factory=factory))
+    assert result.status == "placed"
+    assert captured["call_kwargs"].get("conversation_config_override") is None
+    assert captured["create_data"]["call_kind"] is CallKind.THIRD_PARTY
+
+
+@pytest.mark.unit
+async def test_verification_call_reads_no_calendar_and_speaks_the_code(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db = _FakeDB(_user())
+    captured, factory = _install_fakes(monkeypatch)
+    result = await TelephonyService(db, client_factory=factory).initiate_call(
+        user_id=uuid4(),
+        callee_display="Alex",
+        callee_phone="+33612345678",
+        objective="",
+        date_window=None,
+        user_language="fr",
+        kind=CallKind.VERIFICATION,
+        verification_code="4719",
+    )
+    assert result.status == "placed"
+    assert "availability_read" not in captured
+    override = captured["call_kwargs"]["conversation_config_override"]
+    assert "4 7 1 9" in override["agent"]["prompt"]["prompt"]
+    assert captured["create_data"]["call_kind"] is CallKind.VERIFICATION
+    assert "consultations" not in captured
+
+
+@pytest.mark.unit
+async def test_availability_read_is_recorded_on_the_phone_call_surface(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The calendar is opened from the dial path, not from a tool: the gate
+    never sees it, so the service records it itself (ADR-263)."""
+    db = _FakeDB(_user())
+    captured, factory = _install_fakes(monkeypatch)
+    await _call(TelephonyService(db, client_factory=factory))
+    (recorded,) = captured["consultations"]
+    assert recorded["surface"] == "phone_call"
+    assert list(recorded["opened"]) == ["availability"]
+    assert list(recorded["failed"]) == []
+
+
+@pytest.mark.unit
+async def test_a_calendar_that_could_not_be_read_records_a_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db = _FakeDB(_user())
+    captured, factory = _install_fakes(monkeypatch)
+
+    async def _failed(*_args, **_kwargs) -> AvailabilityRead:
+        return AvailabilityRead(summary="unavailable", opened=True, failed=True)
+
+    monkeypatch.setattr(svc, "build_availability", _failed)
+    await _call(TelephonyService(db, client_factory=factory))
+    (recorded,) = captured["consultations"]
+    assert list(recorded["failed"]) == ["availability"]
+
+
+@pytest.mark.unit
+async def test_no_calendar_connected_records_nothing(monkeypatch: pytest.MonkeyPatch) -> None:
+    db = _FakeDB(_user())
+    captured, factory = _install_fakes(monkeypatch)
+
+    async def _none(*_args, **_kwargs) -> AvailabilityRead:
+        return AvailabilityRead(summary="unavailable", opened=False, failed=False)
+
+    monkeypatch.setattr(svc, "build_availability", _none)
+    await _call(TelephonyService(db, client_factory=factory))
+    assert "consultations" not in captured
+
+
+@pytest.mark.unit
+async def test_owner_call_attaches_the_live_tools_to_the_agent_before_dialing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Lot 7, measured on a real call 2026-09-16: the vendor refuses ``tool_ids``
+    inside a per-call override (« Tool IDs not attached to this agent », the
+    call dies at pickup). The ids are attached to the AGENT for the owner call
+    — one PATCH before the dial, remembered on the connector — and the prompt
+    names the tools; the override carries no ids."""
+    from src.domains.telephony.live_tools import LiveToolBinding
+
+    db = _FakeDB(_user())
+    captured, factory = _install_fakes(monkeypatch)
+    service = TelephonyService(db, client_factory=factory)
+    result = await _owner_call(
+        service, live_tools=(LiveToolBinding("get_events_tool", "tool_a", "event"),)
+    )
+
+    assert result.status == "placed"
+    assert captured["tool_ids_patches"] == [("ag_1", ["tool_a"])]
+    override = captured["call_kwargs"]["conversation_config_override"]
+    assert "tool_ids" not in override["agent"]["prompt"]
+    assert "Calendar" in override["agent"]["prompt"]["prompt"]
+    assert captured["connector"].connector_metadata["live_tools_attached"] is True
+
+
+@pytest.mark.unit
+async def test_a_third_party_call_detaches_the_live_tools_first(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The stranger's agent never dials with the owner's tools attached: a
+    connector still marked attached (a webhook that never came) is detached
+    BEFORE a third-party or verification call leaves."""
+    connector = SimpleNamespace(
+        connector_metadata={
+            "agent_id": "ag_1",
+            "agent_phone_number_id": "pn_1",
+            "live_tools_attached": True,
+        }
+    )
+    db = _FakeDB(_user())
+    captured, factory = _install_fakes(monkeypatch, connector=connector)
+    result = await _call(TelephonyService(db, client_factory=factory))
+
+    assert result.status == "placed"
+    assert captured["tool_ids_patches"] == [("ag_1", [])]
+    assert connector.connector_metadata["live_tools_attached"] is False
+
+
+@pytest.mark.unit
+async def test_an_owner_call_without_tools_leaves_a_detached_agent_alone(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db = _FakeDB(_user())
+    captured, factory = _install_fakes(monkeypatch)
+    result = await _owner_call(TelephonyService(db, client_factory=factory))
+    assert result.status == "placed"
+    assert "tool_ids_patches" not in captured

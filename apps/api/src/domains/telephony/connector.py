@@ -3,8 +3,10 @@
 Storage reuses ``ConnectorService.activate_api_key_connector``: the ElevenLabs API
 key and the post-call webhook HMAC secret both live encrypted in
 ``credentials_encrypted`` (key → ``api_key``, webhook secret → ``api_secret``).
-Only non-secret ids (``agent_id``, ``agent_phone_number_id``,
-``caller_number_display``) go in ``connector_metadata`` (JSONB) — never the secret.
+Only non-secret values go in ``connector_metadata`` (JSONB) — never the
+secret: ``agent_id``, ``agent_phone_number_id``, ``caller_number_display``,
+the ``agent_config_hash`` of the lazy re-sync, and (lot 7) the vendor ids of
+the live tools with their ``live_tools_hash``.
 """
 
 from __future__ import annotations
@@ -16,7 +18,6 @@ from uuid import UUID
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.config import settings
 from src.core.exceptions import ExternalServiceError
 from src.domains.connectors.models import Connector, ConnectorStatus, ConnectorType
 from src.domains.connectors.service import ConnectorService
@@ -88,21 +89,20 @@ class TelephonyConnectorService:
         user_name: str,
         caller_number_display: str | None = None,
     ) -> Connector:
-        """Provision the LIA-controlled agent and persist the encrypted connector."""
+        """Provision the LIA-controlled agent and persist the encrypted connector.
+
+        The agent is created with what is LIA's (prompt, greeting, data
+        contract, override permission). The model, the language, the voice,
+        the audio format and the duration cap are set on the ElevenLabs
+        portal afterwards (owner decision, 2026-09-16 — activation runbook in
+        ``docs/technical/TELEPHONY.md``) and never touched by a sync.
+        """
         cfg = build_agent_config(user_language, user_name)
         try:
             agent_id = await self._client_factory(api_key).create_agent(
                 name=cfg.name,
                 system_prompt=cfg.system_prompt,
                 first_message=cfg.first_message,
-                language=cfg.language,
-                # Vendor constraint: non-English agents require a turbo/flash
-                # v2.5 TTS model — without it agent creation is rejected (400).
-                llm_model=settings.telephony_agent_llm_model or None,
-                tts_model_id=settings.telephony_agent_tts_model_id,
-                voice_id=settings.telephony_agent_voice_id or None,
-                audio_format=settings.telephony_agent_audio_format or None,
-                max_duration_seconds=settings.telephony_max_call_duration_seconds,
                 data_collection=cfg.data_collection,
             )
         except ElevenLabsAgentsError as exc:
@@ -118,14 +118,7 @@ class TelephonyConnectorService:
             "caller_number_display": caller_number_display,
             # Lazy re-sync anchor: initiate_call compares this against the
             # current config and PATCHes the agent in place on drift.
-            "agent_config_hash": agent_config_fingerprint(
-                cfg,
-                llm_model=settings.telephony_agent_llm_model or None,
-                tts_model_id=settings.telephony_agent_tts_model_id,
-                voice_id=settings.telephony_agent_voice_id or None,
-                audio_format=settings.telephony_agent_audio_format or None,
-                max_duration_seconds=settings.telephony_max_call_duration_seconds,
-            ),
+            "agent_config_hash": agent_config_fingerprint(cfg),
         }
         connector_service = ConnectorService(self.db)
         await connector_service.activate_api_key_connector(
@@ -159,13 +152,21 @@ class TelephonyConnectorService:
         if connector is None:
             return
 
-        agent_id = (connector.connector_metadata or {}).get("agent_id")
+        metadata = connector.connector_metadata or {}
+        agent_id = metadata.get("agent_id")
+        live_tool_ids = metadata.get("live_tool_ids") or {}
         creds = await connector_service.get_api_key_credentials(
             user_id, ConnectorType.ELEVENLABS_TELEPHONY
         )
-        if agent_id and creds is not None:
+        if creds is not None:
+            client = self._client_factory(creds.api_key)
             # The agent lives in the user's workspace — delete is best-effort.
-            await self._client_factory(creds.api_key).delete_agent(agent_id)
+            if agent_id:
+                await client.delete_agent(agent_id)
+            # The webhook tools of owner calls (lot 7) go after the agent that
+            # referenced them; the delete is forced either way.
+            for tool_id in live_tool_ids.values():
+                await client.delete_tool(str(tool_id))
 
         await connector_service.delete_connector(user_id, connector.id)
         logger.info("telephony_connector_deactivated", user_id=str(user_id))

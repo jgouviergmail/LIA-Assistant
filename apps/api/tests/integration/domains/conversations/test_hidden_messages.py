@@ -200,14 +200,14 @@ class TestTheColumnComesFromTheStamp:
         from src.domains.agents.api.run_origin import (
             RunOrigin,
             out_of_turn_origin_ctx,
-            with_hidden_stamp,
+            with_origin_stamp,
         )
 
         token = out_of_turn_origin_ctx.set(
             RunOrigin(kind="workboard", ticket_id="t-9", run_id="r-9")
         )
         try:
-            metadata = with_hidden_stamp({"run_id": "r-9"})
+            metadata = with_origin_stamp({"run_id": "r-9"})
         finally:
             out_of_turn_origin_ctx.reset(token)
 

@@ -4,7 +4,7 @@
 
 **Versione**: 6.0
 **Data**: 2026-08-23
-**Applicazione**: LIA v1.44.7
+**Applicazione**: LIA v1.45.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -201,6 +201,8 @@ LIA può alzare la cornetta per te. Chiedile di «chiamare l'officina per verifi
 Mantieni sempre il controllo: prima di comporre il numero, LIA ti dice esattamente **chi** chiamerà e **perché**, e attende il tuo via libera. E quel controllo non si ferma durante la chiamata: l'assistente opera sotto un mandato rigoroso — se l'interlocutore propone un extra, un'opzione o un impegno imprevisto (anche piccolo), non accetta mai al posto tuo; annota l'offerta e il prezzo, annuncia che si richiamerà, e il riepilogo ti consegna ogni costo e ogni punto in sospeso perché sia tu a decidere. Il riepilogo arriva nella chat in modo asincrono, così puoi fare altro mentre la chiamata è in corso.
 
 E resta riservato per costruzione. Durante una chiamata LIA può solo indicare se sei libero o occupato in un dato momento — mai i titoli, gli invitati o i luoghi del tuo calendario. Nulla viene registrato, la conversazione non viene mai conservata e si mantiene solo un breve riepilogo prima che scada. Le chiamate passano dal tuo connettore ElevenLabs personale, addebitate sul tuo account, e la funzione è presente solo se il tuo amministratore l'ha attivata.
+
+E LIA può chiamare *te*. Dichiara il tuo numero in *Telefonia · La mia identità*, lascia che LIA lo chiami e legga un codice che tu digiti, e da allora «chiamami alle otto per fare il punto sulla giornata» — o una routine che lo dica — fa squillare il tuo telefono senza scheda di conferma: chi confermerebbe è chi risponde. Al telefono, LIA sa ciò che sa nella chat — i tuoi ricordi, la tua agenda, i tuoi promemoria, ciò che è aperto con le persone — e, se il tuo amministratore l'ha attivato, consulta mentre parli: una mail, un contatto, un file, un luogo vicino, il meteo, ciò che ricorda di un argomento. Legge tutto e non agisce su nulla; ogni ambito ha un interruttore che è tuo, e l'assistente parla con la personalità che le hai dato. Quando riagganci, ciò che hai detto torna nella chat come tuo messaggio, con un badge telefono, e ciò che hai chiesto vi attende la tua conferma.
 
 ### 3.11. Parlare con i tuoi, da assistente ad assistente
 
