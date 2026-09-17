@@ -100,3 +100,20 @@ def test_the_expiry_sweep_is_scheduled_whatever_the_ceiling() -> None:
             assert "attachments_enabled" not in ast.unparse(
                 node.test
             ), "the expiry sweep must not depend on the uploads ceiling"
+
+
+def test_the_knowledge_copy_route_is_guarded_by_both_capabilities() -> None:
+    """Attaching a knowledge document is an upload AND a read of a space."""
+    from src.domains.attachments.router import router
+    from src.domains.feature_switches.registry import PlatformCapability
+
+    route = next(
+        r for r in router.routes if getattr(r, "path", "") == "/attachments/from-knowledge-document"
+    )
+    assert "POST" in route.methods
+    guards = {
+        getattr(getattr(d, "dependency", None), "__name__", "")
+        for d in getattr(route, "dependencies", [])
+    }
+    assert f"require_capability_{PlatformCapability.ATTACHMENTS.value}" in guards
+    assert f"require_capability_{PlatformCapability.RAG_SPACES.value}" in guards

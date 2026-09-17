@@ -510,11 +510,14 @@ class AttachmentService:
 
     @staticmethod
     def _convert_heic_to_jpeg(file_bytes: bytes) -> tuple[bytes, str]:
-        """Convert HEIC/HEIF image to JPEG using Pillow."""
+        """Convert HEIC/HEIF image to JPEG using Pillow (the HEIF plugin registered first)."""
         import io
 
         from PIL import Image
 
+        from src.infrastructure.media.heif import ensure_heif_support
+
+        ensure_heif_support()
         image: Image.Image = Image.open(io.BytesIO(file_bytes))
         if image.mode in ("RGBA", "P"):
             image = image.convert("RGB")

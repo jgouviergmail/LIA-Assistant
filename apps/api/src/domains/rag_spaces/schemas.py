@@ -217,7 +217,9 @@ class RAGReindexStatusResponse(BaseModel):
 class RAGDriveSourceCreate(BaseModel):
     """Request body to link a Google Drive folder to a RAG space."""
 
-    folder_id: str = Field(max_length=255)
+    # A Drive id is an opaque token; the shape keeps a path fragment out of
+    # the ``/files/{id}`` request the link builds from it.
+    folder_id: str = Field(max_length=255, pattern=r"^[A-Za-z0-9_-]+$")
     folder_name: str = Field(max_length=500)
 
 
@@ -245,6 +247,34 @@ class RAGDriveSyncStatusResponse(BaseModel):
     file_count: int
     synced_file_count: int
     error_message: str | None
+
+
+class RAGDrivePreflightResponse(BaseModel):
+    """What a synchronisation would index, counted by the code that indexes.
+
+    Every figure is exact for the walk that produced it; ``truncated`` says
+    a bound cut the walk, which makes every count a floor. The threshold and
+    the bounds are published because they are enforced (ADR-184).
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    total_files: int = Field(description="Files found in the tree (folders excluded).")
+    unsupported: int = Field(description="Files whose type the pipeline cannot read.")
+    unchanged: int = Field(description="Files already indexed and current.")
+    modified: int = Field(description="Files indexed but changed on Drive since.")
+    new: int = Field(description="Supported files never indexed.")
+    over_capacity: int = Field(description="New files the space's document cap leaves out.")
+    to_index: int = Field(
+        description="Files the synchronisation would write (modified + new within capacity)."
+    )
+    folders: int = Field(description="Folders walked, the root included.")
+    unreadable_folders: int = Field(description="Sub-folders the account could not list.")
+    truncated: bool = Field(description="A bound stopped the walk: the counts are floors.")
+    threshold: int = Field(description="Files past which a confirmation is asked.")
+    max_files: int = Field(description="The walk's file bound.")
+    max_folders: int = Field(description="The walk's folder bound.")
+    requires_confirmation: bool = Field(description="``to_index`` exceeds the threshold.")
 
 
 # ============================================================================

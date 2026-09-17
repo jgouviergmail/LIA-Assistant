@@ -38,6 +38,7 @@ from src.domains.connectors.clients.base_google_client import (
     BaseGoogleClient,
     apply_max_items_limit,
 )
+from src.domains.connectors.clients.gmail_attachments_mixin import GmailAttachmentsMixin
 from src.domains.connectors.clients.gmail_threads_mixin import GmailThreadsMixin
 from src.domains.connectors.clients.normalizers.html_text import html_to_text
 from src.domains.connectors.clients.normalizers.reply_trimming import clean_reply_body
@@ -48,7 +49,7 @@ from src.infrastructure.cache.redis import get_redis_cache
 logger = structlog.get_logger(__name__)
 
 
-class GoogleGmailClient(GmailThreadsMixin, BaseGoogleClient):
+class GoogleGmailClient(GmailAttachmentsMixin, GmailThreadsMixin, BaseGoogleClient):
     """
     Google Gmail API client with OAuth, rate limiting, caching, and error handling.
 
@@ -329,91 +330,6 @@ class GoogleGmailClient(GmailThreadsMixin, BaseGoogleClient):
                 encoded_addresses.append(email)
 
         return ", ".join(encoded_addresses)
-
-    @staticmethod
-    def _extract_attachment_info(payload: dict[str, Any]) -> list[dict[str, Any]]:
-        """
-        Extract attachment information from message payload.
-
-        Recursively scans MIME parts to find all attachments.
-
-        Args:
-            payload: Gmail message payload object.
-
-        Returns:
-            List of attachment info dicts with:
-            - attachment_id: Gmail attachment ID
-            - filename: Original filename
-            - mime_type: MIME type (e.g., application/pdf)
-            - size: Attachment size in bytes
-            - part_id: Part ID in the message structure
-        """
-        attachments: list[dict[str, Any]] = []
-
-        def scan_parts(parts: list[dict[str, Any]], parent_part_id: str = "") -> None:
-            for i, part in enumerate(parts):
-                part_id = f"{parent_part_id}.{i}" if parent_part_id else str(i)
-                mime_type = part.get("mimeType", "")
-                filename = part.get("filename", "")
-                body = part.get("body", {})
-
-                # Check if this is an attachment (has filename and attachmentId)
-                if filename and body.get("attachmentId"):
-                    attachments.append(
-                        {
-                            "attachment_id": body["attachmentId"],
-                            "filename": filename,
-                            "mime_type": mime_type,
-                            "size": body.get("size", 0),
-                            "part_id": part_id,
-                        }
-                    )
-
-                # Recurse into nested parts
-                if "parts" in part:
-                    scan_parts(part["parts"], part_id)
-
-        # Start scanning from top-level parts
-        if "parts" in payload:
-            scan_parts(payload["parts"])
-
-        return attachments
-
-    async def get_attachment(
-        self,
-        message_id: str,
-        attachment_id: str,
-    ) -> bytes:
-        """
-        Download attachment data from Gmail.
-
-        Args:
-            message_id: Gmail message ID.
-            attachment_id: Gmail attachment ID.
-
-        Returns:
-            Raw attachment bytes.
-
-        Example:
-            >>> data = await client.get_attachment("msg123", "att456")
-            >>> with open("file.pdf", "wb") as f:
-            ...     f.write(data)
-        """
-        response = await self._make_request(
-            "GET",
-            f"/users/me/messages/{message_id}/attachments/{attachment_id}",
-        )
-
-        # Gmail returns base64url-encoded data
-        data_b64 = response.get("data", "")
-        # Convert base64url to standard base64
-        data_b64 = data_b64.replace("-", "+").replace("_", "/")
-        # Add padding if needed
-        padding = len(data_b64) % 4
-        if padding:
-            data_b64 += "=" * (4 - padding)
-
-        return base64.b64decode(data_b64)
 
     # ========================================================================
     # PUBLIC API METHODS

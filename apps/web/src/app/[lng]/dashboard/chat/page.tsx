@@ -66,14 +66,18 @@ function shortLang(language: string | undefined): string {
 /**
  * The composer's instance flags (module-level — CC discipline): attachments
  * default ON (the historical behaviour), meeting recording default OFF
- * (ADR-258: an instance that does not publish the flag has no recorder).
+ * (ADR-258: an instance that does not publish the flag has no recorder),
+ * the knowledge-space documents in the « + » default OFF (no spaces, no
+ * documents to offer).
  */
 function composerFeatureFlags(config: AppConfig | null): {
   attachmentsEnabled: boolean;
+  knowledgeDocumentsEnabled: boolean;
   meetingsEnabled: boolean;
 } {
   return {
     attachmentsEnabled: config?.features?.attachments_enabled ?? true,
+    knowledgeDocumentsEnabled: config?.features?.rag_spaces_enabled ?? false,
     meetingsEnabled: config?.features?.meetings_enabled ?? false,
   };
 }

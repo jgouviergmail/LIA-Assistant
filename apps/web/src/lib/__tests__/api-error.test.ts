@@ -18,7 +18,7 @@
 import { describe, it, expect } from 'vitest';
 
 import { ApiError, ApiStepUpError } from '@/lib/api-client';
-import { getApiErrorDetail } from '@/lib/api-error';
+import { getApiErrorCode, getApiErrorDetail } from '@/lib/api-error';
 
 /** Envelope FastAPI puts on the wire for a `BaseAPIException` with a str detail. */
 function apiErrorWithDetail(detail: unknown, status = 422): ApiError {
@@ -132,5 +132,21 @@ describe('error-class contract the extractor depends on', () => {
     expect(error.data).toEqual({ detail: 'conflict' });
     expect('response' in error).toBe(false);
     expect(getApiErrorDetail(error)).toBe('conflict');
+  });
+});
+
+describe('getApiErrorCode — a refusal that names itself', () => {
+  it('reads the stable code a coded 409 carries', () => {
+    expect(getApiErrorCode(apiErrorWithDetail({ code: 'drive_folder_nested' }, 409))).toBe(
+      'drive_folder_nested'
+    );
+  });
+
+  it('is undefined for a string detail, a list, an empty code or a non-error', () => {
+    expect(getApiErrorCode(apiErrorWithDetail('plain', 409))).toBeUndefined();
+    expect(getApiErrorCode(apiErrorWithDetail([{ msg: 'x' }], 422))).toBeUndefined();
+    expect(getApiErrorCode(apiErrorWithDetail({ code: '' }, 409))).toBeUndefined();
+    expect(getApiErrorCode(new Error('network'))).toBeUndefined();
+    expect(getApiErrorCode(undefined)).toBeUndefined();
   });
 });

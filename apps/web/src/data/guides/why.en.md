@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version**: 6.0
-**Date**: 2026-08-23
-**Application**: LIA v1.45.1
+**Date**: 2026-09-18
+**Application**: LIA v1.45.2
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -71,7 +71,7 @@ Every user has their own settings space, organized in two tabs. A search field s
 - **Proactive notifications**: set frequency, time window and context sources (calendar, weather, tasks, emails, interests, memories, journals)
 - **Scheduled actions and reminders**: say the rhythm — every three days, every other Tuesday, the 2nd Tuesday of the month, every two hours between 9 and 5, until a date or N times — for an automation as much as for a reminder, which can now come back instead of ringing once. And read your week at a glance: every routine at its hour on its days, every cell coloured by what really happened
 - **Skills**: enable/disable expert competencies in a gallery with previews, create your own personal Skills, or install one from an https URL (server-validated)
-- **Knowledge Spaces**: upload your documents (PDF, Word, Excel, PowerPoint, EPUB, HTML and 15+ formats), sync a Google Drive folder or follow a Gmail label — automatic indexing and hybrid search. The conversations you label become documents you can question weeks later, and removing the label removes the document. A document LIA cannot read — a scanned PDF with no text layer — says so under its row, with the remedy
+- **Knowledge Spaces**: upload your documents (PDF, Word, Excel, PowerPoint, EPUB, HTML and 15+ formats), sync a Google Drive folder or follow a Gmail label — automatic indexing and hybrid search. The conversations you label become documents you can question weeks later, and removing the label removes the document. A document LIA cannot read — a scanned PDF with no text layer — says so under its row, with the remedy. A Drive folder is synced with its sub-folders, and past a threshold the exact number of files about to be indexed is shown before anything starts
 - **Consumption export**: download your LLM and API consumption data in CSV
 
 ### 2.3. What the administrator controls
@@ -122,7 +122,7 @@ Talk to LIA as you would to a human assistant — no commands to memorize, no sy
 
 ### 3.2. Personal connected services
 
-- **Email**: read, search, compose, send, reply, forward — via Gmail, Outlook or Apple Mail; a message arrives as clean text, and many of them are summarised message by message ("summarise my unread mail", "a synthesis of this week's newsletters")
+- **Email**: read, search, compose, send, reply, forward — via Gmail, Outlook or Apple Mail; a message arrives as clean text, and many of them are summarised message by message ("summarise my unread mail", "a synthesis of this week's newsletters"); an attachment is read on request — a document as text, a photo or a scan through the vision model
 - **Calendar**: view, create, modify, delete events — via Google Calendar, Outlook Calendar or Apple Calendar
 - **Contacts**: search, create, modify contacts — via Google Contacts, Outlook Contacts or Apple Contacts
 - **Tasks**: manage your task lists — via Google Tasks or Microsoft To Do
@@ -154,7 +154,7 @@ LIA offers a complete voice mode:
 - **Image generation**: create images from text descriptions, edit existing photos
 - **Document generation**: ask for a CSV, an Excel sheet, a Word report, a PowerPoint or a PDF — a dedicated writer model produces the content in your language, then a local renderer builds the real file with its format's own codes: 16:9 slides whose layout follows the intent, a table of contents and pagination computed by Word, typed Excel columns under a filterable Table, exact page numbers and bookmarks in the PDF. Text is measured before it is placed, so nothing overflows; and if the model is cut short, LIA says so instead of handing you an amputated document. The file arrives as a downloadable card with an explicit expiry
 - **Excalidraw diagrams**: generate diagrams and schemas directly in conversation
-- **Attachments**: attach photos and PDFs — LIA analyzes visual content and extracts text from documents
+- **Attachments**: attach photos and PDFs — LIA analyzes visual content and extracts text from documents; the « + » also offers every document of your knowledge spaces, a paused space included, as a copy for that message
 - **MCP Apps**: interactive widgets directly in chat (forms, visualizations, mini-applications)
 - **Kept answers**: a bookmark on every answer keeps it out of the conversation — with your request and its date — in a tab beside your generated files; share it, download it as Markdown, or let it go; every kept answer also joins a knowledge space of your own, so LIA finds it and cites it weeks later
 

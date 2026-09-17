@@ -47,6 +47,24 @@ def _escape_tags(content: str) -> str:
     return content
 
 
+#: Longest source name kept in the opening tag: a URL is rarely longer, and
+#: a stranger's file name that is has nothing more to say.
+_SOURCE_ATTRIBUTE_MAX_CHARS = 512
+_ATTRIBUTE_ESCAPES = {'"': "&quot;", "<": "&lt;", ">": "&gt;"}
+
+
+def _safe_attribute(value: str) -> str:
+    """A source name that stays INSIDE its attribute, on one line, bounded.
+
+    A source name is a stranger's text too — a mail attachment's file name, a
+    page title — so a quote, an angle bracket or a line break in it must not
+    close the tag or land a line before the untrusted warning.
+    """
+    one_line = " ".join(value.split())
+    escaped = "".join(_ATTRIBUTE_ESCAPES.get(char, char) for char in one_line)
+    return escaped[:_SOURCE_ATTRIBUTE_MAX_CHARS]
+
+
 def wrap_external_content(
     content: str,
     source_url: str,
@@ -69,9 +87,7 @@ def wrap_external_content(
         return content
 
     escaped_content = _escape_tags(content)
-
-    # Sanitize source_url: escape quotes to prevent XML attribute injection
-    safe_source_url = source_url.replace('"', "&quot;")
+    safe_source_url = _safe_attribute(source_url)
 
     return (
         f'{EXTERNAL_CONTENT_OPEN_TAG} source="{safe_source_url}" type="{source_type}">'

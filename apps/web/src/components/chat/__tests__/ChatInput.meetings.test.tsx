@@ -62,6 +62,8 @@ vi.mock('@/hooks/useFileUpload', () => ({
     clearAttachments: vi.fn(),
     getReadyAttachmentIds: vi.fn(() => []),
     isUploading: false,
+    addServerAttachment: vi.fn(() => ({ ok: true as const })),
+    maxAttachments: 5,
   }),
 }));
 

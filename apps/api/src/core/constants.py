@@ -268,6 +268,13 @@ WEB_FETCH_CACHE_TTL_DEFAULT = 600  # 10 minutes for extracted page content
 WEB_SEARCH_CACHE_PREFIX = "web_search"  # Redis key prefix for search cache
 WEB_FETCH_CACHE_PREFIX = "web_fetch"  # Redis key prefix for fetch cache
 WEB_SEARCH_CACHE_ENABLED_DEFAULT = True  # Enable web search/fetch caching by default
+# Characters of an AI search synthesis (Perplexity) a card draws before folding
+# the rest behind « see more ». The search model's output budget is several
+# thousand characters (``PERPLEXITY_AGENT_LLM_MAX_TOKENS_DEFAULT``); a card is
+# read at a glance and the response node already writes the answer above it.
+# The fold is deterministic — whole paragraphs, else a sentence boundary — and
+# costs no model call.
+WEB_SEARCH_SYNTHESIS_PREVIEW_CHARS_DEFAULT = 800
 
 # Ollama dynamic model discovery
 OLLAMA_MODEL_CACHE_TTL_SECONDS = 60  # In-memory cache for discovered models
@@ -560,6 +567,22 @@ EMAILS_DIGEST_CONCURRENCY_DEFAULT: int = 4
 # ADR-287: the quoted history and the signature leave a reply body at the client
 # boundary (six languages of markers, measured on a 48-body corpus).
 EMAILS_TRIM_QUOTED_REPLIES_DEFAULT: bool = True
+# Reading ONE attachment of a message (``get_email_attachment``): the bytes
+# are classified by what they are, text is extracted through the knowledge
+# spaces' own pipeline, and an image or a PDF without a text layer is read by
+# the vision slot under a page bound. The size cap is the same order as an
+# uploaded document; the page bound and the edge bound the vision cost — a page
+# is a few hundred input tokens at 800 px and several thousand past 2 000 px.
+EMAIL_ATTACHMENT_MAX_MB_DEFAULT: int = 20
+EMAIL_ATTACHMENT_VISION_MAX_PAGES_DEFAULT: int = 4
+EMAIL_ATTACHMENT_IMAGE_MAX_EDGE_DEFAULT: int = 1_568
+# The PDF rasterisation scale for the vision reading (72 dpi × 2 = 144 dpi:
+# legible small print, well under the edge bound for A4).
+EMAIL_ATTACHMENT_PDF_RENDER_SCALE: float = 2.0
+# Rate limit of the attachment tool (per account): a vision reading is a paid
+# model call, a document extraction a CPU-bound thread — neither is a listing.
+EMAIL_ATTACHMENT_RATE_LIMIT_MAX_CALLS_DEFAULT: int = 12
+EMAIL_ATTACHMENT_RATE_LIMIT_WINDOW_SECONDS_DEFAULT: int = 60
 
 # Minimal preview for listing/searching emails (~150 tokens/email)
 # Use case: "recherche mes emails de john" - quick overview
@@ -4682,6 +4705,21 @@ RAG_MAIL_DOCUMENT_EXTENSION = ".md"
 RAG_DOCUMENT_NAME_MAX_CHARS: int = 200
 RAG_MAIL_HISTORY_TYPES: tuple[str, ...] = ("messageAdded", "labelAdded", "labelRemoved")
 RAG_DRIVE_MAX_FILES_PER_SYNC = 500
+# A linked folder is walked WITH its sub-folders (one Drive call lists one level).
+# The walk is bounded twice — files above, folders here — and a walk that hits
+# either bound says so (``truncated``) rather than passing a cut for a count.
+RAG_DRIVE_MAX_FOLDERS_PER_WALK = 200
+# Parent hops followed when refusing to link a folder inside (or above) a
+# tree already linked to the same space; Drive trees are shallow in practice.
+RAG_DRIVE_MAX_ANCESTOR_DEPTH = 64
+# Files of a Drive tree that may be indexed by one synchronisation before the
+# person is asked to confirm (the exact count is shown; a courtesy against
+# over-indexing, the hard bounds being the per-space document cap and the
+# walk bounds above).
+RAG_DRIVE_SYNC_CONFIRM_THRESHOLD_DEFAULT = 10
+# Google-native MIME types the walk decides on.
+GOOGLE_DRIVE_FOLDER_MIME = "application/vnd.google-apps.folder"
+GOOGLE_DRIVE_SHORTCUT_MIME = "application/vnd.google-apps.shortcut"
 
 # Google native MIME types -> export format mapping
 # google_mime: (export_mime, file_extension, stored_content_type)

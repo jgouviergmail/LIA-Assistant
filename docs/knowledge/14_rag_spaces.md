@@ -56,10 +56,15 @@ RAG uses OpenAI embeddings, which have a small cost:
 Costs are **fully tracked** and visible in the assistant message cost breakdown and your usage dashboard. The RAG embedding cost appears under the gemini-embedding-001 model.**Tip:** For a typical 10-page PDF, indexing costs less than $0.001.
 
 ## How does Google Drive sync work?
-You can link Google Drive folders to your knowledge spaces. Click **'Link Folder'**, browse your Drive, and select a folder. LIA lists the supported files, downloads them, and processes them through the same indexing pipeline.Use **'Sync Now'** to update — LIA detects new, modified, and deleted files automatically.**Key details:**
-- Supports Google Docs, Sheets, and Slides via API export
-- Per-file error isolation — one failed file does not block others
-- Feature flag: RAG_SPACES_DRIVE_SYNC_ENABLED
+You can link Google Drive folders to your knowledge spaces. Click **'Link Folder'**, browse your Drive and select a folder: LIA walks it **as a tree, sub-folders included**, lists the supported files, downloads them and processes them through the same indexing pipeline. A folder inside an already linked one — or above it — is refused rather than indexed twice.
+
+Use **'Sync Now'** to update — LIA detects new, modified and deleted files automatically. Past a number of files (10 by default, a setting of the instance), the button first shows the **exact count** of files about to be indexed — new, modified, unchanged, unsupported, and what the space cannot hold — and waits for your confirmation; a walk cut by a bound says "at least".
+
+**Key details:**
+- Supports Google Docs, Sheets and Slides via API export; shortcuts are not followed
+- Per-file error isolation — one failed file does not block others; an unreadable sub-folder is counted and skipped
+- Every synchronisation, manual or automatic, leaves its line in "What LIA consulted"
+- Feature flag: RAG_SPACES_DRIVE_SYNC_ENABLED; threshold: RAG_DRIVE_SYNC_CONFIRM_THRESHOLD
 
 ## Can I ask the assistant about its own features?
 Yes! LIA has a **built-in knowledge base** that lets it answer questions about itself directly in conversation:

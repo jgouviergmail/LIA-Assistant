@@ -70,10 +70,15 @@ Users click "Sync Now" to trigger synchronization — no automatic periodic sync
 This reduces complexity and API quota usage. Auto-sync can be added later via
 APScheduler (see Option 1).
 
-### Non-Recursive Folder Listing
+### Folder Listing — superseded by ADR-297 (2026-09-17)
 
-Only files directly in the linked folder are synced (no subfolder traversal).
-This keeps the scope manageable and predictable for users.
+The V1 rule was « only files directly in the linked folder are synced (no
+subfolder traversal) ». Since [ADR-297](ADR-297-Drive-Folder-Is-A-Tree-And-The-Count-Is-Exact.md)
+a linked folder is a TREE: one bounded, breadth-first walk
+(`rag_spaces/drive_walk.py`) shared by the synchronisation and a read-only
+preflight that counts, with the ingest's own predicates, what one sync would
+index; past a published threshold the person confirms the exact count before
+the sync starts. The predictability the V1 rule bought is now the count.
 
 ### Automatic Deletion of Removed Files
 
@@ -172,6 +177,7 @@ User clicks "Sync Now"
 ### Negative
 - No real-time sync — users must manually trigger
 - Non-recursive — deep folder hierarchies require multiple sources
+  (superseded by ADR-297: a linked folder is walked as a tree)
 - Google API quota consumption during sync (mitigated by rate limiter)
 
 ### Risks

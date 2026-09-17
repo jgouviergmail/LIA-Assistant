@@ -3,8 +3,8 @@
 > Retour d'expérience — un système complet, de la conception à la production.
 
 **Version** : 2.1
-**Date** : 2026-08-23
-**Application** : LIA v1.45.1
+**Date** : 2026-09-18
+**Application** : LIA v1.45.2
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -20,8 +20,8 @@ La quasi-totalité du code a été écrite par une IA, sous direction humaine : 
 | Code écrit par une IA — dirigée, encadrée, contrôlée | **≈ 100 %** |
 | Lignes de code (hors tests) — 49 domaines fonctionnels | **660 000** |
 | Tests automatisés, exécutés à chaque commit et livraison | **38 000+** |
-| Décisions d'architecture documentées (ADR) | **293** |
-| Versions livrées à rythme régulier | **262** |
+| Décisions d'architecture documentées (ADR) | **296** |
+| Versions livrées à rythme régulier | **263** |
 | Langues, parité vérifiée automatiquement | **6** |
 | Audit technique sur 24 périmètres | **8,3/10** |
 
@@ -50,13 +50,13 @@ Une IA qui code produit du volume ; elle ne produit de la qualité que sous cont
 
 ## 4. Les arbitrages
 
-Trois décisions structurantes, parmi les 293 documentées :
+Trois décisions structurantes, parmi les 296 documentées :
 
 **Souveraineté & réversibilité — aucune dépendance fournisseur irréversible.** Les modèles d'IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modèles locaux via Ollama) sont placés derrière une abstraction unique : chaque usage peut changer de fournisseur par configuration, avec comparaison de coût. Même principe côté métier : Google, Apple et Microsoft sont interchangeables par catégorie fonctionnelle. L'hébergement est intégralement maîtrisé ; les données personnelles sont chiffrées et restent sur l'infrastructure.
 
 **Économie de l'IA — le coût par requête est un critère de conception.** Deux modes d'exécution coexistent : un pipeline déterministe et économe pour les demandes courantes, un mode agent autonome pour les demandes exploratoires — l'écart de consommation mesuré va de 1 à 4-8, à service rendu équivalent sur les cas standards. Chaque appel est compté au token, valorisé en euros, agrégé par utilisateur et par modèle, gouverné par quotas. Même une notification de deux phrases se demande sans réflexion, parce qu'un modèle qui réfléchit par défaut facture sa réflexion dans le budget de la réponse. Et le mode agent n'emporte que les outils que la question appelle — choisis par pertinence, jamais par ordre d'arrivée — parce que quatre-vingts schémas d'outils pesaient l'essentiel d'un premier appel sans être comptés.
 
-**Maîtrise du risque — aucune action irréversible sans validation humaine.** Six niveaux de contrôle humain, gradués selon la sensibilité de l'action — de la clarification à la confirmation des opérations destructives. Le comportement en cas d'interruption est spécifié et testé : une validation en attente survit aux redémarrages, sans perte ni double exécution. Plusieurs actions dans une même demande sont soumises une par une, chacune sur sa carte, et le compte rendu dit ce qui a été fait et pour qui. Le téléphone suit la même ligne : la carte protège un tiers, donc quand LIA appelle la personne elle-même — sur un numéro déclaré et vérifié par un code lu à voix haute — la carte, c'est la personne ; en ligne, l'assistante lit tout ce que le chat lit et n'agit sur rien, et ce qui tourne sur la clé personnelle du fournisseur y est facturé, jamais compté ici.
+**Maîtrise du risque — aucune action irréversible sans validation humaine.** Six niveaux de contrôle humain, gradués selon la sensibilité de l'action — de la clarification à la confirmation des opérations destructives. Le comportement en cas d'interruption est spécifié et testé : une validation en attente survit aux redémarrages, sans perte ni double exécution. Plusieurs actions dans une même demande sont soumises une par une, chacune sur sa carte, et le compte rendu dit ce qui a été fait et pour qui. Le téléphone suit la même ligne : la carte protège un tiers, donc quand LIA appelle la personne elle-même — sur un numéro déclaré et vérifié par un code lu à voix haute — la carte, c'est la personne ; en ligne, l'assistante lit tout ce que le chat lit et n'agit sur rien, et ce qui tourne sur la clé personnelle du fournisseur y est facturé, jamais compté ici. Ce qu'un inconnu envoie — un mail, sa pièce jointe — reste une donnée à lire, jamais une instruction à suivre.
 
 ## 5. L'exploitation
 

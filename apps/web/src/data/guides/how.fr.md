@@ -5,8 +5,8 @@
 > Documentation de présentation technique destinée aux architectes, ingénieurs et experts techniques.
 
 **Version** : 5.0
-**Date** : 2026-08-23
-**Application** : LIA v1.45.1
+**Date** : 2026-09-18
+**Application** : LIA v1.45.2
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -69,8 +69,8 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Auto-hébergement ARM64 | Docker multi-arch, embeddings sémantiques (multilingues), Playwright chromium cross-platform |
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
-| Transparence totale | 564 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 293 ADRs, ~29 725 tests collectés par pytest sur 1 758 fichiers, observabilité native, HITL à 6 niveaux |
+| Transparence totale | 565 métriques Prometheus, debug panel embarqué, suivi token par token |
+| Fiabilité en production | 296 ADRs, ~29 725 tests collectés par pytest sur 1 758 fichiers, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -91,7 +91,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Tests | 29 725 collectés par pytest sur 1 758 fichiers de test + 8 423 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
 | Fixtures pytest | 969, dont 46 partagées via conftest |
 | Documents de documentation | 647 |
-| ADRs (Architecture Decision Records) | 293 |
+| ADRs (Architecture Decision Records) | 296 |
 | Métriques Prometheus | 553 définitions |
 | Dashboards Grafana | 29 |
 | Langues supportées (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -790,6 +790,12 @@ LIA peut passer un appel sortant à la place de l'utilisateur, mener une convers
 
 **Le téléphone comme canal (ADR-290).** La carte de confirmation protège un tiers qui n'a rien demandé ; quand LIA appelle *la personne elle-même*, celle qui confirmerait est celle qui décroche — à condition que le numéro soit prouvé le sien. L'identité est donc un numéro déclaré dans les réglages, affiché en entier, puis vérifié par un appel où LIA lit un code que la personne retape (essais bornés, code éphémère lié au numéro, comparaison en temps constant, le plafond horaire de tout appel payant) ; jamais une reconnaissance par nom, et l'outil d'appel tiers refuse ce numéro. Le **même** agent vocal sert trois mandats — celui du tiers cuit dans l'agent, celui du titulaire et celui de la vérification envoyés par un override par appel rendu côté serveur — pour que rien du contexte de la personne ne soit jamais cuit dans un agent qui appelle aussi des inconnus ; et ce que l'agent *a dans la voix* (modèle, langue, voix, format audio, plafond de durée) appartient au portail du fournisseur, jamais à un réglage, parce que le fournisseur fusionne un PATCH avec ce qu'il stocke et qu'un modèle épinglé heurtait l'effort de raisonnement du portail à chaque synchronisation. `call_me` n'a pas de carte par construction, ce qui permet aussi à une routine de le planifier. L'appel emporte le contexte du chat sous un budget de jetons (mémoires, agenda, rappels, boucles ouvertes, derniers échanges — un commutateur le coupe) et la personnalité configurée pour l'assistante, chaque lecture consignée au registre des consultations. Derrière un second drapeau, l'agent **lit LIA en direct** pendant l'appel, et n'agit sur rien : l'ensemble d'outils est une règle sur le catalogue plutôt qu'une liste — tout outil qui ne fait que lire, d'un domaine que le téléphone offre, dont les paramètres obligatoires se disent à la voix (55 outils sur 22 domaines, plus un rappel natif de la mémoire) — rattaché à l'agent le temps de l'appel du titulaire, puisque le fournisseur refuse des identifiants d'outils dans un override par appel, et chaque résultat est réduit à ce qu'une voix peut dire avant la pagination item par item (un identifiant, un lien, une structure imbriquée n'atteignent jamais la voix ; quatre événements de week-end tiennent là où un seul passait brut). Chaque domaine a un interrupteur propre à la personne, relu sur sa ligne à chaque rappel. À la fin de l'appel, ce qui a été dit revient comme **le propre message de la personne** : la transcription est synthétisée puis rejouée par le moteur hors tour comme un tour *parlé par la personne* — les extractions de mémoire, de journal et de psyché tournent comme dans le chat, le message porte un badge téléphone, un brouillon attend sa confirmation dans le chat. Le relais est réclamé avant le tour et réglé par mise à jour conditionnelle, un plantage en plein relais est rendu à une notification qui dit pourquoi, et dix verdicts de relais sont comptés et dessinés sur la liste des appels — « personne n'a décroché » et « la ligne a échoué » distingués de « quelqu'un d'autre a répondu ». Chaque euro d'un appel tombe sous un run id unique — les recherches en direct, la synthèse, le tour relayé — si bien que le résumé par run que le compteur du chat lit déjà est la facture de l'appel, sur la réponse relayée et sur la liste des appels ; ce qui tourne sur la clé personnelle du fournisseur y est facturé et n'est jamais compté ici.
 
+### 13.6. Lire une pièce jointe : le texte quand il y en a, la vision sinon
+
+Lister les pièces jointes d'un message est une lecture de métadonnées ; en ouvrir une est un téléchargement, et les trois clients l'exposent derrière UNE méthode du protocole e-mail — même nom, même règle de sélection, mêmes erreurs — parce que l'asymétrie entre fournisseurs est l'origine des bugs de connecteurs. La sélection est un helper partagé : par identifiant, sinon par nom, un nom ambigu refusé avec ses candidats. Il le faut, parce qu'un identifiant de pièce jointe Gmail n'est pas stable : mesuré sur une vraie boîte, il change entre deux lectures du même message, si bien que l'identifiant servi par un listage peut déjà avoir disparu quand l'outil relit le message. Un identifiant périmé n'est donc pas un mensonge : le nom décide quand il est donné, une partie unique lève l'ambiguïté, et tout autre cas répond avec les identifiants COURANTS pour que le modèle réessaie.
+
+Les octets sont lus par un module qui ne touche aucun client. Le type MIME vient des octets magiques, l'en-tête de l'expéditeur n'étant qu'un repli ; un document passe par l'extraction des espaces de connaissances (quinze formats) dans un thread de travail ; une image, ou un PDF dont les pages portent des images et aucune couche texte, est rendue en un jeu borné et réduit de pages PNG confié au slot de vision — le raster lui-même est borné, une page de 200 pouces de côté ne doit pas allouer des gigaoctets avant toute réduction — et un jeu de pages coupé est énoncé au modèle plutôt que lu comme le tout. L'appel de vision est la dépense du tour, portée par la configuration du runtime pour que les plafonds du compte et de l'instance le voient tous deux ; un refus de quota est « passé », jamais « échoué », et une réponse tronquée est un refus. La borne de taille descend jusqu'au client, si bien qu'une partie que le listage annonce déjà trop lourde est refusée avant qu'un seul octet ne circule. Ce qui revient est servi en parties comme un corps de mail et enveloppé en contenu externe, son nom de fichier échappé dans la balise — une pièce jointe est ce qu'un inconnu a envoyé, et son nom aussi.
+
 ---
 
 ## 14. MCP : Model Context Protocol
@@ -925,6 +931,16 @@ incrémental suivant au lieu de tomber dans le trou ; ce passage monte sur le
 réveil push de la section 16 et ne répond à aucune porte de notification —
 indexer n'est pas décider.
 
+### 17.4. Un dossier Drive est un arbre, et le compte est exact (ADR-297)
+
+Google Drive liste un niveau par appel, si bien qu'un dossier lié est parcouru en largeur, borné deux fois — fichiers et dossiers — et la coupe est énoncée : un raccourci n'est ni listé ni suivi, un dossier atteint deux fois est parcouru une fois, un sous-dossier illisible est compté et sauté, et seule une racine illisible est une erreur. L'ensemble des dossiers parcourus voyage avec la source, si bien que le chemin push route un changement sur l'arbre entier et laisse l'ensemble suivre le flux — un dossier créé sous l'arbre le rejoint avant que les fichiers créés dedans n'arrivent dans le même flux. Un dossier situé dans un arbre déjà lié, ou au-dessus, est refusé : deux sources dédupliquant par identifiant de fichier se voleraient leurs documents à chaque synchronisation.
+
+Le compte affiché avant une grosse synchronisation est calculé par le code qui indexe : le même parcours, les mêmes prédicats pour « pris en charge » et « inchangé », le plafond de documents de l'espace. Il classe chaque fichier — nouveau, modifié, inchangé, non pris en charge, au-delà de la capacité — et le bouton ne demande à la personne qu'au-delà d'un seuil que l'instance fixe ; un parcours coupé par une borne dit « au moins ». Chaque synchronisation, manuelle ou de fond, dépose une consultation pour l'acte — et une lecture hors de tout run publie le sien, parce que le registre ne garde que ce qu'un collecteur ramasse.
+
+### 17.5. Un document d'un espace rejoint un message comme copie (ADR-295)
+
+La recherche du chat ne lit que les espaces actifs, si bien qu'un document indexé dans un espace en pause était inaccessible depuis une question sans réactiver tout l'espace. Le « + » du composeur liste donc les documents prêts de chaque espace que la personne possède, un espace en pause badgé plutôt que caché, avec une page et un total exact, et le document choisi est COPIÉ par le mécanisme même des pièces jointes : le fichier stocké sous un nom neuf, le texte par l'extraction des espaces de connaissances — quinze formats, pas la liste image-et-PDF de l'envoi —, la ligne un envoi, si bien qu'une réinitialisation de conversation retire la copie et que l'espace, son index et son fichier ne sont jamais touchés. Seul un document prêt est proposé, les deux interrupteurs de capacité doivent être ouverts, et le modèle est prévenu quand le texte est au plafond : une coupe est énoncée, jamais appliquée en silence.
+
 ---
 
 ## 18. Browser Control et Web Fetch
@@ -1004,7 +1020,7 @@ La provenance est donc une propriété de la **donnée** : les 24 types du regis
 
 | Technologie | Rôle |
 |-------------|------|
-| Prometheus | 564 métriques custom (RED pattern) |
+| Prometheus | 565 métriques custom (RED pattern) |
 | Grafana | 29 dashboards production-ready |
 | Loki | Logs structurés JSON agrégés |
 | Tempo | Traces distribuées cross-service (OTLP gRPC) |
@@ -1012,7 +1028,7 @@ La provenance est donc une propriété de la **donnée** : les 24 types du regis
 | Alertmanager | Noyau de 14 alertes vitales notifiées par e-mail (runbooks liés, seuils par environnement) + webhook vers LIA : chaque alerte devient un incident dans le produit (ADR-247) |
 | structlog | Logging structuré avec PII filtering |
 
-**Une métrique qui n'atteint aucun tableau de bord est une métrique sur laquelle personne n'agit.** L'écart entre ce que le code émet et ce qu'un opérateur peut voir est mesuré, jamais supposé : `scripts/audit/measure_metric_coverage.py` analyse chaque définition de métrique (par AST et non par expression régulière — une regex lit `ZoneInfo("UTC")` comme une métrique `Info`) et confronte chaque nom à tous les panels, règles d'enregistrement et expressions d'alerte. 564 définies ; les 44 qui n'atteignent rien sont listées explicitement dans une base **shrink-only**, si bien qu'une métrique nouvellement aveugle fait rougir le build et qu'une métrique devenue visible doit quitter la liste — sinon la prochaine aveugle prend sa place en silence. Le prix de ne pas l'avoir eu : une source de heartbeat tombant en panne ouverte a supprimé les signaux de santé sur 46,5 % des ticks pendant une semaine, sans aucune métrique pour s'en apercevoir (ADR-148). Deux pièges que la garde ferme par construction — un compteur à labels qui n'a jamais été incrémenté n'expose **aucune série**, donc un panel qui guette une panne rare a besoin de `or vector(0)`, faute de quoi il affiche « No data » là où l'opérateur attend un zéro vert ; et la couverture est lue dans les **expressions** de panels et de règles uniquement, car une métrique citée dans un commentaire n'est pas câblée.
+**Une métrique qui n'atteint aucun tableau de bord est une métrique sur laquelle personne n'agit.** L'écart entre ce que le code émet et ce qu'un opérateur peut voir est mesuré, jamais supposé : `scripts/audit/measure_metric_coverage.py` analyse chaque définition de métrique (par AST et non par expression régulière — une regex lit `ZoneInfo("UTC")` comme une métrique `Info`) et confronte chaque nom à tous les panels, règles d'enregistrement et expressions d'alerte. 565 définies ; les 44 qui n'atteignent rien sont listées explicitement dans une base **shrink-only**, si bien qu'une métrique nouvellement aveugle fait rougir le build et qu'une métrique devenue visible doit quitter la liste — sinon la prochaine aveugle prend sa place en silence. Le prix de ne pas l'avoir eu : une source de heartbeat tombant en panne ouverte a supprimé les signaux de santé sur 46,5 % des ticks pendant une semaine, sans aucune métrique pour s'en apercevoir (ADR-148). Deux pièges que la garde ferme par construction — un compteur à labels qui n'a jamais été incrémenté n'expose **aucune série**, donc un panel qui guette une panne rare a besoin de `or vector(0)`, faute de quoi il affiche « No data » là où l'opérateur attend un zéro vert ; et la couverture est lue dans les **expressions** de panels et de règles uniquement, car une métrique citée dans un commentaire n'est pas câblée.
 
 ### 20.2. Debug Panel embarqué
 
@@ -1422,7 +1438,7 @@ Une règle CSS gouverne les espacements du design system : les marges verticales
 
 ## 24. Architecture des décisions (ADR)
 
-293 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
+296 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
 
 | ADR | Décision | Problème résolu | Impact mesuré |
 |-----|----------|----------------|---------------|
@@ -1738,8 +1754,8 @@ Le budget de connexions a un plancher, pas seulement un plafond. L'audit F004 bo
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 293 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~29 725 tests sur 1 758 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 296 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~29 725 tests sur 1 758 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 293 ADRs, et du changelog (v1.0 à v1.45.1). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 296 ADRs, et du changelog (v1.0 à v1.45.2). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

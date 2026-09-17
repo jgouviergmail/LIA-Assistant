@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { haptic } from '@/lib/haptics';
-import { Send, Mic, Plus, Square, ImageUp, Camera, Paperclip } from 'lucide-react';
+import { Send, Mic, Plus, Square, ImageUp, Camera, Paperclip, Library } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -26,7 +26,11 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { useVoiceModeStore } from '@/stores/voiceModeStore';
-import { useFileUpload } from '@/hooks/useFileUpload';
+import {
+  useFileUpload,
+  type AddServerAttachmentOutcome,
+  type ServerAttachmentMeta,
+} from '@/hooks/useFileUpload';
 import {
   CHAT_INPUT_MAX_HEIGHT_PX,
   CHAT_INPUT_MAX_LENGTH,
@@ -35,6 +39,7 @@ import {
 } from '@/lib/constants';
 import { prefersReducedMotion } from '@/lib/utils/motion';
 import AttachmentPreview from '@/components/chat/AttachmentPreview';
+import { KnowledgeDocumentPickerDialog } from '@/components/chat/KnowledgeDocumentPickerDialog';
 import { SlashCommandMenu, useSlashMenu } from '@/components/chat/SlashCommandMenu';
 import type { SlashCommand } from '@/lib/slash-commands';
 import { MessageAttachmentMeta } from '@/types/chat';
@@ -70,6 +75,11 @@ export interface ChatInputProps {
   onMessageChange?: (message: string) => void;
   /** Whether attachments feature is enabled */
   attachmentsEnabled?: boolean;
+  /**
+   * Whether the « + » also offers the person's knowledge-space documents
+   * (the spaces capability is on). Off, the browser keeps its one-click picker.
+   */
+  knowledgeDocumentsEnabled?: boolean;
   /**
    * ADR-258: the instance offers meeting recording. The composer only needs
    * it to keep hold-to-talk off the table while a meeting is being captured;
@@ -383,30 +393,78 @@ function useInAndroidShell(): boolean {
 /**
  * The « + » of the composer.
  *
- * In a browser — a PWA included — one click opens the file picker, because the
- * browser's own chooser already offers the camera next to the gallery. The
- * Android shell gets a menu instead: Capacitor hands the WebView's bare intent
- * to the system (`fileChooserParams.createIntent()`) without adding the capture
- * intent a browser adds itself, so whether "Camera" appears at all is left to
- * the OEM's picker — measured absent on a OneUI 9 device, 2026-09-04. iOS is
- * excluded on purpose: WKWebView offers "Take Photo" on an image input itself,
- * and a control the platform already gives is not one to give twice (ADR-246).
+ * ONE gesture when there is one thing to do: in a browser — a PWA included —
+ * a click opens the file picker, because the browser's own chooser already
+ * offers the camera next to the gallery. A MENU as soon as a second entry
+ * exists: the Android shell's camera (Capacitor hands the WebView's bare
+ * intent to the system without the capture intent a browser adds itself —
+ * measured absent on a OneUI 9 device, 2026-09-04; iOS is excluded on
+ * purpose, WKWebView offers "Take Photo" on an image input itself, ADR-246),
+ * and the person's knowledge-space documents when the spaces are on.
  */
 function ComposerAttachmentsControl({
   t,
   attachmentsEnabled,
+  knowledgeDocumentsEnabled,
   disabled,
   onPickFile,
   onTakePhoto,
+  remaining,
+  onAttached,
 }: {
   t: (key: string) => string;
   attachmentsEnabled: boolean;
+  knowledgeDocumentsEnabled?: boolean;
   disabled: boolean;
   onPickFile: () => void;
   onTakePhoto: () => void;
+  /** Room left in the message: the picker bounds its selection by it. */
+  remaining: number;
+  onAttached: (meta: ServerAttachmentMeta) => AddServerAttachmentOutcome;
 }) {
   const inShell = useInAndroidShell();
+  // The knowledge-space picker: a copy of one of the person's indexed
+  // documents joins the strip like an upload (the API creates the row).
+  const [pickerOpen, setPickerOpen] = useState(false);
   if (!attachmentsEnabled) return null;
+
+  // The menu closes and restores focus to the trigger; opening the file dialog
+  // in the same tick can be swallowed by that restoration. A task boundary is
+  // enough, and stays inside the transient user activation the picker needs.
+  const defer = (open: () => void) => () => setTimeout(open, 0);
+  const entries: Array<{ key: string; icon: React.ReactNode; label: string; open: () => void }> = [
+    {
+      key: 'file',
+      icon: <Paperclip className="mr-2 h-4 w-4" aria-hidden="true" />,
+      label: t('chat.attachments.attach_file'),
+      open: onPickFile,
+    },
+  ];
+  if (inShell) {
+    entries.push({
+      key: 'photo',
+      icon: <Camera className="mr-2 h-4 w-4" aria-hidden="true" />,
+      label: t('chat.attachments.take_photo'),
+      open: onTakePhoto,
+    });
+  }
+  if (knowledgeDocumentsEnabled) {
+    entries.push({
+      key: 'knowledge',
+      icon: <Library className="mr-2 h-4 w-4" aria-hidden="true" />,
+      label: t('chat.attachments.from_knowledge'),
+      open: () => setPickerOpen(true),
+    });
+  }
+  const single = entries.length === 1;
+  const picker = knowledgeDocumentsEnabled ? (
+    <KnowledgeDocumentPickerDialog
+      open={pickerOpen}
+      onOpenChange={setPickerOpen}
+      remaining={remaining}
+      onAttached={onAttached}
+    />
+  ) : null;
 
   const trigger = (
     <Button
@@ -415,14 +473,14 @@ function ComposerAttachmentsControl({
       size="lg"
       className={COMPOSER_ACTION_BUTTON}
       disabled={disabled}
-      onClick={inShell ? undefined : onPickFile}
+      onClick={single ? entries[0].open : undefined}
       aria-label={t('chat.attachments.add')}
     >
       <Plus className="h-5 w-5" aria-hidden="true" />
     </Button>
   );
 
-  if (!inShell) {
+  if (single) {
     return (
       <Tooltip>
         <TooltipTrigger asChild>{trigger}</TooltipTrigger>
@@ -431,25 +489,21 @@ function ComposerAttachmentsControl({
     );
   }
 
-  // The menu closes and restores focus to the trigger; opening the file dialog
-  // in the same tick can be swallowed by that restoration. A task boundary is
-  // enough, and stays inside the transient user activation the picker needs.
-  const defer = (open: () => void) => () => setTimeout(open, 0);
-
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
-        <DropdownMenuItem onSelect={defer(onPickFile)}>
-          <Paperclip className="mr-2 h-4 w-4" aria-hidden="true" />
-          {t('chat.attachments.attach_file')}
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={defer(onTakePhoto)}>
-          <Camera className="mr-2 h-4 w-4" aria-hidden="true" />
-          {t('chat.attachments.take_photo')}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
+          {entries.map(entry => (
+            <DropdownMenuItem key={entry.key} onSelect={defer(entry.open)}>
+              {entry.icon}
+              {entry.label}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {picker}
+    </>
   );
 }
 
@@ -479,6 +533,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   className,
   onMessageChange,
   attachmentsEnabled = false,
+  knowledgeDocumentsEnabled,
   meetingsEnabled = false,
   isGenerating = false,
   onStopGeneration,
@@ -514,10 +569,12 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const {
     attachments,
     uploadFile,
+    addServerAttachment,
     removeFile,
     clearAttachments,
     getReadyAttachmentIds,
     isUploading,
+    maxAttachments,
   } = useFileUpload();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -979,9 +1036,12 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           <ComposerAttachmentsControl
             t={t}
             attachmentsEnabled={attachmentsEnabled}
+            knowledgeDocumentsEnabled={knowledgeDocumentsEnabled}
             disabled={disabled || !apiAvailable || isUploading}
             onPickFile={() => fileInputRef.current?.click()}
             onTakePhoto={() => photoInputRef.current?.click()}
+            remaining={Math.max(maxAttachments - attachments.length, 0)}
+            onAttached={addServerAttachment}
           />
           {/* Positional wrapper (UXR Lot 8): the slash menu floats above the
               textarea, which carries the combobox role itself (ARIA 1.2). */}

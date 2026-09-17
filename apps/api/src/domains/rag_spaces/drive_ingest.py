@@ -30,7 +30,11 @@ from prometheus_client import Counter
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
-from src.core.constants import RAG_DRIVE_GOOGLE_EXPORT_MAP, RAG_DRIVE_REGULAR_FILE_MAP
+from src.core.constants import (
+    GOOGLE_DRIVE_FOLDER_MIME,
+    RAG_DRIVE_GOOGLE_EXPORT_MAP,
+    RAG_DRIVE_REGULAR_FILE_MAP,
+)
 from src.core.exceptions import BaseAPIException
 from src.domains.rag_spaces.models import (
     RAGDocument,
@@ -88,6 +92,21 @@ def is_supported_drive_file(drive_file: dict[str, Any]) -> bool:
     """Whether the pipeline knows how to read this MIME type."""
     mime_type = drive_file.get("mimeType", "")
     return mime_type in RAG_DRIVE_GOOGLE_EXPORT_MAP or mime_type in RAG_DRIVE_REGULAR_FILE_MAP
+
+
+def is_unchanged(existing: RAGDocument, drive_file: dict[str, Any]) -> bool:
+    """Whether a synced document is still current for its Drive file.
+
+    ONE predicate, read by the ingest (skip) and by the preflight (count):
+    current when both stamps exist and the stored one is not older. A missing
+    stamp on either side reads as changed — re-downloading is the safe side.
+    """
+    drive_mod_dt = parse_rfc3339(drive_file.get("modifiedTime"))
+    return (
+        existing.drive_modified_time is not None
+        and drive_mod_dt is not None
+        and existing.drive_modified_time >= drive_mod_dt
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -285,12 +304,7 @@ async def ingest_drive_file(
     try:
         existing = await doc_repo.get_by_drive_file_id(space_id, file_id)
         if existing is not None:
-            unchanged = (
-                existing.drive_modified_time is not None
-                and drive_mod_dt is not None
-                and existing.drive_modified_time >= drive_mod_dt
-            )
-            if unchanged:
+            if is_unchanged(existing, drive_file):
                 rag_drive_sync_files_total.labels(result="skipped").inc()
                 return IngestResult("skipped")
             await discard_document(db, existing, user_id=user_id, space_id=space_id)
@@ -370,18 +384,98 @@ async def _drain_changes(client: Any, page_token: str) -> tuple[list[dict[str, A
     return changes, None
 
 
+def routed_folder_ids(source: RAGDriveSource) -> list[str]:
+    """The folders a push change is routed on: the walked tree, the root alone before it."""
+    walked = list(source.folder_ids or [])
+    return walked if source.folder_id in walked else [source.folder_id, *walked]
+
+
+def _is_folder(file: dict[str, Any]) -> bool:
+    return file.get("mimeType") == GOOGLE_DRIVE_FOLDER_MIME
+
+
+@dataclass(slots=True)
+class TouchedSource:
+    """One linked tree a drained feed touched, and what it must apply."""
+
+    source: RAGDriveSource
+    changes: list[dict[str, Any]]
+    #: The routing set after the feed: sub-folders created under the tree
+    #: joined it, trashed ones left it. Persisted with the completion.
+    folder_ids: list[str]
+
+
+def _route_folder_change(
+    entry: TouchedSource, *, file_id: str, parents: set[str], gone: bool
+) -> None:
+    """A folder joins the tree when created under it, leaves it when trashed."""
+    known = entry.folder_ids
+    if gone:
+        if file_id in known and file_id != entry.source.folder_id:
+            entry.folder_ids = [f for f in known if f != file_id]
+        return
+    if file_id not in known and parents & set(known):
+        entry.folder_ids = [*known, file_id]
+
+
+@dataclass(frozen=True, slots=True)
+class _FeedChange:
+    """One entry of the Drive changes feed, read once for every source."""
+
+    file_id: str
+    parents: frozenset[str]
+    gone: bool
+    is_folder: bool
+    raw: dict[str, Any]
+
+
+def _read_change(change: dict[str, Any]) -> _FeedChange:
+    """The routing facts of a feed entry: id, parents, removal, kind."""
+    file = change.get("file") or {}
+    return _FeedChange(
+        file_id=str(change.get("fileId") or file.get("id") or ""),
+        parents=frozenset(file.get("parents") or []),
+        gone=bool(change.get("removed") or file.get("trashed")),
+        is_folder=_is_folder(file),
+        raw=change,
+    )
+
+
+def _route_change(entry: TouchedSource, change: _FeedChange) -> None:
+    """Route one feed entry on a source: a folder moves the set, a file is applied."""
+    if change.is_folder or (change.gone and change.file_id in entry.folder_ids):
+        _route_folder_change(
+            entry, file_id=change.file_id, parents=set(change.parents), gone=change.gone
+        )
+    elif change.parents & set(entry.folder_ids):
+        entry.changes.append(change.raw)
+
+
 def _touched_sources(
     changes: list[dict[str, Any]], sources: list[RAGDriveSource]
-) -> dict[UUID, tuple[RAGDriveSource, list[dict[str, Any]]]]:
-    """Group the changes by the linked folder their file sits directly under."""
-    by_folder: dict[str, RAGDriveSource] = {s.folder_id: s for s in sources}
-    touched: dict[UUID, tuple[RAGDriveSource, list[dict[str, Any]]]] = {}
-    for change in changes:
-        parents = set((change.get("file") or {}).get("parents") or [])
-        for folder_id in parents & set(by_folder):
-            source = by_folder[folder_id]
-            touched.setdefault(source.id, (source, []))[1].append(change)
-    return touched
+) -> dict[UUID, TouchedSource]:
+    """Group the changes by the linked TREE their file sits in.
+
+    A change is routed on its file's parents against each source's walked
+    folder set (``routed_folder_ids``). The set grows as the feed is read: a
+    folder created under the tree joins it so the files created inside it,
+    later in the same feed, route too; a trashed or removed sub-folder leaves
+    it (its documents are pruned by the next full synchronisation — Drive
+    reports the folder, not each descendant). Only a source whose set changed
+    or that has a file change to apply is returned.
+    """
+    entries: dict[UUID, TouchedSource] = {
+        s.id: TouchedSource(s, [], routed_folder_ids(s)) for s in sources
+    }
+    initial = {s.id: list(routed_folder_ids(s)) for s in sources}
+    for change in map(_read_change, changes):
+        for entry in entries.values():
+            _route_change(entry, change)
+    return {
+        source_id: entry
+        for source_id, entry in entries.items()
+        if entry.changes or entry.folder_ids != initial[source_id]
+    }
 
 
 async def _apply_change(
@@ -416,8 +510,7 @@ async def _reindex_source(
     db: AsyncSession,
     client: Any,
     *,
-    source: RAGDriveSource,
-    changes: list[dict[str, Any]],
+    touched: TouchedSource,
     user_id: UUID,
 ) -> str:
     """Apply one source's changes under its sync lock; embed; complete.
@@ -429,13 +522,14 @@ async def _reindex_source(
     from src.domains.rag_spaces.drive_sync import RAGDriveSyncService
     from src.domains.rag_spaces.jobs_repository import RAGJobsRepository
 
+    source = touched.source
     if not await RAGDriveSyncService(db).try_acquire_sync_lock(source.id):
         return "locked"
     source_repo = RAGDriveSourceRepository(db)
     jobs = RAGJobsRepository(db)
     try:
         queued: list[dict[str, Any]] = []
-        for change in changes:
+        for change in touched.changes:
             kwargs = await _apply_change(
                 db, client, jobs, source=source, change=change, user_id=user_id
             )
@@ -448,6 +542,8 @@ async def _reindex_source(
                 "sync_status": RAGDriveSyncStatus.COMPLETED,
                 "last_sync_at": datetime.now(UTC),
                 "synced_file_count": (source.synced_file_count or 0) + synced,
+                # A NEW list: the routing set the feed left behind.
+                "folder_ids": list(touched.folder_ids),
                 "error_message": None,
                 "lease_expires_at": None,
                 "worker_id": None,
@@ -484,7 +580,7 @@ async def reindex_from_push(user_id: UUID, page_token: str | None) -> str:
     """Turn a Drive change notification into targeted reindexations (ADR-261 P2).
 
     Drains the changes feed from the channel's token, keeps the changes whose
-    file sits directly under a linked folder, and — per linked source, under
+    file sits under a linked TREE (the folder set the last walk persisted), and — per linked source, under
     the same sync lock the manual sync uses — ingests the changed files and
     removes the trashed ones. The channel's token advances to the new
     baseline only after the feed was drained.
@@ -542,10 +638,8 @@ async def reindex_from_push(user_id: UUID, page_token: str | None) -> str:
                     channel.page_token = new_start
                     await db.commit()
                 outcomes = [
-                    await _reindex_source(
-                        db, client, source=source, changes=source_changes, user_id=user_id
-                    )
-                    for source, source_changes in touched.values()
+                    await _reindex_source(db, client, touched=entry, user_id=user_id)
+                    for entry in touched.values()
                 ]
                 outcome = _aggregate(outcomes)
                 return outcome

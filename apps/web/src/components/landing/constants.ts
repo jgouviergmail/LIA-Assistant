@@ -9,7 +9,10 @@
  *   2026-07-25: `grep -c 'register_agent(' agents.py` — the telephony agent
  *   had landed without this counter following it.
  * - tools: tool manifests the running catalogue actually EXPOSES, not the count
- *   Re-measured 2026-09-10 (v1.44.0) on the dev instance = 114 (`tool_count` in
+ *   Re-measured 2026-09-18 (v1.45.2) on the dev instance = 115 (`tool_count` in
+ *   the catalogue log at boot): the mail-attachment read tool (ADR-296) joined
+ *   the e-mail agent.
+ *   Previous re-measure 2026-09-10 (v1.44.0) on the dev instance = 114 (`tool_count` in
  *   the catalogue log at boot): the six ticket manifests of the workboard
  *   (ADR-276) joined the catalogue, under a domain of their own.
  *   Previous re-measure 2026-09-03 (v1.39.0) on the dev instance = 108 (`tool_count` in the
@@ -322,14 +325,14 @@
 
 export const LANDING_STATS = {
   agents: 20,
-  tools: 114,
+  tools: 115,
   providers: 7,
   voiceLanguages: 99,
-  metrics: 564,
+  metrics: 565,
   uiLanguages: 6,
   tests: 38000,
-  adrs: 293,
-  releases: 262,
+  adrs: 296,
+  releases: 263,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

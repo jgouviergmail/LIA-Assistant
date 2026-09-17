@@ -1,0 +1,10 @@
+# One-line scaffolds of the mail-attachment vision reading, `key|template` per
+# line; blank lines and #-comments are ignored (ADR-284: prose never lives in a
+# .py, and neither does a fallback). str.format templates.
+
+# What the reader wants when the tool was asked no question.
+default_question|everything the attachment holds: what it is, and every figure, date, name, reference and amount as written
+
+# Rendered only when the attachment holds more pages than are shown: a cut is
+# stated, never read as the whole (ADR-286).
+pages_cut|The attachment has {total} pages and only the first {shown} are shown: say so in your first sentence, and read nothing into the pages you cannot see.

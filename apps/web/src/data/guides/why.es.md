@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Versión**: 6.0
-**Fecha**: 2026-08-23
-**Aplicación**: LIA v1.45.1
+**Fecha**: 2026-09-18
+**Aplicación**: LIA v1.45.2
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -71,7 +71,7 @@ Cada usuario dispone de su propio espacio de configuración, organizado en dos p
 - **Notificaciones proactivas**: ajusta la frecuencia, la ventana horaria y las fuentes de contexto (calendario, tiempo, tareas, correos, intereses, memorias, diarios)
 - **Acciones programadas y recordatorios**: di el ritmo — cada tres días, un martes de cada dos, el 2.º martes del mes, cada dos horas entre las 9 y las 17, hasta una fecha o N veces — tanto para una automatización como para un recordatorio, que ahora puede volver en vez de sonar una sola vez. Y lee tu semana de un vistazo: cada rutina a su hora en sus días, cada celda coloreada por lo que pasó de verdad
 - **Skills**: activa o desactiva competencias expertas en una galería con vistas previas, crea tus propios Skills personales, o instala una desde una URL https (validada en el servidor)
-- **Espacios de conocimiento**: carga tus documentos (PDF, Word, Excel, PowerPoint, EPUB, HTML y más de 15 formatos), sincroniza una carpeta de Google Drive o sigue una etiqueta de Gmail — indexación automática y búsqueda híbrida. Las conversaciones que etiquetas se convierten en documentos consultables semanas después, y quitar la etiqueta elimina el documento. Un documento que LIA no puede leer — un PDF escaneado sin capa de texto — lo dice bajo su fila, con el remedio
+- **Espacios de conocimiento**: carga tus documentos (PDF, Word, Excel, PowerPoint, EPUB, HTML y más de 15 formatos), sincroniza una carpeta de Google Drive o sigue una etiqueta de Gmail — indexación automática y búsqueda híbrida. Las conversaciones que etiquetas se convierten en documentos consultables semanas después, y quitar la etiqueta elimina el documento. Un documento que LIA no puede leer — un PDF escaneado sin capa de texto — lo dice bajo su fila, con el remedio. Una carpeta de Drive se sincroniza con sus subcarpetas, y pasado un umbral el número exacto de archivos que se van a indexar se muestra antes de que nada empiece
 - **Exportación de consumo**: descarga tus datos de consumo LLM y API en CSV
 
 ### 2.3. Lo que controla el administrador
@@ -122,7 +122,7 @@ Habla con LIA como lo harías con un asistente humano — sin comandos que memor
 
 ### 3.2. Servicios conectados personales
 
-- **Correo**: leer, buscar, redactar, enviar, responder, reenviar — vía Gmail, Outlook o Apple Mail; un mensaje llega como texto limpio, y muchos se resumen mensaje a mensaje («resume mis no leídos», «una síntesis de los boletines de la semana»)
+- **Correo**: leer, buscar, redactar, enviar, responder, reenviar — vía Gmail, Outlook o Apple Mail; un mensaje llega como texto limpio, y muchos se resumen mensaje a mensaje («resume mis no leídos», «una síntesis de los boletines de la semana»); un adjunto se lee a petición — un documento como texto, una foto o un escaneo mediante el modelo de visión
 - **Calendario**: consultar, crear, modificar y eliminar eventos — vía Google Calendar, Outlook Calendar o Apple Calendar
 - **Contactos**: buscar, crear y modificar contactos — vía Google Contacts, Outlook Contacts o Apple Contacts
 - **Tareas**: gestionar tus listas de tareas — vía Google Tasks o Microsoft To Do
@@ -154,7 +154,7 @@ LIA ofrece un modo vocal completo:
 - **Generación de imágenes**: crea imágenes a partir de descripciones textuales, edita fotos existentes
 - **Generación de documentos**: pide un CSV, una hoja Excel, un informe Word, un PowerPoint o un PDF — un modelo redactor dedicado produce el contenido en tu idioma y luego un motor de renderizado local construye el archivo real con los códigos de su formato: diapositivas 16:9 cuya maquetación sigue la intención, índice y paginación calculados por Word, columnas de Excel tipadas bajo una tabla filtrable, números de página exactos y marcadores en el PDF. El texto se mide antes de colocarse, así que nada se desborda; y si el modelo se corta a medias, LIA te lo dice en vez de entregarte un documento amputado. El archivo llega como tarjeta descargable con una caducidad explícita
 - **Diagramas Excalidraw**: genera diagramas y esquemas directamente en la conversación
-- **Adjuntos**: añade fotos y PDF — LIA analiza el contenido visual y extrae el texto de los documentos
+- **Adjuntos**: añade fotos y PDF — LIA analiza el contenido visual y extrae el texto de los documentos; el « + » también ofrece cada documento de tus espacios de conocimiento, incluso de un espacio en pausa, como copia para ese mensaje
 - **MCP Apps**: widgets interactivos directamente en el chat (formularios, visualizaciones, mini-aplicaciones)
 - **Respuestas guardadas**: un marcador en cada respuesta la conserva fuera de la conversación — con tu petición y su fecha — en una pestaña junto a tus archivos generados; compártela, descárgala en Markdown o suéltala; cada respuesta guardada se une además a un espacio de conocimiento tuyo, para que LIA la encuentre y la cite semanas después
 

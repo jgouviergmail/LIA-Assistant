@@ -12,6 +12,8 @@ Created: 2026-03-10
 
 from typing import Protocol
 
+from src.domains.connectors.clients.email_attachments import EmailAttachmentContent
+
 
 class EmailClientProtocol(Protocol):
     """Protocol for email clients (Gmail, Apple Mail)."""
@@ -66,6 +68,15 @@ class EmailClientProtocol(Protocol):
     ) -> dict: ...
 
     async def trash_email(self, message_id: str) -> dict: ...
+
+    async def download_attachment(
+        self,
+        message_id: str,
+        *,
+        attachment_id: str | None = None,
+        filename: str | None = None,
+        max_bytes: int | None = None,
+    ) -> EmailAttachmentContent: ...
 
     async def list_labels(self, use_cache: bool = True) -> dict[str, str]: ...
 

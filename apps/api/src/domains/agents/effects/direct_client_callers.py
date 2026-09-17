@@ -95,6 +95,12 @@ NOT_A_CAPABILITY_READ: Final[dict[str, str]] = {
         "one call leaves the process — the second module listed as a read on "
         "the strength of its import alone."
     ),
+    "domains/agents/emails/attachment_content.py": (
+        "Imports the attachment VOCABULARY of the clients (EmailAttachmentContent, a "
+        "dataclass of bytes) to read what the tool already downloaded: it opens no "
+        "connection. The download is made by get_email_attachment_tool, which the "
+        "tool gate records."
+    ),
     "infrastructure/security/web_risk.py": (
         "Imports the Google API COUNTER, not a client: it accounts for calls " "someone else made."
     ),

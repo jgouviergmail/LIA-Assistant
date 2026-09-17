@@ -19,11 +19,13 @@ import uuid
 
 from fastapi import APIRouter, Depends, UploadFile, status
 from fastapi.responses import FileResponse
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import get_settings
 from src.core.dependencies import get_db
 from src.core.session_dependencies import get_current_active_session
+from src.domains.attachments.knowledge_copy import copy_knowledge_document
 from src.domains.attachments.schemas import AttachmentUploadResponse
 from src.domains.attachments.service import AttachmentService
 from src.domains.feature_switches.guard import capability_dependencies
@@ -63,6 +65,39 @@ async def upload_attachment(
     service = AttachmentService(db)
     attachment = await service.upload(user_id=user.id, file=file)
 
+    return AttachmentUploadResponse.model_validate(attachment)
+
+
+class KnowledgeDocumentAttachmentRequest(BaseModel):
+    """A document of one of the caller's knowledge spaces, to attach as a copy."""
+
+    space_id: uuid.UUID = Field(description="The space the document belongs to (active or not).")
+    document_id: uuid.UUID = Field(description="The document to copy into the attachments.")
+
+
+@router.post(
+    "/from-knowledge-document",
+    response_model=AttachmentUploadResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Attach a copy of one of the caller's knowledge-space documents",
+    # An upload AND a read of a space: both switches must be on (ADR-280).
+    dependencies=[*_UPLOAD_GUARD, *capability_dependencies(PlatformCapability.RAG_SPACES)],
+)
+async def attach_knowledge_document(
+    body: KnowledgeDocumentAttachmentRequest,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> AttachmentUploadResponse:
+    """Copy a `ready` document of the caller's space into their attachments.
+
+    The document may belong to a paused space: attaching it copies its file
+    and its text for THIS turn and activates nothing. 404 when the space or
+    the document is not the caller's; 409 (`document_not_ready`) when the
+    document's extraction is not proven.
+    """
+    attachment = await copy_knowledge_document(
+        db, user_id=user.id, space_id=body.space_id, document_id=body.document_id
+    )
     return AttachmentUploadResponse.model_validate(attachment)
 
 

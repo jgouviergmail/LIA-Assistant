@@ -555,3 +555,48 @@ async def test_a_failing_source_is_released_and_counted_as_error() -> None:
     assert outcome == "error"
     fail.assert_awaited_once()
     assert fail.await_args.args[1] is source
+
+
+async def test_the_background_sync_records_one_mail_consultation() -> None:
+    """The label sync opens the person's mailbox outside any turn (ADR-263):
+    the act itself files the row, like the Drive sync since ADR-297."""
+    from src.domains.agents.effects.treatments import treatment_collector
+    from src.domains.shared import consultation_sink
+
+    flushed: list[list[Any]] = []
+
+    @contextlib.asynccontextmanager
+    async def factory(*, run_id: str):
+        with treatment_collector(run_id=run_id) as rows:
+            yield rows
+        flushed.append(list(rows))
+
+    source = _source(last_history_id=None)
+    repo = MagicMock()
+    repo.get_by_id = AsyncMock(return_value=source)
+    client = MagicMock()
+    client.close = AsyncMock()
+    previous = consultation_sink._collector_factory
+    consultation_sink.install_collector_factory(factory)
+    try:
+        with (
+            patch.object(mail_sync, "get_db_context", _db_context()),
+            patch.object(mail_sync, "RAGMailSourceRepository", return_value=repo),
+            patch.object(mail_sync, "gmail_client_or_none", AsyncMock(return_value=client)),
+            patch.object(mail_sync, "sync_source", AsyncMock()) as sync,
+        ):
+            await mail_sync.sync_label_background(source.id, source.user_id)
+    finally:
+        consultation_sink._collector_factory = previous
+
+    sync.assert_awaited_once()
+    assert [r.tool_name for rows in flushed for r in rows] == ["space:mail"]
+    assert flushed[0][0].user_id == str(source.user_id)
+
+
+def _db_context():
+    @contextlib.asynccontextmanager
+    async def ctx():
+        yield AsyncMock()
+
+    return ctx

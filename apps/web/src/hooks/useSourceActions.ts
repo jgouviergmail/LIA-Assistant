@@ -14,6 +14,8 @@ import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 
+import { getApiErrorCode } from '@/lib/api-error';
+
 export interface SourceActionsConfig<TSource extends { id: string }> {
   /** The sources currently linked — read to name one in a toast. */
   sources: TSource[];
@@ -26,6 +28,11 @@ export interface SourceActionsConfig<TSource extends { id: string }> {
   sync: (id: string) => Promise<unknown>;
   /** Reload the space detail after a mutation lands. */
   refetch: () => void;
+  /**
+   * i18n keys for the refusals a link names itself with (`detail.code`), so a
+   * coded 409 is told in its own words rather than as « failed to link ».
+   */
+  linkErrorKeys?: Record<string, string>;
 }
 
 export interface SourceActions {
@@ -42,6 +49,7 @@ export function useSourceActions<TSource extends { id: string }>({
   unlink,
   sync,
   refetch,
+  linkErrorKeys,
 }: SourceActionsConfig<TSource>): SourceActions {
   const { t } = useTranslation();
 
@@ -59,11 +67,13 @@ export function useSourceActions<TSource extends { id: string }>({
         await link(id, name);
         toast.success(t(`${namespace}.link_success`, { name }));
         refetch();
-      } catch {
-        toast.error(t(`${namespace}.link_error`));
+      } catch (error) {
+        const code = getApiErrorCode(error);
+        const key = code ? linkErrorKeys?.[code] : undefined;
+        toast.error(t(key ?? `${namespace}.link_error`));
       }
     },
-    [link, namespace, refetch, t]
+    [link, linkErrorKeys, namespace, refetch, t]
   );
 
   const handleUnlink = useCallback(

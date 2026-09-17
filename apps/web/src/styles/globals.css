@@ -941,6 +941,53 @@
   }
 
   /* ============================================
+     Code block scroll box — a long line is reachable, and it SHOWS
+     ============================================
+     The block scrolled already; what it lacked was the sign. An overlay
+     scrollbar (Chromium ≥ 121 on Windows 11, every touch engine) draws
+     nothing until the pointer is over the box, so a cut line read as a
+     cut line (reported 2026-09-17). A styled scrollbar is a classic one:
+     it takes layout space and stays visible whenever the box overflows;
+     the gutter is reserved so the last code line never jumps when it
+     appears. The edge cue below covers the engines that ignore scrollbar
+     styling (iOS): a fade on the right while there is more to the right. */
+  .code-scroll {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-muted-foreground) transparent;
+    scrollbar-gutter: stable;
+  }
+
+  .code-scroll::-webkit-scrollbar {
+    height: 8px;
+  }
+
+  .code-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .code-scroll::-webkit-scrollbar-thumb {
+    background-color: var(--color-muted-foreground);
+    border-radius: 4px;
+  }
+
+  .code-scroll-frame {
+    position: relative;
+  }
+
+  .code-scroll-frame[data-overflowing='true']:not([data-scrolled-end='true'])::after {
+    content: '';
+    pointer-events: none;
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 2.5rem;
+    background: linear-gradient(to right, transparent, var(--color-card));
+  }
+
+  /* ============================================
      Chat Scrollbar - Thin & Modern
      ============================================ */
   .chat-scrollbar {

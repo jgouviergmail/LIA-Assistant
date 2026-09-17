@@ -12,6 +12,9 @@ import {
   CheckCircle2,
   FileText,
   Image as ImageIcon,
+  Library,
+  Paperclip,
+  Plus,
   RotateCw,
   Search,
   Settings,
@@ -174,9 +177,91 @@ function DropZoneScene({ active }: SceneProps) {
   );
 }
 
+type PickPhase = 'closed' | 'menu' | 'list' | 'attached';
+const PICK_STEPS: readonly TimelineStep<PickPhase>[] = [
+  { at: 0, state: 'closed' },
+  { at: 700, state: 'menu' },
+  { at: 1700, state: 'list' },
+  { at: 3000, state: 'attached' },
+];
+
+/**
+ * The « + » opens a menu; its second entry lists the person's own indexed
+ * documents (a paused space badged, never hidden); a tick attaches a copy.
+ */
+function KnowledgePickScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(PICK_STEPS, { active });
+  const open = phase === 'menu';
+  const listing = phase === 'list';
+  return (
+    <div className={cn(STAGE, 'justify-end gap-2 pb-3')}>
+      <div
+        className={cn(
+          'w-full max-w-[220px] rounded-md border border-border bg-background p-1 text-[10px] shadow-sm transition-all duration-300 motion-reduce:transition-none',
+          open ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-1 opacity-0'
+        )}
+      >
+        <div className="flex items-center gap-1.5 rounded px-1.5 py-1 text-muted-foreground">
+          <Paperclip className="h-3 w-3" aria-hidden="true" />
+          {labels.file}
+        </div>
+        <div className="flex items-center gap-1.5 rounded bg-primary/10 px-1.5 py-1 text-primary">
+          <Library className="h-3 w-3" aria-hidden="true" />
+          {labels.spaces}
+        </div>
+      </div>
+      <div
+        className={cn(
+          'w-full max-w-[220px] divide-y divide-border rounded-md border border-border bg-background text-[10px] shadow-sm transition-all duration-300 motion-reduce:transition-none',
+          listing ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-1 opacity-0'
+        )}
+      >
+        {[0, 1].map(i => (
+          <div key={i} className="flex items-center gap-2 px-2 py-1.5">
+            <span
+              className={cn(
+                'flex h-3 w-3 shrink-0 items-center justify-center rounded-sm border',
+                i === 0 ? 'border-primary bg-primary text-primary-foreground' : 'border-border'
+              )}
+            >
+              {i === 0 && <CheckCircle2 className="h-2.5 w-2.5" aria-hidden="true" />}
+            </span>
+            <FileText className="h-3 w-3 shrink-0 text-primary" aria-hidden="true" />
+            <SkeletonLine w={i === 0 ? 'w-16' : 'w-12'} />
+            {i === 0 && (
+              <span className="ml-auto rounded-full border border-border px-1 text-[8px] text-muted-foreground">
+                {labels.paused}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+      <div className="w-full max-w-[220px]">
+        <MiniComposer
+          trailing={<Plus className={cn('h-3 w-3 text-primary', open && 'rotate-45')} />}
+        >
+          <span className="flex items-center gap-2">
+            <span
+              className={cn(
+                'flex h-5 items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-1.5 transition-all duration-300 motion-reduce:transition-none',
+                phase === 'attached' ? 'scale-100 opacity-100' : 'scale-75 opacity-0'
+              )}
+            >
+              <FileText className="h-3 w-3 text-primary" aria-hidden="true" />
+              <SkeletonLine w="w-8" className="bg-primary/25" />
+            </span>
+            <SkeletonLine w="w-12" />
+          </span>
+        </MiniComposer>
+      </div>
+    </div>
+  );
+}
+
 export const WRITE_SCENES: Readonly<Record<string, SceneComponent>> = {
   draft_survives: DraftSurvivesScene,
   slash_commands: SlashCommandsScene,
   paste_screenshot: PasteScreenshotScene,
   drop_zone: DropZoneScene,
+  knowledge_pick: KnowledgePickScene,
 };

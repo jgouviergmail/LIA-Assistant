@@ -376,6 +376,7 @@ def _import_tool_modules() -> None:
         ("src.domains.agents.tools.drive_tools", "drive_tools"),
         ("src.domains.agents.tools.workspace_docs_tools", "workspace_docs_tools"),
         ("src.domains.agents.tools.emails_tools", "emails_tools"),
+        ("src.domains.agents.tools.email_attachment_tools", "email_attachment_tools"),
         ("src.domains.agents.tools.gmail_settings_tools", "gmail_settings_tools"),
         ("src.domains.agents.tools.google_contacts_tools", "google_contacts_tools"),
         ("src.domains.agents.tools.contact_groups_tools", "contact_groups_tools"),

@@ -3,16 +3,22 @@
 /**
  * CodeBlock — syntax-highlighted code block with copy-to-clipboard.
  *
- * Used by MarkdownContent to render fenced code blocks (```lang ... ```).
+ * Used by MarkdownContent to render every `pre > code` block — a fence with or
+ * without a language, an indented block, a raw <pre><code>.
  *
  * Features:
  * - Lazy-loaded PrismAsyncLight highlighter + per-language registration
  * - Dark/light theme auto-detected via next-themes
  * - Copy button (Copy → Check toggle) with toast + i18n
  * - Graceful fallback: plain <pre> while highlighter loads or on unknown langs
+ * - A long line stays reachable AND says so: the scroll box wears a classic,
+ *   always-visible scrollbar (`.code-scroll`) and the frame announces its
+ *   overflow (`data-overflowing`, `data-scrolled-end`) so the stylesheet can
+ *   fade the right edge while there is more to the right — measured
+ *   2026-09-17: the box scrolled, and nothing showed it.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
@@ -23,6 +29,69 @@ import { SyntaxHighlighter, LANGUAGE_LOADERS, loadStyle, type PrismStyle } from 
 interface CodeBlockProps {
   language: string;
   children: string;
+}
+
+/** What the frame announces about its scroll box. */
+interface OverflowState {
+  overflowing: boolean;
+  scrolledEnd: boolean;
+}
+
+/**
+ * Pixels that may remain to the right and still count as « the end ». The
+ * reserved scrollbar gutter is not part of the scrollable range: measured
+ * 2026-09-17, the box stopped 10 px short of `scrollWidth - clientWidth`, so
+ * an exact equality never turned the cue off.
+ */
+const SCROLL_END_TOLERANCE_PX = 16;
+
+function readOverflow(box: HTMLElement): OverflowState {
+  const overflowing = box.scrollWidth > box.clientWidth + 1;
+  const remaining = box.scrollWidth - (box.scrollLeft + box.clientWidth);
+  return { overflowing, scrolledEnd: !overflowing || remaining <= SCROLL_END_TOLERANCE_PX };
+}
+
+/**
+ * Track whether the frame's `<pre>` overflows horizontally and whether it is
+ * scrolled to its end. The `<pre>` is found by query because the highlighter
+ * owns it: re-measured when the highlighter swaps in for the fallback
+ * (`highlighted` flips), when the code changes (streaming), on resize, and on
+ * scroll.
+ */
+function useScrollBoxOverflow(
+  highlighted: boolean,
+  code: string
+): {
+  frameRef: React.RefObject<HTMLDivElement | null>;
+  state: OverflowState;
+} {
+  const frameRef = useRef<HTMLDivElement | null>(null);
+  const [state, setState] = useState<OverflowState>({ overflowing: false, scrolledEnd: true });
+
+  useEffect(() => {
+    const box = frameRef.current?.querySelector<HTMLElement>('.code-scroll');
+    if (!box) return;
+    // Same values, same object: a streaming block re-measures on every token
+    // and must not re-render the frame when nothing changed.
+    const measure = () =>
+      setState(prev => {
+        const next = readOverflow(box);
+        return prev.overflowing === next.overflowing && prev.scrolledEnd === next.scrolledEnd
+          ? prev
+          : next;
+      });
+    measure();
+    box.addEventListener('scroll', measure, { passive: true });
+    const observer =
+      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => measure());
+    observer?.observe(box);
+    return () => {
+      box.removeEventListener('scroll', measure);
+      observer?.disconnect();
+    };
+  }, [highlighted, code]);
+
+  return { frameRef, state };
 }
 
 export function CodeBlock({ language, children }: CodeBlockProps) {
@@ -58,6 +127,10 @@ export function CodeBlock({ language, children }: CodeBlockProps) {
     };
   }, [language, resolvedTheme]);
 
+  const langKnown = Boolean(LANGUAGE_LOADERS[language.toLowerCase()]);
+  const highlighted = Boolean(style) && langReady && langKnown;
+  const { frameRef, state } = useScrollBoxOverflow(highlighted, children);
+
   const handleCopy = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(children);
@@ -70,15 +143,16 @@ export function CodeBlock({ language, children }: CodeBlockProps) {
   }, [children, t]);
 
   const fallback = (
-    <pre className="p-3 overflow-x-auto bg-muted/20">
+    <pre className="code-scroll p-3 bg-muted/20">
       <code className="text-sm font-mono text-foreground block">{children}</code>
     </pre>
   );
 
-  const langKnown = Boolean(LANGUAGE_LOADERS[language.toLowerCase()]);
-
   return (
-    <div className="my-3 rounded-lg overflow-hidden border border-border/50 shadow-sm">
+    <div
+      data-code-block=""
+      className="my-3 rounded-lg overflow-hidden border border-border/50 shadow-sm"
+    >
       <div className="flex items-center justify-between px-3 py-1 text-xs font-mono bg-muted/50 text-muted-foreground border-b border-border/50">
         <span>{language}</span>
         <Tooltip>
@@ -95,23 +169,31 @@ export function CodeBlock({ language, children }: CodeBlockProps) {
           <TooltipContent>{t('chat.code.copy')}</TooltipContent>
         </Tooltip>
       </div>
-      {style && langReady && langKnown ? (
-        <SyntaxHighlighter
-          language={language.toLowerCase()}
-          style={style}
-          customStyle={{
-            margin: 0,
-            padding: '0.75rem',
-            background: 'transparent',
-            fontSize: '0.875rem',
-          }}
-          codeTagProps={{ className: 'font-mono' }}
-        >
-          {children}
-        </SyntaxHighlighter>
-      ) : (
-        fallback
-      )}
+      <div
+        ref={frameRef}
+        className="code-scroll-frame"
+        data-overflowing={state.overflowing ? 'true' : 'false'}
+        data-scrolled-end={state.scrolledEnd ? 'true' : 'false'}
+      >
+        {highlighted && style ? (
+          <SyntaxHighlighter
+            language={language.toLowerCase()}
+            style={style}
+            className="code-scroll"
+            customStyle={{
+              margin: 0,
+              padding: '0.75rem',
+              background: 'transparent',
+              fontSize: '0.875rem',
+            }}
+            codeTagProps={{ className: 'font-mono' }}
+          >
+            {children}
+          </SyntaxHighlighter>
+        ) : (
+          fallback
+        )}
+      </div>
     </div>
   );
 }

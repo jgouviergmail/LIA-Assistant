@@ -5,8 +5,8 @@
 > Technical presentation documentation for architects, engineers and technical experts.
 
 **Version**: 5.0
-**Date**: 2026-08-23
-**Application**: LIA v1.45.1
+**Date**: 2026-09-18
+**Application**: LIA v1.45.2
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -69,8 +69,8 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | ARM64 self-hosting | Multi-arch Docker, semantic embeddings (multilingual), Playwright chromium cross-platform |
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
-| Full transparency | 564 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 293 ADRs, ~29,725 pytest-collected tests across 1,758 files, native observability, 6-level HITL |
+| Full transparency | 565 Prometheus metrics, embedded debug panel, token-by-token tracking |
+| Production reliability | 296 ADRs, ~29,725 pytest-collected tests across 1,758 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -91,7 +91,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Tests | 29,725 collected by pytest across 1,758 test files + 8,423 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | pytest fixtures | 969, 46 of them shared through conftest |
 | Documentation documents | 647 |
-| ADRs (Architecture Decision Records) | 293 |
+| ADRs (Architecture Decision Records) | 296 |
 | Prometheus metrics | 553 definitions |
 | Grafana dashboards | 29 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -790,6 +790,12 @@ LIA can place an outbound phone call on the user's behalf, hold a goal-directed 
 
 **The phone as a channel (ADR-290).** The confirmation card protects a third party who never asked for anything; when LIA calls *the person*, the one who would confirm is the one who picks up — provided the number is proven theirs. The identity is therefore a number declared in the settings, shown whole, then verified by a call in which LIA reads a code the person types back (bounded attempts, a short-lived code bound to the number, a constant-time comparison, the same hourly cap as every paid call); never a name match, and the third-party tool refuses that number. The **same** vendor agent serves three mandates — the third-party one baked in, the owner's and the verification one sent as a per-call override rendered on the server — so nothing of the person's context is ever baked into an agent that also phones strangers; and what the agent *sounds like* (its model, language, voice, audio format, duration cap) is the vendor portal's, never a setting, because the vendor merges a PATCH with what it stores and a pinned model collided with the portal's reasoning effort on every sync. `call_me` carries no card by construction, which is also what lets a routine plan it. The call takes the chat's own context under a token budget (memories, agenda, reminders, open loops, recent exchanges — a switch turns it off) and the personality configured for the assistant, every read filed in the consultation register. Behind a second flag, the agent **reads LIA live** during the call, and acts on nothing: the tool set is a rule over the catalogue rather than a list — every tool that only reads, in a domain the phone offers, whose required parameters a voice can speak (55 tools over 22 domains, plus a native memory recall) — attached to the agent for the owner's call only, since the vendor refuses tool ids inside a per-call override, and each result is reduced to what a voice can say before the item-by-item paging (an identifier, a link, a nested structure never reach the voice; four weekend events used to fit where one raw one did). Each domain has a switch of the person's own, read from their row at every call-back. When the call ends, what was said comes back as **the person's own message**: the transcript is synthesised, then replayed through the out-of-turn engine as a turn *spoken by the person* — memory, journal and psyche extractions run as in the chat, the message wears a phone badge, a draft waits for confirmation in the chat. The relay is claimed before the turn and settled by conditional update, a crash mid-relay is swept back to a notification that says why, and ten relay verdicts are counted and drawn on the calls list — « nobody picked up » and « the line failed » told apart from « someone else answered ». Every euro of a call lands under one run id — the live lookups, the synthesis, the relayed turn — so the per-run summary the chat meter already reads is the call's bill, on the relayed answer and on the calls list; what runs on the person's own vendor key is billed there and never counted here.
 
+### 13.6. Reading an attachment: its text when it has one, the vision slot otherwise
+
+Listing a message's attachments is a metadata read; opening one is a download, and the three clients expose it behind ONE method of the e-mail protocol — the same name, the same selection rule, the same errors — because provider asymmetry is where connector bugs come from. The selection is one shared helper: by handle, else by name, an ambiguous name refused with its candidates. It has to be, because a Gmail attachment handle is not stable: measured on a real mailbox, it changes between two reads of the same message, so the handle a listing served may already be gone when the tool re-reads it. A stale handle is therefore not a lie: the name decides when given, a single part is unambiguous, and any other case answers with the CURRENT handles for the model to retry.
+
+The bytes are read by a module that touches no client. The MIME type comes from the magic bytes, the sender's header being only a fallback; a document goes through the knowledge spaces' own extraction (fifteen formats) in a worker thread; a picture, or a PDF whose pages carry images and no text layer, is rendered to a bounded, downscaled set of PNG pages and handed to the vision slot — the raster itself is bounded, a page 200 inches a side must not allocate gigabytes before any downscale — and a cut page set is stated to the model rather than read as the whole. The vision call is the turn's spend, travelling on the runtime's own configuration so the account's and the instance's ceilings both see it; a quota refusal is « skipped », never « failed », and a truncated answer is a refusal. The bound on size travels down to the client, so a part the listing already says is too large is refused before a single byte moves. What comes back is served in parts like a mail body and wrapped as external content, its file name escaped inside the tag — an attachment is what a stranger sent, and so is its name.
+
 ---
 
 ## 14. MCP: Model Context Protocol
@@ -922,6 +928,16 @@ message arriving mid-listing is replayed by the next incremental pass instead
 of falling in the gap; that pass rides the push wake of section 16 and answers
 to no notification gate — indexing is not deciding.
 
+### 17.4. A Drive folder is a tree, and the count is exact (ADR-297)
+
+Google Drive lists one level per call, so a linked folder is walked breadth-first, bounded twice — files and folders — with the cut stated: a shortcut is neither listed nor followed, a folder reached twice is walked once, an unreadable sub-folder is counted and skipped, and only the root being unreadable is an error. The walked folder set travels with the source, so the push path routes a change on the whole tree and lets the set follow the feed — a folder created under the tree joins it before the files created inside it arrive in the same feed. A folder inside an already linked tree, or above one, is refused: two sources deduplicating by file id would steal each other's documents at every synchronisation.
+
+The count shown before a large synchronisation is computed by the code that indexes: the same walk, the same predicates for « supported » and « unchanged », the space's own document cap. It classifies every file — new, modified, unchanged, unsupported, beyond capacity — and the button asks the person only past a threshold the instance sets; a walk cut by a bound says « at least ». Every synchronisation, manual or background, files one consultation for the act — and a read outside any run publishes its own, because the register keeps only what a collector gathers.
+
+### 17.5. A document of a space joins a message as a copy (ADR-295)
+
+The chat's retrieval reads the active spaces alone, so a document indexed in a paused space was unreachable from a question without re-activating the whole space. The composer's « + » therefore lists the ready documents of every space the person owns, a paused one badged rather than hidden, with a page and an exact total, and the chosen document is COPIED through the attachments' own mechanism: the stored file under a fresh name, the text through the knowledge spaces' extraction — fifteen formats, not the upload's image-and-PDF allowlist — the row an upload, so a conversation reset removes the copy and the space, its index and its file are never touched. Only a ready document is offered, both capability switches must be on, and the model is told when the text sits at the cap: a cut is stated, never applied in silence.
+
 ---
 
 ## 18. Browser Control and Web Fetch
@@ -1001,7 +1017,7 @@ Provenance is therefore a property of the **data**: the registry's 24 types are 
 
 | Technology | Role |
 |------------|------|
-| Prometheus | 564 custom metrics (RED pattern) |
+| Prometheus | 565 custom metrics (RED pattern) |
 | Grafana | 29 production-ready dashboards |
 | Loki | Aggregated structured JSON logs |
 | Tempo | Cross-service distributed traces (OTLP gRPC) |
@@ -1009,7 +1025,7 @@ Provenance is therefore a property of the **data**: the registry's 24 types are 
 | Alertmanager | 14-alert vital core delivered by email (linked runbooks, per-environment thresholds) + webhook to LIA: every alert becomes an in-product incident (ADR-247) |
 | structlog | Structured logging with PII filtering |
 
-**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 564 defined; the 44 that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. The price of not having had this: a heartbeat source failing open dropped the health signals on 46.5 % of ticks for a week, with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
+**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 565 defined; the 44 that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. The price of not having had this: a heartbeat source failing open dropped the health signals on 46.5 % of ticks for a week, with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
 
 ### 20.2. Embedded Debug Panel
 
@@ -1409,7 +1425,7 @@ One CSS rule governs the design system's spacing: vertical margins on an `inline
 
 ## 24. Architecture Decision Records (ADR)
 
-293 ADRs in MADR format document the major architectural decisions. Some representative examples:
+296 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1718,8 +1734,8 @@ The connection budget has a floor, not only a ceiling. Audit F004 bounded the bu
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 293 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~29,725 tests across 1,758 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 296 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~29,725 tests across 1,758 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 293 ADRs, and the changelog (v1.0 to v1.45.1). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 296 ADRs, and the changelog (v1.0 to v1.45.2). All metrics, versions, and patterns cited are verifiable in the codebase.*

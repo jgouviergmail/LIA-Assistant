@@ -5,8 +5,8 @@
 > Technische Präsentationsdokumentation für Architekten, Ingenieure und technische Experten.
 
 **Version**: 5.0
-**Datum**: 2026-08-23
-**Application**: LIA v1.45.1
+**Datum**: 2026-09-18
+**Application**: LIA v1.45.2
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -69,8 +69,8 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Self-Hosting ARM64 | Docker Multi-Arch, semantische Embeddings (mehrsprachig), Playwright Chromium Cross-Platform |
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
-| Vollständige Transparenz | 564 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 293 ADRs, ~29.725 von pytest gesammelte Tests in 1.758 Dateien, native Observability, HITL auf 6 Ebenen |
+| Vollständige Transparenz | 565 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
+| Produktionszuverlässigkeit | 296 ADRs, ~29.725 von pytest gesammelte Tests in 1.758 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -91,7 +91,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Tests | 29.725 von pytest über 1.758 Testdateien gesammelt + 8.423 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
 | pytest-Fixtures | 969, davon 46 über conftest geteilt |
 | Dokumentationsdokumente | 647 |
-| ADRs (Architecture Decision Records) | 293 |
+| ADRs (Architecture Decision Records) | 296 |
 | Prometheus-Metriken | 553 Definitionen |
 | Grafana-Dashboards | 29 |
 | Unterstützte Sprachen (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -790,6 +790,12 @@ LIA kann im Namen des Nutzers einen ausgehenden Anruf tätigen, ein zielorientie
 
 **Das Telefon als Kanal (ADR-290).** Die Bestätigungskarte schützt einen Dritten, der nie um etwas gebeten hat; ruft LIA *die Person selbst* an, ist die, die bestätigen würde, die, die abnimmt — sofern die Nummer nachweislich ihre ist. Die Identität ist daher eine in den Einstellungen hinterlegte Nummer, vollständig angezeigt, dann durch einen Anruf bestätigt, in dem LIA einen Code vorliest, den die Person eintippt (begrenzte Versuche, ein kurzlebiger, an die Nummer gebundener Code, ein Vergleich in konstanter Zeit, dieselbe Stundengrenze wie jeder bezahlte Anruf); nie ein Namensabgleich, und das Werkzeug für Dritte lehnt diese Nummer ab. **Derselbe** Sprachagent bedient drei Mandate — das für Dritte im Agenten eingebrannt, das der Inhaberin und das der Bestätigung als serverseitig gerendertes Override pro Anruf — damit nichts vom Kontext der Person je in einen Agenten eingebrannt wird, der auch Fremde anruft; und wie der Agent *klingt* (Modell, Sprache, Stimme, Audioformat, Dauerobergrenze) gehört dem Portal des Anbieters, nie einer Einstellung, weil der Anbieter ein PATCH mit dem Gespeicherten verschmilzt und ein festgelegtes Modell bei jeder Synchronisation mit der Denk-Einstellung des Portals kollidierte. `call_me` trägt konstruktionsbedingt keine Karte, was auch einer Routine erlaubt, es einzuplanen. Der Anruf nimmt den Kontext des Chats unter einem Token-Budget mit (Erinnerungen, Kalender, Erinnerungshinweise, offene Fäden, letzte Austausche — ein Schalter schaltet ihn ab) und die für die Assistentin eingestellte Persönlichkeit, jeder Lesezugriff im Register der Konsultationen abgelegt. Hinter einem zweiten Schalter **liest der Agent LIA live** während des Anrufs und handelt in nichts: das Werkzeugset ist eine Regel über den Katalog statt einer Liste — jedes Werkzeug, das nur liest, aus einem Bereich, den das Telefon anbietet, dessen Pflichtparameter eine Stimme aussprechen kann (55 Werkzeuge in 22 Bereichen, plus ein natives Gedächtnis-Abrufen) — für den Anruf der Inhaberin an den Agenten gehängt, weil der Anbieter Werkzeug-IDs in einem Override pro Anruf ablehnt, und jedes Ergebnis wird vor der Seitenaufteilung Element für Element auf das reduziert, was eine Stimme sagen kann (eine Kennung, ein Link, eine verschachtelte Struktur erreichen die Stimme nie; vier Wochenendtermine passen, wo zuvor ein einziger roher hineinpasste). Jeder Bereich hat einen eigenen Schalter der Person, bei jedem Rückruf aus ihrer Zeile gelesen. Endet der Anruf, kommt das Gesagte als **eigene Nachricht der Person** zurück: das Transkript wird zusammengefasst und dann durch die Engine außerhalb des Zuges als ein *von der Person gesprochener* Zug wiedergegeben — Gedächtnis-, Journal- und Psyche-Extraktionen laufen wie im Chat, die Nachricht trägt ein Telefon-Abzeichen, ein Entwurf wartet im Chat auf Bestätigung. Die Übernahme wird vor dem Zug beansprucht und per bedingter Aktualisierung abgeschlossen, ein Absturz mitten in der Übernahme fällt an eine Benachrichtigung zurück, die sagt, warum, und zehn Übernahme-Urteile werden gezählt und in der Anrufliste gezeichnet — „niemand hat abgenommen“ und „die Leitung ist ausgefallen“ unterschieden von „jemand anderes hat geantwortet“. Jeder Euro eines Anrufs landet unter einer Lauf-ID — die Live-Abfragen, die Zusammenfassung, der übernommene Zug —, sodass die Zusammenfassung pro Lauf, die der Chat-Zähler ohnehin liest, die Rechnung des Anrufs ist, an der übernommenen Antwort und in der Anrufliste; was auf dem eigenen Anbieterschlüssel der Person läuft, wird dort abgerechnet und hier nie gezählt.
 
+### 13.6. Einen Anhang lesen: seinen Text, wenn er einen hat, sonst das Vision-Modell
+
+Die Anhänge einer Nachricht aufzulisten ist ein Metadaten-Lesen; einen zu öffnen ist ein Download, und die drei Clients stellen ihn hinter EINER Methode des E-Mail-Protokolls bereit — gleicher Name, gleiche Auswahlregel, gleiche Fehler —, weil die Asymmetrie zwischen Anbietern die Quelle der Konnektor-Bugs ist. Die Auswahl ist ein gemeinsamer Helfer: nach Kennung, sonst nach Namen, ein mehrdeutiger Name wird mit seinen Kandidaten abgelehnt. Das muss so sein, denn eine Gmail-Anhangskennung ist nicht stabil: an einem echten Postfach gemessen, ändert sie sich zwischen zwei Lesungen derselben Nachricht, sodass die von einer Auflistung gelieferte Kennung schon verschwunden sein kann, wenn das Werkzeug die Nachricht erneut liest. Eine veraltete Kennung ist daher keine Lüge: der Name entscheidet, wenn er gegeben ist, ein einzelner Teil ist eindeutig, und jeder andere Fall antwortet mit den AKTUELLEN Kennungen, damit das Modell es erneut versucht.
+
+Die Bytes liest ein Modul, das keinen Client berührt. Der MIME-Typ kommt aus den Magic Bytes, der Header des Absenders ist nur ein Rückfall; ein Dokument durchläuft die Extraktion der Wissensbereiche (fünfzehn Formate) in einem Arbeits-Thread; ein Bild, oder ein PDF, dessen Seiten Bilder und keine Textebene tragen, wird zu einer begrenzten, verkleinerten Menge von PNG-Seiten gerendert und dem Vision-Slot übergeben — das Raster selbst ist begrenzt, eine Seite von 200 Zoll Kantenlänge darf vor jeder Verkleinerung keine Gigabytes belegen —, und eine abgeschnittene Seitenmenge wird dem Modell gesagt statt als Ganzes gelesen. Der Vision-Aufruf ist die Ausgabe des Zugs, getragen von der Konfiguration der Laufzeit, damit die Obergrenzen des Kontos und der Instanz ihn beide sehen; eine Quotenablehnung ist « übersprungen », nie « fehlgeschlagen », und eine abgeschnittene Antwort ist eine Ablehnung. Die Größengrenze reicht bis zum Client hinab, sodass ein Teil, den die Auflistung bereits als zu groß ausweist, abgelehnt wird, bevor ein einziges Byte fließt. Was zurückkommt, wird in Teilen serviert wie ein Mailtext und als externer Inhalt eingehüllt, sein Dateiname im Tag maskiert — ein Anhang ist, was ein Fremder geschickt hat, und sein Name ebenso.
+
 ---
 
 ## 14. MCP: Model Context Protocol
@@ -924,6 +930,16 @@ eine währenddessen eintreffende Nachricht im nächsten inkrementellen Durchlauf
 nachgeholt wird; dieser Durchlauf nutzt den Push-Weckruf aus Abschnitt 16 und
 unterliegt keiner Benachrichtigungsschranke — Indexieren ist kein Entscheiden.
 
+### 17.4. Ein Drive-Ordner ist ein Baum, und die Zahl ist exakt (ADR-297)
+
+Google Drive listet eine Ebene pro Aufruf, also wird ein verknüpfter Ordner in Breitensuche durchlaufen, zweifach begrenzt — Dateien und Ordner — und der Schnitt wird ausgesprochen: eine Verknüpfung wird weder gelistet noch verfolgt, ein zweimal erreichter Ordner nur einmal durchlaufen, ein unlesbarer Unterordner gezählt und übersprungen, und nur eine unlesbare Wurzel ist ein Fehler. Die Menge der durchlaufenen Ordner reist mit der Quelle, sodass der Push-Pfad eine Änderung über den ganzen Baum leitet und die Menge dem Feed folgen lässt — ein unter dem Baum angelegter Ordner tritt bei, bevor die darin angelegten Dateien im selben Feed ankommen. Ein Ordner innerhalb eines bereits verknüpften Baums, oder darüber, wird abgelehnt: zwei Quellen, die nach Datei-Kennung deduplizieren, würden sich bei jeder Synchronisation gegenseitig die Dokumente stehlen.
+
+Die vor einer großen Synchronisation angezeigte Zahl berechnet der Code, der indexiert: derselbe Durchlauf, dieselben Prädikate für « unterstützt » und « unverändert », die Dokumentobergrenze des Bereichs. Er klassifiziert jede Datei — neu, geändert, unverändert, nicht unterstützt, jenseits der Kapazität —, und die Schaltfläche fragt die Person nur ab einer Schwelle, die die Instanz setzt; ein durch eine Grenze abgeschnittener Durchlauf sagt « mindestens ». Jede Synchronisation, manuell oder im Hintergrund, hinterlegt eine Einsichtnahme für den Akt — und ein Lesen außerhalb jedes Laufs veröffentlicht seinen eigenen, weil das Register nur behält, was ein Sammler einsammelt.
+
+### 17.5. Ein Dokument eines Bereichs kommt als Kopie in eine Nachricht (ADR-295)
+
+Die Suche des Chats liest allein die aktiven Bereiche, sodass ein in einem pausierten Bereich indexiertes Dokument aus einer Frage heraus unerreichbar war, ohne den ganzen Bereich zu reaktivieren. Das « + » des Eingabefelds listet daher die fertigen Dokumente jedes Bereichs, den die Person besitzt, ein pausierter markiert statt versteckt, mit einer Seite und einer exakten Gesamtzahl, und das gewählte Dokument wird über den eigenen Mechanismus der Anhänge KOPIERT: die gespeicherte Datei unter neuem Namen, der Text über die Extraktion der Wissensbereiche — fünfzehn Formate, nicht die Bild-und-PDF-Liste des Uploads —, die Zeile ein Upload, sodass ein Zurücksetzen der Unterhaltung die Kopie entfernt und der Bereich, sein Index und seine Datei nie berührt werden. Nur ein fertiges Dokument wird angeboten, beide Fähigkeitsschalter müssen offen sein, und dem Modell wird gesagt, wenn der Text an der Obergrenze liegt: ein Schnitt wird ausgesprochen, nie stillschweigend angewandt.
+
 ---
 
 ## 18. Browser Control und Web Fetch
@@ -1003,7 +1019,7 @@ Herkunft ist daher eine Eigenschaft der **Daten**: Die 24 Registry-Typen werden 
 
 | Technologie | Rolle |
 |-------------|------|
-| Prometheus | 564 benutzerdefinierte Metriken (RED Pattern) |
+| Prometheus | 565 benutzerdefinierte Metriken (RED Pattern) |
 | Grafana | 29 produktionsreife Dashboards |
 | Loki | Aggregierte strukturierte JSON-Logs |
 | Tempo | Verteiltes Cross-Service-Tracing (OTLP gRPC) |
@@ -1011,7 +1027,7 @@ Herkunft ist daher eine Eigenschaft der **Daten**: Die 24 Registry-Typen werden 
 | Alertmanager | Kern aus 14 vitalen Alerts per E-Mail (verknüpfte Runbooks, Schwellenwerte je Umgebung) + Webhook zu LIA: jeder Alarm wird zum Vorfall im Produkt (ADR-247) |
 | structlog | Strukturiertes Logging mit PII-Filterung |
 
-**Eine Metrik, die kein Dashboard erreicht, ist eine Metrik, auf die niemand reagiert.** Der Abstand zwischen dem, was der Code ausgibt, und dem, was ein Operator sehen kann, wird gemessen, nie angenommen: `scripts/audit/measure_metric_coverage.py` liest jede Metrikdefinition per AST (nicht per Regex — eine Regex liest `ZoneInfo("UTC")` als `Info`-Metrik) und prüft jeden Namen gegen sämtliche Dashboard-Panels, Recording Rules und Alert-Ausdrücke. 564 definiert; die 44, die nichts erreichen, stehen ausdrücklich in einer **ausschließlich schrumpfenden** Baseline — eine neu erblindete Metrik lässt den Build rot werden, und eine sichtbar gewordene Metrik muss die Liste verlassen, sonst nimmt die nächste blinde stillschweigend ihren Platz ein. Der Preis dafür, dies nicht gehabt zu haben: Eine offen ausfallende Heartbeat-Quelle verwarf die Gesundheitssignale bei 46,5 % der Ticks eine Woche lang, ohne dass eine Metrik es bemerkt hätte (ADR-148). Zwei Fallen, die der Wächter konstruktiv schließt — ein Zähler mit Labels, der nie ausgelöst hat, liefert **überhaupt keine Serie**, sodass ein Panel für einen seltenen Fehler `or vector(0)` braucht, sonst zeigt es „No data“, wo ein Operator eine grüne Null erwartet; und Abdeckung wird ausschließlich aus **Ausdrücken** von Panels und Regeln gelesen, denn eine in einem Kommentar genannte Metrik ist nicht verdrahtet.
+**Eine Metrik, die kein Dashboard erreicht, ist eine Metrik, auf die niemand reagiert.** Der Abstand zwischen dem, was der Code ausgibt, und dem, was ein Operator sehen kann, wird gemessen, nie angenommen: `scripts/audit/measure_metric_coverage.py` liest jede Metrikdefinition per AST (nicht per Regex — eine Regex liest `ZoneInfo("UTC")` als `Info`-Metrik) und prüft jeden Namen gegen sämtliche Dashboard-Panels, Recording Rules und Alert-Ausdrücke. 565 definiert; die 44, die nichts erreichen, stehen ausdrücklich in einer **ausschließlich schrumpfenden** Baseline — eine neu erblindete Metrik lässt den Build rot werden, und eine sichtbar gewordene Metrik muss die Liste verlassen, sonst nimmt die nächste blinde stillschweigend ihren Platz ein. Der Preis dafür, dies nicht gehabt zu haben: Eine offen ausfallende Heartbeat-Quelle verwarf die Gesundheitssignale bei 46,5 % der Ticks eine Woche lang, ohne dass eine Metrik es bemerkt hätte (ADR-148). Zwei Fallen, die der Wächter konstruktiv schließt — ein Zähler mit Labels, der nie ausgelöst hat, liefert **überhaupt keine Serie**, sodass ein Panel für einen seltenen Fehler `or vector(0)` braucht, sonst zeigt es „No data“, wo ein Operator eine grüne Null erwartet; und Abdeckung wird ausschließlich aus **Ausdrücken** von Panels und Regeln gelesen, denn eine in einem Kommentar genannte Metrik ist nicht verdrahtet.
 
 ### 20.2. Eingebettetes Debug-Panel
 
@@ -1415,7 +1431,7 @@ Eine CSS-Regel bestimmt die Abstände des Design-Systems: Vertikale Ränder eine
 
 ## 24. Architekturentscheidungen (ADR)
 
-293 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
+296 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
 
 | ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
 |-----|----------|----------------|---------------|
@@ -1691,8 +1707,8 @@ Das Verbindungsbudget hat einen Boden, nicht nur eine Decke. Audit F004 begrenzt
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 293 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~27.290 Tests in 1.601 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 296 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~27.290 Tests in 1.601 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 293 ADRs und des Changelogs (v1.0 bis v1.45.1). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (490+ Dokumente), der 296 ADRs und des Changelogs (v1.0 bis v1.45.2). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

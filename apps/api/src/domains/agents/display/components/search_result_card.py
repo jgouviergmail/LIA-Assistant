@@ -21,6 +21,7 @@ from src.domains.agents.display.components.base import (
     safe_url,
     truncate,
 )
+from src.domains.agents.display.components.folded_synthesis import render_folded_synthesis
 from src.domains.agents.display.icons import Icons
 
 
@@ -88,8 +89,8 @@ class SearchResultCard(BaseComponent):
                 + "</ul>"
             )
 
-        # Format answer
-        answer_html = self._format_answer(answer)
+        # The answer: a lead, the rest folded behind « see more »
+        answer_html = render_folded_synthesis(answer, ctx)
 
         return f"""<div class="lia-card lia-search lia-search--answer {nested_class}">
 {card_top_html}
@@ -132,31 +133,3 @@ class SearchResultCard(BaseComponent):
             return domain
         except Exception:
             return url[:30] if url else ""
-
-    def _format_answer(self, answer: str) -> str:
-        """Format answer text, converting basic markdown and stripping reference markers."""
-        if not answer:
-            return ""
-
-        import re
-
-        # Strip reference markers [x] or [1] etc. before HTML escaping
-        text = re.sub(r"\s*\[\d+\]", "", answer)
-
-        # Escape HTML
-        text = escape_html(text)
-
-        # Convert **bold**
-        text = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", text)
-
-        # Convert *italic*
-        text = re.sub(r"\*(.+?)\*", r"<em>\1</em>", text)
-
-        # Convert newlines to paragraphs
-        paragraphs = text.split("\n\n")
-        if len(paragraphs) > 1:
-            text = "".join(f"<p>{p}</p>" for p in paragraphs if p.strip())
-        else:
-            text = text.replace("\n", "<br>")
-
-        return text

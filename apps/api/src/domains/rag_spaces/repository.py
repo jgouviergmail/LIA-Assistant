@@ -12,8 +12,10 @@ from uuid import UUID
 
 from sqlalchemy import case, delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from src.core.repository import BaseRepository
+from src.core.sql_search import LIKE_ESCAPE, escape_like
 from src.domains.rag_spaces.models import (
     RAGChunk,
     RAGDocument,
@@ -344,6 +346,49 @@ class RAGDocumentRepository(BaseRepository[RAGDocument]):
         )
         result = await self.db.execute(stmt)
         return result.scalar_one()
+
+    async def search_ready_for_user(
+        self, user_id: UUID, *, needle: str | None, limit: int, offset: int
+    ) -> tuple[list[RAGDocument], int]:
+        """The ``ready`` documents of EVERY space of one account — active or not.
+
+        What the composer's « + » offers: a document whose extraction is proven,
+        in any space the person owns (a paused space included; a system space
+        belongs to nobody and is never listed), optionally narrowed by a name
+        needle whose LIKE wildcards are escaped. The page and the EXACT total
+        come from one filtered statement (ADR-185); the order ends on the
+        primary key so a page is stable.
+
+        Args:
+            user_id: The account.
+            needle: A fragment of the display name, or None.
+            limit: Page size.
+            offset: Page start.
+
+        Returns:
+            ``(rows, total)``; each row carries its ``space`` loaded.
+        """
+        filters = [
+            RAGDocument.user_id == user_id,
+            RAGDocument.status == RAGDocumentStatus.READY,
+            RAGSpace.user_id == user_id,
+        ]
+        if needle:
+            filters.append(
+                RAGDocument.original_filename.ilike(f"%{escape_like(needle)}%", escape=LIKE_ESCAPE)
+            )
+        base = select(RAGDocument).join(RAGSpace, RAGSpace.id == RAGDocument.space_id)
+        total = await self.db.execute(
+            select(func.count()).select_from(base.where(*filters).subquery())
+        )
+        rows = await self.db.execute(
+            base.where(*filters)
+            .options(selectinload(RAGDocument.space))
+            .order_by(RAGDocument.created_at.desc(), RAGDocument.id.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        return list(rows.scalars().all()), total.scalar_one()
 
     async def count_ready_for_space(self, space_id: UUID) -> int:
         """Count documents with status 'ready' in a space."""

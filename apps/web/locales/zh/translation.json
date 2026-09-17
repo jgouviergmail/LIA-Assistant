@@ -753,6 +753,7 @@
       "add": "附加文件",
       "photo_gallery": "从相册选择",
       "take_photo": "拍照",
+      "from_knowledge": "知识空间中的文档",
       "attach_file": "附加文件",
       "uploading": "上传中...",
       "upload_error": "上传错误",
@@ -761,6 +762,24 @@
       "max_attachments": "最多{{max}}个附件",
       "remove": "移除",
       "drop_here": "将图片或 PDF 拖放到此处"
+    },
+    "knowledge_picker": {
+      "title": "从你的知识空间附加文档",
+      "description": "你索引过的所有文档，来自每一个空间——无论是否启用。副本会加入这条消息，空间本身保持不变。",
+      "search_placeholder": "按名称搜索",
+      "loading": "正在加载你的文档…",
+      "empty": "还没有已索引的文档。请先向知识空间添加文档。",
+      "empty_search": "没有与该名称匹配的文档。",
+      "more_hint": "显示 {{total}} 个文档中的 {{shown}} 个——按名称搜索以找到其他文档。",
+      "error": "无法列出你的文档。",
+      "inactive_badge": "已暂停的空间",
+      "remaining_one": "这条消息还可以附加 {{count}} 个文档。",
+      "remaining_other": "这条消息还可以附加 {{count}} 个文档。",
+      "attach_one": "附加 {{count}} 个文档",
+      "attach_other": "附加 {{count}} 个文档",
+      "not_ready": "该文档仍在索引中，请在完成后再试。",
+      "already_attached": "该文档已附加。",
+      "attach_error": "无法附加“{{name}}”。"
     },
     "status": {
       "typing": "输入中...",
@@ -3677,7 +3696,7 @@
         "journals": "日记, 日志, 画像, 反思, 笔记, 来源, 为什么, 出处, 信号, 起源, 更正, 配置, 整理、导出",
         "health-metrics": "健康, 心率, 步数, 睡眠, iPhone, Apple 健康, 运动",
         "skills": "技能, 能力, 插件, 扩展",
-        "rag-spaces": "知识空间, 文档, 文件, 上传, 下载, 压缩包, zip, 移动, 批量删除, 索引, 文档检索, drive, 会议, gmail 标签, 邮件来源, 关注标签, 邮件会话, 已索引会话，收藏的回答，文档出错，扫描的 PDF，OCR，Google 文档",
+        "rag-spaces": "知识空间, 文档, 文件, 上传, 下载, 压缩包, zip, 移动, 批量删除, 索引, 文档检索, drive, 会议, gmail 标签, 邮件来源, 关注标签, 邮件会话, 已索引会话，收藏的回答，文档出错，扫描的 PDF，OCR，Google 文档、子文件夹、文件夹树、同步确认、文件数、将文档附加到消息",
         "user-consumption-export": "CSV, 用量, 消耗, 令牌, 成本, 账单, 统计, 导出",
         "haptics": "触觉 震动 触感 反馈",
         "plugins": "插件, 扩展, agent plugins, 安装, 软件包, mcp, 技能",
@@ -4168,6 +4187,20 @@
       "source_type_upload": "上传",
       "link_success": "文件夹 \"{{name}}\" 已成功关联。",
       "link_error": "关联文件夹失败。",
+      "link_nested": "此文件夹位于已关联到该空间的文件夹之内或之上，其中的文件会被重复索引。",
+      "preflight_error": "无法统计此文件夹，同步未启动。",
+      "confirm": {
+        "title": "同步“{{name}}”？",
+        "to_index_one": "将索引 {{count}} 个文件。",
+        "to_index_other": "将索引 {{count}} 个文件。",
+        "truncated": "至少如此：文件夹中的内容超过了一次同步能读取的数量。",
+        "breakdown": "{{new}} 个新文件，{{modified}} 个已修改，{{unchanged}} 个已是最新，{{unsupported}} 个不支持，分布在 {{folders}} 个文件夹中（含子文件夹）。",
+        "over_capacity_one": "{{count}} 个新文件将被排除：该空间已达到文档数量上限。",
+        "over_capacity_other": "{{count}} 个新文件将被排除：该空间已达到文档数量上限。",
+        "unreadable_folders_one": "{{count}} 个子文件夹无法读取，已跳过。",
+        "unreadable_folders_other": "{{count}} 个子文件夹无法读取，已跳过。",
+        "confirm": "开始索引"
+      },
       "already_linked": "此文件夹已关联到此空间。",
       "sync_in_progress": "同步已在进行中。",
       "feature_disabled": "Drive 同步功能已禁用。"
@@ -4420,6 +4453,7 @@
       "delete_event": "正在删除日程...",
       "list_calendars": "正在列出日历...",
       "get_emails": "正在检索邮件...",
+      "get_email_attachment": "正在读取附件...",
       "send_email": "正在发送邮件...",
       "reply_email": "正在回复邮件...",
       "forward_email": "正在转发邮件...",
@@ -4671,8 +4705,8 @@
           "description": "完整的技术栈：Prometheus 指标（token、延迟、错误、成本）、29 个 Grafana 仪表盘、Tempo 追踪、Loki 日志，以及每条告警都指向其运维手册的邮件告警。第 26 个仪表盘是产品驾驶舱：已验证的成果——你明确的 👍，或一整天未被更改的操作——以及每个有用成果的成本，在 PostgreSQL 中计数，由只能看到聚合数据的角色读取。此外，API 的每个进程都会公布自己在内存中持有的内容：容器总量可逐个工作进程解读。"
         },
         "tools": {
-          "title": "🔧 114 个类型化工具",
-          "description": "114 个原生工具，JSON 模式由 Python 类型生成，并可通过 MCP 服务器和技能无限扩展。每个工具都声明自己的清单和公开的边界：校验器能拒绝什么，规划器就能读到什么。目录按领域过滤——所以每个领域也必须带上自己的读取能力，否则一个只有写工具的领域会把规划器往「写」上推。"
+          "title": "🔧 115 个类型化工具",
+          "description": "115 个原生工具，JSON 模式由 Python 类型生成，并可通过 MCP 服务器和技能无限扩展。每个工具都声明自己的清单和公开的边界：校验器能拒绝什么，规划器就能读到什么。目录按领域过滤——所以每个领域也必须带上自己的读取能力，否则一个只有写工具的领域会把规划器往「写」上推。"
         },
         "costTransparency": {
           "title": "💰 成本透明度",
@@ -4736,7 +4770,7 @@
         },
         "attachments": {
           "title": "📎 照片与文件附件",
-          "description": "通过 📎 按钮、拖放或 Ctrl+V 添加照片和 PDF，在离开浏览器前先压缩。图片由视觉模型读取，PDF 会被提取文字，缩略图在无障碍查看器中打开。LIA 生成的文件有自己的图库，卡片上写明期限，你保存的回答就在旁边的「书签」标签页；重置只移除你上传的内容，绝不会动 LIA 做出来的或你保存的。"
+          "description": "通过 📎 按钮、拖放或 Ctrl+V 添加照片和 PDF，先在浏览器中压缩；图片交给视觉模型，PDF 提取文本。「+」还能把知识空间（含已暂停的空间）中的文档作为副本附加到这条消息，并有工具读取邮件附件（文本，扫描件则交给视觉模型）。LIA 生成的内容有自己的图库并标明到期日；重置只移除你上传的，不会移除 LIA 生成的。"
         },
         "skills": {
           "title": "Skills（带地图和交互式迷你应用）",
@@ -4744,7 +4778,7 @@
         },
         "ragSpaces": {
           "title": "📚 RAG知识空间",
-          "description": "创建知识空间并上传你的文档（PDF、DOCX、PPTX、XLSX、HTML、EPUB……）：文本会被提取、切分并向量化，激活的空间通过语义与关键词混合检索丰富回答。会议纪要和保存的回答各有自己的空间；空间也可以跟随一个 Gmail 标签。无法建立索引的文档会用你的语言说明原因——例如扫描的 PDF，并附上解决办法。让 LIA 回答关于自身问题的语料会在不切断旧语料的情况下重建。"
+          "description": "创建知识空间并放入文档（PDF、DOCX、PPTX、XLSX、HTML、EPUB…）：文本被提取、切分并向量化，启用的空间通过语义加关键词的混合搜索丰富回答。会议纪要和保留的回答各有专属空间；空间可以跟随 Gmail 标签，或 Drive 文件夹及其子文件夹——超过阈值时先由你确认确切的文件数。无法索引的文档会用你的语言说明原因。关于 LIA 自身的语料重建时不会切断旧版。"
         },
         "subAgents": {
           "title": "子代理",
@@ -4861,6 +4895,18 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_45_2": {
+          "title": "v1.45.2 — 📎 知识空间的文档可加入消息，邮件附件可被读取，Drive 文件夹是一棵树",
+          "date": "2026 年 9 月",
+          "count": "5",
+          "items": {
+            "i1": "<b>📚 附加你知识空间中的文档</b> — 输入框的「+」现在在文件选择器旁列出你各空间中已索引的所有文档，<b>包括已暂停的空间</b>：按名称搜索、勾选，一份副本像上传文件一样加入消息——空间本身不受影响，重置对话只移除副本。支持十五种格式，不限于 PDF 和图片。",
+            "i2": "<b>📎 LIA 读取你的邮件附件</b> — 说「读一下这封邮件的附件」：文档按文本读取（PDF、Word、表格…），图片或扫描版 PDF 交给视觉模型，长文本分段送达，拒绝时会说明原因（太大、无法读取、找不到）。陌生人发来的内容只是数据，绝不是指令。",
+            "i3": "<b>📁 Drive 文件夹连同子文件夹一起同步</b> — 已链接的文件夹现在按整棵树遍历。超过你设定的文件数（默认 10）时，<b>同步</b>会显示即将索引的确切文件数——新增、已修改、未变化、不支持——并等待你确认。位于已链接文件夹内部的文件夹会被拒绝，而不是索引两次。",
+            "i4": "<b>🔍 长篇网页综述可折叠，代码留在卡片内</b> — 在 HTML 卡片模式下，长篇搜索综述先显示开头，其余折叠在「查看更多」之后；比卡片更宽的代码行在卡片内滚动，右侧边缘有提示。",
+            "i5": "<b>📖 空间的每次读取都记入你的日志</b> — 链接文件夹或标签、后台同步、推送：现在每一次都会在「LIA 查阅过的内容」中留下记录。iPhone 照片（HEIC）也在服务器端解码——无论是上传、邮件附件还是待编辑的图片。"
+          }
+        },
         "v1_45_1": {
           "title": "v1.45.1 — 📚 你保存的内容会被检索，你的画像说明来源，每个增强回答都是一页经过编排的页面",
           "date": "2026 年 9 月",
@@ -7360,7 +7406,7 @@
       "chat": {
         "title": "对话",
         "description": "使用聊天和对话",
-        "count": "27",
+        "count": "28",
         "questions": {
           "q1": {
             "question": "我可以同时进行多个对话吗？",
@@ -7392,7 +7438,7 @@
           },
           "q8": {
             "question": "如何在消息中附加照片或文档？",
-            "answer": "三种方式附加文件：<br><br><strong>📎 回形针按钮：</strong><br>点击输入区域左侧的 <strong>📎</strong> 按钮浏览你的文件。<br><br><strong>🖱️ 拖放：</strong><br>直接从文件管理器将文件拖到输入区域。会清晰显示「将图片或 PDF 拖放到此处」的放置区域。<br><br><strong>📋 从剪贴板粘贴：</strong><br>剪贴板中有截图、图片或 PDF 时按 Ctrl+V（Mac 上为 Cmd+V）：文件将通过与回形针相同的通道添加（相同限制、相同预览）。若粘贴的内容同时包含文字和文件，两者都会送达。<br><br><strong>📁 支持的格式：</strong><br>• <strong>照片</strong>（JPEG、PNG、GIF、WebP、HEIC）— 自动压缩<br>• <strong>PDF文档</strong> — 自动提取文本<br><br>缩略图会显示在对话中。点击缩略图可放大查看。LIA可以分析图片的视觉内容和PDF的文本来回答你的问题。<br><br><strong>💡 限制</strong>：每条消息最多5个附件，每张图片最大10MB，每个文档最大20MB。"
+            "answer": "三种方式附加文件：<br><br><strong>📎 回形针按钮：</strong><br>点击输入区域左侧的 <strong>📎</strong> 按钮浏览你的文件。<br><br><strong>🖱️ 拖放：</strong><br>直接从文件管理器将文件拖到输入区域。会清晰显示「将图片或 PDF 拖放到此处」的放置区域。<br><br><strong>📋 从剪贴板粘贴：</strong><br>剪贴板中有截图、图片或 PDF 时按 Ctrl+V（Mac 上为 Cmd+V）：文件将通过与回形针相同的通道添加（相同限制、相同预览）。若粘贴的内容同时包含文字和文件，两者都会送达。<br><br><strong>📚 来自知识空间：</strong><br>当你的知识空间已启用时，<strong>「+」</strong>会变成一个菜单：选择<strong>知识空间中的文档</strong>，即可附加一份已索引文档的副本——包括已暂停的空间（见下方问题）。<br><br><strong>📁 支持的格式：</strong><br>• <strong>照片</strong>（JPEG、PNG、GIF、WebP、HEIC）— 自动压缩<br>• <strong>PDF文档</strong> — 自动提取文本<br><br>缩略图会显示在对话中。点击缩略图可放大查看。LIA可以分析图片的视觉内容和PDF的文本来回答你的问题。<br><br><strong>💡 限制</strong>：每条消息最多5个附件，每张图片最大10MB，每个文档最大20MB。"
           },
           "q9": {
             "question": "/resume 命令是什么？",
@@ -7469,6 +7515,10 @@
           "q27": {
             "question": "在增强 HTML 模式下，回答长什么样？",
             "answer": "像一页经过编排的页面，而不是带标签的文本。只要回答承载数据——日期、数字、人物、结果——LIA 就会排版：一句<strong>导语</strong>，关键事实加粗；然后<strong>每个侧面一节</strong>，使用相应组件（数字用磁贴、状态用徽章、流程用步骤、比较用分栏或表格、元数据用键值列表）；有建议、保留或后续步骤时再加一个<strong>收尾提示块</strong>。问候或一句话的回答仍是一行。<br><br>排版取决于回答自身的数据，绝不沿用对话中先前回答的形式。它同样适用于不使用工具的对话轮次——除非你开启了语音：朗读的回答保持纯文本，否则语音会读出标签。在<strong>设置 > 回答显示</strong>中选择模式。"
+          },
+          "q28": {
+            "question": "我可以把知识空间里的文档附加到消息中吗？",
+            "answer": "可以。当你的知识空间已启用时，输入框的 <strong>「+」</strong> 按钮会打开一个菜单：<strong>附加文件</strong>（经典的文件选择器）和<strong>知识空间中的文档</strong>。<br><br><strong>📚 选择器列出的内容：</strong><br>• 你各空间中已索引的所有文档——<strong>包括已暂停的空间</strong>，会标明名称和状态，绝不隐藏<br>• 按名称搜索，每个文档旁显示所属空间和大小<br>• 可选数量受消息剩余附件位数限制<br><br><strong>📄 附加时会发生什么：</strong><br>• 文档的一份<strong>副本</strong>加入消息，和上传完全一样——空间、其索引和文件都不受影响<br>• 文本由知识空间的处理管线提取（十五种格式：PDF、Word、Excel、PowerPoint、EPUB…），不限于 PDF<br>• 重置对话只移除副本，绝不移除空间中的文档<br><br><strong>💡 适用场景</strong>：想针对某一份文档提问而不启用整个空间，或者读取你保持暂停的空间中的文档。"
           }
         }
       },
@@ -7826,7 +7876,7 @@
       "tool_examples_services": {
         "title": "邮件、日历和联系人示例",
         "description": "如何使用你的连接服务（Google、Apple iCloud 或 Microsoft 365）：邮件、联系人、日历、Drive 和 Tasks",
-        "count": "18",
+        "count": "19",
         "questions": {
           "q1": {
             "question": "如何搜索我的联系人？",
@@ -7899,6 +7949,10 @@
           "q18": {
             "question": "如何获得许多邮件的摘要？",
             "answer": "LIA 以三种详细程度读取邮件，并选择你的问题所需要的那一种：<br><br><strong>📋 列举</strong> — 发件人、主题、日期、预览：\"<em>我本周的邮件</em>\"。<br><strong>📖 阅读</strong> — 整封邮件的干净文本：\"<em>读一下 Peter 的邮件</em>\"。<br><strong>📝 摘要</strong> — 每封邮件一段简短摘要（要点、关键信息、需要你做的事、类别、重要性），用于对许多封进行推理：<br>• \"<em>总结我的未读邮件</em>\"<br>• \"<em>本周的新闻通讯说了什么？</em>\"<br>• \"<em>周一以来我的邮件里有什么紧急的吗？</em>\"<br><br><strong>💡 小贴士：</strong><br>• 摘要每封邮件只计算一次并保留三十天，再次询问不会产生新的费用<br>• 它运行在一个小模型上，和其他调用一样计入你的用量<br>• 如果无法生成摘要，LIA 会直接读取邮件本身，而不是编造一个<br>• Gmail、Outlook 和 iCloud Mail 同样适用"
+          },
+          "q19": {
+            "question": "LIA 能读取邮件附件吗？",
+            "answer": "<strong>Gmail、Outlook、iCloud Mail</strong> — 可以，只要邮件已列出其附件：<br><br><strong>📎 这样提问：</strong><br>• \"<em>读一下这封邮件的附件</em>\"<br>• \"<em>供应商最近一封邮件附的发票写了什么？</em>\"<br>• \"<em>总结周二那封邮件附的 PDF</em>\"<br><br><strong>📖 读取方式：</strong><br>• 文档（PDF、Word、Excel、PowerPoint、EPUB…）按<strong>文本</strong>读取；长文档分段送达，可要求下一段<br>• <strong>图片</strong>或没有文字层的扫描版 PDF 交给视觉模型，由它转录所见内容——最多几页，并会说明只看到了前几页<br>• 读取内容被视为陌生人发来的东西：只是数据，绝不是指令<br><br><strong>🚫 会被拒绝并说明原因的情况：</strong><br>• 超过大小上限的文件（在下载之前就会拒绝）<br>• 不支持的类型（压缩包、可执行文件…）<br>• 找不到的附件，或两个同名附件——LIA 会列出来让你选择<br><br><strong>💡 每次视觉读取都计入你的用量</strong>，和任何模型调用一样；文本读取除回答外不产生额外费用。"
           }
         }
       },
@@ -8351,7 +8405,7 @@
           },
           "q7": {
             "question": "Google Drive 同步是如何工作的？",
-            "answer": "<p>你可以将 Google Drive 文件夹链接到你的知识空间。点击<strong>「链接文件夹」</strong>，浏览你的 Drive 并选择一个文件夹。LIA 会列出支持的文件，下载并通过相同的索引管道处理它们。</p><p>使用<strong>「立即同步」</strong>进行更新 — LIA 会自动检测新增、修改和删除的文件。</p><p><strong>关键细节：</strong><ul><li>通过 API 导出支持 Google Docs、Sheets 和 Slides</li><li>逐文件错误隔离 — 一个文件失败不会阻塞其他文件</li><li>Feature flag：<code>RAG_SPACES_DRIVE_SYNC_ENABLED</code></li></ul></p>"
+            "answer": "<p>你可以把 Google Drive 文件夹链接到知识空间。点击<strong>「链接文件夹」</strong>，浏览你的 Drive 并选择一个文件夹：LIA 会<strong>按整棵树遍历，包括子文件夹</strong>，列出支持的文件，下载并通过同一索引管线处理。位于已链接文件夹内部（或其上层）的文件夹会被拒绝，而不是索引两次。</p><p>使用<strong>「立即同步」</strong>进行更新——LIA 会自动检测新增、修改和删除的文件。超过一定文件数（默认 10，由实例设置）时，按钮会先显示即将索引的<strong>确切文件数</strong>——新增、已修改、未变化、不支持，以及空间已容纳不下的部分——然后等待你确认；被上限截断的遍历会注明「至少」。</p><p><strong>要点：</strong><ul><li>通过 API 导出支持 Google Docs、Sheets 和 Slides；不跟随快捷方式</li><li>按文件隔离错误——一个文件出错不影响其他文件；无法读取的子文件夹会被计数并跳过</li><li>每次同步，无论手动还是自动，都会在「LIA 查阅过的内容」中留下记录</li><li>功能开关：<code>RAG_SPACES_DRIVE_SYNC_ENABLED</code>；阈值：<code>RAG_DRIVE_SYNC_CONFIRM_THRESHOLD</code></li></ul></p>"
           },
           "q8": {
             "question": "我可以向助手询问它自身的功能吗？",
@@ -8864,6 +8918,10 @@
         "title": "随处拖放",
         "desc": "把文件拖到窗口上：LIA 会妥帖接住它。"
       },
+      "knowledge_pick": {
+        "title": "你的文档，就在「+」里",
+        "desc": "在文件选择器旁，「+」列出你知识空间中已索引的每份文档——包括已暂停的空间。勾选它，一份副本加入消息；空间本身不受影响。"
+      },
       "expressive_eyes": {
         "title": "回应语气的表情",
         "desc": "十二种表情，含嘴部：LIA 会说明她刚写下内容的语气，表情随之呈现。其中只有两种在微笑。"
@@ -8875,6 +8933,10 @@
       "composed_page": {
         "title": "一页页面，而非加了标签的散文",
         "desc": "在增强 HTML 中，凡是承载数据的回答都会被编排：一句导语、每个侧面一节——数字用磁贴、状态用标签、步骤、分栏——再加一个收尾提示框。形式取决于回答自身的数据，绝不沿用之前回答的形式。"
+      },
+      "code_scroll": {
+        "title": "代码留在卡片里",
+        "desc": "比卡片更宽的代码行在卡片内滚动，滚动条纤细且始终可见——右侧边缘的渐隐提示后面还有内容，直到你滚到末尾。"
       },
       "followup_chips": {
         "title": "下一步，一键即达",
@@ -9084,6 +9146,10 @@
         "title": "贴个标签，它就进来了",
         "desc": "给会话贴上 Gmail 标签，它就成为空间中的文档；移除标签，文档随即离开。"
       },
+      "sync_count": {
+        "title": "同步之前先计数",
+        "desc": "Drive 文件夹连同子文件夹一起同步。超过阈值时，按钮先计数，显示即将索引的确切文件数——由你确认，或者取消。"
+      },
       "week_grid": {
         "title": "你的一周，铺在网格上",
         "desc": "纵向是小时，横向是星期：每条例程落在它的时间上，按触发顺序编号。格子在执行后变绿，失败时变红，等待你确认时变琥珀色——每周一重新开始。"
@@ -9269,6 +9335,17 @@
       "composed_page": {
         "plain": "同一条回答，散文形式",
         "composed": "按侧面逐一排版"
+      },
+      "knowledge_pick": {
+        "file": "一个文件",
+        "spaces": "空间中的文档",
+        "paused": "已暂停"
+      },
+      "sync_count": {
+        "sync": "同步",
+        "counting": "计数中…",
+        "files": "个文件待索引",
+        "confirm": "开始索引"
       }
     },
     "craft": {
@@ -10348,7 +10425,7 @@
       },
       "attachments": {
         "title": "照片与附件",
-        "description": "给消息附上照片和 PDF——📎 按钮、拖放，或简单地 Ctrl+V 粘贴截图——发送前在浏览器中压缩。图片由视觉模型读取，PDF 的文本被提取，LIA 基于内容推理。她生成的文件有自己的图库，每张卡片显示到期时间；重置对话会移除你发送的内容，绝不会移除她生成的。"
+        "description": "为消息附加照片和 PDF——📎 按钮、拖放，或用 Ctrl+V 粘贴截图——发送前在浏览器中压缩。「+」还会列出你知识空间中的每份文档（包括已暂停的空间），作为该条消息的副本。图片由视觉模型读取，文档文本被提取，LIA 据此推理——当你让她读某封邮件的附件时也一样。她生成的文件有专属图库，每张卡片标明到期日；重置对话只移除你发送的内容，绝不移除她生成的。"
       },
       "languages": {
         "title": "多语言",
@@ -10384,7 +10461,7 @@
       },
       "rag_spaces": {
         "title": "知识空间",
-        "description": "导入 15 种以上格式的文档——PDF、DOCX、PPTX、XLSX、HTML、EPUB 等——或同步你的 Google Drive 文件夹。LIA 提取、切分并索引文本，再通过语义与关键词混合检索丰富回答，并注明读到的内容。会议纪要和收藏的回答进入各自的空间；它无法读取的文档——例如扫描的 PDF——会说明原因并给出解决办法。空间随时可以关闭或删除，没有你的操作就不会索引任何内容。"
+        "description": "导入 15 种以上格式的文档——PDF、DOCX、PPTX、XLSX、HTML、EPUB…——或同步你的 Google Drive 文件夹，包括子文件夹：超过阈值时，会在开始之前显示即将索引的确切文件数。LIA 提取、切分并索引文本，然后通过语义加关键词的混合搜索丰富回答，并引用她读过的内容。会议纪要和保留的回答各有专属空间；她无法读取的文档——如扫描版 PDF——会说明原因和补救办法。空间可随时暂停或删除，没有你的操作，任何内容都不会被索引。"
       },
       "mail_label_spaces": {
         "title": "跟随 Gmail 标签的空间",
@@ -11214,7 +11291,7 @@
       "google-workspace": {
         "title": "Google Workspace集成：Gmail、Calendar、Contacts、Drive、Tasks",
         "excerpt": "LIA通过OAuth 2.0连接你的Google Workspace，用自然语言管理邮件、日历、联系人、Drive和任务。",
-        "body": "<h2>16个Google API，一次对话</h2><p>LIA集成<strong>16个Google API</strong>，覆盖你的工作空间及更多：<strong>Gmail API</strong>、<strong>Calendar API</strong>、<strong>People API v1</strong>（联系人）、<strong>Drive API</strong>、<strong>Tasks API</strong>、<strong>Routes API</strong>和<strong>Places API</strong>。你可以通过单一自然语言界面管理所有服务。</p><h2>各服务完整操作</h2><p>每个服务提供完整的CRUD操作集：</p><ul><li><strong>Gmail</strong> — 搜索、阅读、发送、回复、转发、标签管理。Scope：<code>gmail.modify</code></li><li><strong>Calendar</strong> — 搜索、创建、修改、删除日程，管理参与者。Scope：<code>calendar.events</code></li><li><strong>Contacts</strong> — 通过People API v1搜索、创建、修改、删除。Scope：<code>contacts</code>。字段投影优化至列表模式下<strong>每个联系人110个Token</strong>以最小化LLM消耗</li><li><strong>Drive</strong> — 搜索、列表、下载、共享文件。Scope：<code>drive.readonly</code></li><li><strong>Tasks</strong> — 列表、创建、更新、完成、删除。Scope：<code>tasks</code></li></ul><h2>Routes和Places：全球API</h2><p>除了Workspace之外，LIA还集成了<strong>Google Routes API</strong>（计算路线：驾车、公共交通、骑行、步行）和<strong>Google Places API</strong>（搜索地点、商家和兴趣点）。这些API丰富了助手的上下文响应。Places 与天气、空气质量一样使用实例自己的密钥：无需绑定任何账户，新账户一开始就启用了该服务。</p><h2>ConnectorTool架构</h2><p>每个服务使用<code>ConnectorTool</code>基类，自动处理OAuth认证、Token刷新、API客户端缓存和错误管理。字段投影（<code>field masks</code>）按操作优化，以减少API响应大小和Token消耗。</p><h2>在助手眼中一封邮件是什么样的</h2><p>邮件以<strong>干净的文本</strong>到达助手：HTML 只转换一次，引用的历史和签名在客户端边界就被移除，提供商的原始树结构从不随行。在此基础上，工具按问题的需要提供<strong>三种详细程度</strong>：<em>metadata</em> 用于列举（发件人、主题、日期、预览），<em>full</em> 用于读一封邮件——长正文分段到达，在段落边界切分，绝不在句子中间——<em>summary</em> 用于对许多封进行推理。摘要是每封邮件一段简短的<strong>浓缩</strong>（要点、关键信息、待办、类别、重要性），由一个小模型只计算一次，缓存三十天，并计入这个人的用量；无法生成时，邮件会按原样读取而不是编造。没有其他说明时，最近的邮件指收件箱；有针对性的搜索也会检索归档，从最新的开始，并用一个不透明的分页令牌继续。</p><h2>OAuth 2.0安全</h2><p>访问令牌通过Fernet（AES-128 CBC + HMAC）加密存储在数据库中。刷新是透明的：如果Token在操作期间过期，LIA会自动更新。请求的OAuth scope严格遵循<strong>最小权限原则</strong>。</p><h2>授权早已允许的能力</h2><p>2026 年 8 月这一批几乎没有向用户索取新权限：它使用的是已授予范围本就涵盖、但 LIA 从未调用的能力。<strong>联系人分组</strong>（People API）让整个标签可寻址——“给家人分组发邮件”——成员数量取自 API 聚合结果，绝不来自被截断的页面。<strong>freeBusy</strong> 端点在计算空闲时段时只读取忙碌区间：比读取日程内容更少的数据，却给出更好的答案。<strong>history.list</strong> 用锚定在历史标识上的精确增量，取代了心跳的周期性重复查询。而 <strong>Sheets</strong> 与 <strong>Docs</strong> API 接受已授予的 Drive 令牌：读取表格，并在确认后写入，无需重新授权。</p><p>两项平台服务补全了这一体系，只需一个开关即可启用，因为它们使用实例密钥而非个人账号：<strong>Weather</strong>（面向不愿自行申请密钥的用户，作为 OpenWeatherMap 的替代）和 <strong>Environment</strong>（空气质量、花粉）。归一化在客户端边界完成，因此已经消费天气数据的十九处界面一行都没有改动。<strong>Web Risk</strong> 在打开前筛查网址，<strong>Street View</strong> 为没有照片的地点提供配图——先免费确认影像存在——而 <strong>watch</strong> 通道与 <strong>Pub/Sub</strong> 在运营者启用后，用通知取代轮询。</p>"
+        "body": "<h2>16个Google API，一次对话</h2><p>LIA集成<strong>16个Google API</strong>，覆盖你的工作空间及更多：<strong>Gmail API</strong>、<strong>Calendar API</strong>、<strong>People API v1</strong>（联系人）、<strong>Drive API</strong>、<strong>Tasks API</strong>、<strong>Routes API</strong>和<strong>Places API</strong>。你可以通过单一自然语言界面管理所有服务。</p><h2>各服务完整操作</h2><p>每个服务提供完整的CRUD操作集：</p><ul><li><strong>Gmail</strong> — 搜索、阅读、发送、回复、转发、标签管理。Scope：<code>gmail.modify</code></li><li><strong>Calendar</strong> — 搜索、创建、修改、删除日程，管理参与者。Scope：<code>calendar.events</code></li><li><strong>Contacts</strong> — 通过People API v1搜索、创建、修改、删除。Scope：<code>contacts</code>。字段投影优化至列表模式下<strong>每个联系人110个Token</strong>以最小化LLM消耗</li><li><strong>Drive</strong> — 搜索、列表、下载、共享文件。Scope：<code>drive.readonly</code></li><li><strong>Tasks</strong> — 列表、创建、更新、完成、删除。Scope：<code>tasks</code></li></ul><h2>Routes和Places：全球API</h2><p>除了Workspace之外，LIA还集成了<strong>Google Routes API</strong>（计算路线：驾车、公共交通、骑行、步行）和<strong>Google Places API</strong>（搜索地点、商家和兴趣点）。这些API丰富了助手的上下文响应。Places 与天气、空气质量一样使用实例自己的密钥：无需绑定任何账户，新账户一开始就启用了该服务。</p><h2>ConnectorTool架构</h2><p>每个服务使用<code>ConnectorTool</code>基类，自动处理OAuth认证、Token刷新、API客户端缓存和错误管理。字段投影（<code>field masks</code>）按操作优化，以减少API响应大小和Token消耗。</p><h2>在助手眼中一封邮件是什么样的</h2><p>邮件以<strong>干净的文本</strong>到达助手：HTML 只转换一次，引用的历史和签名在客户端边界就被移除，提供商的原始树结构从不随行。在此基础上，工具按问题的需要提供<strong>三种详细程度</strong>：<em>metadata</em> 用于列举（发件人、主题、日期、预览），<em>full</em> 用于读一封邮件——长正文分段到达，在段落边界切分，绝不在句子中间——<em>summary</em> 用于对许多封进行推理。摘要是每封邮件一段简短的<strong>浓缩</strong>（要点、关键信息、待办、类别、重要性），由一个小模型只计算一次，缓存三十天，并计入这个人的用量；无法生成时，邮件会按原样读取而不是编造。没有其他说明时，最近的邮件指收件箱；有针对性的搜索也会检索归档，从最新的开始，并用一个不透明的分页令牌继续。</p><h2>附件不只是被列出，还会被读取</h2><p>列出一封邮件的附件是元数据读取；打开一个附件是下载，三个供应商都把它放在同一个方法之后——同样按标识符或名称选择，同样的错误——因为 Gmail 的附件标识符可能在同一封邮件的两次读取之间失效，过期的标识符必须按名称解析，而不是失败。文档（PDF、Word、表格、EPUB…）按<strong>文本</strong>读取，并像正文一样分段送达；图片，或没有文字层的扫描版 PDF，被渲染为数量受限的页面交给<strong>视觉模型</strong>，并在只看到前几页时被告知。大小上限在下载任何字节<em>之前</em>就按列表信息生效，拒绝会说明原因（太大、不支持、找不到、有歧义），视觉调用计入你的用量，返回的内容被包裹为陌生人发来的东西——数据，绝不是指令。</p><h2>OAuth 2.0安全</h2><p>访问令牌通过Fernet（AES-128 CBC + HMAC）加密存储在数据库中。刷新是透明的：如果Token在操作期间过期，LIA会自动更新。请求的OAuth scope严格遵循<strong>最小权限原则</strong>。</p><h2>授权早已允许的能力</h2><p>2026 年 8 月这一批几乎没有向用户索取新权限：它使用的是已授予范围本就涵盖、但 LIA 从未调用的能力。<strong>联系人分组</strong>（People API）让整个标签可寻址——“给家人分组发邮件”——成员数量取自 API 聚合结果，绝不来自被截断的页面。<strong>freeBusy</strong> 端点在计算空闲时段时只读取忙碌区间：比读取日程内容更少的数据，却给出更好的答案。<strong>history.list</strong> 用锚定在历史标识上的精确增量，取代了心跳的周期性重复查询。而 <strong>Sheets</strong> 与 <strong>Docs</strong> API 接受已授予的 Drive 令牌：读取表格，并在确认后写入，无需重新授权。</p><p>两项平台服务补全了这一体系，只需一个开关即可启用，因为它们使用实例密钥而非个人账号：<strong>Weather</strong>（面向不愿自行申请密钥的用户，作为 OpenWeatherMap 的替代）和 <strong>Environment</strong>（空气质量、花粉）。归一化在客户端边界完成，因此已经消费天气数据的十九处界面一行都没有改动。<strong>Web Risk</strong> 在打开前筛查网址，<strong>Street View</strong> 为没有照片的地点提供配图——先免费确认影像存在——而 <strong>watch</strong> 通道与 <strong>Pub/Sub</strong> 在运营者启用后，用通知取代轮询。</p>"
       },
       "apple-microsoft": {
         "title": "Apple iCloud和Microsoft 365：多平台连接器",
@@ -11239,7 +11316,7 @@
       "knowledge-spaces": {
         "title": "知识空间：将文档转化为AI智能",
         "excerpt": "导入PDF、Word、Excel等文档。LIA使用混合语义+BM25搜索对其进行索引。",
-        "body": "<h2>支持15+种格式</h2><p>LIA的知识空间接受超过<strong>15种文件格式</strong>，配备专用解析器：</p><ul><li><strong>PDF</strong> 通过PyMuPDF（快速精准提取）</li><li><strong>文档</strong> — DOCX、RTF、ODT</li><li><strong>表格</strong> — XLSX、CSV、ODS</li><li><strong>演示文稿</strong> — PPTX、ODP</li><li><strong>Web和文本</strong> — HTML、Markdown、JSON、XML、EPUB</li></ul><h2>智能分块</h2><p>文档通过<strong>RecursiveCharacterTextSplitter</strong>进行切分，参数经过优化：每块<strong>1000字符</strong>，<strong>200字符</strong>重叠（overlap）以保留段落间的上下文。安全限制：每文档最多<strong>500个块</strong>，每文件最大<strong>20 MB</strong>。</p><h2>混合搜索：两全其美</h2><p>LIA结合两种搜索方法：</p><ul><li><strong>语义搜索</strong> — 通过pgvector的Embeddings。即使用词不同，也能通过语义相似度找到结果。</li><li><strong>BM25搜索</strong> — 关键词匹配。适用于技术术语、专有名词和标识符。</li></ul><p>两种信号的分量并不相同，这是有意为之。相关性只由<strong>语义相似度</strong>决定：一段内容达到 <strong>0.62</strong> 即被保留，这一阈值已在真实语料上针对六种语言重新校准。BM25 随后只提供一个<strong>有上限的加分（0.05）</strong>用于打破平局——它可以把字面命中提到几乎并列者之前，但绝不能让一段内容入选或被剔除。像 LIA 在 2026 年 8 月之前那样把两种信号按相近权重混合，会在提问语言与文档语言拉开距离时丢弃三分之一的正确答案。默认每次查询检索<strong>5 个片段</strong>（最大可配置：20）。</p><h2>限制和配额</h2><p>每个用户拥有：最多<strong>10个空间</strong>、每空间<strong>50个文档</strong>、每文件<strong>20 MB</strong>。这些限制确保了最佳的搜索性能，同时为大多数使用场景提供了充足的容量。</p><h2>Google Drive同步</h2><p>你可以将<strong>Google Drive文件夹</strong>连接到知识空间。文档会自动同步，并在更改时重新索引。同步可检测新增、修改和删除操作。</p><h2>内置FAQ</h2><p>LIA拥有一个包含自身文档（18个FAQ文件）的系统知识空间。这使它能够精确回答关于自身功能的问题。</p><h2>一个自动填充的空间：会议</h2><p>有一个空间是为你创建的，而不是由你创建的。当 LIA 撰写一场录制会议的纪要时，会把它索引到「会议」空间——按角色而非名称查找，所以你可以重命名它——每场会议一份文档，编辑纪要时就地重写，删除会议当天即被移除。该空间不受每用户上限的限制，正是它让助手能够基于你自己的会议回答「关于迁移我们决定了什么？」，并标注来源。</p><h2>可以流转的文档</h2><p>知识空间是用来管理的，而不只是用来装填。每个文档都可以按原始文件名下载，所选内容可以打包为一个 zip 压缩包取回，文档也可以<strong>移动</strong>到其他空间——数据行、供检索读取的索引和文件会一起迁移，因此移动之后该文档只会从新空间作答。删除同样支持批量选择。每次批量操作都会报告做了什么、跳过了什么以及原因：从 Drive 同步或由会议生成的文档归属于其来源，不会被移动；在全局重新索引期间也不会移动任何内容。</p><h2>把标签当作选择加入的开关</h2><p>索引整个邮箱经过衡量后被否决：那会把一份私人档案复制到第二处需要保护的存储，把嵌入开销花在以通知和邮件列表为主的语料上，并让检索被谁都没打算保留的文本稀释。空间可以改为关注一个 <strong>Gmail 标签</strong>。凡带该标签的会话都会成为一份 Markdown 文档——主题作标题、消息按时间排列、优先取纯文本，附件只保留<em>文件名</em>而非内容——并受硬性长度上限约束。</p><p>于是「选择加入」就是用户本来就会做的动作：给会话贴标签即加入，移除标签则在下一轮处理时移除文档。两条入口共用一套摄取逻辑：完整同步会在列出会话<em>之前</em>先锚定 Gmail 历史——因此列举期间到达的消息会被补上而不是丢失——以及在收到推送通知时读取历史所指名内容的增量路径。索引不是决策：它不受任何通知预算约束，其失败也绝不会消耗一次唤醒。</p><h2>无法读取的文档会说明原因</h2><p>出错的文档不再是一个沉默的红点：在它的那一行下方，LIA 会说明<strong>为什么</strong>——文件丢失、无法提取文本、没有文本、段落过多、重试耗尽。最常见的情形是扫描的 PDF：只有页面图像而没有文本层。LIA 不做字符识别，会如实说明并给出解决办法——在 Google 文档中打开该文件（它会识别文本），再通过 Drive 来源把它加入空间。</p><h2>你收藏的回答，可以被找到</h2><p>你收藏的每个回答还会作为一份文档被索引到一个属于你的空间——<strong>收藏的回答</strong>——它在第一次收藏时创建，默认启用，不计入上限。数周之后，当某个问题涉及它时，LIA 会找到并引用它——在两种执行模式下都是如此。收藏卡片显示索引状态，索引完成后还显示投影的花费；删除收藏即移除文档。</p>"
+        "body": "<h2>支持15+种格式</h2><p>LIA的知识空间接受超过<strong>15种文件格式</strong>，配备专用解析器：</p><ul><li><strong>PDF</strong> 通过PyMuPDF（快速精准提取）</li><li><strong>文档</strong> — DOCX、RTF、ODT</li><li><strong>表格</strong> — XLSX、CSV、ODS</li><li><strong>演示文稿</strong> — PPTX、ODP</li><li><strong>Web和文本</strong> — HTML、Markdown、JSON、XML、EPUB</li></ul><h2>智能分块</h2><p>文档通过<strong>RecursiveCharacterTextSplitter</strong>进行切分，参数经过优化：每块<strong>1000字符</strong>，<strong>200字符</strong>重叠（overlap）以保留段落间的上下文。安全限制：每文档最多<strong>500个块</strong>，每文件最大<strong>20 MB</strong>。</p><h2>混合搜索：两全其美</h2><p>LIA结合两种搜索方法：</p><ul><li><strong>语义搜索</strong> — 通过pgvector的Embeddings。即使用词不同，也能通过语义相似度找到结果。</li><li><strong>BM25搜索</strong> — 关键词匹配。适用于技术术语、专有名词和标识符。</li></ul><p>两种信号的分量并不相同，这是有意为之。相关性只由<strong>语义相似度</strong>决定：一段内容达到 <strong>0.62</strong> 即被保留，这一阈值已在真实语料上针对六种语言重新校准。BM25 随后只提供一个<strong>有上限的加分（0.05）</strong>用于打破平局——它可以把字面命中提到几乎并列者之前，但绝不能让一段内容入选或被剔除。像 LIA 在 2026 年 8 月之前那样把两种信号按相近权重混合，会在提问语言与文档语言拉开距离时丢弃三分之一的正确答案。默认每次查询检索<strong>5 个片段</strong>（最大可配置：20）。</p><h2>限制和配额</h2><p>每个用户拥有：最多<strong>10个空间</strong>、每空间<strong>50个文档</strong>、每文件<strong>20 MB</strong>。这些限制确保了最佳的搜索性能，同时为大多数使用场景提供了充足的容量。</p><h2>Google Drive同步</h2><p>你可以将<strong>Google Drive文件夹</strong>连接到知识空间，文件夹会<strong>按整棵树遍历，包括子文件夹</strong>——快捷方式被忽略，无法读取的子文件夹被计数并跳过。文档会同步，并在更改时重新索引；同步可检测新增、修改和删除操作。超过阈值时，即将索引的确切文件数会在开始<strong>之前</strong>显示，这样大的目录树永远不会让你意外；位于已链接文件夹内部的文件夹会被拒绝，而不是索引两次。</p><h2>把空间中的文档附加到消息</h2><p>聊天的搜索只读取启用的空间。要针对某一份文档提问——或者读取你保持暂停的空间中的文档——输入框的<strong>「+」</strong>会列出你各空间中已索引的每份文档，已暂停的空间被标注而不是隐藏，可按名称搜索。勾选它，一份<strong>副本</strong>像上传文件一样加入消息：空间、其索引和文件都不受影响，重置对话只移除副本。</p><h2>内置FAQ</h2><p>LIA拥有一个包含自身文档（18个FAQ文件）的系统知识空间。这使它能够精确回答关于自身功能的问题。</p><h2>一个自动填充的空间：会议</h2><p>有一个空间是为你创建的，而不是由你创建的。当 LIA 撰写一场录制会议的纪要时，会把它索引到「会议」空间——按角色而非名称查找，所以你可以重命名它——每场会议一份文档，编辑纪要时就地重写，删除会议当天即被移除。该空间不受每用户上限的限制，正是它让助手能够基于你自己的会议回答「关于迁移我们决定了什么？」，并标注来源。</p><h2>可以流转的文档</h2><p>知识空间是用来管理的，而不只是用来装填。每个文档都可以按原始文件名下载，所选内容可以打包为一个 zip 压缩包取回，文档也可以<strong>移动</strong>到其他空间——数据行、供检索读取的索引和文件会一起迁移，因此移动之后该文档只会从新空间作答。删除同样支持批量选择。每次批量操作都会报告做了什么、跳过了什么以及原因：从 Drive 同步或由会议生成的文档归属于其来源，不会被移动；在全局重新索引期间也不会移动任何内容。</p><h2>把标签当作选择加入的开关</h2><p>索引整个邮箱经过衡量后被否决：那会把一份私人档案复制到第二处需要保护的存储，把嵌入开销花在以通知和邮件列表为主的语料上，并让检索被谁都没打算保留的文本稀释。空间可以改为关注一个 <strong>Gmail 标签</strong>。凡带该标签的会话都会成为一份 Markdown 文档——主题作标题、消息按时间排列、优先取纯文本，附件只保留<em>文件名</em>而非内容——并受硬性长度上限约束。</p><p>于是「选择加入」就是用户本来就会做的动作：给会话贴标签即加入，移除标签则在下一轮处理时移除文档。两条入口共用一套摄取逻辑：完整同步会在列出会话<em>之前</em>先锚定 Gmail 历史——因此列举期间到达的消息会被补上而不是丢失——以及在收到推送通知时读取历史所指名内容的增量路径。索引不是决策：它不受任何通知预算约束，其失败也绝不会消耗一次唤醒。</p><h2>无法读取的文档会说明原因</h2><p>出错的文档不再是一个沉默的红点：在它的那一行下方，LIA 会说明<strong>为什么</strong>——文件丢失、无法提取文本、没有文本、段落过多、重试耗尽。最常见的情形是扫描的 PDF：只有页面图像而没有文本层。LIA 不做字符识别，会如实说明并给出解决办法——在 Google 文档中打开该文件（它会识别文本），再通过 Drive 来源把它加入空间。</p><h2>你收藏的回答，可以被找到</h2><p>你收藏的每个回答还会作为一份文档被索引到一个属于你的空间——<strong>收藏的回答</strong>——它在第一次收藏时创建，默认启用，不计入上限。数周之后，当某个问题涉及它时，LIA 会找到并引用它——在两种执行模式下都是如此。收藏卡片显示索引状态，索引完成后还显示投影的花费；删除收藏即移除文档。</p>"
       },
       "personal-journals": {
         "title": "个人日记：当你的 AI 助手发展出自己的记忆",
@@ -11272,9 +11349,9 @@
         "body": "<h2>隐私设计</h2><p>LIA从一开始就以数据保护为基本原则来设计，而非事后补充。</p><h2>Fernet对称加密</h2><p>所有敏感数据通过<strong>Fernet</strong>（AES-128 CBC + HMAC-SHA256）使用<code>encrypt_data()</code>函数加密。覆盖范围包括OAuth令牌、连接器凭据、PII和MCP服务器凭据。OAuth凭据在写入数据库前加密，读取时即时解密。加密密钥与数据分开管理。</p><h2>最小化数据收集</h2><p>LIA仅收集运行所需的最少数据：</p><ul><li>个人资料信息（姓名、邮箱、偏好设置）</li><li>对话历史（加密）</li><li>服务连接令牌（加密）</li><li>匿名使用指标</li></ul><h2>删除与级联</h2><p>删除用户账户会触发完整的<strong>级联删除</strong>：连接器、对话、设置、会话、记忆和所有关联数据都将不可逆地删除。数据库中不会保留任何孤立数据。</p><h2>安全会话与Cookie</h2><p>会话Cookie配置了<code>HttpOnly</code>、<code>Secure</code>（生产环境）和<code>SameSite=lax</code>属性。默认会话持续时间为7天，选择\"记住我\"可延长至30天。一次性令牌在首次使用后通过Redis黑名单机制失效。</p><h2>外部内容防护</h2><p>从外部来源（邮件、网页、文档）获取的内容在注入提示前标记为<code>UNTRUSTED</code>，并进行可配置封装。web_fetch工具限制为每个用户在60秒窗口内最多10次调用，以防止滥用。</p><h2>日志中PII过滤</h2><p>日志系统应用<strong>OWASP日志备忘录</strong>建议，自动从应用日志中过滤个人数据。敏感数据不会出现在日志中。</p><h2>数据可移植性 (v1.9.1)</h2><p>LIA允许每个用户从设置 > 功能中<strong>导出个人消费数据</strong>为CSV格式。三种导出类型：LLM消费（每次调用的Token和成本）、Google API消费和汇总摘要。安全性：<code>user_id</code>在服务器端强制设置——不暴露任何参数（IDOR防护）。</p><h2>恢复经过验证的备份</h2><p>保护数据也意味着确保数据能扛住事故。生产数据库每晚自动备份，保留 7 天、4 周和 6 个月的历史，存放在权限受限的专用目录中。而且，只有恢复被证明可行，备份才算数：恢复流程经过真实测试——将最新转储恢复到一次性容器中，并与线上数据库比对（模式修订、行数）——这一演练随技术栈一同交付。</p><h2>一份完整的记录，而不是一份样本</h2><p>三本自动维护的登记簿分别说明 LIA 为你<strong>做</strong>了什么、为回答你而<strong>查阅</strong>了什么，以及她<strong>自行着手</strong>做了什么。它们不承载任何内容：一次查阅只保留能力本身——「你的日程」——绝不保留搜索内容，因为写下来就等于抄录了这本登记簿正是为其问责而存在的那份数据。</p><p>你从<strong>设置 &gt; 登记簿</strong>下载的记录是<strong>完整</strong>的。它此前带有行数上限：那是一种真实的保护，因为整份文档要在 Raspberry Pi 上于内存中拼装——但它被施加在了错误的变量上。稀缺的是内存；被限制的却是真相。服务端游标如今限制的是缓冲区：无论数据量多大，文件都承载你的筛选条件所指定的全部内容，文件头写明确切行数与生成时刻，并在你的浏览器接受时顺带压缩。</p>"
       },
       "observability": {
-        "title": "564个Prometheus指标、29个Grafana仪表板和Langfuse追踪",
+        "title": "565个Prometheus指标、29个Grafana仪表板和Langfuse追踪",
         "excerpt": "LIA提供企业级可观测性：553 指标、Grafana仪表板、通过Langfuse的LLM追踪，以及带处置指南的邮件告警。",
-        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 564个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中并带有PII过滤</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>23个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。23个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>29个Grafana仪表板</h2><p>LIA提供29个编号01至29的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony、briefing、product-value、meetings、effect-ledger 和 workboard。每个仪表板提供按用户、时间段和环境可过滤的视图。 第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 14 项关键告警组成的核心——API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成拥有8个专用指标来追踪每次LLM调用：消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p><h2>而自 v1.34 起：助手读取自身遥测</h2><p>以上一切原本只为人类而存在；助手自己什么都不读。ADR-247 闭合了这个环路：周期性自检把黄金指标与直接探针汇成带精确数值的健康快照；警报与严重判定按故障收敛为唯一事件，由预算受限、以运维手册为依据的 LLM 诊断；管理员拥有平台健康面板、主动通知和只读聊天工具。已知故障如今还会塑造回答——规划阶段即绕开降级能力，失败步骤用类型化错误码解释，绝不引用原始日志。此后，诊断不再只凭一个数字：按事件类型声明的配方规定要读取哪些细分指标和日志事件，证据包在诊断时收集并去除个人数据，无法访问的来源被声明为不可用而非当作沉默，模型读到的内容会展示在判定下方。</p><h2>统计结果，而非尝试</h2><p>v1.38.3 重新审视了一个计数器。统计抵达服务商的调用次数，是关于服务商的事实——可一旦这些调用会被重试，它就成了错误的分母：被重试救回的失败会抬高错误率，尽管什么都没丢失。如今第二个计数器按逻辑操作各记一行，重试折叠其中，回答运维人员唯一会据以行动的问题：调用方拿到结果了吗？第三个计数器则说明限流对每次尝试做了什么，因为「预算太小」与「Redis 宕机」在布尔值里毫无区别，却需要相反的处置。</p><p>最近的一课，关乎选择度量什么。自主循环有迭代次数和时长的计数器，却唯独没有度量真正增长的东西：每一步交付给模型的提示词。在生产代码上实测，第一次迭代是 2.3k tokens，第九十次是 112k——因为每个工具结果都留在模型会反复重读的对话里。现在有两个直方图记录交付体积及其占模型上下文窗口的比例，由状态归约器本就维护的那个带记忆化的计数器供数，因此这项度量在热路径上不产生额外开销。它们并未附带任何压缩策略，这是刻意的：一个对从未观测过的量采取行动的系统，优化的只是一个猜测。</p>"
+        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 565个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中并带有PII过滤</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>23个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。23个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>29个Grafana仪表板</h2><p>LIA提供29个编号01至29的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony、briefing、product-value、meetings、effect-ledger 和 workboard。每个仪表板提供按用户、时间段和环境可过滤的视图。 第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 14 项关键告警组成的核心——API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成拥有8个专用指标来追踪每次LLM调用：消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p><h2>而自 v1.34 起：助手读取自身遥测</h2><p>以上一切原本只为人类而存在；助手自己什么都不读。ADR-247 闭合了这个环路：周期性自检把黄金指标与直接探针汇成带精确数值的健康快照；警报与严重判定按故障收敛为唯一事件，由预算受限、以运维手册为依据的 LLM 诊断；管理员拥有平台健康面板、主动通知和只读聊天工具。已知故障如今还会塑造回答——规划阶段即绕开降级能力，失败步骤用类型化错误码解释，绝不引用原始日志。此后，诊断不再只凭一个数字：按事件类型声明的配方规定要读取哪些细分指标和日志事件，证据包在诊断时收集并去除个人数据，无法访问的来源被声明为不可用而非当作沉默，模型读到的内容会展示在判定下方。</p><h2>统计结果，而非尝试</h2><p>v1.38.3 重新审视了一个计数器。统计抵达服务商的调用次数，是关于服务商的事实——可一旦这些调用会被重试，它就成了错误的分母：被重试救回的失败会抬高错误率，尽管什么都没丢失。如今第二个计数器按逻辑操作各记一行，重试折叠其中，回答运维人员唯一会据以行动的问题：调用方拿到结果了吗？第三个计数器则说明限流对每次尝试做了什么，因为「预算太小」与「Redis 宕机」在布尔值里毫无区别，却需要相反的处置。</p><p>最近的一课，关乎选择度量什么。自主循环有迭代次数和时长的计数器，却唯独没有度量真正增长的东西：每一步交付给模型的提示词。在生产代码上实测，第一次迭代是 2.3k tokens，第九十次是 112k——因为每个工具结果都留在模型会反复重读的对话里。现在有两个直方图记录交付体积及其占模型上下文窗口的比例，由状态归约器本就维护的那个带记忆化的计数器供数，因此这项度量在热路径上不产生额外开销。它们并未附带任何压缩策略，这是刻意的：一个对从未观测过的量采取行动的系统，优化的只是一个猜测。</p>"
       },
       "prompt-engineering": {
         "title": "版本化提示系统：78个提示作为代码管理",
@@ -11309,7 +11386,7 @@
       "progressive-steps": {
         "title": "实时执行步骤：观看 LIA 工作过程",
         "excerpt": "LIA 在处理请求时逐步显示每个执行步骤 — 路由、规划、工具调用 — 实时呈现。",
-        "body": "<h2>透明度的实践</h2><p>当你向 LIA 发送复杂请求时，可能需要数秒才能收到回复。通过渐进式步骤显示，你可以<strong>实时了解</strong>：每个经过的节点、每个调用的工具都会即时显示。这个显示本身也是鲜活的：已完成的步骤逐渐变淡，当前步骤轻轻呼吸，整体淡入回答的第一批文字，撰写时还有光标闪烁。</p><h2>工作原理</h2><p>后端使用 LangGraph 的 <code>updates</code> 流模式检测每个图节点的完成。每一步都会向前端发送 SSE <code>execution_step</code> 事件，包含：</p><ul><li>工具或节点的 <strong>i18n 键</strong>（翻译成用户的语言）</li><li>ReAct 模式下的<strong>推理摘要</strong>（截断至120个字符）</li><li>目录中未列出工具的<strong>后备元数据</strong></li></ul><h2>前端显示</h2><p>步骤在界面中逐行累积显示，上限为同时可见 <strong>10个步骤</strong>。<strong>i18n 键去重</strong>机制防止相同步骤重复。</p><h2>Pipeline 和 ReAct</h2><p>在 <strong>Pipeline</strong> 模式下，步骤来自 ExecutionPlan。在 <strong>ReAct</strong> 模式下，每次工具调用都会生成一个步骤。</p><h2>覆盖 114 个工具</h2><p>目录中的所有 <strong>90个工具</strong>在6种语言中都有专用 i18n 键。</p><h2>不再有随机消息</h2><p>旧系统显示有趣但随机的等待短语。该系统已被完全替换为<strong>真实的上下文步骤</strong>。</p><h2>当数据流陷入静默</h2><p>步骤展示的价值，取决于喂养它的数据流是否还活着。当手机挂起标签页时，连接会无声中断 —— 既无结束，也无报错 —— 屏幕便一直停在最后显示的那个步骤上，而回答其实早已在服务器端完成并保存。此前没有任何迹象能把这种状态与一次单纯较慢的回答区分开。现在 LIA 能识别这种静默：超过按服务器心跳节奏校准的预算后，便丢弃这条已死的连接，并自动接续仍在后台运行的那一轮。</p>"
+        "body": "<h2>透明度的实践</h2><p>当你向 LIA 发送复杂请求时，可能需要数秒才能收到回复。通过渐进式步骤显示，你可以<strong>实时了解</strong>：每个经过的节点、每个调用的工具都会即时显示。这个显示本身也是鲜活的：已完成的步骤逐渐变淡，当前步骤轻轻呼吸，整体淡入回答的第一批文字，撰写时还有光标闪烁。</p><h2>工作原理</h2><p>后端使用 LangGraph 的 <code>updates</code> 流模式检测每个图节点的完成。每一步都会向前端发送 SSE <code>execution_step</code> 事件，包含：</p><ul><li>工具或节点的 <strong>i18n 键</strong>（翻译成用户的语言）</li><li>ReAct 模式下的<strong>推理摘要</strong>（截断至120个字符）</li><li>目录中未列出工具的<strong>后备元数据</strong></li></ul><h2>前端显示</h2><p>步骤在界面中逐行累积显示，上限为同时可见 <strong>10个步骤</strong>。<strong>i18n 键去重</strong>机制防止相同步骤重复。</p><h2>Pipeline 和 ReAct</h2><p>在 <strong>Pipeline</strong> 模式下，步骤来自 ExecutionPlan。在 <strong>ReAct</strong> 模式下，每次工具调用都会生成一个步骤。</p><h2>覆盖 115 个工具</h2><p>目录中的所有 <strong>115 个工具</strong>在6种语言中都有专用 i18n 键。</p><h2>不再有随机消息</h2><p>旧系统显示有趣但随机的等待短语。该系统已被完全替换为<strong>真实的上下文步骤</strong>。</p><h2>当数据流陷入静默</h2><p>步骤展示的价值，取决于喂养它的数据流是否还活着。当手机挂起标签页时，连接会无声中断 —— 既无结束，也无报错 —— 屏幕便一直停在最后显示的那个步骤上，而回答其实早已在服务器端完成并保存。此前没有任何迹象能把这种状态与一次单纯较慢的回答区分开。现在 LIA 能识别这种静默：超过按服务器心跳节奏校准的预算后，便丢弃这条已死的连接，并自动接续仍在后台运行的那一轮。</p>"
       },
       "account-lifecycle": {
         "title": "账户生命周期：4种状态实现完整 GDPR 合规",

@@ -178,6 +178,24 @@ Thumbnails are displayed in the conversation. Click a thumbnail to enlarge it. L
 
 **💡 Limits**: maximum 5 attachments per message, 10 MB per image, 20 MB per document.
 
+**From a knowledge space:** when your knowledge spaces are on, the **« + »** becomes a menu: pick **Document of a knowledge space** to attach a copy of a document already indexed — a paused space included (see the next question).
+
+## Can I attach a document from one of my knowledge spaces to a message?
+
+Yes. The **« + »** button of the composer opens a menu when your knowledge spaces are on: **Attach a file** (the classic picker) and **Document of a knowledge space**.
+
+**What the picker lists:**
+- every document already indexed in your spaces — **a paused space included**, named and badged, never hidden
+- a search by name, the space beside each document, its size
+- a selection bounded by the room left in the message
+
+**What happens when you attach:**
+- a **copy** of the document joins the message, exactly like an upload — the space, its index and its file are never touched
+- its text is extracted through the knowledge spaces' pipeline (fifteen formats: PDF, Word, Excel, PowerPoint, EPUB…), not only PDF
+- a conversation reset removes the copy, never the document of the space
+
+**When to use it:** to ask about one precise document without activating a whole space, or to read a document of a space you keep paused.
+
 ## What is the /resume command?
 The **/resume** command triggers **intelligent context compaction**:
 

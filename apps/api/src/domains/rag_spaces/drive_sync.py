@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import os
 import time
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import NoReturn
@@ -25,9 +26,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.constants import (
-    RAG_DRIVE_GOOGLE_EXPORT_MAP,
+    RAG_DRIVE_MAX_ANCESTOR_DEPTH,
     RAG_DRIVE_MAX_FILES_PER_SYNC,
-    RAG_DRIVE_REGULAR_FILE_MAP,
+    RAG_DRIVE_MAX_FOLDERS_PER_WALK,
 )
 from src.core.exceptions import BaseAPIException
 from src.domains.connectors.clients.google_drive_client import GoogleDriveClient
@@ -36,11 +37,14 @@ from src.domains.connectors.service import ConnectorService
 from src.domains.rag_spaces.consultations import SECTION_DRIVE, space_read
 from src.domains.rag_spaces.drive_ingest import (
     ingest_drive_file,
+    is_supported_drive_file,
+    is_unchanged,
     remove_drive_document,
 )
 from src.domains.rag_spaces.drive_ingest import (
     safe_storage_path as _safe_storage_path,
 )
+from src.domains.rag_spaces.drive_walk import DriveWalkError, walk_drive_tree
 from src.domains.rag_spaces.jobs_repository import RAGJobsRepository
 from src.domains.rag_spaces.models import (
     RAGDriveSource,
@@ -108,6 +112,72 @@ def _raise_drive_source_duplicate(folder_id: str) -> NoReturn:
         log_event="rag_drive_source_duplicate",
         folder_id=folder_id,
     )
+
+
+#: The stable code the frontend translates when a folder sits inside — or
+#: above — a tree already linked to the same space (ADR-184: a refusal names
+#: itself).
+DRIVE_FOLDER_NESTED_CODE = "drive_folder_nested"
+
+
+def _raise_drive_folder_nested(folder_id: str, other_folder_id: str) -> NoReturn:
+    """409: the folder and a linked one share a tree, so files would be indexed twice."""
+    raise BaseAPIException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail={"code": DRIVE_FOLDER_NESTED_CODE},
+        log_event="rag_drive_folder_nested",
+        folder_id=folder_id,
+        other_folder_id=other_folder_id,
+    )
+
+
+async def ancestor_ids(client: GoogleDriveClient, folder_id: str) -> list[str]:
+    """The parent chain of a folder, nearest first, bounded in depth.
+
+    Drive files have ONE parent today (legacy multi-parent items keep the
+    first); the chain ends at the root, which has none.
+    """
+    chain: list[str] = []
+    current = folder_id
+    seen: set[str] = {folder_id}
+    while len(chain) < RAG_DRIVE_MAX_ANCESTOR_DEPTH:
+        metadata = await client.get_file_metadata(current, fields=["id", "parents"])
+        parents = [str(p) for p in metadata.get("parents") or []]
+        if not parents or parents[0] in seen:
+            break
+        current = parents[0]
+        seen.add(current)
+        chain.append(current)
+    return chain
+
+
+@dataclass(frozen=True, slots=True)
+class DrivePreflight:
+    """What one synchronisation would do to the linked tree, counted exactly.
+
+    Every figure is computed by the code the synchronisation runs — the same
+    walk, the same ``is_unchanged`` and ``is_supported_drive_file`` — under
+    the space's document cap, and the walk's bounds travel with them: a cut
+    walk (``truncated``) makes every count a floor.
+    """
+
+    total_files: int
+    unsupported: int
+    unchanged: int
+    modified: int
+    new: int
+    #: New files the space has no room for (``rag_spaces_max_docs_per_space``).
+    over_capacity: int
+    #: ``modified + new`` within capacity — the files a synchronisation writes.
+    to_index: int
+    folders: int
+    unreadable_folders: int
+    truncated: bool
+    #: Published bounds and threshold (ADR-184: what is enforced is read).
+    threshold: int
+    max_files: int
+    max_folders: int
+    requires_confirmation: bool
 
 
 class RAGDriveSyncService:
@@ -179,18 +249,30 @@ class RAGDriveSyncService:
         # Verify Google Drive connector is active
         client = await self._get_drive_client(user_id)
         try:
-            # Verify folder exists and is actually a folder
+            # ONE read of the Drive for the act — the verdicts come AFTER the
+            # block, so a refusal of OUR rules never files as a Drive that
+            # refused (« failed » is the source's word, not ours).
             async with space_read(user_id=user_id, section=SECTION_DRIVE):
                 metadata = await client.get_file_metadata(folder_id)
-            if "folder" not in metadata.get("mimeType", ""):
-                raise BaseAPIException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="The specified Drive ID is not a folder",
-                    log_event="rag_drive_not_a_folder",
-                    folder_id=folder_id,
+                nested_in = (
+                    await self._nested_folder_conflict(client, space_id, folder_id)
+                    if "folder" in metadata.get("mimeType", "")
+                    else None
                 )
         finally:
             await client.close()
+        if "folder" not in metadata.get("mimeType", ""):
+            raise BaseAPIException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="The specified Drive ID is not a folder",
+                log_event="rag_drive_not_a_folder",
+                folder_id=folder_id,
+            )
+        # A source is a TREE: a folder inside a linked one, or above one, would
+        # have its files indexed by two sources at once — each synchronisation
+        # discarding the other's document.
+        if nested_in is not None:
+            _raise_drive_folder_nested(folder_id, nested_in)
 
         # Create source record
         source = await self.source_repo.create(
@@ -214,6 +296,27 @@ class RAGDriveSyncService:
             folder_name=folder_name,
         )
         return source
+
+    async def _nested_folder_conflict(
+        self, client: GoogleDriveClient, space_id: UUID, folder_id: str
+    ) -> str | None:
+        """The linked root ``folder_id`` shares a tree with, or None.
+
+        Two readings, both needed: the candidate's ancestors against every
+        linked root (candidate INSIDE a tree), and each linked root's ancestors
+        — plus its last walked folder set — against the candidate (candidate
+        ABOVE a tree). Reads only; the caller raises, outside the recorded read.
+        """
+        others = await self.source_repo.get_all_for_space(space_id)
+        if not others:
+            return None
+        candidate_ancestors = set(await ancestor_ids(client, folder_id))
+        for other in others:
+            if other.folder_id in candidate_ancestors or folder_id in (other.folder_ids or []):
+                return str(other.folder_id)
+            if folder_id in set(await ancestor_ids(client, other.folder_id)):
+                return str(other.folder_id)
+        return None
 
     async def unlink_folder(
         self,
@@ -338,6 +441,83 @@ class RAGDriveSyncService:
     # Browse
     # ========================================================================
 
+    async def preflight(self, space_id: UUID, source_id: UUID, user_id: UUID) -> DrivePreflight:
+        """Count what a synchronisation of ``source_id`` would index, exactly.
+
+        Walks the tree as the synchronisation does and classifies each file
+        with the ingest's own predicates. Read-only: nothing is downloaded,
+        nothing is written. The read of the person's Drive is recorded.
+
+        Args:
+            space_id: The space the source belongs to.
+            source_id: The linked folder.
+            user_id: The caller.
+
+        Returns:
+            The figures, the bounds and whether the threshold asks for a
+            confirmation.
+
+        Raises:
+            BaseAPIException: Ownership, a missing source, or an unreadable root.
+        """
+        await self._verify_space_ownership(space_id, user_id)
+        source = await self._get_source_or_404(source_id, space_id)
+        capacity = max(
+            0,
+            settings.rag_spaces_max_docs_per_space - await self.doc_repo.count_for_space(space_id),
+        )
+        client = await self._get_drive_client(user_id)
+        try:
+            async with space_read(user_id=user_id, section=SECTION_DRIVE):
+                try:
+                    tree = await walk_drive_tree(
+                        client,
+                        source.folder_id,
+                        max_files=RAG_DRIVE_MAX_FILES_PER_SYNC,
+                        max_folders=RAG_DRIVE_MAX_FOLDERS_PER_WALK,
+                    )
+                except DriveWalkError as exc:
+                    raise BaseAPIException(
+                        status_code=status.HTTP_502_BAD_GATEWAY,
+                        detail=str(exc),
+                        log_event="rag_drive_preflight_root_unreadable",
+                        source_id=str(source_id),
+                    ) from exc
+        finally:
+            await client.close()
+
+        unsupported = unchanged = modified = new = 0
+        for drive_file in tree.files:
+            if not is_supported_drive_file(drive_file):
+                unsupported += 1
+                continue
+            existing = await self.doc_repo.get_by_drive_file_id(space_id, str(drive_file["id"]))
+            if existing is None:
+                new += 1
+            elif is_unchanged(existing, drive_file):
+                unchanged += 1
+            else:
+                modified += 1
+        new_within_capacity = min(new, capacity)
+        to_index = modified + new_within_capacity
+        threshold = settings.rag_drive_sync_confirm_threshold
+        return DrivePreflight(
+            total_files=len(tree.files),
+            unsupported=unsupported,
+            unchanged=unchanged,
+            modified=modified,
+            new=new,
+            over_capacity=new - new_within_capacity,
+            to_index=to_index,
+            folders=len(tree.folder_ids),
+            unreadable_folders=tree.unreadable_folders,
+            truncated=tree.truncated,
+            threshold=threshold,
+            max_files=RAG_DRIVE_MAX_FILES_PER_SYNC,
+            max_folders=RAG_DRIVE_MAX_FOLDERS_PER_WALK,
+            requires_confirmation=to_index > threshold,
+        )
+
     async def browse_drive_contents(
         self,
         user_id: UUID,
@@ -411,9 +591,10 @@ async def sync_folder_background(
 ) -> None:
     """Background coroutine for Drive folder sync.
 
-    Creates its own DB session and drive client. Downloads or exports
-    supported files, creates RAGDocument records, and launches document
-    processing tasks.
+    Creates its own DB session and drive client. Walks the linked folder AND
+    its sub-folders (``drive_walk``), downloads or exports the supported
+    files, creates RAGDocument records, launches document processing, and
+    persists the walked folder set the push path routes on.
 
     Args:
         space_id: Target RAG space ID.
@@ -456,51 +637,39 @@ async def sync_folder_background(
 
             client = GoogleDriveClient(user_id, credentials, connector_service)
             try:
-                # List files with pagination cap
-                all_files: list[dict] = []
-                page_token: str | None = None
-                while len(all_files) < RAG_DRIVE_MAX_FILES_PER_SYNC:
-                    try:
-                        result = await client.list_files(
-                            folder_id=source.folder_id,
-                            max_results=min(
-                                100,
-                                RAG_DRIVE_MAX_FILES_PER_SYNC - len(all_files),
-                            ),
-                            page_token=page_token,
-                            content_type="files_only",
+                # The whole tree under the linked folder, bounded (drive_walk).
+                # ONE consultation for the act: the person asked for this
+                # folder to be kept indexed, and honouring it opens their Drive.
+                try:
+                    async with space_read(user_id=user_id, section=SECTION_DRIVE):
+                        tree = await walk_drive_tree(
+                            client,
+                            source.folder_id,
+                            max_files=RAG_DRIVE_MAX_FILES_PER_SYNC,
+                            max_folders=RAG_DRIVE_MAX_FOLDERS_PER_WALK,
                         )
-                    except Exception as e:
-                        await source_repo.update(
-                            source,
-                            {
-                                "sync_status": RAGDriveSyncStatus.ERROR,
-                                "error_message": f"Folder not accessible: {e}",
-                            },
-                        )
-                        await db.commit()
-                        rag_drive_sync_runs_total.labels(status="error").inc()
-                        return
+                except DriveWalkError as e:
+                    await source_repo.update(
+                        source,
+                        {
+                            "sync_status": RAGDriveSyncStatus.ERROR,
+                            "error_message": str(e),
+                        },
+                    )
+                    await db.commit()
+                    rag_drive_sync_runs_total.labels(status="error").inc()
+                    return
 
-                    all_files.extend(result.get("files", []))
-                    page_token = result.get("nextPageToken")
-                    if not page_token:
-                        break
-
-                if len(all_files) >= RAG_DRIVE_MAX_FILES_PER_SYNC:
+                if tree.truncated:
                     logger.warning(
-                        "rag_drive_sync_pagination_cap",
+                        "rag_drive_sync_walk_truncated",
                         source_id=str(source_id),
-                        file_count=len(all_files),
+                        file_count=len(tree.files),
+                        folder_count=len(tree.folder_ids),
                     )
 
                 # Filter supported files
-                supported_files = [
-                    f
-                    for f in all_files
-                    if f.get("mimeType", "") in RAG_DRIVE_GOOGLE_EXPORT_MAP
-                    or f.get("mimeType", "") in RAG_DRIVE_REGULAR_FILE_MAP
-                ]
+                supported_files = [f for f in tree.files if is_supported_drive_file(f)]
 
                 # Process each file. `synced` is computed AFTER the embedding
                 # oracle (F053); the loop only tracks skips and download failures.
@@ -597,6 +766,8 @@ async def sync_folder_background(
                         "last_sync_at": datetime.now(UTC),
                         "file_count": len(supported_files),
                         "synced_file_count": synced,
+                        # The routing set of the push path — a NEW list.
+                        "folder_ids": list(tree.folder_ids),
                         "error_message": None,
                         # Durable-job completion: release the lease + reset retries.
                         "lease_expires_at": None,

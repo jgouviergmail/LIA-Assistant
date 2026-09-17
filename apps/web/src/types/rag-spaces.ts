@@ -81,6 +81,50 @@ export interface DriveFolder {
   modifiedTime: string;
 }
 
+/**
+ * What one Drive sync would index, counted by the code that indexes (the
+ * preflight). Exact for the walk that produced it; `truncated` makes every
+ * count a floor. The threshold and the bounds are published because they are
+ * enforced.
+ */
+export interface RAGDrivePreflight {
+  total_files: number;
+  unsupported: number;
+  unchanged: number;
+  modified: number;
+  new: number;
+  over_capacity: number;
+  to_index: number;
+  folders: number;
+  unreadable_folders: number;
+  truncated: boolean;
+  threshold: number;
+  max_files: number;
+  max_folders: number;
+  requires_confirmation: boolean;
+}
+
+/** One document the composer may attach, with the space it lives in. */
+export interface AttachableDocument {
+  id: string;
+  space_id: string;
+  space_name: string;
+  space_is_active: boolean;
+  original_filename: string;
+  content_type: string;
+  file_size: number;
+  created_at: string;
+}
+
+/** A page of attachable documents and the exact total of the set. */
+export interface AttachableDocumentsResponse {
+  items: AttachableDocument[];
+  total: number;
+  limit: number;
+  offset: number;
+  max_limit: number;
+}
+
 /** Response from the Drive folder browse endpoint. */
 export interface DriveFolderBrowseResponse {
   files: DriveFolder[];

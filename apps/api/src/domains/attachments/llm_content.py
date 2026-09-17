@@ -23,6 +23,9 @@ from typing import Any
 import structlog
 from langchain_core.messages import HumanMessage
 
+from src.core.config import settings
+from src.core.i18n import normalize_language
+from src.core.i18n_api_messages import APIMessages
 from src.domains.attachments.models import AttachmentContentType
 
 logger = structlog.get_logger(__name__)
@@ -31,16 +34,6 @@ logger = structlog.get_logger(__name__)
 # Must be unique enough to never appear in natural user text.
 # Used by response_node to strip the hint before building multimodal message.
 ATTACHMENT_HINT_MARKER = "<<ATTACHMENTS>>"
-
-# Language-specific labels for attachment hints
-_HINT_LABELS: dict[str, dict[str, str]] = {
-    "fr": {"attachment": "Pièce jointe", "image": "image", "document": "document"},
-    "en": {"attachment": "Attachment", "image": "image", "document": "document"},
-    "es": {"attachment": "Archivo adjunto", "image": "imagen", "document": "documento"},
-    "de": {"attachment": "Anhang", "image": "Bild", "document": "Dokument"},
-    "it": {"attachment": "Allegato", "image": "immagine", "document": "documento"},
-    "zh": {"attachment": "附件", "image": "图片", "document": "文档"},
-}
 
 
 def build_attachment_hint(
@@ -63,7 +56,9 @@ def build_attachment_hint(
         Human-readable hint string, e.g.:
         "[Pièce jointe : 1 image (photo.jpg), 1 document (facture.pdf)]"
     """
-    labels = _HINT_LABELS.get(user_language, _HINT_LABELS["en"])
+    # The central table, keyed on the backend canonical code: `zh` used to
+    # miss (the table was keyed `zh`) and every Chinese reader got English.
+    labels = APIMessages.attachment_hint_labels(normalize_language(user_language))
 
     parts: list[str] = []
     for att in attachments:
@@ -178,7 +173,13 @@ def _append_document_content(
     content: list[dict[str, Any]],
     attachment: dict[str, Any],
 ) -> None:
-    """Append extracted PDF text as a text block."""
+    """Append a document's extracted text as a text block, its cut stated.
+
+    The extraction is capped at ``attachments_max_pdf_text_chars`` and a text
+    sitting AT the cap was cut there: the model is told it reads the first N
+    characters, so it never claims the document ends where the cap fell
+    (ADR-286: a cut is stated).
+    """
     extracted_text = attachment.get("extracted_text")
     if not extracted_text:
         logger.warning(
@@ -188,12 +189,11 @@ def _append_document_content(
         )
         return
 
-    content.append(
-        {
-            "type": "text",
-            "text": (f"[Document: {attachment['original_filename']}]\n" f"{extracted_text}"),
-        }
-    )
+    cap = settings.attachments_max_pdf_text_chars
+    header = f"[Document: {attachment['original_filename']}]"
+    if len(extracted_text) >= cap:
+        header += f" [truncated: the first {cap} characters of the document]"
+    content.append({"type": "text", "text": f"{header}\n{extracted_text}"})
 
     logger.debug(
         "vision_document_text_injected",

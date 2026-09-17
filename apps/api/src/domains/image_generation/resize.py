@@ -19,6 +19,7 @@ import io
 from PIL import Image
 
 from src.core.constants import IMAGE_GENERATION_VALID_SIZES
+from src.infrastructure.media.heif import ensure_heif_support
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -77,6 +78,7 @@ def resize_image_b64(
         ValueError: If the image cannot be decoded.
     """
     image_bytes = base64.b64decode(image_b64)
+    ensure_heif_support()
     img = Image.open(io.BytesIO(image_bytes))
 
     original_w, original_h = img.size

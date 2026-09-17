@@ -77,6 +77,7 @@ export function useSpaceSources(
     unlink: unlinkFolder,
     sync: syncFolder,
     refetch,
+    linkErrorKeys: { drive_folder_nested: 'spaces.drive.link_nested' },
   });
 
   const mailActions = useSourceActions({

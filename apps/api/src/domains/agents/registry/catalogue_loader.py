@@ -136,6 +136,7 @@ def initialize_catalogue(registry: AgentRegistry) -> None:
         delete_email_catalogue_manifest,
         delete_label_catalogue_manifest,
         forward_email_catalogue_manifest,
+        get_email_attachment_catalogue_manifest,
         get_emails_catalogue_manifest,  # Unified (v2.0)
         list_labels_catalogue_manifest,
         remove_labels_catalogue_manifest,
@@ -268,6 +269,7 @@ def initialize_catalogue(registry: AgentRegistry) -> None:
 
     # Register Emails tool manifests (Unified v2.0)
     registry.register_tool_manifest(get_emails_catalogue_manifest)  # Unified
+    registry.register_tool_manifest(get_email_attachment_catalogue_manifest)
     registry.register_tool_manifest(send_email_catalogue_manifest)
     registry.register_tool_manifest(reply_email_catalogue_manifest)
     registry.register_tool_manifest(forward_email_catalogue_manifest)

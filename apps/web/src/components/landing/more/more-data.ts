@@ -1,10 +1,10 @@
 /**
- * Single source of truth for the "/more" small-attentions page: 66 cards in
+ * Single source of truth for the "/more" small-attentions page: 73 cards in
  * 6 moment sections, each card carrying one lucide icon and the list of
  * translated micro-labels its animated scene needs.
  *
  * ANTI-REGRESSION CONTRACT: the guard test
- * `__tests__/more-content-coverage.test.ts` asserts the structure (66 unique
+ * `__tests__/more-content-coverage.test.ts` asserts the structure (73 unique
  * cards, icon/scene-label completeness), the level contract (keys disjoint
  * from the editorial landing's REQUIRED_FEATURE_KEYS — this page presents
  * craft, one level below capabilities), and the i18n content (every
@@ -26,6 +26,7 @@ import {
   ChevronsDownUp,
   CirclePause,
   ClipboardPaste,
+  Code2,
   Clock,
   Coins,
   Contrast,
@@ -33,8 +34,10 @@ import {
   Drama,
   Eclipse,
   Eye,
+  FilePlus2,
   FileSpreadsheet,
   FileUp,
+  FolderTree,
   Gauge,
   Handshake,
   History,
@@ -106,7 +109,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
     key: 's1',
     num: '01',
     tinted: false,
-    cards: ['draft_survives', 'slash_commands', 'paste_screenshot', 'drop_zone'],
+    cards: ['draft_survives', 'slash_commands', 'paste_screenshot', 'drop_zone', 'knowledge_pick'],
   },
   {
     id: 'respond',
@@ -117,6 +120,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'expressive_eyes',
       'living_face',
       'composed_page',
+      'code_scroll',
       'followup_chips',
       'scroll_return',
       'bubble_actions',
@@ -159,6 +163,7 @@ export const MORE_SECTIONS: readonly MoreSectionConfig[] = [
       'history_search',
       'template_library',
       'mail_label_source',
+      'sync_count',
       'mobile_logo_nav',
       'relation_star',
       'relation_sections',
@@ -225,11 +230,13 @@ export const CARD_ICONS: Record<string, LucideIcon> = {
   slash_commands: SlashSquare,
   paste_screenshot: ClipboardPaste,
   drop_zone: FileUp,
+  knowledge_pick: FilePlus2,
   meeting_banner: Disc,
   diagnosis_evidence: ScrollText,
   expressive_eyes: Eye,
   living_face: Smile,
   composed_page: LayoutTemplate,
+  code_scroll: Code2,
   followup_chips: MessageSquarePlus,
   scroll_return: ArrowDownCircle,
   bubble_actions: ThumbsUp,
@@ -253,6 +260,7 @@ export const CARD_ICONS: Record<string, LucideIcon> = {
   history_search: History,
   template_library: LibraryBig,
   mail_label_source: MailPlus,
+  sync_count: FolderTree,
   mobile_logo_nav: Menu,
   relation_star: Star,
   relation_sections: PanelsTopLeft,
@@ -303,11 +311,13 @@ export const SCENE_LABEL_KEYS: Readonly<Record<string, readonly string[]>> = {
   slash_commands: [],
   paste_screenshot: [],
   drop_zone: [],
+  knowledge_pick: ['file', 'spaces', 'paused'],
   meeting_banner: ['recording', 'interrupted', 'resume'],
   diagnosis_evidence: [],
   expressive_eyes: [],
   living_face: [],
   composed_page: ['plain', 'composed'],
+  code_scroll: [],
   followup_chips: ['chip1', 'chip2'],
   scroll_return: [],
   bubble_actions: ['copied'],
@@ -331,6 +341,7 @@ export const SCENE_LABEL_KEYS: Readonly<Record<string, readonly string[]>> = {
   history_search: ['query'],
   template_library: ['mine', 'builtin', 'pick'],
   mail_label_source: ['label', 'space', 'indexed'],
+  sync_count: ['sync', 'counting', 'files', 'confirm'],
   mobile_logo_nav: [],
   relation_star: [],
   relation_sections: ['section'],

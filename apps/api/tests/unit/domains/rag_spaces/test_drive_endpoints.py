@@ -102,3 +102,16 @@ class TestDriveRoutes:
         ]
         for route_path in expected:
             assert route_path in paths, f"Missing route: {route_path}"
+
+    def test_drive_preflight_route_exists_and_is_get(self) -> None:
+        """The dry-run count lives beside the sync trigger, read-only."""
+        path = "/rag-spaces/{space_id}/drive-sources/{source_id}/preflight"
+        assert path in _get_route_paths()
+        assert _get_route_methods(path) == {"GET"}
+
+    def test_the_cross_space_documents_listing_is_declared_before_the_space_detail(self) -> None:
+        """``/rag-spaces/documents`` must not be read as a space id by ``/{space_id}``."""
+        paths = _get_route_paths()
+        assert "/rag-spaces/documents" in paths
+        assert paths.index("/rag-spaces/documents") < paths.index("/rag-spaces/{space_id}")
+        assert _get_route_methods("/rag-spaces/documents") == {"GET"}

@@ -419,3 +419,57 @@ describe('useFileUpload — cancellation and cleanup', () => {
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:preview');
   });
 });
+
+describe('useFileUpload — an attachment the server already holds', () => {
+  const META = {
+    id: 'att-k1',
+    filename: 'notes.docx',
+    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    size: 4321,
+    contentType: 'document' as const,
+  };
+
+  it('joins the strip READY at once, with its id, and is sent like an upload', () => {
+    const { result } = renderHook(() => useFileUpload({ maxAttachments: 3 }));
+    let outcome: ReturnType<typeof result.current.addServerAttachment> | undefined;
+    act(() => {
+      outcome = result.current.addServerAttachment(META);
+    });
+    expect(outcome).toEqual({ ok: true });
+    expect(result.current.attachments).toHaveLength(1);
+    expect(result.current.attachments[0]).toMatchObject({
+      attachmentId: 'att-k1',
+      filename: 'notes.docx',
+      contentType: 'document',
+      status: 'ready',
+      progress: 100,
+    });
+    expect(result.current.getReadyAttachmentIds()).toEqual(['att-k1']);
+  });
+
+  it('honours the per-message cap like an upload does', () => {
+    const { result } = renderHook(() => useFileUpload({ maxAttachments: 1 }));
+    act(() => {
+      result.current.addServerAttachment(META);
+    });
+    let second: ReturnType<typeof result.current.addServerAttachment> | undefined;
+    act(() => {
+      second = result.current.addServerAttachment({ ...META, id: 'att-k2' });
+    });
+    expect(second).toEqual({ error: 'max_attachments', max: 1 });
+    expect(result.current.attachments).toHaveLength(1);
+  });
+
+  it('refuses the same server attachment twice', () => {
+    const { result } = renderHook(() => useFileUpload({ maxAttachments: 3 }));
+    act(() => {
+      result.current.addServerAttachment(META);
+    });
+    let again: ReturnType<typeof result.current.addServerAttachment> | undefined;
+    act(() => {
+      again = result.current.addServerAttachment(META);
+    });
+    expect(again).toEqual({ error: 'already_attached' });
+    expect(result.current.attachments).toHaveLength(1);
+  });
+});

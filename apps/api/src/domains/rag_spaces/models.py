@@ -299,6 +299,22 @@ class RAGDriveSource(BaseModel):
         default=None,
     )
 
+    # The folders of the linked TREE — the root first, then every sub-folder
+    # the last full synchronisation walked. A Drive push names a file's
+    # parent, and a parent that is a sub-folder must route to this source;
+    # empty until the first walk (the root alone routes then). Reassigned as
+    # a NEW list on every write — a JSONB column is never mutated in place.
+    folder_ids: Mapped[list[str]] = mapped_column(
+        JSONB,
+        default=list,
+        nullable=False,
+        server_default="[]",
+        comment=(
+            "Drive folder ids of the linked tree (root first) as of the last walk; "
+            "the set a push change is routed on. Empty before the first walk."
+        ),
+    )
+
     # --- Durable-job fields (audit F001): lease/heartbeat/bounded-retry ---
     lease_expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),

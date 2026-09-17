@@ -18,6 +18,9 @@ honoured. It is the word this codebase already uses for a reminder.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import asynccontextmanager, contextmanager
+
 import pytest
 
 from src.domains.agents.effects.treatments import treatment_collector
@@ -31,6 +34,19 @@ from src.domains.rag_spaces.consultations import (
 pytestmark = pytest.mark.unit
 
 _USER = "11111111-1111-1111-1111-111111111111"
+
+
+@contextmanager
+def _collector_factory(factory) -> Iterator[None]:
+    """Install a fake register collector for one test, then restore the real one."""
+    from src.domains.shared import consultation_sink
+
+    previous = consultation_sink._collector_factory
+    consultation_sink.install_collector_factory(factory)
+    try:
+        yield
+    finally:
+        consultation_sink._collector_factory = previous
 
 
 class TestWhatASpaceRecords:
@@ -65,6 +81,46 @@ class TestWhatASpaceRecords:
 
     def test_outside_a_run_nothing_is_recorded_and_nothing_raises(self) -> None:
         record_space_read(user_id=_USER, section=SECTION_DRIVE, duration_ms=1)
+
+
+class TestAReadPublishesItsOwnRun:
+    """Nobody publishes a collector around a space's act — a link from the UI,
+    a background synchronisation, a push — so `space_read` must open one
+    itself, or every row it records is dropped by the sink in silence.
+    Measured on dev 2026-09-17: zero `space:*` rows ever, while the Drive
+    background sync had been « recording » since lot 3."""
+
+    async def test_a_read_outside_any_run_is_flushed_under_its_own_run(self) -> None:
+        flushed: list[list] = []
+
+        @asynccontextmanager
+        async def factory(*, run_id: str):
+            with treatment_collector(run_id=run_id) as rows:
+                yield rows
+            flushed.append(list(rows))
+
+        with _collector_factory(factory):
+            async with space_read(user_id=_USER, section=SECTION_MAIL):
+                pass
+
+        assert len(flushed) == 1 and [r.tool_name for r in flushed[0]] == ["space:mail"]
+        assert flushed[0][0].run_id.startswith("space_mail_")
+
+    async def test_a_read_handed_a_run_joins_it_instead(self) -> None:
+        opened: list[str] = []
+
+        @asynccontextmanager
+        async def factory(*, run_id: str):
+            opened.append(run_id)
+            with treatment_collector(run_id=run_id) as rows:
+                yield rows
+
+        with _collector_factory(factory), treatment_collector(run_id="turn-9") as rows:
+            async with space_read(user_id=_USER, section=SECTION_DRIVE, run_id="turn-9"):
+                pass
+
+        assert opened == []
+        assert [r.run_id for r in rows] == ["turn-9"]
 
 
 class TestTheContextManagerAroundEachRead:

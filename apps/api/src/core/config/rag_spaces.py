@@ -20,6 +20,7 @@ from pydantic_settings import BaseSettings
 
 from src.core.constants import (
     RAG_DRIVE_MAX_SOURCES_PER_SPACE_DEFAULT,
+    RAG_DRIVE_SYNC_CONFIRM_THRESHOLD_DEFAULT,
     RAG_JOB_HEARTBEAT_INTERVAL_SECONDS_DEFAULT,
     RAG_JOB_LEASE_TTL_SECONDS_DEFAULT,
     RAG_JOB_MAX_ATTEMPTS_DEFAULT,
@@ -319,6 +320,17 @@ class RAGSpacesSettings(BaseSettings):
         ge=1,
         le=20,
         description="Maximum number of Drive folder sources per space.",
+    )
+
+    rag_drive_sync_confirm_threshold: int = Field(
+        default=RAG_DRIVE_SYNC_CONFIRM_THRESHOLD_DEFAULT,
+        ge=1,
+        le=1000,
+        description=(
+            "Files a Drive synchronisation may index before the person is asked to "
+            "confirm with the exact count (a courtesy against over-indexing; published "
+            "by the preflight endpoint)."
+        ),
     )
 
     # ------------------------------------------------------------------

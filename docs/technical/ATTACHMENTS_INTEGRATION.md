@@ -170,6 +170,33 @@ Upload d'une piece jointe (multipart/form-data).
 - `413` : fichier trop volumineux (depasse la limite)
 - `422` : fichier invalide ou corrompu
 
+### `POST /api/v1/attachments/from-knowledge-document` (ADR-295)
+
+Joint une COPIE d'un document déjà indexé dans un espace de connaissances de
+la personne — espace actif ou en pause. Le fichier stocké est copié sous un
+nouveau nom UUID dans le magasin des pièces jointes, son texte extrait par le
+pipeline des espaces (`rag_spaces.processing.extract_text`, quinze formats)
+sous `ATTACHMENTS_MAX_PDF_TEXT_CHARS`, la ligne créée en `origin = upload`
+(la réinitialisation la retire, le TTL l'expire, l'espace n'est jamais touché).
+
+**Request** : `{"space_id": "<uuid>", "document_id": "<uuid>"}` — les deux
+capacités (pièces jointes ET espaces de connaissances) doivent être actives.
+
+**Response** (201) : la même forme que l'upload.
+
+**Erreurs** :
+- `404` : l'espace ou le document n'est pas celui de la personne (un espace
+  système n'appartient à personne), ou son fichier stocké a disparu
+- `409 {"code": "document_not_ready"}` : le document n'est pas `ready`
+
+Le composeur liste ce qu'il peut joindre par `GET /api/v1/rag-spaces/documents`
+(`q`, `limit` ≤ `max_limit`, `offset`) : les documents `ready` de tous les
+espaces de la personne, l'espace nommé à côté de chacun, page et total EXACT.
+
+Le bloc `[Document: …]` injecté au nœud de réponse ÉNONCE sa coupe (« the
+first N characters of the document ») quand le texte extrait est au cap —
+pour toute pièce jointe document, uploads compris.
+
 ### `GET /api/v1/attachments/{attachment_id}`
 
 Telecharge le fichier original.
@@ -458,7 +485,7 @@ Les metriques attachments sont integrees dans les dashboards existants :
 |------------|--------|-------------------|
 | PDF scannes | Extraction texte uniquement (pas d'OCR en v1). Les PDF scannes (images) retournent un texte vide | Integration OCR (Tesseract) en v2 |
 | Pas de memoire multi-turn | Les images sont resolues uniquement pour le turn courant (`pop`). Les turns suivants n'ont pas acces aux images precedentes | Ajout d'un cache memoire vision en v2 |
-| HEIC/HEIF | Pas de support natif serveur. Repose sur la conversion automatique iOS (HEIC → JPEG) lors du file picker | Ajout `pillow-heif` pour conversion serveur |
+| HEIC/HEIF | Décodé côté serveur depuis 2026-09-17 (`pillow-heif`, enregistré par `infrastructure/media/heif.py` aux trois sites qui ouvrent l'image d'un tiers : upload, pièce jointe de mail, retouche d'image) — l'upload convertit en JPEG, la lecture vision rend une page PNG | — |
 | Pas de preview PDF | Le frontend affiche un lien, pas un apercu inline du PDF | Integration PDF.js pour preview inline |
 | Taille checkpoint | Les textes PDF extraits (jusqu'a 50K chars) transitent dans le MessagesState, ce qui peut augmenter la taille des checkpoints | Externaliser le texte extrait via une reference |
 | Un seul modele vision | Toutes les images utilisent le meme modele LLM (`vision_analysis`). Pas de routing par complexite | Multi-model routing en v2 |

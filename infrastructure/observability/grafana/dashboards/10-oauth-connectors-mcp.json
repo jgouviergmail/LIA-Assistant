@@ -2204,6 +2204,40 @@
      }
     }
    ]
+  },
+  {
+   "id": 51,
+   "type": "timeseries",
+   "title": "Email attachment readings (by route and outcome)",
+   "description": "Every mail attachment the assistant was asked to read (get_email_attachment). 'text' costs no model call; 'vision' is one paid call to the vision slot; 'none' was refused before any reading. A rising 'failed' or 'unsupported' share names what people send that the extractors cannot read; 'skipped_quota' is a ceiling refusal, 'truncated' a vision answer cut at its budget (a refusal, never invented text).",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "custom": {},
+     "noValue": "0"
+    },
+    "overrides": []
+   },
+   "gridPos": {
+    "h": 8,
+    "w": 12,
+    "x": 12,
+    "y": 132
+   },
+   "targets": [
+    {
+     "expr": "sum by (route, outcome) (rate(email_attachment_reads_total[$__rate_interval])) or vector(0)",
+     "legendFormat": "{{route}} · {{outcome}}",
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "prometheus"
+     }
+    }
+   ]
   }
  ]
 }

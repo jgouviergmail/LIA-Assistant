@@ -37,6 +37,7 @@ from src.core.constants import (
     RAG_MAIL_HISTORY_TYPES,
 )
 from src.core.exceptions import ConnectorAPIError
+from src.domains.rag_spaces.consultations import SECTION_MAIL, space_read
 from src.domains.rag_spaces.drive_ingest import (
     IngestResult,
     create_pending_document,
@@ -325,7 +326,10 @@ async def sync_label_background(source_id: UUID, user_id: UUID) -> None:
                 rag_mail_sync_runs_total.labels(status="error").inc()
                 return
             try:
-                await sync_source(db, client, source, user_id=user_id)
+                # ONE consultation for the act: the person asked for this label
+                # to be kept indexed, and honouring it opens their mailbox.
+                async with space_read(user_id=user_id, section=SECTION_MAIL):
+                    await sync_source(db, client, source, user_id=user_id)
             finally:
                 await client.close()
         rag_mail_sync_runs_total.labels(status="completed").inc()

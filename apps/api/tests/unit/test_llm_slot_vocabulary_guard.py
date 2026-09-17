@@ -39,7 +39,6 @@ LITERAL_GAP: frozenset[str] = frozenset(
         "health_agent",
         "hue_agent",
         "image_generation",
-        "vision_analysis",
         "voice_transcription",
         "voice_tts",
     }

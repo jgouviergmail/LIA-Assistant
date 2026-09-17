@@ -77,6 +77,7 @@ EMAIL_AGENT_MANIFEST = AgentManifest(
     description="Agent spécialisé dans les opérations Gmail (recherche, lecture, envoi, réponse, transfert, suppression d'emails)",
     tools=[
         "get_emails_tool",  # Unified tool (v2.0 - replaces search + details)
+        "get_email_attachment_tool",  # One attachment, read (text or vision)
         "send_email_tool",
         "reply_email_tool",
         "forward_email_tool",

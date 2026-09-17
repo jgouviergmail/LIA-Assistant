@@ -66,3 +66,52 @@ class TestBuildVisionMessage:
         # Behavior preserved: base64 image block present.
         blocks = [b for b in msg.content if isinstance(b, dict)]
         assert any(b.get("type") == "image_url" for b in blocks)
+
+
+@pytest.mark.unit
+class TestAttachmentHintAndDocumentBlock:
+    """The hint speaks the reader's language through the central tables; a cut is stated."""
+
+    def test_the_hint_is_translated_through_the_backend_canonical_code(self) -> None:
+        from src.domains.attachments.llm_content import build_attachment_hint
+
+        atts = [{"content_type": "document", "original_filename": "notes.docx", "mime_type": "x"}]
+        # `zh` reaches the backend as the frontend spells it; the table is keyed zh-CN.
+        assert "附件" in build_attachment_hint(atts, user_language="zh")
+        assert "附件" in build_attachment_hint(atts, user_language="zh-CN")
+        assert "Pièce jointe" in build_attachment_hint(atts, user_language="fr-FR")
+        assert "Anhang" in build_attachment_hint(atts, user_language="de")
+
+    def test_a_capped_text_states_its_cut_to_the_model(self) -> None:
+        from src.domains.attachments.llm_content import build_vision_message
+
+        cap = 1000
+        with patch("src.domains.attachments.llm_content.settings") as settings_mock:
+            settings_mock.attachments_max_pdf_text_chars = cap
+            message = build_vision_message(
+                "summarise it",
+                [
+                    {
+                        "id": "a1",
+                        "content_type": "document",
+                        "original_filename": "long.pdf",
+                        "mime_type": "application/pdf",
+                        "file_path": "u/long.pdf",
+                        "extracted_text": "x" * cap,
+                    },
+                    {
+                        "id": "a2",
+                        "content_type": "document",
+                        "original_filename": "short.pdf",
+                        "mime_type": "application/pdf",
+                        "file_path": "u/short.pdf",
+                        "extracted_text": "short",
+                    },
+                ],
+                storage_path="/nowhere",
+            )
+        blocks = [b["text"] for b in message.content if b["type"] == "text"]
+        long_block = next(b for b in blocks if "long.pdf" in b)
+        short_block = next(b for b in blocks if "short.pdf" in b)
+        assert f"first {cap} characters" in long_block
+        assert "characters" not in short_block

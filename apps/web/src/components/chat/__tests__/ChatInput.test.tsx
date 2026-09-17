@@ -16,7 +16,14 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { renderWithProviders, screen, waitFor, fireEvent, act } from '@/__tests__/test-utils';
+import {
+  renderWithProviders,
+  screen,
+  waitFor,
+  fireEvent,
+  act,
+  within,
+} from '@/__tests__/test-utils';
 import { CHAT_INPUT_MAX_HEIGHT_PX } from '@/lib/constants';
 import type {
   UseVoiceInputOptions,
@@ -90,6 +97,7 @@ const upload = vi.hoisted(() => ({
   getReadyAttachmentIds: vi.fn(),
   attachments: [] as PendingAttachment[],
   isUploading: false,
+  addServerAttachment: vi.fn(() => ({ ok: true as const })),
 }));
 
 vi.mock('@/hooks/useFileUpload', () => ({
@@ -100,7 +108,17 @@ vi.mock('@/hooks/useFileUpload', () => ({
     clearAttachments: upload.clearAttachments,
     getReadyAttachmentIds: upload.getReadyAttachmentIds,
     isUploading: upload.isUploading,
+    addServerAttachment: upload.addServerAttachment,
+    maxAttachments: 5,
   }),
+}));
+// The knowledge picker is its own component (tested alone); here only its door.
+const picker = vi.hoisted(() => ({ open: false }));
+vi.mock('@/components/chat/KnowledgeDocumentPickerDialog', () => ({
+  KnowledgeDocumentPickerDialog: ({ open }: { open: boolean }) => {
+    picker.open = open;
+    return open ? <div data-testid="knowledge-picker" /> : null;
+  },
 }));
 
 const { toast } = vi.hoisted(() => ({ toast: { error: vi.fn(), success: vi.fn() } }));
@@ -447,6 +465,51 @@ describe('ChatInput — attachments', () => {
     expect(click).toHaveBeenCalledTimes(1);
     // No menu is interposed: one gesture, one dialog.
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+  });
+
+  it('offers a menu in a browser once the knowledge spaces add a second entry', async () => {
+    const { user } = renderWithProviders(
+      <ChatInput onSendMessage={vi.fn()} attachmentsEnabled knowledgeDocumentsEnabled />
+    );
+    const click = vi.spyOn(fileInput(), 'click');
+
+    await user.click(screen.getByRole('button', { name: 'chat.attachments.add' }));
+    const menu = await screen.findByRole('menu');
+    expect(click).not.toHaveBeenCalled();
+    expect(within(menu).getByRole('menuitem', { name: /attach_file/ })).toBeInTheDocument();
+    expect(within(menu).getByRole('menuitem', { name: /from_knowledge/ })).toBeInTheDocument();
+    // No camera entry in a browser: its chooser offers the camera itself.
+    expect(within(menu).queryByRole('menuitem', { name: /take_photo/ })).not.toBeInTheDocument();
+
+    await user.click(within(menu).getByRole('menuitem', { name: /from_knowledge/ }));
+    await waitFor(() => expect(screen.getByTestId('knowledge-picker')).toBeInTheDocument());
+  });
+
+  it('keeps the file entry of the browser menu on the ordinary picker', async () => {
+    const { user } = renderWithProviders(
+      <ChatInput onSendMessage={vi.fn()} attachmentsEnabled knowledgeDocumentsEnabled />
+    );
+    const click = vi.spyOn(fileInput(), 'click');
+    await user.click(screen.getByRole('button', { name: 'chat.attachments.add' }));
+    await user.click(await screen.findByRole('menuitem', { name: /attach_file/ }));
+    await waitFor(() => expect(click).toHaveBeenCalledTimes(1));
+  });
+
+  it('adds the knowledge entry to the shell menu, third after file and camera', async () => {
+    isAndroidShell.mockReturnValue(true);
+    const { user } = renderWithProviders(
+      <ChatInput onSendMessage={vi.fn()} attachmentsEnabled knowledgeDocumentsEnabled />
+    );
+    await user.click(screen.getByRole('button', { name: 'chat.attachments.add' }));
+    const menu = await screen.findByRole('menu');
+    const names = within(menu)
+      .getAllByRole('menuitem')
+      .map(item => item.textContent);
+    expect(names).toEqual([
+      'chat.attachments.attach_file',
+      'chat.attachments.take_photo',
+      'chat.attachments.from_knowledge',
+    ]);
   });
 
   it('offers file and camera as a menu in the Android shell, each opening its own input', async () => {

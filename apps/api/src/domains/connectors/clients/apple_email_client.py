@@ -36,6 +36,13 @@ from src.domains.connectors.clients.base_apple_client import (
     BaseAppleClient,
 )
 from src.domains.connectors.clients.base_google_client import apply_max_items_limit
+from src.domains.connectors.clients.email_attachments import (
+    EmailAttachmentContent,
+    EmailAttachmentNotFoundError,
+    attachment_mime,
+    ensure_within_bound,
+    select_attachment,
+)
 from src.domains.connectors.clients.normalizers.email_normalizer import (
     _GMAIL_FOLDER_TO_IMAP,
     convert_imap_query,
@@ -168,6 +175,67 @@ class AppleEmailClient(BaseAppleClient):
             reply_all,
             is_html,
             to,
+        )
+
+    async def download_attachment(
+        self,
+        message_id: str,
+        *,
+        attachment_id: str | None = None,
+        filename: str | None = None,
+        max_bytes: int | None = None,
+    ) -> EmailAttachmentContent:
+        """Download ONE attachment of a message, by handle or by name.
+
+        IMAP has no attachment handle: the listing publishes the part's INDEX
+        (``normalize_imap_message``), and that index is the handle read here.
+        The message is fetched by UID with its parts, off the event loop —
+        IMAP serves the whole message, so the bound applies to the part once
+        fetched, before its bytes leave the client.
+
+        Args:
+            message_id: IMAP UID.
+            attachment_id: The part index the listing published; wins when given.
+            filename: The name as sent, when the index is unknown.
+            max_bytes: Refuse a part larger than this.
+
+        Returns:
+            The file name, the MIME type as sent and the bytes.
+
+        Raises:
+            EmailAttachmentNotFoundError: No message, or no matching part.
+            EmailAttachmentAmbiguousError: The name matches several parts.
+            EmailAttachmentTooLargeError: The part exceeds the bound.
+        """
+
+        def _fetch_parts() -> list[dict[str, Any]]:
+            try:
+                with MailBox(settings.apple_imap_host, settings.apple_imap_port).login(
+                    self.credentials.apple_id, self.credentials.app_password
+                ) as mailbox:
+                    for msg in mailbox.fetch(AND(uid=message_id), mark_seen=False):
+                        return [
+                            {
+                                "attachmentId": str(index),
+                                "filename": att.filename,
+                                "mimeType": att.content_type,
+                                "size": len(att.payload),
+                                "payload": att.payload,
+                            }
+                            for index, att in enumerate(msg.attachments)
+                        ]
+            except Exception as e:
+                self._check_imap_auth_error(e)
+                raise
+            raise EmailAttachmentNotFoundError(f"message {message_id!r} not found")
+
+        parts = await asyncio.to_thread(_fetch_parts)
+        chosen = select_attachment(parts, attachment_id=attachment_id, filename=filename)
+        ensure_within_bound(chosen, max_bytes=max_bytes)
+        return EmailAttachmentContent(
+            filename=str(chosen.get("filename") or ""),
+            mime_type=attachment_mime(chosen),
+            data=bytes(chosen.get("payload") or b""),
         )
 
     async def forward_email(

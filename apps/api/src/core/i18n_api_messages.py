@@ -2403,6 +2403,19 @@ class APIMessages:
         return messages.get(language, messages["en"])
 
     @staticmethod
+    def attachment_hint_labels(language: SupportedLanguage = "fr") -> dict[str, str]:
+        """The three words of the attachment hint appended to a message for the router."""
+        labels: dict[str, dict[str, str]] = {
+            "fr": {"attachment": "Pièce jointe", "image": "image", "document": "document"},
+            "en": {"attachment": "Attachment", "image": "image", "document": "document"},
+            "es": {"attachment": "Archivo adjunto", "image": "imagen", "document": "documento"},
+            "de": {"attachment": "Anhang", "image": "Bild", "document": "Dokument"},
+            "it": {"attachment": "Allegato", "image": "immagine", "document": "documento"},
+            "zh-CN": {"attachment": "附件", "image": "图片", "document": "文档"},
+        }
+        return labels.get(language, labels["en"])
+
+    @staticmethod
     def attachment_placeholder(language: SupportedLanguage = "fr") -> str:
         """Attachment placeholder when filename is unknown."""
         messages = {

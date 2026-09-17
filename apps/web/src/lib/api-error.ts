@@ -105,3 +105,24 @@ export function getApiErrorDetail(error: unknown): string | undefined {
 
   return readErrorDetail((error as { data?: unknown }).data);
 }
+
+/**
+ * The stable code a refusal names itself with (`detail: { code }`), when any.
+ *
+ * A coded refusal is translated by the caller (`drive_folder_nested`,
+ * `document_managed_by_drive`); a string or a validation list carries none.
+ *
+ * @param error - Anything a `catch` block received.
+ * @returns The code, or `undefined` when the refusal is not coded.
+ */
+export function getApiErrorCode(error: unknown): string | undefined {
+  if (!isRecord(error)) {
+    return undefined;
+  }
+  const data = (error as { data?: unknown }).data;
+  if (!isRecord(data) || !isRecord(data.detail)) {
+    return undefined;
+  }
+  const code = data.detail.code;
+  return typeof code === 'string' && code.trim() ? code : undefined;
+}

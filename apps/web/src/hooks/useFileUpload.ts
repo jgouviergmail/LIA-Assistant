@@ -39,6 +39,20 @@ export interface PendingAttachment {
   previewUrl?: string;
 }
 
+/** What the server says about an attachment it already holds. */
+export interface ServerAttachmentMeta {
+  id: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  contentType: 'image' | 'document';
+}
+
+export type AddServerAttachmentOutcome =
+  | { ok: true }
+  | { error: 'max_attachments'; max: number }
+  | { error: 'already_attached' };
+
 interface UseFileUploadOptions {
   maxImageSizeMB?: number;
   maxDocSizeMB?: number;
@@ -278,6 +292,37 @@ export function useFileUpload(options?: UseFileUploadOptions) {
     });
   }, []);
 
+  /**
+   * Add an attachment the server ALREADY holds — a copy of a knowledge-space
+   * document the person picked. No upload: it joins the strip ready, with its
+   * id, under the same per-message cap as an upload, and is sent like one.
+   */
+  const addServerAttachment = useCallback(
+    (meta: ServerAttachmentMeta): AddServerAttachmentOutcome => {
+      if (attachmentsRef.current.some(a => a.attachmentId === meta.id)) {
+        return { error: 'already_attached' as const };
+      }
+      if (attachmentCountRef.current >= opts.maxAttachments) {
+        return { error: 'max_attachments' as const, max: opts.maxAttachments };
+      }
+      attachmentCountRef.current += 1;
+      const pending: PendingAttachment = {
+        tempId: `server-${meta.id}`,
+        attachmentId: meta.id,
+        filename: meta.filename,
+        mimeType: meta.mimeType,
+        size: meta.size,
+        contentType: meta.contentType,
+        status: 'ready',
+        progress: 100,
+      };
+      attachmentsRef.current = [...attachmentsRef.current, pending];
+      setAttachments(prev => [...prev, pending]);
+      return { ok: true as const };
+    },
+    [opts.maxAttachments]
+  );
+
   /** Get attachment IDs that are ready for sending */
   const getReadyAttachmentIds = useCallback((): string[] => {
     return attachments
@@ -288,9 +333,12 @@ export function useFileUpload(options?: UseFileUploadOptions) {
   return {
     attachments,
     uploadFile,
+    addServerAttachment,
     removeFile,
     clearAttachments,
     getReadyAttachmentIds,
     isUploading,
+    /** The per-message cap the hook enforces — published so a picker can bound itself. */
+    maxAttachments: opts.maxAttachments,
   };
 }

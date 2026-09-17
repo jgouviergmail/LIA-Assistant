@@ -60,3 +60,34 @@ class TestAttachmentUploadOffEventLoop:
         # Behavior preserved: the file is physically written to disk.
         written = list(tmp_path.rglob("*.png"))
         assert written and written[0].read_bytes() == png_bytes
+
+
+def _heic_bytes() -> bytes:
+    """A real HEIC picture, encoded by the same codec the decode relies on."""
+    import io
+
+    from PIL import Image
+
+    from src.infrastructure.media.heif import ensure_heif_support
+
+    ensure_heif_support()
+    buffer = io.BytesIO()
+    Image.new("RGB", (24, 16), (200, 30, 30)).save(buffer, format="HEIF")
+    return buffer.getvalue()
+
+
+@pytest.mark.unit
+class TestHeicUploadIsConverted:
+    """The router promises « HEIC images are automatically converted to JPEG »."""
+
+    def test_a_heic_picture_becomes_a_jpeg(self) -> None:
+        import io
+
+        from PIL import Image
+
+        converted, mime = AttachmentService._convert_heic_to_jpeg(_heic_bytes())
+
+        assert mime == "image/jpeg"
+        with Image.open(io.BytesIO(converted)) as img:
+            assert img.format == "JPEG"
+            assert img.size == (24, 16)

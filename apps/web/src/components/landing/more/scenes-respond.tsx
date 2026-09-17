@@ -780,7 +780,10 @@ function ComposedPageScene({ active, labels }: SceneProps) {
           <div className={cn('mt-1 h-2 w-1/3 rounded bg-primary/40', reveal(2))} />
           <div className={cn('grid grid-cols-3 gap-1', reveal(3))}>
             {[0, 1, 2].map(i => (
-              <span key={i} className="flex flex-col items-center gap-0.5 rounded border border-border/60 p-1">
+              <span
+                key={i}
+                className="flex flex-col items-center gap-0.5 rounded border border-border/60 p-1"
+              >
                 <span className="h-2 w-6 rounded bg-primary/60" />
                 <span className="h-1 w-8 rounded bg-muted-foreground/30" />
               </span>
@@ -798,11 +801,69 @@ function ComposedPageScene({ active, labels }: SceneProps) {
   );
 }
 
+type CodeScrollPhase = 'start' | 'scrolling' | 'end';
+const CODE_SCROLL_STEPS: readonly TimelineStep<CodeScrollPhase>[] = [
+  { at: 0, state: 'start' },
+  { at: 1200, state: 'scrolling' },
+  { at: 2600, state: 'end' },
+];
+
+/**
+ * A code line wider than the card scrolls inside it on an always-visible thin
+ * bar; the right-edge fade says « there is more » until the end is reached.
+ */
+function CodeScrollScene({ active }: SceneProps) {
+  const phase = useLoopedTimeline(CODE_SCROLL_STEPS, { active });
+  const atEnd = phase === 'end';
+  return (
+    <div className={cn(STAGE, 'justify-center')}>
+      <MiniBubble side="assistant" className="w-11/12">
+        <div className="relative overflow-hidden rounded-md border border-border bg-muted/40 p-2">
+          <div
+            className={cn(
+              'flex w-[160%] flex-col gap-1.5 transition-transform duration-1000 ease-in-out motion-reduce:transition-none',
+              atEnd ? '-translate-x-[37.5%]' : 'translate-x-0'
+            )}
+          >
+            <span className="flex items-center gap-1">
+              <span className="h-2 w-10 rounded bg-primary/60" />
+              <span className="h-2 w-24 rounded bg-muted-foreground/30" />
+              <span className="h-2 w-16 rounded bg-primary/40" />
+              <span className="h-2 w-20 rounded bg-muted-foreground/30" />
+            </span>
+            <span className="flex items-center gap-1 pl-3">
+              <span className="h-2 w-14 rounded bg-muted-foreground/30" />
+              <span className="h-2 w-8 rounded bg-primary/40" />
+              <span className="h-2 w-28 rounded bg-muted-foreground/30" />
+            </span>
+          </div>
+          <span
+            className={cn(
+              'pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-r from-transparent to-card transition-opacity duration-300 motion-reduce:transition-none',
+              atEnd ? 'opacity-0' : 'opacity-100'
+            )}
+            aria-hidden="true"
+          />
+          <span className="mt-2 block h-1 w-full rounded-full bg-muted-foreground/15">
+            <span
+              className={cn(
+                'block h-1 w-1/2 rounded-full bg-muted-foreground/50 transition-transform duration-1000 ease-in-out motion-reduce:transition-none',
+                atEnd ? 'translate-x-full' : 'translate-x-0'
+              )}
+            />
+          </span>
+        </div>
+      </MiniBubble>
+    </div>
+  );
+}
+
 export const RESPOND_SCENES: Readonly<Record<string, SceneComponent>> = {
   provenance_why: ProvenanceWhyScene,
   expressive_eyes: ExpressiveEyesScene,
   living_face: LivingFaceScene,
   composed_page: ComposedPageScene,
+  code_scroll: CodeScrollScene,
   followup_chips: FollowupChipsScene,
   scroll_return: ScrollReturnScene,
   bubble_actions: BubbleActionsScene,

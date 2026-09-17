@@ -16,6 +16,8 @@
 - [Architecture](#architecture)
 - [Document Processing Pipeline](#document-processing-pipeline)
 - [Hybrid Search & Retrieval](#hybrid-search--retrieval)
+- [Google Drive Sources (ADR-056, ADR-297)](#google-drive-sources-adr-056-adr-297)
+- [Gmail Label Sources (ADR-262)](#gmail-label-sources-adr-262)
 - [Cost Tracking](#cost-tracking)
 - [System RAG Spaces (App Self-Knowledge)](#system-rag-spaces-app-self-knowledge)
 - [Admin Operations](#admin-operations)
@@ -172,6 +174,37 @@ Source: paper.pdf
 ```
 
 ---
+
+## Google Drive Sources (ADR-056, ADR-297)
+
+A space follows a **Drive folder**, walked as a **tree**: sub-folders included,
+breadth-first, bounded twice (`RAG_DRIVE_MAX_FILES_PER_SYNC`,
+`RAG_DRIVE_MAX_FOLDERS_PER_WALK`) with the cut stated (`truncated`). A shortcut
+is neither listed nor followed, a folder reached twice is walked once, an
+unreadable sub-folder is counted and skipped; only the root being unreadable is
+an error (the source is marked `ERROR`). `rag_spaces/drive_walk.py` is the ONE
+walk, shared by the synchronisation and by the preflight.
+
+| Act | Trigger | What happens |
+|-----|---------|--------------|
+| Link | `POST …/drive-sources` | the folder's metadata is read, and the candidate is refused with `409 {code: drive_folder_nested}` when it sits inside an already linked tree or above one (ancestors both ways under `RAG_DRIVE_MAX_ANCESTOR_DEPTH`, plus the linked source's walked set) — two sources deduplicating by `drive_file_id` would steal each other's documents |
+| Preflight | `GET …/drive-sources/{id}/preflight` | walks the tree and classifies every file with the ingest's own predicates (`is_supported_drive_file`, `is_unchanged`) under the space's document cap: `new`, `modified`, `unchanged`, `unsupported`, `over_capacity`, `to_index`, `folders`, `unreadable_folders`, `truncated`, the published `threshold` (`RAG_DRIVE_SYNC_CONFIRM_THRESHOLD`, default 10) and bounds, `requires_confirmation` |
+| Sync | `POST …/drive-sources/{id}/sync`, background | walks the tree under ONE recorded consultation (`space_read`, section `drive`), ingests the supported files, prunes the documents whose file left the tree, persists the walked folder set in `rag_drive_sources.folder_ids` |
+| Push (ADR-261) | Drive changes feed | a change is routed on its file's parents against each source's walked set (the root alone before the first walk); a folder created under the tree joins the set, a trashed one leaves it — the next full sync prunes its documents |
+
+The frontend asks the preflight **at the click** on Sync: under the threshold the
+sync starts at once; past it, an alert dialog states the exact figures (« at
+least » when the walk was cut, the new files the space cannot hold named) and
+posts the sync only on confirmation; a preflight the API cannot compute starts
+nothing. One count runs at a time per source.
+
+**Every read of a space reaches the register.** The consultation register keeps
+only what a published collector gathers, and no act of a space (a link from the
+settings page, a background sync, a push) publishes one — so `space_read`
+(`rag_spaces/consultations.py`) opens a run of its own when
+`consultation_sink.collector_is_active()` says nobody did, and joins the turn
+otherwise. A refusal of OUR rules (nested link, not a folder) is filed `ok`:
+« failed » is the word of a source that refused.
 
 ## Gmail Label Sources (ADR-262)
 
@@ -409,6 +442,8 @@ System spaces can be reindexed independently of user spaces via `POST /rag-space
 | `POST` | `/rag-spaces/{id}/documents` | User | Upload document (multipart) |
 | `DELETE` | `/rag-spaces/{id}/documents/{doc_id}` | User | Delete document |
 | `GET` | `/rag-spaces/{id}/documents/{doc_id}/status` | User | Processing status |
+| `GET` | `/rag-spaces/documents?q=&limit=&offset=` | User | The `ready` documents of EVERY space of the caller, active or not, with the space named beside each — what the composer's « + » lists (ADR-295); page, exact total, `max_limit` published |
+| `GET` | `/rag-spaces/{id}/drive-sources/{source_id}/preflight` | User | What one sync WOULD index: exact counts, threshold and bounds (ADR-297) |
 | `GET` | `/rag-spaces/{id}/documents/{doc_id}/download` | User | The stored file, named after the upload (ADR-259) |
 | `GET` | `/rag-spaces/{id}/documents/archive?ids=a,b` | User | One zip of the selection (original names, `_missing.txt` for files gone); 413 `archive_too_large` |
 | `POST` | `/rag-spaces/{id}/documents/move` | User | `{ids, target_space_id}` → `{done, skipped: [{id, code}]}`; row + chunks + file; 409 `reindex_in_progress` |

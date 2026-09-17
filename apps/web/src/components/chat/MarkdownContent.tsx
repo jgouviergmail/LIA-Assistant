@@ -18,6 +18,7 @@ import { formatPhonesInText } from '@/lib/format';
 import { isImageLoaded, markImageLoaded } from '@/lib/image-cache';
 import { apiImageProps } from '@/lib/utils/api-resource-url';
 import { logger } from '@/lib/logger';
+import { codeBlockOf } from '@/lib/markdown-code-block';
 
 // MCP Apps widget — lazy loaded (only needed when MCP App sentinel divs are present)
 const McpAppWidget = lazy(() =>
@@ -685,50 +686,49 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = memo(
               </blockquote>
             ),
 
-            // Inline code and code blocks
-            code: ({ className: codeClassName, children, ...props }) => {
-              // Check if it's a code block (has className with language-*)
-              const isCodeBlock = codeClassName?.startsWith('language-');
+            // Code blocks: the <pre> is the unit. A fence with or without a
+            // language, an indented block and a raw <pre><code> all reach
+            // CodeBlock (measured 2026-09-17: routed on the code element's
+            // `language-*` class alone, three of the four fell through to the
+            // inline chip below — no header, no copy button, no scroll box).
+            pre: ({ node, children }) => {
+              const block = codeBlockOf(node);
+              if (!block) return <pre>{children}</pre>;
 
-              if (isCodeBlock) {
-                const language = codeClassName?.replace('language-', '') || 'text';
-                const codeText = String(children).replace(/\n$/, '');
-
-                // Suspense fallback matches the old plain <pre> look so the
-                // visual transition on lazy-load is imperceptible.
-                const fallback = (
-                  <div className="my-3 rounded-lg overflow-hidden border border-border/50 shadow-sm">
-                    <div className="px-3 py-1 text-xs font-mono bg-muted/50 text-muted-foreground border-b border-border/50">
-                      {language}
-                    </div>
-                    <pre className="p-3 overflow-x-auto bg-muted/20">
-                      <code className="text-sm font-mono text-foreground block">{codeText}</code>
-                    </pre>
+              // Suspense fallback matches the old plain <pre> look so the
+              // visual transition on lazy-load is imperceptible.
+              const fallback = (
+                <div className="my-3 rounded-lg overflow-hidden border border-border/50 shadow-sm">
+                  <div className="px-3 py-1 text-xs font-mono bg-muted/50 text-muted-foreground border-b border-border/50">
+                    {block.language}
                   </div>
-                );
+                  <pre className="code-scroll p-3 bg-muted/20">
+                    <code className="text-sm font-mono text-foreground block">{block.text}</code>
+                  </pre>
+                </div>
+              );
 
-                return (
-                  <Suspense fallback={fallback}>
-                    <CodeBlock language={language}>{codeText}</CodeBlock>
-                  </Suspense>
-                );
-              }
-
-              // Inline code
               return (
-                <code
-                  className={cn(
-                    'px-1.5 py-0.5 rounded text-xs font-mono',
-                    isUser
-                      ? 'bg-primary-foreground/20 text-primary-foreground'
-                      : 'bg-muted text-foreground'
-                  )}
-                  {...props}
-                >
-                  {children}
-                </code>
+                <Suspense fallback={fallback}>
+                  <CodeBlock language={block.language}>{block.text}</CodeBlock>
+                </Suspense>
               );
             },
+
+            // Inline code — every block was taken by `pre` above.
+            code: ({ className: codeClassName, children }) => (
+              <code
+                className={cn(
+                  'px-1.5 py-0.5 rounded text-xs font-mono',
+                  isUser
+                    ? 'bg-primary-foreground/20 text-primary-foreground'
+                    : 'bg-muted text-foreground',
+                  codeClassName
+                )}
+              >
+                {children}
+              </code>
+            ),
 
             // Horizontal rule
             hr: () => <hr className="my-4 border-t border-border/50" />,

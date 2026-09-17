@@ -33,6 +33,7 @@ from src.domains.rag_spaces.document_ops import (
     download_document,
     move_documents,
 )
+from src.domains.rag_spaces.documents_router import router as documents_router
 from src.domains.rag_spaces.drive_sync import RAGDriveSyncService, sync_folder_background
 from src.domains.rag_spaces.mail_router import router as mail_router
 from src.domains.rag_spaces.processing import process_document
@@ -44,6 +45,7 @@ from src.domains.rag_spaces.schemas import (
     RAGDocumentMoveRequest,
     RAGDocumentResponse,
     RAGDocumentStatusResponse,
+    RAGDrivePreflightResponse,
     RAGDriveSourceCreate,
     RAGDriveSourceResponse,
     RAGDriveSyncStatusResponse,
@@ -72,6 +74,10 @@ router = APIRouter(
     # door, not only in the planner catalogue.
     dependencies=capability_dependencies(PlatformCapability.RAG_SPACES),
 )
+
+# The cross-space documents listing (`/documents`) is mounted FIRST: declared
+# after `/{space_id}` the literal would be read as a space id.
+router.include_router(documents_router)
 
 
 # ============================================================================
@@ -606,6 +612,23 @@ async def unlink_drive_folder(
     """Unlink a Google Drive folder from a space."""
     service = RAGDriveSyncService(db)
     await service.unlink_folder(space_id, source_id, user.id, delete_documents)
+
+
+@router.get(
+    "/{space_id}/drive-sources/{source_id}/preflight",
+    response_model=RAGDrivePreflightResponse,
+    summary="Count what a Drive sync would index",
+)
+async def preflight_drive_sync(
+    space_id: UUID,
+    source_id: UUID,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> RAGDrivePreflightResponse:
+    """Walk the linked tree and count, exactly, what a sync would write (read-only)."""
+    service = RAGDriveSyncService(db)
+    report = await service.preflight(space_id, source_id, user.id)
+    return RAGDrivePreflightResponse.model_validate(report)
 
 
 @router.post(

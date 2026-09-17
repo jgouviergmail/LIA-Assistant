@@ -86,10 +86,13 @@ def normalize_imap_message(msg: Any, folder: str) -> dict[str, Any]:
     # =========================================================================
     # Attachments: top-level for direct access by _enrich_email()
     # =========================================================================
+    # IMAP has no attachment handle: the part's INDEX is published as one, and
+    # ``AppleEmailClient.download_attachment`` reads it back the same way.
     attachments = []
-    for att in msg.attachments:
+    for index, att in enumerate(msg.attachments):
         attachments.append(
             {
+                "attachmentId": str(index),
                 "filename": att.filename,
                 "mimeType": att.content_type,
                 "size": len(att.payload) if att.payload else 0,

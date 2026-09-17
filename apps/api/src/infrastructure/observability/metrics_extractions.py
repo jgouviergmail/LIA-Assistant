@@ -55,6 +55,20 @@ memory_consolidation_pairs_total = Counter(
     ["outcome"],  # merged | skipped_category | skipped_emotional | stale
 )
 
+email_attachment_reads_total = Counter(
+    "email_attachment_reads_total",
+    "Outcome of every mail attachment the assistant was asked to read "
+    "(get_email_attachment). 'route' is how it was read: 'text' (extracted, no model "
+    "call), 'vision' (the vision slot, one paid call), 'none' (refused before any "
+    "reading). 'outcome' is 'ok', or the refusal by name: 'unsupported' (a type nothing "
+    "reads), 'too_large' (past the published bound), 'empty' (no text and not a scan), "
+    "'skipped_quota' (a ceiling refusal), 'truncated' (the vision answer was cut — a "
+    "refusal, ADR-275), 'failed' (the provider or the extractor failed). A rising "
+    "'vision' share is the vision slot's bill; a rising 'failed' share names an "
+    "extractor or a model that cannot read what people send.",
+    ["route", "outcome"],
+)
+
 email_digest_cache_total = Counter(
     "email_digest_cache_total",
     "Outcome of every message handed to the e-mail digest step (ADR-287). "

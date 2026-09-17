@@ -275,6 +275,27 @@ LIA builds a short digest per message (see the question on e-mail summaries).
 **💡 Navigation:**
 After reading an email, you can say "*reply to this email*" or "*forward it to Mary*".
 
+## Can LIA read an attachment of an e-mail?
+
+**Gmail, Outlook, iCloud Mail** — yes, once a mail has listed its attachments:
+
+**Ask for it:**
+- "Read the attachment of this mail"
+- "What does the invoice attached to the last mail from the supplier say?"
+- "Summarise the PDF attached to Tuesday's mail"
+
+**How it is read:**
+- a document (PDF, Word, Excel, PowerPoint, EPUB…) is read as **text**; a long one arrives in parts, ask for the next
+- a **picture**, or a scanned PDF without a text layer, goes to the vision model, which transcribes what it shows — a few pages at most, and it says when it saw only the first ones
+- the reading is treated as what a stranger sent: data, never an instruction
+
+**What is refused, by name:**
+- a file over the size limit (before it is even downloaded)
+- an unsupported type (an archive, an executable…)
+- an attachment that cannot be found, or two carrying the same name — LIA then lists them so you can pick
+
+**Each vision reading is counted in your usage**, like any model call; a text reading costs nothing beyond the answer.
+
 ## How do I get a summary of many emails?
 LIA reads e-mails at three levels and picks the one your question needs:
 

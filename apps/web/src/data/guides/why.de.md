@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version**: 6.0
-**Datum**: 2026-08-23
-**Anwendung**: LIA v1.45.1
+**Datum**: 2026-09-18
+**Anwendung**: LIA v1.45.2
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -71,7 +71,7 @@ Jeder Benutzer verfügt über seinen eigenen Einstellungsbereich, der in zwei Re
 - **Proaktive Benachrichtigungen**: Stelle Häufigkeit, Zeitfenster und Kontextquellen ein (Kalender, Wetter, Aufgaben, E-Mails, Interessen, Erinnerungen, Journale)
 - **Geplante Aktionen und Erinnerungen**: Nenne den Rhythmus — alle drei Tage, jeden zweiten Dienstag, am 2. Dienstag des Monats, alle zwei Stunden zwischen 9 und 17 Uhr, bis zu einem Datum oder N-mal — für eine Automatisierung ebenso wie für eine Erinnerung, die nun wiederkehren kann, statt nur einmal zu klingeln. Und lies deine Woche auf einen Blick: jede Routine zu ihrer Uhrzeit an ihren Tagen, jede Zelle nach dem gefärbt, was wirklich geschah
 - **Skills**: Aktiviere/deaktiviere Expertenfähigkeiten in einer Galerie mit Vorschauen, erstelle deine eigenen persönlichen Skills oder installiere eine von einer https-URL (serverseitig validiert)
-- **Wissensbereiche**: Lade deine Dokumente hoch (PDF, Word, Excel, PowerPoint, EPUB, HTML und 15+ Formate), synchronisiere einen Google-Drive-Ordner oder folge einem Gmail-Label — automatische Indexierung und hybride Suche. Die Konversationen, die du markierst, werden zu Dokumenten, die du Wochen später befragen kannst, und das Entfernen des Labels entfernt das Dokument. Ein Dokument, das LIA nicht lesen kann — eine gescannte PDF ohne Textebene — sagt es unter seiner Zeile, samt Abhilfe
+- **Wissensbereiche**: Lade deine Dokumente hoch (PDF, Word, Excel, PowerPoint, EPUB, HTML und 15+ Formate), synchronisiere einen Google-Drive-Ordner oder folge einem Gmail-Label — automatische Indexierung und hybride Suche. Die Konversationen, die du markierst, werden zu Dokumenten, die du Wochen später befragen kannst, und das Entfernen des Labels entfernt das Dokument. Ein Dokument, das LIA nicht lesen kann — eine gescannte PDF ohne Textebene — sagt es unter seiner Zeile, samt Abhilfe. Ein Drive-Ordner wird samt Unterordnern synchronisiert, und ab einer Schwelle wird die genaue Zahl der Dateien, die indexiert werden, angezeigt, bevor etwas startet
 - **Verbrauchsexport**: Lade deine LLM- und API-Verbrauchsdaten als CSV herunter
 
 ### 2.3. Was der Administrator kontrolliert
@@ -122,7 +122,7 @@ Sprich mit LIA wie mit einem menschlichen Assistenten — keine Befehle auswendi
 
 ### 3.2. Persönliche verbundene Dienste
 
-- **E-Mail**: Lesen, Suchen, Verfassen, Senden, Antworten, Weiterleiten — via Gmail, Outlook oder Apple Mail; eine Nachricht kommt als sauberer Text an, und viele werden Nachricht für Nachricht zusammengefasst („fasse meine ungelesenen Mails zusammen“, „eine Synthese der Newsletter dieser Woche“)
+- **E-Mail**: Lesen, Suchen, Verfassen, Senden, Antworten, Weiterleiten — via Gmail, Outlook oder Apple Mail; eine Nachricht kommt als sauberer Text an, und viele werden Nachricht für Nachricht zusammengefasst („fasse meine ungelesenen Mails zusammen“, „eine Synthese der Newsletter dieser Woche“); ein Anhang wird auf Wunsch gelesen — ein Dokument als Text, ein Foto oder ein Scan über das Vision-Modell
 - **Kalender**: Termine einsehen, erstellen, bearbeiten, löschen — via Google Calendar, Outlook Calendar oder Apple Calendar
 - **Kontakte**: Kontakte suchen, erstellen, bearbeiten — via Google Contacts, Outlook Contacts oder Apple Contacts
 - **Aufgaben**: Deine Aufgabenlisten verwalten — via Google Tasks oder Microsoft To Do
@@ -154,7 +154,7 @@ LIA bietet einen vollständigen Sprachmodus:
 - **Bildgenerierung**: Erstelle Bilder aus Textbeschreibungen, bearbeite vorhandene Fotos
 - **Dokumenterstellung**: Frag nach einer CSV, einer Excel-Tabelle, einem Word-Bericht, einem PowerPoint oder einem PDF — ein eigenes Autorenmodell erzeugt den Inhalt in deiner Sprache, dann baut ein lokaler Renderer die echte Datei mit den Regeln ihres Formats: 16:9-Folien, deren Layout der Absicht folgt, ein von Word berechnetes Inhaltsverzeichnis samt Seitenzahlen, typisierte Excel-Spalten unter einer filterbaren Tabelle, exakte Seitenzahlen und Lesezeichen im PDF. Text wird gemessen, bevor er gesetzt wird, also läuft nichts über; und wenn das Modell abgeschnitten wird, sagt LIA es dir, statt ein verstümmeltes Dokument zu liefern. Die Datei kommt als herunterladbare Karte mit klarem Ablaufdatum
 - **Excalidraw-Diagramme**: Generiere Schaubilder und Diagramme direkt im Gespräch
-- **Anhänge**: Fotos und PDF anfügen — LIA analysiert visuelle Inhalte und extrahiert Text aus Dokumenten
+- **Anhänge**: Fotos und PDF anfügen — LIA analysiert visuelle Inhalte und extrahiert Text aus Dokumenten; das « + » bietet auch jedes Dokument deiner Wissensbereiche an, auch aus einem pausierten, als Kopie für diese Nachricht
 - **MCP Apps**: Interaktive Widgets direkt im Chat (Formulare, Visualisierungen, Mini-Anwendungen)
 - **Behaltene Antworten**: Ein Lesezeichen an jeder Antwort behält sie außerhalb der Unterhaltung — mit deiner Anfrage und ihrem Datum — in einem Reiter neben deinen erzeugten Dateien; teile sie, lade sie als Markdown herunter oder lass sie los; jede aufbewahrte Antwort landet außerdem in einem eigenen Wissensbereich, damit LIA sie Wochen später wiederfindet und zitiert
 

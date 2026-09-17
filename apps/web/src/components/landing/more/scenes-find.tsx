@@ -14,17 +14,19 @@ import {
   Bell,
   ChevronDown,
   Fingerprint,
+  FolderTree,
   Hash,
   Link2,
   Moon,
   NotebookPen,
   Palette,
   PanelLeft,
+  Pin,
   Plug,
+  RefreshCw,
   RotateCw,
   Search,
   Star,
-  Pin,
 } from 'lucide-react';
 
 import { SETTINGS_GROUP_TONES } from '@/lib/settings-group-tones';
@@ -706,6 +708,68 @@ function PinnedDockScene({ active }: SceneProps) {
   );
 }
 
+type SyncCountPhase = 'idle' | 'counting' | 'asked';
+const SYNC_COUNT_STEPS: readonly TimelineStep<SyncCountPhase>[] = [
+  { at: 0, state: 'idle' },
+  { at: 800, state: 'counting' },
+  { at: 2200, state: 'asked' },
+];
+
+/**
+ * Past the threshold the Sync button counts first, then states the exact
+ * number of files about to be indexed and waits for the person.
+ */
+function SyncCountScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(SYNC_COUNT_STEPS, { active });
+  return (
+    <div className={cn(STAGE, 'justify-center gap-2 px-6')}>
+      <div className="flex w-full max-w-[220px] items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5">
+        <FolderTree className="h-3 w-3 shrink-0 text-primary" aria-hidden="true" />
+        <SkeletonLine w="w-1/3" />
+        <span
+          className={cn(
+            'ml-auto inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[9px] transition-colors motion-reduce:transition-none',
+            phase === 'idle'
+              ? 'border-border text-foreground'
+              : 'border-primary/40 bg-primary/10 text-primary'
+          )}
+        >
+          <RefreshCw
+            className={cn('h-2.5 w-2.5', phase === 'counting' && 'motion-safe:animate-spin')}
+            aria-hidden="true"
+          />
+          {phase === 'counting' ? labels.counting : labels.sync}
+        </span>
+      </div>
+      <div
+        className={cn(
+          'w-full max-w-[220px] rounded-md border border-border bg-background p-2 text-[10px] shadow-sm transition-all duration-300 motion-reduce:transition-none',
+          phase === 'asked'
+            ? 'translate-y-0 opacity-100'
+            : 'pointer-events-none translate-y-1 opacity-0'
+        )}
+      >
+        <p className="font-medium text-foreground">
+          <span className="text-primary">37</span> {labels.files}
+        </p>
+        <div className="mt-1 flex gap-1">
+          {['w-6', 'w-8', 'w-5', 'w-7'].map(w => (
+            <SkeletonLine key={w} w={w} />
+          ))}
+        </div>
+        <div className="mt-2 flex justify-end gap-1">
+          <span className="rounded border border-border px-1.5 py-0.5 text-muted-foreground">
+            …
+          </span>
+          <span className="rounded bg-primary px-1.5 py-0.5 text-primary-foreground">
+            {labels.confirm}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export const FIND_SCENES: Readonly<Record<string, SceneComponent>> = {
   settings_shell: SettingsShellScene,
   settings_tones: SettingsTonesScene,
@@ -714,6 +778,7 @@ export const FIND_SCENES: Readonly<Record<string, SceneComponent>> = {
   history_search: HistorySearchScene,
   template_library: TemplateLibraryScene,
   mail_label_source: MailLabelSourceScene,
+  sync_count: SyncCountScene,
   mobile_logo_nav: MobileLogoNavScene,
   relation_star: RelationStarScene,
   relation_sections: RelationSectionsScene,

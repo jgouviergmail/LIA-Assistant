@@ -59,6 +59,7 @@ from src.core.constants import (
     WEB_SEARCH_CACHE_ENABLED_DEFAULT,
     WEB_SEARCH_CACHE_PREFIX,
     WEB_SEARCH_CACHE_TTL_DEFAULT,
+    WEB_SEARCH_SYNTHESIS_PREVIEW_CHARS_DEFAULT,
 )
 
 
@@ -240,6 +241,16 @@ class AdvancedSettings(BaseSettings):
     web_search_cache_prefix: str = Field(
         default=WEB_SEARCH_CACHE_PREFIX,
         description="Redis key prefix for web search cache entries",
+    )
+    web_search_synthesis_preview_chars: int = Field(
+        default=WEB_SEARCH_SYNTHESIS_PREVIEW_CHARS_DEFAULT,
+        ge=200,
+        le=5000,
+        description=(
+            "Characters of an AI search synthesis a card draws before folding the "
+            "rest behind a « see more » collapsible (whole paragraphs, else a sentence "
+            "boundary; no model call)."
+        ),
     )
     web_fetch_cache_prefix: str = Field(
         default=WEB_FETCH_CACHE_PREFIX,

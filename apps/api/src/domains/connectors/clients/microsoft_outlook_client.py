@@ -12,6 +12,7 @@ Scopes required:
 - Mail.Read, Mail.ReadWrite, Mail.Send
 """
 
+import base64
 from typing import Any
 from urllib.parse import urlsplit
 from uuid import UUID
@@ -22,6 +23,13 @@ from src.core.config import settings
 from src.core.field_names import FIELD_CACHED_AT
 from src.domains.connectors.clients.base_google_client import apply_max_items_limit
 from src.domains.connectors.clients.base_microsoft_client import BaseMicrosoftClient
+from src.domains.connectors.clients.email_attachments import (
+    EmailAttachmentContent,
+    EmailAttachmentNotFoundError,
+    attachment_mime,
+    ensure_within_bound,
+    select_attachment,
+)
 from src.domains.connectors.clients.normalizers.microsoft_email_normalizer import (
     build_search_filter,
     normalize_graph_folder,
@@ -250,6 +258,65 @@ class MicrosoftOutlookClient(BaseMicrosoftClient):
             "from_cache": False,
             FIELD_CACHED_AT: None,
         }
+
+    async def download_attachment(
+        self,
+        message_id: str,
+        *,
+        attachment_id: str | None = None,
+        filename: str | None = None,
+        max_bytes: int | None = None,
+    ) -> EmailAttachmentContent:
+        """Download ONE attachment of a message, by handle or by name.
+
+        Graph lists the attachments of a message (id, name, type, size) and
+        serves one ``fileAttachment`` with its ``contentBytes`` (base64) — never
+        one the listing already says exceeds ``max_bytes``.
+
+        Args:
+            message_id: Graph message id.
+            attachment_id: Graph attachment id; wins when given.
+            filename: The name as sent, when the id is unknown.
+            max_bytes: Refuse, before downloading, a part listed larger.
+
+        Returns:
+            The file name, the MIME type as sent and the bytes.
+
+        Raises:
+            EmailAttachmentNotFoundError: No attachment matches, or the
+                selected one carries no bytes (an item or reference attachment).
+            EmailAttachmentAmbiguousError: The name matches several parts.
+            EmailAttachmentTooLargeError: The listed size exceeds the bound.
+        """
+        listing = await self._make_request(
+            "GET",
+            f"/me/messages/{message_id}/attachments",
+            {"$select": "id,name,contentType,size"},
+        )
+        listed = [
+            {
+                "attachmentId": item.get("id", ""),
+                "filename": item.get("name", ""),
+                "mimeType": item.get("contentType", ""),
+                "size": item.get("size", 0),
+            }
+            for item in listing.get("value", [])
+        ]
+        chosen = select_attachment(listed, attachment_id=attachment_id, filename=filename)
+        ensure_within_bound(chosen, max_bytes=max_bytes)
+        part = await self._make_request(
+            "GET", f"/me/messages/{message_id}/attachments/{chosen['attachmentId']}"
+        )
+        encoded = part.get("contentBytes")
+        if not encoded:
+            raise EmailAttachmentNotFoundError(
+                f"attachment {chosen['attachmentId']!r} carries no bytes"
+            )
+        return EmailAttachmentContent(
+            filename=str(part.get("name") or chosen.get("filename") or ""),
+            mime_type=str(part.get("contentType") or attachment_mime(chosen)),
+            data=base64.b64decode(encoded),
+        )
 
     # =========================================================================
     # WRITE OPERATIONS

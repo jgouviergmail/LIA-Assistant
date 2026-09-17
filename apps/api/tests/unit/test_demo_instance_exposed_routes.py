@@ -59,6 +59,9 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         "GET /api/v1/attachments/{attachment_id}",
         "DELETE /api/v1/attachments/{attachment_id}",
         "POST /api/v1/attachments/upload",
+        # The second door that puts a file in (ADR-295): forwarded like the
+        # upload, refused by BOTH its guards here (attachments and spaces off).
+        "POST /api/v1/attachments/from-knowledge-document",
         "GET /api/v1/agents/health",
         "GET /api/v1/agents/hitl/pending",
         "GET /api/v1/agents/runs/active",

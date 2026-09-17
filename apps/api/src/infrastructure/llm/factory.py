@@ -197,6 +197,7 @@ LLMType = Literal[
     "meeting_synthesis",
     # Relationship debrief — daily synthesis of one contact's file (personal CRM)
     "relation_debrief",
+    "vision_analysis",
 ]
 
 

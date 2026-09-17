@@ -59,6 +59,11 @@ from src.core.constants import (
     DRIVE_CACHE_LIST_TTL,
     DRIVE_CACHE_SEARCH_TTL,
     DRIVE_TOOL_DEFAULT_MAX_RESULTS_DEFAULT,
+    EMAIL_ATTACHMENT_IMAGE_MAX_EDGE_DEFAULT,
+    EMAIL_ATTACHMENT_MAX_MB_DEFAULT,
+    EMAIL_ATTACHMENT_RATE_LIMIT_MAX_CALLS_DEFAULT,
+    EMAIL_ATTACHMENT_RATE_LIMIT_WINDOW_SECONDS_DEFAULT,
+    EMAIL_ATTACHMENT_VISION_MAX_PAGES_DEFAULT,
     EMAIL_BODY_PART_TOKENS_DEFAULT,
     EMAILS_BODY_MAX_LENGTH_DEFAULT,
     EMAILS_CACHE_DETAILS_TTL_SECONDS,
@@ -724,6 +729,47 @@ class ConnectorsSettings(BaseSettings):
             "Tokens one part of an e-mail body may hold when served to the model "
             "(cut at paragraphs, never mid-sentence; the continuation is stated) (ADR-287)."
         ),
+    )
+
+    # Reading one attachment of a message (get_email_attachment)
+    email_attachment_max_mb: int = Field(
+        default=EMAIL_ATTACHMENT_MAX_MB_DEFAULT,
+        ge=1,
+        le=100,
+        description=(
+            "Largest mail attachment the assistant downloads to read (MB); bigger ones "
+            "are refused with the bound stated."
+        ),
+    )
+    email_attachment_vision_max_pages: int = Field(
+        default=EMAIL_ATTACHMENT_VISION_MAX_PAGES_DEFAULT,
+        ge=1,
+        le=20,
+        description=(
+            "Pages of an image or a scanned PDF handed to the vision slot when an "
+            "attachment has no text layer (each page is a paid image)."
+        ),
+    )
+    email_attachment_image_max_edge: int = Field(
+        default=EMAIL_ATTACHMENT_IMAGE_MAX_EDGE_DEFAULT,
+        ge=256,
+        le=4_096,
+        description=(
+            "Longest edge (px) of a page handed to the vision slot; larger pages are "
+            "downscaled before the call."
+        ),
+    )
+    email_attachment_rate_limit_max_calls: int = Field(
+        default=EMAIL_ATTACHMENT_RATE_LIMIT_MAX_CALLS_DEFAULT,
+        ge=1,
+        le=1_000,
+        description="Attachment readings one account may ask for per window.",
+    )
+    email_attachment_rate_limit_window_seconds: int = Field(
+        default=EMAIL_ATTACHMENT_RATE_LIMIT_WINDOW_SECONDS_DEFAULT,
+        ge=1,
+        le=3_600,
+        description="The window (seconds) of the attachment reading rate limit.",
     )
 
     # ADR-287: one digest per message (detail=summary), computed once and cached

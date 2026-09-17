@@ -12,6 +12,9 @@ three levels, the paging token, the body pagination.
 """
 
 from src.core.constants import GOOGLE_GMAIL_SCOPES
+from src.domains.agents.emails.attachment_manifest import (
+    get_email_attachment_catalogue_manifest,
+)
 from src.domains.agents.emails.get_emails_manifest import get_emails_catalogue_manifest
 from src.domains.agents.registry.catalogue import (
     REASON_ADDITIVE_METADATA,
@@ -685,6 +688,8 @@ remove_labels_catalogue_manifest = ToolManifest(
 __all__ = [
     # Unified tool (v2.0 - replaces search + details)
     "get_emails_catalogue_manifest",
+    # One attachment of a message, read
+    "get_email_attachment_catalogue_manifest",
     # Action tools
     "send_email_catalogue_manifest",
     "reply_email_catalogue_manifest",

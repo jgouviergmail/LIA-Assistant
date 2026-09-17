@@ -156,6 +156,33 @@ async def consultation_collector(run_id: str) -> AsyncIterator[list[Any]]:
         yield rows
 
 
+class CollectorProbe(Protocol):
+    """Whether a collector is currently published."""
+
+    def __call__(self) -> bool:
+        """Answer True inside a run that collects, False outside any."""
+
+
+#: Installed by the register with the factory: a surface that may run inside
+#: a turn OR alone must know which, to join the run or to open its own.
+_collector_probe: CollectorProbe | None = None
+
+
+def install_collector_probe(probe: CollectorProbe) -> None:
+    """Let the register say whether a collector is published.
+
+    Args:
+        probe: Answers True while a run collects.
+    """
+    global _collector_probe  # noqa: PLW0603 — one seam, installed by its owner
+    _collector_probe = probe
+
+
+def collector_is_active() -> bool:
+    """Whether some run is collecting right now; False with no register installed."""
+    return _collector_probe is not None and _collector_probe()
+
+
 def sink_is_installed() -> bool:
     """Whether a register has claimed the seam — for guards, not for callers."""
     return _sink is not _ignore
@@ -163,9 +190,12 @@ def sink_is_installed() -> bool:
 
 __all__ = [
     "CollectorFactory",
+    "CollectorProbe",
     "ConsultationSink",
+    "collector_is_active",
     "consultation_collector",
     "install_collector_factory",
+    "install_collector_probe",
     "install_consultation_sink",
     "record_consultation",
     "sink_is_installed",

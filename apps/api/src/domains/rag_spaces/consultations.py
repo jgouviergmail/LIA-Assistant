@@ -23,11 +23,13 @@ it here would drown the register the first time a folder synced.
 
 from __future__ import annotations
 
+import uuid
 from collections.abc import AsyncIterator, Iterable
 from contextlib import asynccontextmanager
 from time import perf_counter
 from typing import Final
 
+from src.domains.shared.consultation_sink import collector_is_active, consultation_collector
 from src.domains.shared.consultation_surfaces import (
     CONSULTATION_SURFACES,
     record_surface_consultations,
@@ -88,14 +90,36 @@ async def space_read(
     ``failed`` and the exception continues on its way — observing must never
     change what it observes.
 
+    **A read outside any run publishes its own.** The register only keeps what
+    a collector gathers, and nothing publishes one around a space's acts — a
+    link from the settings page, a background synchronisation, a push — so a
+    read recorded there was DROPPED by the sink in silence (measured on dev
+    2026-09-17: zero ``space:*`` rows ever, the Drive sync « recording » since
+    ADR-297). Handed no ``run_id`` while no run collects, the read opens a
+    collector of its own for the act and the row is flushed when the read
+    ends; inside a run, or handed one, it joins that run as before.
+
     Args:
         user_id: Whose space, and whose data.
         section: :data:`SECTION_DRIVE` or :data:`SECTION_MAIL`.
-        run_id: The run this belongs to, or None to take the collector's own.
+        run_id: The run this belongs to, or None for an act of its own.
 
     Yields:
         Nothing; the block does the reading.
     """
+    if run_id is None and not collector_is_active():
+        own_run = f"space_{section}_{uuid.uuid4().hex[:12]}"
+        async with consultation_collector(own_run):
+            async with _timed_read(user_id=user_id, section=section, run_id=own_run):
+                yield
+        return
+    async with _timed_read(user_id=user_id, section=section, run_id=run_id):
+        yield
+
+
+@asynccontextmanager
+async def _timed_read(*, user_id: object, section: str, run_id: str | None) -> AsyncIterator[None]:
+    """Time the read and record it, ``failed`` when it raised (None joins the collector's run)."""
     started = perf_counter()
     failed = False
     try:

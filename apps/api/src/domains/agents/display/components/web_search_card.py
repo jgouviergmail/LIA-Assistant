@@ -6,7 +6,6 @@ Renders combined results from Perplexity AI, Brave Search, and Wikipedia.
 
 from __future__ import annotations
 
-import re
 from typing import Any
 from urllib.parse import urlparse
 
@@ -27,6 +26,7 @@ from src.domains.agents.display.components.base import (
     safe_url,
     truncate,
 )
+from src.domains.agents.display.components.folded_synthesis import render_folded_synthesis
 from src.domains.agents.display.icons import Icons, icon
 
 
@@ -153,12 +153,11 @@ class WebSearchCard(BaseComponent):
         return ""
 
     def _render_synthesis(self, synthesis: str, ctx: RenderContext) -> str:
-        """Render Perplexity AI synthesis section using v4 components."""
-        formatted = self._format_text(synthesis)
+        """Render the AI synthesis: a lead, the rest folded behind « see more »."""
         synthesis_label = V3Messages.get_ai_synthesis(ctx.language)
         return render_section_header(
             synthesis_label, Icons.AI, "indigo", first=True
-        ) + render_desc_block(formatted, with_border=False)
+        ) + render_desc_block(render_folded_synthesis(synthesis, ctx), with_border=False)
 
     def _render_results(self, results: list[dict[str, Any]], ctx: RenderContext) -> str:
         """Render Brave Search web results using v4 section header."""
@@ -238,29 +237,3 @@ class WebSearchCard(BaseComponent):
             return domain
         except Exception:
             return url[:30] if url else ""
-
-    def _format_text(self, text: str) -> str:
-        """Format text, converting basic markdown and escaping HTML."""
-        if not text:
-            return ""
-
-        # Strip reference markers [x] before HTML escaping
-        text = re.sub(r"\s*\[\d+\]", "", text)
-
-        # Escape HTML
-        text = escape_html(text)
-
-        # Convert **bold**
-        text = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", text)
-
-        # Convert *italic*
-        text = re.sub(r"\*(.+?)\*", r"<em>\1</em>", text)
-
-        # Convert newlines to paragraphs
-        paragraphs = text.split("\n\n")
-        if len(paragraphs) > 1:
-            text = "".join(f"<p>{p}</p>" for p in paragraphs if p.strip())
-        else:
-            text = text.replace("\n", "<br>")
-
-        return text

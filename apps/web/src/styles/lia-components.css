@@ -7230,18 +7230,9 @@ a:focus-visible {
   border-radius: 4px;
   font-size: 0.9em;
 }
-/* Scoped :has(> code): the language-* path renders CodeBlock (root <div>)
-   inside the <pre>, which styles itself — only the legacy plain pre>code
-   block keeps this box. No :has() support → double box, the prior state. */
-.lia-response pre:has(> code) {
-  background: var(--lia-surface, #ffffff);
-  border: 1px solid var(--lia-border, #e2e8f0);
-  color: var(--lia-text, #1e293b);
-  padding: 1em;
-  border-radius: 8px;
-  overflow-x: auto;
-  margin: 0.8em 0;
-}
+/* Every pre>code — with or without a language-* class — is drawn by
+   CodeBlock (MarkdownContent's `pre` mapping), which styles its own box; the
+   inline-code chip rule above must not reach the highlighter's <code>. */
 .lia-response pre code {
   background: none;
   color: inherit;

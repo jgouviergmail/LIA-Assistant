@@ -165,6 +165,135 @@ class TestRAGDriveSyncServiceLinkFolder:
         assert exc_info.value.status_code == status.HTTP_409_CONFLICT
         assert "already linked" in exc_info.value.detail
 
+    @staticmethod
+    def _client_with_parents(parents: dict[str, list[str]]) -> AsyncMock:
+        """A Drive whose ``files.get`` answers the parent chain."""
+        client = AsyncMock()
+
+        async def metadata(file_id: str, fields: list[str] | None = None) -> dict:
+            if fields and "parents" in fields:
+                return {"id": file_id, "parents": parents.get(file_id, [])}
+            return {"mimeType": "application/vnd.google-apps.folder"}
+
+        client.get_file_metadata = AsyncMock(side_effect=metadata)
+        client.close = AsyncMock()
+        return client
+
+    @pytest.mark.asyncio
+    @patch("src.domains.rag_spaces.drive_sync.settings")
+    async def test_link_folder_inside_an_already_linked_tree_is_refused(
+        self, mock_settings, service, user_id, space_id, sample_space
+    ) -> None:
+        """A folder under a linked one would be indexed twice — 409, coded."""
+        mock_settings.rag_spaces_drive_sync_enabled = True
+        mock_settings.rag_drive_max_sources_per_space = 5
+        service.space_repo.get_by_id = AsyncMock(return_value=sample_space)
+        service.source_repo.count_for_space = AsyncMock(return_value=1)
+        service.source_repo.exists_for_space_and_folder = AsyncMock(return_value=False)
+        existing = MagicMock(folder_id="parent", folder_ids=[])
+        service.source_repo.get_all_for_space = AsyncMock(return_value=[existing])
+        client = self._client_with_parents({"child": ["parent"], "parent": ["root"]})
+
+        with (
+            patch.object(service, "_get_drive_client", return_value=client),
+            pytest.raises(BaseAPIException) as exc_info,
+        ):
+            await service.link_folder(space_id, user_id, "child", "Child")
+
+        assert exc_info.value.status_code == status.HTTP_409_CONFLICT
+        assert exc_info.value.detail == {"code": "drive_folder_nested"}
+        service.source_repo.create.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    @patch("src.domains.rag_spaces.drive_sync.settings")
+    async def test_a_link_our_rule_refuses_still_records_the_drive_read_as_ok(
+        self, mock_settings, service, user_id, space_id, sample_space
+    ) -> None:
+        """The Drive answered; OUR rule refused. « failed » is for a source that
+        refused — a 409 of ours must not read as an unreadable Drive."""
+        from contextlib import asynccontextmanager
+
+        from src.domains.agents.effects.treatments import treatment_collector
+        from src.domains.shared import consultation_sink
+
+        mock_settings.rag_spaces_drive_sync_enabled = True
+        mock_settings.rag_drive_max_sources_per_space = 5
+        service.space_repo.get_by_id = AsyncMock(return_value=sample_space)
+        service.source_repo.count_for_space = AsyncMock(return_value=1)
+        service.source_repo.exists_for_space_and_folder = AsyncMock(return_value=False)
+        existing = MagicMock(folder_id="parent", folder_ids=[])
+        service.source_repo.get_all_for_space = AsyncMock(return_value=[existing])
+        client = self._client_with_parents({"child": ["parent"], "parent": ["root"]})
+        flushed: list = []
+
+        @asynccontextmanager
+        async def factory(*, run_id: str):
+            with treatment_collector(run_id=run_id) as rows:
+                try:
+                    yield rows
+                finally:
+                    flushed.extend(rows)
+
+        previous = consultation_sink._collector_factory
+        consultation_sink.install_collector_factory(factory)
+        try:
+            with (
+                patch.object(service, "_get_drive_client", return_value=client),
+                pytest.raises(BaseAPIException),
+            ):
+                await service.link_folder(space_id, user_id, "child", "Child")
+        finally:
+            consultation_sink._collector_factory = previous
+
+        assert [(r.tool_name, r.outcome) for r in flushed] == [("space:drive", "ok")]
+
+    @pytest.mark.asyncio
+    @patch("src.domains.rag_spaces.drive_sync.settings")
+    async def test_link_folder_above_an_already_linked_one_is_refused(
+        self, mock_settings, service, user_id, space_id, sample_space
+    ) -> None:
+        """A folder whose tree holds a linked one would index it twice — 409."""
+        mock_settings.rag_spaces_drive_sync_enabled = True
+        mock_settings.rag_drive_max_sources_per_space = 5
+        service.space_repo.get_by_id = AsyncMock(return_value=sample_space)
+        service.source_repo.count_for_space = AsyncMock(return_value=1)
+        service.source_repo.exists_for_space_and_folder = AsyncMock(return_value=False)
+        existing = MagicMock(folder_id="child", folder_ids=[])
+        service.source_repo.get_all_for_space = AsyncMock(return_value=[existing])
+        client = self._client_with_parents({"child": ["parent"], "parent": ["root"]})
+
+        with (
+            patch.object(service, "_get_drive_client", return_value=client),
+            pytest.raises(BaseAPIException) as exc_info,
+        ):
+            await service.link_folder(space_id, user_id, "parent", "Parent")
+
+        assert exc_info.value.status_code == status.HTTP_409_CONFLICT
+        assert exc_info.value.detail == {"code": "drive_folder_nested"}
+
+    @pytest.mark.asyncio
+    @patch("src.domains.rag_spaces.drive_sync.settings")
+    async def test_link_folder_beside_a_linked_one_is_accepted(
+        self, mock_settings, service, user_id, space_id, sample_space
+    ) -> None:
+        """Two siblings share no file: both may be linked."""
+        mock_settings.rag_spaces_drive_sync_enabled = True
+        mock_settings.rag_drive_max_sources_per_space = 5
+        service.space_repo.get_by_id = AsyncMock(return_value=sample_space)
+        service.source_repo.count_for_space = AsyncMock(return_value=1)
+        service.source_repo.exists_for_space_and_folder = AsyncMock(return_value=False)
+        existing = MagicMock(folder_id="left", folder_ids=["left", "left-sub"])
+        service.source_repo.get_all_for_space = AsyncMock(return_value=[existing])
+        service.source_repo.create = AsyncMock(return_value=MagicMock(id=uuid.uuid4()))
+        client = self._client_with_parents(
+            {"left": ["root"], "right": ["root"], "left-sub": ["left"]}
+        )
+
+        with patch.object(service, "_get_drive_client", return_value=client):
+            await service.link_folder(space_id, user_id, "right", "Right")
+
+        service.source_repo.create.assert_awaited_once()
+
     @pytest.mark.asyncio
     @patch("src.domains.rag_spaces.drive_sync.settings")
     async def test_link_folder_connector_not_active(

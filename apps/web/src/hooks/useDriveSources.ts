@@ -2,6 +2,7 @@
  * Hooks for Google Drive folder sync in RAG Spaces.
  *
  * - useDriveSources: mutations for linking, unlinking, and syncing Drive folders.
+ * - useDrivePreflight: the exact count a sync would index, asked before it starts.
  * - useDriveFolderBrowser: browsing Drive folders with breadcrumb navigation.
  *
  * Follows the useSpaces / useSpaceDocuments pattern: useApiMutation + apiClient.
@@ -15,7 +16,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useApiMutation } from './useApiMutation';
 import apiClient from '@/lib/api-client';
-import type { RAGDriveSource, DriveFolder, DriveFolderBrowseResponse } from '@/types/rag-spaces';
+import type {
+  RAGDrivePreflight,
+  RAGDriveSource,
+  DriveFolder,
+  DriveFolderBrowseResponse,
+} from '@/types/rag-spaces';
 
 /**
  * Hook for Drive source mutations (link, unlink, sync).
@@ -73,6 +79,21 @@ export function useDriveSources(spaceId: string) {
     unlinking: unlinkMutation.loading,
     syncing: syncMutation.loading,
   };
+}
+
+/**
+ * What a sync of one folder WOULD index — asked before the sync starts so
+ * the person confirms the exact count past the published threshold.
+ */
+export function useDrivePreflight(spaceId: string) {
+  const preflightFolder = useCallback(
+    (sourceId: string) =>
+      apiClient.get<RAGDrivePreflight>(
+        `/rag-spaces/${spaceId}/drive-sources/${sourceId}/preflight`
+      ),
+    [spaceId]
+  );
+  return { preflightFolder };
 }
 
 /** Breadcrumb entry for Drive folder navigation. */

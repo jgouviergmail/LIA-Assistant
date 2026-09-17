@@ -57,6 +57,7 @@ vi.mock('@/hooks/useDriveSources', () => ({
     linking: false,
     syncing: false,
   }),
+  useDrivePreflight: () => ({ preflightFolder: vi.fn() }),
   useDriveFolderBrowser: () => ({
     folders: [],
     files: [],
