@@ -14,6 +14,7 @@ import {
   DYNAMICS,
   DYNAMICS_FOR_EXPRESSION,
   FAMILY_DYNAMICS,
+  CHANNEL_LEAD_MS,
   GROUP_LEAD_MS,
   dynamicsFor,
   type DynamicsName,
@@ -99,5 +100,22 @@ describe('overlapping action and exaggeration tables', () => {
     expect(FAMILY_DYNAMICS.drowsy.amplitude).toBeLessThan(FAMILY_DYNAMICS.calm.amplitude);
     expect(FAMILY_DYNAMICS.drowsy.frequency).toBeLessThan(FAMILY_DYNAMICS.calm.frequency);
     expect(FAMILY_DYNAMICS.calm).toEqual({ frequency: 1, amplitude: 1 });
+  });
+});
+
+describe('the organs depart WITH the eyes', () => {
+  it('keeps every brow and mouth lead under a twentieth of a second', () => {
+    // Measured on the running widget (2026-09-17): at every expression
+    // change the mouth held its ground for 45 to 70 ms and the aura for
+    // 120 ms, then left at zero velocity — one organ after another, a
+    // diagram of a face changing rather than a face changing its mind. The
+    // order of departure (corners, then width, then curve) is kept; the
+    // dead time is not.
+    expect(GROUP_LEAD_MS.brow).toBe(0);
+    expect(GROUP_LEAD_MS.mouth).toBeLessThanOrEqual(30);
+    expect(CHANNEL_LEAD_MS.mouthCurve).toBeLessThanOrEqual(45);
+    expect(CHANNEL_LEAD_MS.mouthW).toBeLessThanOrEqual(25);
+    expect(CHANNEL_LEAD_MS.mouthCurve).toBeGreaterThan(CHANNEL_LEAD_MS.mouthW ?? 0);
+    expect(GROUP_LEAD_MS.aura).toBeLessThanOrEqual(100);
   });
 });

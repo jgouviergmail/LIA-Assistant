@@ -79,6 +79,22 @@ def _format_voice_audio_chunk(audio_chunk: Any) -> ChatStreamChunk:
     )
 
 
+def voice_preference_of(user_obj: UserProfile | None) -> bool:
+    """The account's spoken-replies preference, False without a profile.
+
+    ONE reading for its two consumers — every voice start point below and
+    the response node's HTML gate, which receives it through the runtime
+    context — so they cannot disagree on whether a voice listens.
+
+    Args:
+        user_obj: The user profile the stream loaded, or None.
+
+    Returns:
+        True when the account wants its replies spoken.
+    """
+    return user_obj is not None and bool(user_obj.voice_enabled)
+
+
 async def _should_start_voice(
     user_obj: UserProfile | None,
     has_listeners: ListenerProbe | None,
@@ -103,7 +119,7 @@ async def _should_start_voice(
     Returns:
         True when voice synthesis should start.
     """
-    if user_obj is None or not user_obj.voice_enabled:
+    if not voice_preference_of(user_obj):
         return False
     # An administrator can switch speech synthesis off instance-wide. Checked
     # HERE because spoken answers have no route of their own: they are

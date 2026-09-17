@@ -632,16 +632,19 @@ async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
         # crash stranded (stuck PROCESSING / orphaned PENDING). An immediate first
         # run at boot (on the elected leader) satisfies "recovery worker at
         # startup", then it runs periodically.
+        # The same tick also backfills the kept-answers projections (2026-09-16
+        # design, part A) — one job, one lock; the composition module keeps
+        # the reaper first and each half independently best-effort.
         if getattr(settings, "rag_spaces_enabled", False):
-            from src.domains.rag_spaces.reapers import rag_job_reaper
+            from src.infrastructure.scheduler.rag_maintenance import rag_maintenance_tick
 
             scheduler.add_job(
-                rag_job_reaper,
+                rag_maintenance_tick,
                 trigger="interval",
                 seconds=settings.rag_job_reaper_interval_seconds,
                 jitter=jitter_seconds_for(seconds=settings.rag_job_reaper_interval_seconds),
                 id=SCHEDULER_JOB_RAG_JOB_REAPER,
-                name="RAG durable-job recovery",
+                name="RAG durable-job recovery and kept-answers backfill",
                 replace_existing=True,
                 max_instances=1,
                 misfire_grace_time=60,

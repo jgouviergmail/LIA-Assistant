@@ -14,6 +14,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { ARRIVAL_SCRIPTS, resolvePatterns } from '@/components/eyes/rig/scripts';
+import { createLifeRandom } from '@/components/eyes/rig/life';
 import { createEyeRig, type EyeRig } from '@/components/eyes/rig/runtime';
 import { blinkTapes } from '@/components/eyes/rig/gestures';
 import { resolvePose } from '@/components/eyes/rig/poses';
@@ -125,43 +126,49 @@ describe('the search pattern', () => {
 });
 
 describe('the speech brows', () => {
+  // A chunk with several stresses — the draw is a third of the words, so a
+  // given seed may hold one; the generator's own suite measures the law.
+  const brows = () =>
+    resolvePatterns('speaking', createLifeRandom(1)).filter(tape =>
+      tape.channel.startsWith('brow')
+    );
+
   it('punctuate the speech: both brows, height and arch, the right one trailing', () => {
-    const tapes = resolvePatterns('speaking');
-    const channels = tapes.map(tape => tape.channel).sort();
+    const channels = brows()
+      .map(tape => tape.channel)
+      .sort();
     expect(channels).toEqual(['browArcL', 'browArcR', 'browYL', 'browYR']);
-    tapes.forEach(tape => expect(tape.relative).toBe(true));
-    const left = tapes.find(tape => tape.channel === 'browYL')!;
-    const right = tapes.find(tape => tape.channel === 'browYR')!;
+    brows().forEach(tape => expect(tape.relative).toBe(true));
+    const left = brows().find(tape => tape.channel === 'browYL')!;
+    const right = brows().find(tape => tape.channel === 'browYR')!;
     expect(right.keys[0].atMs).toBeGreaterThan(left.keys[0].atMs);
   });
 
   it('never fall on a beat: the raises are irregularly spaced', () => {
-    const left = resolvePatterns('speaking').find(tape => tape.channel === 'browYL')!;
+    const left = brows().find(tape => tape.channel === 'browYL')!;
     const raises = left.keys.filter(key => key.value < 0).map(key => key.atMs);
-    expect(raises.length).toBeGreaterThanOrEqual(3);
+    expect(raises.length).toBeGreaterThanOrEqual(2);
     const gaps = raises.slice(1).map((at, index) => at - raises[index]);
     expect(new Set(gaps).size).toBe(gaps.length);
   });
 
-  it('actually RAISE the brows several times per cycle, and hand them back between', () => {
+  it('actually RAISE the brows several times over a long answer, and hand them back between', () => {
     const rig = createEyeRig();
     rig.setPose({ expression: 'speaking', styleId: 'cozmo', family: 'calm' });
     const pose = resolvePose('speaking', 'cozmo').browYL;
-    // Past the arrival, one full cycle of the pattern.
     trace(rig, 'browYL', 60);
-    const cycle = trace(rig, 'browYL', 330);
-    // Count the distinct dips below the pose: a raise is negative travel.
+    const answer = trace(rig, 'browYL', 1250); // 20 s
     let raises = 0;
     let inRaise = false;
-    for (const value of cycle) {
+    for (const value of answer) {
       const raised = value < pose - 0.015;
       if (raised && !inRaise) raises += 1;
       inRaise = raised;
     }
     expect(raises).toBeGreaterThanOrEqual(3);
-    // ...and between two raises the brow rests near its pose (the breath
-    // aside — speaking does not breathe, so this is exact).
-    expect(cycle.some(value => Math.abs(value - pose) < 0.004)).toBe(true);
+    // ...and between two raises the brow rests near its pose (speaking does
+    // not breathe, so the only offsets are the smile coupling and the nods).
+    expect(answer.some(value => Math.abs(value - pose) < 0.01)).toBe(true);
   });
 
   it('are dropped the moment speaking ends', () => {

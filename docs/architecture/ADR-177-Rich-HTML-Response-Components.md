@@ -9,7 +9,9 @@
 Le mode d'affichage `html` (`User.response_display_mode`) fait produire au LLM une
 réponse `<div class="lia-response">` via la directive `html_response_directive.txt`,
 injectée sur les tours action (`_should_inject_html_directive` :
-`display_mode == "html" and route_to == "planner"`), rendue par le pipeline pinné
+`display_mode == "html" and route_to == "planner"` — élargie le 2026-09-17 aux
+tours conversationnels dès qu'aucune voix n'écoute, voir l'amendement), rendue
+par le pipeline pinné
 `[rehypeRaw, [rehypeSanitize, schema], rehypeMathInText, rehypeKatex]`.
 
 La directive n'exploitait qu'une fraction des capacités déjà en place : callouts
@@ -67,6 +69,54 @@ l'étendre — même par des tags inertes — est une décision à tracer.
   correct (ReactMarkdown) mais sans la mise en page `lia-response`. Comportement
   pré-existant à cette ADR, non aggravé par elle ; piste : renforcer l'autorité de
   la directive sur le chemin skill (hors périmètre ici).
+
+## Amendement 2026-09-17 — la directive suit l'écoute, pas le type de tour
+
+La garde `route_to == "planner"` avait été posée pour la voix : sans tour
+planificateur, la réponse du chat est lue telle quelle par la synthèse vocale
+progressive, et du HTML y ferait lire des balises. Mais elle ne lisait pas la
+préférence vocale : un compte en mode `html` dont la voix est désactivée
+recevait du Markdown sur chaque tour conversationnel (mesuré sur une instance
+de dev : 30 % des tours d'une semaine), sans qu'aucune voix n'écoute jamais.
+
+La garde devient `display_mode == "html" and (route_to == "planner" or not
+voice_enabled)` : la directive n'est retenue que là où une voix lirait du
+balisage — un tour conversationnel d'un compte dont les réponses parlées sont
+actives. La préférence est celle que lit le coordinateur vocal pour démarrer
+la synthèse progressive (`users.voice_enabled`, lue sur le profil chargé par
+le flux), portée par le contexte d'exécution typé (`LiaRuntimeContext.voice_enabled`,
+accesseur `runtime_voice_enabled`, ADR-231) : la garde d'affichage et le
+déclencheur vocal lisent le même drapeau et ne peuvent pas diverger. Un tour
+action reste en HTML quelle que soit la préférence, comme avant. Coût : la
+directive (~1 500 jetons) est désormais payée sur les tours conversationnels
+des comptes `html` sans voix — le choix explicite de ce mode.
+
+## Amendement 2026-09-17 (b) — le mode HTML est une page composée, pas une prose balisée
+
+Constat propriétaire, capture à l'appui : en mode `html`, des réponses outillées (agenda,
+météo) rendues en `<p>` + `dl.lia-kv` seulement — un rendu « quasi identique au Markdown ».
+Mesuré sur une instance de dev : 5 réponses HTML du jour, 0 callout, 0 stats, 0 chip, 0 `<h2>`,
+4 `lia-kv` ; sur la production, 41 réponses HTML en 14 jours portaient 46 callouts, 34 tuiles,
+19 chips. Deux causes, toutes deux dans la directive : l'heuristique 1 (« au plus 2-3
+composants ; une réponse concise est un `<p>` sans widget ») autorisait la sobriété sur
+toute réponse, et rien n'interdisait au modèle d'imiter la forme des réponses précédentes
+de la conversation — mesuré : après une première réponse en `lia-kv`, les suivantes
+reprennent `lia-kv` là où une conversation vierge donnait tuiles et colonnes.
+
+**Quand une personne choisit le HTML, elle demande une mise en page soignée** : la
+directive impose désormais une page COMPOSÉE pour toute réponse porteuse de données —
+un `<p>` d'accroche avec le fait clé en `<strong>`, une section par facette (`<h2>` dès
+deux facettes) chacune dans le composant qui lui va (chiffres → tuiles, statuts → chips,
+métadonnées → `lia-kv` dans sa section jamais en corps entier, procédure → étapes,
+comparaison → colonnes ou table), et un callout de clôture dès qu'il y a conseil, réserve
+ou suite ; seule une salutation, une réponse d'une phrase ou une question en retour reste
+un `<p>`. Une nouvelle heuristique 3 fixe que la forme suit LES DONNÉES de la réponse et
+jamais la forme des réponses précédentes. L'exemple canonique est réécrit comme une page
+composée. Le budget de lignes (≤ 96, `test_html_directive_css_sync.py`) et la garde
+directive↔CSS tiennent. Mesuré après (instance de dev, compte de preuve, conversation
+vierge puis suite salutation → fiche → météo → chiffres, en pipeline comme en ReAct) :
+chaque réponse à données porte `<h2>` + callout + tuiles ou chips, la salutation reste un
+`<p>`. Coût : la directive passe de 74 à 80 lignes (~+150 jetons par tour `html`).
 
 ## Alternatives considérées
 

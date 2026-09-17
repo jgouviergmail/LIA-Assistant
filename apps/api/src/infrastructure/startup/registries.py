@@ -21,6 +21,7 @@ from src.core.bootstrap import (
     validate_tool_error_codes,
 )
 from src.core.config import settings
+from src.infrastructure.startup.errors import StartupCompletenessError
 
 logger = structlog.get_logger(__name__)
 
@@ -214,6 +215,48 @@ def _install_consultation_sink() -> None:
             "the consultation register did not claim its seam: every "
             "out-of-turn consultation would be dropped silently"
         )
+
+
+def _install_portrait_sources() -> None:
+    """Wire the four portrait sources into their seam, and prove it (part B).
+
+    Each source installs itself at import (``<domain>/portrait_source.py``);
+    the boot IMPORTS the four explicitly so the installation is a declaration,
+    never a side effect somebody reorders away (ADR-270), then refuses a
+    registry that does not offer every declared source — a portrait blind to a
+    record the person keeps is the class of defect ADR-280 measured.
+
+    Raises:
+        StartupCompletenessError: When a declared source has no reader.
+    """
+    from src.domains.habits import portrait_source as habits_source
+    from src.domains.interests import portrait_source as interests_source
+    from src.domains.memories import portrait_source as memories_source
+    from src.domains.relations.debrief import portrait_source as debriefs_source
+    from src.domains.shared.portrait_sources import (
+        assert_portrait_sources_complete,
+        install_portrait_source,
+    )
+
+    # The step INSTALLS: an import runs its side effect once per process, so a
+    # module already imported wires nothing and the check below would refuse a
+    # seam that was never claimed rather than claiming it.
+    install_portrait_source(
+        memories_source.KEY, memories_source.read_memories, memories_source.FRESHNESS
+    )
+    install_portrait_source(
+        interests_source.KEY, interests_source.read_interests, interests_source.FRESHNESS
+    )
+    install_portrait_source(habits_source.KEY, habits_source.read_habits, habits_source.FRESHNESS)
+    install_portrait_source(
+        debriefs_source.KEY, debriefs_source.read_relation_debriefs, debriefs_source.FRESHNESS
+    )
+
+    try:
+        assert_portrait_sources_complete()
+    except RuntimeError as exc:
+        logger.error("portrait_sources_incomplete", error=str(exc), exc_info=True)
+        raise StartupCompletenessError(str(exc)) from exc
 
 
 def _validate_diagnostics_registries() -> None:
@@ -449,6 +492,7 @@ def run_failfast_validations() -> None:
     _install_consultation_sink()
     _install_proactive_notifier()
     _install_ticket_releaser()
+    _install_portrait_sources()
 
     # Enforce the PostgreSQL connection budget (F004): fail-fast in production,
     # warn in development. The shipped prod profile fits (168 ≤ 195 usable), so an

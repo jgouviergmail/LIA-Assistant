@@ -96,8 +96,9 @@
   --lid-r: var(--rig-lid-r-l, 0em);
   --blink: var(--rig-blink-l, 0);
   --brow-y: var(--rig-brow-y-l, 0em);
+  --brow-x: var(--rig-brow-x-l, 0em);
   --brow-rot: var(--rig-brow-rot-l, 0deg);
-  --brow-a: var(--rig-brow-a-l, 0.5);
+  --brow-s: var(--rig-brow-s-l, 1);
   --brow-arc: var(--rig-brow-arc-l, 0.12);
   --pupil: var(--rig-pupil-l, 1);
   --r-top: var(--rig-r-top-l, 0.28em);
@@ -119,8 +120,9 @@
   --lid-r: var(--rig-lid-r-r, 0em);
   --blink: var(--rig-blink-r, 0);
   --brow-y: var(--rig-brow-y-r, 0em);
+  --brow-x: var(--rig-brow-x-r, 0em);
   --brow-rot: var(--rig-brow-rot-r, 0deg);
-  --brow-a: var(--rig-brow-a-r, 0.5);
+  --brow-s: var(--rig-brow-s-r, 1);
   --brow-arc: var(--rig-brow-arc-r, 0.12);
   --pupil: var(--rig-pupil-r, 1);
   --r-top: var(--rig-r-top-r, 0.28em);
@@ -251,8 +253,9 @@
   width: calc(var(--mouth-span) * var(--rig-mouth-w, 0.72));
   height: 0;
   /* The jaw drops with the opening: a mouth that opens without moving
-     down is a hole appearing in a face. */
-  translate: -50%
+     down is a hole appearing in a face. The slide sends the whole mouth to
+     one side — a word out of one corner, lips pursed toward a thought. */
+  translate: calc(-50% + var(--rig-mouth-x, 0em))
     calc(
       var(--mouth-gap) + var(--rig-mouth-y, 0em) + var(--rig-mass-y, 0em) +
         var(--rig-mouth-open, 0) * 0.06em
@@ -260,7 +263,9 @@
   transform: translateX(var(--rig-mass-x, 0em)) rotate(var(--rig-tilt, 0deg))
     scale(var(--rig-mass, 1));
   transform-origin: 50% -0.9em;
-  opacity: calc(var(--rig-mouth-a, 0.5) * var(--has-mouth));
+  /* Drawn in full, always: a mouth that faded in and out for every scene
+     read as an interface element switching on (measured 2026-09-17). */
+  opacity: var(--has-mouth);
   pointer-events: none;
 }
 
@@ -371,11 +376,19 @@
 }
 
 /* The BROW — an organ, not a decoration.
-   Faintly present on a neutral face (`browA` rests at 0.5) and committed the
-   moment it has something to say: a brow that only appears with an emotion
-   has nothing to do between two of them, and it fades in instead of moving.
-   It sits OUTSIDE the lid layer: a brow is above the lid, and a blink must
-   not clip it.
+   Drawn in full, always: it had a half presence and an ink that rose for
+   every scene until 2026-09-17, and on the running widget that ink switched
+   on twenty-seven times in five minutes and read as an interface element,
+   never as a face. It sits OUTSIDE the lid layer: a brow is above the lid,
+   and a blink must not clip it.
+
+   It sits ON THE EYE. Its `top` is the visible top edge of the shape below
+   it — scaled by `--sy` around its `--oy` anchor, then clipped by the
+   sustained lid — so a joy dome squashed to half its height brings the brow
+   down with it instead of leaving it floating a third of an eye above
+   (measured on the widget before this rule), and a widened startled eye
+   pushes it up. `--brow-x` slides it sideways: the two brows knit at the
+   nose for a scowl and spread for a startle.
 
    It is a CURVED BAND, drawn the way the mouth is: one element, a border
    and no fill. The rig's `browArc` is a unitless curvature — at 0 the box is
@@ -383,28 +396,33 @@
    arc grows the box rises, the top corners round into a semi-ellipse and
    the top border becomes an arch, while thin side borders keep its legs from
    tapering to nothing. Bounded here because the rig may push an arc past 1
-   (exaggeration) or under 0 (anticipation), and a radius can be neither. */
+   (exaggeration) or under 0 (anticipation), and a radius can be neither.
+   `--brow-s` is its WEIGHT, derived by the rig from its own motion: raised,
+   the band thins and lengthens; pressed, it thickens and shortens — at
+   constant ink, so a thin brow is a long one. */
 .lia-eye-brow {
   --brow-curve: min(1, max(0, var(--brow-arc)));
+  --brow-ink: calc(0.13em * var(--brow-s));
   position: absolute;
-  bottom: 100%;
+  top: calc(var(--oy) * (1 - var(--sy)) + var(--lid-top) * var(--sy));
   left: 50%;
   box-sizing: border-box;
-  width: calc(var(--eye-w, 1.3em) * 0.72);
-  height: calc(0.13em + var(--brow-curve) * 0.14em);
+  width: calc(var(--eye-w, 1.3em) * 0.72 / var(--brow-s));
+  height: calc(0.13em * var(--brow-s) + var(--brow-curve) * 0.14em);
   background: transparent;
   border: 0 solid var(--eyes-color);
-  border-top-width: 0.13em;
+  border-top-width: calc(0.13em * var(--brow-s));
   border-left-width: calc(var(--brow-curve) * 0.06em);
   border-right-width: calc(var(--brow-curve) * 0.06em);
-  border-radius: calc(0.065em + var(--brow-curve) * (50% - 0.065em))
-    calc(0.065em + var(--brow-curve) * (50% - 0.065em)) calc((1 - var(--brow-curve)) * 0.065em)
-    calc((1 - var(--brow-curve)) * 0.065em) / calc(50% + var(--brow-curve) * 50%)
+  border-radius: calc(var(--brow-ink) / 2 + var(--brow-curve) * (50% - var(--brow-ink) / 2))
+    calc(var(--brow-ink) / 2 + var(--brow-curve) * (50% - var(--brow-ink) / 2))
+    calc((1 - var(--brow-curve)) * var(--brow-ink) / 2)
+    calc((1 - var(--brow-curve)) * var(--brow-ink) / 2) / calc(50% + var(--brow-curve) * 50%)
     calc(50% + var(--brow-curve) * 50%) calc(50% - var(--brow-curve) * 50%)
     calc(50% - var(--brow-curve) * 50%);
-  translate: -50% calc(-0.06em + var(--brow-y));
+  translate: calc(-50% + var(--brow-x)) calc(-100% - 0.06em + var(--brow-y));
   rotate: var(--brow-rot);
-  opacity: calc(var(--brow-a) * var(--has-brow));
+  opacity: var(--has-brow);
   /* A raised brow reaches ABOVE the widget box, into the band the
      toolbar occupies. Decorative overlays never take a pointer: the
      drag surface and the toolbar buttons keep the whole area. */
@@ -451,18 +469,18 @@
    the middle of its expression.
 
    Every length below is in the emote's OWN em (font-size: 0.6em), so
-   `margin-bottom: 1.25em` is 0.75em of the widget — above what the highest
-   brow reaches at its most exaggerated, arch included (the guard computes
-   it from this sheet and the pose table). The tail is a rotated square: two
-   of its borders draw the point, and its opaque fill hides the bubble's own
-   border where the two meet.
+   `margin-bottom: 1.5em` is 0.9em of the widget — above what the highest
+   brow reaches at its most exaggerated, arch, weight and the lift of a
+   widened eye included (the guard computes it from this sheet and the pose
+   table). The tail is a rotated square: two of its borders draw the point,
+   and its opaque fill hides the bubble's own border where the two meet.
    ============================================================================= */
 
 .lia-emote {
   position: absolute;
   bottom: 100%;
   left: 50%;
-  margin-bottom: 1.25em;
+  margin-bottom: 1.5em;
   translate: -50% 0;
   display: flex;
   align-items: center;

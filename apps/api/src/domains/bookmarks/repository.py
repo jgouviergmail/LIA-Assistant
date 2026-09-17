@@ -8,17 +8,19 @@ answer is the person's last visible words, never a run's synthetic question.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import delete, select
+from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.repository import BaseRepository
-from src.domains.bookmarks.models import MessageBookmark
+from src.domains.bookmarks.models import BookmarkIndexState, MessageBookmark
 from src.domains.bookmarks.queries import BookmarkFilters, build_bookmarks_statement
 from src.domains.conversations.message_reads import visible_only
 from src.domains.conversations.models import Conversation, ConversationMessage
+from src.domains.rag_spaces.models import RAGDocument
 
 
 class BookmarkRepository(BaseRepository[MessageBookmark]):
@@ -185,19 +187,137 @@ class BookmarkRepository(BaseRepository[MessageBookmark]):
             message_id: bookmark_id for message_id, bookmark_id in rows if message_id is not None
         }
 
-    async def delete_by_message(self, user_id: UUID, message_id: UUID) -> bool:
-        """Remove the bookmark taken from one message.
+    # ------------------------------------------------------------------
+    # Knowledge-space projection (2026-09-16 design, part A)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _stale_pending_before(grace_seconds: int) -> datetime:
+        """The instant before which a ``pending`` claim is a dead one."""
+        return datetime.now(UTC) - timedelta(seconds=grace_seconds)
+
+    async def claim_for_projection(self, bookmark_id: UUID, *, grace_seconds: int) -> bool:
+        """Take the right to project one bookmark — ONE conditional UPDATE.
+
+        A click schedules a projection and the sweep may select the same row
+        before the click's projection created its document; without a claim
+        both would, and one document would be orphaned. The claim succeeds
+        when the bookmark has no document AND is not being projected by a
+        LIVE holder: a ``pending`` older than ``grace_seconds`` is a crashed
+        claim and may be taken over.
 
         Args:
-            user_id: The caller.
-            message_id: The archived message.
+            bookmark_id: The bookmark.
+            grace_seconds: How long a ``pending`` claim is trusted.
 
         Returns:
-            True when a row went, False when there was none — the bubble's
-            second click reports what actually happened.
+            True when this caller now holds the projection.
         """
-        statement = delete(MessageBookmark).where(
-            MessageBookmark.user_id == user_id, MessageBookmark.message_id == message_id
+        statement = (
+            update(MessageBookmark)
+            .where(
+                MessageBookmark.id == bookmark_id,
+                MessageBookmark.rag_document_id.is_(None),
+                or_(
+                    MessageBookmark.index_state.is_(None),
+                    MessageBookmark.index_state != BookmarkIndexState.PENDING.value,
+                    MessageBookmark.updated_at < self._stale_pending_before(grace_seconds),
+                ),
+            )
+            .values(index_state=BookmarkIndexState.PENDING.value, updated_at=datetime.now(UTC))
         )
         result = await self.db.execute(statement)
         return bool(getattr(result, "rowcount", 0))
+
+    async def set_index_state(
+        self,
+        bookmark_id: UUID,
+        *,
+        state: str,
+        rag_document_id: UUID | None = None,
+        indexed_at: datetime | None = None,
+    ) -> int:
+        """Write the projection's state (and, when given, its document link).
+
+        ``rag_document_id`` is written only when passed: the settle after
+        processing must not clear the link the projection wrote.
+
+        Args:
+            bookmark_id: The bookmark.
+            state: A ``BookmarkIndexState`` value.
+            rag_document_id: The document, when the projection created one.
+            indexed_at: When READY was reached, on success.
+
+        Returns:
+            The rows written — 0 when the bookmark no longer exists, which the
+            projection reads as « take the document back ».
+        """
+        values: dict[str, object] = {
+            "index_state": state,
+            "indexed_at": indexed_at,
+            "updated_at": datetime.now(UTC),
+        }
+        if rag_document_id is not None:
+            values["rag_document_id"] = rag_document_id
+        result = await self.db.execute(
+            update(MessageBookmark).where(MessageBookmark.id == bookmark_id).values(**values)
+        )
+        return int(getattr(result, "rowcount", 0) or 0)
+
+    async def unprojected_ids(self, *, limit: int, grace_seconds: int) -> list[UUID]:
+        """Bookmarks with no projection the sweep may (re)attempt, least recently attempted first.
+
+        Never attempted, ``deferred``, ``disabled``, ``indexed`` with the
+        document gone (a ``SET NULL`` nobody foresaw is re-projected rather
+        than trusted), or a ``pending`` older than ``grace_seconds`` (a crashed
+        claim). ``error`` is NOT retried: the pipeline dead-lettered it and the
+        state is shown honestly; keeping the answer again re-projects it.
+
+        Args:
+            limit: Batch bound.
+            grace_seconds: How long a ``pending`` claim is trusted.
+
+        The order is ``updated_at`` — every write of a state stamps it — so a
+        refused attempt goes to the BACK of the queue and a row never
+        attempted is served before any row is retried: ordered by creation,
+        one account under quota would fill every batch with its oldest
+        ``deferred`` rows for as long as the quota held.
+
+        Returns:
+            The ids, least recently attempted first.
+        """
+        retriable = (
+            BookmarkIndexState.DEFERRED.value,
+            BookmarkIndexState.DISABLED.value,
+            BookmarkIndexState.INDEXED.value,
+        )
+        statement = (
+            select(MessageBookmark.id)
+            .where(
+                MessageBookmark.rag_document_id.is_(None),
+                or_(
+                    MessageBookmark.index_state.is_(None),
+                    MessageBookmark.index_state.in_(retriable),
+                    (MessageBookmark.index_state == BookmarkIndexState.PENDING.value)
+                    & (MessageBookmark.updated_at < self._stale_pending_before(grace_seconds)),
+                ),
+            )
+            .order_by(MessageBookmark.updated_at.asc(), MessageBookmark.id.asc())
+            .limit(limit)
+        )
+        return list((await self.db.execute(statement)).scalars().all())
+
+    async def documents_of(self, bookmarks: Iterable[MessageBookmark]) -> dict[UUID, RAGDocument]:
+        """The projection rows of a page, in ONE query — ``document_id → row``.
+
+        Args:
+            bookmarks: The page.
+
+        Returns:
+            The documents still linked, keyed by their id.
+        """
+        ids = [row.rag_document_id for row in bookmarks if row.rag_document_id is not None]
+        if not ids:
+            return {}
+        rows = (await self.db.execute(select(RAGDocument).where(RAGDocument.id.in_(ids)))).scalars()
+        return {document.id: document for document in rows}

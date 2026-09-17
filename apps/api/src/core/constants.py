@@ -4677,6 +4677,9 @@ RAG_MAIL_MAX_THREADS_PER_SYNC = 200
 RAG_MAIL_MAX_THREAD_CHARS = 60000
 RAG_MAIL_DOCUMENT_CONTENT_TYPE = "text/markdown"
 RAG_MAIL_DOCUMENT_EXTENSION = ".md"
+#: Longest display name a synced or projected document keeps (one cap for every
+#: name a third party or a person wrote — ``rag_spaces/document_names.py``).
+RAG_DOCUMENT_NAME_MAX_CHARS: int = 200
 RAG_MAIL_HISTORY_TYPES: tuple[str, ...] = ("messageAdded", "labelAdded", "labelRemoved")
 RAG_DRIVE_MAX_FILES_PER_SYNC = 500
 
@@ -5185,6 +5188,17 @@ ADAPTIVE_THRESHOLD_STATE_TTL_DAYS_DEFAULT = 90
 JOURNAL_CONSOLIDATION_MIN_ENTRIES_DEFAULT = 1
 JOURNAL_CONSOLIDATION_HISTORY_MAX_MESSAGES_DEFAULT = 20
 JOURNAL_CONSOLIDATION_HISTORY_MAX_DAYS_DEFAULT = 7
+
+# The portrait's budgets and the four sources it reads (2026-09-16 design,
+# part B). The budgets used to be prose in the prompt (« ~150-220 tokens »):
+# a number a prompt states is a number settings own (ADR-184).
+JOURNAL_PORTRAIT_FULL_MAX_TOKENS_DEFAULT = 300
+JOURNAL_PORTRAIT_BRIEF_MAX_TOKENS_DEFAULT = 70
+JOURNAL_CONSOLIDATION_MEMORIES_MAX_DEFAULT = 40
+JOURNAL_CONSOLIDATION_INTERESTS_MAX_DEFAULT = 30
+JOURNAL_CONSOLIDATION_DEBRIEFS_MAX_DEFAULT = 10
+JOURNAL_CONSOLIDATION_SOURCE_ITEM_MAX_CHARS_DEFAULT = 200
+JOURNAL_CONSOLIDATION_SOURCES_MAX_CHARS_DEFAULT = 12000
 
 # Size defaults (user-configurable)
 JOURNAL_MAX_TOTAL_CHARS_DEFAULT = 40000  # ~10k tokens total budget
@@ -5725,6 +5739,18 @@ REACT_TOOL_BUDGET_SECONDS_DEFAULT: int = 900
 REACT_REPEATED_CALL_BLOCK_THRESHOLD_DEFAULT: int = 4
 REACT_REPEATED_CALL_TERMINAL_THRESHOLD_DEFAULT: int = 5
 REACT_AGENT_MAX_TOOLS_DEFAULT: int = 100
+# How far down the turn's GLOBAL relevance order the ReAct loop binds, beside
+# the detected domains' tools and the coverage of every tool family (ADR-293).
+# About a third of a full catalogue: a tool the router's domains missed is
+# still reachable, and the schemas stay a fraction of the prefix they were.
+# 0 switches relevance off (every available tool, registration order, the
+# cap alone).
+REACT_TOOL_SEMANTIC_TOP_K_DEFAULT: int = 40
+# Tools kept per family (agent) so that every family stays REACHABLE: the
+# planner catalogue protects this many per detected domain, the ReAct loop
+# this many per family outside the detected domains (ADR-293). Two, so a
+# family keeps an alternative to its best-scored tool.
+CATALOGUE_DOMAIN_COVERAGE_TOP_N: int = 2
 REACT_AGENT_HISTORY_WINDOW_TURNS_DEFAULT: int = 5
 # Expand iterative user MCP servers into their individual tools in ReAct mode
 # (ADR-070 amendment). Default True = validated behaviour; set False to fall back
@@ -6181,6 +6207,19 @@ BOOKMARKS_MAX_PER_USER_DEFAULT: int = 500
 BOOKMARKS_PAGE_MIN_LIMIT: int = 1
 BOOKMARKS_PAGE_MAX_LIMIT: int = 100
 BOOKMARKS_PAGE_DEFAULT_LIMIT: int = 24
+
+#: ``rag_spaces.kind`` of the per-account « Kept answers » knowledge space every
+#: bookmark is projected into (part A of the 2026-09-16 design; the meetings
+#: precedent is ``MEETINGS_SPACE_KIND``). Found by ROLE, never by name.
+BOOKMARKS_SPACE_KIND: str = "bookmarks"
+#: The projection is Markdown whatever the answer's own form (an HTML
+#: ``lia-response`` document is converted by the pipeline's own extractor).
+BOOKMARKS_DOCUMENT_CONTENT_TYPE: str = "text/markdown"
+BOOKMARKS_DOCUMENT_EXTENSION: str = ".md"
+#: How much of the request is quoted in the document's display name — a
+#: person's words travel into headers and archives, so the name is bounded and
+#: sanitised like a mail subject (ADR-262).
+BOOKMARKS_DOCUMENT_NAME_EXCERPT_CHARS: int = 60
 
 # =============================================================================
 # Proactive notifications archived in the conversation

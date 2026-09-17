@@ -196,11 +196,13 @@ def test_deriving_a_sub_thread_keeps_the_conversation() -> None:
 
 @pytest.mark.unit
 def test_the_context_carries_every_value_the_chokepoint_builds() -> None:
-    """Completeness against the 17 keys of the configurable bag it replaces.
+    """Completeness against the keys of the configurable bag it replaced.
 
     Doctrine ADR-085: a mapping that can silently lose an entry gets an assert. If
     a key is added to the chokepoint without a field here, the migration would
-    drop it — exactly the class of defect this work removes.
+    drop it — exactly the class of defect this work removes. The 17 keys of the
+    bag, plus the preferences carried since (``voice_enabled``: the response
+    node's HTML gate reads it beside the display mode).
     """
     names = {f.name for f in dataclasses.fields(LiaRuntimeContext)}
     expected = {
@@ -211,6 +213,7 @@ def test_the_context_carries_every_value_the_chokepoint_builds() -> None:
         "memory_enabled",
         "journals_enabled",
         "psyche_enabled",
+        "voice_enabled",
         "display_mode",
         "execution_mode",
         "is_automated_source",
@@ -227,3 +230,30 @@ def test_the_context_carries_every_value_the_chokepoint_builds() -> None:
         "the context drifted from the chokepoint it replaces.\n"
         f"missing: {sorted(expected - names)}\nunexpected: {sorted(names - expected)}"
     )
+
+
+@pytest.mark.unit
+def test_the_builder_carries_the_voice_preference() -> None:
+    """The response node's HTML gate reads it: a preference the builder dropped
+    would let a conversational reply reach a listening voice as markup."""
+    from src.domains.agents.context.runtime_context_builder import build_runtime_context
+
+    state = {"messages": []}
+    user_id, conversation_id = uuid.uuid4(), uuid.uuid4()
+    with_voice = build_runtime_context(
+        state=state, user_id=user_id, conversation_id=conversation_id, user_voice_enabled=True
+    )
+    assert with_voice.voice_enabled is True
+    without = build_runtime_context(state=state, user_id=user_id, conversation_id=conversation_id)
+    assert without.voice_enabled is False
+
+
+@pytest.mark.unit
+def test_runtime_voice_enabled_reads_the_installed_context() -> None:
+    from src.domains.agents.context.runtime_context import runtime_voice_enabled
+    from tests.helpers.runtime_context import installed_runtime_context
+
+    assert runtime_voice_enabled() is False
+    with installed_runtime_context(voice_enabled=True):
+        assert runtime_voice_enabled() is True
+    assert runtime_voice_enabled() is False

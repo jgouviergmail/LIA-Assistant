@@ -277,6 +277,7 @@ from src.core.constants import (
     REACT_TOOL_BUDGET_SECONDS_DEFAULT,
     REACT_TOOL_RESULT_MAX_TOKENS_DEFAULT,
     REACT_TOOL_RESULT_WINDOW_FRACTION_DEFAULT,
+    REACT_TOOL_SEMANTIC_TOP_K_DEFAULT,
     RECENT_ENTITIES_MAX_TURN_AGE_DEFAULT,
     REGISTRY_MAX_ITEMS_DEFAULT,
     RESPONSE_CONTEXT_PREFETCH_AT_ROUTER_ENABLED_DEFAULT,
@@ -765,6 +766,16 @@ class AgentsSettings(BaseSettings):
         ge=5,
         le=200,
         description="Maximum number of tools provided to the ReAct agent per request.",
+    )
+    react_tool_semantic_top_k: int = Field(
+        default=REACT_TOOL_SEMANTIC_TOP_K_DEFAULT,
+        ge=0,
+        le=200,
+        description=(
+            "Tools of the turn's global relevance order bound to the ReAct loop, beside "
+            "the detected domains' tools and every family's coverage (ADR-293); 0 disables the "
+            "relevance selection (every available tool, the cap alone)."
+        ),
     )
     react_agent_history_window_turns: int = Field(
         default=REACT_AGENT_HISTORY_WINDOW_TURNS_DEFAULT,

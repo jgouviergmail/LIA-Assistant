@@ -48,6 +48,26 @@ class TestEligibilityQueryShape:
         sql = _sql()
         assert "journal_entries.status = " in sql
 
+    def test_a_fresh_source_row_is_work_even_with_no_entry(self) -> None:
+        """Part B: a memory, an interest, a habit or a debrief touched since the
+        stamp makes the account eligible — the entries are OUTER-joined so an
+        account with no entry but fresh sources still compiles a portrait."""
+        import src.domains.habits.portrait_source  # noqa: F401 — installs the probe
+        import src.domains.interests.portrait_source  # noqa: F401
+        import src.domains.memories.portrait_source  # noqa: F401
+        import src.domains.relations.debrief.portrait_source  # noqa: F401
+
+        sql = _sql()
+        assert "LEFT OUTER JOIN" in sql
+        for table, stamp in (
+            ("memories", "updated_at"),
+            ("user_interests", "updated_at"),
+            ("user_habits", "updated_at"),
+            ("relation_debriefs", "generated_at"),
+        ):
+            assert f"FROM {table}" in sql, table
+            assert f"{table}.{stamp} > users.journal_last_consolidated_at" in sql, table
+
     def test_min_entries_default_no_longer_starves_two_entry_users(self) -> None:
         """The default floor must be reachable by a post-prune journal.
 

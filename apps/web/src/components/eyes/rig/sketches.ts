@@ -13,7 +13,7 @@
  * Mechanically a sketch is one thing: a set of tapes whose keys span the
  * whole scene, on every channel the rig owns — the gaze (absolute: the
  * scene decides where the eyes look), the blinks, the eye shapes, the mass
- * and the head, the brows, the mouth and the ink. The rig plays them
+ * and the head, the brows and the mouth. The rig plays them
  * together, one-shot beats (a spontaneous blink, a host gesture) still win
  * over them, and the scene is DROPPED the moment the expression changes: a
  * sketch never plays over a reaction, a search or a speech. Every relative
@@ -38,10 +38,80 @@ export const SKETCH_EXPRESSIONS: ReadonlySet<EyeExpression> = new Set([
   'tired',
 ]);
 
-/** Pause between two sketches, uniformly drawn. Far apart on purpose: a
- * scene every minute or two is an event, every twenty seconds a routine. */
+/**
+ * Pause between two sketches, in RESTING time, uniformly drawn. Far apart on
+ * purpose: a scene every minute or two is an event, every twenty seconds a
+ * routine.
+ *
+ * Resting time, not wall-clock time (2026-09-17, owner: "I have never seen
+ * them"). Measured on the running widget, the mechanism played — six scenes
+ * in ten simulated minutes, three in five real ones — and nobody saw one,
+ * for two reasons this clock closes. The wait used to run on the rig's own
+ * clock whatever the face was doing, so a draw that fell during a thought,
+ * a reply or a reaction was simply lost and the next one pushed a minute
+ * or two further; and it started over at every mount, while the widget is
+ * unmounted by every page navigation. The clock below counts only the time
+ * the face is actually resting and is HANDED to the rig by the host, which
+ * keeps it for the life of the document.
+ */
 export const SKETCH_MIN_DELAY_MS = 45_000;
 export const SKETCH_MAX_DELAY_MS = 120_000;
+
+/** The FIRST scene of a session waits less: it is what proves there is a
+ * character behind the face. Still never on the first look at it. */
+export const SKETCH_FIRST_MIN_DELAY_MS = 20_000;
+export const SKETCH_FIRST_MAX_DELAY_MS = 40_000;
+
+/** How many of the last scenes are never drawn again right away — with ten
+ * in the catalogue, the same sneeze twice in a row is the whole thing read
+ * as a loop. */
+export const SKETCH_HISTORY = 3;
+
+/**
+ * How far the HEAD follows the gaze in a scene, in em per gaze unit.
+ *
+ * The eyes alone travel 0.14 em per unit — six pixels at the large size —
+ * and a scene that lived in the gaze (the fly, the dizzy roll, the groove)
+ * read as one more idle glance. The whole face turning after the eyes, on
+ * its own slower spring, is what makes it a scene.
+ */
+export const HEAD_FOLLOW_X_EM = 0.08;
+export const HEAD_FOLLOW_Y_EM = 0.06;
+
+/**
+ * The sketch clock — what the host keeps between two mounts of the face.
+ *
+ * Mutated in place by the rig it is handed to: the host holds one for the
+ * document and passes it to every living face it mounts, so a navigation
+ * that unmounts the widget never restarts the wait. A rig handed none keeps
+ * a private one, which is exactly as still as the previous behaviour.
+ */
+export interface SketchClock {
+  /** Resting time accumulated toward the next scene, in ms. */
+  restedMs: number;
+  /** Resting time the next scene waits for; 0 means not armed yet. */
+  dueMs: number;
+  /** Scenes played on this clock — the first one waits less. */
+  played: number;
+  /** The last few scenes, never drawn again right away. */
+  recent: SketchName[];
+}
+
+export function createSketchClock(): SketchClock {
+  return { restedMs: 0, dueMs: 0, played: 0, recent: [] };
+}
+
+/** Arm the clock for its next scene: the first waits less than the rest. */
+export function armSketchClock(clock: SketchClock, random: () => number): void {
+  clock.restedMs = 0;
+  clock.dueMs = clock.played === 0 ? drawFirstSketchDelayMs(random) : drawSketchDelayMs(random);
+}
+
+/** Record a scene on the clock: played once more, remembered for a while. */
+export function recordSketch(clock: SketchClock, name: SketchName): void {
+  clock.played += 1;
+  clock.recent = [...clock.recent, name].slice(-SKETCH_HISTORY);
+}
 
 /** A sketch lasts between three and five seconds — a piece, not a beat. */
 export const SKETCH_MIN_MS = 3000;
@@ -63,14 +133,22 @@ const HEAVY: SpringConfig = { frequency: 1.5, damping: 1 };
 const LID: SpringConfig = { frequency: 6.2, damping: 0.72 };
 const SLOW_LID: SpringConfig = { frequency: 2.2, damping: 0.9 };
 
+/** The gaze keys scaled into head travel — same instants, smaller values. */
+function headKeys(keys: Keys, emPerUnit: number): Keys {
+  return keys.map(([atMs, value]) => [atMs, value * emPerUnit + 0] as const);
+}
+
 /** Where the eyes LOOK: absolute gaze keys, with the catch-lights sent the
- * same way (they chase the gaze on their own slow spring). */
+ * same way (they chase the gaze on their own slow spring) and the HEAD
+ * turning after them on an eased spring (see `HEAD_FOLLOW_X_EM`). */
 function look(x: Keys, y: Keys, durationMs: number, spring: SpringConfig = SACCADE): Tape[] {
   return [
     absolute('gazeX', x, durationMs, spring),
     absolute('gazeY', y, durationMs, spring),
     absolute('hlX', x, durationMs),
     absolute('hlY', y, durationMs),
+    absolute('massX', headKeys(x, HEAD_FOLLOW_X_EM), durationMs, EASE),
+    absolute('massY', headKeys(y, HEAD_FOLLOW_Y_EM), durationMs, EASE),
   ];
 }
 
@@ -89,15 +167,6 @@ function blinkAt(atMs: number, holdMs = 130, closure = 1, spring: SpringConfig =
       durationMs + 70,
       spring
     ),
-  ];
-}
-
-/** Full ink on the mouth and the brows from `atMs` to the end of the scene. */
-function ink(keys: Keys, durationMs: number): Tape[] {
-  return [
-    relative('mouthA', keys, durationMs, PUNCH),
-    relative('browAL', keys, durationMs, PUNCH),
-    relative('browAR', keys, durationMs, PUNCH),
   ];
 }
 
@@ -204,7 +273,6 @@ export function sketchTapes(name: SketchName): Tape[] {
         ...bothSides('sy', [[3500, -0.3]], 4200, PUNCH),
         ...bothSides('browY', [[3500, -0.04]], 4200, PUNCH),
         ...bothSides('browArc', [[3500, 0.35]], 4200, PUNCH),
-        ...ink([[3500, 0.5]], 4200),
       ];
     case 'double-take':
       // Looks left, casually. Looks away. SNAPS back left — eyes wide, brows
@@ -232,14 +300,12 @@ export function sketchTapes(name: SketchName): Tape[] {
         relative('mouthOpen', [[1250, 0.5]], 2400, PUNCH),
         relative('mouthW', [[1250, -0.25]], 2400, PUNCH),
         relative('mass', [[1250, 0.06]], 2400, PUNCH),
-        ...ink([[1250, 0.5]], 2400),
         ...blinkAt(2450),
         relative('mouthCurve', [[2700, 0.45]], 3600, EASE),
         relative('mouthSkew', [[2700, 0.25]], 3600, EASE),
         ...bothSides('sy', [[2700, -0.15]], 3600, EASE),
         ...bothSides('browY', [[2700, -0.02]], 3600, EASE),
         ...mirrored('browRot', [[2700, -5]], 3600, EASE),
-        ...ink([[2700, 0.4]], 3600),
       ];
     case 'sneeze':
       // Ah… ah… AH-TCHOO. The brows climb and the eyes squeeze while the
@@ -319,13 +385,6 @@ export function sketchTapes(name: SketchName): Tape[] {
           PUNCH
         ),
         ...blinkAt(1900, 450),
-        ...ink(
-          [
-            [200, 0.3],
-            [1900, 0.5],
-          ],
-          3400
-        ),
         relative('mouthW', [[2900, -0.35]], 3400, PUNCH),
         relative('mouthOpen', [[2900, 0.12]], 3400, PUNCH),
         ...blinkAt(3450),
@@ -388,7 +447,6 @@ export function sketchTapes(name: SketchName): Tape[] {
           HEAVY
         ),
         absolute('tilt', [[600, -3]], 2700, HEAVY),
-        ...ink([[600, 0.5]], 2700),
         ...blinkAt(2900, 500, 1, SLOW_LID),
         absolute(
           'tilt',
@@ -405,7 +463,6 @@ export function sketchTapes(name: SketchName): Tape[] {
         ...bothSides('sy', [[3700, 0.12]], 4600, PUNCH),
         ...bothSides('browY', [[3700, -0.05]], 4600, PUNCH),
         relative('mouthCurve', [[3800, 0.3]], 4600, PUNCH),
-        ...ink([[3700, 0.4]], 4600),
       ];
     case 'hiccups':
       // Three hiccups, never on the beat: the head pops, the mouth "hic"s,
@@ -516,13 +573,6 @@ export function sketchTapes(name: SketchName): Tape[] {
         relative('mouthCurve', [[3400, 0.3]], 4000, EASE),
         ...mirrored('browRot', [[3400, -6]], 4000, EASE),
         ...bothSides('sy', [[3400, -0.15]], 4000, EASE),
-        ...ink(
-          [
-            [300, 0.4],
-            [2500, 0.5],
-          ],
-          4000
-        ),
       ];
     case 'peekaboo':
       // Eyes shut tight over a mischievous grin. One eye peeks. Then both pop
@@ -535,7 +585,6 @@ export function sketchTapes(name: SketchName): Tape[] {
         relative('mouthW', [[100, 0.2]], 3600, PUNCH),
         ...bothSides('browY', [[100, -0.03]], 3600, PUNCH),
         ...bothSides('browArc', [[100, 0.3]], 3600, PUNCH),
-        ...ink([[0, 0.5]], 3600),
         absolute('blinkL', [[1500, 0.35]], 2400, LID),
         relative('mouthSkew', [[1500, 0.3]], 2400, PUNCH),
         absolute(
@@ -583,6 +632,21 @@ export function sketchTapes(name: SketchName): Tape[] {
           EASE
         ),
         ...bothSides('sy', [[2600, -0.3]], 4000, EASE),
+        // The brows sag with the lids and roll with the head, out of step
+        // with each other: a dizzy face has no two things agreeing.
+        ...bothSides('browY', [[2600, 0.02]], 4000, EASE),
+        ...mirrored(
+          'browRot',
+          [
+            [2600, 5],
+            [2900, -4],
+            [3200, 4],
+            [3500, -3],
+            [3800, 0],
+          ],
+          4000,
+          EASE
+        ),
         relative(
           'mouthSkew',
           [
@@ -596,7 +660,6 @@ export function sketchTapes(name: SketchName): Tape[] {
         ),
         relative('mouthCurve', [[2600, -0.15]], 4000, EASE),
         relative('mouthOpen', [[2600, 0.1]], 4000, EASE),
-        ...ink([[2600, 0.4]], 4600),
         absolute(
           'tilt',
           [
@@ -709,7 +772,6 @@ export function sketchTapes(name: SketchName): Tape[] {
         ...bothSides('sy', [[3900, -0.15]], 4950, EASE),
         ...mirrored('browRot', [[3900, -6]], 4950, EASE),
         ...blinkAt(4300),
-        ...ink([[2900, 0.5]], 5000),
       ];
     case 'brow-groove':
       // A little groove: the brows take turns, the head bobs off the beat,
@@ -820,14 +882,12 @@ export function sketchTapes(name: SketchName): Tape[] {
           2800,
           EASE
         ),
-        ...ink([[0, 0.4]], 2800),
         ...bothSides('browY', [[2800, -0.08]], 3800, PUNCH),
         ...bothSides('browArc', [[2800, 0.5]], 3800, PUNCH),
         relative('mouthCurve', [[2800, 0.8]], 3800, PUNCH),
         relative('mouthW', [[2800, 0.3]], 3800, PUNCH),
         relative('mouthOpen', [[2800, 0.12]], 3800, PUNCH),
         ...bothSides('sy', [[2800, -0.4]], 3800, PUNCH),
-        ...ink([[2800, 0.5]], 3800),
       ];
     case 'suspicious':
       // Narrowed eyes slide slowly left, then right — what are you up to? —
@@ -848,6 +908,7 @@ export function sketchTapes(name: SketchName): Tape[] {
         relative('browArcL', [[500, 0.3]], 3000, EASE),
         relative('mouthW', [[400, -0.2]], 3000, EASE),
         relative('mouthSkew', [[400, -0.25]], 3000, EASE),
+        relative('mouthX', [[400, -0.04]], 3000, EASE),
         ...look(
           [
             [400, -0.7],
@@ -872,7 +933,6 @@ export function sketchTapes(name: SketchName): Tape[] {
           3000,
           EASE
         ),
-        ...ink([[300, 0.35]], 3000),
         ...bothSides('browY', [[3100, -0.07]], 4200, PUNCH),
         ...bothSides('browArc', [[3100, 0.5]], 4200, PUNCH),
         ...bothSides(
@@ -888,7 +948,6 @@ export function sketchTapes(name: SketchName): Tape[] {
         relative('mouthW', [[3100, 0.25]], 4200, PUNCH),
         relative('mass', [[3100, 0.04]], 4200, PUNCH),
         ...blinkAt(3150),
-        ...ink([[3100, 0.5]], 4200),
       ];
   }
 }
@@ -898,12 +957,22 @@ export function sketchDurationMs(tapes: readonly Tape[]): number {
   return Math.max(...tapes.map(tape => tape.durationMs ?? 0));
 }
 
-/** Pick a sketch uniformly from the first random number. */
-export function pickSketch(random: () => number): SketchName {
-  return SKETCHES[Math.min(SKETCHES.length - 1, Math.floor(random() * SKETCHES.length))];
+/** Pick a sketch uniformly from the first random number, never one of the
+ * `recent` — unless that would leave nothing to pick from. */
+export function pickSketch(random: () => number, recent: readonly SketchName[] = []): SketchName {
+  const candidates = SKETCHES.filter(name => !recent.includes(name));
+  const pool = candidates.length > 0 ? candidates : SKETCHES;
+  return pool[Math.min(pool.length - 1, Math.floor(random() * pool.length))];
 }
 
-/** Delay until the next sketch — uniform inside the band. */
+/** Resting time until the next sketch — uniform inside the band. */
 export function drawSketchDelayMs(random: () => number): number {
   return Math.round(SKETCH_MIN_DELAY_MS + random() * (SKETCH_MAX_DELAY_MS - SKETCH_MIN_DELAY_MS));
+}
+
+/** Resting time until the FIRST sketch of a session — a shorter band. */
+export function drawFirstSketchDelayMs(random: () => number): number {
+  return Math.round(
+    SKETCH_FIRST_MIN_DELAY_MS + random() * (SKETCH_FIRST_MAX_DELAY_MS - SKETCH_FIRST_MIN_DELAY_MS)
+  );
 }

@@ -413,6 +413,21 @@ not its internal diagnosis.
 
 You can answer, rephrase, or drop it: nothing is sent until you decide.
 
+## In rich HTML, what does an answer look like?
+
+Like a composed page, not text with tags. As soon as an answer carries data —
+dates, figures, people, results — LIA lays it out: a **lead sentence** with the
+key fact in bold, then **one section per facet** in the component that fits it
+(figures as tiles, statuses as badges, a procedure as steps, a comparison as
+columns or a table, metadata as a key-value list), and a **closing callout**
+when there is advice, a caveat or a next step. A greeting or a one-sentence
+answer stays one line.
+
+The layout follows the answer's own data, never the shape of the conversation's
+earlier answers. It applies to conversational turns without tools too — unless
+your voice is on: a reply read aloud stays plain text, or the voice would read
+tags. Pick the mode under **Settings > Answer display**.
+
 ## What are the little animated eyes on the chat page?
 
 They are LIA's **expressive eyes** — a small companion widget that mirrors what
@@ -421,11 +436,13 @@ while LIA thinks, scan side to side while it searches, and play the **register**
 of each answer — LIA states whether what she has just written is warm, assured,
 factual, apologetic, curious or concerned, and the face plays it, mouth
 included. Twelve distinct expressions, only two of which smile: a technical
-answer keeps a focused face. Left alone, the whole face lives on: the brows keep
-a faint arch and follow the gaze, one breath carries eyes, brows and mouth, the
-mouth plays small mimics at an unhurried pace, and every minute or two a short
-sketch plays — a fly to follow, a sneeze, a yawn, hiccups. Any change of
-expression drops it on the spot.
+answer keeps a focused face. Left alone, the whole face lives on: the brows sit
+on the eye, have weight, knit and lead each expression; the mouth speaks a
+generated speech that never loops and plays small mimics in phrases rather than
+on a cadence; no two blinks, smiles or glances are alike; and the short sketches
+— a fly to follow, a sneeze, a yawn, hiccups — wait for real resting time on a
+clock the page keeps across navigations, so you actually see them. Any change of
+expression drops a sketch on the spot.
 
 **Make them yours:** drag them anywhere (arrow keys work too, and they never
 drift from where you put them), tap them on mobile to reveal the size and hide

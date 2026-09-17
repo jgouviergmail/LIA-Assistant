@@ -141,6 +141,32 @@ src/domains/rag_spaces/
 **Evolution (ADR-058)**:
 - `retrieve_rag_context()` now supports a `system_only=True` parameter to restrict retrieval to system spaces only (used for app-help queries)
 
+## Amendment 2026-09-17 — a failure is named by a code, and a scan is named as such
+
+Measured on a production instance: nine PDFs uploaded to a fresh space were all refused
+with « No text content extracted », the raw English message shown as the error badge's
+tooltip. The files were scanned documents — page images without a text layer — and the
+pipeline runs no character recognition (PyMuPDF's text layer only; verified in the
+production container, where a generated text PDF extracts and an image-only one yields
+``''``). The message named neither the cause nor the remedy, in a language the account
+had not chosen: a limit the code enforces that nothing published (ADR-184).
+
+`rag_documents.error_code` (nullable, migration `a7c3e5b9d1f2`) carries a closed
+vocabulary, `RAGDocumentErrorCode`, written by `_mark_document_error` beside the
+technical message on every failure of the processing pipeline — the durable job's dead
+letter included (`retries_exhausted`, written by `fail_or_retry_document` at the retry
+bound and cleared with the message on a requeue); an empty extraction is
+classified by `classify_empty_extraction` — a PDF with image pages and no text is
+`scanned_pdf_no_text_layer`, anything else `no_text_content`. The frontend mirrors the
+vocabulary (`lib/rag-spaces/document-errors.ts`, held equal to the backend by a unit
+test, every code with an English sentence spread by the i18n parity gate) and explains
+the failure under the row, the scanned case with its remedy: Google Drive recognises the
+text of a scan when the file is opened with Google Docs, and the space's Drive source
+imports a Google Doc as text. A failure the vocabulary does not name — a legacy row, a
+dead-lettered job — keeps the tooltip. OCR itself is not added: a decision of its own
+(image size and CPU on the deployment target, or a vision model under both spend
+ceilings), left open in writing.
+
 ## Validation
 
 - [ ] Upload PDF/TXT/DOCX → document reaches `ready` status with correct chunk count

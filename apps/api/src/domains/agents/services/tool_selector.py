@@ -36,6 +36,7 @@ References:
 import asyncio
 import hashlib
 import re
+from collections.abc import Sequence
 from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import Any
@@ -423,6 +424,141 @@ class SemanticToolSelector:
             )
             raise
 
+    def _description_score(
+        self, name: str, query_embedding: list[float], extra_embeddings: dict[str, dict] | None
+    ) -> float:
+        """Cosine to the tool's description vector (hybrid mode), startup cache first."""
+        from src.infrastructure.llm.local_embeddings import cosine_similarity
+
+        if not self._hybrid_enabled:
+            return 0.0
+        vector = self._tool_description_embeddings.get(name)
+        if vector is None and extra_embeddings and name in extra_embeddings:
+            vector = extra_embeddings[name].get("description")
+        return cosine_similarity(query_embedding, vector) if vector else 0.0
+
+    def _keyword_score(
+        self, name: str, query_embedding: list[float], extra_embeddings: dict[str, dict] | None
+    ) -> tuple[float, str]:
+        """Best cosine over the tool's keyword vectors, and which keyword won."""
+        from src.infrastructure.llm.local_embeddings import cosine_similarity
+
+        if name in self._tool_keyword_embeddings:
+            vectors = self._tool_keyword_embeddings[name]
+            names = self._tool_keywords.get(name, [])
+        elif extra_embeddings and name in extra_embeddings:
+            vectors = extra_embeddings[name].get("keywords", [])
+            names = extra_embeddings[name].get("keyword_names", [])
+        else:
+            return 0.0, ""
+        best, best_kw = 0.0, ""
+        for i, vector in enumerate(vectors):
+            sim = cosine_similarity(query_embedding, vector)
+            if sim > best:
+                best, best_kw = sim, (names[i] if i < len(names) else f"keyword_{i}")
+        return best, best_kw
+
+    def _combined_score(self, desc_score: float, keyword_score: float) -> float:
+        """The hybrid weighting when both exist; whichever exists otherwise; 0.0 when none."""
+        if desc_score > 0 and keyword_score > 0:
+            return self._hybrid_alpha * desc_score + (1 - self._hybrid_alpha) * keyword_score
+        return desc_score or keyword_score
+
+    def _hybrid_score(
+        self,
+        name: str,
+        query_embedding: list[float],
+        extra_embeddings: dict[str, dict] | None,
+    ) -> tuple[float, dict[str, Any]]:
+        """Raw hybrid score of ONE tool — the one formula both readers share.
+
+        Description cosine (when hybrid scoring is on) weighted with the best
+        keyword cosine; the startup caches first, the per-request embeddings
+        (user MCP tools) as the fallback. A tool with no vector anywhere scores
+        0.0 — never an error.
+
+        Args:
+            name: Tool (manifest) name.
+            query_embedding: The query's vector.
+            extra_embeddings: Per-request ``{name: {"description", "keywords",
+                "keyword_names"}}`` vectors.
+
+        Returns:
+            ``(score, details)`` — the details feed the selection log.
+        """
+        desc_score = self._description_score(name, query_embedding, extra_embeddings)
+        keyword_score, best_kw = self._keyword_score(name, query_embedding, extra_embeddings)
+        final_score = self._combined_score(desc_score, keyword_score)
+        mode = (
+            "hybrid"
+            if desc_score > 0 and keyword_score > 0
+            else ("desc" if desc_score > 0 else "kw")
+        )
+        details = {
+            "desc_score": round(desc_score, 3),
+            "keyword_score": round(keyword_score, 3),
+            "best_keyword": best_kw,
+            "final_score": round(final_score, 3),
+            "mode": mode,
+        }
+        return final_score, details
+
+    async def embed_query(self, query: str) -> list[float]:
+        """The query's vector — paid ONCE, then handed to every reader of a turn.
+
+        Args:
+            query: The text to embed (the router's English pivot).
+
+        Returns:
+            The embedding.
+
+        Raises:
+            RuntimeError: When the selector is not initialized.
+        """
+        if not self._initialized or not self._embeddings:
+            raise RuntimeError("SemanticToolSelector not initialized. Call initialize() first.")
+        result: list[float] = await self._embeddings.aembed_query(query)
+        return result
+
+    def rank_tools(
+        self,
+        query_embedding: list[float],
+        manifests: Sequence[Any],
+        extra_embeddings: dict[str, dict] | None = None,
+    ) -> list[str]:
+        """Every candidate by raw relevance, most relevant first — the GLOBAL order.
+
+        Where :meth:`select_tools` answers « which few tools » for the planner's
+        catalogue (calibrated, thresholded, capped), this answers « in what
+        order » for a reader that binds many — the ReAct loop, whose cap used
+        to cut in registration order. No calibration: the softmax is monotonic,
+        so the order is the same and the raw scores compare across turns.
+        Stable: tools no vector can score keep their input order, at the end.
+
+        The candidates are the manifests AND every per-request vector whose
+        name is not a manifest: an iterative user MCP server exposes one task
+        manifest while its individual tools — the ones the ReAct loop binds —
+        carry vectors and no manifest of their own. A vector exists to rank
+        its tool; a name both places holds is ranked once.
+
+        Args:
+            query_embedding: The query's vector (:meth:`embed_query`).
+            manifests: The candidates, in their declared order.
+            extra_embeddings: Per-request vectors (user MCP tools), by tool name.
+
+        Returns:
+            Tool names, most relevant first.
+        """
+        names = [m.name for m in manifests]
+        known = set(names)
+        names.extend(name for name in (extra_embeddings or {}) if name not in known)
+        scored = [
+            (self._hybrid_score(name, query_embedding, extra_embeddings)[0], index, name)
+            for index, name in enumerate(names)
+        ]
+        scored.sort(key=lambda item: (-item[0], item[1]))
+        return [name for _score, _index, name in scored]
+
     async def select_tools(
         self,
         query: str,
@@ -430,6 +566,7 @@ class SemanticToolSelector:
         max_results: int | None = None,
         include_context_utilities: bool = True,
         extra_embeddings: dict[str, dict] | None = None,
+        query_embedding: list[float] | None = None,
     ) -> ToolSelectionResult:
         """
         Select tools matching the user query.
@@ -449,6 +586,8 @@ class SemanticToolSelector:
                 Dict keyed by adapter tool name with "description" (vector) and
                 "keywords" (list of vectors) sub-keys. Used as fallback when the
                 tool is not found in the singleton's startup-computed caches.
+            query_embedding: The query's vector when the caller already paid
+                for it (:meth:`embed_query`); embedded here otherwise.
 
         Returns:
             ToolSelectionResult with matched tools and scores
@@ -459,8 +598,9 @@ class SemanticToolSelector:
         # Use configured max_tools if not overridden
         max_results = max_results or self._max_tools
 
-        # Embed the query
-        query_embedding = await self._embeddings.aembed_query(query)
+        # Embed the query — unless the caller hands the vector it already paid for.
+        if query_embedding is None:
+            query_embedding = await self._embeddings.aembed_query(query)
 
         # Determine which tools to compare against
         if available_tools:
@@ -469,73 +609,13 @@ class SemanticToolSelector:
             tool_names = list(self._tool_keyword_embeddings.keys())
 
         # Calculate scores: HYBRID (desc+kw) if enabled, else KEYWORDS-ONLY (legacy)
-        from src.infrastructure.llm.local_embeddings import cosine_similarity
-
         scores: dict[str, float] = {}
         scoring_details: dict[str, dict] = {}  # For debugging
 
         for name in tool_names:
-            desc_score = 0.0
-            keyword_score = 0.0
-            best_kw = ""
-
-            # Description score (primary) - ONLY if hybrid enabled
-            # Check singleton cache first, then per-request extra_embeddings
-            if self._hybrid_enabled and name in self._tool_description_embeddings:
-                desc_embedding = self._tool_description_embeddings[name]
-                desc_score = cosine_similarity(query_embedding, desc_embedding)
-            elif self._hybrid_enabled and extra_embeddings and name in extra_embeddings:
-                desc_emb = extra_embeddings[name].get("description")
-                if desc_emb:
-                    desc_score = cosine_similarity(query_embedding, desc_emb)
-
-            # Keyword max-pool score (refinement)
-            # Check singleton cache first, then per-request extra_embeddings
-            if name in self._tool_keyword_embeddings:
-                keyword_embeddings = self._tool_keyword_embeddings[name]
-                keywords = self._tool_keywords.get(name, [])
-
-                for i, kw_embedding in enumerate(keyword_embeddings):
-                    sim = cosine_similarity(query_embedding, kw_embedding)
-                    if sim > keyword_score:
-                        keyword_score = sim
-                        best_kw = keywords[i] if i < len(keywords) else f"keyword_{i}"
-            elif extra_embeddings and name in extra_embeddings:
-                extra_kw_embeddings = extra_embeddings[name].get("keywords", [])
-                extra_kw_names = extra_embeddings[name].get("keyword_names", [])
-                for i, kw_emb in enumerate(extra_kw_embeddings):
-                    sim = cosine_similarity(query_embedding, kw_emb)
-                    if sim > keyword_score:
-                        keyword_score = sim
-                        best_kw = extra_kw_names[i] if i < len(extra_kw_names) else f"keyword_{i}"
-
-            # Hybrid combination
-            if desc_score > 0 and keyword_score > 0:
-                # Both available: weighted combination
-                final_score = (
-                    self._hybrid_alpha * desc_score + (1 - self._hybrid_alpha) * keyword_score
-                )
-            elif desc_score > 0:
-                # Description only (no keywords defined)
-                final_score = desc_score
-            elif keyword_score > 0:
-                # Keywords only (legacy behavior for tools without description)
-                final_score = keyword_score
-            else:
-                final_score = 0.0
-
-            scores[name] = final_score
-            scoring_details[name] = {
-                "desc_score": round(desc_score, 3),
-                "keyword_score": round(keyword_score, 3),
-                "best_keyword": best_kw,
-                "final_score": round(final_score, 3),
-                "mode": (
-                    "hybrid"
-                    if desc_score > 0 and keyword_score > 0
-                    else ("desc" if desc_score > 0 else "kw")
-                ),
-            }
+            scores[name], scoring_details[name] = self._hybrid_score(
+                name, query_embedding, extra_embeddings
+            )
 
         # Apply softmax calibration to amplify score differences
         calibrated_scores = self._apply_softmax_calibration(scores)

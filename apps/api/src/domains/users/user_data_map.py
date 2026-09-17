@@ -597,6 +597,7 @@ USER_COLUMNS: dict[str, UserColumnClass] = {
     "journal_portrait_full": _SCRUBBED,
     "journal_portrait_brief": _SCRUBBED,
     "journal_portrait_compiled_at": _SCRUBBED,
+    "journal_portrait_sources": _SCRUBBED,
     "phone_number_encrypted": _SCRUBBED,
     "phone_number_verified_at": _SCRUBBED,
     # Billing contact (ADR-067).

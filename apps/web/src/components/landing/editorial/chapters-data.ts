@@ -1,9 +1,15 @@
 /**
- * Single source of truth for the editorial landing narrative (chapters 01-05
+ * Single source of truth for the editorial landing narrative (chapters 01-06
  * plus the basics band). Every detailed feature card of the former features
  * wall is re-parented here — never deleted — and rendered inside the
- * per-chapter expandable catalogs, reusing the existing translated
+ * per-chapter expandable catalogs, reusing the translated
  * `landing.features.<key>.{title,description}` copy in all 6 locales.
+ *
+ * Every description sits in ONE length band (about five to seven lines of
+ * the catalog grid) so a row never aligns on a card four times taller than
+ * its neighbours: a capability that needs more words is split into two
+ * cards, never condensed below what it states. The hint under each chapter
+ * derives its count from the catalog — never typed into the copy.
  *
  * ANTI-REGRESSION CONTRACT: `REQUIRED_FEATURE_KEYS` is the canonical
  * inventory of detailed feature cards. The guard test
@@ -31,6 +37,18 @@ import {
   Handshake,
   Heart,
   HelpCircle,
+  Bookmark,
+  Eye,
+  Flame,
+  LayoutTemplate,
+  MailCheck,
+  PhoneIncoming,
+  ShieldAlert,
+  Tag,
+  Timer,
+  UserCheck,
+  Workflow,
+  KeyRound,
   FileOutput,
   ImagePlus,
   LayoutGrid,
@@ -95,7 +113,9 @@ export const CHAPTERS: readonly ChapterConfig[] = [
       'multi_agent',
       'computed_answers',
       'telephony',
+      'telephony_callback',
       'meetings',
+      'meeting_templates',
       'browser_control',
       'smart_home',
       'image_generation',
@@ -114,10 +134,12 @@ export const CHAPTERS: readonly ChapterConfig[] = [
     benefits: 3,
     catalog: [
       'memory',
+      'bookmarks',
       'personal_crm',
       'briefing',
       'personalities',
       'psyche',
+      'mood_face',
       'journals',
       'self_knowledge',
     ],
@@ -132,10 +154,15 @@ export const CHAPTERS: readonly ChapterConfig[] = [
     benefits: 3,
     catalog: [
       'proactive',
+      'proactive_wake',
+      'proactive_moments',
       'interests',
       'habits',
+      'habits_lifecycle',
       'reminders_scheduling',
+      'conditional_routines',
       'workboard',
+      'workboard_delegation',
       'health_metrics',
     ],
     tinted: false,
@@ -157,7 +184,16 @@ export const CHAPTERS: readonly ChapterConfig[] = [
     num: '05',
     mood: '😏',
     benefits: 3,
-    catalog: ['skills', 'plugins', 'mcp', 'mcp_apps', 'rag_spaces', 'sub_agents', 'devops_cli'],
+    catalog: [
+      'skills',
+      'plugins',
+      'mcp',
+      'mcp_apps',
+      'rag_spaces',
+      'mail_label_spaces',
+      'sub_agents',
+      'devops_cli',
+    ],
     tinted: false,
   },
   {
@@ -167,7 +203,7 @@ export const CHAPTERS: readonly ChapterConfig[] = [
     num: '06',
     mood: '🙂',
     benefits: 3,
-    catalog: ['peers'],
+    catalog: ['peers', 'peer_shares', 'peer_safety'],
     tinted: true,
   },
 ] as const;
@@ -217,21 +253,32 @@ export const REQUIRED_FEATURE_KEYS: readonly string[] = [
   'languages',
   // personality & memory
   'memory',
+  'bookmarks',
   'personal_crm',
   'peers',
+  'peer_shares',
+  'peer_safety',
   'personalities',
   'psyche',
+  'mood_face',
   'self_knowledge',
   'journals',
   // proactivity & automation
   'briefing',
   'proactive',
+  'proactive_wake',
+  'proactive_moments',
   'interests',
   'habits',
+  'habits_lifecycle',
   'reminders_scheduling',
+  'conditional_routines',
   'workboard',
+  'workboard_delegation',
   'telephony',
+  'telephony_callback',
   'meetings',
+  'meeting_templates',
   'skills',
   'health_metrics',
   // creation & media
@@ -244,6 +291,7 @@ export const REQUIRED_FEATURE_KEYS: readonly string[] = [
   'plugins',
   'mcp',
   'rag_spaces',
+  'mail_label_spaces',
   'sub_agents',
   'browser_control',
   'computed_answers',
@@ -272,20 +320,31 @@ export const FEATURE_ICONS: Record<string, LucideIcon> = {
   multichannel: MessageCircle,
   languages: Globe,
   memory: Brain,
+  bookmarks: Bookmark,
   personal_crm: Users,
   peers: Handshake,
+  peer_shares: KeyRound,
+  peer_safety: ShieldAlert,
   personalities: Smile,
   psyche: Heart,
+  mood_face: Eye,
   self_knowledge: HelpCircle,
   journals: BookOpen,
   briefing: Sunrise,
   proactive: BellRing,
+  proactive_wake: MailCheck,
+  proactive_moments: Timer,
   interests: Star,
   habits: Repeat,
+  habits_lifecycle: Flame,
   reminders_scheduling: CalendarClock,
+  conditional_routines: Workflow,
   workboard: SquareKanban,
+  workboard_delegation: UserCheck,
   telephony: PhoneCall,
+  telephony_callback: PhoneIncoming,
   meetings: ClipboardList,
+  meeting_templates: LayoutTemplate,
   skills: Blocks,
   health_metrics: Activity,
   excalidraw: PenTool,
@@ -296,6 +355,7 @@ export const FEATURE_ICONS: Record<string, LucideIcon> = {
   mcp: Puzzle,
   plugins: Package,
   rag_spaces: Library,
+  mail_label_spaces: Tag,
   sub_agents: Bot,
   browser_control: Monitor,
   computed_answers: Calculator,

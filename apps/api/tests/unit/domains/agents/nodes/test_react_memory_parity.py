@@ -209,4 +209,5 @@ class TestTheSetupWiresIt:
         from src.domains.agents.nodes import react_nodes
 
         source = inspect.getsource(react_nodes.react_setup_node)
-        assert "build_memory_profile_block" in source
+        assert "react_context.build_setup_blocks(state, config, intelligence)" in source
+        assert "build_memory_profile_block" in inspect.getsource(react_context.build_setup_blocks)

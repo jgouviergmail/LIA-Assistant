@@ -18,7 +18,7 @@ from __future__ import annotations
 from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 from functools import lru_cache
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 if TYPE_CHECKING:
@@ -35,6 +35,7 @@ from src.domains.journals.extraction_service import (
     _update_user_last_cost,
 )
 from src.domains.journals.models import JournalEntryMood, JournalEntrySource
+from src.domains.journals.portrait_sources import build_portrait_source_sections
 from src.domains.journals.prompt_builders import build_consolidation_prompt
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
@@ -51,6 +52,45 @@ logger = get_logger(__name__)
 def _consolidation_lines() -> dict[str, str]:
     """Size-management lines of the consolidation prompt, read once from the store."""
     return dict(parse_prompt_sections(read_prompt_file("journal_consolidation_lines"), 2))
+
+
+@lru_cache(maxsize=1)
+def _scaffold_lines() -> dict[str, str]:
+    """The INPUT sections' scaffolds (headers, lines, directives), read once."""
+    return dict(parse_prompt_sections(read_prompt_file("journal_portrait_source_lines"), 2))
+
+
+def render_usage_patterns_section(*, total: int, details: str) -> str:
+    """The observed-usage block, from the lines file (pure).
+
+    Args:
+        total: User messages over the window.
+        details: The per-bucket distribution, already joined.
+
+    Returns:
+        The section text.
+    """
+    lines = _scaffold_lines()
+    return "\n".join(
+        [
+            lines["usage_header"],
+            lines["usage_line"].format(total=total, details=details),
+            lines["usage_directive"],
+        ]
+    )
+
+
+def render_health_signals_section(block: str) -> str:
+    """The health block around what the health service produced (pure).
+
+    Args:
+        block: The health context lines.
+
+    Returns:
+        The section text.
+    """
+    lines = _scaffold_lines()
+    return "\n".join([lines["health_header"], block, lines["health_directive"]])
 
 
 def size_directives(usage_pct: float) -> tuple[str, str]:
@@ -149,13 +189,7 @@ async def _build_usage_patterns_section(user_id: UUID) -> str:
             f"{label} {counts[label]}" for label in ordered if counts.get(label, 0) > 0
         )
 
-        return (
-            "## OBSERVED USAGE PATTERNS (past 7 days)\n"
-            f"User messages: {total}. Distribution: {details}.\n"
-            "Use these factual signals to situate the user's current rhythm "
-            "in the portrait (phase, contexts) — never reference them explicitly "
-            "to the user."
-        )
+        return render_usage_patterns_section(total=total, details=details)
     except Exception as exc:  # pragma: no cover - defensive
         logger.warning(
             "journal_usage_patterns_load_failed",
@@ -166,18 +200,26 @@ async def _build_usage_patterns_section(user_id: UUID) -> str:
 
 
 async def _persist_compiled_portrait(
-    user_id: UUID, portrait_full: str | None, portrait_brief: str | None
+    user_id: UUID,
+    portrait_full: str | None,
+    portrait_brief: str | None,
+    *,
+    provenance: dict[str, Any] | None = None,
 ) -> None:
     """Persist the compiled portrait pair on the user record.
 
     Both fields are optional. If only one is provided, the other is left
     untouched. Updates ``journal_portrait_compiled_at`` to NOW() whenever at
-    least one portrait was supplied.
+    least one portrait was supplied — and writes the provenance in the SAME
+    update, so the words and their sources travel together (part B): a run
+    that produced no portrait leaves both untouched.
 
     Args:
         user_id: Owner user UUID.
-        portrait_full: Compiled full portrait (~200 tokens) or None.
-        portrait_brief: Compiled brief portrait (~60 tokens) or None.
+        portrait_full: Compiled full portrait or None.
+        portrait_brief: Compiled brief portrait or None.
+        provenance: What the portrait was compiled from (a NEW dict — the
+            JSONB column is reassigned, never mutated in place).
     """
     if not portrait_full and not portrait_brief:
         return
@@ -196,6 +238,8 @@ async def _persist_compiled_portrait(
                 user.journal_portrait_full = portrait_full
             if portrait_brief:
                 user.journal_portrait_brief = portrait_brief
+            if provenance is not None:
+                user.journal_portrait_sources = dict(provenance)
             user.journal_portrait_compiled_at = datetime.now(UTC)
             await db.commit()
 
@@ -273,13 +317,7 @@ async def _maybe_build_health_signals_section(user_id: UUID) -> str:
             block = await service.build_health_context_for_prompt(user_id)
             if not block:
                 return ""
-            return (
-                "## HEALTH SIGNALS (factual, not medical)\n"
-                f"{block}\n"
-                "Use these signals to enrich your consolidation — e.g. to "
-                "notice a pattern the user may not have articulated. Never "
-                "reproduce raw sensor values in entries."
-            )
+            return render_health_signals_section(block)
     except Exception as exc:  # pragma: no cover - defensive
         logger.warning(
             "journal_consolidation_health_context_failed",
@@ -498,6 +536,12 @@ async def consolidate_journals_for_user(
         # Health Metrics signals — empty string when disabled / no data.
         health_signals_section = await _maybe_build_health_signals_section(user_id)
 
+        # The four portrait sources (part B), each under its own gates and
+        # budget, with the provenance the portrait will be persisted with.
+        sources = await build_portrait_source_sections(
+            user_id, user_language, journal_entries=len(entries)
+        )
+
         # Build prompt (shared renderer — see domains/journals/prompt_builders.py)
         prompt = build_consolidation_prompt(
             all_entries=all_entries_text,
@@ -512,6 +556,10 @@ async def consolidate_journals_for_user(
             size_management_instruction=size_management_instruction,
             health_signals_section=health_signals_section,
             personality_code=personality_code,
+            memories_section=sources.sections["memories"],
+            interests_section=sources.sections["interests"],
+            habits_section=sources.sections["habits"],
+            debriefs_section=sources.sections["relation_debriefs"],
         )
 
         # Call LLM
@@ -550,7 +598,12 @@ async def consolidate_journals_for_user(
         # applying the actions so a partial failure on actions still preserves
         # the portrait — the two are independent products of the same call.
         if parsed.portrait_full or parsed.portrait_brief:
-            await _persist_compiled_portrait(user_id, parsed.portrait_full, parsed.portrait_brief)
+            await _persist_compiled_portrait(
+                user_id,
+                parsed.portrait_full,
+                parsed.portrait_brief,
+                provenance=sources.provenance,
+            )
             with suppress(Exception):
                 journal_portrait_compile_duration_seconds.observe(
                     _time.time() - _portrait_compile_start

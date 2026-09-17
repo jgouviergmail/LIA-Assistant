@@ -4,7 +4,7 @@
 
 **Versión**: 2.1
 **Fecha**: 2026-08-23
-**Aplicación**: LIA v1.45.0
+**Aplicación**: LIA v1.45.1
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -19,9 +19,9 @@ La casi totalidad del código fue escrita por una IA, bajo dirección humana: un
 | --- | --- |
 | Código escrito por una IA — dirigida, encuadrada, controlada | **≈ 100 %** |
 | Líneas de código (sin tests) — 49 dominios funcionales | **660.000** |
-| Tests automatizados, ejecutados en cada commit y entrega | **37.000+** |
-| Decisiones de arquitectura documentadas (ADR) | **289** |
-| Versiones entregadas a ritmo regular | **261** |
+| Tests automatizados, ejecutados en cada commit y entrega | **38.000+** |
+| Decisiones de arquitectura documentadas (ADR) | **293** |
+| Versiones entregadas a ritmo regular | **262** |
 | Idiomas, paridad verificada automáticamente | **6** |
 | Auditoría técnica sobre 24 perímetros | **8,3/10** |
 
@@ -50,11 +50,11 @@ Una IA que programa produce volumen; solo produce calidad bajo restricción. Cua
 
 ## 4. Los arbitrajes
 
-Tres decisiones estructurantes, entre las 289 documentadas:
+Tres decisiones estructurantes, entre las 293 documentadas:
 
 **Soberanía y reversibilidad — ninguna dependencia irreversible de proveedor.** Los modelos de IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modelos locales vía Ollama) están detrás de una abstracción única: cada uso puede cambiar de proveedor por configuración, con comparación de costes. Mismo principio del lado del negocio: Google, Apple y Microsoft son intercambiables por categoría funcional. El alojamiento está íntegramente controlado; los datos personales están cifrados y permanecen en la infraestructura.
 
-**Economía de la IA — el coste por petición es un criterio de diseño.** Dos modos de ejecución coexisten: un pipeline determinista y económico para las peticiones corrientes, un modo agente autónomo para las exploratorias — la diferencia de consumo medida va de 1 a 4-8, con servicio equivalente en los casos estándar. Cada llamada se cuenta por token, se valora en euros, se agrega por usuario y por modelo, se gobierna por cuotas. Incluso una notificación de dos frases se pide sin razonamiento, porque un modelo que razona por defecto factura su razonamiento dentro del presupuesto de la respuesta.
+**Economía de la IA — el coste por petición es un criterio de diseño.** Dos modos de ejecución coexisten: un pipeline determinista y económico para las peticiones corrientes, un modo agente autónomo para las exploratorias — la diferencia de consumo medida va de 1 a 4-8, con servicio equivalente en los casos estándar. Cada llamada se cuenta por token, se valora en euros, se agrega por usuario y por modelo, se gobierna por cuotas. Incluso una notificación de dos frases se pide sin razonamiento, porque un modelo que razona por defecto factura su razonamiento dentro del presupuesto de la respuesta. Y el modo agente solo lleva consigo las herramientas que la pregunta reclama — elegidas por relevancia, nunca por orden de llegada —, porque ochenta esquemas de herramientas pesaban lo esencial de una primera llamada sin contarse.
 
 **Control del riesgo — ninguna acción irreversible sin validación humana.** Seis niveles de control humano, graduados según la sensibilidad de la acción — de la clarificación a la confirmación de las operaciones destructivas. El comportamiento en caso de interrupción está especificado y probado: una validación pendiente sobrevive a los reinicios, sin pérdida ni doble ejecución. Varias acciones en una misma petición se presentan una a una, cada una en su tarjeta, y el informe dice qué se hizo y para quién. El teléfono sigue la misma línea: la tarjeta protege a un tercero, así que cuando LIA llama a la propia persona — a un número declarado y verificado con un código leído en voz alta — la tarjeta es la persona; al teléfono la asistente lee todo lo que lee el chat y no actúa sobre nada, y lo que corre con la clave propia del proveedor se factura allí, nunca se cuenta aquí.
 

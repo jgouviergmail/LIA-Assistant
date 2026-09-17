@@ -43,7 +43,7 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     category: 'architecture',
     icon: 'Repeat',
     date: '2026-04-08',
-    readTime: 5,
+    readTime: 6,
     tags: ['react', 'pipeline', 'execution-mode', 'langgraph', 'iteration', 'agent-loop'],
   },
   {
@@ -151,7 +151,7 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     category: 'features',
     icon: 'BookOpen',
     date: '2026-03-09',
-    readTime: 5,
+    readTime: 6,
     tags: ['rag', 'documents', 'hybrid-search', 'embeddings', 'knowledge-base'],
   },
   {
@@ -159,7 +159,7 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     category: 'features',
     icon: 'NotebookPen',
     date: '2026-03-18',
-    readTime: 5,
+    readTime: 6,
     tags: ['journals', 'introspection', 'personality', 'memory', 'carnets-de-bord'],
   },
   {

@@ -29,7 +29,8 @@ export function ChapterSection({
   /** Cosmos-only decorative background node (GhostWord); absent on `/`. */
   ghost?: React.ReactNode;
 }) {
-  const k = (suffix: string) => t(`landing.chapters.${chapter.key}.${suffix}`);
+  const k = (suffix: string, options?: Record<string, unknown>) =>
+    t(`landing.chapters.${chapter.key}.${suffix}`, options);
   const benefitIndexes = Array.from({ length: chapter.benefits }, (_, i) => i + 1);
 
   return (
@@ -91,7 +92,7 @@ export function ChapterSection({
 
         <CatalogDisclosure
           summary={t('landing.chapters.catalog_label')}
-          hint={k('catalog_hint')}
+          hint={k('catalog_hint', { count: chapter.catalog.length })}
           anchor={`${chapter.anchor}-detail`}
         >
           <FeatureCatalog t={t} featureKeys={chapter.catalog} />

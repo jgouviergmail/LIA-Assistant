@@ -27,6 +27,29 @@ if TYPE_CHECKING:
     from src.domains.memories.models import Memory
 
 
+def emotional_label(emotional_weight: int) -> str:
+    """Semantic label of an emotional weight, for a model (text, never an emoji).
+
+    Owned here with the weight it reads: the memory injection and the portrait
+    sources both label a memory, and two labellings would drift.
+
+    Args:
+        emotional_weight: Value from -10 to +10.
+
+    Returns:
+        The bracketed label the prompts carry.
+    """
+    if emotional_weight <= -7:
+        return "[TRAUMA/DOULEUR]"
+    if emotional_weight <= -3:
+        return "[NÉGATIF]"
+    if emotional_weight >= 7:
+        return "[TRÈS POSITIF]"
+    if emotional_weight >= 3:
+        return "[POSITIF]"
+    return "[NEUTRE]"
+
+
 class EmotionalState(str, Enum):
     """Aggregate emotional state computed from memory search results.
 

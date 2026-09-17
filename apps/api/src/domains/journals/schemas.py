@@ -14,10 +14,10 @@ Schemas:
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Literal
+from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from src.domains.journals.constants import (
     JOURNAL_ENTRY_CONTENT_MAX_LENGTH,
@@ -281,12 +281,51 @@ class JournalConsolidationResponse(BaseModel):
     )
 
 
+class PortraitSourceProvenance(BaseModel):
+    """What one source answered when the portrait was compiled (part B)."""
+
+    status: Literal["used", "empty", "disabled", "unavailable"] = Field(
+        description="used (rendered), empty, disabled (a gate refused) or unavailable (a read failed)."
+    )
+    used: int = Field(ge=0, description="Items the prompt received from this source.")
+    total: int = Field(ge=0, description="EXACT count over the whole set (ADR-185).")
+
+
+class PortraitProvenance(BaseModel):
+    """What the portrait was compiled from — persisted WITH the portrait."""
+
+    version: Literal[1] = Field(description="Shape version of the stored JSON.")
+    journal_entries: int = Field(ge=0, description="Active journal entries the prompt carried.")
+    sources: dict[str, PortraitSourceProvenance] = Field(
+        description="Per source key (memories, interests, habits, relation_debriefs)."
+    )
+
+
+def provenance_of(stored: Any) -> PortraitProvenance | None:
+    """Read a stored provenance leniently: a shape this version cannot read is None.
+
+    Args:
+        stored: The JSONB value on the user row.
+
+    Returns:
+        The typed provenance, or None when absent or unreadable.
+    """
+    if not isinstance(stored, dict):
+        return None
+    try:
+        return PortraitProvenance.model_validate(stored)
+    except ValidationError:
+        return None
+
+
 class JournalPortraitResponse(BaseModel):
     """User-model portrait compiled by the journal consolidation.
 
-    The portrait is a synthesis derived from the L3 portrait facets and the
-    other signals (memories, interests, health, usage patterns). It is never
-    user-editable directly — users act via the three levers:
+    The portrait is a synthesis compiled from the journal entries AND, since
+    the 2026-09-16 design (part B), from the person's memories, interests,
+    learned habits and relationship debriefs — each read under its own gates
+    and reported in ``sources``. It is never user-editable directly — users
+    act via the three levers:
     1. Editing/deleting L3 source entries
     2. POSTing feedback that triggers a synchronous re-consolidation
     3. Triggering a fresh consolidation
@@ -294,15 +333,19 @@ class JournalPortraitResponse(BaseModel):
 
     full: str | None = Field(
         None,
-        description="Compiled portrait in full format (~200 tokens) for response/planner",
+        description="Compiled portrait in full format for the response and planner flows",
     )
     brief: str | None = Field(
         None,
-        description="Compiled portrait in brief format (~60 tokens) for secondary flows",
+        description="Compiled portrait in brief format for the secondary flows",
     )
     compiled_at: datetime | None = Field(
         None,
         description="UTC timestamp of the last portrait compilation",
+    )
+    sources: PortraitProvenance | None = Field(
+        None,
+        description="What the portrait was compiled from; None before the first compilation.",
     )
 
 

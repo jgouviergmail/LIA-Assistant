@@ -19,6 +19,9 @@ function bookmark(over: Partial<Bookmark> = {}): Bookmark {
     request_content: 'Réserve la salle B à 14 h',
     answered_at: '2026-09-12T08:05:00Z',
     created_at: '2026-09-12T08:06:00Z',
+    index_state: null,
+    indexed_at: null,
+    index_usage: null,
     ...over,
   };
 }

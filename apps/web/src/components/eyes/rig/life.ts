@@ -33,7 +33,15 @@
  *    whatever the pose is, never a new pose.
  */
 
-import { bothSides, mirrored, relative, scaleTapes, type Keys } from '@/components/eyes/rig/choreo';
+import {
+  bothSides,
+  mirrored,
+  relative,
+  scaleTapes,
+  warpTapes,
+  withRelease,
+  type Keys,
+} from '@/components/eyes/rig/choreo';
 import type { ChannelKey } from '@/components/eyes/rig/channels';
 import type { SpringConfig } from '@/components/eyes/rig/spring';
 import type { Tape } from '@/components/eyes/rig/tape';
@@ -51,23 +59,28 @@ export const MOUTH_LIFE_EXPRESSIONS: ReadonlySet<EyeExpression> = new Set([
 ]);
 
 /**
- * Pause between two mimics, uniformly drawn — never a beat.
+ * The cadence, in PHRASES: a silence, then a beat that may be followed by one
+ * or two more a second or two apart, then silence again.
  *
- * Calibrated twice. At 2.2 to 6.5 s with bursts at 0.9 s, on top of the eye
- * gestures the idle life already plays every 1.9 to 5.6 s (a third of them
- * reaching the face), the face did something every two seconds and the
- * owner read it as nervous tics. The standard for a resting character is a
- * facial beat every eight to twelve seconds, with the eyes wandering in
- * between: six to fourteen seconds here, a mean near nine, and the rare
- * follow-up spaced by nearly two seconds instead of one.
+ * Calibrated three times. At 2.2 to 6.5 s with bursts at 0.9 s, on top of
+ * the eye gestures the idle life already plays, the face did something every
+ * two seconds and the owner read it as nervous tics. At 6 to 14 s with a rare
+ * follow-up, measured on the running widget (2026-09-17), the three
+ * independent draws — eye beats, mimics, scenes — still gave a facial event
+ * every five to eight seconds with no rhythm at all, which reads as a tic
+ * whatever the rate. A resting character acts in phrases: the silence is
+ * longer (eight to sixteen seconds), and a beat continues into a follow-up
+ * a third of the time, so a thought unfolds in one, two or three beats and
+ * then the face is quiet. The eyes keep wandering on their own clock, and
+ * the face also ANSWERS an eye beat when the host cues it (`answerIn`).
  */
-export const MOUTH_LIFE_MIN_DELAY_MS = 6000;
-export const MOUTH_LIFE_MAX_DELAY_MS = 14000;
+export const MOUTH_LIFE_MIN_DELAY_MS = 8000;
+export const MOUTH_LIFE_MAX_DELAY_MS = 16000;
 
-/** Chance that a mimic is followed by another sooner (a thought unfolding —
- * rare, or the follow-ups become the cadence). */
-export const MOUTH_LIFE_BURST_PROBABILITY = 0.1;
-export const MOUTH_LIFE_BURST_DELAY_MS = 1800;
+/** Chance that a beat continues into a follow-up, and how soon. */
+export const MOUTH_LIFE_FOLLOW_UP_PROBABILITY = 0.35;
+export const MOUTH_LIFE_FOLLOW_UP_MIN_MS = 1200;
+export const MOUTH_LIFE_FOLLOW_UP_MAX_MS = 2500;
 
 /** Size drawn for each performance, on the relative travel. */
 export const MOUTH_LIFE_SCALE_MIN = 0.8;
@@ -136,51 +149,32 @@ export const MOUTH_MIMIC_WEIGHTS: readonly (readonly [MouthMimic, number])[] = [
 export const MOUTH_MIMICS: readonly MouthMimic[] = MOUTH_MIMIC_WEIGHTS.map(([mimic]) => mimic);
 
 /**
- * How much a scene INKS the mouth and the brows while it plays.
- *
- * At rest both organs sit at half presence (a quiet face), and a mimic that
- * moved them at half ink read as washed out next to two solid eyes — seen
- * on the frozen strip, not guessed. A cartoon face that performs commits in
- * full: the big scenes go to full ink, the small ones part of the way, on
- * the scene's own attack / hold / release, derived from its lead mouth tape
- * so the ink can never outlive or lag the shape it belongs to.
+ * How each scene LETS GO — its own spring, so a sulk lingers on a heavy one
+ * and a smack snaps back on a quick one. Before: every scene came home on
+ * the expression's `base` dynamics, the same 650 ms every time.
  */
-const MIMIC_INK: Record<MouthMimic, number> = {
-  grin: 0.5,
-  gasp: 0.5,
-  sulk: 0.5,
-  giggle: 0.5,
-  pucker: 0.5,
-  hmm: 0.45,
-  smirk: 0.45,
-  wiggle: 0.3,
-  smack: 0.25,
+export const MIMIC_RELEASE: Record<MouthMimic, SpringConfig> = {
+  grin: { frequency: 1.1, damping: 1 },
+  gasp: { frequency: 2, damping: 0.9 },
+  sulk: { frequency: 0.9, damping: 1.05 },
+  hmm: { frequency: 1.6, damping: 0.95 },
+  smirk: { frequency: 1.4, damping: 1 },
+  pucker: { frequency: 2.2, damping: 0.85 },
+  giggle: { frequency: 2.4, damping: 0.7 },
+  wiggle: { frequency: 3, damping: 0.8 },
+  smack: { frequency: 3.5, damping: 0.85 },
 };
-
-/** The ink tapes of a scene: presence of the mouth and both brows, keyed on
- * the scene's own lead mouth tape (its first key is the attack, its last
- * zero the release) and lasting as long as the longest tape does. */
-function inkTapes(scene: readonly Tape[], amount: number): Tape[] {
-  const lead = scene.find(tape => tape.channel.startsWith('mouth')) ?? scene[0];
-  const attackMs = lead.keys[0].atMs;
-  const releaseMs = Math.max(...scene.map(tape => tape.durationMs ?? 0));
-  const keys = [[attackMs, amount]] as const;
-  return [
-    beat('mouthA', keys, releaseMs, SNAP),
-    beat('browAL', keys, releaseMs, SNAP),
-    beat('browAR', keys, releaseMs, SNAP),
-  ];
-}
 
 /**
  * The tapes of one mimic. `side` is +1 or -1 and picks which corner leads on
- * the asymmetric ones; the caller scales the result for the occasion. Every
- * scene is written as attack / hold / release — read the key times — and
- * carries its own ink.
+ * the asymmetric ones; the caller scales and warps the result for the
+ * occasion. Every scene is written as attack / hold — read the key times —
+ * and carries its own RELEASE (`withRelease`). The face is drawn whole, so a
+ * scene MOVES it and never switches it on: the presence tapes of ADR-264
+ * are gone with the presence channels.
  */
 export function mimicTapes(mimic: MouthMimic, side: 1 | -1): Tape[] {
-  const scene = SCENES[mimic](side);
-  return [...scene, ...inkTapes(scene, MIMIC_INK[mimic])];
+  return withRelease(SCENES[mimic](side), MIMIC_RELEASE[mimic]);
 }
 
 /**
@@ -245,6 +239,7 @@ const SCENES: Record<MouthMimic, (side: 1 | -1) => Tape[]> = {
     beat('mouthW', [[0, -0.3]], 640, SETTLE),
     beat('mouthOpen', [[0, 0.09]], 640, SETTLE),
     beat('mouthSkew', [[0, 0.22 * side]], 640, SETTLE),
+    beat('mouthX', [[0, 0.05 * side]], 640, SETTLE),
     beat(side === 1 ? 'syR' : 'syL', [[40, -0.28]], 640, SETTLE),
     beat(side === 1 ? 'browYL' : 'browYR', [[40, -0.05]], 640, SETTLE),
     beat(side === 1 ? 'browArcL' : 'browArcR', [[40, 0.35]], 640, SETTLE),
@@ -254,6 +249,7 @@ const SCENES: Record<MouthMimic, (side: 1 | -1) => Tape[]> = {
   // closed — the face that knows something.
   smirk: side => [
     beat('mouthSkew', [[0, 0.42 * side]], 620, SNAP),
+    beat('mouthX', [[0, 0.025 * side]], 620, SNAP),
     beat('mouthCurve', [[40, 0.3]], 620, SNAP),
     beat(side === 1 ? 'browArcL' : 'browArcR', [[60, 0.35]], 620, SNAP),
     beat(side === 1 ? 'browYL' : 'browYR', [[60, -0.04]], 620, SNAP),
@@ -331,6 +327,16 @@ const SCENES: Record<MouthMimic, (side: 1 | -1) => Tape[]> = {
       520,
       FLICK
     ),
+    beat(
+      'mouthX',
+      [
+        [0, 0.03 * side],
+        [170, -0.03 * side],
+        [340, 0.025 * side],
+      ],
+      520,
+      FLICK
+    ),
     beat('mouthCurve', [[0, 0.12]], 520, FLICK),
   ],
   // A double smack of the lips, with the brows flicking once — a tut.
@@ -362,26 +368,34 @@ export interface MouthLifeDraw {
   readonly tapes: Tape[];
 }
 
-/** Pick a mimic from the weights — the first random number decides. */
-export function pickMimic(random: () => number): MouthMimic {
-  const total = MOUTH_MIMIC_WEIGHTS.reduce((sum, [, weight]) => sum + weight, 0);
+/** Pick a mimic from the weights — the first random number decides — never
+ * the one just played: the same gasp twice in a row is a loop, not a life. */
+export function pickMimic(random: () => number, previous: MouthMimic | null = null): MouthMimic {
+  const weights = MOUTH_MIMIC_WEIGHTS.filter(([mimic]) => mimic !== previous);
+  const total = weights.reduce((sum, [, weight]) => sum + weight, 0);
   let cursor = random() * total;
-  for (const [mimic, weight] of MOUTH_MIMIC_WEIGHTS) {
+  for (const [mimic, weight] of weights) {
     cursor -= weight;
     if (cursor < 0) return mimic;
   }
-  return MOUTH_MIMIC_WEIGHTS[MOUTH_MIMIC_WEIGHTS.length - 1][0];
+  return weights[weights.length - 1][0];
 }
 
 /**
- * Draw the next mimic from the entropy source: weighted over the library, a
- * random side for the asymmetric ones, a random size. Pure given `random`.
+ * Draw the next mimic from the entropy source: weighted over the library
+ * (never the previous one), a random side for the asymmetric ones, a random
+ * size, then WARPED — its pace and, per channel, its timing and its travel
+ * — so no two performances are alike. Pure given `random`; the draw order
+ * (pick, side, size, warp) is what the tests' sequences follow.
  */
-export function drawMouthMimic(random: () => number): MouthLifeDraw {
-  const mimic = pickMimic(random);
+export function drawMouthMimic(
+  random: () => number,
+  previous: MouthMimic | null = null
+): MouthLifeDraw {
+  const mimic = pickMimic(random, previous);
   const side: 1 | -1 = random() < 0.5 ? 1 : -1;
   const scale = MOUTH_LIFE_SCALE_MIN + random() * MOUTH_LIFE_SCALE_SPAN;
-  return { mimic, tapes: scaleMimic(mimicTapes(mimic, side), scale) };
+  return { mimic, tapes: warpTapes(scaleMimic(mimicTapes(mimic, side), scale), random) };
 }
 
 /**
@@ -406,10 +420,13 @@ export function createLifeRandom(seed: number): () => number {
   };
 }
 
-/** Delay until the next mimic — uniform, with the occasional quick follow-up. */
+/** Delay until the next mimic: the first draw says whether the phrase goes
+ * on (a follow-up a second or two away) or ends (a silence), the second
+ * where in that band. */
 export function drawMouthLifeDelayMs(random: () => number): number {
-  if (random() < MOUTH_LIFE_BURST_PROBABILITY) return MOUTH_LIFE_BURST_DELAY_MS;
-  return Math.round(
-    MOUTH_LIFE_MIN_DELAY_MS + random() * (MOUTH_LIFE_MAX_DELAY_MS - MOUTH_LIFE_MIN_DELAY_MS)
-  );
+  const goesOn = random() < MOUTH_LIFE_FOLLOW_UP_PROBABILITY;
+  const [min, max] = goesOn
+    ? [MOUTH_LIFE_FOLLOW_UP_MIN_MS, MOUTH_LIFE_FOLLOW_UP_MAX_MS]
+    : [MOUTH_LIFE_MIN_DELAY_MS, MOUTH_LIFE_MAX_DELAY_MS];
+  return Math.round(min + random() * (max - min));
 }

@@ -154,3 +154,17 @@ vocabulary is not someone else's. It moves inside strict bounds (0.55–0.70),
 at most one small step per day, every adjustment is counted, and a kill
 switch can freeze it to the static default at any time. If the stored value
 cannot be read, LIA falls back to the default — never to an error.
+
+## Where does my portrait come from?
+
+From four sources, on top of your journals: your **memories** (pinned ones
+first, then the most important), your **interests**, your **learned habits**
+(active windows only, never a paused one) and your recent **relationship
+debriefs**. Each source is read under its own switch — yours and your
+administrator's — and a source that is off or unreachable is named as such,
+never read as empty.
+
+Under the portrait, in **Settings > Journals**, a provenance line says how many
+entries were compiled and, for each source, whether it was used, empty, off or
+unavailable. When a source moves — a memory added, a debrief rebuilt — the next
+consolidation is reopened.

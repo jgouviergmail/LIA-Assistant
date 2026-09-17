@@ -16,6 +16,7 @@ conversational personality, which only defines how the assistant *talks*).
 
 from __future__ import annotations
 
+from src.core.config import settings
 from src.domains.agents.prompts.prompt_loader import load_prompt
 
 # The persona is appended after the main template, separated by a blank line.
@@ -156,6 +157,12 @@ def render_consolidation_prompt(
     size_management_instruction: str,
     health_signals_section: str,
     personality_code: str | None,
+    memories_section: str = "",
+    interests_section: str = "",
+    habits_section: str = "",
+    debriefs_section: str = "",
+    portrait_full_tokens: int,
+    portrait_brief_tokens: int,
 ) -> str:
     """Render the periodic consolidation prompt from explicit templates.
 
@@ -176,6 +183,12 @@ def render_consolidation_prompt(
         size_management_instruction: Pre-computed size directive.
         health_signals_section: Optional health-metrics block.
         personality_code: Active conversational personality code, or None.
+        memories_section: Optional long-term-memories block (part B).
+        interests_section: Optional interests block (part B).
+        habits_section: Optional learned-habits block (part B).
+        debriefs_section: Optional relationship-debriefs block (part B).
+        portrait_full_tokens: Budget the prompt states for the full portrait.
+        portrait_brief_tokens: Budget the prompt states for the brief portrait.
 
     Returns:
         The complete prompt string sent to the consolidation LLM.
@@ -192,6 +205,12 @@ def render_consolidation_prompt(
         max_entry_chars=max_entry_chars,
         size_management_instruction=size_management_instruction,
         health_signals_section=health_signals_section,
+        memories_section=memories_section,
+        interests_section=interests_section,
+        habits_section=habits_section,
+        debriefs_section=debriefs_section,
+        portrait_full_tokens=portrait_full_tokens,
+        portrait_brief_tokens=portrait_brief_tokens,
     )
     return prompt + _PERSONA_SEPARATOR + _render_persona(persona_template, personality_code)
 
@@ -210,8 +229,16 @@ def build_consolidation_prompt(
     size_management_instruction: str,
     health_signals_section: str,
     personality_code: str | None,
+    memories_section: str = "",
+    interests_section: str = "",
+    habits_section: str = "",
+    debriefs_section: str = "",
 ) -> str:
     """Load the shipped templates and render the consolidation prompt.
+
+    The portrait budgets are read HERE from the settings (ADR-184): the pure
+    renderer takes them as arguments so the harness can render a candidate
+    with any figure.
 
     Args:
         all_entries: Formatted working set (every active entry).
@@ -226,6 +253,10 @@ def build_consolidation_prompt(
         size_management_instruction: Pre-computed size directive.
         health_signals_section: Optional health-metrics block.
         personality_code: Active conversational personality code, or None.
+        memories_section: Optional long-term-memories block (part B).
+        interests_section: Optional interests block (part B).
+        habits_section: Optional learned-habits block (part B).
+        debriefs_section: Optional relationship-debriefs block (part B).
 
     Returns:
         The complete prompt string sent to the consolidation LLM.
@@ -245,4 +276,10 @@ def build_consolidation_prompt(
         size_management_instruction=size_management_instruction,
         health_signals_section=health_signals_section,
         personality_code=personality_code,
+        memories_section=memories_section,
+        interests_section=interests_section,
+        habits_section=habits_section,
+        debriefs_section=debriefs_section,
+        portrait_full_tokens=settings.journal_portrait_full_max_tokens,
+        portrait_brief_tokens=settings.journal_portrait_brief_max_tokens,
     )

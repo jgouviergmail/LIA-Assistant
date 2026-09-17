@@ -6,6 +6,11 @@
  * behaves differently live and after a reload.
  */
 
+import type { LLMUsage } from './llm-usage';
+
+/** Where a kept answer's projection into the « Kept answers » space stands. */
+export type BookmarkIndexState = 'pending' | 'indexed' | 'error' | 'deferred' | 'disabled';
+
 /** One kept answer. */
 export interface Bookmark {
   id: string;
@@ -21,6 +26,12 @@ export interface Bookmark {
   answered_at: string;
   /** When the answer was kept (UTC, ISO-8601). */
   created_at: string;
+  /** Where the knowledge-space projection stands; null when never attempted. */
+  index_state: BookmarkIndexState | null;
+  /** When the projection last reached READY (UTC, ISO-8601). */
+  indexed_at: string | null;
+  /** What indexing cost (embedding tokens, euros); present once READY only. */
+  index_usage: LLMUsage | null;
 }
 
 /** One page, its EXACT total (ADR-185) and the bounds the API enforces. */

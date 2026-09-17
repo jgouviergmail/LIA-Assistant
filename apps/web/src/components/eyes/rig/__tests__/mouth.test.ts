@@ -22,8 +22,8 @@ import { join } from 'node:path';
 import { POSES, exaggeratePose, resolveLoops, resolvePose } from '@/components/eyes/rig/poses';
 import { FAMILY_DYNAMICS } from '@/components/eyes/rig/dynamics';
 import { AMPLITUDE_MAX } from '@/components/eyes/tone';
-import { createEyeRig, type EyeRig } from '@/components/eyes/rig/runtime';
-import { ARRIVAL_SCRIPTS } from '@/components/eyes/rig/scripts';
+import { browStretchFor, createEyeRig, type EyeRig } from '@/components/eyes/rig/runtime';
+import { ARRIVAL_SCRIPTS, resolvePatterns } from '@/components/eyes/rig/scripts';
 import { CHANNELS, type ChannelKey } from '@/components/eyes/rig/channels';
 import { EYE_EXPRESSIONS, type EyeExpression } from '@/components/eyes/expression-engine';
 
@@ -33,7 +33,9 @@ const CSS = readFileSync(join(process.cwd(), 'src/styles/eyes.css'), 'utf8');
  * because the value lives inside a `calc()` rather than in a plain length. */
 function browBaseOffset(): number {
   const block = CSS.slice(CSS.indexOf('.lia-eye-brow {'));
-  const match = block.slice(0, block.indexOf('}')).match(/translate:\s*-50%\s*calc\(-([\d.]+)em/);
+  const match = block
+    .slice(0, block.indexOf('}'))
+    .match(/calc\(-100% - ([\d.]+)em \+ var\(--brow-y\)\)/);
   if (!match) throw new Error('no brow base offset');
   return Number(match[1]);
 }
@@ -61,15 +63,6 @@ function trace(rig: EyeRig, channel: ChannelKey, frames: number): number[] {
 const curveOf = (expression: EyeExpression) => resolvePose(expression, 'cozmo').mouthCurve;
 
 describe('the mouth', () => {
-  it('is never absent — a face that GROWS a mouth to smile is a defect', () => {
-    EYE_EXPRESSIONS.forEach(expression => {
-      expect({ expression, present: resolvePose(expression, 'cozmo').mouthA > 0 }).toEqual({
-        expression,
-        present: true,
-      });
-    });
-  });
-
   it('lifts the corners for what is pleasant', () => {
     (['joy', 'excited', 'tender', 'wink', 'attentive', 'sleep'] as const).forEach(expression => {
       expect({ expression, up: curveOf(expression) > 0 }).toEqual({ expression, up: true });
@@ -157,31 +150,25 @@ describe('speaking', () => {
     expect(Math.max(...opening) - Math.min(...opening)).toBeGreaterThan(0.15);
   });
 
-  it('does not tick: the flap is two incommensurable components', () => {
-    // One sine on a mouth is unmistakable once you watch it — it is a metronome
-    // with lips.
-    // The FLAP is the syllable-rate part; the slower phrase envelope rides the
-    // same channel and is tested on its own below.
-    const flap = resolveLoops('speaking', 'calm').filter(
-      loop => loop.channel === 'mouthOpen' && loop.periodMs < 2000
+  it('is GENERATED speech, not a loop: the mouth is the state pattern and the loops only bob the eyes', () => {
+    // Sines on a mouth get louder and quieter; they never say a word. The
+    // opening, the shape and the brows are keyed syllable by syllable in
+    // `rig/speech.ts`; what is left to loop is the eyes' bob.
+    resolveLoops('speaking', 'calm').forEach(loop =>
+      expect({ channel: loop.channel, eyes: /^(ty|sy)[LR]$/.test(loop.channel) }).toEqual({
+        channel: loop.channel,
+        eyes: true,
+      })
     );
-    expect(flap).toHaveLength(2);
-    expect(flap[0].periodMs).not.toBe(flap[1].periodMs);
-    expect(flap[0].periodMs % flap[1].periodMs).not.toBe(0);
+    const pattern = resolvePatterns('speaking').map(tape => tape.channel);
+    expect(pattern).toEqual(
+      expect.arrayContaining(['mouthOpen', 'mouthW', 'mouthCurve', 'mouthSkew'])
+    );
   });
 
-  it('widens and narrows as much as it opens', () => {
-    expect(resolveLoops('speaking', 'calm').some(loop => loop.channel === 'mouthW')).toBe(true);
-  });
-
-  it('keeps a syllable-rate cadence', () => {
-    const fastest = Math.min(
-      ...resolveLoops('speaking', 'calm')
-        .filter(loop => loop.channel === 'mouthOpen')
-        .map(loop => loop.periodMs)
-    );
-    expect(fastest).toBeGreaterThan(180);
-    expect(fastest).toBeLessThan(400);
+  it('rests between two phrases on a CLOSED mouth — the pose is the listening face', () => {
+    expect(resolvePose('speaking', 'cozmo').mouthOpen).toBe(0);
+    expect(resolvePose('speaking', 'cozmo').mouthCurve).toBeGreaterThan(0);
   });
 
   it('never flaps a mouth that is not speaking — a sleeper breathes, it does not talk', () => {
@@ -197,11 +184,7 @@ describe('speaking', () => {
     });
   });
 
-  it('has PHRASES: the mouth closes for a beat between them', () => {
-    // Three incommensurable sines never close a mouth: the flap merely gets
-    // quieter and louder. Speech stops. A slow envelope brings the flap to
-    // the closure (the rig bounds the opening at 0) for a stretch long enough
-    // to read as a pause, then the mouth picks up again.
+  it('has PHRASES: the mouth closes for a beat between them, and talks at a size the face can hold', () => {
     const rig = createEyeRig();
     rig.setPose({ expression: 'speaking', styleId: 'cozmo', family: 'calm' });
     trace(rig, 'mouthOpen', 60);
@@ -212,21 +195,13 @@ describe('speaking', () => {
       run = value <= 1e-6 ? run + 16 : 0;
       longestClosedMs = Math.max(longestClosedMs, run);
     }
-    expect(longestClosedMs).toBeGreaterThanOrEqual(96);
+    // A phrase pause: at least half a second shut.
+    expect(longestClosedMs).toBeGreaterThanOrEqual(500);
     const closedShare = opening.filter(value => value <= 1e-6).length / opening.length;
-    expect(closedShare).toBeGreaterThan(0.03);
-    expect(closedShare).toBeLessThan(0.35);
-    // ...and it still talks, at a size the face can hold.
-    expect(Math.max(...opening)).toBeGreaterThan(0.3);
-    expect(Math.max(...opening)).toBeLessThan(0.55);
-  });
-
-  it('paces the phrases on a clock no syllable divides', () => {
-    const slow = resolveLoops('speaking', 'calm').filter(
-      loop => loop.channel === 'mouthOpen' && loop.periodMs > 2000
-    );
-    expect(slow.length).toBeGreaterThanOrEqual(1);
-    slow.forEach(loop => expect(loop.amplitude).toBeLessThan(0));
+    expect(closedShare).toBeGreaterThan(0.08);
+    expect(closedShare).toBeLessThan(0.5);
+    expect(Math.max(...opening)).toBeGreaterThan(0.4);
+    expect(Math.max(...opening)).toBeLessThan(0.75);
   });
 });
 
@@ -240,7 +215,7 @@ describe('drawing', () => {
   });
 
   it('is gated on a style token, like the other organs', () => {
-    expect(CSS).toMatch(/opacity:\s*calc\(var\(--rig-mouth-a, 0\.5\) \* var\(--has-mouth\)\)/);
+    expect(CSS).toMatch(/opacity:\s*var\(--has-mouth\)/);
   });
 });
 
@@ -252,10 +227,15 @@ describe('the speech bubble', () => {
     const block = CSS.slice(CSS.indexOf('.lia-eye-brow {'));
     const match = block
       .slice(0, block.indexOf('}'))
-      .match(/height:\s*calc\(([\d.]+)em \+ var\(--brow-curve\) \* ([\d.]+)em\)/);
+      .match(
+        /height:\s*calc\(([\d.]+)em \* var\(--brow-s\) \+ var\(--brow-curve\) \* ([\d.]+)em\)/
+      );
     if (!match) throw new Error('no brow height');
     return { thickness: Number(match[1]), arch: Number(match[2]) };
   }
+
+  /** The eye box height the brow's `top:` is a fraction of (`--eye-h`). */
+  const EYE_H_EM = 1.05;
 
   /** How far a raised brow reaches above the widget's own top edge, in the
    * widget's em — computed, not remembered, and at the LOUDEST the face can
@@ -272,9 +252,14 @@ describe('the speech bubble', () => {
       const pose = exaggeratePose(neutral, resolvePose(e, 'cozmo'), loudest);
       const raise = Math.abs(Math.min(0, pose.browYL));
       const curve = Math.min(1, Math.max(0, pose.browArcL));
-      return raise + curve * arch;
+      // The brow is anchored to the visible top of the shape: a widened eye
+      // (sy above 1) lifts that edge above the box, and the brow with it.
+      const anchor =
+        ((pose.oyL / 100) * (1 - pose.syL) + (pose.lidTopL / 100) * pose.syL) * EYE_H_EM;
+      const weight = browStretchFor(pose.browYL, pose.browArcL);
+      return raise + curve * arch + thickness * weight - anchor;
     });
-    return base + Math.max(...reach) + thickness - padding;
+    return base + Math.max(...reach) - padding;
   }
 
   /** Where the tail's point sits, in the widget's em. The bubble's lengths are

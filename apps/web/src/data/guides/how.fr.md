@@ -6,7 +6,7 @@
 
 **Version** : 5.0
 **Date** : 2026-08-23
-**Application** : LIA v1.45.0
+**Application** : LIA v1.45.1
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -69,8 +69,8 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Auto-hébergement ARM64 | Docker multi-arch, embeddings sémantiques (multilingues), Playwright chromium cross-platform |
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
-| Transparence totale | 560 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 289 ADRs, ~29 531 tests collectés par pytest sur 1 737 fichiers, observabilité native, HITL à 6 niveaux |
+| Transparence totale | 564 métriques Prometheus, debug panel embarqué, suivi token par token |
+| Fiabilité en production | 293 ADRs, ~29 725 tests collectés par pytest sur 1 758 fichiers, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -88,10 +88,10 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 
 | Métrique | Valeur |
 |----------|--------|
-| Tests | 29 531 collectés par pytest sur 1 737 fichiers de test + 8 355 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
+| Tests | 29 725 collectés par pytest sur 1 758 fichiers de test + 8 423 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
 | Fixtures pytest | 969, dont 46 partagées via conftest |
 | Documents de documentation | 647 |
-| ADRs (Architecture Decision Records) | 289 |
+| ADRs (Architecture Decision Records) | 293 |
 | Métriques Prometheus | 553 définitions |
 | Dashboards Grafana | 29 |
 | Langues supportées (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -351,6 +351,8 @@ Ce qu'un outil renvoie est **projeté dans le contexte de la boucle item par ite
 
 Un tour se doit aussi une mémoire de travail qui lui survit. L'état est borné par une fenêtre de messages, et un tour ReAct y ajoute deux messages par itération — si bien qu'un tour assez long chasse **sa propre question** de cette fenêtre, après quoi le fenêtrage qui sépare l'historique de la boucle courante ne trouve plus aucun point de coupe. Le réducteur ré-épingle donc la question du tour quand la troncature l'a évincée, sur ses deux branches, et le couplage entre le budget d'itérations et la taille de la fenêtre porte un nom plutôt que de vivre comme une relation arithmétique tacite. Ce qu'un tour délivre réellement au modèle est mesuré aussi — taille du prompt par itération et part de la fenêtre de contexte du modèle — parce qu'une boucle qui mesurait ses itérations et sa durée mesurait tout sauf ce qui grossit.
 
+Les outils que la boucle reçoit sont **liés par pertinence, jamais par ordre d'enregistrement** (ADR-293). Le routeur calcule déjà un embedding de la question pour noter les domaines ; du même vecteur, il ordonne chaque manifeste disponible — outils natifs et serveurs MCP de la personne confondus — en un classement global que la boucle lit. La sélection se compose sans qu'aucun nom d'outil ne soit écrit nulle part : les outils des domaines détectés, puis les meilleurs de chaque autre famille pour que chacune reste joignable, puis la tête du classement jusqu'à un budget publié ; le plafond n'est plus qu'un filet de sécurité par tri stable. Une liste « de base » déclarée à la main a été écrite puis refusée, parce qu'elle encodait l'usage d'un compte dans un produit multi-utilisateurs — la couverture par famille dit la même chose structurellement. La boucle monte aussi le bloc des espaces de connaissances que le pipeline injecte, lu dans le paquet que le routeur a préchargé sans le consommer : ce que le pipeline sait, la boucle le sait. Le nombre d'outils liés et les tokens de leurs schémas sont mesurés, parce que ce préfixe pesait la majeure partie du premier appel sans être compté.
+
 ### 5.4. Exécutions détachées : la génération survit à la connexion (ADR-117)
 
 Le streaming SSE classique a un défaut structurel : la génération vit *dans* le générateur de la réponse HTTP. Fermer l'onglet, naviguer ou perdre le réseau tue la connexion — et, avec elle, le tour de conversation entier. LIA découple les deux : un **producteur détaché** (tâche asyncio indépendante de la requête) exécute le graphe et publie chaque chunk dans un **Redis Stream par run** ; l'endpoint SSE n'est plus qu'un **abonné** qui relaie ce stream.
@@ -386,6 +388,8 @@ Un artefact et une réponse suivent deux cycles de vie différents une fois qu'i
 Une réponse que la personne veut garder est un autre objet : c'est de la prose, elle doit se rendre exactement comme la bulle, et elle doit survivre à une conversation que l'on réinitialise souvent. Un **bookmark est donc une copie, jamais un pointeur**. Au clic, la réponse (markdown ou document HTML enrichi, tel quel), la demande qui l'a produite et la date de la réponse sont écrites dans une table qui leur est propre. Les deux références gardées vers la conversation sont en `SET NULL` : elles ne servent qu'à la bascule de la bulle tant que la conversation vit. La demande est résolue **côté serveur**, sous le même prédicat de visibilité que le chat — le dernier message visible de la personne avant la réponse, jamais la question synthétique d'une exécution hors tour — et une notification envoyée de l'initiative de LIA ne garde aucune demande plutôt qu'une fausse. Un index unique partiel rend la bascule idempotente par construction, le plafond du compte est publié parce qu'il est imposé, page et total viennent d'un même `WHERE`, et le commutateur de l'exploitant ne garde que l'acte de conserver : ce qui a déjà été conservé reste lisible, exportable et supprimable.
 
 Lire et supprimer ses propres fichiers survit au plafond des téléversements : le routeur `attachments` est monté quel que soit `ATTACHMENTS_ENABLED`, la garde de capacité ne portant que sur l'envoi. Tout document généré étant servi par cette lecture, une instance qui génère sans accepter d'envois — le démonstrateur — rend ce qu'elle produit ouvrable, et le balayage d'expiration tourne pour les quatre producteurs de la table, jamais pour le seul téléversement.
+
+Une réponse conservée est aussi **indexée comme un document d'un espace de connaissances** (ADR-291) : un espace par compte, trouvé par son rôle et jamais par son nom, créé au premier signet, actif par défaut, hors des plafonds d'espaces et de documents. Le signet reste l'enregistrement et le document sa projection — un titre daté, la demande citée, la réponse convertie en Markdown quand elle était une page HTML — si bien que l'état exposé (indexé, en attente, différé sous un plafond de dépense, désactivé, en erreur) est dérivé du document tant qu'il existe, et le coût n'est annoncé qu'une fois prêt. Une projection est revendiquée avant d'être calculée, les portes de capacité et de dépense sont lues à l'acte, et un rattrapage monte sur le tick d'entretien des espaces en servant d'abord le signet le moins récemment tenté — un compte sous quota n'affame plus les autres. Supprimer le signet retire le document ; le document ne se déplace ni ne se supprime depuis l'espace, et l'espace géré par son rôle ne se supprime pas à la main.
 
 ## 6. Le système de planification (ExecutionPlan DSL)
 
@@ -691,6 +695,8 @@ L'assistant tient des réflexions introspectives organisées sur quatre thèmes 
 
 **Observabilité dédiée** : 11 métriques Prometheus dans `src/infrastructure/observability/metrics_journals.py` — `journal_entries_total{action,theme,source}`, `journal_evidence_total{outcome}`, `journal_consolidation_promotions_total{from_level,to_level}`, `journal_level_distribution{level}`, `journal_portrait_present_total{flow,format}`, `journal_portrait_age_hours`, `journal_portrait_feedback_total{outcome}`, etc.
 
+Le portrait se compose de **quatre sources en plus des carnets** (ADR-292) : mémoires, intérêts, habitudes apprises et débriefs de relation entrent dans le prompt de consolidation comme matière de synthèse. Le domaine des carnets n'importe aucun de ces domaines — deux d'entre eux l'importent déjà — donc chaque source s'offre à travers un registre partagé au vocabulaire fermé, que le démarrage installe explicitement et refuse incomplet. Un lecteur répond `used | empty | disabled | unavailable` avec un total exact, sous ses trois portes lues à l'acte (plafond, commutateur de l'exploitant, préférence de la personne), et ne lève jamais : une source aveugle est nommée, jamais lue comme vide. L'assembleur lit une source à la fois sous un plafond par source et retire une section entière au-delà du budget global ; le prompt ne rend une section que si elle existe et interdit de reciter une ligne ou de nommer ses sources. La provenance est persistée avec le portrait, dans la même écriture, et dessinée sous lui ; une source qui a bougé rouvre l'éligibilité à la consolidation suivante.
+
 ### 11.6. Système d'intérêts
 
 Détection par analyse des requêtes avec évolution bayésienne des poids (decay configurable). Les intérêts sont regroupés en **sujets** par clustering LLM batch (donnée dérivée, auto-réparante), et la sélection des notifications tire par **rareté à deux niveaux** (cooldown par sujet + priorité aux sujets et intérêts les moins servis) — une passion ne monopolise jamais les notifications. Contenu multi-source (Perplexity, Brave, Wikipedia, réflexion LLM) avec **liens sources cliquables** ajoutés de manière déterministe. Feedback utilisateur (thumbs up/down/block) ajuste les poids ; fusion nocturne des quasi-doublons.
@@ -893,6 +899,8 @@ Upload → Chunking → Embedding (gemini-embedding-001, 1536d) → pgvector HNS
 
 Note : l'injection RAG se fait dans le nœud de réponse, pas dans le planificateur. Le planner reçoit en revanche l'injection des journaux personnels via `build_journal_context()`.
 
+Un document qui n'a pas pu être indexé **dit pourquoi** : un code fermé est stocké sur la ligne (fichier disparu, extraction impossible, aucun texte, aucun passage, trop de passages, tentatives épuisées) et traduit à l'affichage en six langues, sous la ligne du document. Le cas le plus fréquent — un PDF scanné dont les pages portent des images sans couche texte — est distingué du fichier réellement vide et affiché avec son remède : ouvrir le fichier dans Google Docs, qui reconnaît le texte, puis l'ajouter à l'espace par sa source Drive. Aucune reconnaissance de caractères n'est promise que le code ne fournit pas.
+
 ### 17.2. System RAG Spaces (ADR-058)
 
 FAQ intégrée (250 Q/A, 24 sections) indexée depuis `docs/knowledge/`. Détection `is_app_help_query` par QueryAnalyzer, Rule 0 override dans RoutingDecider, App Identity Prompt (~200 tokens, lazy loading). La péremption se juge sur un SHA-256 des fichiers source **et** sur le corpus stocké lui-même (un chunk par entrée parsée, exactement un document) : une empreinte concordante sur un nombre de lignes erroné est une réparation, pas un no-op. L'auto-indexation tourne dans chaque worker uvicorn, donc la ligne de l'espace est revendiquée par `FOR UPDATE SKIP LOCKED` — un seul écrivain, les autres passent sans attendre — et chaque vecteur est calculé **avant** la première instruction destructrice : un refus du fournisseur ne supprime rien et le corpus précédent continue de servir (ADR-162).
@@ -996,7 +1004,7 @@ La provenance est donc une propriété de la **donnée** : les 24 types du regis
 
 | Technologie | Rôle |
 |-------------|------|
-| Prometheus | 560 métriques custom (RED pattern) |
+| Prometheus | 564 métriques custom (RED pattern) |
 | Grafana | 29 dashboards production-ready |
 | Loki | Logs structurés JSON agrégés |
 | Tempo | Traces distribuées cross-service (OTLP gRPC) |
@@ -1004,7 +1012,7 @@ La provenance est donc une propriété de la **donnée** : les 24 types du regis
 | Alertmanager | Noyau de 14 alertes vitales notifiées par e-mail (runbooks liés, seuils par environnement) + webhook vers LIA : chaque alerte devient un incident dans le produit (ADR-247) |
 | structlog | Logging structuré avec PII filtering |
 
-**Une métrique qui n'atteint aucun tableau de bord est une métrique sur laquelle personne n'agit.** L'écart entre ce que le code émet et ce qu'un opérateur peut voir est mesuré, jamais supposé : `scripts/audit/measure_metric_coverage.py` analyse chaque définition de métrique (par AST et non par expression régulière — une regex lit `ZoneInfo("UTC")` comme une métrique `Info`) et confronte chaque nom à tous les panels, règles d'enregistrement et expressions d'alerte. 560 définies ; les 44 qui n'atteignent rien sont listées explicitement dans une base **shrink-only**, si bien qu'une métrique nouvellement aveugle fait rougir le build et qu'une métrique devenue visible doit quitter la liste — sinon la prochaine aveugle prend sa place en silence. Le prix de ne pas l'avoir eu : une source de heartbeat tombant en panne ouverte a supprimé les signaux de santé sur 46,5 % des ticks pendant une semaine, sans aucune métrique pour s'en apercevoir (ADR-148). Deux pièges que la garde ferme par construction — un compteur à labels qui n'a jamais été incrémenté n'expose **aucune série**, donc un panel qui guette une panne rare a besoin de `or vector(0)`, faute de quoi il affiche « No data » là où l'opérateur attend un zéro vert ; et la couverture est lue dans les **expressions** de panels et de règles uniquement, car une métrique citée dans un commentaire n'est pas câblée.
+**Une métrique qui n'atteint aucun tableau de bord est une métrique sur laquelle personne n'agit.** L'écart entre ce que le code émet et ce qu'un opérateur peut voir est mesuré, jamais supposé : `scripts/audit/measure_metric_coverage.py` analyse chaque définition de métrique (par AST et non par expression régulière — une regex lit `ZoneInfo("UTC")` comme une métrique `Info`) et confronte chaque nom à tous les panels, règles d'enregistrement et expressions d'alerte. 564 définies ; les 44 qui n'atteignent rien sont listées explicitement dans une base **shrink-only**, si bien qu'une métrique nouvellement aveugle fait rougir le build et qu'une métrique devenue visible doit quitter la liste — sinon la prochaine aveugle prend sa place en silence. Le prix de ne pas l'avoir eu : une source de heartbeat tombant en panne ouverte a supprimé les signaux de santé sur 46,5 % des ticks pendant une semaine, sans aucune métrique pour s'en apercevoir (ADR-148). Deux pièges que la garde ferme par construction — un compteur à labels qui n'a jamais été incrémenté n'expose **aucune série**, donc un panel qui guette une panne rare a besoin de `or vector(0)`, faute de quoi il affiche « No data » là où l'opérateur attend un zéro vert ; et la couverture est lue dans les **expressions** de panels et de règles uniquement, car une métrique citée dans un commentaire n'est pas câblée.
 
 ### 20.2. Debug Panel embarqué
 
@@ -1282,7 +1290,7 @@ Six capacités transverses partagent la même philosophie produit : **feedback i
 - **Rendu LaTeX** — Les formules mathématiques et scientifiques que LIA écrit (`$inline$` / `$$block$$`) sont rendues via KaTeX dans `MarkdownContent.tsx`. Comme l'assistant émet toute sa réponse en HTML, un plugin `rehypeMathInText` détecte les délimiteurs `$`/`$$` au niveau hast — après expansion du HTML par `rehypeRaw` — et les convertit en marqueurs que `rehype-katex` rend ; `remark-math`, limité au markdown, ne voit pas le math enfoui dans le HTML. Ordre : `rehypeRaw → rehypeSanitize → rehypeMathInText → rehypeKatex` ; les étapes math ne lisent que du texte déjà sanitisé et n'émettent que des spans à classe fixe, sans surface d'attaque nouvelle.
 - **Coloration syntaxique** — `react-syntax-highlighter` (PrismAsyncLight) lazy-loaded. 25 langages enregistrés à la demande via `SyntaxHighlighter.registerLanguage(...)` pour garder le bundle initial léger (langages chargés au premier code block). Thème automatique `one-dark` / `one-light` piloté par `next-themes`.
 
-- **Mode HTML enrichi : vocabulaire de composants** — quand l'utilisateur choisit l'affichage HTML enrichi, la directive de prompt expose sept composants stylés par le design system (callouts titrés, chips à icônes, sections dépliables `details` natives, listes clé-valeur, colonnes responsives, étapes numérotées, tuiles de chiffres) plus les accents inline `mark`/`kbd`/`abbr`, sous une règle de sobriété explicite — la prose mène, les composants appuient. L'enrichissement est purement déclaratif (prompt + CSS + allowlist de sanitisation : six tags inertes ajoutés, ordre des plugins inchangé) et un garde CI échoue si la directive annonce une classe que la feuille de style ne couvre pas. Copie, partage et export `.md` aplatissent le HTML en texte lisible (presse-papiers double saveur `text/html` + `text/plain`), miroir client des sémantiques `html_to_text` du backend ; les ligatures d'icônes sont exclues du surlignage de recherche.
+- **Mode HTML enrichi : vocabulaire de composants** — quand l'utilisateur choisit l'affichage HTML enrichi, la directive de prompt expose sept composants stylés par le design system (callouts titrés, chips à icônes, sections dépliables `details` natives, listes clé-valeur, colonnes responsives, étapes numérotées, tuiles de chiffres) plus les accents inline `mark`/`kbd`/`abbr`, sous une règle de mise en page explicite — toute réponse porteuse de données est une page composée (accroche, une section par facette dans son composant, callout de clôture), et la forme suit les données de la réponse, jamais celle des réponses précédentes. L'enrichissement est purement déclaratif (prompt + CSS + allowlist de sanitisation : six tags inertes ajoutés, ordre des plugins inchangé) et un garde CI échoue si la directive annonce une classe que la feuille de style ne couvre pas. Copie, partage et export `.md` aplatissent le HTML en texte lisible (presse-papiers double saveur `text/html` + `text/plain`), miroir client des sémantiques `html_to_text` du backend ; les ligatures d'icônes sont exclues du surlignage de recherche.
 
 ### 23.9. Persistance du feedback proactif
 
@@ -1414,7 +1422,7 @@ Une règle CSS gouverne les espacements du design system : les marges verticales
 
 ## 24. Architecture des décisions (ADR)
 
-289 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
+293 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
 
 | ADR | Décision | Problème résolu | Impact mesuré |
 |-----|----------|----------------|---------------|
@@ -1572,6 +1580,8 @@ Le widget d'yeux du chat (ADR-240) repose sur un principe unique : **aucun signa
 
 Le visage vit entre deux réponses, et cette vie est un rig, pas une feuille de style (ADR-252, ADR-264). Un runtime TypeScript calcule chaque canal à chaque image — ressorts analytiques, boucles additives, bandes de clés — et publie le résultat en propriétés personnalisées `--rig-*` que la feuille se contente de lire : une feuille de style n'en déclare jamais une et ne pose jamais de transition sur une valeur qui change soixante fois par seconde. Le sourcil a une arche et reste discrètement présent au repos ; une seule respiration porte la masse, les sourcils et la largeur de la bouche sur la même période ; le regard soulève les sourcils et un clignement les abaisse, couplés dans le rig comme des **contributions absolues et non des incréments**, parce que le chemin rapide d'inactivité ne réécrit que les canaux qu'une boucle emprunte — un incrément y dériverait toute la session, ce qu'un test épingle en comparant vingt mille petits pas à un seul. La parole a des phrases (une enveloppe à travers la fermeture, une ouverture bornée dans l'intervalle unité) et des sourcils qui ponctuent sur un motif irrégulier. La bouche a une vie propre — des mimiques relatives à cadence aléatoire, ordonnancées par le rig — et dix courtes saynètes sur un visage au repos, interrompues par tout changement d'expression avec le visage exactement là où il était, vérifié contre un rig jumeau. L'aléa vient d'un flux semé séparé, jamais de `Math.random`, pour que les tests du widget restent déterministes ; le maintien vivant est un budget en pixels dans les tests — visible au repos, sous deux pixels, exactement zéro sur un visage concentré. Le même widget accueille les visiteurs sur la page d'accueil publique : aucun compte, une position par surface, l'apparence en capsules imposée là où le chat garde le style de l'utilisateur — et les aperçus du sélecteur de style coupent cette vie, parce qu'un aperçu compare des silhouettes.
 
+Le rig a ensuite été repris canal par canal contre une mesure de ce que la page rendait vraiment (ADR-294). Le sourcil est posé sur l'œil et pèse : il a une masse, se fronce et **mène** chaque expression au lieu de la suivre. La parole n'est plus une boucle mais une phrase générée — syllabes, pauses, accents — que rien ne répète ; les temps forts des expressions sont déformés à chaque tirage, si bien que deux clignements, deux sourires, deux regards ne sont jamais identiques. Les saynètes attendent un vrai temps de repos sur une horloge que la page garde à travers les navigations, parce qu'une horloge remise à zéro à chaque montage ne laissait jamais arriver la scène. Le tout se lit dans soixante et un canaux publiés, mesurés image par image.
+
 ---
 
 ## 32. Les applications natives : une coque, votre serveur
@@ -1728,8 +1738,8 @@ Le budget de connexions a un plancher, pas seulement un plafond. L'audit F004 bo
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 289 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~29 531 tests sur 1 737 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 293 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~29 725 tests sur 1 758 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 289 ADRs, et du changelog (v1.0 à v1.45.0). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 293 ADRs, et du changelog (v1.0 à v1.45.1). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

@@ -54,6 +54,7 @@ __all__ = [
     "derive_sub_agent_context",
     "runtime_context_if_running",
     "runtime_user_id_str",
+    "runtime_voice_enabled",
     "tool_runtime_context",
     "tool_user_id_str",
 ]
@@ -81,6 +82,9 @@ class LiaRuntimeContext:
         memory_enabled: User preference — long-term memory extraction.
         journals_enabled: User preference — personal journals.
         psyche_enabled: User preference — psyche engine.
+        voice_enabled: User preference — spoken replies. The progressive chat
+            TTS starts on it; the response node reads it to keep a conversational
+            reply free of markup while a voice listens.
         display_mode: Render mode the user chose (cards / html / markdown).
         execution_mode: Pipeline or ReAct (ADR-070).
         is_automated_source: True for runs the user did not type (scheduled
@@ -107,6 +111,7 @@ class LiaRuntimeContext:
     memory_enabled: bool = False
     journals_enabled: bool = False
     psyche_enabled: bool = False
+    voice_enabled: bool = False
     is_automated_source: bool = False
 
     display_mode: str = RESPONSE_DISPLAY_MODE_DEFAULT
@@ -219,6 +224,23 @@ def runtime_psyche_enabled(default: bool = False) -> bool:
     """Whether the psyche engine is enabled for this run."""
     context = runtime_context_if_running()
     return context.psyche_enabled if context is not None else default
+
+
+def runtime_voice_enabled(default: bool = False) -> bool:
+    """Whether the account's spoken replies are on for this run.
+
+    The same preference the voice coordinator starts the progressive chat TTS
+    on; the response node reads it beside the display mode so a conversational
+    reply never reaches a listening voice as markup.
+
+    Args:
+        default: What to answer outside a run.
+
+    Returns:
+        The preference.
+    """
+    context = runtime_context_if_running()
+    return context.voice_enabled if context is not None else default
 
 
 def runtime_browser_context() -> Any:

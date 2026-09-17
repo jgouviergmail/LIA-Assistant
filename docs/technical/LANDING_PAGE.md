@@ -55,12 +55,12 @@ Tout vit dans `apps/web/src/components/landing/`, la couche editoriale dans `lan
 
 | Composant | Type | Description |
 |-----------|------|-------------|
-| `chapters-data.ts` | data | **Source de verite** : config des 6 chapitres (ancre, humeur, nb de benefices, catalogue), `BASICS_CATALOG`, `BASICS_CHIPS`, `FEATURE_ICONS`, et le contrat `REQUIRED_FEATURE_KEYS` (36 fiches). |
+| `chapters-data.ts` | data | **Source de verite** : config des 6 chapitres (ancre, humeur, nb de benefices, catalogue), `BASICS_CATALOG`, `BASICS_CHIPS`, `FEATURE_ICONS`, et le contrat `REQUIRED_FEATURE_KEYS` (l'inventaire des fiches ; le compte vit dans le code, jamais dans un document). |
 | `EditorialChapters` | Server | Orchestre les 6 chapitres (`id="features"` — ancre historique conservee). Visuels alternes : vignette coulisses (01/03/05) / scene de chat complementaire (02/04) — **jamais** les scenes du hero. |
 | `ChapterSection` | Server | Layout d'un chapitre : bulle-titre LIA, eyebrow numerote, H2, sous-titre, 3-4 benefices, ligne « Sous le capot », visuel, catalogue depliable (+ `catalogExtra`). |
 | `vignettes.tsx` | Server | Figures coulisses decomposees de l'animation hero : `VignetteOrchestration` (fan-out FOR_EACH), `VignetteSpark` (mail×agenda), `VignetteForge` (skill + rail). Decoratives (`aria-hidden` via ScrollStage). |
 | `scenes.tsx` | Server | Mini-scenes de chat : `SceneBriefing` (ch. 02), `SceneEdit` (ch. 04 — HITL en mode modification, complementaire du hero). |
-| `FeatureCatalog` | Server | Grille des fiches detaillees — reutilise `landing.features.<k>.{title,description}` existants ×6. |
+| `FeatureCatalog` | Server | Grille des fiches detaillees — reutilise `landing.features.<k>.{title,description}` existants ×6. **Une bande de longueur unique** (2026-09-17) : chaque description tient entre cinq et neuf lignes de la grille ; une capacite qui en demande plus est **decoupee en deux fiches**, jamais condensee sous ce qu'elle enonce (mesure avant : `proactive` faisait 1 529 caracteres a cote d'une fiche de 159, et la rangee entiere s'alignait sur la plus haute). Le compte du `catalog_hint` est **derive** de `chapter.catalog.length` (`{{count}}` dans la copie) : tape a la main, il etait faux sur cinq chapitres sur six. |
 | `SecurityDetail` | Server | L'ex-section Securite & Vie privee, integrale, dans le depliant du ch. 04 (`landing.security.*`). |
 | `CatalogDisclosure` | Client | Depliant accessible **ouvert a l'arrivee** (le detail est la substance de la page ; le bouton sert a replier). Bouton natif, `aria-expanded`, contenu conserve dans le DOM via `grid-template-rows`, `inert` une fois replie. |
 | `ScrollStage` | Client | Declencheur one-shot : les keyframes fill-both des vignettes restent `animation-play-state: paused` jusqu'a l'arrivee au scroll (delais geles par pause → choregraphie au moment de la revelation). Reduced-motion : durees a zero → etat final instantane. |
@@ -152,8 +152,9 @@ Rythme visuel : chapitres alternes (fond transparent / `bg-card` borde), visuel 
 
 | Garde | Fichier | Ce qu'il empeche |
 |-------|---------|------------------|
-| **Couverture de contenu** | `editorial/__tests__/editorial-content-coverage.test.ts` | La perte silencieuse d'une fiche : les catalogues des chapitres + basics doivent former une **partition exacte** de `REQUIRED_FEATURE_KEYS` (36 fiches, ni perte ni doublon), chaque fiche ayant icone + title/description dans les 6 locales. Retirer une fiche exige d'editer le contrat. |
-| **Contrat i18n editorial** | idem | Cle referencee absente/vide dans une des 6 locales ; resurrection des cles purgees (audience, rex, en-tetes features, extras proof) ; disparition des cles `how_it_works` requises par le HowTo JsonLd. |
+| **Couverture de contenu** | `editorial/__tests__/editorial-content-coverage.test.ts` | La perte silencieuse d'une fiche : les catalogues des chapitres + basics doivent former une **partition exacte** de `REQUIRED_FEATURE_KEYS` (ni perte ni doublon), chaque fiche ayant icone + title/description dans les 6 locales, et chaque `catalog_hint` / `detail_hint` portant `{{count}}` (un chiffre tape a la main y est refuse). Retirer une fiche exige d'editer le contrat. |
+| **Compte des catalogues** | `editorial/__tests__/catalog-hint.test.tsx` | Un `catalog_hint` qui annonce un nombre de fiches different de celui du catalogue : `ChapterSection` et `BasicsBand` interpolent `count` depuis la longueur du catalogue, jamais depuis la copie. |
+| **Contrat i18n editorial** | `editorial/__tests__/editorial-content-coverage.test.ts` | Cle referencee absente/vide dans une des 6 locales ; resurrection des cles purgees (audience, rex, en-tetes features, extras proof) ; disparition des cles `how_it_works` requises par le HowTo JsonLd. |
 | **A11y clavier** | `editorial/__tests__/interactive.test.tsx` | Regression du pattern disclosure (bouton natif, aria-expanded, DOM replie) et du pattern tabs (roles, fleches, bouclage, roving tabindex). |
 | **Parite i18n globale** | `scripts/i18n/validate_translations.py` (hook pre-commit) | Toute divergence de cles entre les 6 locales. |
 | **Contrat hero** | `landing/__tests__/InteractiveChatMockup.test.tsx` + `mockup/__tests__/scenarios.test.ts` | Timelines mal formees, cles du mockup manquantes, regression reduced-motion, controles (selection de scene, pause/relecture, gel manuel en fin d'acte), CTA duplique dans le hero. |
@@ -161,7 +162,7 @@ Rythme visuel : chapitres alternes (fond transparent / `bg-card` borde), visuel 
 | **Overflow mobile** | `e2e/smoke/landing-mobile-overflow.spec.ts` | Le retour du debordement horizontal : a 375 px, aucun element en flux ne depasse le bord droit — statiquement, **a chaque battement du cycle d'animation du hero** (horloge Playwright, ~79 s virtuelles : l'oscillation 381↔448 px de 2026-07 etait invisible en capture statique) et apres scroll de chaque section ; passe reflow 320 px (WCAG 1.4.10). |
 | **Contenu FAQ groupee** | `src/lib/__tests__/faq-answer-groups.test.ts` | La perte d'un mot lors du regroupement visuel de la reponse « Que puis-je demander ? » : egalite mot-a-mot prouvee sur les 6 locales reelles + repli tel-quel (zh a une q4 differente). |
 | **Axe pages publiques** | `e2e/a11y/axe-public-pages.spec.ts` | Violations critical/serious (contraste inclus) sur `/faq` (reponse groupee ouverte), `/demo` et `/more` (scanne animee PUIS en pause via le bouton WCAG 2.2.2), en clair ET en sombre — le theme etant pilote par localStorage (`defaultTheme="light"`), emuler le scheme OS ne suffit pas. |
-| **Contrat /more** | `landing/more/__tests__/more-content-coverage.test.ts` + `scenes.test.tsx` | La perte silencieuse d'une attention : 26 cartes en 6 sections, disjointes des 36 fiches majeures (`REQUIRED_FEATURE_KEYS`), chacune avec icone + scene + cles i18n non vides ×6 locales ; apostrophe U+2019 en fr ; **aucun chiffre dans la copie des cartes** (regle anti-derive) ; registre de scenes = partition exacte des cartes. |
+| **Contrat /more** | `landing/more/__tests__/more-content-coverage.test.ts` + `scenes.test.tsx` | La perte silencieuse d'une attention : 26 cartes en 6 sections, disjointes des fiches majeures (`REQUIRED_FEATURE_KEYS`), chacune avec icone + scene + cles i18n non vides ×6 locales ; apostrophe U+2019 en fr ; **aucun chiffre dans la copie des cartes** (regle anti-derive) ; registre de scenes = partition exacte des cartes. |
 | **Overflow mobile /more** | `e2e/smoke/more-overflow.spec.ts` | Le debordement horizontal pendant les cycles des 26 scenes : 375 px par battement d'horloge Playwright section par section, balayage statique des 6 locales, plancher reflow 320 px (helper partage `overflow-report.ts`). |
 
 ---
@@ -203,7 +204,7 @@ routes de previsualisation `/cosmos/*` qui ont servi a l'arbitrage ont ete **sup
 
 `app/[lng]/more/page.tsx` (serveur : metadonnees ×6, BreadcrumbJsonLd, header/footer publics) rend
 `components/landing/more/MoreContent` : 59 micro-attentions animees en 6 sections « moments » (ecrire, repondre,
-imprevus, chercher, quotidien, invisibles), un cran sous les 36 fiches majeures — jamais en doublon (garde de
+imprevus, chercher, quotidien, invisibles), un cran sous les fiches majeures — jamais en doublon (garde de
 disjonction). Chaque carte porte une scene decorative (`aria-hidden`) pilotee par `useLoopedTimeline` (timers purs,
 jamais `animationend` — jsdom ne le delivre pas), active uniquement dans le viewport ET hors pause : le bouton
 pause/lecture (`AnimationPauseToggle`, `aria-pressed`) est le mecanisme WCAG 2.2.2 de la page, et

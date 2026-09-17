@@ -27,6 +27,14 @@ Current: {current_chars} / {max_chars} characters used.
 
 {health_signals_section}
 
+{memories_section}
+
+{interests_section}
+
+{habits_section}
+
+{debriefs_section}
+
 ## LANGUAGE
 Write in {user_language}. This is the user's configured language.
 
@@ -117,19 +125,35 @@ Identify entries written as unstructured narrative prose:
 ────────────────────────────────────────────────────────────────
 ### STEP 7 — PORTRAIT COMPILATION
 Compile the user portrait strictly in {user_language}.
-Perspective: Written by the ASSISTANT ("J'observe...", "Mon modèle mental de l'utilisateur...") describing the human, NOT written in the user's voice.
+Perspective: written by the ASSISTANT ("I observe...", "My model of the user...") describing the human, NOT written in the user's voice.
 
-**`portrait_full`** (~150-220 tokens): Faceted synthesis of the living person:
+MATERIAL: the journal entries above AND, when present in SECTION 1, the four
+source sections — long-term memories, interests, learned habits, relationship
+debriefs. Read them to understand the person's current phase, what occupies
+them, who matters to them and when they live their days. Then SYNTHESISE.
+
+**`portrait_full`** (about {portrait_full_tokens} tokens, never more): faceted
+synthesis of the living person:
 - Traits de fond (durable cognitive style, standards, values)
 - Current phase (active projects, temporary focus, time constraints)
-- Contextual shifts (professional engineering rigor vs personal relaxed hobbies)
-- Contradictions & Tensions (observed paradoxes left unresolved)
+- Contexts and relationships that shape their days — a relationship is a FACET
+  (its role and stakes FOR THE PERSON), never a dated fact about somebody else
+- Rhythm (when they are usually reachable, only when a rhythm is known)
+- Contradictions & tensions (observed paradoxes left unresolved)
 - Open questions (what remains to be understood)
-AVOID: Re-listing raw database facts (names, birthdates, specs). Synthesize POSTURE and COGNITION.
 
-**`portrait_brief`** (~50-70 tokens): Core essence in 2-3 dense sentences in {user_language}:
-Operating posture + current focus + primary interaction rule.
+**`portrait_brief`** (about {portrait_brief_tokens} tokens, never more): core
+essence in 2-3 dense sentences in {user_language}: operating posture + current
+focus + primary interaction rule.
 
+RULES:
+- NEVER re-list raw facts (names of things, dates, figures, addresses, specs):
+  the facts are injected elsewhere when a turn needs them.
+- NEVER reproduce a memory, an interest line or a debrief sentence verbatim.
+- NEVER mention that memories, interests, habits or debriefs exist, nor that
+  a portrait is being compiled.
+- A source absent from SECTION 1 is UNKNOWN to you, not empty: write nothing
+  about it.
 If material is insufficient, return empty strings `""`.
 
 =================================================================

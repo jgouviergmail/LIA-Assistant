@@ -18,6 +18,9 @@ Decision record: [ADR-282](../architecture/ADR-282-Message-Bookmarks.md).
 | `content` | The answer, verbatim: markdown or a `lia-response` HTML document. |
 | `request_content` | The person's last VISIBLE user message before the answer; `NULL` for a message LIA sent on its own initiative (`message_metadata.type` starts with `proactive_`). |
 | `answered_at` | When the answer was written — the tab sorts on it. |
+| `rag_document_id` | The document of the « Kept answers » knowledge space this answer is projected into, while it exists (`SET NULL`) — ADR-291. |
+| `index_state` | Why there is no projection yet (`pending`, `indexed`, `error`, `deferred`, `disabled`); `NULL` = never attempted. The document row is the authority while it exists. |
+| `indexed_at` | When the projection last reached READY. |
 
 A conversation reset never touches a bookmark. Account deletion purges them
 (`user_data_map`: `USER_PURGED`, export `FULL`).
@@ -32,6 +35,8 @@ A conversation reset never touches a bookmark. Account deletion purges them
 | `service.py` | `keep` (idempotent, four refusals), `list_page`, `attached_message_ids`, `remove`, `remove_by_message`. |
 | `router.py` | `/bookmarks`: `POST` (guarded by the capability), `GET`, `GET /state`, `DELETE /{id}`, `DELETE /by-message/{message_id}`. |
 | `errors.py` | `BookmarkLimitReachedError` (409) and the raisers, on the central taxonomy; sentences from `APIMessages`, six languages. |
+| `indexing.py` | The knowledge-space projection (ADR-291): the space by role, the Markdown rendering, the display name, the claim, `index_bookmark`, `discard_index`, `reconcile_bookmark_index`. |
+| `projection.py` | What the API says about a projection — the DERIVED state and the cost once READY; light, so the schemas can read it. |
 
 Settings: `BOOKMARKS_ENABLED` (deployment ceiling of `PlatformCapability.BOOKMARKS`)
 and `BOOKMARKS_MAX_PER_USER` (`core/config/bookmarks.py`, section `[96]` of the
@@ -59,6 +64,31 @@ route alone (`KEEP_GUARD`), the shape uploads took in ADR-279: switching the
 act off must not close reading, exporting or deleting what was already kept.
 `test_capability_route_wiring.py` reads the guard on the route.
 
+## The knowledge space (ADR-291)
+
+Every kept answer is projected into a per-account knowledge space found by
+ROLE (`rag_spaces.kind = 'bookmarks'`, created on first use in the person's
+language — `core/i18n_bookmarks.py`), as a Markdown document of
+`source_type = 'bookmark'`: a dated title, the request quoted (or the
+notification line), the answer's date, the answer — an HTML `lia-response`
+converted by the pipeline's own `html_to_markdown`. The document then
+follows the durable pipeline every space uses (`process_document`:
+chunking, embedding counted and priced in `token_usage_logs`, the reaper's
+recovery, the generational reindex).
+
+| Rule | Where |
+|---|---|
+| The projection is scheduled after the commit that created the row, discarded inside the transaction that removes it, the stored file unlinked after the commit. | `service.py` (`keep`, `_delete_with_projection`) |
+| A projection is CLAIMED first (one conditional UPDATE; a `pending` older than the reaper's grace is a crashed claim). | `repository.claim_for_projection` |
+| `RAG_SPACES` and `BOOKMARKS` read at call time → `disabled`; `spend_blocked` → `deferred`; a failure → `error` (never retried by the sweep; keeping again re-projects). | `indexing.index_bookmark` |
+| The exposed `index_state` is DERIVED from the document while it exists; `index_usage` is reported once READY only. | `projection.py`, `BookmarkResponse.from_row` |
+| The backfill and the safety net ride the reaper's tick, under its bounds; the batch is served least recently ATTEMPTED first (a refused attempt goes to the back of the queue); a switched-off capability skips the pass; a capped batch is logged. | `infrastructure/scheduler/rag_maintenance.py`, `repository.unprojected_ids` |
+| A bookmark deleted between its document's commit and the link's takes the document back (the link's row count says the row is gone). | `indexing._prepare` |
+| A kept answer's document cannot be moved nor deleted from the space (409 `document_managed_by_bookmarks`); a managed space cannot be deleted (403 `space_managed_by_domain`). | `rag_spaces/document_access.py`, `rag_spaces/service.py` |
+| The space and document caps do not apply (the bookmarks cap is the bound). | `indexing.ensure_bookmarks_space`, `create_pending_document` |
+
+Metric: `bookmark_index_total{outcome}` (dashboard 18).
+
 ## Frontend
 
 | Piece | Path |
@@ -66,7 +96,7 @@ act off must not close reading, exporting or deleting what was already kept.
 | Wire shapes (pinned to the schemas by a backend test) | `src/types/bookmarks.ts` |
 | One state for the whole chat, optimistic toggle | `src/lib/bookmark-state-context.tsx` (`BookmarkStateProvider`, mounted around `ChatMessageList`; inert outside) |
 | The bubble toggle, beside « copy » | `src/components/chat/BookmarkButton.tsx` (drawn on every archived answer with text — proactive notifications included — never on an active stream) |
-| The tab | `src/components/settings/generated-assets/BookmarkList.tsx` + `BookmarkCard.tsx`, fourth tab of `GeneratedAssetsSettings` (reads `?tab=bookmarks` once, on arrival) |
+| The tab | `src/components/settings/generated-assets/BookmarkList.tsx` + `BookmarkCard.tsx`, fourth tab of `GeneratedAssetsSettings` (reads `?tab=bookmarks` once, on arrival); the card shows the projection's state (text, never colour alone) and its cost through `LLMUsageBadge` once indexed |
 | The `.md` export | `src/lib/bookmarks/markdown.ts` — the chat's path (`downloadMarkdown`, `messageToPlainText`), request quoted above the answer |
 | The map node | `bookmarks`, counted, routed through `CAPABILITY_SECTION_TAB` (the section belongs to `generated_files`) |
 

@@ -108,7 +108,25 @@ When a document is uploaded:
    - **Persist**: Bulk insert `RAGChunk` objects with embeddings
    - **Update**: Document status → `ready`, store chunk count + embedding cost
 
-**Error handling**: On failure, document status is set to `error` with a descriptive message. Embedding context is always cleared in the `finally` block.
+**Error handling**: On failure, document status is set to `error` with a technical
+message (`error_message`, kept for support) **and a code** (`error_code`, the closed
+vocabulary `RAGDocumentErrorCode`: `file_missing`, `extraction_failed`,
+`scanned_pdf_no_text_layer`, `no_text_content`, `no_chunks`, `too_many_chunks`,
+`retries_exhausted` — the durable job's dead letter, written by
+`fail_or_retry_document` when the retry bound is reached). The
+frontend translates the code into the person's language under the row
+(`spaces.documents.errors.*`, mirror `lib/rag-spaces/document-errors.ts`, both lists held
+equal by `test_document_error_codes.py`); a failure without a code stays the badge's
+tooltip. Embedding context is always cleared in the `finally` block.
+
+**Scanned PDFs are not indexable** (limit stated since 2026-09-17, ADR-184): the PDF
+extractor is PyMuPDF's text layer and **no character recognition runs** in the pipeline,
+so a PDF made of page images yields no text. It used to be refused as « No text content
+extracted »; it is now classified `scanned_pdf_no_text_layer` (empty text AND at least
+one page carrying an image — `classify_empty_extraction`, never raising) and the sentence
+shown names the remedy: put the file on Google Drive, open it with Google Docs (Drive
+recognises the text), then add that Google Doc to the space through its Drive source,
+which exports Google Docs as text (`RAG_DRIVE_GOOGLE_EXPORT_MAP`).
 
 ---
 

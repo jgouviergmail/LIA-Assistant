@@ -146,3 +146,27 @@ block, each best-effort, each returning `None` when it has nothing to say.
   behaviour sets `REACT_PROGRESS_EXTENSION_ENABLED=false`.
 - ADR-238 is not withdrawn: domain span remains the right way to size the
   *initial* budget — a three-domain question does start wider.
+
+## Amendment 2026-09-17 — the loop knows the knowledge spaces too (ADR-291)
+
+Decision 3 was written for the psychological profile; the person's documents
+had the same gap. Measured on a dev instance: a kept answer holding the very
+fact a question asked for was retrieved (above the retrieval gate) and
+injected into the RESPONSE prompt as `<UserDocuments>`, while the ReAct loop,
+blind to the spaces and with `search_user_documents_tool` dropped by the
+tool cap (more tools resolved than the cap, the detected domain's agent in
+front), spent its iterations on other records and then presented a partial
+source as the only one. What only reaches the response node can reword an
+answer, never decide one.
+
+Two changes. `react_context.build_knowledge_block` mounts the pipeline's own
+`rag_context`, wrapped by the pipeline's own section directive
+(`render_context_section`), read from the bundle the router prefetched
+WITHOUT consuming it (`peek_response_context`, shielded so a timeout never
+cancels the prefetch the response node pops later) — zero extra cost on the
+nominal path; without a prefetch the ONE retrieval function
+(`fetch_user_rag_context`, extracted from the bundle builder) runs inline, and
+a prefetched bundle with no document is final. And the tool cap no longer
+cuts in registration order: the loop binds by relevance and keeps every
+family reachable through its best-ranked tools (ADR-293), so the
+knowledge-space search is never the tool that falls off.

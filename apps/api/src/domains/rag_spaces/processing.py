@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 import os
 import time
+from contextlib import suppress
 from pathlib import Path
 from uuid import UUID
 
@@ -26,7 +27,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.config import settings
 from src.domains.rag_spaces.embedding import get_rag_embeddings
 from src.domains.rag_spaces.jobs_repository import RAGJobsRepository
-from src.domains.rag_spaces.models import RAGChunk, RAGDocument, RAGDocumentStatus
+from src.domains.rag_spaces.models import (
+    RAGChunk,
+    RAGDocument,
+    RAGDocumentErrorCode,
+    RAGDocumentStatus,
+)
 from src.domains.rag_spaces.repository import (
     RAGChunkRepository,
     RAGDocumentRepository,
@@ -64,6 +70,10 @@ EMBEDDING_BATCH_SIZE = 100
 # ============================================================================
 
 
+#: The MIME type the PDF extractor and the empty-extraction classifier both key on.
+PDF_CONTENT_TYPE = "application/pdf"
+
+
 def extract_text_plain(file_path: Path) -> str:
     """Extract text from plain text or markdown files."""
     return file_path.read_text(encoding="utf-8", errors="replace")
@@ -78,6 +88,43 @@ def extract_text_pdf(file_path: Path) -> str:
         for page in doc:
             text_parts.append(page.get_text())
     return "\n".join(text_parts)
+
+
+def _pdf_has_images(file_path: Path) -> bool:
+    """Whether any page of the PDF carries an image — the shape of a scanned document."""
+    import fitz  # PyMuPDF
+
+    with fitz.open(str(file_path)) as doc:
+        return any(page.get_images() for page in doc)
+
+
+def classify_empty_extraction(file_path: Path, content_type: str) -> RAGDocumentErrorCode:
+    """Why an extraction came back empty, as the code the person is told.
+
+    A PDF whose pages carry images and no text is a scanned document without a
+    text layer: the pipeline runs no character recognition, so the person needs
+    the cause and the remedy, not « no text ». Anything else is a file with no
+    text in it.
+
+    Args:
+        file_path: The stored file.
+        content_type: Its MIME type, as the upload declared it.
+
+    Returns:
+        ``SCANNED_PDF_NO_TEXT_LAYER`` or ``NO_TEXT_CONTENT``. Never raises.
+    """
+    if content_type != PDF_CONTENT_TYPE:
+        return RAGDocumentErrorCode.NO_TEXT_CONTENT
+    scanned = False
+    # A courtesy on a document that already failed: a PDF PyMuPDF cannot reopen
+    # (truncated, encrypted) is told « no text », never a second error.
+    with suppress(Exception):
+        scanned = _pdf_has_images(file_path)
+    return (
+        RAGDocumentErrorCode.SCANNED_PDF_NO_TEXT_LAYER
+        if scanned
+        else RAGDocumentErrorCode.NO_TEXT_CONTENT
+    )
 
 
 def extract_text_docx(file_path: Path) -> str:
@@ -152,12 +199,35 @@ def extract_text_rtf(file_path: Path) -> str:
     return str(rtf_to_text(raw))
 
 
-def extract_text_html(file_path: Path) -> str:
-    """Extract readable text from HTML using markdownify."""
+def html_to_markdown(raw_html: str) -> str:
+    """Readable Markdown from HTML — the one reading of « how HTML becomes text ».
+
+    Shared by the file extractor and by the kept-answer renderer (a
+    ``lia-response`` document is HTML): scripts, styles and images never reach
+    the text.
+
+    Only ``img`` is on the strip list, on purpose. markdownify drops a
+    ``script`` or ``style`` element WITH its content by default; naming them in
+    ``strip`` replaces that with « remove the tag, keep the text » — measured
+    2026-09-16: ``.x{}alert(1)`` at the top of every converted page.
+
+    Args:
+        raw_html: The markup.
+
+    Returns:
+        The Markdown text.
+    """
     from markdownify import markdownify
 
-    raw_html = file_path.read_text(encoding="utf-8", errors="replace")
-    return markdownify(raw_html, strip=["img", "script", "style"])
+    # ATX headings (``## Title``): the form every other Markdown of the corpus
+    # uses (mail threads, minutes, kept answers), so a heading reads the same
+    # whatever produced it.
+    return str(markdownify(raw_html, strip=["img"], heading_style="ATX"))
+
+
+def extract_text_html(file_path: Path) -> str:
+    """Extract readable text from an HTML file."""
+    return html_to_markdown(file_path.read_text(encoding="utf-8", errors="replace"))
 
 
 def _odf_extract_text(node: object) -> str:
@@ -237,7 +307,6 @@ def extract_text_epub(file_path: Path) -> str:
 
     import ebooklib  # type: ignore[import-untyped]
     from ebooklib import epub
-    from markdownify import markdownify
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -251,7 +320,7 @@ def extract_text_epub(file_path: Path) -> str:
         if item.get_type() != ebooklib.ITEM_DOCUMENT:
             continue
         html_content = item.get_content().decode("utf-8", errors="replace")
-        chapter_text = markdownify(html_content, strip=["img", "script", "style"])
+        chapter_text = html_to_markdown(html_content)
         if chapter_text.strip():
             text_parts.append(chapter_text.strip())
     return "\n\n".join(text_parts)
@@ -301,7 +370,7 @@ def extract_text(file_path: Path, content_type: str) -> str:
     extractors = {
         "text/plain": extract_text_plain,
         "text/markdown": extract_text_plain,
-        "application/pdf": extract_text_pdf,
+        PDF_CONTENT_TYPE: extract_text_pdf,
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document": (
             extract_text_docx
         ),
@@ -362,11 +431,12 @@ async def process_document(
         swallows its own exceptions).
     """
     start_time = time.time()
+    # No display name at INFO: since ADR-262 it may be a mail subject, and
+    # since the kept-answers projection the person's own request.
     logger.info(
         "rag_document_processing_started",
         document_id=str(document_id),
         space_id=str(space_id),
-        original_filename=original_filename,
         content_type=content_type,
     )
 
@@ -421,17 +491,32 @@ async def process_document(
                 Path(settings.rag_spaces_storage_path) / str(user_id) / str(space_id) / filename
             )
             if not file_path.exists():
-                await _mark_document_error(doc_repo, document, db, "File not found on disk")
+                await _mark_document_error(
+                    doc_repo,
+                    document,
+                    db,
+                    "File not found on disk",
+                    code=RAGDocumentErrorCode.FILE_MISSING,
+                )
                 return False
 
             try:
                 text = await asyncio.to_thread(extract_text, file_path, content_type)
             except Exception as e:
-                await _mark_document_error(doc_repo, document, db, f"Text extraction failed: {e}")
+                await _mark_document_error(
+                    doc_repo,
+                    document,
+                    db,
+                    f"Text extraction failed: {e}",
+                    code=RAGDocumentErrorCode.EXTRACTION_FAILED,
+                )
                 return False
 
             if not text.strip():
-                await _mark_document_error(doc_repo, document, db, "No text content extracted")
+                code = await asyncio.to_thread(classify_empty_extraction, file_path, content_type)
+                await _mark_document_error(
+                    doc_repo, document, db, "No text content extracted", code=code
+                )
                 return False
 
             # 2. Split into chunks
@@ -445,7 +530,11 @@ async def process_document(
 
             if not chunk_texts:
                 await _mark_document_error(
-                    doc_repo, document, db, "No chunks produced after splitting"
+                    doc_repo,
+                    document,
+                    db,
+                    "No chunks produced after splitting",
+                    code=RAGDocumentErrorCode.NO_CHUNKS,
                 )
                 return False
 
@@ -456,6 +545,7 @@ async def process_document(
                     document,
                     db,
                     f"Document produces {len(chunk_texts)} chunks, exceeding limit of {max_chunks}",
+                    code=RAGDocumentErrorCode.TOO_MANY_CHUNKS,
                 )
                 return False
 
@@ -548,6 +638,7 @@ async def process_document(
                     "embedding_tokens": total_embedding_tokens,
                     "embedding_cost_eur": embedding_cost_eur,
                     "error_message": None,
+                    "error_code": None,
                     # Durable-job completion: clear the lease and reset the retry
                     # budget so a later reprocess starts fresh (part of the same
                     # atomic transaction as the chunk swap).
@@ -618,14 +709,25 @@ async def _mark_document_error(
     document: RAGDocument,
     db: AsyncSession,
     error_message: str,
+    *,
+    code: RAGDocumentErrorCode,
 ) -> None:
-    """Mark a document as error with a message and update gauge metrics."""
+    """Mark a document as error — the technical message and its code — and update the gauges.
+
+    Args:
+        doc_repo: The documents repository.
+        document: The failed document.
+        db: The session to commit on.
+        error_message: The technical detail, kept for support.
+        code: Why it failed, in the closed vocabulary the frontend translates.
+    """
     previous_status = document.status
     await doc_repo.update(
         document,
         {
             "status": RAGDocumentStatus.ERROR,
             "error_message": error_message,
+            "error_code": code.value,
         },
     )
     await db.commit()
@@ -636,5 +738,6 @@ async def _mark_document_error(
     logger.warning(
         "rag_document_processing_error",
         document_id=str(document.id),
+        error_code=code.value,
         error_message=error_message,
     )

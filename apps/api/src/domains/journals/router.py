@@ -49,6 +49,7 @@ from src.domains.journals.schemas import (
     JournalThemeInfo,
     JournalThemesResponse,
     ThemeCount,
+    provenance_of,
 )
 from src.domains.journals.service import JournalService
 from src.domains.shared.provenance_repository import ProvenanceRepository
@@ -326,6 +327,7 @@ async def export_entries(
                 if (_portrait_compiled_at := getattr(user, "journal_portrait_compiled_at", None))
                 else None
             ),
+            "sources": getattr(user, "journal_portrait_sources", None),
         },
     }
     json_str = json.dumps(data, ensure_ascii=False, indent=2)
@@ -570,6 +572,7 @@ async def get_portrait(
         full=getattr(user, "journal_portrait_full", None),
         brief=getattr(user, "journal_portrait_brief", None),
         compiled_at=getattr(user, "journal_portrait_compiled_at", None),
+        sources=provenance_of(getattr(user, "journal_portrait_sources", None)),
     )
 
 

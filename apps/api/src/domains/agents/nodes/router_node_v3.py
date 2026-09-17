@@ -47,6 +47,7 @@ from src.domains.agents.context.runtime_context import runtime_context_if_runnin
 from src.domains.agents.domain_schemas import RouterOutput
 from src.domains.agents.models import MessagesState
 from src.domains.agents.nodes.draft_sequence import draft_turn_reset
+from src.domains.agents.nodes.router_tool_scoring import score_tools_for_turn
 from src.domains.agents.utils.react_budget import react_turn_reset
 from src.domains.agents.utils.state_tracking import track_state_updates
 from src.domains.agents.utils.turn_type import normalize_turn_type
@@ -208,66 +209,9 @@ async def router_node_v3(
         reasoning=intelligence.reasoning_trace[:3] if intelligence.reasoning_trace else [],
     )
 
-    # === STEP: Semantic Tool Scoring for Debug Panel ===
-    # Calculate semantic similarity scores for ALL tools in detected domains
-    # This provides the "all_scores" view (like domain_selection.all_scores_calibrated)
-    # The actual tool selection (filtered by intent) is done in the planner
-    tool_scores_dict = None
-    if intelligence.route_to == "planner" and intelligence.domains:
-        try:
-            from src.domains.agents.services.tool_selector import get_tool_selector
-
-            selector = await get_tool_selector()
-            if selector.is_initialized():
-                # Get tools from detected domains (pre-filtered by request context)
-                from src.core.context import get_request_tool_manifests, user_mcp_tools_ctx
-                from src.domains.agents.registry.domain_taxonomy import is_mcp_domain
-
-                all_manifests = get_request_tool_manifests()
-                domain_tool_manifests = [
-                    m
-                    for m in all_manifests
-                    if (m.agent.removesuffix("_agent") if hasattr(m, "agent") else "")
-                    in intelligence.domains
-                ]
-
-                # User MCP embeddings needed for semantic scoring
-                extra_emb = None
-                user_ctx = user_mcp_tools_ctx.get()
-                if user_ctx and user_ctx.tool_embeddings:
-                    has_mcp = any(is_mcp_domain(d) for d in intelligence.domains)
-                    if has_mcp:
-                        extra_emb = user_ctx.tool_embeddings
-
-                # Calculate scores for domain tools
-                if domain_tool_manifests:
-                    result = await selector.select_tools(
-                        query=intelligence.english_query,
-                        available_tools=domain_tool_manifests,
-                        extra_embeddings=extra_emb,
-                    )
-                    tool_scores_dict = {
-                        "all_scores": result.all_scores,  # For debug panel (all calibrated scores)
-                        "selected_tools": [  # Only tools that passed the > threshold filter
-                            {
-                                "tool_name": t.tool_name,
-                                "score": round(t.score, 3),
-                                "confidence": t.confidence,
-                            }
-                            for t in result.selected_tools
-                        ],
-                        "top_score": result.top_score,
-                        "has_uncertainty": result.has_uncertainty,
-                    }
-                    logger.info(
-                        "router_v3_tool_scores_computed",
-                        run_id=run_id,
-                        domains=intelligence.domains,
-                        tools_scored=len(domain_tool_manifests),
-                        top_score=round(result.top_score, 3),
-                    )
-        except Exception as e:
-            logger.warning("router_v3_tool_scoring_failed", run_id=run_id, error=str(e))
+    # === STEP: Semantic tool scoring — the planner's domain scores and the
+    # global relevance order the ReAct loop binds by (ADR-293), from ONE embedding.
+    tool_scores_dict = await score_tools_for_turn(intelligence, run_id)
 
     # Build RouterOutput
     router_output = RouterOutput(

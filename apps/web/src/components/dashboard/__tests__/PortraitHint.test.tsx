@@ -65,7 +65,7 @@ describe('PortraitHint', () => {
     push.mockClear();
     window.localStorage.clear();
     journalsEnabled = true;
-    portraitValue = { full: 'portrait', brief: 'brief', compiled_at: recentIso(1) };
+    portraitValue = { full: 'portrait', brief: 'brief', compiled_at: recentIso(1), sources: null };
   });
 
   it('navigates to the journals deep link and remembers the compilation', () => {
@@ -90,7 +90,7 @@ describe('PortraitHint', () => {
   });
 
   it('renders nothing for a stale compilation', () => {
-    portraitValue = { full: 'portrait', brief: null, compiled_at: recentIso(30) };
+    portraitValue = { full: 'portrait', brief: null, compiled_at: recentIso(30), sources: null };
     render(<PortraitHint />);
     expect(screen.queryByText('dashboard.portrait_hint.text')).toBeNull();
   });

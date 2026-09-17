@@ -61,6 +61,9 @@ function bookmark(over: Partial<Bookmark> = {}): Bookmark {
     request_content: 'Réserve la salle B à 14 h',
     answered_at: '2026-09-12T08:05:00Z',
     created_at: '2026-09-12T08:06:00Z',
+    index_state: null,
+    indexed_at: null,
+    index_usage: null,
     ...over,
   };
 }
@@ -127,6 +130,48 @@ describe('a card', () => {
     // `**Réservé**` came out as emphasis, not as asterisks.
     expect(screen.getByText('Réservé').tagName).toBe('STRONG');
     expect(screen.getByText(/settings.bookmarks.answered_at/)).toBeInTheDocument();
+  });
+
+  it('says where the projection stands and what it cost once it is indexed', () => {
+    list.items = [
+      bookmark({
+        index_state: 'indexed',
+        indexed_at: '2026-09-12T08:07:00Z',
+        index_usage: {
+          tokens_in: 812,
+          tokens_out: 0,
+          tokens_cache: 0,
+          cost_eur: 0.000123,
+          model_name: 'gemini-embedding-001',
+        },
+      }),
+    ];
+    list.total = 1;
+
+    renderWithProviders(<BookmarkList lng="fr" />);
+
+    expect(screen.getByText('settings.bookmarks.index_state.indexed')).toBeInTheDocument();
+    // The usage badge: total tokens · cost, the dashboard's own primitive.
+    expect(screen.getByText('common.llm_usage.tokens')).toBeInTheDocument();
+  });
+
+  it('shows a deferred projection as such and no cost for it', () => {
+    list.items = [bookmark({ index_state: 'deferred' })];
+    list.total = 1;
+
+    renderWithProviders(<BookmarkList lng="fr" />);
+
+    expect(screen.getByText('settings.bookmarks.index_state.deferred')).toBeInTheDocument();
+    expect(screen.queryByText('common.llm_usage.tokens')).not.toBeInTheDocument();
+  });
+
+  it('says nothing about a projection never attempted', () => {
+    list.items = [bookmark()];
+    list.total = 1;
+
+    renderWithProviders(<BookmarkList lng="fr" />);
+
+    expect(screen.queryByText(/settings.bookmarks.index_state/)).not.toBeInTheDocument();
   });
 
   it('says when the answer answered no request rather than borrowing older words', () => {

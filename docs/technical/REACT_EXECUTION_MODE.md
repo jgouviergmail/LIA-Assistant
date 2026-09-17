@@ -109,7 +109,7 @@ Routing from router: when `execution_mode == "react"` and the router classifies 
 ### react_setup
 
 Prepares tools, system prompt, and context for the ReAct loop:
-- Selects ALL available tools via `ReactToolSelector` (filtered by active connectors)
+- Binds the tools the turn needs via `ReactToolSelector` (filtered by active connectors, composed by relevance — ADR-293, see « Tool System » below)
 - Builds system prompt from `react_agent_prompt.txt`
 - Injects the **same memory context as the pipeline** (ADR-248), built by
   `src/domains/agents/nodes/react_context.py`: memory profile block, resolved references,
@@ -117,6 +117,10 @@ Prepares tools, system prompt, and context for the ReAct loop:
   advisor. Before ADR-248 the two modes read different subsets, so a directive the user had
   stored took effect in one mode and silently did nothing in the other. `react_context.py`
   and the pipeline builder now consume the same services; a parity test pins the block set.
+  Since 2026-09-17 (ADR-248 amendment, ADR-291) the loop also receives the person's
+  **knowledge spaces** — the same `<UserDocuments>` block as the response node, read from
+  the prefetched bundle without consuming it — and `search_user_documents_tool` survives
+  the tool cap whatever the detected domains (`CAP_SURVIVORS` in the selector).
 - Injects active skills catalogue (L1, filtered by `active_skills_ctx`)
 - Sets `react_start_time` (kept for observability; the deadline itself runs on compute — see below)
 - Stores tool names and HITL map in state (JSON-serializable)
@@ -247,9 +251,11 @@ Collects iteration count and prepares metadata for the response node:
 
 ## Tool System
 
-The ReAct agent receives ALL available tools (not domain-filtered like the planner):
-- Filtered by active connectors (`get_request_tool_manifests()`)
-- Capped by `REACT_AGENT_MAX_TOOLS` (default: 100) — measured on the **resolved** tool count, after iterative expansion. The cap is **domain-aware** (v1.21.24): tools owned by the detected domains' agents (resolved via `DOMAIN_REGISTRY`) survive first through a stable partition, and every dropped tool is named in a `react_tool_selector_capped` warning. A blind positional truncation here used to silently drop e.g. calendar tools on a calendar query once user-MCP expansion pushed the count over the cap, leaving the model unable to fetch the requested data (2026-07-08 incident: hallucinated appointments). Order is untouched when the count fits under the cap.
+The ReAct agent binds tools **by relevance** ([ADR-293](../architecture/ADR-293-React-Tools-Bound-By-Relevance.md)), never by registration order:
+- Filtered by active connectors (`get_request_tool_manifests()`), then composed by `ReactToolSelector.select` from the turn's **global ranking** — every available manifest ordered by the router's semantic scorer from the ONE query embedding it already pays for (`router_tool_scoring.score_tools_for_turn`, `tool_selection_result["global_ranking"]`, user MCP tools ranked through their per-request vectors): the detected domains' tools first (all of them), then every OTHER family's `CATALOGUE_DOMAIN_COVERAGE_TOP_N` best-ranked tools (the planner catalogue's own coverage constant, so a family the router did not name stays reachable), then the first `REACT_TOOL_SEMANTIC_TOP_K` of the ranking; the rest is dropped by relevance (`react_tool_selector_relevance`, names at debug). No tool name is written anywhere in this rule. An iterative user MCP server's individual tools rank through their per-request vectors (they have no manifest of their own) and its delegation door (`_task`) is kept beside the family's coverage, ranked as the best tool behind it; an actionable turn with no detected domain is ranked all the same.
+- Without a ranking, or with `REACT_TOOL_SEMANTIC_TOP_K=0`, every available tool is bound in registration order — the behaviour before ADR-293.
+- Capped by `REACT_AGENT_MAX_TOOLS` (default: 100) as the safety net — measured on the **resolved** tool count, after iterative expansion, by a stable sort on tiers: the detected domains' tools, then one coverage per family, then the rest; every dropped tool is named in a `react_tool_selector_capped` warning. A blind positional truncation here used to silently drop e.g. calendar tools on a calendar query once user-MCP expansion pushed the count over the cap (2026-07-08 incident: hallucinated appointments); and before ADR-293 the same tools fell off on every turn of any account with more tools than the cap, whatever the question.
+- Measured: `react_tools_bound` (after selection and cap) against `react_tools_resolved`, and `react_bound_tool_tokens` — the schema tokens every model call of the turn carries, which the delivered-context histogram never counted (dashboard 20). `task react:selection:measure -- --turns turns.json` replays an operator's own turns against the policy.
 - Wrapped in `ReactToolWrapper` for string conversion + registry collection
 - HITL map built from the in-hand tool manifests (`permissions.hitl_required`)
 
@@ -378,7 +384,8 @@ context — and would cost all verifiability.
 REACT_AGENT_ENABLED=true              # Feature flag
 REACT_AGENT_MAX_ITERATIONS=15         # Max ReAct loop iterations
 REACT_AGENT_TIMEOUT_SECONDS=120       # Hard timeout for entire execution
-REACT_AGENT_MAX_TOOLS=100             # Max tools bound to LLM (resolved count, post-expansion)
+REACT_AGENT_MAX_TOOLS=100             # Safety-net cap on bound tools (resolved count, post-expansion)
+REACT_TOOL_SEMANTIC_TOP_K=40          # Semantic slice of the global ranking bound beside domains + family coverage (0 = every tool, cap alone) — ADR-293
 REACT_AGENT_HISTORY_WINDOW_TURNS=5    # Conversation history window
 REACT_MCP_EXPAND_ITERATIVE_ENABLED=true  # Expand iterative USER MCP servers into individual tools (false = keep task tool; MCP App servers always keep it)
 INITIATIVE_REACT_ENABLED=false        # Run the Initiative phase on the ReAct nominal path (ADR-070; pipeline uses INITIATIVE_ENABLED)
@@ -418,7 +425,7 @@ During ReAct execution, the frontend displays accumulated execution steps in rea
 | `src/domains/agents/tools/python_sandbox_tools.py` | `run_python_tool` + per-turn run budget (ADR-249) |
 | `src/domains/agents/python_sandbox/catalogue_manifests.py` | Manifest: ReAct-only, published bounds |
 | `src/domains/agents/tools/react_tool_wrapper.py` | Tool wrapper: per-item projection under a token budget, stated cut, registry collection (ADR-286) |
-| `src/domains/agents/services/react_tool_selector.py` | Tool selection (all available, capped) |
+| `src/domains/agents/services/react_tool_selector.py` | Tool selection by relevance: detected domains, family coverage, semantic slice, stable-sort cap (ADR-293) |
 | `src/domains/agents/prompts/v1/react_agent_prompt.txt` | System prompt |
 | `src/domains/agents/nodes/routing.py` | `route_from_react_call_model()` |
 | `src/domains/agents/graph.py` | Graph wiring (edges + conditional) |

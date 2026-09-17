@@ -70,6 +70,7 @@ function document(over: Partial<RAGDocument> = {}): RAGDocument {
     content_type: 'application/pdf',
     status: 'ready',
     error_message: null,
+    error_code: null,
     chunk_count: 3,
     embedding_model: 'text-embedding-3-small',
     embedding_tokens: 120,

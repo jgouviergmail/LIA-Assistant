@@ -174,10 +174,28 @@ export interface JournalThemeInfo {
  * 2. Submit feedback via consolidatePortraitFeedback
  * 3. Trigger a fresh consolidation via consolidateNow
  */
+/** What one source answered when the portrait was compiled (2026-09-16, part B). */
+export interface PortraitSourceProvenance {
+  status: 'used' | 'empty' | 'disabled' | 'unavailable';
+  /** Items the prompt received from this source. */
+  used: number;
+  /** EXACT count over the whole set (ADR-185). */
+  total: number;
+}
+
+/** What the portrait was compiled from — persisted WITH the portrait. */
+export interface PortraitProvenance {
+  version: 1;
+  journal_entries: number;
+  sources: Record<string, PortraitSourceProvenance>;
+}
+
 export interface JournalPortrait {
   full: string | null;
   brief: string | null;
   compiled_at: string | null;
+  /** What it was compiled from; null before the first compilation. */
+  sources: PortraitProvenance | null;
 }
 
 /**

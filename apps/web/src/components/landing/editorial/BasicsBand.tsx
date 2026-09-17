@@ -40,7 +40,7 @@ export async function BasicsBand({ lng }: { lng: string }) {
         </FadeInOnScroll>
         <CatalogDisclosure
           summary={t('landing.basics.detail_label')}
-          hint={t('landing.basics.detail_hint')}
+          hint={t('landing.basics.detail_hint', { count: BASICS_CATALOG.length })}
           anchor="basics-detail"
         >
           <FeatureCatalog t={t} featureKeys={BASICS_CATALOG} />

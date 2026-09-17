@@ -8,9 +8,18 @@ reload.
 from __future__ import annotations
 
 import uuid
+from collections.abc import Mapping
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from src.core.llm_usage import LLMUsage
+from src.domains.bookmarks.projection import (
+    IndexedRecord,
+    ProjectedDocument,
+    derived_index_state,
+    index_usage_of,
+)
 
 
 class BookmarkKeepRequest(BaseModel):
@@ -39,6 +48,48 @@ class BookmarkResponse(BaseModel):
     )
     answered_at: datetime = Field(description="When the answer was written (UTC).")
     created_at: datetime = Field(description="When the answer was kept (UTC).")
+    index_state: str | None = Field(
+        default=None,
+        description=(
+            "Where the knowledge-space projection stands (pending | indexed | error | "
+            "deferred | disabled); None when never attempted. Read from the document "
+            "while it exists."
+        ),
+    )
+    indexed_at: datetime | None = Field(
+        default=None, description="When the projection last reached READY (UTC)."
+    )
+    index_usage: LLMUsage | None = Field(
+        default=None,
+        description="What indexing cost (embedding tokens, euros); present once READY only.",
+    )
+
+    @classmethod
+    def from_row(
+        cls, bookmark: IndexedRecord, documents: Mapping[uuid.UUID, ProjectedDocument]
+    ) -> BookmarkResponse:
+        """The response for one row, its projection looked up in the page's documents.
+
+        The ONE builder: the exposed state is DERIVED from the document while
+        it exists, so a route reading the stored column directly would show a
+        stale reason next to a READY document.
+
+        Args:
+            bookmark: The row.
+            documents: The page's ``rag_documents`` rows by id (one query).
+
+        Returns:
+            The response.
+        """
+        link = bookmark.rag_document_id
+        document = documents.get(link) if link is not None else None
+        response = cls.model_validate(bookmark)
+        return response.model_copy(
+            update={
+                "index_state": derived_index_state(bookmark, document),
+                "index_usage": index_usage_of(document),
+            }
+        )
 
 
 class BookmarkListResponse(BaseModel):

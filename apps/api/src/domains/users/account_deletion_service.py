@@ -866,6 +866,9 @@ class AccountDeletionService:
         user.journal_portrait_full = None
         user.journal_portrait_brief = None
         user.journal_portrait_compiled_at = None
+        # ADR-292 — what the portrait was compiled from: counts per source,
+        # kept only WITH the portrait, so it goes with it.
+        user.journal_portrait_sources = None
         user.deleted_at = datetime.now(UTC)
         user.deleted_reason = reason
 

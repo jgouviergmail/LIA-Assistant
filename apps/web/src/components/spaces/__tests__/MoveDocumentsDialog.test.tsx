@@ -17,6 +17,7 @@ function space(over: Partial<RAGSpace> = {}): RAGSpace {
     name: 'Archives',
     description: null,
     is_active: true,
+    kind: null,
     document_count: 4,
     ready_document_count: 4,
     total_size: 100,

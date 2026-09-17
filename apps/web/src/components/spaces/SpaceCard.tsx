@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslation } from 'react-i18next';
-import { Library, Pencil, Trash2 } from 'lucide-react';
+import { Library, Pencil, ShieldCheck, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,10 @@ export function SpaceCard({
   toggling,
 }: SpaceCardProps) {
   const { t } = useTranslation();
+  // A space another domain manages by role (meetings, kept answers): the
+  // owner would re-create it at the next projection, so deleting it is
+  // refused server-side and not offered here. Rename and toggle stay.
+  const managed = space.kind !== null && space.kind !== undefined;
 
   return (
     <Card
@@ -52,6 +56,12 @@ export function SpaceCard({
         {/* Content */}
         <div className="flex-1 min-w-0">
           <h3 className="text-base font-semibold truncate">{space.name}</h3>
+          {managed && (
+            <p className="mt-0.5 inline-flex items-center gap-1 text-xs text-muted-foreground">
+              <ShieldCheck className="h-3 w-3" aria-hidden="true" />
+              {t('spaces.managed.hint')}
+            </p>
+          )}
           {space.description && (
             <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{space.description}</p>
           )}
@@ -89,18 +99,20 @@ export function SpaceCard({
             >
               <Pencil className="h-3.5 w-3.5" />
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={e => {
-                e.stopPropagation();
-                onDelete();
-              }}
-              title={t('common.delete')}
-            >
-              <Trash2 className="h-3.5 w-3.5 text-destructive" />
-            </Button>
+            {!managed && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={e => {
+                  e.stopPropagation();
+                  onDelete();
+                }}
+                title={t('common.delete')}
+              >
+                <Trash2 className="h-3.5 w-3.5 text-destructive" />
+              </Button>
+            )}
           </div>
         </div>
       </CardContent>

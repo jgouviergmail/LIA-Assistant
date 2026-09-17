@@ -252,6 +252,40 @@ class InterestRepository:
             limit=limit,
         )
 
+    async def count_active_for_user(self, user_id: UUID) -> int:
+        """EXACT number of active interests (ADR-185) — the total beside a page."""
+        stmt = select(func.count(UserInterest.id)).where(
+            UserInterest.user_id == user_id,
+            UserInterest.status == InterestStatus.ACTIVE.value,
+        )
+        return int((await self.db.execute(stmt)).scalar_one())
+
+    async def list_active_by_signals(self, user_id: UUID, *, limit: int) -> list[UserInterest]:
+        """Active interests, strongest first over the WHOLE set, one bounded page.
+
+        The balance of signals is arithmetic SQL can order by; the effective
+        (decayed) weight is not — for a portrait, which reads posture and not a
+        ranking to notify from, the balance is the honest order.
+
+        Args:
+            user_id: Owner.
+            limit: Page bound.
+
+        Returns:
+            The interests, strongest first, most recently mentioned first among equals.
+        """
+        balance = UserInterest.positive_signals - UserInterest.negative_signals
+        stmt = (
+            select(UserInterest)
+            .where(
+                UserInterest.user_id == user_id,
+                UserInterest.status == InterestStatus.ACTIVE.value,
+            )
+            .order_by(balance.desc(), UserInterest.last_mentioned_at.desc(), UserInterest.id.desc())
+            .limit(limit)
+        )
+        return list((await self.db.execute(stmt)).scalars().all())
+
     async def get_for_dedup(
         self,
         user_id: UUID,

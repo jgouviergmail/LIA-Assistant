@@ -1,0 +1,27 @@
+# One-line scaffolds of the consolidation prompt's INPUT sections, `key|template`
+# per line; blank lines and #-comments are ignored (ADR-284: prose never lives
+# in a .py). Labels and lines only — the instruction on how to USE a section is
+# STEP 7's, one instruction per context.
+#
+# The four portrait sources (2026-09-16 design, part B) are rendered by their
+# owning domain (memories, interests, habits, relations/debrief), each reading
+# only its own keys; the usage-pattern and health blocks were the last two
+# scaffolds written inline in the service and moved here unchanged.
+
+memories_header|## LONG-TERM MEMORIES (facts the person stated, dated; {shown} of {total}, most important first)
+memories_item|- [{category}] {label} {content} ({recorded})
+interests_header|## INTERESTS (learned topics, strongest first; {shown} of {total})
+interests_item|- {topic} ({category}{subject}; weight {weight}; last mentioned {last_mentioned})
+habits_header|## LEARNED HABITS (deterministic detectors, consumable windows only)
+habits_rhythm|- Usual activity: {windows}; active on {active_pct}% of observed days{sparse}
+habits_rhythm_sparse|(occasional use: no window claimed)
+habits_recurring|- Recurring request: {key} — {shape}{hour}{intent}
+habits_recurring_hour|around {hour}
+habits_recurring_intent|({intent})
+debriefs_header|## RELATIONSHIP DEBRIEFS (dated syntheses LIA wrote; {shown} of {total}, newest first)
+debriefs_item|- {person} (written {date}): {headline} — {where_we_stand}
+usage_header|## OBSERVED USAGE PATTERNS (past 7 days)
+usage_line|User messages: {total}. Distribution: {details}.
+usage_directive|Use these factual signals to situate the user's current rhythm in the portrait (phase, contexts) — never reference them explicitly to the user.
+health_header|## HEALTH SIGNALS (factual, not medical)
+health_directive|Use these signals to enrich your consolidation — e.g. to notice a pattern the user may not have articulated. Never reproduce raw sensor values in entries.

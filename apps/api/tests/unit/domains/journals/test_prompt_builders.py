@@ -51,6 +51,17 @@ CONSOLIDATION_FIELDS: dict[str, object] = {
     "max_entry_chars": 300,
     "size_management_instruction": "within limit",
     "health_signals_section": "",
+    "memories_section": "",
+    "interests_section": "",
+    "habits_section": "",
+    "debriefs_section": "",
+}
+
+#: The pure renderer takes the portrait budgets as arguments; the builder
+#: reads them from settings (ADR-184: a tunable number never lives in prose).
+RENDER_ONLY_FIELDS: dict[str, object] = {
+    "portrait_full_tokens": 300,
+    "portrait_brief_tokens": 70,
 }
 
 # A literal placeholder surviving into the rendered prompt. Excludes the JSON
@@ -118,15 +129,34 @@ class TestConsolidationPrompt:
         prompt = build_consolidation_prompt(personality_code=None, **CONSOLIDATION_FIELDS)  # type: ignore[arg-type]
         assert "ANALYST PERSONA" in prompt
 
+    def test_the_portrait_budgets_come_from_the_settings_never_from_prose(self) -> None:
+        """ADR-184 applied to the portrait: the numbers the model reads are the
+        numbers the settings hold, and the old prose figures are gone."""
+        from src.core.config import settings
+
+        prompt = build_consolidation_prompt(personality_code=None, **CONSOLIDATION_FIELDS)  # type: ignore[arg-type]
+        assert f"about {settings.journal_portrait_full_max_tokens} tokens" in prompt
+        assert f"about {settings.journal_portrait_brief_max_tokens} tokens" in prompt
+        assert "150-220" not in prompt and "50-70" not in prompt
+
+    def test_the_four_source_sections_render_where_they_are_given(self) -> None:
+        prompt = build_consolidation_prompt(
+            personality_code=None,
+            **{**CONSOLIDATION_FIELDS, "habits_section": "## LEARNED HABITS\n- x"},  # type: ignore[arg-type]
+        )
+        assert "## LEARNED HABITS" in prompt
+
     def test_render_accepts_an_alternative_template(self) -> None:
         """A candidate consolidation prompt renders through the same path."""
         prompt = render_consolidation_prompt(
             "CANDIDATE {all_entries}{current_chars}{max_chars}{size_warning}"
             "{current_datetime}{conversation_history_section}{usage_patterns_section}"
             "{user_language}{max_entry_chars}{size_management_instruction}"
-            "{health_signals_section}",
+            "{health_signals_section}{memories_section}{interests_section}"
+            "{habits_section}{debriefs_section}{portrait_full_tokens}{portrait_brief_tokens}",
             str(load_prompt("journal_analyst_persona")),
             personality_code=None,
             **CONSOLIDATION_FIELDS,  # type: ignore[arg-type]
+            **RENDER_ONLY_FIELDS,  # type: ignore[arg-type]
         )
         assert prompt.startswith("CANDIDATE No entries to review.")

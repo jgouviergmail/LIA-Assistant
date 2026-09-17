@@ -363,6 +363,19 @@ tasks:
       - cmd: .venv/bin/python scripts/recurrence/measure_transcription.py {{.CLI_ARGS}}
         platforms: [linux, darwin]
 
+  react:selection:measure:
+    desc: Replay real ReAct turns against the tool-selection policy (NETWORK, on demand — ADR-293)
+    dir: "{{.API_DIR}}"
+    # A MEASUREMENT, never a gate: it needs the registry, the selector's
+    # embedding cache and one small embedding call per turn. The turns file is
+    # the operator's own extraction (query, router domains, tools called);
+    # nothing in the repository holds anyone's turns.
+    cmds:
+      - cmd: .venv/Scripts/python scripts/react/measure_tool_selection.py {{.CLI_ARGS}}
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/react/measure_tool_selection.py {{.CLI_ARGS}}
+        platforms: [linux, darwin]
+
   habits:calibration:measure:
     desc: Replay the habit detectors' calibration harness (deterministic, no network)
     dir: "{{.API_DIR}}"

@@ -17,10 +17,12 @@ from uuid import uuid4
 
 import pytest
 
-from src.domains.rag_spaces.models import RAGDocumentStatus
+from src.domains.rag_spaces.models import RAGDocumentErrorCode, RAGDocumentStatus
 from src.domains.rag_spaces.processing import (
     EMBEDDING_BATCH_SIZE,
+    _mark_document_error,
     _odf_extract_text,
+    classify_empty_extraction,
     extract_text,
     extract_text_csv,
     extract_text_epub,
@@ -34,6 +36,7 @@ from src.domains.rag_spaces.processing import (
     extract_text_rtf,
     extract_text_xlsx,
     extract_text_xml,
+    html_to_markdown,
     process_document,
 )
 
@@ -372,6 +375,28 @@ class TestExtractTextRtf:
 # ============================================================================
 
 
+class TestHtmlToMarkdown:
+    """One reading of « how HTML becomes text » — the pure helper the file
+    extractor AND the kept-answer renderer share (part A, 2026-09-16)."""
+
+    @pytest.mark.unit
+    def test_scripts_styles_and_images_never_reach_the_text(self) -> None:
+        raw = (
+            '<div class="lia-response"><style>.x{}</style><script>alert(1)</script>'
+            '<h1>Title</h1><p>Hello <b>world</b></p><img src="x.png" alt="pic"></div>'
+        )
+        text = html_to_markdown(raw)
+        assert "alert(1)" not in text and ".x{}" not in text and "x.png" not in text
+        assert "# Title" in text and "Hello" in text and "world" in text
+
+    @pytest.mark.unit
+    def test_the_file_extractor_reads_through_the_same_helper(self, tmp_path: Path) -> None:
+        raw = "<html><body><h1>Title</h1><p>Hello world</p></body></html>"
+        file = tmp_path / "page.html"
+        file.write_text(raw, encoding="utf-8")
+        assert extract_text_html(file) == html_to_markdown(raw)
+
+
 class TestExtractTextHtml:
     """Tests for extract_text_html (markdownify)."""
 
@@ -685,6 +710,29 @@ class TestExtractTextEpub:
         assert "Chapter 2" in result
         assert "Content one" in result
         assert "Content two" in result
+
+    @pytest.mark.unit
+    def test_a_chapters_scripts_and_styles_never_reach_the_text(self, tmp_path: Path) -> None:
+        """The EPUB path reads through the shared HTML helper (one reading)."""
+        item = MagicMock()
+        item.get_type.return_value = 9
+        item.get_content.return_value = (
+            b"<style>.x{}</style><script>alert(1)</script><h1>Chapter</h1><p>Body</p>"
+        )
+        mock_book = MagicMock()
+        mock_book.spine = [("ch1", True)]
+        mock_book.get_item_with_id.return_value = item
+        mock_ebooklib = MagicMock()
+        mock_ebooklib.ITEM_DOCUMENT = 9
+        mock_epub = MagicMock()
+        mock_epub.read_epub.return_value = mock_book
+        mock_ebooklib.epub = mock_epub
+
+        with patch.dict(sys.modules, {"ebooklib": mock_ebooklib, "ebooklib.epub": mock_epub}):
+            result = extract_text_epub(tmp_path / "book.epub")
+
+        assert "alert(1)" not in result and ".x{}" not in result
+        assert "Chapter" in result and "Body" in result
 
     @pytest.mark.unit
     def test_warnings_are_suppressed(self, tmp_path: Path) -> None:
@@ -1167,6 +1215,7 @@ class TestProcessDocument:
                 mock_mark_error.assert_awaited_once()
                 call_args = mock_mark_error.call_args
                 assert "File not found" in call_args[0][3]
+                assert call_args.kwargs["code"] is RAGDocumentErrorCode.FILE_MISSING
 
     @pytest.mark.asyncio
     @pytest.mark.unit
@@ -1223,6 +1272,61 @@ class TestProcessDocument:
                 mock_mark_error.assert_awaited_once()
                 call_args = mock_mark_error.call_args
                 assert "No text content" in call_args[0][3]
+                assert call_args.kwargs["code"] is RAGDocumentErrorCode.NO_TEXT_CONTENT
+
+    @pytest.mark.asyncio
+    @pytest.mark.unit
+    async def test_image_only_pdf_marks_the_scanned_code(
+        self, ids, mock_document, tmp_path
+    ) -> None:
+        """A scan without a text layer is named as such, not as an empty file."""
+        patches = self._patch_processing()
+        storage_dir = tmp_path / str(ids["user_id"]) / str(ids["space_id"])
+        storage_dir.mkdir(parents=True)
+        _write_image_only_pdf(storage_dir / "scan.pdf")
+
+        mock_db = AsyncMock()
+        mock_doc_repo = AsyncMock()
+        mock_doc_repo.get_by_id.return_value = mock_document
+
+        with (
+            patches["db_ctx"] as mock_get_db,
+            patches["set_ctx"],
+            patches["clear_ctx"],
+            patches["settings"] as mock_settings,
+            patches["metrics_processed"],
+        ):
+            ctx_manager = AsyncMock()
+            ctx_manager.__aenter__ = AsyncMock(return_value=mock_db)
+            ctx_manager.__aexit__ = AsyncMock(return_value=False)
+            mock_get_db.return_value = ctx_manager
+            mock_settings.rag_spaces_storage_path = str(tmp_path)
+
+            with (
+                patch(
+                    "src.domains.rag_spaces.processing.RAGDocumentRepository",
+                    return_value=mock_doc_repo,
+                ),
+                patch("src.domains.rag_spaces.processing.RAGChunkRepository"),
+                patch(
+                    "src.domains.rag_spaces.processing._mark_document_error",
+                    new_callable=AsyncMock,
+                ) as mock_mark_error,
+            ):
+                await process_document(
+                    document_id=ids["document_id"],
+                    space_id=ids["space_id"],
+                    user_id=ids["user_id"],
+                    filename="scan.pdf",
+                    original_filename="scan.pdf",
+                    content_type="application/pdf",
+                )
+
+                mock_mark_error.assert_awaited_once()
+                assert (
+                    mock_mark_error.call_args.kwargs["code"]
+                    is RAGDocumentErrorCode.SCANNED_PDF_NO_TEXT_LAYER
+                )
 
     @pytest.mark.asyncio
     @pytest.mark.unit
@@ -1386,6 +1490,8 @@ class TestProcessDocument:
             update_data = mock_doc_repo.update.call_args[0][1]
             assert update_data["status"] == RAGDocumentStatus.READY
             assert update_data["error_message"] is None
+            # A document that failed once and now succeeds must not keep its code.
+            assert update_data["error_code"] is None
             assert update_data["chunk_count"] > 0
 
             # Verify DB commit
@@ -1466,3 +1572,99 @@ class TestProcessDocument:
     def test_embedding_batch_size_constant(self) -> None:
         """EMBEDDING_BATCH_SIZE is set to the expected value."""
         assert EMBEDDING_BATCH_SIZE == 100
+
+
+# ============================================================================
+# Empty extraction — a scan is named as such
+# ============================================================================
+
+
+def _write_image_only_pdf(path: Path) -> None:
+    """One page carrying an image and no text: the shape of a scanned document."""
+    import fitz  # type: ignore[import-untyped]
+
+    doc = fitz.open()
+    page = doc.new_page()
+    pixmap = fitz.Pixmap(fitz.csRGB, fitz.IRect(0, 0, 40, 40), 0)
+    page.insert_image(page.rect, pixmap=pixmap)
+    doc.save(str(path))
+    doc.close()
+
+
+def _write_blank_pdf(path: Path) -> None:
+    """One page with neither text nor image."""
+    import fitz  # type: ignore[import-untyped]
+
+    doc = fitz.open()
+    doc.new_page()
+    doc.save(str(path))
+    doc.close()
+
+
+class TestClassifyEmptyExtraction:
+    """Why an extraction came back empty — the one distinction the person needs."""
+
+    @pytest.mark.unit
+    def test_a_pdf_made_of_images_is_a_scan_without_text_layer(self, tmp_path: Path) -> None:
+        pdf = tmp_path / "scan.pdf"
+        _write_image_only_pdf(pdf)
+        assert (
+            classify_empty_extraction(pdf, "application/pdf")
+            is RAGDocumentErrorCode.SCANNED_PDF_NO_TEXT_LAYER
+        )
+
+    @pytest.mark.unit
+    def test_a_blank_pdf_has_no_text_content(self, tmp_path: Path) -> None:
+        pdf = tmp_path / "blank.pdf"
+        _write_blank_pdf(pdf)
+        assert (
+            classify_empty_extraction(pdf, "application/pdf")
+            is RAGDocumentErrorCode.NO_TEXT_CONTENT
+        )
+
+    @pytest.mark.unit
+    def test_a_non_pdf_file_has_no_text_content(self, tmp_path: Path) -> None:
+        note = tmp_path / "empty.txt"
+        note.write_text("   ", encoding="utf-8")
+        assert classify_empty_extraction(note, "text/plain") is RAGDocumentErrorCode.NO_TEXT_CONTENT
+
+    @pytest.mark.unit
+    def test_an_unreadable_pdf_never_raises(self, tmp_path: Path) -> None:
+        """The classification is a courtesy: a file PyMuPDF cannot reopen stays « no text »."""
+        broken = tmp_path / "broken.pdf"
+        broken.write_bytes(b"%PDF-1.4 not really")
+        assert (
+            classify_empty_extraction(broken, "application/pdf")
+            is RAGDocumentErrorCode.NO_TEXT_CONTENT
+        )
+
+
+class TestMarkDocumentError:
+    """The code is stored beside the message, on the same update."""
+
+    @pytest.mark.asyncio
+    @pytest.mark.unit
+    async def test_the_code_is_written_with_the_message(self) -> None:
+        repo = AsyncMock()
+        db = AsyncMock()
+        document = MagicMock()
+        document.id = uuid4()
+        document.status = RAGDocumentStatus.PROCESSING
+
+        await _mark_document_error(
+            repo,
+            document,
+            db,
+            "Text extraction failed: boom",
+            code=RAGDocumentErrorCode.EXTRACTION_FAILED,
+        )
+
+        repo.update.assert_awaited_once_with(
+            document,
+            {
+                "status": RAGDocumentStatus.ERROR,
+                "error_message": "Text extraction failed: boom",
+                "error_code": "extraction_failed",
+            },
+        )
+        db.commit.assert_awaited_once()

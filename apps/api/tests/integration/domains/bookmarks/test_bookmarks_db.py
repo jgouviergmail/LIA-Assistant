@@ -20,9 +20,10 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -30,6 +31,13 @@ from src.domains.bookmarks.models import MessageBookmark
 from src.domains.bookmarks.queries import BookmarkFilters
 from src.domains.bookmarks.repository import BookmarkRepository
 from src.domains.conversations.models import Conversation, ConversationMessage
+from src.domains.rag_spaces.models import (
+    RAGDocument,
+    RAGDocumentSourceType,
+    RAGDocumentStatus,
+    RAGSpace,
+)
+from src.domains.rag_spaces.repository import RAGSpaceRepository
 from src.domains.users.models import User
 
 pytestmark = pytest.mark.integration
@@ -257,14 +265,219 @@ class TestTheListing:
 
         assert state == {answer.id: attached.id}
 
-    async def test_delete_by_message_reports_what_went(self, async_session: AsyncSession) -> None:
+
+async def _space(db: AsyncSession, user: User) -> RAGSpace:
+    space = RAGSpace(user_id=user.id, name=f"kept-{uuid.uuid4().hex[:6]}", kind="bookmarks")
+    db.add(space)
+    await db.flush()
+    return space
+
+
+async def _document(db: AsyncSession, user: User, space: RAGSpace, status: str) -> RAGDocument:
+    document = RAGDocument(
+        space_id=space.id,
+        user_id=user.id,
+        filename=f"{uuid.uuid4().hex}.md",
+        original_filename="Kept answer 2026-09-12.md",
+        file_size=12,
+        content_type="text/markdown",
+        status=status,
+        source_type=RAGDocumentSourceType.BOOKMARK,
+        embedding_tokens=42,
+        embedding_cost_eur=0.00001,
+        embedding_model="gemini-embedding-001",
+    )
+    db.add(document)
+    await db.flush()
+    return document
+
+
+class TestTheKnowledgeSpaceProjection:
+    """The projection columns and the sweep's reads (2026-09-16 design, part A)."""
+
+    async def test_losing_the_document_never_loses_the_bookmark(
+        self, async_session: AsyncSession
+    ) -> None:
         user = await _user(async_session)
-        conversation = await _conversation(async_session, user)
-        answer = await _message(
-            async_session, conversation, role="assistant", content="A", minutes=1
+        space = await _space(async_session, user)
+        document = await _document(async_session, user, space, RAGDocumentStatus.READY)
+        kept = await _bookmark(async_session, user, None)
+        repository = BookmarkRepository(async_session)
+        await repository.set_index_state(
+            kept.id, state="indexed", rag_document_id=document.id, indexed_at=NOW
         )
-        await _bookmark(async_session, user, answer)
+
+        await async_session.execute(delete(RAGDocument).where(RAGDocument.id == document.id))
+        await async_session.refresh(kept)
+
+        assert kept.rag_document_id is None
+        assert kept.content == "**Réservé**"
+        # And the sweep re-projects it rather than trusting a stale « indexed ».
+        assert kept.id in await repository.unprojected_ids(limit=10, grace_seconds=60)
+
+    async def test_the_claim_is_taken_once_and_a_dead_claim_is_taken_over(
+        self, async_session: AsyncSession
+    ) -> None:
+        user = await _user(async_session)
+        kept = await _bookmark(async_session, user, None)
         repository = BookmarkRepository(async_session)
 
-        assert await repository.delete_by_message(user.id, answer.id) is True
-        assert await repository.delete_by_message(user.id, answer.id) is False
+        assert await repository.claim_for_projection(kept.id, grace_seconds=3600) is True
+        assert await repository.claim_for_projection(kept.id, grace_seconds=3600) is False
+        # A claim older than the grace is a crashed one: taken over.
+        assert await repository.claim_for_projection(kept.id, grace_seconds=0) is True
+
+    async def test_a_projected_bookmark_cannot_be_claimed_again(
+        self, async_session: AsyncSession
+    ) -> None:
+        user = await _user(async_session)
+        space = await _space(async_session, user)
+        document = await _document(async_session, user, space, RAGDocumentStatus.PENDING)
+        kept = await _bookmark(async_session, user, None)
+        repository = BookmarkRepository(async_session)
+        await repository.set_index_state(
+            kept.id, state="pending", rag_document_id=document.id, indexed_at=None
+        )
+
+        assert await repository.claim_for_projection(kept.id, grace_seconds=0) is False
+        assert kept.id not in await repository.unprojected_ids(limit=10, grace_seconds=0)
+
+    async def test_the_sweep_retries_deferred_and_disabled_but_never_error(
+        self, async_session: AsyncSession
+    ) -> None:
+        user = await _user(async_session)
+        repository = BookmarkRepository(async_session)
+        rows = {
+            state: await _bookmark(
+                async_session, user, None, answered_at=NOW + timedelta(minutes=i)
+            )
+            for i, state in enumerate(("deferred", "disabled", "error", "pending"))
+        }
+        for state, row in rows.items():
+            await repository.set_index_state(row.id, state=state)
+        never = await _bookmark(async_session, user, None)
+
+        ids = await repository.unprojected_ids(limit=10, grace_seconds=3600)
+
+        assert rows["deferred"].id in ids and rows["disabled"].id in ids and never.id in ids
+        assert rows["error"].id not in ids
+        # A fresh pending claim is somebody else's work.
+        assert rows["pending"].id not in ids
+
+    async def test_a_name_clash_with_a_hand_made_space_still_projects(
+        self,
+        async_session: AsyncSession,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        """The person named a space exactly like the managed one; the projection suffixes.
+
+        Real PostgreSQL only: the clash is a unique-index violation, and the
+        rollback it forces EXPIRES every row loaded in that session — a stub
+        session never does, so a unit test cannot see the bookmark being
+        re-read after the rollback.
+        """
+        from collections.abc import AsyncIterator
+        from contextlib import asynccontextmanager
+
+        from src.core.i18n_bookmarks import get_space_name
+        from src.domains.bookmarks import indexing
+        from src.domains.rag_spaces import document_access, drive_ingest
+
+        # The name's uniqueness is a PARTIAL index the migrations own and
+        # ``create_all`` does not build: declared here, exactly as in production,
+        # inside the test's transaction (DDL is transactional on PostgreSQL).
+        await async_session.execute(
+            text(
+                "CREATE UNIQUE INDEX uq_rag_spaces_user_name ON rag_spaces (user_id, name) "
+                "WHERE user_id IS NOT NULL"
+            )
+        )
+        user = await _user(async_session)
+        hand_made = RAGSpace(user_id=user.id, name=get_space_name(user.language), kind=None)
+        async_session.add(hand_made)
+        await async_session.flush()
+        kept = await _bookmark(async_session, user, None)
+
+        @asynccontextmanager
+        async def _ctx() -> AsyncIterator[AsyncSession]:
+            yield async_session
+
+        async def _allowed(*_: object) -> bool:
+            return True
+
+        async def _not_blocked(*_: object) -> bool:
+            return False
+
+        monkeypatch.setattr(indexing, "get_db_context", _ctx)
+        monkeypatch.setattr(indexing, "is_capability_enabled", _allowed)
+        monkeypatch.setattr(indexing, "spend_blocked", _not_blocked)
+        monkeypatch.setattr(drive_ingest.settings, "rag_spaces_storage_path", str(tmp_path))
+        monkeypatch.setattr(document_access.settings, "rag_spaces_storage_path", str(tmp_path))
+
+        # Plain values: the rollback the clash forces expires the rows above too.
+        user_id, hand_made_id, hand_made_name = user.id, hand_made.id, hand_made.name
+
+        kwargs = await indexing._prepare(kept.id)
+
+        assert kwargs is not None
+        await async_session.refresh(kept)
+        managed = await RAGSpaceRepository(async_session).get_by_kind_for_user(user_id, "bookmarks")
+        assert managed is not None and managed.id != hand_made_id
+        assert managed.name == f"{hand_made_name} (2)"
+        assert kept.index_state == "pending" and kept.rag_document_id == kwargs["document_id"]
+        document = await async_session.get(RAGDocument, kwargs["document_id"])
+        assert document is not None and document.space_id == managed.id
+
+    async def test_the_link_says_whether_the_bookmark_still_exists(
+        self, async_session: AsyncSession
+    ) -> None:
+        """``rowcount`` on real PostgreSQL: 1 for a live row, 0 for a vanished one."""
+        user = await _user(async_session)
+        kept = await _bookmark(async_session, user, None)
+        repository = BookmarkRepository(async_session)
+
+        assert await repository.set_index_state(kept.id, state="pending") == 1
+        assert await repository.set_index_state(uuid.uuid4(), state="pending") == 0
+
+    async def test_the_sweep_serves_the_least_recently_attempted_row_first(
+        self, async_session: AsyncSession
+    ) -> None:
+        """A refused attempt goes to the BACK of the queue.
+
+        Ordered by creation, the oldest rows of one account under quota would
+        fill every batch for as long as the quota held, and a younger bookmark
+        of another account would never be reached — measured shape: batch 25,
+        one account with 30 deferred rows, everybody else starved.
+        """
+        user = await _user(async_session)
+        older = await _bookmark(async_session, user, None, answered_at=NOW)
+        younger = await _bookmark(async_session, user, None, answered_at=NOW + timedelta(hours=1))
+        repository = BookmarkRepository(async_session)
+        # The older row was just attempted and refused (its updated_at is now).
+        await repository.set_index_state(older.id, state="deferred")
+
+        assert await repository.unprojected_ids(limit=1, grace_seconds=60) == [younger.id]
+        assert await repository.unprojected_ids(limit=2, grace_seconds=60) == [
+            younger.id,
+            older.id,
+        ]
+
+    async def test_a_page_reads_its_documents_in_one_query(
+        self, async_session: AsyncSession
+    ) -> None:
+        user = await _user(async_session)
+        space = await _space(async_session, user)
+        document = await _document(async_session, user, space, RAGDocumentStatus.READY)
+        projected = await _bookmark(async_session, user, None)
+        bare = await _bookmark(async_session, user, None)
+        repository = BookmarkRepository(async_session)
+        await repository.set_index_state(
+            projected.id, state="indexed", rag_document_id=document.id, indexed_at=NOW
+        )
+        await async_session.refresh(projected)
+
+        documents = await repository.documents_of([projected, bare])
+
+        assert set(documents) == {document.id}
+        assert documents[document.id].embedding_tokens == 42

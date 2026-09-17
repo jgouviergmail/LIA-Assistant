@@ -8,7 +8,7 @@ from fastapi import status
 from sqlalchemy.exc import IntegrityError
 
 from src.core.exceptions import BaseAPIException
-from src.domains.rag_spaces.models import RAGDocumentStatus
+from src.domains.rag_spaces.models import RAGDocumentSourceType, RAGDocumentStatus
 from src.domains.rag_spaces.service import _EXT_TO_MIME, RAGSpaceService
 
 # ============================================================================
@@ -55,6 +55,7 @@ def sample_space(user_id, space_id):
     space.description = "A test knowledge space"
     space.is_active = True
     space.is_system = False
+    space.kind = None
     space.dict.return_value = {
         "id": space_id,
         "user_id": user_id,
@@ -78,6 +79,7 @@ def sample_document(user_id, space_id):
     doc.file_size = 1024
     doc.content_type = "application/pdf"
     doc.status = RAGDocumentStatus.READY
+    doc.source_type = RAGDocumentSourceType.UPLOAD
     doc.dict.return_value = {
         "id": doc.id,
         "space_id": space_id,
@@ -422,6 +424,24 @@ class TestDeleteSpace:
             await service.delete_space(space_id, other_user)
 
         assert exc_info.value.status_code == status.HTTP_404_NOT_FOUND
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("kind", ["meetings", "bookmarks"])
+    async def test_a_space_a_domain_manages_cannot_be_deleted_by_hand(
+        self, service, user_id, space_id, sample_space, kind
+    ) -> None:
+        """A deletion the owning domain would undo in silence is worse than a
+        refusal (2026-09-16 design, amending ADR-258)."""
+        sample_space.kind = kind
+        service.space_repo.get_by_id = AsyncMock(return_value=sample_space)
+        service.space_repo.delete = AsyncMock()
+
+        with pytest.raises(BaseAPIException) as exc_info:
+            await service.delete_space(space_id, user_id)
+
+        assert exc_info.value.status_code == status.HTTP_403_FORBIDDEN
+        assert exc_info.value.detail == {"code": "space_managed_by_domain", "kind": kind}
+        service.space_repo.delete.assert_not_awaited()
 
 
 # ============================================================================
@@ -812,6 +832,23 @@ class TestDeleteDocument:
         service.chunk_repo.delete_by_document.assert_awaited_once_with(sample_document.id)
         service.doc_repo.delete.assert_awaited_once_with(sample_document)
         service.db.commit.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_a_kept_answers_document_cannot_be_deleted_from_the_space(
+        self, service, user_id, space_id, sample_space, sample_document
+    ) -> None:
+        """The bookmark is the record; its projection goes with the bookmark."""
+        sample_document.source_type = RAGDocumentSourceType.BOOKMARK
+        service.space_repo.get_by_id = AsyncMock(return_value=sample_space)
+        service.doc_repo.get_by_id = AsyncMock(return_value=sample_document)
+        service.doc_repo.delete = AsyncMock()
+
+        with pytest.raises(BaseAPIException) as exc_info:
+            await service.delete_document(space_id, sample_document.id, user_id)
+
+        assert exc_info.value.status_code == status.HTTP_409_CONFLICT
+        assert exc_info.value.detail == {"code": "document_managed_by_bookmarks"}
+        service.doc_repo.delete.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_delete_document_not_found(

@@ -15,6 +15,7 @@ implementation would drift, and drift is how the two modes came to disagree.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 import structlog
@@ -28,6 +29,11 @@ from src.domains.agents.context.runtime_context import (
 )
 from src.domains.agents.middleware.memory_injection import build_psychological_profile
 from src.domains.agents.models import MessagesState
+from src.domains.agents.prompts import render_context_section
+from src.domains.agents.services.response_context import (
+    fetch_user_rag_context,
+    peek_response_context,
+)
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.llm.user_message_embedding import (
     get_or_compute_embedding,
@@ -156,6 +162,46 @@ async def build_memory_profile_block(
     if not profile or not profile.strip():
         return None
     return profile
+
+
+async def build_knowledge_block(state: MessagesState, config: RunnableConfig) -> str | None:
+    """The person's knowledge spaces — the same ``<UserDocuments>`` the pipeline gets.
+
+    Measured 2026-09-17: a kept answer holding the fact was retrieved and
+    injected into the RESPONSE prompt, while the loop that decided what to
+    look for never saw it and spent six iterations elsewhere. What only
+    reaches the response node can reword an answer, never decide one —
+    the memory-profile rule, applied to documents.
+
+    Zero extra cost on the nominal path: the router prefetched the response
+    bundle before the mode was decided, so the block is READ from it (never
+    consumed — the response node pops it later). Without a prefetch — or
+    when the peek exceeds the await bound, the same fallback the response
+    node's pop takes — the pipeline's own fetch runs inline; a prefetched
+    bundle with no document is final, no second search is paid for.
+
+    Args:
+        state: Current graph state.
+        config: RunnableConfig carrying the thread id and the run id.
+
+    Returns:
+        The wrapped block, or None when there is nothing to show.
+    """
+    run_id = str((config.get("metadata") or {}).get("run_id") or "unknown")
+    try:
+        bundle = await peek_response_context(run_id)
+        if bundle is not None:
+            content = bundle.rag_context or ""
+        else:
+            content, _debug = await fetch_user_rag_context(
+                config=config, last_user_message=last_user_text(state), run_id=run_id
+            )
+    except Exception as exc:  # best-effort, never gates a turn
+        logger.warning("react_knowledge_block_failed", error=str(exc))
+        return None
+    if not content:
+        return None
+    return render_context_section("rag_context", content) or None
 
 
 def build_reference_resolution_block(state: MessagesState, intelligence: Any) -> str | None:
@@ -344,3 +390,56 @@ async def build_mcp_auth_notices_block() -> str | None:
     except Exception as exc:
         logger.warning("react_mcp_auth_notices_block_failed", error=str(exc))
         return None
+
+
+@dataclass(frozen=True)
+class SetupBlocks:
+    """What the setup node mounts after the system prompt, and what it says about it."""
+
+    blocks: list[str]
+    has_memory: bool
+    has_knowledge: bool
+    skills_catalog: str
+
+
+async def build_setup_blocks(
+    state: MessagesState, config: RunnableConfig, intelligence: Any
+) -> SetupBlocks:
+    """The context blocks of a ReAct turn, in injection ORDER.
+
+    The order is meaningful: standing rules lead, because they govern how
+    everything after them is used. Each builder is best-effort and returns
+    None when it has nothing to say (zero tokens).
+
+    Args:
+        state: Current graph state.
+        config: RunnableConfig carrying the user context.
+        intelligence: The router's query intelligence, for reference resolution.
+
+    Returns:
+        The non-empty blocks and the flags the setup log reports.
+    """
+    # Memory parity with the pipeline (2026-08-28): a behavioural rule that
+    # only reaches the response node can reword a promise, never turn it
+    # into an action. It has to be present where the decision is taken.
+    memory_block = await build_memory_profile_block(state, config)
+    # Knowledge parity (2026-09-17): the person's documents and kept answers,
+    # read from the bundle the router prefetched — where the search is decided.
+    knowledge_block = await build_knowledge_block(state, config)
+    skills_catalog = build_skills_catalog_block(config) or ""
+    ordered = [
+        memory_block,
+        build_reference_resolution_block(state, intelligence),
+        await build_user_model_block(config),
+        await build_journal_directives_block(state, config),
+        knowledge_block,
+        skills_catalog,
+        await build_degradations_block(),
+        await build_mcp_auth_notices_block(),
+    ]
+    return SetupBlocks(
+        blocks=[block for block in ordered if block],
+        has_memory=bool(memory_block),
+        has_knowledge=bool(knowledge_block),
+        skills_catalog=skills_catalog,
+    )

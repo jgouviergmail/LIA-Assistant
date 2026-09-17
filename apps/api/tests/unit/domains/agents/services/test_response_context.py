@@ -55,6 +55,30 @@ class TestPrefetchRegistry:
     async def test_pop_without_start_returns_none(self) -> None:
         assert await rc.pop_response_context("never-started") is None
 
+    async def test_peek_reads_the_bundle_without_consuming_it(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The ReAct setup reads the prefetched RAG block; the response node still pops it."""
+
+        async def _fake_fetch(
+            state: Any, config: Any, run_id: str, **_kw: Any
+        ) -> rc.ResponseContextBundle:
+            return _make_bundle(rag_context="DOCS")
+
+        monkeypatch.setattr(rc, "fetch_response_context", _fake_fetch)
+        monkeypatch.setattr(rc.settings, "response_context_prefetch_enabled", True, raising=False)
+
+        rc.start_response_context_prefetch({}, {}, "run-1")
+        peeked = await rc.peek_response_context("run-1")
+        popped = await rc.pop_response_context("run-1")
+
+        assert peeked is not None and peeked.rag_context == "DOCS"
+        assert popped is peeked
+        assert await rc.peek_response_context("run-1") is None, "gone once popped"
+
+    async def test_peek_without_start_returns_none(self) -> None:
+        assert await rc.peek_response_context("never-started") is None
+
     async def test_pop_consumes_the_task(self, monkeypatch: pytest.MonkeyPatch) -> None:
         async def _fake_fetch(
             state: Any, config: Any, run_id: str, **_kw: Any

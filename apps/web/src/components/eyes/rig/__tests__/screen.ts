@@ -28,11 +28,23 @@ export interface FaceMetrics {
   browHeight: { left: number; right: number };
 }
 
-/** Mirrors the Cozmo tokens of the sheet (`--mouth-span`, `--mouth-ink`). */
+/** Mirrors the Cozmo tokens of the sheet (`--mouth-span`, `--mouth-ink`,
+ * `--eye-h`). */
 const MOUTH_SPAN_EM = 0.92;
 const MOUTH_INK_EM = 0.1;
+const EYE_H_EM = 1.05;
 const BROW_THICKNESS_EM = 0.13;
 const BROW_ARCH_EM = 0.14;
+
+/**
+ * Where the visible top edge of one eye sits below the top of its box, as a
+ * fraction of the box height — the sheet's `top:` on `.lia-eye-brow`: the
+ * shape is scaled by `sy` around `oy` and then clipped by `lidTop`.
+ */
+function visibleTopFraction(values: Readonly<ChannelValues>, side: 'L' | 'R'): number {
+  const sy = values[`sy${side}`];
+  return (values[`oy${side}`] / 100) * (1 - sy) + (values[`lidTop${side}`] / 100) * sy;
+}
 
 function curve(arc: number): number {
   return Math.min(1, Math.max(0, arc));
@@ -44,10 +56,13 @@ export function faceMetrics(values: Readonly<ChannelValues>, px: number): FaceMe
     mouthHeight: (MOUTH_INK_EM + values.mouthArc * 0.26 + values.mouthOpen * 0.5) * px,
     mouthWidth: MOUTH_SPAN_EM * values.mouthW * px,
     mouthTilt: lean * 14,
-    browY: { left: values.browYL * px, right: values.browYR * px },
+    browY: {
+      left: (visibleTopFraction(values, 'L') * EYE_H_EM + values.browYL) * px,
+      right: (visibleTopFraction(values, 'R') * EYE_H_EM + values.browYR) * px,
+    },
     browHeight: {
-      left: (BROW_THICKNESS_EM + curve(values.browArcL) * BROW_ARCH_EM) * px,
-      right: (BROW_THICKNESS_EM + curve(values.browArcR) * BROW_ARCH_EM) * px,
+      left: (BROW_THICKNESS_EM * values.browSL + curve(values.browArcL) * BROW_ARCH_EM) * px,
+      right: (BROW_THICKNESS_EM * values.browSR + curve(values.browArcR) * BROW_ARCH_EM) * px,
     },
   };
 }

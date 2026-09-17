@@ -12,7 +12,6 @@ import {
   Settings2,
   RefreshCw,
   Flag,
-  UserSquare2,
 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { RowActions } from '@/components/ui/row-actions';
@@ -57,6 +56,7 @@ import {
 import { apiEndpointUrl } from '@/lib/api-client';
 import { useTranslation } from '@/i18n/client';
 import { type Language } from '@/i18n/settings';
+import { PortraitCard } from '@/components/settings/PortraitCard';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SectionToolbar } from '@/components/settings/SectionToolbar';
 import { Disclosure } from '@/components/ui/disclosure';
@@ -200,7 +200,6 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
   });
   const [editForm, setEditForm] = useState<JournalEntryUpdate>({});
   const [groupBy, setGroupBy] = useState<'theme' | 'level'>('theme');
-  const [portraitFormat, setPortraitFormat] = useState<'full' | 'brief'>('full');
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackComment, setFeedbackComment] = useState('');
   const [feedbackHighlight, setFeedbackHighlight] = useState('');
@@ -430,80 +429,19 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
         {journalSettings?.journals_enabled && (
           <div className="space-y-5 pl-1">
             {/* Portrait section (read-only — three levers for correction) */}
-            {(portrait?.full || portrait?.brief) && (
-              <div className="rounded-lg border bg-card p-3 space-y-2">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <UserSquare2 className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium">
-                        {t('journals.portraitTitle', 'How LIA sees you')}
-                      </div>
-                      <div className="text-[11px] text-muted-foreground">
-                        {portrait?.compiled_at
-                          ? t('journals.portraitCompiledAt', 'Compiled {{when}}', {
-                              when: formatRelativeDate(portrait.compiled_at),
-                            })
-                          : t('journals.portraitNeverCompiled', 'Not compiled yet')}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex gap-1 shrink-0">
-                    <Button
-                      size="sm"
-                      variant={portraitFormat === 'full' ? 'default' : 'outline'}
-                      className="h-7 text-xs"
-                      onClick={() => setPortraitFormat('full')}
-                      disabled={!portrait?.full}
-                    >
-                      {t('journals.portraitFormatFull', 'Full')}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={portraitFormat === 'brief' ? 'default' : 'outline'}
-                      className="h-7 text-xs"
-                      onClick={() => setPortraitFormat('brief')}
-                      disabled={!portrait?.brief}
-                    >
-                      {t('journals.portraitFormatBrief', 'Brief')}
-                    </Button>
-                  </div>
-                </div>
-
-                <p className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                  {portraitFormat === 'full' ? (portrait?.full ?? '') : (portrait?.brief ?? '')}
-                </p>
-
-                <p className="text-[10px] text-muted-foreground italic">
-                  {t(
-                    'journals.portraitTip',
-                    'The portrait is a living synthesis. To correct it: signal a problem, edit the L3 entries, or trigger a consolidation.'
-                  )}
-                </p>
-
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-8 text-xs"
-                    onClick={() => setFeedbackOpen(true)}
-                    disabled={isSubmittingFeedback}
-                  >
-                    <Flag className="h-3.5 w-3.5 mr-1" />
-                    {t('journals.portraitFeedbackButton', 'Signal a problem')}
-                  </Button>
-                </div>
-              </div>
-            )}
+            <PortraitCard
+              portrait={portrait}
+              lng={lng}
+              formatRelativeDate={formatRelativeDate}
+              onSignal={() => setFeedbackOpen(true)}
+              signalDisabled={isSubmittingFeedback}
+            />
 
             {/* Configuration, folded (owner arbitration 2026-08-05): two
                 toggles, a gauge and four numeric dials are TUNING, not
                 reading — the reader came for the portrait and the entries. */}
             <div className="border-t pt-4">
-              <Disclosure
-                icon={Settings2}
-                title={t('journals.configuration', 'Configuration')}
-              >
+              <Disclosure icon={Settings2} title={t('journals.configuration', 'Configuration')}>
                 <div className="space-y-5 pt-1">
                   {/* Consolidation Toggle — the cost warning lives IN the row it
                 warns about (it used to float as an orphan badge between two

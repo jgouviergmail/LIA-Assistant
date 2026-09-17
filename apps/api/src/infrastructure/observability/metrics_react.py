@@ -104,6 +104,22 @@ react_tool_selector_capped_total = Counter(
     "is losing capabilities the model can no longer see (ADR-256)",
 )
 
+react_tools_bound = Histogram(
+    "react_tools_bound",
+    "Tools actually bound to the ReAct loop for a turn, AFTER the relevance "
+    "selection (detected domains, family coverage, semantic top-K — ADR-293) and the "
+    "cap. Read against react_tools_resolved: the gap is what relevance spared",
+    buckets=[10, 25, 40, 50, 60, 75, 90, 100, 150, 250],
+)
+
+react_bound_tool_tokens = Histogram(
+    "react_bound_tool_tokens",
+    "Tokens the bound tool schemas add to EVERY model call of a ReAct turn. "
+    "Measured 2026-09-17: 26 155 for 80 tools, 95 % of the first call's prompt "
+    "— the part the delivered-context histogram never counted (ADR-293)",
+    buckets=[2000, 5000, 10000, 15000, 20000, 30000, 45000, 60000, 100000],
+)
+
 react_tools_resolved = Histogram(
     "react_tools_resolved",
     "Tools resolved for a ReAct turn BEFORE the max_tools cap is applied. The "

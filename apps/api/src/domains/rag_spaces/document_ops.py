@@ -26,13 +26,11 @@ from src.core.constants import RAG_SPACES_ARCHIVE_MISSING_MEMBER
 from src.core.exceptions import BaseAPIException
 from src.domains.rag_spaces.document_access import (
     document_file_path,
+    managed_document_code,
     owned_document,
     raise_document_not_found,
 )
-from src.domains.rag_spaces.models import (
-    RAGDocumentSourceType,
-    is_terminal_document_status,
-)
+from src.domains.rag_spaces.models import is_terminal_document_status
 from src.domains.rag_spaces.reindex import get_reindex_status
 from src.domains.rag_spaces.schemas import (
     RAGBatchSkipped,
@@ -212,10 +210,9 @@ def _move_refusal(document: RAGDocument, source: RAGSpace, target: RAGSpace) -> 
         return "document_not_found"
     if source.id == target.id:
         return "same_space"
-    if document.source_type == RAGDocumentSourceType.DRIVE:
-        return "document_managed_by_drive"
-    if document.source_type == RAGDocumentSourceType.MEETING:
-        return "document_managed_by_meetings"
+    managed = managed_document_code(document.source_type)
+    if managed is not None:
+        return managed
     if not is_terminal_document_status(document.status):
         return "document_busy"
     return None
@@ -332,6 +329,16 @@ async def move_documents(
 # ---------------------------------------------------------------------------
 
 
+def _skip_code(exc: BaseAPIException) -> str:
+    """The stable reason a refusal carries — its own ``code`` when it names one."""
+    detail = exc.detail
+    if isinstance(detail, dict) and isinstance(detail.get("code"), str):
+        return str(detail["code"])
+    if exc.status_code == status.HTTP_404_NOT_FOUND:
+        return "document_not_found"
+    return "delete_failed"
+
+
 async def bulk_delete_documents(
     service: RAGSpaceService,
     space_id: uuid.UUID,
@@ -355,12 +362,7 @@ async def bulk_delete_documents(
         try:
             await service.delete_document(space_id, document_id, user_id)
         except BaseAPIException as exc:
-            code = (
-                "document_not_found"
-                if exc.status_code == status.HTTP_404_NOT_FOUND
-                else "delete_failed"
-            )
-            skipped.append(RAGBatchSkipped(id=document_id, code=code))
+            skipped.append(RAGBatchSkipped(id=document_id, code=_skip_code(exc)))
         except Exception as exc:  # noqa: BLE001 - reported per document, never raised for the batch
             logger.warning(
                 "rag_document_bulk_delete_failed", document_id=str(document_id), error=str(exc)

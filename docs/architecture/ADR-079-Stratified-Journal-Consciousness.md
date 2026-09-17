@@ -247,6 +247,20 @@ The parser (`_parse_consolidation_result`) supports both the new object format a
 
 5. **Hardcoded promotion rules** (e.g. "if 3+ entries on same topic → auto-create L2"): rejected. Loses the LLM's contextual judgment about what counts as "same topic" or "convergent". Prompt-driven promotion (with active scan instructions in STEP 5 of the consolidation prompt) maintains the assistant's autonomy.
 
+## Amendment 2026-09-17 — the diagram's claim becomes true (ADR-292)
+
+The architecture summary above says the journal « reads Memory + Interests ».
+It never did: the consolidation prompt received the entries, an optional
+slice of the conversation, the usage patterns and the health signals, and
+nothing of the memories, the interests, the habits or the relationship
+debriefs. ADR-292 makes the claim true through a seam the four sources
+install their readers into, adds their four sections to the prompt's INPUTS
+as MATERIAL for the synthesis (the doctrine of STEP 7 stands: posture and
+cognition, never a fact list), persists the portrait's provenance beside its
+words, reopens the account's eligibility when a source moves, and turns the
+« ~150-220 » / « ~50-70 tokens » written in prose since this ADR into two
+settings the prompt reads (ADR-184).
+
 ## References
 
 - [ADR-057: Personal Journals](ADR-057-Personal-Journals.md) — original design

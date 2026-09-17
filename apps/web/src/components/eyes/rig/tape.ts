@@ -41,6 +41,10 @@ export interface Tape {
    * raise means "a bit higher than wherever this eye currently sits" — an
    * absolute target would yank a squashed joy eye up to a neutral height. */
   readonly relative?: boolean;
+  /** A RELEASE: the tape a scene appends to hand a channel home on the
+   * scene's own spring once its hold ends (`choreo.withRelease`). Not a
+   * beat — a test that bounds how long a beat holds skips it. */
+  readonly release?: boolean;
 }
 
 /** How long the tape owns its channel. */

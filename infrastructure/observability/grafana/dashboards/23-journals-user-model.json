@@ -827,6 +827,47 @@
           "mode": "multi"
         }
       }
+    },
+    {
+      "id": 104,
+      "title": "Portrait sources (24h, by source / status)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 43
+      },
+      "targets": [
+        {
+          "expr": "sum by (source, status) (increase(journal_portrait_sources_total[24h])) or vector(0)",
+          "legendFormat": "{{source}}/{{status}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "What each of the four portrait sources (memories, interests, habits, relation_debriefs) answered at consolidation time (2026-09-16 design, part B): 'used' rendered into the prompt, 'empty' had nothing, 'disabled' a gate refused (deployment ceiling, operator switch, the person's own preference), 'unavailable' the read failed or the section broke the global cap — a blind source is named, never read as empty."
     }
   ]
 }

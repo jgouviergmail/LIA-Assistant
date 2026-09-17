@@ -9,9 +9,10 @@ delete — they only serve the bubble's toggle while the conversation lives.
 from __future__ import annotations
 
 from datetime import datetime
+from enum import Enum
 from uuid import UUID
 
-from sqlalchemy import DateTime, ForeignKey, Index, Text, text
+from sqlalchemy import DateTime, ForeignKey, Index, String, Text, text
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -27,6 +28,31 @@ REQUEST_COMMENT = (
 ANSWERED_AT_COMMENT = "When the answer was written (the message's created_at)."
 MESSAGE_ID_COMMENT = "The archived message while it exists; NULL once the conversation is gone."
 CONVERSATION_ID_COMMENT = "The conversation while it exists; NULL once it is gone."
+RAG_DOCUMENT_ID_COMMENT = (
+    "The RAG document this answer is projected into, while it exists (2026-09-16 design)."
+)
+INDEX_STATE_COMMENT = (
+    "Why there is no projection yet (pending | indexed | error | deferred | disabled); "
+    "NULL = never attempted. The document row is the authority while it exists."
+)
+INDEXED_AT_COMMENT = "When the projection last reached READY."
+
+
+class BookmarkIndexState(str, Enum):
+    """Where a kept answer stands with the knowledge space.
+
+    The document row is the authority on its own lifecycle while it exists;
+    this column only says why there is none (or, on success, that there was
+    one). ``DEFERRED`` and ``DISABLED`` are retried by the reconciliation;
+    ``ERROR`` is not — the pipeline dead-lettered it and keeping the answer
+    again re-projects it.
+    """
+
+    PENDING = "pending"
+    INDEXED = "indexed"
+    ERROR = "error"
+    DEFERRED = "deferred"
+    DISABLED = "disabled"
 
 
 class MessageBookmark(BaseModel):
@@ -45,6 +71,11 @@ class MessageBookmark(BaseModel):
             notification).
         answered_at: When the answer was written. The tab sorts on it: a
             bookmark is dated by its answer, not by the click.
+        rag_document_id: The document of the « Kept answers » knowledge space
+            this answer is projected into, while it exists (``SET NULL``).
+        index_state: Why there is no projection (``BookmarkIndexState``) or,
+            on success, that there was one; ``None`` = never attempted.
+        indexed_at: When the projection last reached READY.
     """
 
     __tablename__ = "message_bookmarks"
@@ -73,6 +104,19 @@ class MessageBookmark(BaseModel):
     answered_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, comment=ANSWERED_AT_COMMENT
     )
+    # --- knowledge-space projection (2026-09-16 design, part A) --------------
+    rag_document_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("rag_documents.id", ondelete="SET NULL"),
+        nullable=True,
+        comment=RAG_DOCUMENT_ID_COMMENT,
+    )
+    index_state: Mapped[str | None] = mapped_column(
+        String(20), nullable=True, comment=INDEX_STATE_COMMENT
+    )
+    indexed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, comment=INDEXED_AT_COMMENT
+    )
 
     __table_args__ = (
         # The listing's own order: newest answer first, the primary key as the
@@ -92,5 +136,13 @@ class MessageBookmark(BaseModel):
             "message_id",
             unique=True,
             postgresql_where=text("message_id IS NOT NULL"),
+        ),
+        # The reconciliation sweep reads « bookmarks with no projection »,
+        # least recently attempted first (every state write stamps updated_at);
+        # the sweep is bounded, so the scan must be too.
+        Index(
+            "ix_message_bookmarks_unprojected",
+            "updated_at",
+            postgresql_where=text("rag_document_id IS NULL"),
         ),
     )

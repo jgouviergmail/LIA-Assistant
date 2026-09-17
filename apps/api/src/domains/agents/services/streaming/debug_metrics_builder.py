@@ -282,7 +282,11 @@ class DebugMetricsBuilder:
             tool_scores_count=len(tool_scores.get("all_scores", {})) if tool_scores else 0,
         )
 
-        if tool_scores:
+        # The planner's calibrated scores only: since ADR-293 the dict may carry
+        # the global relevance order alone (a turn whose domains own no tool, or
+        # placed in no domain), and indexing the planner keys there blanked the
+        # whole panel — the KeyError is caught one level up, section and all.
+        if tool_scores and "all_scores" in tool_scores:
             # Use selected_tools from tool_scores (tools that passed the > threshold filter)
             # This is the authoritative source from SemanticToolSelector
             selected_tools = tool_scores.get("selected_tools", [])

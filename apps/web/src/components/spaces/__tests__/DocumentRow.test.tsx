@@ -22,6 +22,7 @@ function document(over: Partial<RAGDocument> = {}): RAGDocument {
     content_type: 'application/pdf',
     status: 'ready',
     error_message: null,
+    error_code: null,
     chunk_count: 3,
     embedding_model: 'm',
     embedding_tokens: 0,
@@ -49,6 +50,54 @@ function render(over: Partial<React.ComponentProps<typeof DocumentRow>> = {}) {
 }
 
 describe('DocumentRow', () => {
+  it('explains a coded failure in the person\'s language, remedy included', () => {
+    render({
+      document: document({
+        status: 'error',
+        error_code: 'scanned_pdf_no_text_layer',
+        error_message: 'No text content extracted',
+      }),
+    });
+    const row = screen.getByRole('listitem', { name: 'report.pdf' });
+    expect(
+      within(row).getByText('spaces.documents.errors.scanned_pdf_no_text_layer')
+    ).toBeInTheDocument();
+    // The sentence names the cause AND the remedy — the Google Drive route,
+    // which recognises the text of a scan on the way to a Google Doc.
+    expect(en.spaces.documents.errors.scanned_pdf_no_text_layer).toBe(
+      'This PDF is a scanned document with no text layer, and character recognition is not available here. To index it, put it on Google Drive, open it with Google Docs (the text is recognised automatically), then add that Google Doc to the space through its Drive source.'
+    );
+    expect(fr.spaces.documents.errors.scanned_pdf_no_text_layer).toBe(
+      'Ce PDF est un document scanné sans couche texte, et la reconnaissance de caractères n\'est pas disponible ici. Pour l\'indexer, déposez-le sur Google Drive, ouvrez-le avec Google Docs (le texte est reconnu automatiquement), puis ajoutez ce Google Doc à l\'espace via sa source Drive.'
+    );
+  });
+
+  it('keeps a failure without a code as the badge title alone', () => {
+    render({
+      document: document({
+        status: 'error',
+        error_code: null,
+        error_message: 'Text extraction failed: boom',
+      }),
+    });
+    const row = screen.getByRole('listitem', { name: 'report.pdf' });
+    expect(within(row).getByTitle('Text extraction failed: boom')).toBeInTheDocument();
+    expect(within(row).queryByText(/^spaces\.documents\.errors\./)).not.toBeInTheDocument();
+  });
+
+  it('falls back to the message when the code is unknown to this build', () => {
+    render({
+      document: document({
+        status: 'error',
+        error_code: 'a_code_from_a_newer_server',
+        error_message: 'Something new',
+      }),
+    });
+    const row = screen.getByRole('listitem', { name: 'report.pdf' });
+    expect(within(row).getByTitle('Something new')).toBeInTheDocument();
+    expect(within(row).queryByText(/^spaces\.documents\.errors\./)).not.toBeInTheDocument();
+  });
+
   it('offers a named checkbox that toggles the selection', async () => {
     const { user, onToggle } = render();
     const box = screen.getByRole('checkbox', { name: 'spaces.documents.select_row' });
@@ -74,6 +123,30 @@ describe('DocumentRow', () => {
     render({ document: document({ source_type: 'drive', drive_file_id: 'f1' }) });
     expect(screen.queryByRole('button', { name: 'spaces.documents.move' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'spaces.documents.download' })).toBeInTheDocument();
+  });
+
+  it('offers neither move nor delete on a kept answer, and says what it is', () => {
+    // The bookmark is the record; its projection goes with the bookmark.
+    render({ document: document({ source_type: 'bookmark', original_filename: 'Kept.md' }) });
+    const row = screen.getByRole('listitem', { name: 'Kept.md' });
+    expect(within(row).getByText('spaces.bookmarks.source_type_bookmark')).toBeInTheDocument();
+    expect(
+      within(row).queryByRole('button', { name: 'spaces.documents.move' })
+    ).not.toBeInTheDocument();
+    expect(within(row).queryByRole('button', { name: 'common.delete' })).not.toBeInTheDocument();
+    expect(
+      within(row).getByRole('link', { name: 'spaces.documents.download' })
+    ).toBeInTheDocument();
+  });
+
+  it('names the kept-answer badge and the skip reasons in English and in French', () => {
+    expect(en.spaces.bookmarks.source_type_bookmark).toBe('Kept answer');
+    expect(fr.spaces.bookmarks.source_type_bookmark).toBe('Réponse conservée');
+    expect(en.spaces.documents.skip.document_managed_by_bookmarks).toBe('a kept answer');
+    expect(fr.spaces.documents.skip.document_managed_by_bookmarks).toBe('une réponse conservée');
+    expect(en.spaces.documents.skip.document_managed_by_mail).toBe(
+      'kept in sync from a Gmail label'
+    );
   });
 
   it('names its actions in English and in French', () => {

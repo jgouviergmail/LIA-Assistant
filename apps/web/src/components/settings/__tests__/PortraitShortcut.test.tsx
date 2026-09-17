@@ -25,7 +25,12 @@ vi.mock('@/hooks/useJournalPortrait', () => ({
 
 describe('PortraitShortcut', () => {
   beforeEach(() => {
-    portraitValue = { full: 'texte du portrait', brief: null, compiled_at: '2026-07-20T00:00:00Z' };
+    portraitValue = {
+      full: 'texte du portrait',
+      brief: null,
+      compiled_at: '2026-07-20T00:00:00Z',
+      sources: null,
+    };
   });
 
   it('opens the journals section on click', () => {
@@ -38,7 +43,7 @@ describe('PortraitShortcut', () => {
   });
 
   it('renders nothing without a compiled portrait (no teaser)', () => {
-    portraitValue = { full: null, brief: null, compiled_at: null };
+    portraitValue = { full: null, brief: null, compiled_at: null, sources: null };
     const { container } = render(<PortraitShortcut onOpen={vi.fn()} />);
     expect(container.firstChild).toBeNull();
   });

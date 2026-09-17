@@ -128,6 +128,14 @@ journal_portrait_compile_duration_seconds = Histogram(
     buckets=(0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0),
 )
 
+journal_portrait_sources_total = Counter(
+    "journal_portrait_sources_total",
+    "What each portrait source answered at a consolidation (2026-09-16 design, part B).",
+    ["source", "status"],
+    # source: memories | interests | habits | relation_debriefs
+    # status: used | empty | disabled | unavailable
+)
+
 journal_portrait_present_total = Counter(
     "journal_portrait_present_total",
     "Times the user model portrait was actually injected into a downstream prompt.",

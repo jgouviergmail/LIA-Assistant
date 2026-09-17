@@ -15,11 +15,13 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import and_, delete, func, select
+from sqlalchemy import and_, delete, exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
 from src.domains.journals.models import JournalEntry, JournalEntryStatus
+from src.domains.shared.portrait_sources import installed_portrait_sources
+from src.infrastructure.database.models import Base
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_journals import journal_entries_total
 
@@ -60,20 +62,33 @@ def build_consolidation_eligible_users_query(
 
     A user is eligible when there is WORK: at least ``min_entries`` ACTIVE
     entries AND (never consolidated OR an active entry touched since the last
-    consolidation stamp). The historical absolute floor (3) starved every
-    real user — consolidation prunes journals toward 2 entries, which made it
-    permanently ineligible and stalled portraits for months.
+    consolidation stamp) — OR, since the 2026-09-16 design (part B), a row of
+    one of the portrait's four sources (memories, interests, habits,
+    relationship debriefs) written since the stamp. The entries are therefore
+    OUTER-joined: an account with no entry but fresh sources still compiles a
+    portrait, and the prompt already handles « No entries to review ». The
+    historical absolute floor (3) starved every real user — consolidation
+    prunes journals toward 2 entries, which made it permanently ineligible and
+    stalled portraits for months.
 
     No churn loop by construction: ``journal_last_consolidated_at`` is
     stamped AFTER the run's actions commit (``consolidation_service``), so a
     consolidation's own edits always carry ``updated_at`` strictly below the
-    stamp and never re-trigger the next cycle.
+    stamp and never re-trigger the next cycle — and a run writes none of the
+    four source tables.
+
+    The freshness probes come from the seam (``installed_portrait_sources``),
+    read on ``Base.metadata`` by table NAME: this module imports no source
+    domain, exactly as the workboard release reads ``users`` (ADR-276). The
+    boot installs the probes; a process that never booted (a script, a narrow
+    test) builds the journal-only predicate — never MORE eligible than before
+    part B, which is the safe side of that asymmetry.
 
     Args:
         cooldown_threshold: Scheduler pacing bound (now - cooldown hours).
-        min_entries: Minimum ACTIVE entries (env-overridable floor; the
-            default must stay reachable by a post-prune journal — pinned at 1
-            by test).
+        min_entries: Minimum ACTIVE entries for the journal to count as work
+            (env-overridable floor; the default must stay reachable by a
+            post-prune journal — pinned at 1 by test).
 
     Returns:
         A ``Select`` over ``User`` rows, ready for ``db.execute``.
@@ -92,23 +107,35 @@ def build_consolidation_eligible_users_query(
         .subquery()
     )
 
+    never = User.journal_last_consolidated_at.is_(None)
+    journal_work = never | (work_subq.c.last_touched_at > User.journal_last_consolidated_at)
+    # A source row counts when it moved since the stamp — or when there is no
+    # stamp yet: an account never consolidated, with a memory and no entry,
+    # is exactly the one whose portrait is worth compiling.
+    fresh_sources = [
+        exists().where(
+            table.c[probe.user_column] == User.id,
+            never | (table.c[probe.stamp_column] > User.journal_last_consolidated_at),
+        )
+        for _key, (_reader, probe) in installed_portrait_sources().items()
+        for table in (Base.metadata.tables[probe.table],)
+    ]
+
     return (
         select(User)
-        .join(work_subq, User.id == work_subq.c.user_id)
+        .outerjoin(work_subq, User.id == work_subq.c.user_id)
         .where(
             and_(
                 # Shared with the portrait-age gauge — see the helper's
                 # docstring for why the two must not drift apart.
                 *consolidation_eligible_user_conditions(),
                 # Cooldown: never consolidated OR last > cooldown (pacing)
-                (
-                    User.journal_last_consolidated_at.is_(None)
-                    | (User.journal_last_consolidated_at < cooldown_threshold)
-                ),
-                # Delta: never consolidated OR something changed since (work)
-                (
-                    User.journal_last_consolidated_at.is_(None)
-                    | (work_subq.c.last_touched_at > User.journal_last_consolidated_at)
+                never | (User.journal_last_consolidated_at < cooldown_threshold),
+                # Work: the journal moved (or was never consolidated and has
+                # entries), or a portrait source moved since the stamp.
+                or_(
+                    and_(work_subq.c.user_id.is_not(None), journal_work),
+                    *fresh_sources,
                 ),
             )
         )

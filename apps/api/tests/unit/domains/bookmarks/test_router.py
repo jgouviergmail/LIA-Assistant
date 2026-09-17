@@ -43,9 +43,19 @@ def _bookmark(**overrides: object) -> SimpleNamespace:
         "request_content": "Réserve la salle B à 14 h",
         "answered_at": datetime(2026, 9, 12, 10, 0, tzinfo=UTC),
         "created_at": datetime(2026, 9, 12, 10, 5, tzinfo=UTC),
+        "rag_document_id": None,
+        "index_state": None,
+        "indexed_at": None,
     }
     base.update(overrides)
     return SimpleNamespace(**base)
+
+
+def _service(service_cls: MagicMock, documents: dict | None = None) -> MagicMock:
+    """The service double: every route reads the page's documents through it."""
+    service = service_cls.return_value
+    service.documents_of = AsyncMock(return_value=documents or {})
+    return service
 
 
 @pytest.fixture
@@ -68,12 +78,15 @@ class TestKeeping:
     def test_a_new_bookmark_answers_201_with_the_row(self, client: TestClient) -> None:
         kept = _bookmark()
         with patch(f"{MODULE}.BookmarkService") as service_cls:
-            service_cls.return_value.keep = AsyncMock(return_value=(kept, True))
+            _service(service_cls).keep = AsyncMock(return_value=(kept, True))
             response = client.post("/bookmarks", json={"message_id": str(kept.message_id)})
 
         assert response.status_code == 201
         assert response.json()["id"] == str(kept.id)
         assert response.json()["request_content"] == "Réserve la salle B à 14 h"
+        # Never attempted yet: the projection rides the commit, in the background.
+        assert response.json()["index_state"] is None
+        assert response.json()["index_usage"] is None
         service_cls.return_value.keep.assert_awaited_once_with(
             USER_ID, kept.message_id, language="fr"
         )
@@ -81,7 +94,7 @@ class TestKeeping:
     def test_an_existing_bookmark_answers_200(self, client: TestClient) -> None:
         kept = _bookmark()
         with patch(f"{MODULE}.BookmarkService") as service_cls:
-            service_cls.return_value.keep = AsyncMock(return_value=(kept, False))
+            _service(service_cls).keep = AsyncMock(return_value=(kept, False))
             response = client.post("/bookmarks", json={"message_id": str(kept.message_id)})
 
         assert response.status_code == 200
@@ -109,7 +122,7 @@ class TestListing:
             patch(f"{MODULE}.settings") as fake_settings,
         ):
             fake_settings.bookmarks_max_per_user = 500
-            service_cls.return_value.list_page = AsyncMock(return_value=(rows, 41))
+            _service(service_cls).list_page = AsyncMock(return_value=(rows, 41))
             response = client.get("/bookmarks?q=salle&limit=2&offset=4")
 
         assert response.status_code == 200
@@ -122,6 +135,42 @@ class TestListing:
         assert body["max_per_user"] == 500
         filters = service_cls.return_value.list_page.await_args.args[1]
         assert (filters.query, filters.limit, filters.offset) == ("salle", 2, 4)
+
+    def test_the_listing_carries_the_projection_state_and_its_cost(
+        self, client: TestClient
+    ) -> None:
+        """The document is the authority while it exists; a READY one has a cost."""
+        document_id = uuid.uuid4()
+        projected = _bookmark(rag_document_id=document_id, index_state="pending")
+        deferred = _bookmark(index_state="deferred")
+        document = SimpleNamespace(
+            id=document_id,
+            status="ready",
+            embedding_tokens=812,
+            embedding_cost_eur=0.000123,
+            embedding_model="gemini-embedding-001",
+        )
+        with (
+            patch(f"{MODULE}.BookmarkService") as service_cls,
+            patch(f"{MODULE}.settings") as fake_settings,
+        ):
+            fake_settings.bookmarks_max_per_user = 500
+            service = _service(service_cls, {document_id: document})
+            service.list_page = AsyncMock(return_value=([projected, deferred], 2))
+            response = client.get("/bookmarks")
+
+        first, second = response.json()["items"]
+        assert first["index_state"] == "indexed"
+        assert first["index_usage"] == {
+            "tokens_in": 812,
+            "tokens_out": 0,
+            "tokens_cache": 0,
+            "cost_eur": 0.000123,
+            "model_name": "gemini-embedding-001",
+        }
+        assert second["index_state"] == "deferred"
+        assert second["index_usage"] is None
+        service.documents_of.assert_awaited_once_with([projected, deferred])
 
     def test_limit_bounds_are_enforced(self, client: TestClient) -> None:
         assert client.get("/bookmarks?limit=0").status_code == 422

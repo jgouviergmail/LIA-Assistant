@@ -483,17 +483,20 @@ describe('EyesWidget — idle life (deterministic via mocked RNG)', () => {
       vi.advanceTimersByTime(1);
     });
     // Beat 1: the lid sweep starts immediately — the face has NOT changed yet
-    // (the morph happens out of sight, at the top of the blink).
+    // (the morph happens out of sight, at the top of the blink), and the
+    // blink is declared a MASK: the rig holds the lids shut past the swap.
     expect(eyesRoot().dataset.blinking === 'true').toBe(true);
+    expect(eyesRoot().dataset.blinkMask === 'true').toBe(true);
     expect(eyesRoot().dataset.expression).toBe('neutral');
     // Beat 2: at lid-top the new face lands.
     settleMask();
     expect(eyesRoot().dataset.expression).toBe('attentive');
-    // Beat 3: the blink clears after its full cycle.
+    // Beat 3: the blink clears after its full cycle, and so does the mask.
     act(() => {
       vi.advanceTimersByTime(BLINK_DURATION_MS + 10);
     });
     expect(eyesRoot().dataset.blinking === 'true').toBe(false);
+    expect(eyesRoot().dataset.blinkMask).toBeUndefined();
   });
 
   it('an idle mood flicker plays a mini scene then settles back (rng → daydream)', () => {

@@ -30,5 +30,9 @@ def test_one_bookmark_has_the_same_fields_on_both_sides() -> None:
     assert _interface_fields("Bookmark") == set(BookmarkResponse.model_fields)
 
 
+def test_a_bookmark_says_where_its_projection_stands() -> None:
+    assert {"index_state", "indexed_at", "index_usage"} <= set(BookmarkResponse.model_fields)
+
+
 def test_the_listing_has_the_same_fields_on_both_sides() -> None:
     assert _interface_fields("BookmarkList") == set(BookmarkListResponse.model_fields)

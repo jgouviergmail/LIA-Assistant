@@ -4,7 +4,7 @@
 
 **Version**: 2.1
 **Datum**: 2026-08-23
-**Anwendung**: LIA v1.45.0
+**Anwendung**: LIA v1.45.1
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -19,9 +19,9 @@ Nahezu der gesamte Code wurde von einer KI geschrieben, unter menschlicher Führ
 | --- | --- |
 | Von einer KI geschriebener Code — geführt, gerahmt, kontrolliert | **≈ 100 %** |
 | Codezeilen (ohne Tests) — 49 Fachdomänen | **660.000** |
-| Automatisierte Tests, bei jedem Commit und Release ausgeführt | **37.000+** |
-| Dokumentierte Architekturentscheidungen (ADR) | **289** |
-| In regelmäßigem Rhythmus gelieferte Versionen | **261** |
+| Automatisierte Tests, bei jedem Commit und Release ausgeführt | **38.000+** |
+| Dokumentierte Architekturentscheidungen (ADR) | **293** |
+| In regelmäßigem Rhythmus gelieferte Versionen | **262** |
 | Sprachen, Parität automatisch geprüft | **6** |
 | Technisches Audit über 24 Bereiche | **8,3/10** |
 
@@ -50,11 +50,11 @@ Eine KI, die programmiert, produziert Volumen; Qualität produziert sie nur unte
 
 ## 4. Die Abwägungen
 
-Drei strukturelle Entscheidungen, unter den 289 dokumentierten:
+Drei strukturelle Entscheidungen, unter den 293 dokumentierten:
 
 **Souveränität & Reversibilität — keine irreversible Anbieterabhängigkeit.** Die KI-Modelle (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, lokale Modelle über Ollama) stehen hinter einer einzigen Abstraktion: Jede Nutzung kann per Konfiguration den Anbieter wechseln, mit Kostenvergleich. Dasselbe Prinzip auf Fachseite: Google, Apple und Microsoft sind pro Funktionskategorie austauschbar. Das Hosting ist vollständig kontrolliert; personenbezogene Daten sind verschlüsselt und bleiben auf der Infrastruktur.
 
-**KI-Ökonomie — die Kosten pro Anfrage sind ein Designkriterium.** Zwei Ausführungsmodi koexistieren: eine deterministische, sparsame Pipeline für alltägliche Anfragen, ein autonomer Agentenmodus für explorative — der gemessene Verbrauchsunterschied reicht von 1 zu 4-8, bei gleichwertiger Leistung in Standardfällen. Jeder Aufruf wird pro Token gezählt, in Euro bewertet, pro Nutzer und Modell aggregiert, durch Quoten gesteuert. Selbst eine Benachrichtigung von zwei Sätzen wird ohne Nachdenken angefordert, weil ein Modell, das standardmäßig nachdenkt, sein Nachdenken innerhalb des Antwortbudgets abrechnet.
+**KI-Ökonomie — die Kosten pro Anfrage sind ein Designkriterium.** Zwei Ausführungsmodi koexistieren: eine deterministische, sparsame Pipeline für alltägliche Anfragen, ein autonomer Agentenmodus für explorative — der gemessene Verbrauchsunterschied reicht von 1 zu 4-8, bei gleichwertiger Leistung in Standardfällen. Jeder Aufruf wird pro Token gezählt, in Euro bewertet, pro Nutzer und Modell aggregiert, durch Quoten gesteuert. Selbst eine Benachrichtigung von zwei Sätzen wird ohne Nachdenken angefordert, weil ein Modell, das standardmäßig nachdenkt, sein Nachdenken innerhalb des Antwortbudgets abrechnet. Und der Agentenmodus nimmt nur die Tools mit, die die Frage verlangt — nach Relevanz gewählt, nie nach Reihenfolge des Eintreffens —, weil achtzig Tool-Schemata den Großteil eines ersten Aufrufs wogen, ohne gezählt zu werden.
 
 **Risikobeherrschung — keine irreversible Aktion ohne menschliche Validierung.** Sechs Stufen menschlicher Kontrolle, abgestuft nach der Sensibilität der Aktion — von der Klärung bis zur Bestätigung destruktiver Operationen. Das Verhalten bei Unterbrechung ist spezifiziert und getestet: Eine ausstehende Validierung überlebt Neustarts, ohne Verlust und ohne Doppelausführung. Mehrere Aktionen in einer Anfrage werden einzeln vorgelegt, jede auf ihrer Karte, und der Bericht sagt, was für wen getan wurde. Das Telefon folgt derselben Linie: die Karte schützt einen Dritten, also ist, wenn LIA die Person selbst anruft — auf einer hinterlegten und per vorgelesenem Code bestätigten Nummer —, die Person selbst die Karte; am Telefon liest die Assistentin alles, was der Chat liest, und handelt in nichts, und was auf dem eigenen Anbieterschlüssel der Person läuft, wird dort abgerechnet, hier nie gezählt.
 

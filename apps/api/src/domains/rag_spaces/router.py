@@ -530,6 +530,7 @@ async def get_document_status(
         id=document.id,
         status=document.status,
         error_message=document.error_message,
+        error_code=document.error_code,
         chunk_count=document.chunk_count,
     )
 

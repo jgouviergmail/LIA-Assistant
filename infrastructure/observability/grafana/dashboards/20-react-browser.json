@@ -1316,6 +1316,92 @@
           }
         }
       ]
+    },
+    {
+      "id": 64,
+      "type": "timeseries",
+      "title": "Tools Bound by Relevance (P50/P95)",
+      "description": "Tools actually bound to the loop after the relevance selection (detected domains, family coverage, semantic top-K — ADR-293) and the cap. Read against « Tools Resolved vs Cap »: the gap is what relevance spared.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 71
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(react_tools_bound_bucket[$__rate_interval]))) or vector(0)",
+          "legendFormat": "p95 bound",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(react_tools_bound_bucket[$__rate_interval]))) or vector(0)",
+          "legendFormat": "p50 bound",
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ]
+    },
+    {
+      "id": 65,
+      "type": "timeseries",
+      "title": "Bound Tool Schema Tokens (P50/P95)",
+      "description": "Tokens the bound tool schemas add to EVERY model call of a ReAct turn — the part the delivered-context histogram never counted. Measured 2026-09-17: 26 155 for 80 tools (ADR-293).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 79
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(react_bound_tool_tokens_bucket[$__rate_interval]))) or vector(0)",
+          "legendFormat": "p95 tokens",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(react_bound_tool_tokens_bucket[$__rate_interval]))) or vector(0)",
+          "legendFormat": "p50 tokens",
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ]
     }
   ]
 }

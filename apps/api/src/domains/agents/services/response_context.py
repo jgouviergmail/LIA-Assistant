@@ -169,6 +169,89 @@ async def fetch_app_knowledge_context(
     return context
 
 
+async def fetch_user_rag_context(
+    *,
+    config: RunnableConfig,
+    last_user_message: str,
+    run_id: str,
+) -> tuple[str | None, dict[str, Any] | None]:
+    """The ``<UserDocuments>`` content for one message — the ONE implementation.
+
+    Read by the response bundle and by the ReAct setup (knowledge parity,
+    2026-09-17): the loop must know what the pipeline knows, through the same
+    retrieval, the same gates and the same bounds — never a second search.
+    Opens its own session; never raises.
+
+    Args:
+        config: RunnableConfig carrying the thread id.
+        last_user_message: The person's current message.
+        run_id: Current run identifier (embedding cost attribution).
+
+    Returns:
+        ``(prompt_context, injection_debug)`` or ``(None, None)`` when the
+        feature is off, nothing was retrieved, or the retrieval failed.
+    """
+    if not getattr(settings, "rag_spaces_enabled", False):
+        return None, None
+    try:
+        from uuid import UUID as _UUID
+
+        from src.domains.rag_spaces.retrieval import retrieve_rag_context
+        from src.infrastructure.database.session import get_db_context
+
+        user_id_for_rag = runtime_user_id_str(None)
+        thread_id_for_rag = config.get("configurable", {}).get("thread_id")
+        if not (user_id_for_rag and last_user_message):
+            return None, None
+        async with get_db_context() as rag_db:
+            rag_result = await retrieve_rag_context(
+                user_id=_UUID(user_id_for_rag),
+                query=last_user_message,
+                db=rag_db,
+                session_id=thread_id_for_rag,
+                conversation_id=thread_id_for_rag,
+                run_id=run_id,
+            )
+        if rag_result and rag_result.chunks:
+            injection_debug = {
+                "spaces_searched": rag_result.spaces_searched,
+                "chunks_found": rag_result.total_results,
+                "chunks_injected": len(rag_result.chunks),
+                # Publish the bounds that produced this result: a threshold
+                # the retrieval enforced is meaningless to a reader who
+                # cannot see it (same doctrine as the memory-injection
+                # payload, and as ADR-184 for the planner catalogue).
+                "settings": {
+                    "min_score": settings.rag_spaces_retrieval_min_score,
+                    "max_results": settings.rag_spaces_retrieval_limit,
+                },
+                "chunks": [
+                    {
+                        "space": c.space_name,
+                        "file": c.original_filename,
+                        "score": c.score,
+                    }
+                    for c in rag_result.chunks
+                ],
+            }
+            logger.info(
+                "rag_injection_completed",
+                run_id=run_id,
+                user_id=user_id_for_rag,
+                chunks_injected=len(rag_result.chunks),
+                spaces_searched=rag_result.spaces_searched,
+            )
+            return rag_result.to_prompt_context(), injection_debug
+        return None, None
+    except Exception as e:
+        logger.warning(
+            "rag_injection_failed",
+            run_id=run_id,
+            error=str(e),
+        )
+        return None, None
+
+
 async def fetch_response_context(
     state: MessagesState,
     config: RunnableConfig,
@@ -314,65 +397,9 @@ async def fetch_response_context(
 
     async def _inject_user_rag() -> tuple[str | None, dict[str, Any] | None]:
         """RAG Spaces context injection (user documents, own DB session)."""
-        if not getattr(settings, "rag_spaces_enabled", False):
-            return None, None
-        try:
-            from uuid import UUID as _UUID
-
-            from src.domains.rag_spaces.retrieval import retrieve_rag_context
-            from src.infrastructure.database.session import get_db_context
-
-            user_id_for_rag = runtime_user_id_str(None)
-            thread_id_for_rag = config.get("configurable", {}).get("thread_id")
-            if not (user_id_for_rag and last_user_message):
-                return None, None
-            async with get_db_context() as rag_db:
-                rag_result = await retrieve_rag_context(
-                    user_id=_UUID(user_id_for_rag),
-                    query=last_user_message,
-                    db=rag_db,
-                    session_id=thread_id_for_rag,
-                    conversation_id=thread_id_for_rag,
-                    run_id=run_id,
-                )
-            if rag_result and rag_result.chunks:
-                injection_debug = {
-                    "spaces_searched": rag_result.spaces_searched,
-                    "chunks_found": rag_result.total_results,
-                    "chunks_injected": len(rag_result.chunks),
-                    # Publish the bounds that produced this result: a threshold
-                    # the retrieval enforced is meaningless to a reader who
-                    # cannot see it (same doctrine as the memory-injection
-                    # payload, and as ADR-184 for the planner catalogue).
-                    "settings": {
-                        "min_score": settings.rag_spaces_retrieval_min_score,
-                        "max_results": settings.rag_spaces_retrieval_limit,
-                    },
-                    "chunks": [
-                        {
-                            "space": c.space_name,
-                            "file": c.original_filename,
-                            "score": c.score,
-                        }
-                        for c in rag_result.chunks
-                    ],
-                }
-                logger.info(
-                    "rag_injection_completed",
-                    run_id=run_id,
-                    user_id=user_id_for_rag,
-                    chunks_injected=len(rag_result.chunks),
-                    spaces_searched=rag_result.spaces_searched,
-                )
-                return rag_result.to_prompt_context(), injection_debug
-            return None, None
-        except Exception as e:
-            logger.warning(
-                "rag_injection_failed",
-                run_id=run_id,
-                error=str(e),
-            )
-            return None, None
+        return await fetch_user_rag_context(
+            config=config, last_user_message=last_user_message, run_id=run_id
+        )
 
     async def _inject_system_rag() -> str:
         """System RAG context (App FAQ) — lazy loading based on is_app_help_query.
@@ -657,6 +684,42 @@ def start_response_context_prefetch(
         logger.debug("response_context_prefetch_started", run_id=run_id)
     except Exception as exc:
         logger.warning("response_context_prefetch_start_failed", run_id=run_id, error=str(exc))
+
+
+async def peek_response_context(run_id: str) -> ResponseContextBundle | None:
+    """Read the prefetched bundle WITHOUT consuming it.
+
+    The ReAct setup reads the ``<UserDocuments>`` block from the bundle the
+    router prefetched, at zero extra cost, and the response node still pops
+    the same bundle afterwards. Same await bound as the pop; a failure or a
+    timeout answers None and the caller fetches inline.
+
+    Args:
+        run_id: Current run identifier.
+
+    Returns:
+        The resolved bundle, or None when no prefetch was started, it failed,
+        or it exceeded the await timeout.
+    """
+    task = _prefetch_tasks.get(run_id)
+    if task is None:
+        return None
+    try:
+        bundle = await asyncio.wait_for(
+            asyncio.shield(task), timeout=settings.response_context_prefetch_await_timeout_seconds
+        )
+        logger.debug("response_context_prefetch_peeked", run_id=run_id)
+        return bundle
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:
+        logger.warning(
+            "response_context_prefetch_peek_failed",
+            run_id=run_id,
+            error=str(exc),
+            error_type=type(exc).__name__,
+        )
+        return None
 
 
 async def pop_response_context(run_id: str) -> ResponseContextBundle | None:

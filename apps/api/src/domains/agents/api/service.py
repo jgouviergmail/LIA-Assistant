@@ -66,7 +66,10 @@ from src.domains.agents.services.streaming.voice_coordinator import (
     VoiceStreamContext,
     VoiceStreamCoordinator,
 )
-from src.domains.agents.services.streaming.voice_stream_helpers import ListenerProbe
+from src.domains.agents.services.streaming.voice_stream_helpers import (
+    ListenerProbe,
+    voice_preference_of,
+)
 from src.domains.agents.utils import generate_run_id
 from src.infrastructure.observability.logging import get_logger
 
@@ -983,6 +986,9 @@ class AgentService(
                                 user_memory_enabled=user_memory_enabled,  # User memory preference
                                 user_journals_enabled=user_journals_enabled,  # User journals preference
                                 user_psyche_enabled=user_psyche_enabled,  # User psyche preference
+                                # The flag the voice coordinator starts the progressive
+                                # TTS on: the response node's HTML gate must read the same one.
+                                user_voice_enabled=voice_preference_of(user_obj),
                                 user_display_mode=user_display_mode,  # User display mode (cards/html/markdown)
                                 user_execution_mode=user_execution_mode,  # Execution mode (pipeline/react)
                                 is_automated_source=is_automated_source,  # True for scheduled actions (skips extraction)

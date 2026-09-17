@@ -24,8 +24,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.config import settings
 from src.core.exceptions import BaseAPIException
 from src.domains.rag_spaces.document_access import (
+    UNDELETABLE_DOCUMENT_KINDS,
     document_file_path,
     owned_document,
+    raise_document_managed,
 )
 from src.domains.rag_spaces.models import (
     RAGDocument,
@@ -135,6 +137,17 @@ def raise_system_space_protected(space_id: uuid.UUID, operation: str) -> NoRetur
         log_event="rag_system_space_protected",
         space_id=str(space_id),
         operation=operation,
+    )
+
+
+def raise_space_managed_by_domain(space_id: uuid.UUID, kind: str) -> NoReturn:
+    """403: a space another domain manages by role cannot be deleted by hand."""
+    raise BaseAPIException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail={"code": "space_managed_by_domain", "kind": kind},
+        log_event="rag_space_managed_by_domain",
+        space_id=str(space_id),
+        kind=kind,
     )
 
 
@@ -299,10 +312,18 @@ class RAGSpaceService:
         return {**space.dict(), **stats}
 
     async def delete_space(self, space_id: uuid.UUID, user_id: uuid.UUID) -> None:
-        """Delete a space with all its documents, chunks, and files."""
+        """Delete a space with all its documents, chunks, and files.
+
+        A space another domain manages by role (meetings, kept answers) is
+        refused: its owner would re-create it at the next projection, so the
+        deletion would be undone in silence (2026-09-16 design, amending
+        ADR-258). Renaming and switching it off stay open.
+        """
         space = await self.get_space(space_id, user_id)
         if space.is_system:
             raise_system_space_protected(space_id, "delete")
+        if space.kind is not None:
+            raise_space_managed_by_domain(space_id, space.kind)
 
         # Snapshot document statuses BEFORE cascade delete (for gauge updates)
         documents = await self.doc_repo.get_all_for_space(space_id)
@@ -458,7 +479,6 @@ class RAGSpaceService:
             "rag_document_uploaded",
             document_id=str(document.id),
             space_id=str(space_id),
-            original_filename=original_filename,
             content_type=content_type,
             file_size=file_size,
         )
@@ -470,8 +490,14 @@ class RAGSpaceService:
         document_id: uuid.UUID,
         user_id: uuid.UUID,
     ) -> None:
-        """Delete a document with its chunks and physical file."""
+        """Delete a document with its chunks and physical file.
+
+        A kept answer's projection is refused: the bookmark is the record, and
+        its document goes with the bookmark (2026-09-16 design, part A).
+        """
         document = await owned_document(self, space_id, document_id, user_id)
+        if document.source_type in UNDELETABLE_DOCUMENT_KINDS:
+            raise_document_managed(document.source_type)
 
         # DB operations in a single transaction: chunks + document record
         await self.chunk_repo.delete_by_document(document_id)
@@ -485,11 +511,11 @@ class RAGSpaceService:
 
         rag_documents_total_count.labels(status=document.status).dec()
 
+        # Ids only: a display name is written by the person (or a third party).
         logger.info(
             "rag_document_deleted",
             document_id=str(document_id),
             space_id=str(space_id),
-            original_filename=document.original_filename,
         )
 
     async def get_document_status(

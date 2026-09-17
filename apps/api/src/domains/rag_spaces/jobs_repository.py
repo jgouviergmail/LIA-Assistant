@@ -21,7 +21,11 @@ from uuid import UUID
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.domains.rag_spaces.models import RAGDocumentStatus, RAGDriveSyncStatus
+from src.domains.rag_spaces.models import (
+    RAGDocumentErrorCode,
+    RAGDocumentStatus,
+    RAGDriveSyncStatus,
+)
 
 DRIVE_SOURCE_TABLE = "rag_drive_sources"
 MAIL_SOURCE_TABLE = "rag_mail_sources"
@@ -98,12 +102,15 @@ class RAGJobsRepository:
 
         Returns the resulting status. ``attempts`` was already incremented by the
         claim, so a document that has been claimed ``max_attempts`` times is
-        dead-lettered to ERROR; otherwise it returns to PENDING for another try.
+        dead-lettered to ERROR — named ``retries_exhausted`` for the person, the
+        technical message kept beside it; otherwise it returns to PENDING for
+        another try, with no code, since it is not in error.
         """
         res = await self.db.execute(
             text(
                 "UPDATE rag_documents SET "
                 "status = CASE WHEN attempts >= :max THEN :error ELSE :pending END, "
+                "error_code = CASE WHEN attempts >= :max THEN :code ELSE NULL END, "
                 "error_message = :msg, lease_expires_at = NULL, worker_id = NULL "
                 "WHERE id = :id "
                 "RETURNING status"
@@ -112,6 +119,7 @@ class RAGJobsRepository:
                 "max": max_attempts,
                 "error": RAGDocumentStatus.ERROR,
                 "pending": RAGDocumentStatus.PENDING,
+                "code": RAGDocumentErrorCode.RETRIES_EXHAUSTED.value,
                 "msg": error,
                 "id": str(document_id),
             },
@@ -205,7 +213,7 @@ class RAGJobsRepository:
             text(
                 "UPDATE rag_documents SET status = :pending, heartbeat_at = now(), "
                 "lease_expires_at = NULL, worker_id = NULL, attempts = 0, "
-                "error_message = NULL "
+                "error_message = NULL, error_code = NULL "
                 "WHERE id = ANY(:ids) AND status IN (:ready, :error)"
             ),
             {

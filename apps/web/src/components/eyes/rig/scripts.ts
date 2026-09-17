@@ -26,7 +26,9 @@ import {
   relative,
   type Keys,
 } from '@/components/eyes/rig/choreo';
-import type { Tape, TapeKey } from '@/components/eyes/rig/tape';
+import { createLifeRandom } from '@/components/eyes/rig/life';
+import { speechTapes } from '@/components/eyes/rig/speech';
+import type { Tape } from '@/components/eyes/rig/tape';
 import type { SpringConfig } from '@/components/eyes/rig/spring';
 import type { EyeExpression } from '@/components/eyes/expression-engine';
 
@@ -56,62 +58,30 @@ function searchTape(channel: 'gazeX' | 'gazeY', values: readonly number[]): Tape
 }
 
 /**
- * The brows punctuate speech.
- *
- * A talking face raises its brows on the stresses, not on a beat: four raises
- * over a cycle no two of which are the same distance apart, each held for
- * about a syllable, both brows with the right one trailing. Between two
- * raises the tape hands the brow back to the pose (a relative 0), so a brow
- * beat from elsewhere — a gesture, an accent — still wins over it.
+ * The seed a rig without entropy speaks from. A pattern is resolved with the
+ * rig's own life stream when it has one; the pure rigs of the tests get the
+ * same chunk every time, which is what a test wants.
  */
-const SPEECH_BROW_RAISES = [400, 1900, 2700, 4300] as const;
-const SPEECH_BROW_HOLD_MS = 260;
-const SPEECH_CYCLE_MS = 5200;
-const SPEECH_BROW_LIFT_EM = -0.035;
-const SPEECH_BROW_ARCH = 0.22;
-const SPEECH_BROW_SPRING: SpringConfig = { frequency: 3.4, damping: 0.6 };
-
-function speechBrowKeys(value: number, delayMs: number): TapeKey[] {
-  return SPEECH_BROW_RAISES.flatMap(at => [
-    { atMs: at + delayMs, value },
-    { atMs: at + delayMs + SPEECH_BROW_HOLD_MS, value: 0 },
-  ]);
-}
-
-function speechBrowTape(channel: Tape['channel'], value: number, delayMs: number): Tape {
-  return {
-    channel,
-    keys: speechBrowKeys(value, delayMs),
-    durationMs: SPEECH_CYCLE_MS,
-    spring: SPEECH_BROW_SPRING,
-    relative: true,
-  };
-}
-
-function speechBrowTapes(): Tape[] {
-  const trail = 40;
-  const right = 0.92;
-  return [
-    speechBrowTape('browYL', SPEECH_BROW_LIFT_EM, 0),
-    speechBrowTape('browYR', SPEECH_BROW_LIFT_EM * right, trail),
-    speechBrowTape('browArcL', SPEECH_BROW_ARCH, 0),
-    speechBrowTape('browArcR', SPEECH_BROW_ARCH * right, trail),
-  ];
-}
+const PATTERN_FALLBACK_SEED = 0x5eed;
 
 /**
  * Looping behaviour for a state, or nothing.
  *
  * The rig owns these for exactly as long as the expression lasts: they are
  * re-resolved on every pose change, so a search pattern can never outlive the
- * search, and the speech brows stop with the speech.
+ * search, and the speech stops with the speech. A pattern that WRAPS is
+ * resolved again by the rig, which is how speech is a fresh chunk each time
+ * (`rig/speech.ts`) while the search, a fixed table, simply repeats.
  */
-export function resolvePatterns(expression: EyeExpression): readonly Tape[] {
+export function resolvePatterns(
+  expression: EyeExpression,
+  random: () => number = createLifeRandom(PATTERN_FALLBACK_SEED)
+): readonly Tape[] {
   switch (expression) {
     case 'searching':
       return [searchTape('gazeX', SEARCH_X), searchTape('gazeY', SEARCH_Y)];
     case 'speaking':
-      return speechBrowTapes();
+      return speechTapes(random);
     default:
       return [];
   }

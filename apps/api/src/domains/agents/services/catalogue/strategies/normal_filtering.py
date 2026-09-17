@@ -23,6 +23,7 @@ Architecture:
 
 from typing import TYPE_CHECKING, Any
 
+from src.core.constants import CATALOGUE_DOMAIN_COVERAGE_TOP_N
 from src.domains.agents.analysis.query_intelligence import ToolFilter
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_agents import planner_catalogue_size_tools
@@ -36,9 +37,10 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
-# Number of tools to protect per domain for coverage
+# Number of tools to protect per domain for coverage — ONE constant, shared
+# with the ReAct selector's family coverage (ADR-293).
 # FIX 2026-02-06: Increased from 1 to 2 for better alternative coverage
-_DOMAIN_COVERAGE_TOP_N = 2
+_DOMAIN_COVERAGE_TOP_N = CATALOGUE_DOMAIN_COVERAGE_TOP_N
 
 
 class NormalFilteringStrategy:

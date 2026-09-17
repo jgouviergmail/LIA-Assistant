@@ -16,8 +16,9 @@ This document describes the journal in its current form, which combines:
 - **The stratified consciousness refactor** ([ADR-079](../architecture/ADR-079-Stratified-Journal-Consciousness.md), 2026-05-06): four abstraction levels, epistemic status, deferred self-evaluation T → T+1, ambient diffusion of the compiled portrait, three-lever user correction.
 - **Write restraint + level-routed injection** ([ADR-088](../architecture/ADR-088-Journal-Restraint-And-Level-Routed-Injection.md), 2026-06-02): restraint-first extraction (default `[]`, explicit-signal grounding bar, generic capability prohibition, capped L0 release valve), de-pressured consolidation (conditional L2, no synthesis quota), operational injection restricted to **L1/L2** (L0/L3 excluded), and ReAct directive coherence.
 - **Theme reachability** ([ADR-159](../architecture/ADR-159-Journal-Theme-Reachability.md), 2026-07-27): subject-based classification shared by both prompts, three grounding kinds (SAID / SHOWN twice / REACTED), removal of the consolidation ratchet that emptied `self_reflection`, correct theme on user-feedback entries, plus a CI reachability guard and a measurement harness. Restored per-theme recall from 1.00 / 0.58 / **0.00** / **0.00** to **1.00 across all four**, at unchanged noise (0.00).
+- **The portrait reads four sources** ([ADR-292](../architecture/ADR-292-Portrait-Reads-Four-Sources.md), 2026-09-17): the consolidation prompt receives the long-term memories, the interests, the learned habits and the relationship debriefs — each offered through a seam (`domains/shared/portrait_sources.py`) so `journals` imports no source domain, read under its three gates, bounded by settings — and the portrait persists its PROVENANCE (`users.journal_portrait_sources`); a change in any source makes the account eligible again; the portrait's budgets are settings, never prose.
 
-The sections below reflect the post-ADR-159 state.
+The sections below reflect the post-ADR-292 state.
 
 ## Architecture
 
@@ -190,6 +191,9 @@ Conversation
 - `JOURNAL_CONTEXT_MAX_RESULTS` — Default max search results (default: 10)
 - `JOURNAL_REACT_CONTEXT_MAX_ENTRIES` — Max L1/L2 directives injected into the ReAct reasoning loop, count cap with no truncation (default: 3; 0 disables, portrait only) — ADR-088
 - `JOURNAL_CONTEXT_MIN_SCORE` — Min cosine similarity for prefiltering (default: 0.63)
+- `JOURNAL_PORTRAIT_FULL_MAX_TOKENS` / `JOURNAL_PORTRAIT_BRIEF_MAX_TOKENS` — the budgets the consolidation prompt STATES for the two portraits (ADR-292; a stated budget, not a clamp — measured overshoot about a third)
+- `JOURNAL_CONSOLIDATION_MEMORIES_MAX` / `…_INTERESTS_MAX` / `…_DEBRIEFS_MAX` — items each portrait source renders (habits are bounded by construction)
+- `JOURNAL_CONSOLIDATION_SOURCE_ITEM_MAX_CHARS` — clamp per rendered item; `JOURNAL_CONSOLIDATION_SOURCES_MAX_CHARS` — cap over the four sections together (a section that does not fit is dropped whole and reported `unavailable`)
 - `NEXT_PUBLIC_JOURNAL_CONSOLIDATION_TIMEOUT_MS` — Frontend-side client timeout for the manual `/journals/consolidate` button (default: 240000 ms / 4 min, configurable to keep the loader visible long enough on heavy reasoning models)
 
 **User (Settings > Features)**:
@@ -208,6 +212,17 @@ Conversation
 3. **Lever 3 — manual recompile (🔄 "Consolider maintenant")**: bypasses the cooldown and runs the standard consolidation pass. Useful after a batch of edits or to refresh stale portraits.
 
 The portrait itself is **never directly editable** — it is a synthesis. Users act through these levers; the synthesis stays coherent.
+
+### The four portrait sources (ADR-292)
+
+| Source | Module | Gates (read at call time) | What the prompt receives |
+|---|---|---|---|
+| memories | `memories/portrait_source.py` | `MEMORY_EXTRACTION_ENABLED`, capability `MEMORY`, `user.memory_enabled` | pinned then most important, over the WHOLE set, with the emotional label and the ISO date; exact total |
+| interests | `interests/portrait_source.py` | `INTEREST_EXTRACTION_ENABLED`, capability `INTERESTS` | strongest first by signal balance, with subject when clustered; exact total |
+| habits | `habits/portrait_source.py` | `HABITS_ENABLED`, capability `HABITS`, `user.habits_enabled` | the CONSUMABLE windows (paused/blocked excluded) and the ACTIVE recurring requests — shape, hour, usual intent, never a date |
+| relation_debriefs | `relations/debrief/portrait_source.py` | `RELATION_DEBRIEF_ENABLED`, capability `RELATION_DEBRIEF`, `user.relation_debrief_enabled` | READY rows under the published injection age, newest first, headline and standing clamped, dated |
+
+Each reader answers `used | empty | disabled | unavailable` with an exact `total`; the seam (`domains/shared/portrait_sources.py`) is claimed by the boot (`_install_portrait_sources`, `StartupCompletenessError` on a missing source); the assembler (`journals/portrait_sources.py`) reads ONE source at a time, drops a section WHOLE over the global cap, and hands the prompt its four sections plus the provenance the portrait is persisted with. The section texts come from `journal_portrait_source_lines.txt`; STEP 7 of the consolidation prompt says how to use them (material for a synthesis — never a fact list, never verbatim, never mentioned). `GET /journals/portrait` carries `sources` (typed, lenient read) and the settings card draws « Compiled from 12 journal entries, 34 memories and 8 interests », a source that could not be read named on a second line.
 
 ### LLM Configuration
 
@@ -358,6 +373,7 @@ Defined in `src/infrastructure/observability/metrics_journals.py`:
 | `journal_portrait_present_total` | Counter | `flow`, `format` | Where the portrait is injected (response/planner/react/voice/heartbeat/reminder/fallback/interest) and in which format (full/brief) |
 | `journal_portrait_age_hours` | Gauge | — | Latest portrait age per user — surfaces stalled consolidations |
 | `journal_portrait_feedback_total` | Counter | `outcome` | Lever-2 feedback events (success/error) |
+| `journal_portrait_sources_total` | Counter | `source`, `status` | What each portrait source answered at consolidation (used/empty/disabled/unavailable) — ADR-292 |
 
 These metrics underpin the dashboards used to verify that stratification is happening (level distribution evolves), self-evaluation is firing (`evidence_total` non-zero), and the portrait actually reaches secondary flows (`portrait_present_total{flow=...}`).
 

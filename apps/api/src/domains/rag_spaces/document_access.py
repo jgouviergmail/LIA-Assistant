@@ -22,6 +22,37 @@ if TYPE_CHECKING:
     from src.domains.rag_spaces.service import RAGSpaceService
 
 
+#: Documents another surface manages, and the stable ``code`` the frontend
+#: localises when the person tries to move one (every kind) or to delete one
+#: by hand (a kept answer only — the bookmark is the record, its document the
+#: projection; a synced or meeting document is re-created by its owner and may
+#: be dropped). ONE table, so the two refusals cannot name a kind two ways.
+MANAGED_DOCUMENT_CODES: dict[str, str] = {
+    "drive": "document_managed_by_drive",
+    "meeting": "document_managed_by_meetings",
+    "mail": "document_managed_by_mail",
+    "bookmark": "document_managed_by_bookmarks",
+}
+
+#: The kinds whose deletion by hand is refused (their record lives elsewhere).
+UNDELETABLE_DOCUMENT_KINDS: frozenset[str] = frozenset({"bookmark"})
+
+
+def managed_document_code(source_type: str) -> str | None:
+    """The refusal code for a document another surface manages, or None."""
+    return MANAGED_DOCUMENT_CODES.get(source_type)
+
+
+def raise_document_managed(source_type: str) -> NoReturn:
+    """409: the document is a projection its owning surface alone may remove."""
+    raise BaseAPIException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail={"code": MANAGED_DOCUMENT_CODES[source_type]},
+        log_event="rag_document_managed",
+        source_type=source_type,
+    )
+
+
 def raise_document_not_found(document_id: uuid.UUID) -> NoReturn:
     """Raise 404 when document is not found."""
     raise BaseAPIException(

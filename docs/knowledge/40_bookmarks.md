@@ -34,3 +34,14 @@ you chose to keep.
 A **Bookmarks** switch exists in the capability panel. Off, the bookmark action
 disappears from the bubbles; what was already kept stays readable, exportable
 and deletable — a switch removes the ability, never the record.
+
+## Are my kept answers searched?
+Yes. Every kept answer is also indexed as a document of a knowledge space of
+your own, **Kept answers**, created the first time you keep one — active by
+default, outside the space and document caps, yours to rename or switch off.
+Weeks later, LIA cites it when a question concerns it, in both execution modes.
+The bookmark card shows the indexing state (indexed, pending, deferred while a
+spend ceiling refuses, disabled while a capability is off, or in error) and,
+once indexed, what the projection cost. Deleting the bookmark removes the
+document; the document itself cannot be moved or deleted from the space, and
+the space cannot be deleted by hand.

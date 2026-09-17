@@ -154,6 +154,187 @@ async def _make_entry(session: AsyncSession, user: User, theme: str) -> JournalE
     return entry
 
 
+class TestPortraitSources:
+    """The portrait reads four more records, and says which (2026-09-16, part B)."""
+
+    async def test_the_prompt_carries_the_sections_and_the_portrait_its_provenance(
+        self,
+        async_session: AsyncSession,
+        monkeypatch: pytest.MonkeyPatch,
+        _redirect_db_context: None,
+    ) -> None:
+        from src.domains.journals.portrait_sources import PortraitSourceBundle
+
+        user = await _make_user(async_session, journal_last_consolidated_at=None)
+        await _make_entry(async_session, user, JournalTheme.LEARNINGS.value)
+        bundle = PortraitSourceBundle(
+            sections={
+                "memories": "## LONG-TERM MEMORIES (2 of 2)\n- [personal] [NEUTRE] x (2026-09-01)",
+                "interests": "",
+                "habits": "## LEARNED HABITS\n- Usual activity: weekdays 08:00-10:00",
+                "relation_debriefs": "",
+            },
+            provenance={
+                "version": 1,
+                "journal_entries": 1,
+                "sources": {
+                    "memories": {"status": "used", "used": 2, "total": 2},
+                    "interests": {"status": "empty", "used": 0, "total": 0},
+                    "habits": {"status": "used", "used": 1, "total": 1},
+                    "relation_debriefs": {"status": "disabled", "used": 0, "total": 0},
+                },
+            },
+        )
+
+        async def _sections(*args: Any, **kwargs: Any) -> PortraitSourceBundle:
+            return bundle
+
+        monkeypatch.setattr(consolidation_service, "build_portrait_source_sections", _sections)
+        prompts: list[str] = []
+        fake = _fake_llm(portrait_full="Portrait complet.", portrait_brief="Bref.")
+
+        async def _capture(**kwargs: Any) -> AIMessage:
+            prompts.append(str(kwargs["messages"]))
+            return await fake(**kwargs)
+
+        monkeypatch.setattr(consolidation_service, "invoke_with_instrumentation", _capture)
+
+        await consolidation_service.consolidate_journals_for_user(
+            user_id=user.id,
+            personality_instruction=None,
+            personality_code=None,
+            user_language="fr",
+        )
+
+        assert len(prompts) == 1
+        assert "## LONG-TERM MEMORIES (2 of 2)" in prompts[0]
+        assert "## LEARNED HABITS" in prompts[0]
+        assert "## INTERESTS" not in prompts[0] and "## RELATIONSHIP DEBRIEFS" not in prompts[0]
+        await async_session.refresh(user)
+        assert user.journal_portrait_full == "Portrait complet."
+        assert user.journal_portrait_sources == bundle.provenance
+
+    async def test_no_portrait_leaves_the_previous_words_and_their_provenance(
+        self,
+        async_session: AsyncSession,
+        monkeypatch: pytest.MonkeyPatch,
+        _redirect_db_context: None,
+    ) -> None:
+        from src.domains.journals.portrait_sources import PortraitSourceBundle
+
+        previous = {"version": 1, "journal_entries": 3, "sources": {}}
+        user = await _make_user(
+            async_session,
+            journal_last_consolidated_at=None,
+            journal_portrait_full="Ancien portrait.",
+            journal_portrait_sources=previous,
+        )
+        await _make_entry(async_session, user, JournalTheme.LEARNINGS.value)
+
+        async def _sections(*args: Any, **kwargs: Any) -> PortraitSourceBundle:
+            return PortraitSourceBundle(
+                sections=dict.fromkeys(
+                    ("memories", "interests", "habits", "relation_debriefs"), ""
+                ),
+                provenance={"version": 1, "journal_entries": 1, "sources": {}},
+            )
+
+        monkeypatch.setattr(consolidation_service, "build_portrait_source_sections", _sections)
+        monkeypatch.setattr(consolidation_service, "invoke_with_instrumentation", _fake_llm())
+
+        await consolidation_service.consolidate_journals_for_user(
+            user_id=user.id,
+            personality_instruction=None,
+            personality_code=None,
+            user_language="fr",
+        )
+
+        await async_session.refresh(user)
+        assert user.journal_portrait_full == "Ancien portrait."
+        assert user.journal_portrait_sources == previous
+
+
+class TestSourceFreshness:
+    """A change in a portrait source makes the account eligible again (part B)."""
+
+    @pytest.fixture(autouse=True)
+    def _sources_installed(self) -> None:
+        """The boot installs the four probes; a test process must do the same.
+
+        Without them the query falls back to journal-only work — never MORE
+        eligible than before part B, which is the safe side — so the probes
+        must be present for this class to test anything.
+        """
+        import src.domains.habits.portrait_source  # noqa: F401
+        import src.domains.interests.portrait_source  # noqa: F401
+        import src.domains.memories.portrait_source  # noqa: F401
+        import src.domains.relations.debrief.portrait_source  # noqa: F401
+
+    async def _eligible(self, session: AsyncSession) -> list[uuid.UUID]:
+        from src.domains.journals.repository import build_consolidation_eligible_users_query
+
+        query = build_consolidation_eligible_users_query(
+            cooldown_threshold=datetime.now(UTC) + timedelta(seconds=1), min_entries=1
+        )
+        return [row.id for row in (await session.execute(query)).scalars().all()]
+
+    async def test_a_memory_written_after_the_stamp_reopens_the_account(
+        self, async_session: AsyncSession
+    ) -> None:
+        from src.domains.memories.models import Memory
+
+        stamp = datetime.now(UTC) - timedelta(hours=10)
+        user = await _make_user(async_session, journal_last_consolidated_at=stamp)
+        entry = await _make_entry(async_session, user, JournalTheme.LEARNINGS.value)
+        # The entry predates the stamp: no work from the journal itself.
+        entry.updated_at = stamp - timedelta(hours=1)
+        await async_session.flush()
+        assert user.id not in await self._eligible(async_session)
+
+        async_session.add(
+            Memory(user_id=user.id, content="I moved to Lyon", category="personal", char_count=15)
+        )
+        await async_session.flush()
+
+        assert user.id in await self._eligible(async_session)
+
+    async def test_an_account_with_no_entry_but_a_fresh_interest_is_eligible(
+        self, async_session: AsyncSession
+    ) -> None:
+        from src.domains.interests.models import UserInterest
+
+        stamp = datetime.now(UTC) - timedelta(hours=10)
+        user = await _make_user(async_session, journal_last_consolidated_at=stamp)
+        assert user.id not in await self._eligible(async_session)
+        async_session.add(
+            UserInterest(
+                user_id=user.id,
+                topic="Rust embarqué",
+                category="technology",
+                last_mentioned_at=datetime.now(UTC),
+            )
+        )
+        await async_session.flush()
+
+        assert user.id in await self._eligible(async_session)
+
+    async def test_a_consolidation_s_own_run_never_retriggers_itself(
+        self, async_session: AsyncSession
+    ) -> None:
+        """The stamp is written after the run; a source untouched since stays quiet."""
+        from src.domains.memories.models import Memory
+
+        user = await _make_user(async_session, journal_last_consolidated_at=None)
+        async_session.add(
+            Memory(user_id=user.id, content="I moved to Lyon", category="personal", char_count=15)
+        )
+        await async_session.flush()
+        assert user.id in await self._eligible(async_session)
+        user.journal_last_consolidated_at = datetime.now(UTC) + timedelta(seconds=5)
+        await async_session.flush()
+        assert user.id not in await self._eligible(async_session)
+
+
 class TestCooldownStamp:
     """`journal_last_consolidated_at` gates the scheduler — it must always move."""
 

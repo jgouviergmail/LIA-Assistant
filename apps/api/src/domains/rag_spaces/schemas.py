@@ -60,6 +60,14 @@ class RAGSpaceResponse(BaseModel):
     name: str
     description: str | None
     is_active: bool
+    kind: str | None = Field(
+        default=None,
+        description=(
+            "Role of a space another domain manages by identity ('meetings', "
+            "'bookmarks'); None for a space the person created. A managed space "
+            "is drawn as such and cannot be deleted by hand."
+        ),
+    )
     document_count: int = Field(default=0, description="Total number of documents")
     total_size: int = Field(default=0, description="Total file size in bytes")
     ready_document_count: int = Field(default=0, description="Number of documents ready for search")
@@ -100,6 +108,9 @@ class RAGDocumentResponse(BaseModel):
     content_type: str
     status: str
     error_message: str | None
+    error_code: str | None = Field(
+        None, description="Why the indexing failed (RAGDocumentErrorCode), translated at display."
+    )
     chunk_count: int
     embedding_model: str | None
     embedding_tokens: int = 0
@@ -118,6 +129,9 @@ class RAGDocumentStatusResponse(BaseModel):
     id: UUID
     status: str
     error_message: str | None
+    error_code: str | None = Field(
+        None, description="Why the indexing failed (RAGDocumentErrorCode), translated at display."
+    )
     chunk_count: int
 
 

@@ -70,12 +70,12 @@ async def keep_bookmark(
     Returns:
         The bookmark.
     """
-    bookmark, created = await BookmarkService(db).keep(
-        user.id, payload.message_id, language=user.language
-    )
+    service = BookmarkService(db)
+    bookmark, created = await service.keep(user.id, payload.message_id, language=user.language)
     if not created:
         response.status_code = status.HTTP_200_OK
-    return BookmarkResponse.model_validate(bookmark)
+    documents = await service.documents_of([bookmark])
+    return BookmarkResponse.from_row(bookmark, documents)
 
 
 @router.get(
@@ -106,9 +106,11 @@ async def list_bookmarks(
         (ADR-184).
     """
     filters = BookmarkFilters(query=q, limit=limit, offset=offset)
-    rows, total = await BookmarkService(db).list_page(user.id, filters)
+    service = BookmarkService(db)
+    rows, total = await service.list_page(user.id, filters)
+    documents = await service.documents_of(rows)
     return BookmarkListResponse(
-        items=[BookmarkResponse.model_validate(row) for row in rows],
+        items=[BookmarkResponse.from_row(row, documents) for row in rows],
         total=total,
         limit=limit,
         offset=offset,

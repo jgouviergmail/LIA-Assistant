@@ -350,6 +350,7 @@ class Harness:
         self.state = state if state is not None else {"messages": [], "metadata": {}}
         self.tts_usage_script = tts_usage_script or []
         self.fail_direct_tts = fail_direct_tts
+        self.graph_stream_kwargs: dict[str, Any] = {}
         self.tracker = FakeTracker()
         self.conv_service = FakeConversationService()
         self.raised: BaseException | None = None
@@ -401,6 +402,7 @@ class Harness:
                 return harness.state
 
             def execute_graph_stream(self, **kwargs):
+                harness.graph_stream_kwargs = kwargs
                 return object()  # opaque: consumed only by FakeStreamingService
 
         class FakeConversationServiceFactory:
@@ -561,6 +563,29 @@ async def test_char_simple_message_sequence():
     assert FakeTrackingContext.cleanup_calls  # run records cleaned up
     # No HITL cleanup on a non-resumption turn.
     assert all(not store.cleared for store in FakeHITLStore.instances)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("voice_enabled", [True, False])
+async def test_char_graph_receives_the_voice_preference_the_tts_gate_reads(
+    voice_enabled: bool,
+) -> None:
+    """The response node's HTML gate and the progressive TTS read ONE flag.
+
+    Both come from the profile the stream loads: a conversational reply is
+    streamed verbatim to the voice, so the graph must know whether a voice
+    listens before it asks the model for markup.
+    """
+    harness = Harness(
+        script=[_router("conversation"), _token("Bonjour")],
+        voice_enabled=voice_enabled,
+        tts_usage_script=[None, TTS_USAGE],
+    )
+    with pytest.MonkeyPatch.context() as mp:
+        await harness.run(mp)
+
+    assert harness.raised is None
+    assert harness.graph_stream_kwargs["user_voice_enabled"] is voice_enabled
 
 
 # ---------------------------------------------------------------------------

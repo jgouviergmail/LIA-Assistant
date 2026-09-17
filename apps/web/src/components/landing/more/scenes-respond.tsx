@@ -747,10 +747,62 @@ function LivingFaceScene({ active }: SceneProps) {
   );
 }
 
+type ComposedPhase = 'plain' | 'lead' | 'section' | 'tiles' | 'callout';
+const COMPOSED_STEPS: readonly TimelineStep<ComposedPhase>[] = [
+  { at: 0, state: 'plain' },
+  { at: 1400, state: 'lead' },
+  { at: 2300, state: 'section' },
+  { at: 3200, state: 'tiles' },
+  { at: 4300, state: 'callout' },
+  { at: 6800, state: 'plain' },
+];
+const COMPOSED_ORDER: readonly ComposedPhase[] = ['plain', 'lead', 'section', 'tiles', 'callout'];
+
+/** The rich HTML mode: the same answer, first as flat prose, then laid out facet by facet. */
+function ComposedPageScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(COMPOSED_STEPS, { active });
+  const step = COMPOSED_ORDER.indexOf(phase);
+  const reveal = (from: number) =>
+    cn('transition-all duration-500', step >= from ? 'opacity-100' : 'translate-y-1 opacity-0');
+  return (
+    <div className={cn(STAGE, 'items-stretch justify-center gap-1.5')}>
+      <MiniBubble side="assistant" className="w-11/12 space-y-1.5">
+        <div className={cn('space-y-1', phase === 'plain' ? 'opacity-100' : 'hidden')}>
+          <SkeletonLine w="w-full" />
+          <SkeletonLine w="w-4/5" />
+          <SkeletonLine w="w-3/5" />
+        </div>
+        <div className={cn('space-y-1.5', phase === 'plain' ? 'hidden' : 'block')}>
+          <div className={cn('flex items-center gap-1.5', reveal(1))}>
+            <span className="h-2 w-8 rounded bg-primary/70" />
+            <SkeletonLine w="w-3/5" />
+          </div>
+          <div className={cn('mt-1 h-2 w-1/3 rounded bg-primary/40', reveal(2))} />
+          <div className={cn('grid grid-cols-3 gap-1', reveal(3))}>
+            {[0, 1, 2].map(i => (
+              <span key={i} className="flex flex-col items-center gap-0.5 rounded border border-border/60 p-1">
+                <span className="h-2 w-6 rounded bg-primary/60" />
+                <span className="h-1 w-8 rounded bg-muted-foreground/30" />
+              </span>
+            ))}
+          </div>
+          <div className={cn('rounded border-l-2 border-primary/60 bg-primary/5 p-1.5', reveal(4))}>
+            <SkeletonLine w="w-2/3" />
+          </div>
+        </div>
+      </MiniBubble>
+      <span className="absolute bottom-3 left-4 text-[10px] text-muted-foreground">
+        {phase === 'plain' ? labels.plain : labels.composed}
+      </span>
+    </div>
+  );
+}
+
 export const RESPOND_SCENES: Readonly<Record<string, SceneComponent>> = {
   provenance_why: ProvenanceWhyScene,
   expressive_eyes: ExpressiveEyesScene,
   living_face: LivingFaceScene,
+  composed_page: ComposedPageScene,
   followup_chips: FollowupChipsScene,
   scroll_return: ScrollReturnScene,
   bubble_actions: BubbleActionsScene,

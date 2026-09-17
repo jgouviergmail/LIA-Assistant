@@ -101,17 +101,18 @@ async def _make_drive_pending_document(
 async def _row(db: AsyncSession, doc_id: uuid.UUID) -> dict:
     res = await db.execute(
         text(
-            "SELECT status, attempts, worker_id, lease_expires_at "
+            "SELECT status, attempts, worker_id, lease_expires_at, error_code "
             "FROM rag_documents WHERE id = :id"
         ),
         {"id": str(doc_id)},
     )
-    status, attempts, worker_id, lease = res.one()
+    status, attempts, worker_id, lease, error_code = res.one()
     return {
         "status": status,
         "attempts": attempts,
         "worker_id": worker_id,
         "lease": lease,
+        "error_code": error_code,
     }
 
 
@@ -162,6 +163,20 @@ async def test_fail_retries_then_errors_at_max(async_session: AsyncSession) -> N
     assert statuses[0] == RAGDocumentStatus.PENDING  # attempt 1 < 3
     assert statuses[1] == RAGDocumentStatus.PENDING  # attempt 2 < 3
     assert statuses[2] == RAGDocumentStatus.ERROR  # attempt 3 == 3 → dead-letter
+    # The dead letter is NAMED for the person (ADR-184): a retry that will not
+    # happen again is a reason of its own, not a blank tooltip.
+    assert (await _row(async_session, doc_id))["error_code"] == "retries_exhausted"
+
+
+async def test_a_retry_carries_no_error_code(async_session: AsyncSession) -> None:
+    """Back to PENDING, the document is not in error: no code may describe it."""
+    doc_id = await _make_pending_document(async_session)
+    repo = RAGJobsRepository(async_session)
+    assert await repo.claim_document(doc_id, "w1", 300) is True
+    assert await repo.fail_or_retry_document(doc_id, "boom", max_attempts=3) == (
+        RAGDocumentStatus.PENDING
+    )
+    assert (await _row(async_session, doc_id))["error_code"] is None
 
 
 async def test_fetch_recoverable_finds_stuck_and_orphaned_but_not_fresh(
@@ -292,7 +307,10 @@ class TestReindexDurableRequeue:
             {"s": RAGDocumentStatus.READY, "id": str(ready_id)},
         )
         await async_session.execute(
-            text("UPDATE rag_documents SET status = :s, attempts = 2 WHERE id = :id"),
+            text(
+                "UPDATE rag_documents SET status = :s, attempts = 2, "
+                "error_message = 'old', error_code = 'no_text_content' WHERE id = :id"
+            ),
             {"s": RAGDocumentStatus.ERROR, "id": str(error_id)},
         )
         # active_id: claim it so it is PROCESSING (owned by a live worker).
@@ -307,6 +325,9 @@ class TestReindexDurableRequeue:
             assert row["status"] == RAGDocumentStatus.PENDING
             assert row["attempts"] == 0
             assert row["lease"] is None and row["worker_id"] is None
+            # A requeued document starts clean: the code of its past failure goes
+            # with the message, or a READY row would still explain an old error.
+            assert row["error_code"] is None
         active = await _row(async_session, active_id)
         assert active["status"] == RAGDocumentStatus.PROCESSING
         assert active["worker_id"] == "w-live"

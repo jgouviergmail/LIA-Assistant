@@ -79,6 +79,7 @@ from src.domains.agents.context.runtime_context import (
     runtime_psyche_enabled,
     runtime_timezone,
     runtime_user_id_str,
+    runtime_voice_enabled,
 )
 
 # V3 Display Architecture imports
@@ -196,31 +197,42 @@ def _plan_execution_failed(state: dict[str, Any]) -> bool:
     return entry.get("status") == "failed"
 
 
-def _should_inject_html_directive(display_mode: str | None, route_to: str | None) -> bool:
+def _should_inject_html_directive(
+    display_mode: str | None, route_to: str | None, voice_enabled: bool
+) -> bool:
     """Whether the rich HTML response directive should be injected this turn.
 
-    Rich HTML enrichment is only pertinent for tool/data turns — those the
-    router sends to the planner (``route_to == "planner"``, which is exactly
-    how the router derives intention ``"action"``). For a conversational turn
-    (any other ``route_to``) the reply is streamed verbatim to the TTS engine
-    via the progressive chat path; emitting HTML there would make the voice
-    speak tags and CSS aloud. Suppressing the directive keeps conversational
-    replies in Markdown, rendered identically by the frontend (ReactMarkdown +
-    rehypeRaw) in every display mode. Keying on ``route_to`` mirrors the exact
-    source the voice path uses, so the display gate can never desync from it.
+    In the ``html`` display mode the frontend renders a ``lia-response``
+    document and a Markdown reply through the same pipeline, so the directive
+    is worth its tokens on every turn — except where a voice reads the reply
+    verbatim. A conversational turn (any ``route_to`` other than ``"planner"``,
+    which is exactly how the router derives intention ``"conversation"``) is
+    streamed as-is to the TTS engine through the progressive chat path when the
+    account's spoken replies are on; emitting HTML there would make the voice
+    speak tags and CSS aloud, so such a turn stays in Markdown. A planner-routed
+    turn is synthesised after the tools ran and never fed verbatim to the voice,
+    whatever the preference. Keying on ``route_to`` and ``voice_enabled``
+    mirrors the two signals the voice path starts from, so the display gate
+    cannot desync from it.
 
     Args:
         display_mode: The user's response display mode preference.
         route_to: The router's routing target for the current turn
             (``"planner"`` for action turns; anything else — or ``None`` on a
-            fallback / missing query intelligence — is treated as
-            conversational and suppresses the directive).
+            fallback / missing query intelligence — is conversational).
+        voice_enabled: The account's spoken-replies preference, as the runtime
+            context carries it — the preference, not the instance's TTS switch
+            or the presence probe the streamer also consults: erring on the
+            side that never speaks markup costs Markdown on a voice-on account
+            nobody listens to, never a tag read aloud.
 
     Returns:
-        ``True`` only when HTML display mode is active AND the turn routed to
-        the planner.
+        ``True`` when the HTML display mode is active and either the turn
+        routed to the planner or no voice listens to it.
     """
-    return display_mode == RESPONSE_DISPLAY_MODE_HTML and route_to == "planner"
+    if display_mode != RESPONSE_DISPLAY_MODE_HTML:
+        return False
+    return route_to == "planner" or not voice_enabled
 
 
 # ============================================================================
@@ -1953,16 +1965,17 @@ def _build_response_system_prompt(
     # neutralization gate); reused here for the HTML directive / cards logic.
     # Resolve the current turn's routing target via the canonical helper
     # (handles both the object and serialized-dict forms of query
-    # intelligence). This is the same source the voice path uses to decide
-    # conversation vs action, so the display gate can never desync from it.
-    # Rich HTML is only injected for planner-routed (tool/data) turns —
-    # see _should_inject_html_directive for the rationale.
+    # intelligence). Routing target and voice preference are the two
+    # signals the voice path starts the progressive TTS from, so the
+    # display gate can never desync from it.
     route_to = get_qi_attr(state, "route_to", None)
-    # HTML mode: Inject rich HTML formatting directive into prompt.
-    # Placed BEFORE FINAL REMINDER for maximum authority (same pattern as
-    # psyche). Gated to action turns: a conversational reply is read aloud
-    # verbatim by the TTS, so emitting HTML would make it speak tags/CSS.
-    if _should_inject_html_directive(user_display_mode, route_to):
+    voice_enabled = runtime_voice_enabled()
+    # HTML mode: inject the rich HTML formatting directive into the prompt,
+    # BEFORE the FINAL REMINDER for maximum authority (same pattern as
+    # psyche). Suppressed only where a voice would read markup aloud — a
+    # conversational turn of an account whose spoken replies are on; see
+    # _should_inject_html_directive for the rationale.
+    if _should_inject_html_directive(user_display_mode, route_to, voice_enabled):
         _html_directive = str(load_prompt("html_response_directive"))
         _final_reminder = "### FINAL REMINDER ###"
         if _final_reminder in base_system_prompt:
@@ -1977,6 +1990,7 @@ def _build_response_system_prompt(
             run_id=run_id,
             display_mode=user_display_mode,
             route_to=route_to,
+            voice_enabled=voice_enabled,
         )
     # PSYCHE ENGINE: Inject self-report instruction (before FINAL REMINDER)
     if settings.psyche_enabled and user_psyche_enabled and psyche_context:

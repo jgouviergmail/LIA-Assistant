@@ -7,6 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   blinkTapes,
+  maskBlinkTapes,
   GESTURE_SCALE_MIN,
   GESTURE_SCALE_SPAN,
   RIG_OWNED_GESTURES,
@@ -16,7 +17,11 @@ import { tapeDurationMs, type Tape } from '@/components/eyes/rig/tape';
 import { createEyeRig } from '@/components/eyes/rig/runtime';
 import { CHANNELS } from '@/components/eyes/rig/channels';
 import { resolvePose } from '@/components/eyes/rig/poses';
-import { GESTURE_DURATION_MS, type IdleGesture } from '@/components/eyes/expression-engine';
+import {
+  GESTURE_DURATION_MS,
+  MASK_APPLY_DELAY_MS,
+  type IdleGesture,
+} from '@/components/eyes/expression-engine';
 
 const ALL_GESTURES = Object.keys(GESTURE_DURATION_MS) as IdleGesture[];
 const CSS_OR_GAZE: IdleGesture[] = [
@@ -106,7 +111,7 @@ describe('tapesForGesture', () => {
     const channels = tapesForGesture('brow')
       .map(tape => tape.channel)
       .sort();
-    expect(channels).toEqual(['browAR', 'browArcR', 'browYR']);
+    expect(channels).toEqual(['browArcR', 'browYR']);
     // A face that neither breathes nor drifts, so the left brow is a control.
     const rig = createEyeRig({
       initial: { expression: 'focused', styleId: 'cozmo', family: 'calm' },
@@ -116,7 +121,6 @@ describe('tapesForGesture', () => {
     for (let frame = 0; frame < 6; frame += 1) rig.step(16);
     expect(rig.values().browYR).toBeLessThan(pose.browYR);
     expect(rig.values().browArcR).toBeGreaterThan(pose.browArcR);
-    expect(rig.values().browAR).toBeGreaterThan(pose.browAR);
     expect(rig.values().browYL).toBe(pose.browYL);
   });
 
@@ -263,5 +267,29 @@ describe('tapesForGesture', () => {
     expect(rig.values().tyR).toBe(0);
     expect(rig.values().tyL).toBe(0);
     expect(rig.values().syR).toBe(1);
+  });
+});
+
+describe('the mask blink', () => {
+  it('holds the lids SHUT past the instant the host swaps the face, then reopens', () => {
+    // The three-beat swaps the face at the top of the lid sweep
+    // (`MASK_APPLY_DELAY_MS` after the blink starts). A spontaneous blink
+    // reopens at 130 ms, before that instant, so the new eyes were revealed
+    // mid-morph. The mask blink closes as fast and holds until the swap has
+    // landed and the pose has begun to move.
+    const tapes = maskBlinkTapes();
+    const left = tapes.find(tape => tape.channel === 'blinkL')!;
+    const right = tapes.find(tape => tape.channel === 'blinkR')!;
+    const reopen = left.keys.find(key => key.value === 0)!;
+    expect(left.keys[0]).toEqual({ atMs: 0, value: 1 });
+    expect(reopen.atMs).toBeGreaterThanOrEqual(MASK_APPLY_DELAY_MS + 30);
+    expect(reopen.atMs).toBeLessThanOrEqual(MASK_APPLY_DELAY_MS + 80);
+    // The right eye trails as always, and both tapes outlive the reopening
+    // so the quick blink spring keeps the lids through it.
+    expect(right.keys[0].atMs).toBeGreaterThan(0);
+    expect(tapeDurationMs(left)).toBeGreaterThan(reopen.atMs + 100);
+    expect(tapeDurationMs(right)).toBeGreaterThan(tapeDurationMs(left));
+    // ...and it is still a blink: the same spring, the same closure.
+    expect(left.spring).toEqual(blinkTapes()[0].spring);
   });
 });

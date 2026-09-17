@@ -212,6 +212,23 @@ describe('editorial i18n contract', () => {
     }
   });
 
+  /**
+   * The hints announce a number of cards; the number is interpolated from the
+   * catalog length, so the copy MUST carry the placeholder — a translator who
+   * types "8 detailed capabilities" reintroduces the drift this guard closes.
+   */
+  const COUNTED_HINTS = [
+    ...CHAPTERS.map(c => `chapters.${c.key}.catalog_hint`),
+    'basics.detail_hint',
+  ];
+
+  it.each(LANGS)('%s interpolates every catalog hint count', lang => {
+    const landing = landingBlock(lang);
+    for (const key of COUNTED_HINTS) {
+      expect(lookup(landing, key), `${lang}:landing.${key}`).toContain('{{count}}');
+    }
+  });
+
   it.each(LANGS)('%s keeps the orphaned keys purged', lang => {
     const landing = landingBlock(lang);
     for (const key of PURGED) {

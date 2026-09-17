@@ -13,9 +13,15 @@
 import { describe, it, expect } from 'vitest';
 
 import {
+  createSketchClock,
+  drawFirstSketchDelayMs,
   drawSketchDelayMs,
+  HEAD_FOLLOW_X_EM,
   pickSketch,
   SKETCH_EXPRESSIONS,
+  SKETCH_FIRST_MAX_DELAY_MS,
+  SKETCH_FIRST_MIN_DELAY_MS,
+  SKETCH_HISTORY,
   SKETCH_MAX_DELAY_MS,
   SKETCH_MAX_MS,
   SKETCH_MIN_DELAY_MS,
@@ -23,6 +29,7 @@ import {
   SKETCHES,
   sketchDurationMs,
   sketchTapes,
+  type SketchName,
 } from '@/components/eyes/rig/sketches';
 import { createLifeRandom } from '@/components/eyes/rig/life';
 import { blinkTapes } from '@/components/eyes/rig/gestures';
@@ -42,6 +49,24 @@ function run(rig: EyeRig, ms: number, onFrame?: (values: ReturnType<EyeRig['valu
 function sequence(values: readonly number[]): () => number {
   let index = 0;
   return () => values[index++ % values.length];
+}
+
+/** The scene on right now — the clock records it as it starts. */
+function currentScene(rig: EyeRig): SketchName {
+  const recent = rig.sketchClock().recent;
+  return recent[recent.length - 1];
+}
+
+/** Rig time at which the first scene starts within `ms`, or a failure. */
+function firstOnsetMs(rig: EyeRig, ms: number): number {
+  let onset = -1;
+  let clock = 0;
+  run(rig, ms, () => {
+    clock += 16;
+    if (onset < 0 && rig.isPerforming()) onset = clock;
+  });
+  if (onset < 0) throw new Error(`no scene started within ${ms} ms`);
+  return onset;
 }
 
 describe('the catalogue', () => {
@@ -156,20 +181,164 @@ describe('the catalogue', () => {
     expect(Math.min(...trace('doze-and-snap', 'syL'))).toBeLessThan(0.5);
     expect(Math.max(...trace('peekaboo', 'blinkL'))).toBeGreaterThan(0.9);
   });
+
+  it('turns the HEAD with the gaze: a scene that looks aside carries the whole face along', () => {
+    // Measured on the running widget (2026-09-17): the gaze alone travels
+    // 0.14 em per unit, six pixels at the large size, and a scene that lived
+    // in it read as one more idle glance. The head follows on its own,
+    // slower spring: the eyes lead, the face turns after them.
+    SKETCHES.filter(name => sketchTapes(name).some(tape => tape.channel === 'gazeX')).forEach(
+      name => {
+        const tapes = sketchTapes(name);
+        const gaze = tapes.filter(tape => tape.channel === 'gazeX');
+        const head = tapes.filter(tape => tape.channel === 'massX');
+        expect({ name, headTapes: head.length }).toEqual({ name, headTapes: gaze.length });
+        gaze.forEach((tape, index) => {
+          const follow = head[index];
+          expect(follow.keys.map(key => key.atMs)).toEqual(tape.keys.map(key => key.atMs));
+          follow.keys.forEach((key, at) => {
+            expect(key.value).toBeCloseTo(tape.keys[at].value * HEAD_FOLLOW_X_EM, 6);
+          });
+        });
+      }
+    );
+    const rig = createEyeRig({
+      initial: { expression: 'neutral', styleId: 'cozmo', family: 'calm' },
+    });
+    rig.playSketch(sketchTapes('suspicious'));
+    let reach = 0;
+    run(rig, 3000, values => {
+      reach = Math.max(reach, Math.abs(values.massX));
+    });
+    expect(reach).toBeGreaterThan(HEAD_FOLLOW_X_EM * 0.5);
+  });
 });
 
 describe('the scheduling', () => {
-  it('spaces the scenes far apart — never a routine', () => {
+  it('spaces the scenes far apart — never a routine — and lets the first one come sooner', () => {
     expect(SKETCH_MIN_DELAY_MS).toBeGreaterThanOrEqual(40_000);
     expect(SKETCH_MAX_DELAY_MS).toBeLessThanOrEqual(150_000);
     expect(drawSketchDelayMs(() => 0)).toBe(SKETCH_MIN_DELAY_MS);
     expect(drawSketchDelayMs(() => 1)).toBe(SKETCH_MAX_DELAY_MS);
+    // The first scene of a session is what proves the character is there:
+    // it waits less, and still never lands on the first look at the face.
+    expect(SKETCH_FIRST_MIN_DELAY_MS).toBeGreaterThanOrEqual(15_000);
+    expect(SKETCH_FIRST_MAX_DELAY_MS).toBeLessThan(SKETCH_MIN_DELAY_MS);
+    expect(drawFirstSketchDelayMs(() => 0)).toBe(SKETCH_FIRST_MIN_DELAY_MS);
+    expect(drawFirstSketchDelayMs(() => 1)).toBe(SKETCH_FIRST_MAX_DELAY_MS);
   });
 
   it('reaches every scene from one random number', () => {
     const seen = new Set<string>();
     for (let r = 0; r < 1; r += 0.01) seen.add(pickSketch(() => r));
     expect([...seen].sort()).toEqual([...SKETCHES].sort());
+  });
+
+  it('never draws a scene it played recently', () => {
+    const recent: SketchName[] = ['fly', 'sneeze', 'peekaboo'];
+    expect(SKETCH_HISTORY).toBe(recent.length);
+    const seen = new Set<string>();
+    for (let r = 0; r < 1; r += 0.01) seen.add(pickSketch(() => r, recent));
+    expect([...seen].sort()).toEqual(SKETCHES.filter(name => !recent.includes(name)).sort());
+    // An exclusion list longer than the catalogue must never leave nothing.
+    expect(SKETCHES).toContain(pickSketch(() => 0.5, [...SKETCHES]));
+  });
+
+  it('counts RESTING time only: a scene due during a thought is not lost, it waits', () => {
+    // Draw order at construction: mouth life (2), then the first sketch
+    // delay — 0 arms the shortest first wait (20 s of rest).
+    const rig = createEyeRig({
+      initial: { expression: 'neutral', styleId: 'cozmo', family: 'calm' },
+      lifeRandom: sequence([0.5, 0.5, 0, 0.5, 0.5, 0.5]),
+    });
+    run(rig, 15_000);
+    expect(rig.isPerforming()).toBe(false);
+    // Five minutes of thinking: no scene (not a resting face), and the five
+    // seconds still owed are still owed when the face comes back.
+    rig.setPose({ expression: 'thinking', styleId: 'cozmo', family: 'calm' });
+    let performed = false;
+    run(rig, 5 * 60_000, () => {
+      performed = performed || rig.isPerforming();
+    });
+    expect(performed).toBe(false);
+    rig.setPose({ expression: 'neutral', styleId: 'cozmo', family: 'calm' });
+    const onsetMs = firstOnsetMs(rig, 12_000);
+    expect(onsetMs).toBeGreaterThan(4_000);
+    expect(onsetMs).toBeLessThan(8_000);
+  });
+
+  it('keeps its clock across a remount: a second rig handed the same clock continues the wait', () => {
+    const clock = createSketchClock();
+    const first = createEyeRig({
+      initial: { expression: 'neutral', styleId: 'cozmo', family: 'calm' },
+      lifeRandom: sequence([0.5, 0.5, 0, 0.5]),
+      sketchClock: clock,
+    });
+    run(first, 15_000);
+    expect(clock.dueMs).toBe(SKETCH_FIRST_MIN_DELAY_MS);
+    expect(clock.restedMs).toBeGreaterThan(14_000);
+    // The page navigates: the widget unmounts and mounts again on the same
+    // document. Without the clock, the wait would start over from zero.
+    const second = createEyeRig({
+      initial: { expression: 'neutral', styleId: 'cozmo', family: 'calm' },
+      lifeRandom: sequence([0.5, 0.5, 0.5, 0.5]),
+      sketchClock: clock,
+    });
+    expect(firstOnsetMs(second, 30_000)).toBeLessThan(7_000);
+    expect(clock.played).toBe(1);
+    expect(clock.recent).toHaveLength(1);
+    // ...and the next wait is drawn from the LATER band.
+    expect(clock.dueMs).toBeGreaterThanOrEqual(SKETCH_MIN_DELAY_MS);
+  });
+
+  it('plays every drawn scene WARPED: the same scene twice is never the same performance', () => {
+    const rig = createEyeRig({
+      initial: { expression: 'neutral', styleId: 'cozmo', family: 'calm' },
+      lifeRandom: createLifeRandom(13),
+    });
+    const played: { name: SketchName; ms: number }[] = [];
+    let was = false;
+    let started = 0;
+    let clock = 0;
+    run(rig, 12 * 60_000, () => {
+      clock += 16;
+      const now = rig.isPerforming();
+      if (now && !was) started = clock;
+      if (!now && was) played.push({ name: currentScene(rig), ms: clock - started });
+      was = now;
+    });
+    expect(played.length).toBeGreaterThanOrEqual(5);
+    // Warped: a scene plays at its own catalogue length only by the
+    // coincidence of a pace drawn within one 16 ms frame of 1 — at most
+    // once in a dozen minutes — and the played lengths spread.
+    const frame = (ms: number) => Math.ceil(ms / 16) * 16;
+    const asWritten = played.filter(
+      ({ name, ms }) => ms === frame(sketchDurationMs(sketchTapes(name)))
+    );
+    expect(asWritten.length).toBeLessThanOrEqual(1);
+    expect(new Set(played.map(p => p.ms)).size).toBeGreaterThanOrEqual(
+      Math.ceil(played.length * 0.7)
+    );
+  });
+
+  it('remembers the last scenes on its clock and never repeats one of them', () => {
+    const rig = createEyeRig({
+      initial: { expression: 'neutral', styleId: 'cozmo', family: 'calm' },
+      lifeRandom: createLifeRandom(11),
+    });
+    const names: SketchName[] = [];
+    let was = false;
+    run(rig, 30 * 60_000, () => {
+      const now = rig.isPerforming();
+      if (now && !was) names.push(currentScene(rig));
+      was = now;
+    });
+    expect(names.length).toBeGreaterThanOrEqual(12);
+    const repeats = names.filter((name, index) =>
+      names.slice(Math.max(0, index - SKETCH_HISTORY), index).includes(name)
+    );
+    expect(repeats).toEqual([]);
+    expect(rig.sketchClock().recent.length).toBeLessThanOrEqual(SKETCH_HISTORY);
   });
 
   it('never plays without an entropy source', () => {
@@ -198,7 +367,9 @@ describe('the scheduling', () => {
       was = now;
     });
     expect(onsets.length).toBeGreaterThanOrEqual(4);
-    expect(onsets.length).toBeLessThanOrEqual(14);
+    expect(onsets.length).toBeLessThanOrEqual(15);
+    expect(onsets[0]).toBeGreaterThanOrEqual(SKETCH_FIRST_MIN_DELAY_MS);
+    expect(onsets[0]).toBeLessThanOrEqual(SKETCH_FIRST_MAX_DELAY_MS + 100);
     const gaps = onsets.slice(1).map((at, index) => at - onsets[index]);
     gaps.forEach(gap => expect(gap).toBeGreaterThanOrEqual(SKETCH_MIN_DELAY_MS));
     expect(new Set(gaps).size).toBe(gaps.length);

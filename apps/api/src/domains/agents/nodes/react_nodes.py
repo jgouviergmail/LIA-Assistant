@@ -18,6 +18,7 @@ State contract:
 import asyncio
 import contextlib
 import time
+from contextlib import suppress
 from typing import Any
 
 import structlog
@@ -43,12 +44,16 @@ from src.domains.agents.nodes.react_history import (
     window_messages_for_react as _window_messages_for_react,
 )
 from src.domains.agents.nodes.react_prompt import build_system_prompt, sandbox_available
+from src.domains.agents.nodes.router_tool_scoring import GLOBAL_RANKING_KEY
 from src.domains.agents.orchestration.step_timeouts import compute_step_timeout
 from src.domains.agents.services.connector_error_notice import (
     emit_connector_notice_for_exception,
 )
 from src.domains.agents.services.hitl.protocols import HitlInteractionType
-from src.domains.agents.services.react_tool_selector import ReactToolSelector
+from src.domains.agents.services.react_tool_selector import (
+    ReactToolSelector,
+    bound_tool_tokens,
+)
 from src.domains.agents.tools.react_tool_wrapper import ReactToolWrapper
 from src.domains.agents.tools.tool_resolution import (
     classify_unresolved_tool_call,
@@ -89,6 +94,7 @@ from src.infrastructure.observability.metrics_react import (
     react_agent_hitl_interrupts_total,
     react_agent_iterations,
     react_agent_tools_called_total,
+    react_bound_tool_tokens,
     react_context_window_utilization,
     react_delivered_context_tokens,
     react_repeated_calls_total,
@@ -264,42 +270,34 @@ async def react_setup_node(
         logger.warning("react_setup_disabled", reason="feature_flag_off")
         return {}
 
-    # Select and wrap tools
+    # Select and wrap tools — by relevance when the router ranked them (ADR-293).
     selector = ReactToolSelector()
-    wrapped_tools, hitl_map = selector.select(intelligence) if intelligence else ([], {})
+    ranking = (state.get("tool_selection_result") or {}).get(GLOBAL_RANKING_KEY)
+    wrapped_tools, hitl_map = (
+        selector.select(intelligence, ranking=ranking) if intelligence else ([], {})
+    )
     tool_names = [t.name for t in wrapped_tools]
+    schema_tokens = bound_tool_tokens(wrapped_tools)
+    with suppress(Exception):  # a metric never breaks the turn
+        react_bound_tool_tokens.observe(schema_tokens)
 
     # Build system prompt — it promises only what this turn can actually run
     system_prompt = build_system_prompt(state, computation=await sandbox_available(tool_names))
 
-    # Context blocks, in injection ORDER — the order is meaningful. Standing
-    # rules lead: they govern how everything after them is used. Each builder is
-    # best-effort and returns None when it has nothing to say (zero tokens).
-    system_blocks: list[str] = [system_prompt]
-    context_blocks = [
-        # Memory parity with the pipeline (2026-08-28): a behavioural rule that
-        # only reaches the response node can reword a promise, never turn it
-        # into an action. It has to be present where the decision is taken.
-        await react_context.build_memory_profile_block(state, config),
-        react_context.build_reference_resolution_block(state, intelligence),
-        await react_context.build_user_model_block(config),
-        await react_context.build_journal_directives_block(state, config),
-        react_context.build_skills_catalog_block(config),
-        await react_context.build_degradations_block(),
-        await react_context.build_mcp_auth_notices_block(),
-    ]
-    system_blocks.extend(block for block in context_blocks if block)
-    has_memory_block = bool(context_blocks[0])
-    skills_catalog = context_blocks[4] or ""
+    # Context blocks, in injection ORDER (react_context.build_setup_blocks).
+    setup_blocks = await react_context.build_setup_blocks(state, config, intelligence)
+    system_blocks: list[str] = [system_prompt, *setup_blocks.blocks]
 
     duration_ms = int((time.monotonic() - start_time) * 1000)
     logger.info(
         "react_setup_complete",
         tool_count=len(tool_names),
+        bound_tool_tokens=schema_tokens,
         hitl_count=sum(1 for v in hitl_map.values() if v),
         domains=get_qi_attr(state, "domains", default=[]),
-        has_memory_context=has_memory_block,
-        has_skills_catalog=bool(skills_catalog),
+        has_memory_context=setup_blocks.has_memory,
+        has_knowledge_context=setup_blocks.has_knowledge,
+        has_skills_catalog=bool(setup_blocks.skills_catalog),
         duration_ms=duration_ms,
     )
 

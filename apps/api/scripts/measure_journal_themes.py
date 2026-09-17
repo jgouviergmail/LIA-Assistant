@@ -538,6 +538,7 @@ async def _measure_consolidation(
     reps: int, consolidation: str, persona: str
 ) -> dict[str, int | dict[str, int]]:
     """Run the consolidation battery and count theme rewrites."""
+    from src.core.config import settings
     from src.infrastructure.llm.factory import get_llm
 
     llm = get_llm("journal_consolidation")
@@ -556,6 +557,10 @@ async def _measure_consolidation(
         size_management_instruction="You are well within the size limit.",
         health_signals_section="",
         personality_code=None,
+        # The four portrait sources (2026-09-16, part B) are absent from the
+        # theme battery on purpose: it measures the entries' classification.
+        portrait_full_tokens=settings.journal_portrait_full_max_tokens,
+        portrait_brief_tokens=settings.journal_portrait_brief_max_tokens,
     )
     runs = await asyncio.gather(
         *[_run_consolidation(llm, prompt) for _ in range(reps)], return_exceptions=True

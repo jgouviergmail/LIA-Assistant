@@ -67,8 +67,8 @@ function leftRadii(
 }
 
 /**
- * The brow, in one line: how PRESENT it is, how high it sits (negative is
- * raised), the tilt of each eye's INNER end, and how much it ARCHES.
+ * The brow, in one line: how high it sits (negative is raised), the tilt of
+ * each eye's INNER end, how much it ARCHES, and how far the pair KNITS.
  *
  * The tilt is half the grammar, and it is mirrored: a positive angle on the
  * left eye and a negative one on the right both lower the inner ends, which
@@ -76,22 +76,24 @@ function leftRadii(
  * tenderness depending on what the rest of the face is doing. The arch is
  * the other half: a scowl is a flat bar pressed down, a startle is a full
  * arch flung up, and tenderness is a gentle curve — a bar that can only
- * tilt plays half of that. Three numbers carry more emotion than the entire
- * silhouette does.
+ * tilt plays half of that. The knit, in screen em, pulls the inner ends
+ * toward the nose (positive) or sends the pair apart (negative): a frown is
+ * a scowl that also GATHERS, a startle also spreads. Always drawn in full —
+ * presence is not a value of a pose any more.
  */
 function brow(
-  presence: number,
   y: number,
   rotL: number,
   rotR: number,
   arcL: number,
-  arcR = arcL
+  arcR = arcL,
+  knit = 0
 ): PartialChannelValues {
   return merge(
-    both('browA', presence),
     both('browY', y),
     pair('browRot', rotL, rotR),
-    pair('browArc', arcL, arcR)
+    pair('browArc', arcL, arcR),
+    pair('browX', knit, -knit)
   );
 }
 
@@ -102,23 +104,16 @@ function pupils(scale: number): PartialChannelValues {
 }
 
 /**
- * The mouth: how PRESENT it is, its CURVE, its width, and how far it parts.
+ * The mouth: its CURVE, its width, how far it parts, and its corners.
  *
  * The curve is signed and that is the whole grammar — positive lifts the
  * corners, negative drops them, zero is the flat line the two pass through.
- * Unlike the brow, the mouth is never absent: a face that grows a mouth when
+ * The mouth is never absent and never faded: a face that grows a mouth when
  * it smiles is a face with a defect. It is quiet at rest instead (a short,
  * barely curved line) and it commits when the emotion does.
  */
-function mouth(
-  presence: number,
-  curve: number,
-  width = 1,
-  open = 0,
-  skew = 0
-): PartialChannelValues {
+function mouth(curve: number, width = 1, open = 0, skew = 0): PartialChannelValues {
   return {
-    mouthA: presence,
     mouthCurve: curve,
     mouthW: width,
     mouthOpen: open,
@@ -147,22 +142,22 @@ export const POSES: Record<EyeExpression, PartialChannelValues> = {
     both('sy', 1.12),
     both('sx', 1.04),
     both('ty', -0.03),
-    brow(0.7, -0.05, -2, 2, 0.3),
+    brow(-0.05, -2, 2, 0.3),
     pupils(1.05),
-    mouth(0.7, 0.15, 0.95, 0, 0.11)
+    mouth(0.15, 0.95, 0, 0.11)
   ),
 
   /** A rising dome — round crown, flat base. The eye smiles. */
-  joy: merge(JOY_DOME, brow(0.6, -0.05, -4, 4, 0.5), pupils(1.15), mouth(1, 0.9, 1.15, 0.12, 0.18)),
+  joy: merge(JOY_DOME, brow(-0.05, -4, 4, 0.5), pupils(1.15), mouth(0.9, 1.15, 0.12, 0.18)),
 
   /** A livelier dome, plus the bounce loop below. */
   excited: merge(
     both('sy', 0.7),
     both('oy', 25),
     both('sx', 1.05),
-    brow(0.9, -0.09, -6, 6, 0.6),
+    brow(-0.09, -6, 6, 0.6),
     pupils(1.2),
-    mouth(1, 1, 1.2, 0.35, 0.14)
+    mouth(1, 1.2, 0.35, 0.14)
   ),
 
   /** Soft heavy lids and a gentle inward lean — the melted look. */
@@ -175,18 +170,19 @@ export const POSES: Record<EyeExpression, PartialChannelValues> = {
     pair('rot', 3, -3),
     // Inner ends UP: the compassionate brow. Without it, heavy lids alone
     // read as sleepiness rather than tenderness.
-    brow(0.65, -0.02, -8, 8, 0.45),
+    brow(-0.02, -8, 8, 0.45),
     pupils(1.3),
-    mouth(0.9, 0.5, 0.9, 0, 0.17)
+    mouth(0.5, 0.9, 0, 0.17)
   ),
 
   /** Big rounded screens — the pop is an arrival tape, not a pose. */
   surprise: merge(
     both('sx', 1.12),
     both('sy', 1.25),
-    brow(1, -0.14, 0, 0, 0.85),
+    // The pair flies up AND apart: a startle opens the whole face.
+    brow(-0.14, 0, 0, 0.85, 0.85, -0.03),
     pupils(1.35),
-    mouth(1, 0, 0.7, 0.75)
+    mouth(0, 0.7, 0.75)
   ),
 
   /** Shrunken screens, trembling (loop below). */
@@ -195,9 +191,10 @@ export const POSES: Record<EyeExpression, PartialChannelValues> = {
   fear: merge(
     both('sx', 0.85),
     both('sy', 0.85),
-    brow(1, -0.1, -16, 16, 0.55),
+    // Raised, inner ends up, and gathered: fear pulls the brows together.
+    brow(-0.1, -16, 16, 0.55, 0.55, 0.04),
     pupils(0.55),
-    mouth(1, -0.5, 0.85, 0.3, -0.1)
+    mouth(-0.5, 0.85, 0.3, -0.1)
   ),
 
   /** Screens press down and tip toward the nose — the slant IS the brow. */
@@ -208,9 +205,10 @@ export const POSES: Record<EyeExpression, PartialChannelValues> = {
     both('lidTop', 34),
     both('lidR', 0.28),
     pair('rot', 7, -7),
-    brow(1, 0.02, 18, -18, 0),
+    // Pressed down, flat, and KNIT hard: the scowl gathers at the nose.
+    brow(0.02, 18, -18, 0, 0, 0.06),
     pupils(0.7),
-    mouth(1, -0.7, 0.85, 0.1, 0.18)
+    mouth(-0.7, 0.85, 0.1, 0.18)
   ),
 
   /** The mirror lean — outer corners sink, the gaze rides low. */
@@ -219,9 +217,9 @@ export const POSES: Record<EyeExpression, PartialChannelValues> = {
     both('oy', 100),
     both('ty', 0.05),
     pair('rot', -6, 6),
-    brow(1, -0.02, -16, 16, 0.35),
+    brow(-0.02, -16, 16, 0.35, 0.35, 0.03),
     pupils(1.1),
-    mouth(1, -0.85, 0.85, 0, -0.06)
+    mouth(-0.85, 0.85, 0, -0.06)
   ),
 
   /** A softer, slighter sadness. */
@@ -229,9 +227,9 @@ export const POSES: Record<EyeExpression, PartialChannelValues> = {
     both('sy', 0.85),
     both('oy', 90),
     pair('rot', -3, 3),
-    brow(0.85, -0.03, -10, 10, 0.4),
+    brow(-0.03, -10, 10, 0.4, 0.4, 0.03),
     pupils(1.05),
-    mouth(0.9, -0.45, 0.9, 0, 0.13)
+    mouth(-0.45, 0.9, 0, 0.13)
   ),
 
   /** One raised screen — the asymmetry is the whole message. */
@@ -240,20 +238,24 @@ export const POSES: Record<EyeExpression, PartialChannelValues> = {
     { syR: 0.66, oyR: 100, rotR: -5 },
     // One brow up, the other settled: the single most legible "oh?" a face
     // can make, and it needs no eye at all.
-    { browAL: 0.9, browAR: 0.9, browYL: -0.12, browYR: 0.01, browRotL: -8, browRotR: -6 },
-    { browArcL: 0.7, browArcR: 0.1 },
+    { browYL: -0.12, browYR: 0.01, browRotL: -8, browRotR: -6 },
+    // The raised brow drifts a touch outward as it goes up; the other holds.
+    { browArcL: 0.7, browArcR: 0.1, browXL: -0.02, browXR: 0 },
     pupils(1.05),
-    mouth(0.8, 0.1, 0.75, 0, 0.3)
+    mouth(0.1, 0.75, 0, 0.3)
   ),
 
   /** Half-lidded from above; the engine aims the gaze up. */
   thinking: merge(
     both('sy', 0.6),
     both('oy', 60),
-    { browAL: 0.7, browAR: 0.7, browYL: -0.08, browYR: 0, browRotL: -5, browRotR: 8 },
-    { browArcL: 0.5, browArcR: 0.05 },
+    { browYL: -0.08, browYR: 0, browRotL: -5, browRotR: 8 },
+    // One brow wonders, the other presses in toward the nose: the thought.
+    { browArcL: 0.5, browArcR: 0.05, browXL: 0, browXR: -0.03 },
     pupils(0.9),
-    mouth(0.7, -0.15, 0.7, 0, 0.35)
+    // ...and the lips purse off to one side.
+    mouth(-0.15, 0.7, 0, 0.35),
+    { mouthX: 0.035 }
   ),
 
   /** A light squint. The looking itself is a SACCADE pattern (see
@@ -261,9 +263,9 @@ export const POSES: Record<EyeExpression, PartialChannelValues> = {
   searching: merge(
     both('sy', 0.7),
     both('oy', 55),
-    brow(0.6, -0.04, 0, 0, 0.25),
+    brow(-0.04, 0, 0, 0.25),
     pupils(0.95),
-    mouth(0.6, 0, 0.8, 0, 0.1)
+    mouth(0, 0.8, 0, 0.1)
   ),
 
   /** Concentrated slits — squeezed from BOTH lids. */
@@ -272,23 +274,24 @@ export const POSES: Record<EyeExpression, PartialChannelValues> = {
     both('lidTop', 30),
     both('lidBot', 24),
     both('lidR', 0.45),
-    brow(1, 0.03, 10, -10, 0),
+    brow(0.03, 10, -10, 0, 0, 0.05),
     pupils(0.72),
-    mouth(0.9, -0.2, 0.7, 0, 0.09)
+    mouth(-0.2, 0.7, 0, 0.09)
   ),
 
-  /** Speaking finally SPEAKS: the flap below is the life, and the eyes only
-   * carry the bob that goes with it. */
-  speaking: merge(brow(0.55, -0.04, -2, 2, 0.25), mouth(1, 0.2, 1, 0.18)),
+  /** Speaking finally SPEAKS: the generated pattern (`rig/speech.ts`) is
+   * the life, on a pose that is a closed, faintly smiling mouth — what the
+   * face looks like between two phrases. The eyes carry the bob. */
+  speaking: merge(brow(-0.04, -2, 2, 0.25), mouth(0.2, 1, 0)),
 
   /** Heavy flat lids from above — the stillness is the point. */
   bored: merge(
     both('oy', 100),
     both('lidTop', 46),
     both('lidR', 0.4),
-    brow(0.5, 0.02, 4, -4, 0),
+    brow(0.02, 4, -4, 0),
     pupils(0.95),
-    mouth(0.7, -0.25, 0.8, 0, 0.28)
+    mouth(-0.25, 0.8, 0, 0.28)
   ),
 
   /** Heavy lids and a light outward droop. */
@@ -298,8 +301,8 @@ export const POSES: Record<EyeExpression, PartialChannelValues> = {
     both('lidTop', 38),
     both('lidR', 0.5),
     pair('rot', -2, 2),
-    brow(0.5, 0.01, -6, 6, 0.2),
-    mouth(0.6, -0.3, 0.85, 0, -0.08)
+    brow(0.01, -6, 6, 0.2),
+    mouth(-0.3, 0.85, 0, -0.08)
   ),
 
   /** Almost closed; everything slows down. */
@@ -308,8 +311,8 @@ export const POSES: Record<EyeExpression, PartialChannelValues> = {
     both('lidTop', 58),
     both('lidBot', 5),
     both('lidR', 0.5),
-    brow(0.3, 0.02, -4, 4, 0.1),
-    mouth(0.5, -0.15, 0.7, 0, 0.12)
+    brow(0.02, -4, 4, 0.1),
+    mouth(-0.15, 0.7, 0, 0.12)
   ),
 
   /** A soft closed lens, deep slow breathing. The brows relax rather than
@@ -319,18 +322,18 @@ export const POSES: Record<EyeExpression, PartialChannelValues> = {
     both('lidTop', 82),
     both('lidBot', 4),
     both('lidR', 0.6),
-    brow(0.3, 0.03, -2, 2, 0.06),
-    mouth(0.4, 0.15, 0.6, 0.14, 0.05)
+    brow(0.03, -2, 2, 0.06),
+    mouth(0.15, 0.6, 0.14, 0.05)
   ),
 
   /** The right eye shuts outright; the left keeps joy's dome. */
   wink: merge(
     JOY_DOME,
     { blinkR: 1 },
-    { browAL: 0.7, browAR: 0.8, browYL: -0.06, browYR: -0.02, browRotL: -6, browRotR: 4 },
+    { browYL: -0.06, browYR: -0.02, browRotL: -6, browRotR: 4 },
     { browArcL: 0.5, browArcR: 0.15 },
     pupils(1.1),
-    mouth(1, 0.7, 1.05, 0, 0.32)
+    mouth(0.7, 1.05, 0, 0.32)
   ),
 };
 
@@ -480,7 +483,7 @@ export function resolvePose(expression: EyeExpression, styleId: EyeStyleId): Cha
  * a radius is the style's silhouette, a blink either closes or it does not,
  * and the stretch is derived from motion that has already been scaled.
  */
-const EXAGGERATED_GROUPS: ReadonlySet<string> = new Set(['pose', 'mass']);
+const EXAGGERATED_GROUPS: ReadonlySet<string> = new Set(['pose', 'brow', 'mass']);
 
 /**
  * Scale an expression's DEVIATION from its style's neutral.
@@ -670,6 +673,8 @@ const DRIFT_LOOPS: readonly LoopSpec[] = [
 const CHEW_LOOPS: readonly LoopSpec[] = [
   { channel: 'mouthSkew', amplitude: 0.07, periodMs: 2300, phase: 0.3, waveform: 'sine' },
   { channel: 'mouthW', amplitude: 0.025, periodMs: 3100, phase: 0.7, waveform: 'sine' },
+  // ...and the pursed lips wander from one side to the other.
+  { channel: 'mouthX', amplitude: 0.018, periodMs: 2700, phase: 0.5, waveform: 'sine' },
 ];
 
 /** The sleeper's breath period — the eyes' own slow swell. */
@@ -690,28 +695,12 @@ export function resolveLoops(expression: EyeExpression, family: IdleMoodFamily):
         ...eyeLoop('sy', 0.03, 760, 0, { rightDelayMs: 90 }),
       ];
     case 'speaking':
+      // The eyes bob with the talk. The MOUTH is not a loop any more: speech
+      // is generated, syllable by syllable, as the state's pattern
+      // (`rig/speech.ts`) — sines only ever got louder and quieter.
       return [
         ...eyeLoop('ty', 0.014, 900, 0.5, { rightPeriodMs: 980, rightDelayMs: 120 }),
         ...eyeLoop('sy', 0.015, 900, 0, { rightPeriodMs: 980, rightDelayMs: 120 }),
-        // The flap. ~260 ms is roughly a syllable; the second, longer
-        // component keeps it from ticking like a metronome, which is exactly
-        // what a single sine on a mouth looks like once you watch it.
-        { channel: 'mouthOpen', amplitude: 0.13, periodMs: 260, phase: 0, waveform: 'sine' },
-        { channel: 'mouthOpen', amplitude: 0.05, periodMs: 430, phase: 0.31, waveform: 'sine' },
-        // The PHRASES. Speech stops: a slow envelope, held at its ends, drives
-        // the flap through the closure (the rig bounds the opening at zero)
-        // for a few hundred milliseconds between two runs of talk, and a
-        // second, slower sine keeps those pauses from landing on a beat.
-        // Three sines alone only ever got quieter and louder.
-        { channel: 'mouthOpen', amplitude: -0.11, periodMs: 3700, phase: 0.55, waveform: 'hold' },
-        { channel: 'mouthOpen', amplitude: -0.04, periodMs: 5300, phase: 0.2, waveform: 'sine' },
-        // Speech widens and narrows a mouth as much as it opens it...
-        { channel: 'mouthW', amplitude: 0.06, periodMs: 370, phase: 0.5, waveform: 'sine' },
-        // ...and it changes its SHAPE, which is what separates talking from
-        // chewing: a mouth that only opens and shuts on one axis reads as a
-        // hinge. These two put a different form on each syllable.
-        { channel: 'mouthCurve', amplitude: 0.12, periodMs: 610, phase: 0.2, waveform: 'sine' },
-        { channel: 'mouthSkew', amplitude: 0.1, periodMs: 830, phase: 0.6, waveform: 'sine' },
       ];
     case 'fear':
       return [

@@ -39,7 +39,11 @@ from uuid import UUID
 from src.core.config import settings
 from src.core.prompt_store import parse_prompt_sections
 from src.domains.agents.prompts import load_prompt
-from src.domains.memories.emotional_state import EmotionalState, compute_emotional_state
+from src.domains.memories.emotional_state import (
+    EmotionalState,
+    compute_emotional_state,
+    emotional_label,
+)
 from src.domains.memories.models import Memory
 from src.infrastructure.async_utils import safe_fire_and_forget
 from src.infrastructure.observability.logging import get_logger
@@ -74,27 +78,6 @@ def _load_section_headers() -> tuple[tuple[str, str], ...]:
     return tuple((category, header) for category, header in rows)
 
 
-def _get_emotional_label(emotional_weight: int) -> str:
-    """Get semantic label for emotional weight (LLM-friendly, not emoji).
-
-    Args:
-        emotional_weight: Value from -10 to +10.
-
-    Returns:
-        Text label representing the emotional intensity for LLM interpretation.
-    """
-    if emotional_weight <= -7:
-        return "[TRAUMA/DOULEUR]"
-    elif emotional_weight <= -3:
-        return "[NÉGATIF]"
-    elif emotional_weight >= 7:
-        return "[TRÈS POSITIF]"
-    elif emotional_weight >= 3:
-        return "[POSITIF]"
-    else:
-        return "[NEUTRE]"
-
-
 def _format_memory_item(memory: Memory, score: float) -> str:
     """Format a single memory for the profile briefing.
 
@@ -114,7 +97,7 @@ def _format_memory_item(memory: Memory, score: float) -> str:
     nuance = memory.usage_nuance or ""
     category = memory.category or "personal"
 
-    label = _get_emotional_label(emotional)
+    label = emotional_label(emotional)
     # D1 (evolution program): bare ISO date anchor — language-neutral by
     # design; the words explaining it live in memory_continuity_directive.
     recorded = getattr(memory, "created_at", None)

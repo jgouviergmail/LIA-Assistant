@@ -680,6 +680,7 @@ class OrchestrationService:
         user_memory_enabled: bool = True,  # User preference for long-term memory
         user_journals_enabled: bool = False,  # User preference for personal journals
         user_psyche_enabled: bool = False,  # User preference for psyche engine
+        user_voice_enabled: bool = False,  # User preference for spoken replies (HTML gate)
         user_display_mode: str = "cards",  # User display mode (cards/html/markdown)
         user_execution_mode: str = "pipeline",  # Execution mode (pipeline/react) — ADR-070
         is_automated_source: bool = False,  # True for automated runs (scheduled actions)
@@ -799,6 +800,7 @@ class OrchestrationService:
             user_memory_enabled=user_memory_enabled,
             user_journals_enabled=user_journals_enabled,
             user_psyche_enabled=user_psyche_enabled,
+            user_voice_enabled=user_voice_enabled,
             user_display_mode=user_display_mode,
             user_execution_mode=user_execution_mode,
             is_automated_source=is_automated_source,

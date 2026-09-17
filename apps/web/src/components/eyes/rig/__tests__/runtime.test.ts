@@ -11,6 +11,7 @@ import { describe, it, expect } from 'vitest';
 import {
   BROW_BLINK_DIP_EM,
   BROW_GAZE_LIFT_EM,
+  SPRING_BLEND_MS,
   createEyeRig,
   type EyeRig,
 } from '@/components/eyes/rig/runtime';
@@ -586,5 +587,60 @@ describe('emphasis — how forcefully a pose lands', () => {
     rig.setPose({ expression: 'anger', styleId: 'cozmo', family: 'calm', emphasis: 1.35 });
     trace(rig, 'rotL', 220);
     expect(rig.values().rotL).toBeGreaterThan(before);
+  });
+});
+
+describe('the hand-over from a beat to the pose', () => {
+  /** Frame-to-frame jerk (change of the change of velocity) of a trace. */
+  function maxJerk(values: readonly number[], from: number, to: number): number {
+    let worst = 0;
+    for (let index = Math.max(3, from); index < Math.min(values.length, to); index += 1) {
+      const a1 = values[index] - 2 * values[index - 1] + values[index - 2];
+      const a0 = values[index - 1] - 2 * values[index - 2] + values[index - 3];
+      worst = Math.max(worst, Math.abs(a1 - a0));
+    }
+    return worst;
+  }
+
+  it('BLENDS the spring over a short window, so the change of dynamics is never a kink', () => {
+    // A beat on a quick spring ends and the channel goes home on the pose's
+    // slow one. The position and the velocity carry across (they always
+    // did); the acceleration used to jump at the instant, which the eye
+    // reads as a kink at the top of the motion. Measured here as the jerk
+    // in the frames around the hand-over against the jerk of the beat.
+    expect(SPRING_BLEND_MS).toBeGreaterThanOrEqual(80);
+    expect(SPRING_BLEND_MS).toBeLessThanOrEqual(200);
+    const rig = createEyeRig({
+      initial: { expression: 'focused', styleId: 'cozmo', family: 'calm' },
+    });
+    const holdMs = 480;
+    rig.play({
+      channel: 'mouthCurve',
+      keys: [{ atMs: 0, value: 0.7 }],
+      durationMs: holdMs,
+      spring: { frequency: 5, damping: 0.8 },
+      relative: true,
+    });
+    const values = trace(rig, 'mouthCurve', 120);
+    const handover = holdMs / 16;
+    const around = maxJerk(values, handover - 1, handover + 4);
+    const during = maxJerk(values, 4, handover - 4);
+    expect(during).toBeGreaterThan(0);
+    // Without the blend the jerk at the hand-over is several times the
+    // beat's own; blended, it stays inside it.
+    expect(around).toBeLessThan(during * 1.5);
+  });
+
+  it('never blends a POSE change: a startle must not be dulled by the face it interrupts', () => {
+    const rig = createEyeRig({
+      initial: { expression: 'sad', styleId: 'cozmo', family: 'calm' },
+    });
+    trace(rig, 'syL', 60);
+    const from = rig.values().syL;
+    rig.setPose({ expression: 'surprise', styleId: 'cozmo', family: 'calm' });
+    const to = resolvePose('surprise', 'cozmo').syL;
+    trace(rig, 'syL', 8); // 128 ms on the reflex preset (190 ms to settle)
+    const travelled = (rig.values().syL - from) / (to - from);
+    expect(travelled).toBeGreaterThan(0.6);
   });
 });

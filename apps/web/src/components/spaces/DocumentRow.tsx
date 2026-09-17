@@ -5,10 +5,22 @@
  * selection, the file's facts, its indexing state, and its actions ONE way
  * (ADR-208, `RowActions`) — download as a real link, move (uploads only:
  * Drive keeps its own files in sync and a meeting owns its minutes), delete
- * red at rest. Nothing is revealed by hover.
+ * red at rest — except on a kept answer, whose record is the bookmark and
+ * whose projection goes with it (2026-09-16 design). Nothing is revealed by
+ * hover.
  */
 
-import { ClipboardList, Coins, FileText, FileType2, FolderInput, HardDriveDownload, Mail, Trash2 } from 'lucide-react';
+import {
+  Bookmark,
+  ClipboardList,
+  Coins,
+  FileText,
+  FileType2,
+  FolderInput,
+  HardDriveDownload,
+  Mail,
+  Trash2,
+} from 'lucide-react';
 import { Download } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -19,6 +31,7 @@ import { formatFileSize } from '@/lib/format';
 import type { RAGDocument } from '@/types/rag-spaces';
 
 import { DocumentProcessingStatus } from './DocumentProcessingStatus';
+import { documentFailureKey } from '@/lib/rag-spaces/document-errors';
 
 export interface DocumentRowProps {
   document: RAGDocument;
@@ -43,6 +56,11 @@ export function isMovable(document: Pick<RAGDocument, 'source_type'>): boolean {
   return document.source_type === 'upload';
 }
 
+/** A kept answer's document is removed with its bookmark, never by hand. */
+export function isDeletable(document: Pick<RAGDocument, 'source_type'>): boolean {
+  return document.source_type !== 'bookmark';
+}
+
 function SourceBadge({ document: doc }: { document: RAGDocument }) {
   const { t } = useTranslation();
   if (doc.source_type === 'drive') {
@@ -63,6 +81,13 @@ function SourceBadge({ document: doc }: { document: RAGDocument }) {
     return (
       <Badge variant="outline" size="sm" icon={<Mail className="h-2.5 w-2.5" />}>
         {t('spaces.mail.source_type_mail')}
+      </Badge>
+    );
+  }
+  if (doc.source_type === 'bookmark') {
+    return (
+      <Badge variant="outline" size="sm" icon={<Bookmark className="h-2.5 w-2.5" />}>
+        {t('spaces.bookmarks.source_type_bookmark')}
       </Badge>
     );
   }
@@ -109,6 +134,9 @@ export function DocumentRow({
 }: DocumentRowProps) {
   const { t } = useTranslation();
   const name = doc.original_filename;
+  // A failure the vocabulary names is explained in the person's language,
+  // remedy included; a legacy or unknown one stays the badge's title.
+  const failureKey = documentFailureKey(doc);
   const actions: RowAction[] = [
     {
       key: 'download',
@@ -126,14 +154,16 @@ export function DocumentRow({
       onSelect: () => onMove(doc.id),
     });
   }
-  actions.push({
-    key: 'delete',
-    label: t('common.delete'),
-    icon: Trash2,
-    tone: 'destructive',
-    onSelect: () => onDelete(doc.id),
-    loading: deleting,
-  });
+  if (isDeletable(doc)) {
+    actions.push({
+      key: 'delete',
+      label: t('common.delete'),
+      icon: Trash2,
+      tone: 'destructive',
+      onSelect: () => onDelete(doc.id),
+      loading: deleting,
+    });
+  }
 
   return (
     <li
@@ -153,6 +183,7 @@ export function DocumentRow({
           <SourceBadge document={doc} />
         </div>
         <Facts document={doc} />
+        {failureKey && <p className="mt-1 text-xs text-muted-foreground">{t(failureKey)}</p>}
       </div>
       <DocumentProcessingStatus status={doc.status} errorMessage={doc.error_message} />
       <RowActions actions={actions} menuLabel={t('spaces.documents.row_actions', { name })} />

@@ -72,6 +72,15 @@ RENDERED_BY: dict[str, tuple[str, ...]] = {
     "psyche_embodied_frame": ("domains/psyche/service.py",),
     # The name is a constant of ``debrief/prompts.py``; ``debrief/llm.py`` formats.
     "relation_debrief_prompt": ("domains/relations/debrief/llm.py",),
+    # Loaded once by ``shared/portrait_sources.portrait_lines`` (and by the
+    # consolidation service for its own two scaffolds); each portrait source
+    # renders its own keys (2026-09-16 design, part B).
+    "journal_portrait_source_lines": (
+        "domains/memories/portrait_source.py",
+        "domains/interests/portrait_source.py",
+        "domains/habits/portrait_source.py",
+        "domains/relations/debrief/portrait_source.py",
+    ),
     # Loaded by the agents-side wrapper, rendered by the diagnostics builder.
     "runtime_failures_directive": ("domains/diagnostics/failure_context.py",),
     # Both are the ``prompt_name`` of a ``ReactSubAgentRunner``, which formats.

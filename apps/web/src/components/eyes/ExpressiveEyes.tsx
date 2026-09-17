@@ -39,6 +39,8 @@ export interface ExpressiveEyesProps {
   size: EyesSize;
   /** One blink cycle is running (host-managed transient flag). */
   blinking?: boolean;
+  /** The running blink MASKS a face swap: the lids hold shut past it. */
+  blinkMask?: boolean;
   /** Active idle-life gesture (host-managed transient value). */
   gesture?: IdleGesture | null;
   /** Gaze travel time in ms — a saccade jumps, an eased return glides. */
@@ -105,6 +107,7 @@ function EyesEmote({ emote, leaving }: { emote: string | null; leaving: boolean 
 function resolved(props: ExpressiveEyesProps) {
   return {
     blinking: props.blinking ?? false,
+    blinkMask: props.blinkMask ?? false,
     gesture: props.gesture ?? null,
     emote: props.emote ?? null,
     emoteLeaving: props.emoteLeaving ?? false,
@@ -128,6 +131,7 @@ export function ExpressiveEyes(props: ExpressiveEyesProps) {
     gaze,
     gazeDurationMs,
     blinking: view.blinking,
+    blinkMask: view.blinkMask,
     gesture: view.gesture,
     emphasis: view.emphasis,
     life: view.life,
@@ -142,6 +146,7 @@ export function ExpressiveEyes(props: ExpressiveEyesProps) {
       data-family={view.idleFamily}
       data-gesture={view.gesture ?? undefined}
       data-blinking={view.blinking ? 'true' : undefined}
+      data-blink-mask={view.blinking && view.blinkMask ? 'true' : undefined}
       data-gaze-x={view.gazeX}
       data-gaze-y={view.gazeY}
       data-gaze-ms={gazeDurationMs}

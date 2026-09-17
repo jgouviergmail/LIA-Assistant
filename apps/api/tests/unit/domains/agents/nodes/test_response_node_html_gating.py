@@ -1,16 +1,18 @@
 """Unit tests for the HTML-directive gating in ``response_node``.
 
-Regression guard for the "TTS reads HTML aloud" bug (conversation + HTML
-display mode): the rich HTML response directive must only be injected for
-tool/data turns (router ``route_to == "planner"``, i.e. router intention
-``"action"``), never for conversational turns whose reply is streamed
-verbatim to the TTS engine via the progressive chat path.
+The rich HTML response directive is worth its tokens on every turn of an
+account that chose the ``html`` display mode: the frontend renders the
+``lia-response`` document and a Markdown reply through the same pipeline.
+The one reader that cannot take markup is the voice — on a conversational
+turn (router ``route_to != "planner"``) the reply is streamed verbatim to the
+TTS engine through the progressive chat path, so a tag would be spoken aloud.
 
-The gate keys on ``route_to`` because that is, by definition, the exact
-source the router derives its ``intention`` from
-(``"action" if route_to == "planner" else "conversation"``) — the same
-signal the voice path uses to start progressive TTS. Keying on the identical
-source guarantees the display gate and the voice trigger can never desync.
+The gate therefore suppresses the directive only where that voice actually
+listens: a conversational turn of an account whose voice preference is on.
+It keys on the SAME two signals the voice path starts from — the router's
+``route_to`` (its ``intention`` is derived from it) and the account's
+``voice_enabled`` flag — so the display gate and the voice trigger cannot
+desync.
 """
 
 import pytest
@@ -22,29 +24,45 @@ from src.core.constants import (
 )
 from src.domains.agents.nodes.response_node import _should_inject_html_directive
 
+pytestmark = pytest.mark.unit
 
-@pytest.mark.unit
-class TestShouldInjectHtmlDirective:
-    """The directive is injected only for HTML mode AND a planner-routed turn."""
 
-    def test_html_mode_action_turn_injects(self) -> None:
-        assert _should_inject_html_directive(RESPONSE_DISPLAY_MODE_HTML, "planner") is True
+class TestActionTurns:
+    """A planner-routed turn is never read aloud verbatim: HTML whenever the mode asks."""
 
-    def test_html_mode_conversation_turn_suppressed(self) -> None:
-        # route_to != "planner" => router intention == "conversation" => voice
-        # streams the reply verbatim; HTML must NOT be emitted.
-        assert _should_inject_html_directive(RESPONSE_DISPLAY_MODE_HTML, "response") is False
+    @pytest.mark.parametrize("voice_enabled", [True, False])
+    def test_html_mode_injects_whatever_the_voice_preference(self, voice_enabled: bool) -> None:
+        assert (
+            _should_inject_html_directive(RESPONSE_DISPLAY_MODE_HTML, "planner", voice_enabled)
+            is True
+        )
 
-    def test_html_mode_missing_route_suppressed(self) -> None:
-        # Defensive: missing/fallback query intelligence => treat as conversation
-        # (safe default — never feed HTML to TTS).
-        assert _should_inject_html_directive(RESPONSE_DISPLAY_MODE_HTML, None) is False
 
-    def test_cards_mode_never_injects(self) -> None:
-        assert _should_inject_html_directive(RESPONSE_DISPLAY_MODE_CARDS, "planner") is False
+class TestConversationalTurns:
+    """A conversational reply is read verbatim by the voice: HTML only when none listens."""
 
-    def test_markdown_mode_never_injects(self) -> None:
-        assert _should_inject_html_directive(RESPONSE_DISPLAY_MODE_MARKDOWN, "planner") is False
+    def test_html_mode_with_the_voice_off_injects(self) -> None:
+        assert _should_inject_html_directive(RESPONSE_DISPLAY_MODE_HTML, "response", False) is True
 
-    def test_cards_mode_conversation_never_injects(self) -> None:
-        assert _should_inject_html_directive(RESPONSE_DISPLAY_MODE_CARDS, "response") is False
+    def test_html_mode_with_the_voice_on_is_suppressed(self) -> None:
+        assert _should_inject_html_directive(RESPONSE_DISPLAY_MODE_HTML, "response", True) is False
+
+    def test_a_missing_route_reads_as_conversational(self) -> None:
+        # A fallback or missing query intelligence is a conversational turn:
+        # with the voice on, nothing may reach the TTS as markup.
+        assert _should_inject_html_directive(RESPONSE_DISPLAY_MODE_HTML, None, True) is False
+        assert _should_inject_html_directive(RESPONSE_DISPLAY_MODE_HTML, None, False) is True
+
+
+class TestOtherDisplayModes:
+    """Only the ``html`` mode ever asks for the directive."""
+
+    @pytest.mark.parametrize(
+        "display_mode", [RESPONSE_DISPLAY_MODE_CARDS, RESPONSE_DISPLAY_MODE_MARKDOWN, None]
+    )
+    @pytest.mark.parametrize("route_to", ["planner", "response", None])
+    @pytest.mark.parametrize("voice_enabled", [True, False])
+    def test_never_injects(
+        self, display_mode: str | None, route_to: str | None, voice_enabled: bool
+    ) -> None:
+        assert _should_inject_html_directive(display_mode, route_to, voice_enabled) is False

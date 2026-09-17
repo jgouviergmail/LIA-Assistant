@@ -2,6 +2,12 @@
 
 **Date**: 2026-09-05
 **Status**: Accepted
+**Amended by**: ADR-294 (2026-09-17) — the half presence and its ink (§2, §5bis)
+are gone, both organs are drawn whole; the brow is anchored to the visible
+edge of the eye, weighted by its own motion and able to knit; speech is
+generated rather than the sines of §6; every mimic owns its release, every
+performance is warped, and the cadence of §5bis became phrases; the sketch
+wait of §5ter counts resting time on a clock the host keeps.
 **Context**: ADR-252 gave the expressive eyes a real animation rig, and the eyes
 read as alive. The brows and the mouth did not, and the owner said so. Measured
 with the rig itself before any change (medium size, 30 px, sixty seconds of

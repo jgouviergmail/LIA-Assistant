@@ -17,7 +17,9 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 
 import { MarkdownContent } from '@/components/chat/MarkdownContent';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { LLMUsageBadge } from '@/components/ui/llm-usage-badge';
 import { useConfirm } from '@/components/ui/use-confirm';
 import { useApiMutation } from '@/hooks/useApiMutation';
 import { useTranslation } from '@/i18n/client';
@@ -98,9 +100,19 @@ export function BookmarkCard({ lng, bookmark, onDeleted }: BookmarkCardProps) {
       data-testid="bookmark-card"
       className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 shadow-sm"
     >
-      <p className="text-xs text-muted-foreground">
-        {t('settings.bookmarks.answered_at', { when: answeredOn })}
-      </p>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+        <span>{t('settings.bookmarks.answered_at', { when: answeredOn })}</span>
+        {/* Where the knowledge-space projection stands (2026-09-16 design):
+            text, never colour alone; nothing at all before a first attempt.
+            The cost is the dashboard's own primitive, mounted unconditionally
+            once the document is READY (ADR-269's rule). */}
+        {bookmark.index_state && (
+          <Badge variant="outline" size="sm">
+            {t(`settings.bookmarks.index_state.${bookmark.index_state}`)}
+          </Badge>
+        )}
+        {bookmark.index_usage && <LLMUsageBadge usage={bookmark.index_usage} />}
+      </div>
 
       {/* The request, as a quotation: what the answer answers. A message LIA
           sent on its own initiative had no request, and says so rather than

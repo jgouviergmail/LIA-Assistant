@@ -15,6 +15,7 @@ Created: 2026-03-14
 
 import uuid
 from datetime import datetime
+from enum import StrEnum
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
@@ -63,6 +64,10 @@ class RAGDocumentSourceType:
     # A Gmail thread carrying an opted-in label (ADR-262): rendered as Markdown
     # by the mail source; it follows the label — removing the label removes it.
     MAIL = "mail"
+    # A kept answer (ADR-282 bookmark) projected into the per-account « Kept
+    # answers » space (2026-09-16 design, part A): the bookmark is the record,
+    # the document its projection — neither movable nor deletable by hand.
+    BOOKMARK = "bookmark"
 
 
 class RAGDocumentStatus:
@@ -80,6 +85,27 @@ class RAGDocumentStatus:
     READY = "ready"
     ERROR = "error"
     REINDEXING = "reindexing"
+
+
+class RAGDocumentErrorCode(StrEnum):
+    """Why a document could not be indexed — a closed vocabulary, translated at display.
+
+    ``error_message`` keeps the technical detail (an exception's text, the chunk
+    counts); the code is what the person is told, in their language. A scanned
+    PDF is named as such: PyMuPDF extracts nothing from an image page and no
+    character recognition runs on this pipeline, so « no text » alone would
+    blame the file for a limit of the product (ADR-184).
+    """
+
+    FILE_MISSING = "file_missing"
+    EXTRACTION_FAILED = "extraction_failed"
+    SCANNED_PDF_NO_TEXT_LAYER = "scanned_pdf_no_text_layer"
+    NO_TEXT_CONTENT = "no_text_content"
+    NO_CHUNKS = "no_chunks"
+    TOO_MANY_CHUNKS = "too_many_chunks"
+    # The durable job's dead letter: a transient failure (an embedding call, a
+    # database error) repeated up to the retry bound, never a fault of the file.
+    RETRIES_EXHAUSTED = "retries_exhausted"
 
 
 def is_terminal_document_status(status: str) -> bool:
@@ -485,6 +511,19 @@ class RAGDocument(BaseModel):
         Text,
         nullable=True,
         default=None,
+    )
+
+    # Why the indexing failed (``RAGDocumentErrorCode``), beside the technical
+    # message; NULL when not in error or when the failure predates the vocabulary.
+    error_code: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+        default=None,
+        comment=(
+            "Why the indexing failed, as a closed vocabulary (RAGDocumentErrorCode) the "
+            "frontend translates; NULL when the document is not in error or the failure "
+            "predates it."
+        ),
     )
 
     chunk_count: Mapped[int] = mapped_column(

@@ -10,15 +10,13 @@ Privacy: the document's display name is the subject, never a participant.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
 from src.core.constants import GMAIL_FORMAT_FULL, RAG_MAIL_DOCUMENT_EXTENSION
 from src.domains.connectors.clients.google_gmail_client import GoogleGmailClient
-
-_DOCUMENT_NAME_MAX = 200
+from src.domains.rag_spaces.document_names import sanitize_document_name
 
 
 @dataclass(frozen=True, slots=True)
@@ -136,14 +134,11 @@ def render_thread(thread: dict[str, Any], *, max_chars: int) -> RenderedThread:
     )
 
 
-#: A subject is written by a third party: control characters and path
-#: separators never reach a stored display name (the file on disk is a UUID,
-#: but the name travels into headers, archives and the interface).
-_UNSAFE_NAME_CHARS = re.compile(r"[\x00-\x1f\x7f-\x9f/\\]+")
-
-
 def document_name(rendered: RenderedThread, thread_id: str) -> str:
     """The display name: the subject (never a participant), or the thread id.
+
+    A subject is written by a third party, so it goes through the sanitiser
+    every display name shares (``document_names.py``).
 
     Args:
         rendered: The rendered thread.
@@ -152,5 +147,6 @@ def document_name(rendered: RenderedThread, thread_id: str) -> str:
     Returns:
         A bounded, control-character-free ``.md`` name.
     """
-    base = _UNSAFE_NAME_CHARS.sub(" ", rendered.subject or "").strip() or thread_id
-    return f"{base[:_DOCUMENT_NAME_MAX]}{RAG_MAIL_DOCUMENT_EXTENSION}"
+    return sanitize_document_name(
+        rendered.subject, fallback=thread_id, extension=RAG_MAIL_DOCUMENT_EXTENSION
+    )

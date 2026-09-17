@@ -357,8 +357,13 @@ export default defineConfig({
         // tests): statements 79.40 / branches 74.91 / functions 76.53 /
         // lines 80.12. Raised 77/72/74/77 -> 77/72/74/78 (floor(measured - 2)
         // per axis — lines alone crosses an integer step this time).
+        // Re-measured 2026-09-17 after ADR-294 (the face that never plays the
+        // same thing twice — generated speech, warped beats, the sketch clock,
+        // ~30 new tests): statements 79.76 / branches 75.24 / functions 76.97 /
+        // lines 80.50. `branches` rises 72 -> 73 (floor(measured - 2)); the
+        // other three axes do not cross an integer step.
         statements: 77,
-        branches: 72,
+        branches: 73,
         functions: 74,
         lines: 78,
         // Chat state machine — fully covered, keep it that way (2026-07).
@@ -388,10 +393,12 @@ export default defineConfig({
         // subtree 99.78 / 98.11 / 100 / 100. The rig is pure and clock-driven,
         // so its behaviour is testable frame by frame — which is exactly why
         // it must stay near-total: the motion IS the feature, and a regression
-        // there is invisible to every other gate.
+        // there is invisible to every other gate. Re-measured 2026-09-17 after
+        // ADR-294: 95.68 / 91.45 / 97.23 / 97.19 — `branches` rises 86 -> 89
+        // (floor(measured - 2)); the other three axes hold their step.
         'src/components/eyes/**/*.{ts,tsx}': {
           statements: 93,
-          branches: 86,
+          branches: 89,
           functions: 95,
           lines: 95,
         },

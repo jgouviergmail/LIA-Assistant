@@ -118,6 +118,9 @@ export interface EmoteState {
 export interface EyesBehavior {
   frame: ExpressionFrame;
   blinking: boolean;
+  /** The running blink is a MASK — the host is swapping the face under it,
+   * so the rig holds the lids shut past the swap. */
+  blinkMask: boolean;
   /** Idle mood family pacing breathing and blink cadence. */
   family: IdleMoodFamily;
   /** Active idle-life gesture (null between gestures). */
@@ -305,6 +308,7 @@ export function useEyesBehavior({
 }: UseEyesBehaviorOptions): EyesBehavior {
   const [frame, setFrame] = useState<ExpressionFrame>({ expression: 'neutral', gaze: null });
   const [blinking, setBlinking] = useState(false);
+  const [blinkMask, setBlinkMask] = useState(false);
   const [family, setFamily] = useState<IdleMoodFamily>('calm');
   const [winking, setWinking] = useState(false);
   const [gesture, setGesture] = useState<IdleGesture | null>(null);
@@ -354,10 +358,14 @@ export function useEyesBehavior({
   // timers could clear `is-blinking` mid-cycle of a concurrent pulse — the
   // lid animation would cut and snap open without a transition.
   const blinkPulseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pulseBlink = useCallback(() => {
+  const pulseBlink = useCallback((mask = false) => {
     setBlinking(true);
+    setBlinkMask(mask);
     if (blinkPulseTimerRef.current) clearTimeout(blinkPulseTimerRef.current);
-    blinkPulseTimerRef.current = setTimeout(() => setBlinking(false), BLINK_DURATION_MS);
+    blinkPulseTimerRef.current = setTimeout(() => {
+      setBlinking(false);
+      setBlinkMask(false);
+    }, BLINK_DURATION_MS);
   }, []);
   useEffect(() => {
     return () => {
@@ -485,7 +493,7 @@ export function useEyesBehavior({
         pendingFrameTimerRef.current = null;
       }
       if (changed && !UNMASKED_ARRIVALS.has(next.expression) && !prefersReducedMotion()) {
-        pulseBlink();
+        pulseBlink(true);
         pendingFrameTimerRef.current = setTimeout(() => {
           pendingFrameTimerRef.current = null;
           land();
@@ -838,6 +846,7 @@ export function useEyesBehavior({
     // Overlay priority: the wink beats a performance beats the derived frame.
     frame: winking ? { expression: 'wink', gaze: null } : (performedFrame ?? frame),
     blinking,
+    blinkMask,
     family,
     // An accent outranks the idle gesture: it belongs to the answer that just
     // landed, and the idle life is what happens when nothing has.

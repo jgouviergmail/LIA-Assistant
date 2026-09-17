@@ -410,6 +410,35 @@ class MemoryRepository:
     # Aggregation & Stats
     # =========================================================================
 
+    async def list_for_portrait(self, user_id: UUID, *, limit: int) -> list[Memory]:
+        """The live facts the portrait reads: pinned first, then the most important.
+
+        Ordered over the WHOLE set in SQL — a page of the most recent, re-sorted
+        in Python, would show the strongest of a window rather than the
+        strongest the person has (ADR-185 pointed at ordering).
+
+        Args:
+            user_id: Owner.
+            limit: Page bound.
+
+        Returns:
+            The memories, pinned then important then most used then newest.
+        """
+        stmt = (
+            select(Memory)
+            .where(Memory.user_id == user_id, _active())
+            .order_by(
+                Memory.pinned.desc(),
+                Memory.importance.desc(),
+                Memory.usage_count.desc(),
+                Memory.created_at.desc(),
+                Memory.id.desc(),
+            )
+            .limit(limit)
+        )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
     async def get_count_for_user(self, user_id: UUID) -> int:
         """Get total memory count for a user.
 

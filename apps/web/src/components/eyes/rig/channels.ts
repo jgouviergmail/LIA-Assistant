@@ -37,6 +37,7 @@ export type ChannelUnit = 'num' | 'em' | 'deg' | 'pct';
 export type ChannelGroup =
   | 'gaze'
   | 'pose'
+  | 'brow'
   | 'lid'
   | 'blink'
   | 'mass'
@@ -103,7 +104,9 @@ const GLOBAL_SPECS = {
   hlX: { rest: 0, unit: 'num', group: 'aura', precision: 3, snap: false },
   hlY: { rest: 0, unit: 'num', group: 'aura', precision: 3, snap: false },
   /**
-   * The MOUTH — singular, so global rather than per-eye.
+   * The MOUTH — singular, so global rather than per-eye. Always drawn in
+   * full: it had a presence channel until 2026-09-17, and the ink switching
+   * on for every scene read as an interface element, never as a face.
    *
    * `mouthCurve` is SIGNED and it is the whole grammar: a smile and a frown
    * are not two shapes, they are one shape and a sign. Positive lifts the
@@ -111,7 +114,6 @@ const GLOBAL_SPECS = {
    * through continuously — which is only true because the curve is one
    * channel instead of a pair the poses would have to keep consistent.
    */
-  mouthA: { rest: 0.5, unit: 'num', group: 'aura', precision: 3, snap: false },
   mouthCurve: {
     // A resting face is faintly pleasant, not flat: a dead straight line under
     // two eyes reads as stern, which is not what this character is.
@@ -136,6 +138,9 @@ const GLOBAL_SPECS = {
    */
   mouthSkew: { rest: 0, unit: 'num', group: 'pose', precision: 3, snap: false },
   mouthY: { rest: 0, unit: 'em', group: 'pose', precision: 3, snap: false },
+  /** Sideways slide of the whole mouth, in screen em: lips pursed to one
+   * side for a thought, a word said out of one corner, a chew. */
+  mouthX: { rest: 0, unit: 'em', group: 'pose', precision: 3, snap: false },
   /** How far the lips part. Its own group because it FOLLOWS the shape of
    * the mouth rather than leading it — and because speech rides it. */
   mouthOpen: { rest: 0, unit: 'num', group: 'mouth', precision: 3, snap: false },
@@ -180,24 +185,31 @@ const EYE_SPECS = {
   /** Blink closure, 0 (open) to 1 (shut) — composes with the sustained lids. */
   blink: { rest: 0, unit: 'num', group: 'blink', precision: 3, snap: false },
   /** The brow, an organ of its own — height above the eye, tilt, curvature
-   * and how PRESENT it is. Height, tilt and curvature are `pose` (they are
-   * willed, so they anticipate and exaggerate); presence is `aura` (it
-   * follows).
+   * and how far it slides toward the nose. All four are `brow`: a group of
+   * its own, so the pair can lead the eye on every preset (a startle is
+   * brows first), and a willed one, so it anticipates and exaggerates.
    *
-   * It is PRESENT at rest, faintly (ADR-264, reversing ADR-252). Ten of the
-   * fourteen psyche moods idle on `neutral`, so a brow that only exists once
-   * an emotion lands has nothing to do for most of the session — and when
-   * an emotion does land it APPEARS, on a fade, rather than moving. A faint
-   * resting brow is what the breath, the gaze coupling and the idle beats
-   * have to act on. */
-  browY: { rest: 0, unit: 'em', group: 'pose', precision: 3, snap: false },
-  browRot: { rest: 0, unit: 'deg', group: 'pose', precision: 2, snap: false },
-  browA: { rest: 0.5, unit: 'num', group: 'aura', precision: 3, snap: false },
+   * It is drawn in FULL, always (2026-09-17, reversing ADR-264's half
+   * presence): a brow that switched on for every beat read as an interface
+   * element. Its weight is not declared but DERIVED from its motion (see
+   * `browS`), and the stylesheet anchors it to the visible edge of the eye
+   * so a squashed dome never leaves it floating. */
+  browY: { rest: 0, unit: 'em', group: 'brow', precision: 3, snap: false },
+  browRot: { rest: 0, unit: 'deg', group: 'brow', precision: 2, snap: false },
+  /** Horizontal slide, in screen em (positive = right). The two brows KNIT
+   * when the left one moves right and the right one moves left: a scowl, a
+   * worry, a fright. Apart, a startle. */
+  browX: { rest: 0, unit: 'em', group: 'brow', precision: 3, snap: false },
   /** How much the brow CURVES, 0 (a bar) to 1 (a full arch) — unitless for
    * the same reason `mouthArc` is: the stylesheet needs it as a height AND
    * as a radius ratio. A bar can only tilt; an arch can wonder, and the
    * difference between the two is most of what a brow says. */
-  browArc: { rest: 0.12, unit: 'num', group: 'pose', precision: 3, snap: false },
+  browArc: { rest: 0.12, unit: 'num', group: 'brow', precision: 3, snap: false },
+  /** Squash and stretch of the brow, DERIVED from its own motion every
+   * frame: raised, it stretches thin and long; pressed down, it thickens
+   * and shortens (`browStretchFor` in the runtime). Nothing declares it, so
+   * no pose and no beat can forget the weight of a brow. */
+  browS: { rest: 1, unit: 'num', group: 'brow', precision: 3, snap: false, derived: true },
   /** Pupil dilation. Its own group because it is SECONDARY action: the
    * pupil reacts to the emotion, a beat after the face does. */
   pupil: { rest: 1, unit: 'num', group: 'organ', precision: 3, snap: false },

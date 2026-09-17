@@ -6,7 +6,7 @@
 
 **Version**: 5.0
 **Date**: 2026-08-23
-**Application**: LIA v1.45.0
+**Application**: LIA v1.45.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -69,8 +69,8 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | ARM64 self-hosting | Multi-arch Docker, semantic embeddings (multilingual), Playwright chromium cross-platform |
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
-| Full transparency | 560 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 289 ADRs, ~29,531 pytest-collected tests across 1,737 files, native observability, 6-level HITL |
+| Full transparency | 564 Prometheus metrics, embedded debug panel, token-by-token tracking |
+| Production reliability | 293 ADRs, ~29,725 pytest-collected tests across 1,758 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -88,10 +88,10 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | 29,531 collected by pytest across 1,737 test files + 8,355 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | 29,725 collected by pytest across 1,758 test files + 8,423 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | pytest fixtures | 969, 46 of them shared through conftest |
 | Documentation documents | 647 |
-| ADRs (Architecture Decision Records) | 289 |
+| ADRs (Architecture Decision Records) | 293 |
 | Prometheus metrics | 553 definitions |
 | Grafana dashboards | 29 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -351,6 +351,8 @@ What a tool returns is **projected into the loop's context item by item, under a
 
 A turn also owes itself a working memory that outlives it. State is bounded by a message window, and a ReAct turn appends two messages per iteration — so a long enough turn pushes **its own question** out of that window, after which the windowing that splits history from the current loop no longer finds a split point at all. The reducer therefore re-pins the turn's question when truncation evicts it, on both of its branches, and the coupling between the iteration budget and the window size carries a name rather than living as an unstated arithmetic relation. What a turn actually delivers to the model is measured too — the prompt size per iteration and its share of the model's context window — because a loop that measured its iterations and its duration was measuring everything except the thing that grows.
 
+The tools the loop receives are **bound by relevance, never by registration order** (ADR-293). The router already computes an embedding of the question to score the domains; from the same vector it orders every available manifest — native tools and the person's MCP servers alike — into a global ranking the loop reads. The selection composes without any tool name written anywhere: the detected domains' tools, then the best of every other family so that each stays reachable, then the head of the ranking up to a published budget; the cap is only a safety net by stable sort. A hand-declared "core" list was written and rejected, because it encoded one account's usage into a multi-user product — family coverage says the same thing structurally. The loop also mounts the knowledge-spaces block the pipeline injects, read from the bundle the router prefetched without consuming it: what the pipeline knows, the loop knows. The number of bound tools and their schema tokens are measured, because that prefix weighed most of the first call while going uncounted.
+
 ### 5.4. Detached executions: generation survives the connection (ADR-117)
 
 Classic SSE streaming has a structural flaw: generation lives *inside* the HTTP response generator. Closing the tab, navigating away or losing the network kills the connection — and, with it, the whole conversation turn. LIA decouples the two: a **detached producer** (an asyncio task independent of the request) executes the graph and publishes every chunk to a **per-run Redis Stream**; the SSE endpoint is reduced to a **subscriber** relaying that stream.
@@ -386,6 +388,8 @@ An artifact and an answer follow two different lifecycles once they exist, and b
 An answer the person wants to keep is a different object: it is prose, it must render exactly as the bubble did, and it must outlive a conversation that is reset often. So a **bookmark is a copy, never a pointer**. At the click, the answer (markdown or a rich HTML document, verbatim), the request that produced it and the answer's date are written to a table of their own. The two references kept towards the conversation are `SET NULL` on delete: they only serve the toggle on the bubble while the conversation lives. The request is resolved **server-side** under the same visibility predicate the chat uses — the last visible user message before the answer, never the synthetic question of a run executed out of turn — and a notification LIA sent on its own initiative keeps no request rather than a wrong one. A partial unique index makes the toggle idempotent by construction, the account's cap is published because it is enforced, page and total come from one `WHERE`, and the operator's switch guards the act of keeping alone: what was already kept stays readable, exportable and deletable.
 
 Reading and deleting one's own files survives the uploads ceiling: the `attachments` router is mounted whatever `ATTACHMENTS_ENABLED` says, the capability guard sitting on the upload alone. Since every generated document is served by that read, an instance that generates without accepting uploads — the demonstrator — makes what it produces openable, and the expiry sweep runs for the table's four producers, never for uploads alone.
+
+A kept answer is also **indexed as a document of a knowledge space** (ADR-291): one space per account, found by its role and never by its name, created at the first bookmark, active by default, outside the space and document caps. The bookmark stays the record and the document its projection — a dated title, the quoted request, the answer converted to Markdown when it was an HTML page — so the exposed state (indexed, pending, deferred under a spend ceiling, disabled, in error) is derived from the document while it exists, and the cost is reported only once ready. A projection is claimed before it is computed, the capability and spend gates are read at the act, and a backfill rides the spaces' maintenance tick, serving the least recently attempted bookmark first — an account under quota no longer starves the others. Deleting the bookmark removes the document; the document is neither moved nor deleted from the space, and a space managed by its role is not deleted by hand.
 
 ## 6. The planning system (ExecutionPlan DSL)
 
@@ -691,6 +695,8 @@ The assistant maintains introspective reflections organized along four themes (s
 
 **Dedicated observability**: 11 Prometheus metrics in `src/infrastructure/observability/metrics_journals.py` — `journal_entries_total{action,theme,source}`, `journal_evidence_total{outcome}`, `journal_consolidation_promotions_total{from_level,to_level}`, `journal_level_distribution{level}`, `journal_portrait_present_total{flow,format}`, `journal_portrait_age_hours`, `journal_portrait_feedback_total{outcome}`, etc.
 
+The portrait is composed from **four sources on top of the journals** (ADR-292): memories, interests, learned habits and relationship debriefs enter the consolidation prompt as material for the synthesis. The journals domain imports none of those domains — two of them already import it — so each source is offered through a shared registry with a closed vocabulary, installed explicitly at boot and refused when incomplete. A reader answers `used | empty | disabled | unavailable` with an exact total, under its three gates read at the act (ceiling, operator switch, the person's preference), and never raises: a blind source is named, never read as empty. The assembler reads one source at a time under a per-source cap and drops a whole section beyond the global budget; the prompt renders a section only when it exists and forbids re-listing a line or naming its sources. The provenance is persisted with the portrait, in the same write, and drawn under it; a source that moved reopens the eligibility for the next consolidation.
+
 ### 11.6. Interest system
 
 Detection through query analysis with Bayesian weight evolution (configurable decay). Interests are grouped into **subjects** by batch LLM clustering (derived, self-healing data), and notification selection draws with **two-level rarity** (per-subject cooldown + priority to the least-served subjects and interests) — one passion never monopolizes notifications. Multi-source content (Perplexity, Brave, Wikipedia, LLM reflection) with deterministically appended **clickable source links**. User feedback (thumbs up/down/block) adjusts weights; nightly merge of near-duplicates.
@@ -893,6 +899,8 @@ Upload → Chunking → Embedding (gemini-embedding-001, 1536d) → pgvector HNS
 
 Note: RAG injection is done in the response node, not in the planner. The planner however receives personal journal injection via `build_journal_context()`.
 
+A document that could not be indexed **says why**: a closed code is stored on the row (file missing, extraction failed, no text, no chunks, too many chunks, retries exhausted) and translated at display time in six languages, under the document's row. The most frequent case — a scanned PDF whose pages carry images with no text layer — is told apart from a genuinely empty file and shown with its remedy: open the file in Google Docs, which recognises the text, then add it to the space through its Drive source. No character recognition is promised that the code does not provide.
+
 ### 17.2. System RAG Spaces (ADR-058)
 
 Built-in FAQ (250 Q/A, 24 sections) indexed from `docs/knowledge/`. `is_app_help_query` detection by QueryAnalyzer, Rule 0 override in RoutingDecider, App Identity Prompt (~200 tokens, lazy loading). Staleness is judged on a SHA-256 over the source files **and** on the stored corpus itself (one chunk per parsed entry, exactly one document): a matching hash over the wrong number of rows is a repair, not a no-op. Auto-indexation runs in every uvicorn worker, so the space row is claimed with `FOR UPDATE SKIP LOCKED` — one writer, the others skip without queueing — and every vector is computed **before** the first destructive statement, so a provider rejection deletes nothing and the previous corpus keeps serving (ADR-162).
@@ -993,7 +1001,7 @@ Provenance is therefore a property of the **data**: the registry's 24 types are 
 
 | Technology | Role |
 |------------|------|
-| Prometheus | 560 custom metrics (RED pattern) |
+| Prometheus | 564 custom metrics (RED pattern) |
 | Grafana | 29 production-ready dashboards |
 | Loki | Aggregated structured JSON logs |
 | Tempo | Cross-service distributed traces (OTLP gRPC) |
@@ -1001,7 +1009,7 @@ Provenance is therefore a property of the **data**: the registry's 24 types are 
 | Alertmanager | 14-alert vital core delivered by email (linked runbooks, per-environment thresholds) + webhook to LIA: every alert becomes an in-product incident (ADR-247) |
 | structlog | Structured logging with PII filtering |
 
-**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 560 defined; the 44 that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. The price of not having had this: a heartbeat source failing open dropped the health signals on 46.5 % of ticks for a week, with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
+**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 564 defined; the 44 that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. The price of not having had this: a heartbeat source failing open dropped the health signals on 46.5 % of ticks for a week, with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
 
 ### 20.2. Embedded Debug Panel
 
@@ -1273,7 +1281,7 @@ Six cross-cutting capabilities share the same product philosophy: **instant feed
 - **LaTeX rendering** — The mathematical and scientific formulas LIA writes (`$inline$` / `$$block$$`) render via KaTeX in `MarkdownContent.tsx`. Since the assistant emits its whole answer as HTML, a `rehypeMathInText` plugin detects the `$`/`$$` delimiters at the hast level — after `rehypeRaw` has expanded the HTML — and turns them into the markers `rehype-katex` renders; `remark-math`, confined to markdown, never sees math buried in HTML. Order: `rehypeRaw → rehypeSanitize → rehypeMathInText → rehypeKatex`; the math steps read only already-sanitised text and emit fixed-class spans, so no new attack surface.
 - **Syntax highlighting** — `react-syntax-highlighter` (PrismAsyncLight) lazy-loaded. 25 languages registered on-demand via `SyntaxHighlighter.registerLanguage(...)` to keep the initial bundle small (languages fetched at first code block). Theme auto-switches `one-dark` / `one-light` driven by `next-themes`.
 
-- **Rich-HTML mode: a component vocabulary** — when the user picks the rich-HTML display mode, the prompt directive exposes seven design-system-styled components (titled callouts, icon chips, native `details` collapsibles, key-value lists, responsive columns, numbered steps, stat tiles) plus the inline accents `mark`/`kbd`/`abbr`, under an explicit restraint rule — prose leads, components support. The enrichment is purely declarative (prompt + CSS + sanitize allowlist: six inert tags added, plugin order unchanged) and a CI guard fails if the directive ever advertises a class the stylesheet does not cover. Copy, share and `.md` export flatten the HTML to readable text (dual-flavor clipboard `text/html` + `text/plain`), a client-side mirror of the backend's `html_to_text` semantics; icon ligatures are excluded from search highlighting.
+- **Rich-HTML mode: a component vocabulary** — when the user picks the rich-HTML display mode, the prompt directive exposes seven design-system-styled components (titled callouts, icon chips, native `details` collapsibles, key-value lists, responsive columns, numbered steps, stat tiles) plus the inline accents `mark`/`kbd`/`abbr`, under an explicit layout rule — every answer that carries data is a composed page (a lead sentence, one section per facet in its component, a closing callout), and the shape follows the answer's own data, never the shape of earlier answers. The enrichment is purely declarative (prompt + CSS + sanitize allowlist: six inert tags added, plugin order unchanged) and a CI guard fails if the directive ever advertises a class the stylesheet does not cover. Copy, share and `.md` export flatten the HTML to readable text (dual-flavor clipboard `text/html` + `text/plain`), a client-side mirror of the backend's `html_to_text` semantics; icon ligatures are excluded from search highlighting.
 
 ### 23.9. Proactive feedback persistence
 
@@ -1401,7 +1409,7 @@ One CSS rule governs the design system's spacing: vertical margins on an `inline
 
 ## 24. Architecture Decision Records (ADR)
 
-289 ADRs in MADR format document the major architectural decisions. Some representative examples:
+293 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1551,6 +1559,8 @@ The Activity page is a **pure read model**: parallel fetchers (one session per s
 The chat's eyes widget (ADR-240) is built on a single principle: **no new signal, no new cost**. A pure engine — decision tables with injected RNG and clocks — derives one of twenty expressions from a priority chain (error > HITL question > voice > interaction > per-turn reaction > notification > typing > inactivity > mood × hour) fed entirely by machinery the app already had: the chat state machine, the SSE execution steps (thinking vs tool search), the HITL card, the voice state machine and the psyche engine. The per-answer reaction reads the emotional self-report the model already attaches to its own turn, with a strictly language-neutral heuristic fallback (punctuation, emoji, structure — fullwidth Chinese included). Rendering is declarative — an expression attribute, CSS custom properties, and an animation sheet where eyelids are **pure geometric morphs** (anchored vertical compression, per-eye rotation, radius shaping): no clipping anywhere, so every intermediate state stays a smooth curve. The life between events — blinks, gaze saccades, mood-weighted gestures, day-dream micro-scenes, rare slapstick — lives in owned-timer schedulers that pause when the tab is hidden or the widget minimized, and freeze under `prefers-reduced-motion`. The six selectable looks share this one skeleton: a generic registry where adding a gaze costs one id, one scoped CSS sheet and six locale entries — completeness is a test, not a convention.
 
 The face lives between two answers, and that life is a rig, not a stylesheet (ADR-252, ADR-264). A TypeScript runtime computes every channel each frame — analytic springs, additive loops, tapes of keys — and publishes the result as `--rig-*` custom properties the sheet only reads: a stylesheet never declares one and never puts a transition on a value that changes sixty times a second. The brow has an arch and stays faintly present at rest; one breath carries the mass, the brows and the mouth width on the same period; the gaze lifts the brows and a blink dips them, coupled in the rig as **absolute contributions rather than increments**, because the idle fast path only rewrites the channels a loop rides — an increment there would drift for the whole session, which a test pins by comparing twenty thousand small steps against one. Speech has phrases (an envelope through the closure, an opening bounded in the unit interval) and brows that punctuate on an irregular pattern. The mouth has a life of its own — relative mimics at a random cadence, scheduled by the rig — and ten short sketches on a resting face, dropped by any expression change with the face exactly where it was, checked against a twin rig. The randomness comes from a separate seeded stream, never `Math.random`, so the widget tests stay deterministic; the moving hold is a pixel budget in the tests — visible at rest, under two pixels, exactly zero on a focused face. The same widget greets visitors on the public home page: no account, one position per surface, the capsule look forced there while the chat keeps the user's own style — and the style picker's previews switch that life off, because a preview compares silhouettes.
+
+The rig was then reworked channel by channel against a measurement of what the page actually rendered (ADR-294). The brow sits on the eye and weighs: it has mass, knits, and **leads** each expression instead of following it. Speech is no longer a loop but a generated phrase — syllables, pauses, stresses — that nothing repeats; the beats of the expressions are warped on every draw, so two blinks, two smiles, two glances are never identical. The sketches wait for real resting time on a clock the page keeps across navigations, because a clock reset at every mount never let the scene arrive. All of it reads in sixty-one published channels, measured frame by frame.
 
 ---
 
@@ -1708,8 +1718,8 @@ The connection budget has a floor, not only a ceiling. Audit F004 bounded the bu
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 289 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~29,531 tests across 1,737 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 293 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~29,725 tests across 1,758 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 289 ADRs, and the changelog (v1.0 to v1.45.0). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 293 ADRs, and the changelog (v1.0 to v1.45.1). All metrics, versions, and patterns cited are verifiable in the codebase.*

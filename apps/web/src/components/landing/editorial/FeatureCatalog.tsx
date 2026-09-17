@@ -1,7 +1,11 @@
 import { FEATURE_ICONS } from './chapters-data';
 
-/** Server-side translate function shape shared by the editorial sections. */
-export type Translate = (key: string) => string;
+/**
+ * Server-side translate function shape shared by the editorial sections.
+ * `options` carries interpolation values (a derived `count`, never a number
+ * typed into the copy).
+ */
+export type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**
  * The detailed feature cards (reading level 2), reusing the existing

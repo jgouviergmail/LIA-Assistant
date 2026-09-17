@@ -22,6 +22,7 @@ from fastapi import status
 from src.core.config import settings
 from src.core.exceptions import BaseAPIException
 from src.domains.rag_spaces import document_ops
+from src.domains.rag_spaces.document_access import raise_document_managed
 from src.domains.rag_spaces.models import RAGDocumentSourceType, RAGDocumentStatus
 from src.domains.rag_spaces.schemas import RAGDocumentMoveRequest
 from src.domains.rag_spaces.service import RAGSpaceService
@@ -274,6 +275,16 @@ async def test_move_refuses_a_system_target(
             "document_managed_by_meetings",
         ),
         (
+            lambda space, target: document(space, source_type=RAGDocumentSourceType.BOOKMARK),
+            "document_managed_by_bookmarks",
+        ),
+        # ADR-262 said a label's document is not movable; the code only refused
+        # Drive and meetings until the managed-kinds table (2026-09-16).
+        (
+            lambda space, target: document(space, source_type=RAGDocumentSourceType.MAIL),
+            "document_managed_by_mail",
+        ),
+        (
             lambda space, target: document(space, doc_status=RAGDocumentStatus.PROCESSING),
             "document_busy",
         ),
@@ -426,22 +437,29 @@ async def test_bulk_delete_reports_per_document(
     missing = uuid.uuid4()
     index_documents(service, ok, broken)
 
+    kept = document(space, filename="c.md", source_type=RAGDocumentSourceType.BOOKMARK)
+    index_documents(service, kept)
+
     async def delete_document(space_id: uuid.UUID, document_id: uuid.UUID, uid: uuid.UUID) -> None:
-        # The real method refuses a foreign id with 404 and may fail on the disk.
+        # The real method refuses a foreign id with 404, a managed document
+        # with its own code, and may fail on the disk.
         if document_id == missing:
             document_ops.raise_document_not_found(document_id)
+        if document_id == kept.id:
+            raise_document_managed(RAGDocumentSourceType.BOOKMARK)
         if document_id == broken.id:
             raise RuntimeError("boom")
 
     with patch.object(service, "delete_document", AsyncMock(side_effect=delete_document)):
         result = await document_ops.bulk_delete_documents(
-            service, space.id, user_id, [ok.id, broken.id, missing, ok.id]
+            service, space.id, user_id, [ok.id, broken.id, missing, kept.id, ok.id]
         )
 
     assert result.done == [ok.id]
     assert [(s.id, s.code) for s in result.skipped] == [
         (broken.id, "delete_failed"),
         (missing, "document_not_found"),
+        (kept.id, "document_managed_by_bookmarks"),
     ]
 
 

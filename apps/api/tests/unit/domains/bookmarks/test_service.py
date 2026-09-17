@@ -59,7 +59,6 @@ def repositories() -> tuple[MagicMock, MagicMock]:
     bookmarks.add = AsyncMock(side_effect=lambda bookmark: bookmark)
     bookmarks.get_for_user = AsyncMock(return_value=None)
     bookmarks.delete = AsyncMock()
-    bookmarks.delete_by_message = AsyncMock(return_value=True)
     settings = MagicMock()
     settings.bookmarks_max_per_user = 3
     return bookmarks, settings
@@ -211,11 +210,92 @@ class TestRemoving:
         self, repositories: tuple[MagicMock, MagicMock]
     ) -> None:
         bookmarks, settings = repositories
-        bookmarks.delete_by_message.return_value = False
+        bookmarks.get_by_message.return_value = None
         user_id, message_id = uuid4(), uuid4()
 
         with patch(f"{MODULE}.settings", settings):
             removed = await _service(repositories).remove_by_message(user_id, message_id)
 
         assert removed is False
-        bookmarks.delete_by_message.assert_awaited_once_with(user_id, message_id)
+        bookmarks.delete.assert_not_awaited()
+
+
+class TestProjection:
+    """The knowledge-space projection rides the service's own commits (part A)."""
+
+    async def test_keeping_a_new_answer_schedules_its_projection_after_the_commit(
+        self, repositories: tuple[MagicMock, MagicMock]
+    ) -> None:
+        bookmarks, settings = repositories
+        scheduled: list[str] = []
+
+        def _fire(coro: object, *, name: str) -> None:
+            scheduled.append(name)
+            coro.close()  # type: ignore[attr-defined]
+
+        with (
+            patch(f"{MODULE}.settings", settings),
+            patch(f"{MODULE}.safe_fire_and_forget", side_effect=_fire),
+        ):
+            bookmark, created = await _service(repositories).keep(uuid4(), uuid4())
+
+        assert created is True
+        assert scheduled == [f"bookmark_index_{bookmark.id}"]
+
+    async def test_keeping_an_already_kept_answer_schedules_nothing(
+        self, repositories: tuple[MagicMock, MagicMock]
+    ) -> None:
+        bookmarks, settings = repositories
+        bookmarks.get_by_message.return_value = MagicMock()
+
+        with (
+            patch(f"{MODULE}.settings", settings),
+            patch(f"{MODULE}.safe_fire_and_forget") as fire,
+        ):
+            await _service(repositories).keep(uuid4(), uuid4())
+
+        fire.assert_not_called()
+
+    async def test_removing_discards_the_projection_in_the_same_transaction(
+        self, repositories: tuple[MagicMock, MagicMock]
+    ) -> None:
+        bookmarks, settings = repositories
+        row = MagicMock()
+        bookmarks.get_for_user.return_value = row
+        order: list[str] = []
+        service = _service(repositories)
+        service.db.commit = AsyncMock(side_effect=lambda: order.append("commit"))
+        bookmarks.delete = AsyncMock(side_effect=lambda _row: order.append("delete"))
+
+        async def _discard(db: object, bookmark: object) -> str:
+            order.append("discard")
+            return "path"
+
+        with (
+            patch(f"{MODULE}.settings", settings),
+            patch(f"{MODULE}.discard_index", side_effect=_discard),
+            patch(f"{MODULE}.unlink_quietly", side_effect=lambda p: order.append(f"unlink:{p}")),
+        ):
+            await service.remove(uuid4(), uuid4())
+
+        assert order == ["discard", "delete", "commit", "unlink:path"]
+
+    async def test_removing_by_message_discards_the_projection_too(
+        self, repositories: tuple[MagicMock, MagicMock]
+    ) -> None:
+        bookmarks, settings = repositories
+        row = MagicMock()
+        bookmarks.get_by_message.return_value = row
+        discard = AsyncMock(return_value=None)
+
+        with (
+            patch(f"{MODULE}.settings", settings),
+            patch(f"{MODULE}.discard_index", discard),
+            patch(f"{MODULE}.unlink_quietly") as unlink,
+        ):
+            removed = await _service(repositories).remove_by_message(uuid4(), uuid4())
+
+        assert removed is True
+        discard.assert_awaited_once()
+        bookmarks.delete.assert_awaited_once_with(row)
+        unlink.assert_called_once_with(None)

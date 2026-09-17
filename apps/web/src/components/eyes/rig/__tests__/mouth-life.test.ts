@@ -14,8 +14,10 @@ import {
   drawMouthLifeDelayMs,
   drawMouthMimic,
   mimicTapes,
-  MOUTH_LIFE_BURST_DELAY_MS,
-  MOUTH_LIFE_BURST_PROBABILITY,
+  MOUTH_LIFE_FOLLOW_UP_MAX_MS,
+  MOUTH_LIFE_FOLLOW_UP_MIN_MS,
+  MOUTH_LIFE_FOLLOW_UP_PROBABILITY,
+  MIMIC_RELEASE,
   MOUTH_LIFE_EXPRESSIONS,
   MOUTH_LIFE_MAX_DELAY_MS,
   MOUTH_LIFE_MAX_MS,
@@ -61,10 +63,11 @@ function mimicOnsets(rig: EyeRig, seconds: number, expression: EyeExpression): n
   run(rig, seconds, values => {
     clock += 16;
     const away = Math.abs(values.mouthCurve - pose) > hold + 0.06 || values.mouthOpen > 0.03;
-    // A scene holds at most 1.2 s and eases home after: anything that far
-    // from the pose within 1.7 s of an onset is the same performance (a
-    // smack crosses the band twice), not a new one.
-    if (away && (onsets.length === 0 || clock - onsets[onsets.length - 1] > 1700)) {
+    // A scene holds at most 1.2 s and lets go on its own spring for up to
+    // 1.2 s more: anything that far from the pose within 2.6 s of an onset
+    // is the same performance (a smack crosses the band twice), not a new
+    // one — and a follow-up never comes closer than that either.
+    if (away && (onsets.length === 0 || clock - onsets[onsets.length - 1] > 2600)) {
       onsets.push(clock);
     }
   });
@@ -96,10 +99,12 @@ describe('the library', () => {
             channel: tape.channel,
             endsAfterKeys: (tape.durationMs ?? 0) >= tape.keys[tape.keys.length - 1].atMs,
           }).toEqual({ mimic, channel: tape.channel, endsAfterKeys: true });
+          // A HOLD is a beat: it never outlives the cap. A RELEASE (the
+          // scene's own way home) may run past it — it is not a hold.
           expect({
             mimic,
             channel: tape.channel,
-            short: tapeDurationMs(tape) <= MOUTH_LIFE_MAX_MS,
+            short: tape.release === true || tapeDurationMs(tape) <= MOUTH_LIFE_MAX_MS,
           }).toEqual({
             mimic,
             channel: tape.channel,
@@ -207,31 +212,15 @@ describe('the library', () => {
     });
   });
 
-  it('INKS the mouth and the brows while it plays — a face at half presence performing reads washed out', () => {
+  it('carries no ink: the face is drawn whole, a scene moves it and never switches it on', () => {
     MOUTH_MIMICS.forEach(mimic => {
-      const tapes = mimicTapes(mimic, 1);
-      const ink = tapes.filter(tape => ['mouthA', 'browAL', 'browAR'].includes(tape.channel));
-      expect({ mimic, inked: ink.map(tape => tape.channel).sort() }).toEqual({
+      const channels = mimicTapes(mimic, 1).map(tape => tape.channel);
+      expect({ mimic, presence: channels.filter(c => /^(mouthA$|browA[LR]$)/.test(c)) }).toEqual({
         mimic,
-        inked: ['browAL', 'browAR', 'mouthA'],
+        presence: [],
       });
-      const lead = tapes.find(
-        tape => tape.channel.startsWith('mouth') && tape.channel !== 'mouthA'
-      )!;
-      const releaseMs = Math.max(...tapes.map(tapeDurationMs));
-      ink.forEach(tape => {
-        // The ink rises with the scene's own attack and is handed back with
-        // the last of its tapes, fading on the slow aura dynamics.
-        expect(tape.keys[0].atMs).toBe(lead.keys[0].atMs);
-        expect(tape.keys[0].value).toBeGreaterThan(0.2);
-        expect(tape.keys).toHaveLength(1);
-        expect(tapeDurationMs(tape)).toBe(releaseMs);
-        expect(tapeDurationMs(tape)).toBeLessThanOrEqual(MOUTH_LIFE_MAX_MS);
-      });
+      channels.forEach(channel => expect(channel in CHANNELS).toBe(true));
     });
-    // The big scenes commit in full from the resting half presence.
-    const grinInk = mimicTapes('grin', 1).find(tape => tape.channel === 'mouthA')!;
-    expect(grinInk.keys[0].value + CHANNELS.mouthA.rest).toBeGreaterThanOrEqual(1);
   });
 
   it('is BIG where the first version was polite: a grin reaches a full smile', () => {
@@ -330,20 +319,60 @@ describe('the draw', () => {
     expect(Math.abs(skew(large))).toBeGreaterThan(Math.abs(skew(small)));
   });
 
-  it('paces the cadence uniformly inside its band, with the occasional burst', () => {
+  it('paces the cadence in PHRASES: a silence, then a beat that may be followed by one or two more', () => {
+    // First draw: does the phrase go on? Second: where in the band.
     expect(drawMouthLifeDelayMs(sequence([0.99, 0]))).toBe(MOUTH_LIFE_MIN_DELAY_MS);
     expect(drawMouthLifeDelayMs(sequence([0.99, 1]))).toBe(MOUTH_LIFE_MAX_DELAY_MS);
-    expect(drawMouthLifeDelayMs(sequence([MOUTH_LIFE_BURST_PROBABILITY / 2]))).toBe(
-      MOUTH_LIFE_BURST_DELAY_MS
-    );
-    // A resting character's facial beat every eight to twelve seconds, the
-    // eyes wandering in between — never the every-two-seconds that read as
-    // nervous tics on the running widget.
-    expect(MOUTH_LIFE_MIN_DELAY_MS).toBeGreaterThanOrEqual(5000);
+    expect(drawMouthLifeDelayMs(sequence([0, 0]))).toBe(MOUTH_LIFE_FOLLOW_UP_MIN_MS);
+    expect(drawMouthLifeDelayMs(sequence([0, 1]))).toBe(MOUTH_LIFE_FOLLOW_UP_MAX_MS);
+    // Measured on the running widget (2026-09-17): three independent
+    // draws — eye beats, mimics, scenes — gave a facial event every five to
+    // eight seconds with no rhythm at all, which reads as a tic. A resting
+    // character acts in PHRASES: silence, then a thought that unfolds in
+    // one, two or three beats a second or two apart, then silence again.
+    expect(MOUTH_LIFE_MIN_DELAY_MS).toBeGreaterThanOrEqual(7000);
     expect(MOUTH_LIFE_MAX_DELAY_MS).toBeLessThanOrEqual(16000);
-    expect((MOUTH_LIFE_MIN_DELAY_MS + MOUTH_LIFE_MAX_DELAY_MS) / 2).toBeGreaterThanOrEqual(8000);
-    expect(MOUTH_LIFE_BURST_DELAY_MS).toBeGreaterThanOrEqual(1500);
-    expect(MOUTH_LIFE_BURST_PROBABILITY).toBeLessThanOrEqual(0.12);
+    expect((MOUTH_LIFE_MIN_DELAY_MS + MOUTH_LIFE_MAX_DELAY_MS) / 2).toBeGreaterThanOrEqual(10000);
+    expect(MOUTH_LIFE_FOLLOW_UP_MIN_MS).toBeGreaterThanOrEqual(1000);
+    expect(MOUTH_LIFE_FOLLOW_UP_MAX_MS).toBeLessThanOrEqual(3000);
+    expect(MOUTH_LIFE_FOLLOW_UP_PROBABILITY).toBeGreaterThanOrEqual(0.25);
+    expect(MOUTH_LIFE_FOLLOW_UP_PROBABILITY).toBeLessThanOrEqual(0.45);
+  });
+
+  it('never draws the mimic it just played', () => {
+    const seen = new Set<string>();
+    for (let r = 0; r < 1; r += 0.005) seen.add(pickMimic(() => r, 'grin'));
+    expect(seen.has('grin')).toBe(false);
+    expect(seen.size).toBe(MOUTH_MIMICS.length - 1);
+  });
+
+  it('warps every drawn performance: two draws of one mimic never play alike', () => {
+    const a = drawMouthMimic(sequence([0.18, 0.5, 0.5, 0.2, 0.9, 0.1, 0.4, 0.7]));
+    const b = drawMouthMimic(sequence([0.18, 0.5, 0.5, 0.8, 0.1, 0.9, 0.6, 0.3]));
+    expect(a.mimic).toBe('gasp');
+    expect(b.mimic).toBe('gasp');
+    const open = (draw: typeof a) => draw.tapes.find(tape => tape.channel === 'mouthOpen')!;
+    expect(open(a).durationMs).not.toBe(open(b).durationMs);
+    expect(open(a).keys[0].value).not.toBe(open(b).keys[0].value);
+    // ...and the two brows of one draw are not the same tape mirrored.
+    const brow = (draw: typeof a, side: 'L' | 'R') =>
+      draw.tapes.find(tape => tape.channel === `browY${side}`)!;
+    expect(brow(a, 'L').keys[0].value / -0.1).not.toBeCloseTo(
+      brow(a, 'R').keys[0].value / -0.092,
+      3
+    );
+  });
+
+  it('lets every scene go on ITS OWN spring — a sulk lingers, a smack snaps back', () => {
+    MOUTH_MIMICS.forEach(mimic => {
+      const releases = mimicTapes(mimic, 1).filter(tape => tape.release);
+      expect({ mimic, released: releases.length > 0 }).toEqual({ mimic, released: true });
+      releases.forEach(tape => expect(tape.spring).toEqual(MIMIC_RELEASE[mimic]));
+    });
+    expect(MIMIC_RELEASE.sulk.frequency).toBeLessThan(MIMIC_RELEASE.smack.frequency);
+    expect(
+      new Set(Object.values(MIMIC_RELEASE).map(spring => spring.frequency)).size
+    ).toBeGreaterThan(4);
   });
 
   it('plays between three and nine scenes a minute over five minutes of rest', () => {
@@ -375,8 +404,8 @@ describe('in the rig', () => {
     const gaps = onsets.slice(1).map((at, index) => at - onsets[index]);
     expect(new Set(gaps).size).toBeGreaterThan(gaps.length / 2);
     // An onset is read a few frames after the tape starts, so a follow-up at
-    // the burst delay can be detected a little under it.
-    gaps.forEach(gap => expect(gap).toBeGreaterThanOrEqual(MOUTH_LIFE_BURST_DELAY_MS - 200));
+    // the shortest delay can be detected a little under it.
+    gaps.forEach(gap => expect(gap).toBeGreaterThanOrEqual(MOUTH_LIFE_FOLLOW_UP_MIN_MS - 200));
   });
 
   it('is BIG where the hold is small: a grin is a mouth several pixels tall and eyes squashed to arcs', () => {
@@ -389,7 +418,7 @@ describe('in the rig', () => {
     });
     const heights: number[] = [];
     let squash = 1;
-    run(rig, 12, values => {
+    run(rig, 16, values => {
       heights.push(faceMetrics(values, SIZE_PX.md).mouthHeight);
       squash = Math.min(squash, values.syL);
     });
@@ -459,6 +488,41 @@ describe('in the rig', () => {
       opened = Math.max(opened, values.mouthOpen);
     });
     expect(opened).toBeGreaterThan(0.05);
+  });
+
+  it('ANSWERS an eye beat: asked to, the face follows within the delay, and only at rest', () => {
+    // The host cues it after a glance or a tilt (a share of them): the eyes
+    // do something, the face answers a beat later — one thought in two
+    // parts, where two independent timers gave two characters.
+    const rig = createEyeRig({
+      initial: { expression: 'neutral', styleId: 'cozmo', family: 'calm' },
+      // A long silence first, so the answer is the only mimic in the window.
+      lifeRandom: sequence([0.99, 0.99, 0.5, 0.99, 0.99, 0.5, 0.5, 0.5]),
+    });
+    run(rig, 1);
+    rig.answerIn(500);
+    const onsets = mimicOnsets(rig, 3, 'neutral');
+    expect(onsets).toHaveLength(1);
+    expect(onsets[0]).toBeLessThan(900);
+    // Never on top of a mimic still playing: a cue that would land inside
+    // the scene is dropped (one face at a time).
+    const playing = createEyeRig({
+      initial: { expression: 'neutral', styleId: 'cozmo', family: 'calm' },
+      lifeRandom: sequence([0.99, 0.99, 0.5, 0.99, 0.99, 0.5, 0.5, 0.5]),
+    });
+    run(playing, 1);
+    playing.answerIn(0);
+    run(playing, 0.3); // the answer starts a mimic
+    playing.answerIn(200); // ...which is still on: dropped
+    expect(mimicOnsets(playing, 3, 'neutral').length).toBeLessThanOrEqual(1);
+    // Not on a thought in progress: the cue is dropped, never queued.
+    const busy = createEyeRig({
+      initial: { expression: 'searching', styleId: 'cozmo', family: 'calm' },
+      lifeRandom: sequence([0.99, 0.99, 0.5, 0.99, 0.99, 0.5, 0.5, 0.5]),
+    });
+    run(busy, 1);
+    busy.answerIn(500);
+    expect(mimicOnsets(busy, 3, 'searching')).toEqual([]);
   });
 
   it('honours reduced motion outright', () => {

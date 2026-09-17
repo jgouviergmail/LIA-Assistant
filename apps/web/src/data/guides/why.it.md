@@ -4,7 +4,7 @@
 
 **Versione**: 6.0
 **Data**: 2026-08-23
-**Applicazione**: LIA v1.45.0
+**Applicazione**: LIA v1.45.1
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -71,7 +71,7 @@ Ogni utente ha il proprio spazio di configurazione, organizzato in due schede. U
 - **Notifiche proattive**: regola frequenza, finestra oraria e fonti di contesto (calendario, meteo, attività, email, interessi, memorie, diari)
 - **Azioni pianificate e promemoria**: indica il ritmo — ogni tre giorni, un martedì su due, il 2º martedì del mese, ogni due ore tra le 9 e le 17, fino a una data o N volte — tanto per un'automazione quanto per un promemoria, che ora può tornare invece di suonare una volta sola. E leggi la tua settimana a colpo d'occhio: ogni routine alla sua ora nei suoi giorni, ogni cella colorata da ciò che è davvero successo
 - **Skills**: attiva/disattiva competenze specializzate in una galleria con anteprime, crea le tue Skills personali, o installane una da un URL https (validato lato server)
-- **Spazi di conoscenza**: carica i tuoi documenti (PDF, Word, Excel, PowerPoint, EPUB, HTML e 15+ formati), sincronizza una cartella di Google Drive o segui un'etichetta Gmail — indicizzazione automatica e ricerca ibrida. Le conversazioni che etichetti diventano documenti interrogabili settimane dopo, e togliere l'etichetta rimuove il documento
+- **Spazi di conoscenza**: carica i tuoi documenti (PDF, Word, Excel, PowerPoint, EPUB, HTML e 15+ formati), sincronizza una cartella di Google Drive o segui un'etichetta Gmail — indicizzazione automatica e ricerca ibrida. Le conversazioni che etichetti diventano documenti interrogabili settimane dopo, e togliere l'etichetta rimuove il documento. Un documento che LIA non può leggere — un PDF scansionato senza livello di testo — lo dice sotto la sua riga, con il rimedio
 - **Export dei consumi**: scarica i tuoi dati di consumo LLM e API in CSV
 
 ### 2.3. Cosa controlla l'amministratore
@@ -114,11 +114,11 @@ LIA agisce concretamente nella tua vita digitale grazie a 20+ agenti specializza
 Scegli tu come ragiona LIA, tramite un semplice toggle (⚡) nell'intestazione della chat:
 
 - **Modalità Pipeline** (predefinita) — Un vero capolavoro di ingegneria: LIA pianifica tutti i passaggi in anticipo, li valida semanticamente ed esegue gli strumenti in parallelo. Risultato: la stessa potenza di un agente autonomo, ma con 4-8 volte meno token consumati. La modalità più economica e prevedibile.
-- **Modalità ReAct** (⚡) — L'assistente ragiona passo dopo passo: chiama uno strumento, analizza il risultato e decide cosa fare dopo. Più autonomo, più adattabile, ma più costoso in token. Ideale per ricerche esplorative o domande complesse il cui valore aggiunto giustifica il costo. È inoltre l'unica modalità in grado di calcolare invece di stimare: quando un passo richiede aritmetica su molte righe o durate tra fusi orari, scrive poche righe di Python e le esegue in una sandbox isolata.
+- **Modalità ReAct** (⚡) — L'assistente ragiona passo dopo passo: chiama uno strumento, analizza il risultato e decide cosa fare dopo. Più autonomo, più adattabile, ma più costoso in token. Ideale per ricerche esplorative o domande complesse il cui valore aggiunto giustifica il costo. È inoltre l'unica modalità in grado di calcolare invece di stimare: quando un passo richiede aritmetica su molte righe o durate tra fusi orari, scrive poche righe di Python e le esegue in una sandbox isolata. Gli strumenti che porta con sé sono scelti per rilevanza rispetto alla tua domanda — i tuoi server MCP compresi — mai per ordine di arrivo, e legge i tuoi spazi di conoscenza esattamente come la modalità Pipeline.
 
 ### 3.1. Conversazione naturale
 
-Parla a LIA come faresti con un assistente umano — niente comandi da memorizzare, niente sintassi da rispettare. LIA capisce e risponde in 99+ lingue, con un'interfaccia disponibile in 6 lingue (francese, inglese, tedesco, spagnolo, italiano, cinese). Le risposte vengono visualizzate in schede HTML interattive, in HTML diretto, o in Markdown secondo le tue preferenze.
+Parla a LIA come faresti con un assistente umano — niente comandi da memorizzare, niente sintassi da rispettare. LIA capisce e risponde in 99+ lingue, con un'interfaccia disponibile in 6 lingue (francese, inglese, tedesco, spagnolo, italiano, cinese). Le risposte vengono visualizzate in schede HTML interattive, in HTML diretto, o in Markdown secondo le tue preferenze. In HTML arricchito, una risposta che porta dati arriva come una pagina composta — una frase di apertura, una sezione per aspetto nel componente che le si addice, un riquadro di chiusura — mai come testo con tag.
 
 ### 3.2. Servizi connessi personali
 
@@ -156,7 +156,7 @@ LIA offre una modalità vocale completa:
 - **Diagrammi Excalidraw**: genera schemi e diagrammi direttamente nella conversazione
 - **Allegati**: allega foto e PDF — LIA analizza il contenuto visivo ed estrae il testo dai documenti
 - **MCP Apps**: widget interattivi direttamente nella chat (moduli, visualizzazioni, mini-applicazioni)
-- **Risposte conservate**: un segnalibro su ogni risposta la tiene fuori dalla conversazione — con la tua richiesta e la sua data — in una scheda accanto ai tuoi file generati; condividila, scaricala in Markdown o lasciala andare
+- **Risposte conservate**: un segnalibro su ogni risposta la tiene fuori dalla conversazione — con la tua richiesta e la sua data — in una scheda accanto ai tuoi file generati; condividila, scaricala in Markdown o lasciala andare; ogni risposta conservata entra anche in uno spazio di conoscenza tuo, perché LIA la ritrovi e la citi settimane dopo
 
 ### 3.6. Proattività e iniziative
 
@@ -405,7 +405,7 @@ Questa vita interiore ha un volto: l'emoji dell'umore si anima sulla risposta co
 
 Quel volto dice la verità sulla risposta, non sull'umore del momento. LIA indica essa stessa il **registro** di ciò che ha appena scritto, e il volto interpreta quello: una spiegazione tecnica mantiene un'aria concentrata, un fallimento si legge come un fallimento. Un tratto colora una presenza a riposo; non deve mai rispondere di un istante.
 
-E tra due risposte, quel volto non si spegne. Le sopracciglia hanno un arco e restano presenti a riposo, un solo respiro porta tutto il volto, lo sguardo solleva le sopracciglia e un battito di ciglia le abbassa; la bocca gioca piccole mimiche a un ritmo irregolare e senza fretta, e ogni tanto, su un volto a riposo, una breve scenetta — una mosca da seguire, uno starnuto, uno sbadiglio. Niente di tutto questo costa una chiamata al modello: è animazione nel senso in cui la intendono gli studi — un personaggio che credi vivo perché respira quando nessuno lo guarda. Quello stesso volto accoglie i visitatori nella pagina iniziale, prima di qualsiasi account.
+E tra due risposte, quel volto non si spegne. Le sopracciglia sono posate sull'occhio e pesano — si aggrottano e guidano ogni espressione invece di seguirla; un solo respiro porta tutto il volto; la bocca parla una frase generata che nulla ripete e gioca piccole mimiche per frasi più che a cadenza; due battiti di ciglia, due sorrisi, due sguardi non sono mai identici; e ogni tanto, su un volto davvero a riposo, una breve scenetta — una mosca da seguire, uno starnuto, uno sbadiglio — che aspetta il suo turno su un orologio che la pagina conserva anche mentre navighi. Niente di tutto questo costa una chiamata al modello: è animazione nel senso in cui la intendono gli studi — un personaggio che credi vivo perché respira quando nessuno lo guarda. Quello stesso volto accoglie i visitatori nella pagina iniziale, prima di qualsiasi account.
 
 E questa presenza ti segue: fuori dalla chat, un compagno fluttuante tiene LIA al tuo fianco in tutta la dashboard — a riposo, al lavoro o con una notifica.
 
@@ -418,6 +418,8 @@ Il diario è organizzato su **quattro livelli di profondità** — dall'osservaz
 Oltre alla scrittura, il diario **misura sé stesso**. A ogni turno, LIA guarda le direttive che ha applicato al turno precedente e legge la tua reazione al turno corrente: se hai confermato, il contatore di prove sale; se hai respinto, il contatore di contraddizioni sale. Con il tempo, le ipotesi false vengono declassate silenziosamente, le buone intuizioni promosse, i pattern trasversali emergono per raggruppamento attivo.
 
 Da questa stratificazione emerge un **ritratto utente compilato**: la tua voce, il tuo ritmo, i tuoi contesti, le tue contraddizioni, le tue zone d'ombra. Viaggia con LIA ovunque parli — conversazione, voce, promemoria, notifiche proattive, ReAct, fallback — in modo che l'assistente non «dimentichi chi sei» a seconda della superficie con cui parla.
+
+Quel ritratto non legge solo i diari: i tuoi ricordi, i tuoi interessi, le tue abitudini apprese e i tuoi debrief di relazione vi entrano come materia, ciascuno sotto il proprio interruttore — il tuo e quello dell'amministratore. E ti dice da dove viene: sotto il ritratto, una riga nomina ciò che è stato letto, ciò che era vuoto, ciò che era spento. Una fonte che non risponde è nominata, mai letta come vuota.
 
 È una forma di introspezione artificiale — l'assistente che riflette sulle proprie interazioni, misura la propria utilità e sviluppa una comprensione sfumata di te. Mantieni il pieno controllo: lettura per tema o livello, modifica, segnalazione di un problema sul ritratto, attivazione di una consolidazione su richiesta. Il ritratto stesso non viene mai modificato direttamente — è una voce di sintesi, corretta attraverso leve indirette per preservarne la coerenza.
 

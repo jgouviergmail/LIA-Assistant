@@ -1,16 +1,15 @@
-"""Tool selection and wrapping for ReAct execution mode.
+"""Tool selection and wrapping for ReAct execution mode (ADR-293).
 
-Provides all AVAILABLE tools to the ReAct agent (filtered by active connectors,
-capped by max_tools). Unlike the pipeline Planner which further filters by
-detected domains, the ReAct agent gets all available tools and decides
-autonomously which to use.
-
-When the resolved tool count exceeds ``react_agent_max_tools``, tools owned by
-the agents of the DETECTED domains survive the cap first (stable order within
-each group), and the dropped tool names are logged at warning level. A blind
-positional truncation here used to silently drop e.g. the calendar tools on a
-calendar query whenever user-MCP expansion pushed the count over the cap —
-leaving the model unable to fetch the requested data.
+The loop binds the AVAILABLE tools (filtered by active connectors) by
+RELEVANCE, from the global order the router computed with the query embedding
+it already paid for: the detected domains' tools, then every other family's
+``CATALOGUE_DOMAIN_COVERAGE_TOP_N`` best-ranked tools — plus the delegation
+door of an expanded user MCP server — then the first ``react_tool_semantic_top_k``
+of the order; the rest is dropped by relevance and ``react_agent_max_tools``
+stays the safety net, trimming by the same tiers. Without a ranking, or with
+K = 0, every available tool is bound in registration order and only the cap
+trims it. A blind positional truncation here used to drop the SAME families
+on every turn whatever the question, the user's own MCP tools among them.
 
 Filtering chain (same as pipeline):
 1. Global registry tools
@@ -25,24 +24,27 @@ which tools require HITL approval via interrupt().
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+import json
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, Any, NamedTuple, Protocol
 
 import structlog
 
 from src.core.config import settings
 from src.core.constants import (
+    CATALOGUE_DOMAIN_COVERAGE_TOP_N,
     EXECUTION_MODE_REACT,
     MCP_ITERATIVE_TASK_SUFFIX,
     MCP_USER_TOOL_NAME_PREFIX,
 )
 from src.core.context import get_request_tool_manifests, user_mcp_tools_ctx
-from src.domains.agents.analysis.query_intelligence import QueryIntelligence
 from src.domains.agents.registry.catalogue import manifests_for_mode
 from src.domains.agents.tools.react_tool_wrapper import ReactToolWrapper
 from src.domains.agents.tools.tool_resolution import resolve_tool_instance
 from src.infrastructure.mcp.registration import declares_destructive_tool
 from src.infrastructure.observability.metrics_react import (
     react_tool_selector_capped_total,
+    react_tools_bound,
     react_tools_resolved,
 )
 
@@ -52,31 +54,107 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-class ReactToolSelector:
-    """Select and wrap tools for ReAct execution based on QueryIntelligence.
+class DetectedDomains(Protocol):
+    """What the selector reads of a turn's intelligence: the detected domains."""
 
-    Two-step process:
-    1. SmartCatalogueService → filtered ToolManifest names (by domains + intent)
-    2. ToolRegistry lookup → actual BaseTool instances → ReactToolWrapper wrapping
+    @property
+    def domains(self) -> Sequence[str]: ...
+
+
+class _Resolved(NamedTuple):
+    """One tool a manifest binds: its name, instance, HITL flag, and whether it is
+    the delegation door (task tool) of an expanded iterative user MCP server.
+    """
+
+    name: str
+    instance: BaseTool
+    hitl: bool
+    door: bool = False
+
+
+class _Row(NamedTuple):
+    """A resolved tool with what the composition reads about it."""
+
+    tool: ReactToolWrapper
+    priority: bool
+    name: str
+    family: str
+    door: bool
+
+
+#: Token cost of a bound tool's schema, by tool name — static per process, so
+#: measured once; a user MCP tool re-registered with a new schema keeps a
+#: stale count for a metric, which is harmless.
+_schema_tokens_by_name: dict[str, int] = {}
+
+
+def bound_tool_tokens(tools: Sequence[BaseTool]) -> int:
+    """Tokens the bound schemas add to EVERY model call of the turn.
+
+    Measured 2026-09-17: 331 tokens per native schema on average, 26 155 for
+    the 80 the cap kept — 95 % of the first call's prompt. The number the
+    ``react_delivered_context_tokens`` histogram never saw, since it counts
+    messages.
+
+    Args:
+        tools: The tools bound to the loop.
+
+    Returns:
+        The token count of their OpenAI-format schemas, 0 when it cannot be measured.
+    """
+    total = 0
+    for tool in tools:
+        cached = _schema_tokens_by_name.get(tool.name)
+        if cached is None:
+            try:
+                from langchain_core.utils.function_calling import convert_to_openai_tool
+
+                from src.domains.agents.utils.token_utils import count_tokens
+
+                cached = count_tokens(json.dumps(convert_to_openai_tool(tool), ensure_ascii=False))
+            except Exception as exc:  # noqa: BLE001 — a metric never breaks the turn
+                logger.debug("react_tool_schema_tokens_unmeasured", tool=tool.name, error=str(exc))
+                cached = 0
+            _schema_tokens_by_name[tool.name] = cached
+        total += cached
+    return total
+
+
+class ReactToolSelector:
+    """Select and wrap the tools the ReAct loop binds for a turn.
+
+    Resolves every available manifest to its tool instances (registry, then
+    the per-request user MCP context), composes them by relevance when the
+    router ranked the turn, and applies the cap as a safety net.
     """
 
     def select(
         self,
-        intelligence: QueryIntelligence | None,
+        intelligence: DetectedDomains | None,
+        ranking: Sequence[str] | None = None,
     ) -> tuple[list[ReactToolWrapper], dict[str, bool]]:
-        """Select all AVAILABLE tools for the ReAct agent.
+        """Select the tools the ReAct agent binds this turn.
 
         Uses the same per-request manifest filtering as the pipeline (respects
         active connectors, admin-disabled MCP servers, user MCP tools), then
         maps manifest names to actual BaseTool instances from the registry.
 
-        The ReAct agent gets ALL available tools (not domain-filtered like the
-        Planner) so it can autonomously decide which to use.
+        With a ``ranking`` (the turn's global relevance order, computed by the
+        router from the query embedding it already paid for) and a positive
+        ``react_tool_semantic_top_k``, the loop binds the detected domains'
+        tools, the best-ranked tools of EVERY other family (so no family is
+        out of reach when the router under-detected) and the first K of the
+        ranking — the rest is dropped by relevance, and the cap stays the
+        safety net (ADR-293). Without a ranking, or with K = 0, every
+        available tool is bound in registration order; only the cap trims it,
+        the detected domains' tools first, then one family coverage, then
+        the rest.
 
         Args:
             intelligence: Query intelligence. Its detected domains give their
-                agents' tools priority to SURVIVE the max_tools cap; it never
-                excludes a tool while the count fits under the cap.
+                agents' tools priority: bound first, and first to SURVIVE the
+                max_tools cap.
+            ranking: Manifest names, most relevant first, for the whole turn.
 
         Returns:
             Tuple of (wrapped_tools, hitl_map).
@@ -88,99 +166,51 @@ class ReactToolSelector:
         available_manifests = manifests_for_mode(get_request_tool_manifests(), EXECUTION_MODE_REACT)
 
         priority_agents = self._domain_priority_agents(intelligence)
-        wrapped_tools: list[ReactToolWrapper] = []
-        priority_flags: list[bool] = []
+        rows: list[_Row] = []
         hitl_map: dict[str, bool] = {}
         skipped: list[str] = []
-
         for manifest in available_manifests:
-            tool_name = manifest.name
-            is_priority = getattr(manifest, "agent", "") in priority_agents
-
-            # ReAct already IS an iterative loop, so the per-server "task tool"
-            # indirection (designed for the single-shot pipeline planner) only
-            # hides the descriptive individual tools from the LLM, which then
-            # falls back to generic web search. For iterative USER MCP servers,
-            # expose the individual tools directly so the model can recognise and
-            # pick them by description — EXCEPT MCP App servers, which keep the
-            # task tool (they need the dedicated MCP-app prompt + model).
-            #
-            # The task tool is bound AS WELL, never replaced: it is the only
-            # delegation affordance for identity- or multi-step asks the
-            # individual tools cannot express (measured 2026-09-02 on GitHub's
-            # public-repos toolset: "list MY repos" has no individual tool, so
-            # a model shown only per-repo tools rationally asked the user for
-            # their username — while the pipeline, which keeps the task tool,
-            # delegated to the sub-agent and answered).
-            expanded = self._expand_iterative_user_mcp(manifest)
-            if expanded is not None:
-                for ind_name, ind_tool, ind_hitl in expanded:
-                    wrapped_tools.append(
-                        ReactToolWrapper(original_tool=ind_tool, hitl_required=ind_hitl)
-                    )
-                    priority_flags.append(is_priority)
-                    hitl_map[ind_name] = ind_hitl
-                task_instance = resolve_tool_instance(tool_name)
-                if task_instance is not None:
-                    permissions = getattr(manifest, "permissions", None)
-                    task_hitl = bool(permissions and permissions.hitl_required)
-                    wrapped_tools.append(
-                        ReactToolWrapper(original_tool=task_instance, hitl_required=task_hitl)
-                    )
-                    priority_flags.append(is_priority)
-                    hitl_map[tool_name] = task_hitl
+            family = str(getattr(manifest, "agent", "") or "")
+            resolved = self._manifest_tools(manifest)
+            if resolved is None:
+                skipped.append(manifest.name)
                 continue
-
-            # Resolve across the global registry AND the per-request user MCP
-            # ContextVar — same two-step lookup as the pipeline executor, so user
-            # MCP tools (instances live only in the ContextVar) are not dropped.
-            base_tool = resolve_tool_instance(tool_name)
-            if base_tool is None:
-                skipped.append(tool_name)
-                continue
-
-            # Read HITL straight from the in-hand manifest. The agent_registry
-            # does not know user MCP tools, so looking it up there would silently
-            # disable approval gates on user MCP mutation tools.
-            permissions = getattr(manifest, "permissions", None)
-            hitl_required = bool(permissions and permissions.hitl_required)
-
-            wrapper = ReactToolWrapper(
-                original_tool=base_tool,
-                hitl_required=hitl_required,
-            )
-            wrapped_tools.append(wrapper)
-            priority_flags.append(is_priority)
-            hitl_map[tool_name] = hitl_required
+            for item in resolved:
+                wrapper = ReactToolWrapper(original_tool=item.instance, hitl_required=item.hitl)
+                rows.append(_Row(wrapper, family in priority_agents, item.name, family, item.door))
+                hitl_map[item.name] = item.hitl
 
         # Cap at max_tools. Measured on the RESOLVED tool count, not the manifest
         # count: iterative expansion can emit more tools than there are manifests
         # (one task manifest → N individual tools), so the cap must be evaluated
         # (and reported) on what is actually bound.
         max_tools = settings.react_agent_max_tools
-        resolved_count = len(wrapped_tools)
+        resolved_count = len(rows)
         # ADR-256: observed on EVERY turn, not only when the cap bites. A counter
         # of cap events fires once capabilities are already lost; this
         # distribution is what shows a deployment creeping towards its ceiling.
         react_tools_resolved.observe(resolved_count)
-        if resolved_count > max_tools:
-            react_tool_selector_capped_total.inc()
-            # Stable partition: tools of the detected domains' agents first, so
-            # the truncation sacrifices generic tools instead of the very tools
-            # the query needs. Order is untouched when the count fits the cap.
-            ordered = [w for w, keep in zip(wrapped_tools, priority_flags, strict=True) if keep] + [
-                w for w, keep in zip(wrapped_tools, priority_flags, strict=True) if not keep
-            ]
-            dropped = [t.name for t in ordered[max_tools:]]
-            wrapped_tools = ordered[:max_tools]
-            hitl_map = {k: v for k, v in hitl_map.items() if k in {t.name for t in wrapped_tools}}
-            logger.warning(
-                "react_tool_selector_capped",
+        top_k = settings.react_tool_semantic_top_k
+        relevance_on = bool(ranking) and top_k > 0
+        wrapped_tools, tiers, kept_names, dropped_by_relevance = self._compose(
+            rows, ranking if relevance_on else None, top_k
+        )
+        if relevance_on:
+            hitl_map = {k: v for k, v in hitl_map.items() if k in kept_names}
+            logger.info(
+                "react_tool_selector_relevance",
                 resolved_count=resolved_count,
-                max_tools=max_tools,
+                bound_count=len(wrapped_tools),
+                top_k=top_k,
                 priority_agents=sorted(priority_agents),
-                dropped_tools=dropped,
+                dropped_by_relevance=len(dropped_by_relevance),
             )
+            logger.debug(
+                "react_tool_selector_relevance_dropped", dropped_tools=dropped_by_relevance
+            )
+        wrapped_tools, hitl_map = self._apply_cap(
+            wrapped_tools, tiers, hitl_map, max_tools, priority_agents, resolved_count
+        )
 
         if skipped:
             logger.debug(
@@ -189,6 +219,7 @@ class ReactToolSelector:
                 reason="manifest_without_registered_tool",
             )
 
+        react_tools_bound.observe(len(wrapped_tools))
         logger.info(
             "react_tool_selector_complete",
             available_manifests=len(available_manifests),
@@ -200,8 +231,201 @@ class ReactToolSelector:
 
         return wrapped_tools, hitl_map
 
+    def _manifest_tools(self, manifest: Any) -> list[_Resolved] | None:
+        """The tools one manifest binds, or None when unresolvable.
+
+        ReAct already IS an iterative loop, so the per-server "task tool"
+        indirection (designed for the single-shot pipeline planner) only
+        hides the descriptive individual tools from the LLM, which then
+        falls back to generic web search. For iterative USER MCP servers,
+        expose the individual tools directly so the model can recognise and
+        pick them by description — EXCEPT MCP App servers, which keep the
+        task tool (they need the dedicated MCP-app prompt + model).
+
+        The task tool is bound AS WELL, never replaced: it is the only
+        delegation affordance for identity- or multi-step asks the
+        individual tools cannot express (measured 2026-09-02 on a public
+        code-hosting toolset: "list MY repos" has no individual tool, so
+        a model shown only per-repo tools rationally asked the user for
+        their username — while the pipeline, which keeps the task tool,
+        delegated to the sub-agent and answered).
+
+        HITL is read straight from the in-hand manifest: the agent_registry
+        does not know user MCP tools, so looking it up there would silently
+        disable approval gates on user MCP mutation tools.
+
+        Args:
+            manifest: The candidate tool manifest.
+
+        Returns:
+            The tools to bind, or None when no instance resolves (skipped).
+        """
+        tool_name = manifest.name
+        permissions = getattr(manifest, "permissions", None)
+        manifest_hitl = bool(permissions and permissions.hitl_required)
+        expanded = self._expand_iterative_user_mcp(manifest)
+        if expanded is not None:
+            tools = [_Resolved(name, instance, hitl) for name, instance, hitl in expanded]
+            task_instance = resolve_tool_instance(tool_name)
+            if task_instance is not None:
+                tools.append(_Resolved(tool_name, task_instance, manifest_hitl, door=True))
+            return tools
+        # Resolve across the global registry AND the per-request user MCP
+        # ContextVar — same two-step lookup as the pipeline executor, so user
+        # MCP tools (instances live only in the ContextVar) are not dropped.
+        base_tool = resolve_tool_instance(tool_name)
+        if base_tool is None:
+            return None
+        return [_Resolved(tool_name, base_tool, manifest_hitl)]
+
     @staticmethod
-    def _domain_priority_agents(intelligence: QueryIntelligence | None) -> set[str]:
+    def _apply_cap(
+        wrapped_tools: list[ReactToolWrapper],
+        tiers: list[int],
+        hitl_map: dict[str, bool],
+        max_tools: int,
+        priority_agents: set[str],
+        resolved_count: int,
+    ) -> tuple[list[ReactToolWrapper], dict[str, bool]]:
+        """The safety net: a stable sort on tiers, then the truncation.
+
+        The detected domains' tools first, then one coverage per family, then
+        the rest — so the truncation sacrifices generic tools instead of the
+        very tools the query needs, and never a whole family. Order is
+        untouched when the count fits the cap.
+
+        Args:
+            wrapped_tools: The bound tools, in binding order.
+            tiers: A tier per tool (0 priority, 1 coverage, 2 the rest).
+            hitl_map: Tool name → HITL required.
+            max_tools: The cap.
+            priority_agents: The detected domains' agents (for the log).
+            resolved_count: How many tools resolved before any selection.
+
+        Returns:
+            The tools that survive and their HITL map.
+        """
+        if len(wrapped_tools) <= max_tools:
+            return wrapped_tools, hitl_map
+        react_tool_selector_capped_total.inc()
+        ordered = [
+            w for w, _tier in sorted(zip(wrapped_tools, tiers, strict=True), key=lambda i: i[1])
+        ]
+        dropped = [t.name for t in ordered[max_tools:]]
+        kept = ordered[:max_tools]
+        kept_names = {t.name for t in kept}
+        logger.warning(
+            "react_tool_selector_capped",
+            resolved_count=resolved_count,
+            max_tools=max_tools,
+            priority_agents=sorted(priority_agents),
+            dropped_tools=dropped,
+        )
+        return kept, {k: v for k, v in hitl_map.items() if k in kept_names}
+
+    @staticmethod
+    def _compose(
+        rows: list[_Row],
+        ranking: Sequence[str] | None,
+        top_k: int,
+    ) -> tuple[list[ReactToolWrapper], list[int], set[str], list[str]]:
+        """Order the resolved tools: priority, family coverage, semantic top-K, the rest.
+
+        Priority tools (the detected domains' agents) come first, in
+        registration order. Then every OTHER family keeps its
+        ``CATALOGUE_DOMAIN_COVERAGE_TOP_N`` best-ranked tools — registration
+        order when no ranking exists — so a family the router did not name
+        stays reachable through its most relevant doors; an expanded user MCP
+        server keeps its delegation door beside them, on no seat of its own and
+        ranked as its best tool, because it is the one affordance for what its
+        individual tools cannot express. Then, with a ranking, the first
+        ``top_k`` of it; what remains
+        is dropped by relevance. Without a ranking nothing is dropped and the
+        registration order stands: the tiers alone decide who survives the cap.
+
+        Args:
+            rows: The resolved tools, in registration order.
+            ranking: Manifest names, most relevant first — None when relevance is off.
+            top_k: How many of the ranking to bind.
+
+        Returns:
+            ``(kept, tiers, kept_manifest_names, dropped_names)`` — a tier per
+            kept tool (0 priority, 1 coverage, 2 the rest) so the cap's stable
+            sort keeps this order whatever the binding order.
+        """
+        rank = ReactToolSelector._ranker(rows, ranking)
+        priority, coverage = ReactToolSelector._tiered(rows, rank)
+        tier_of = {id(row.tool): 0 for row in priority}
+        tier_of.update({id(row.tool): 1 for row in coverage})
+        if ranking is None:
+            return (
+                [row.tool for row in rows],
+                [tier_of.get(id(row.tool), 2) for row in rows],
+                {row.name for row in rows},
+                [],
+            )
+        tail, dropped = ReactToolSelector._semantic_tail(rows, set(tier_of), rank, top_k)
+        kept = priority + coverage + tail
+        tiers = [0] * len(priority) + [1] * len(coverage) + [2] * len(tail)
+        return [row.tool for row in kept], tiers, {row.name for row in kept}, dropped
+
+    @staticmethod
+    def _ranker(rows: list[_Row], ranking: Sequence[str] | None) -> Callable[[_Row], int]:
+        """The rank of a row in the turn's order — unranked rows beyond every ranked one.
+
+        A delegation door has no vector of its own: it ranks as the best tool
+        behind it, so it sits beside its family in every order — the coverage
+        sort and the cap's — rather than last among the unscored.
+        """
+        rank_of = {name: index for index, name in enumerate(ranking or ())}
+        beyond = len(rows) + len(rank_of)
+        family_best: dict[str, int] = {}
+        for row in rows:
+            if not row.door:
+                own = rank_of.get(row.name, beyond)
+                family_best[row.family] = min(own, family_best.get(row.family, beyond))
+
+        def rank(row: _Row) -> int:
+            if row.door:
+                return family_best.get(row.family, beyond)
+            return rank_of.get(row.name, beyond)
+
+        return rank
+
+    @staticmethod
+    def _tiered(rows: list[_Row], rank: Callable[[_Row], int]) -> tuple[list[_Row], list[_Row]]:
+        """The priority rows (registration order) and the family coverage (by rank).
+
+        Coverage keeps, per family outside the detected domains, its
+        ``CATALOGUE_DOMAIN_COVERAGE_TOP_N`` best-ranked tools and, beside them,
+        its delegation door when the family is an expanded user MCP server.
+        """
+        priority = [row for row in rows if row.priority]
+        by_family: dict[str, list[_Row]] = {}
+        for row in rows:
+            if not row.priority:
+                by_family.setdefault(row.family, []).append(row)
+        coverage: list[_Row] = []
+        for members in by_family.values():
+            doors = [row for row in members if row.door]
+            seats = sorted((row for row in members if not row.door), key=rank)
+            coverage.extend(doors + seats[:CATALOGUE_DOMAIN_COVERAGE_TOP_N])
+        coverage.sort(key=rank)
+        return priority, coverage
+
+    @staticmethod
+    def _semantic_tail(
+        rows: list[_Row], placed: set[int], rank: Callable[[_Row], int], top_k: int
+    ) -> tuple[list[_Row], list[str]]:
+        """The first ``top_k`` of the ranking among the rows not yet placed, and the dropped names."""
+        remaining = [row for row in rows if id(row.tool) not in placed]
+        tail = sorted((row for row in remaining if rank(row) < top_k), key=rank)
+        kept = {id(row.tool) for row in tail}
+        dropped = [row.name for row in remaining if id(row.tool) not in kept]
+        return tail, dropped
+
+    @staticmethod
+    def _domain_priority_agents(intelligence: DetectedDomains | None) -> set[str]:
         """Resolve the agents owning the detected domains via DOMAIN_REGISTRY.
 
         Their tools get priority to survive the ``react_agent_max_tools`` cap.

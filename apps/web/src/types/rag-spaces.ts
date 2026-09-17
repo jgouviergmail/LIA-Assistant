@@ -18,7 +18,7 @@ export type RAGSourceSyncStatus = 'idle' | 'syncing' | 'completed' | 'error';
 export type RAGDriveSyncStatus = RAGSourceSyncStatus;
 
 /** Document source type. */
-export type RAGDocumentSourceType = 'upload' | 'drive' | 'meeting' | 'mail';
+export type RAGDocumentSourceType = 'upload' | 'drive' | 'meeting' | 'mail' | 'bookmark';
 
 /** Single RAG document within a space. */
 export interface RAGDocument {
@@ -28,6 +28,8 @@ export interface RAGDocument {
   content_type: string;
   status: RAGDocumentStatus;
   error_message: string | null;
+  /** Why the indexing failed — the backend's closed vocabulary (`lib/rag-spaces/document-errors`). */
+  error_code: string | null;
   chunk_count: number;
   embedding_model: string | null;
   embedding_tokens: number;
@@ -91,6 +93,8 @@ export interface RAGSpace {
   name: string;
   description: string | null;
   is_active: boolean;
+  /** Role of a space another domain manages ('meetings', 'bookmarks'); null when the person created it. */
+  kind: string | null;
   document_count: number;
   ready_document_count: number;
   total_size: number;
@@ -154,6 +158,7 @@ export interface RAGDocumentStatusResponse {
   id: string;
   status: RAGDocumentStatus;
   error_message: string | null;
+  error_code: string | null;
   chunk_count: number;
 }
 

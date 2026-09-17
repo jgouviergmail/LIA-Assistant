@@ -113,6 +113,7 @@ function eyesDisplayProps(
       styleId,
       idleFamily: behavior.family,
       blinking: behavior.blinking,
+      blinkMask: behavior.blinkMask,
     };
   }
   return {
@@ -123,6 +124,7 @@ function eyesDisplayProps(
     styleId,
     idleFamily: behavior.family,
     blinking: behavior.blinking,
+    blinkMask: behavior.blinkMask,
     gesture: behavior.gesture,
     emote: behavior.emote?.glyph ?? null,
     emoteLeaving: behavior.emote?.leaving ?? false,

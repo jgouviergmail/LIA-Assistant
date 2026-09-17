@@ -14,7 +14,11 @@
  * compose with the rig's transforms without touching them.
  */
 
-import { GESTURE_DURATION_MS, type IdleGesture } from '@/components/eyes/expression-engine';
+import {
+  GESTURE_DURATION_MS,
+  MASK_APPLY_DELAY_MS,
+  type IdleGesture,
+} from '@/components/eyes/expression-engine';
 import { bothSides, relative, scaleTapes, type Keys } from '@/components/eyes/rig/choreo';
 import type { Tape } from '@/components/eyes/rig/tape';
 import type { SpringConfig } from '@/components/eyes/rig/spring';
@@ -64,6 +68,25 @@ export function blinkTapes(): Tape[] {
       spring: BLINK_SPRING,
     },
   ];
+}
+
+/** How long past the host's swap the mask blink keeps the lids shut, so
+ * the new face has begun to move before it is revealed. */
+const MASK_HOLD_PAST_SWAP_MS = 50;
+
+/**
+ * The MASK blink — the one the host plays while it swaps the face.
+ *
+ * The three-beat lands the new expression at `MASK_APPLY_DELAY_MS`; a
+ * spontaneous blink reopens at 130 ms, BEFORE that, so the new eyes were
+ * revealed in the middle of their morph (measured on the widget: the eyes
+ * changed in plain view under half-open lids). This one closes as fast and
+ * holds shut past the swap, then reopens on the same quick spring — a blink
+ * still, a hair longer, the kind a face makes when it changes its mind.
+ */
+export function maskBlinkTapes(): Tape[] {
+  const reopenAtMs = MASK_APPLY_DELAY_MS + MASK_HOLD_PAST_SWAP_MS;
+  return lidBeat(1, reopenAtMs, reopenAtMs + 170, BLINK_SPRING, RIGHT_TRAIL_MS);
 }
 
 /** A lid beat on both eyes, the right one trailing. */
@@ -248,9 +271,10 @@ function gestureTapes(gesture: IdleGesture): Tape[] {
       ];
     case 'brow':
       // Asymmetric by design — "oh?" is one brow, never two. It is the BROW
-      // that moves: height, arch and presence together, so the flash reads
-      // on a resting face too (the organ predates this gesture's rewrite,
-      // which used to lift the right eye instead).
+      // that moves: height and arch together, so the flash reads on a
+      // resting face too (the organ predates this gesture's rewrite, which
+      // used to lift the right eye instead). Written on the right; the host
+      // flips it to either side (`flipTapes`), so it is never the same brow.
       return [
         {
           channel: 'browYR',
@@ -262,13 +286,6 @@ function gestureTapes(gesture: IdleGesture): Tape[] {
         {
           channel: 'browArcR',
           keys: [{ atMs: 0, value: 0.45 }],
-          durationMs: 420,
-          spring: HOP_SPRING,
-          relative: true,
-        },
-        {
-          channel: 'browAR',
-          keys: [{ atMs: 0, value: 0.5 }],
           durationMs: 420,
           spring: HOP_SPRING,
           relative: true,

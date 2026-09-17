@@ -212,6 +212,16 @@ defects hid behind one symptom, and the amendment closes each with a rule:
   call (`llm/tool_call_rescue.py`), reads the `parsing_error` it discarded and
   names the real reason. A background task that fails now logs its traceback.
 
+## Amendment 2026-09-16 — a space managed by role is not deletable by hand
+
+ADR-291 generalised the « space found by role » of this ADR to the kept
+answers, and with it a rule this ADR had left open: `delete_space` refused a
+system space only, so a person could delete the meetings space by hand and
+the next minutes re-created it — the deletion undone in silence. A space
+whose `kind` is set now answers 403 `space_managed_by_domain`, the card hides
+the action and says « Managed by LIA »; renaming and switching it off stay
+open. `kind` joined the space's wire shape for that.
+
 ## Verification
 
 `tests/unit/domains/meetings/` (models, templates and i18n parity, audio

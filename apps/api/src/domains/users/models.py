@@ -510,6 +510,17 @@ class User(PhoneIdentityColumns, BaseModel):
         nullable=True,
         comment="UTC timestamp of the last portrait compilation by the consolidation service.",
     )
+    # What the portrait was compiled from (2026-09-16 design, part B): the
+    # entries' count and, per source, what it answered. Written WITH the
+    # portrait and only then, so the words and their sources travel together.
+    journal_portrait_sources: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment=(
+            "Provenance of the compiled portrait: journal entries count and, per source "
+            "(memories, interests, habits, relation_debriefs), status/used/total."
+        ),
+    )
 
     # Psyche Engine preferences
     psyche_enabled: Mapped[bool] = mapped_column(

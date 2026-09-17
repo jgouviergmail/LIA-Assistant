@@ -40,6 +40,7 @@ def build_runtime_context(
     user_memory_enabled: bool = False,
     user_journals_enabled: bool = False,
     user_psyche_enabled: bool = False,
+    user_voice_enabled: bool = False,
     user_display_mode: str | None = None,
     user_execution_mode: str | None = None,
     is_automated_source: bool = False,
@@ -65,6 +66,8 @@ def build_runtime_context(
         user_memory_enabled: User preference — long-term memory.
         user_journals_enabled: User preference — personal journals.
         user_psyche_enabled: User preference — psyche engine.
+        user_voice_enabled: User preference — spoken replies (the response
+            node's HTML gate reads it beside the display mode).
         user_display_mode: Render mode; ``None`` keeps the context default.
         user_execution_mode: Pipeline or ReAct; ``None`` keeps the default.
         is_automated_source: True for runs the user did not type.
@@ -86,6 +89,7 @@ def build_runtime_context(
         memory_enabled=user_memory_enabled,
         journals_enabled=user_journals_enabled,
         psyche_enabled=user_psyche_enabled,
+        voice_enabled=user_voice_enabled,
         is_automated_source=is_automated_source,
         display_name=state.get("user_display_name"),
         deps=tool_deps,

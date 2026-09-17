@@ -476,13 +476,17 @@ The TTS engine must only ever receive **speakable plain text** — never HTML
 or CSS. Two complementary mechanisms enforce this:
 
 1. **At the source (response node).** The rich HTML response directive is
-   injected only for tool/data turns (router `route_to == "planner"`). A
-   conversational turn — whose reply is streamed verbatim to TTS via the
-   progressive chat path — is kept in Markdown, so no tags reach the sentence
-   streamer. The display mode (`cards` / `html` / `markdown`) is only relevant
-   when the turn carries structured data; a plain chat reply is rendered
-   identically by the frontend (`ReactMarkdown` + `rehypeRaw`) in every mode.
-   See `_should_inject_html_directive`
+   withheld exactly where a voice would read markup aloud: a conversational
+   turn (router `route_to != "planner"`) of an account whose spoken replies
+   are on — that reply is streamed verbatim to TTS via the progressive chat
+   path, so it is kept in Markdown and no tag reaches the sentence streamer.
+   A tool/data turn is synthesised after the tools ran and never fed verbatim
+   to the voice, and an account with `voice_enabled` off has no listener, so
+   both keep the HTML layout of the `html` display mode on every turn. The
+   gate reads the two signals the voice path starts from — the routing target
+   and the account's `voice_enabled` preference, carried by the typed runtime
+   context (`runtime_voice_enabled`) — so it can never desync from it. See
+   `_should_inject_html_directive`
    ([response_node.py](../../apps/api/src/domains/agents/nodes/response_node.py)).
 2. **Defense in depth (agents SSE loop).** The synchronous TTS entry points
    (`stream_direct_tts` and the `stream_voice_comment` fallbacks) pass their

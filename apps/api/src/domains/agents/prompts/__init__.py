@@ -366,6 +366,23 @@ def _render_context_sections(values: dict[str, str]) -> str:
     return "\n\n".join(blocks)
 
 
+def render_context_section(key: str, content: str) -> str:
+    """Render ONE declared context section with its tag and directive.
+
+    The ReAct setup wraps the pipeline's ``rag_context`` with the pipeline's
+    own instruction (knowledge parity, 2026-09-17): one instruction per
+    context, in the file, never a second wording in a ``.py``.
+
+    Args:
+        key: A key of ``response_context_sections.txt``.
+        content: The section's content; empty renders nothing.
+
+    Returns:
+        The wrapped block, or an empty string.
+    """
+    return _render_context_sections({key: content})
+
+
 def get_response_prompt(
     user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
     user_language: str = settings.default_language,

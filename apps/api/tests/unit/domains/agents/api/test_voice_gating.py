@@ -15,13 +15,30 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from src.domains.agents.services.streaming.voice_stream_helpers import _should_start_voice
+from src.domains.agents.services.streaming.voice_stream_helpers import (
+    _should_start_voice,
+    voice_preference_of,
+)
 
 
 def _user(voice_enabled: bool = True) -> MagicMock:
     user = MagicMock()
     user.voice_enabled = voice_enabled
     return user
+
+
+@pytest.mark.unit
+class TestVoicePreferenceOf:
+    """ONE reading of the preference, shared by the voice start points and the
+    response node's HTML gate (through the runtime context): they cannot
+    disagree on whether a voice listens."""
+
+    def test_no_profile_is_false(self):
+        assert voice_preference_of(None) is False
+
+    def test_reads_the_profile_flag(self):
+        assert voice_preference_of(_user(voice_enabled=True)) is True
+        assert voice_preference_of(_user(voice_enabled=False)) is False
 
 
 @pytest.mark.unit

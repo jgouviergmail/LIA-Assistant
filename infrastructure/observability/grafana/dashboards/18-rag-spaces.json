@@ -1850,6 +1850,47 @@
         }
       },
       "description": "Gmail labels currently linked to a space (ADR-262), summed over API processes."
+    },
+    {
+      "id": 517,
+      "title": "Kept answers → knowledge space (24h)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 6,
+        "y": 100
+      },
+      "targets": [
+        {
+          "expr": "sum by (outcome) (increase(bookmark_index_total[24h])) or vector(0)",
+          "legendFormat": "{{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "Projections of a kept answer (ADR-282 bookmark) into the per-account « Kept answers » space. 'deferred' means the spend ceiling refused the embedding (retried by the reaper tick); 'disabled' means the RAG_SPACES or BOOKMARKS capability was off; 'contended' means a click and the sweep met on one row (the claim let one through); 'error' is dead-lettered by the pipeline and shown on the bookmark card."
     }
   ],
   "time": {

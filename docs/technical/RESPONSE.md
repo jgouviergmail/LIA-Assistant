@@ -1075,8 +1075,12 @@ Constantes : `CONTEXT_PRIOR_ANSWER_UNFORMATTED_MARKER`,
 `details.lia-collapsible`, `dl.lia-kv` (clé-valeur), `div.lia-columns`
 (colonnes responsives), `ol.lia-steps` (compteurs stylés), `div.lia-stats`
 (tuiles de chiffres) — plus les accents inline `mark`/`kbd`/`abbr` autorisés
-par le schéma de sanitisation frontend. Une règle de sobriété (2-3 composants
-max par réponse) évite l'effet dashboard. La synchronisation directive↔CSS est
+par le schéma de sanitisation frontend. Depuis le 2026-09-17 (ADR-177, amendement b),
+la directive impose une page COMPOSÉE pour toute réponse porteuse de données —
+accroche, une section `<h2>` par facette dans son composant, callout de clôture —
+et la forme suit les données de la réponse, jamais celle des réponses précédentes ;
+la règle de sobriété qui laissait un `<p>` + `dl.lia-kv` passer pour du HTML enrichi
+est retirée. La synchronisation directive↔CSS est
 verrouillée par le garde `test_html_directive_css_sync.py`
 (`tests/unit/domains/agents/prompts/`) ; le budget de la directive est plafonné
 à 96 lignes par le même garde. Voir

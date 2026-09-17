@@ -192,6 +192,16 @@ rag_mail_push_index_total = Counter(
 )
 
 # ============================================================================
+# Kept answers projected into the knowledge space (2026-09-16 design, part A)
+# ============================================================================
+
+bookmark_index_total = Counter(
+    "bookmark_index_total",
+    "Projections of a kept answer into the « Kept answers » knowledge space, by outcome",
+    ["outcome"],  # outcome: indexed|error|deferred|disabled|contended
+)
+
+# ============================================================================
 # System RAG Spaces Metrics
 # ============================================================================
 

@@ -40,9 +40,12 @@ export type Dynamics = Record<ChannelGroup, SpringConfig>;
  * The gaze arrives first (an eye moves before a face does), the lids trail
  * the pose, the mass is the slowest thing in the body, and the blink is an
  * order of magnitude faster than anything else it composes with. */
-const GROUP_FREQUENCY_SCALE: Record<ChannelGroup, number> = {
+export const GROUP_FREQUENCY_SCALE: Record<ChannelGroup, number> = {
   gaze: 1.35,
   pose: 1,
+  // The brows lead the face: a startle is brows first, and a brow that
+  // arrives with the lids is a brow nobody saw move.
+  brow: 1.3,
   lid: 0.82,
   blink: 3.2,
   mass: 0.7,
@@ -61,6 +64,8 @@ const GROUP_FREQUENCY_SCALE: Record<ChannelGroup, number> = {
 const GROUP_DAMPING_SCALE: Record<ChannelGroup, number> = {
   gaze: 1,
   pose: 1,
+  // A little ring on a brow is liveliness; on a lid it would be a tremor.
+  brow: 0.9,
   lid: 1.12,
   blink: 1,
   mass: 1.25,
@@ -84,16 +89,21 @@ const GROUP_DAMPING_SCALE: Record<ChannelGroup, number> = {
 export const GROUP_LEAD_MS: Record<ChannelGroup, number> = {
   gaze: 0,
   pose: 0,
+  brow: 0,
   mass: 0,
   blink: 0,
   stretch: 0,
   lid: 60,
   radius: 90,
   organ: 110,
-  aura: 120,
+  // The catch-lights follow the eye they sit on (the light belongs to the
+  // room); kept short — measured on the widget, 120 ms of a lit surface
+  // holding still on a moving eye read as a decal.
+  aura: 100,
   // The mouth follows the eyes by a beat: a face whose mouth and eyes
-  // change on the same frame reads as a mask being swapped.
-  mouth: 45,
+  // change on the same frame reads as a mask being swapped. A short beat:
+  // past a twentieth of a second the organ reads as arriving late.
+  mouth: 30,
 };
 
 /**
@@ -111,10 +121,10 @@ export const GROUP_LEAD_MS: Record<ChannelGroup, number> = {
  */
 export const CHANNEL_LEAD_MS: Partial<Record<ChannelKey, number>> = {
   // The curve waits for the corners it is supposed to follow.
-  mouthCurve: 70,
+  mouthCurve: 40,
   // ...and the width waits a little less, so the mouth spreads INTO the curve
   // rather than arriving already spread.
-  mouthW: 40,
+  mouthW: 20,
 };
 
 /** The lead a channel actually gets: its own if it declares one, else its

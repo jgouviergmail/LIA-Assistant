@@ -4,7 +4,7 @@
 
 **Version**: 6.0
 **Date**: 2026-08-23
-**Application**: LIA v1.45.0
+**Application**: LIA v1.45.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -71,7 +71,7 @@ Every user has their own settings space, organized in two tabs. A search field s
 - **Proactive notifications**: set frequency, time window and context sources (calendar, weather, tasks, emails, interests, memories, journals)
 - **Scheduled actions and reminders**: say the rhythm — every three days, every other Tuesday, the 2nd Tuesday of the month, every two hours between 9 and 5, until a date or N times — for an automation as much as for a reminder, which can now come back instead of ringing once. And read your week at a glance: every routine at its hour on its days, every cell coloured by what really happened
 - **Skills**: enable/disable expert competencies in a gallery with previews, create your own personal Skills, or install one from an https URL (server-validated)
-- **Knowledge Spaces**: upload your documents (PDF, Word, Excel, PowerPoint, EPUB, HTML and 15+ formats), sync a Google Drive folder or follow a Gmail label — automatic indexing and hybrid search. The conversations you label become documents you can question weeks later, and removing the label removes the document
+- **Knowledge Spaces**: upload your documents (PDF, Word, Excel, PowerPoint, EPUB, HTML and 15+ formats), sync a Google Drive folder or follow a Gmail label — automatic indexing and hybrid search. The conversations you label become documents you can question weeks later, and removing the label removes the document. A document LIA cannot read — a scanned PDF with no text layer — says so under its row, with the remedy
 - **Consumption export**: download your LLM and API consumption data in CSV
 
 ### 2.3. What the administrator controls
@@ -114,11 +114,11 @@ LIA acts concretely in your digital life through 20+ specialized agents covering
 You choose how LIA reasons, via a simple toggle (⚡) in the chat header:
 
 - **Pipeline mode** (default) — A genuine feat of engineering: LIA plans all steps upfront, validates them semantically, then executes tools in parallel. Result: the same power as an autonomous agent, but with 4 to 8 times fewer tokens consumed. This is the most economical and predictable mode.
-- **ReAct mode** (⚡) — The assistant reasons step by step: it calls a tool, analyzes the result, then decides what to do next. More autonomous, more adaptable, but more costly in tokens. Ideal for exploratory research or complex questions where the added value justifies the cost. It is also the only mode that can compute rather than estimate: when a step needs arithmetic over many rows or durations across timezones, it writes a few lines of Python and runs them in a locked-down sandbox.
+- **ReAct mode** (⚡) — The assistant reasons step by step: it calls a tool, analyzes the result, then decides what to do next. More autonomous, more adaptable, but more costly in tokens. Ideal for exploratory research or complex questions where the added value justifies the cost. It is also the only mode that can compute rather than estimate: when a step needs arithmetic over many rows or durations across timezones, it writes a few lines of Python and runs them in a locked-down sandbox. The tools it takes along are chosen by relevance to your question — your own MCP servers included — never by order of arrival, and it reads your knowledge spaces just as Pipeline mode does.
 
 ### 3.1. Natural conversation
 
-Talk to LIA as you would to a human assistant — no commands to memorize, no syntax to follow. LIA understands and responds in 99+ languages, with an interface available in 6 languages (French, English, German, Spanish, Italian, Chinese). Responses are rendered as interactive HTML visual cards, direct HTML, or Markdown based on your preferences.
+Talk to LIA as you would to a human assistant — no commands to memorize, no syntax to follow. LIA understands and responds in 99+ languages, with an interface available in 6 languages (French, English, German, Spanish, Italian, Chinese). Responses are rendered as interactive HTML visual cards, direct HTML, or Markdown based on your preferences. In rich HTML, an answer that carries data arrives as a composed page — a lead sentence, one section per facet in the component that fits it, a closing callout — never as tagged text.
 
 ### 3.2. Personal connected services
 
@@ -156,7 +156,7 @@ LIA offers a complete voice mode:
 - **Excalidraw diagrams**: generate diagrams and schemas directly in conversation
 - **Attachments**: attach photos and PDFs — LIA analyzes visual content and extracts text from documents
 - **MCP Apps**: interactive widgets directly in chat (forms, visualizations, mini-applications)
-- **Kept answers**: a bookmark on every answer keeps it out of the conversation — with your request and its date — in a tab beside your generated files; share it, download it as Markdown, or let it go
+- **Kept answers**: a bookmark on every answer keeps it out of the conversation — with your request and its date — in a tab beside your generated files; share it, download it as Markdown, or let it go; every kept answer also joins a knowledge space of your own, so LIA finds it and cites it weeks later
 
 ### 3.6. Proactivity and initiative
 
@@ -405,7 +405,7 @@ This inner life has a face: the mood emoji animates on the current reply, the co
 
 That face tells the truth about the answer, not about the mood of the moment. LIA states the **register** of what she has just written, and the face plays that one: a technical explanation keeps a focused look, a failure reads as a failure. A trait colours a resting presence; it should never answer for a single moment.
 
-And between two answers, that face does not switch off. The brows have an arch and stay present at rest, one breath carries the whole face, the gaze lifts the brows and a blink dips them; the mouth plays small mimics at an irregular, unhurried pace, and now and then, on a resting face, a short sketch — a fly to follow, a sneeze, a yawn. None of it costs a model call: it is animation in the sense the studios mean it — a character you believe alive because it breathes when nobody is watching. That same face greets visitors on the home page, before any account.
+And between two answers, that face does not switch off. The brows sit on the eye and weigh — they knit and lead each expression instead of following it; one breath carries the whole face; the mouth speaks a generated phrase that nothing repeats and plays small mimics in phrases rather than on a cadence; two blinks, two smiles, two glances are never identical; and now and then, on a face truly at rest, a short sketch — a fly to follow, a sneeze, a yawn — waiting its turn on a clock the page keeps even while you navigate. None of it costs a model call: it is animation in the sense the studios mean it — a character you believe alive because it breathes when nobody is watching. That same face greets visitors on the home page, before any account.
 
 And this presence follows you: outside the chat, a floating companion keeps LIA at your side across the whole dashboard — at rest, at work, or carrying a notification.
 
@@ -418,6 +418,8 @@ The journal is organized along **four levels of depth** — from raw observation
 Beyond writing, the journal **measures itself**. At every turn, LIA looks at the directives it applied on the previous turn and reads your reaction on the current turn: if you confirmed, the evidence counter rises; if you pushed back, the contradiction counter rises. Over time, false hypotheses get demoted silently, good intuitions get promoted, transversal patterns emerge through active clustering.
 
 From this stratification emerges a **compiled user-model portrait**: your voice, your rhythm, your contexts, your contradictions, your blind spots. It travels with LIA wherever it speaks — conversation, voice, reminders, proactive notifications, ReAct, fallback — so the assistant doesn't "forget who you are" depending on the surface it's using.
+
+That portrait reads more than the journals: your memories, your interests, your learned habits and your relationship debriefs enter it as material, each under its own switch — yours and the administrator's. And it tells you where it comes from: under the portrait, a line names what was read, what was empty, what was off. A source that does not answer is named, never read as empty.
 
 This is a form of artificial introspection — the assistant reflecting on its interactions, measuring its own usefulness, and developing a nuanced understanding of you. You retain full control: reading by theme or by level, editing, signaling a problem on the portrait, triggering a consolidation on demand. The portrait itself is never directly edited — it's a synthesis voice, corrected through indirect levers to preserve its coherence.
 

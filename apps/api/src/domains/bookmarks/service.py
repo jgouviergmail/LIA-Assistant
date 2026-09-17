@@ -4,11 +4,18 @@ A bookmark is a COPY taken at the click — the answer, the request that
 produced it, the answer's date — so it survives the conversation. The service
 owns the four refusals (not the caller's, nothing to keep, the cap, unknown
 id) and the one idempotence the bubble's toggle relies on.
+
+Since the 2026-09-16 design (part A) a kept answer is also PROJECTED into the
+person's « Kept answers » knowledge space: the projection is scheduled after
+the commit that created the row, and discarded inside the transaction that
+removes it (``bookmarks/indexing.py``).
 """
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Sequence
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 import structlog
@@ -22,10 +29,15 @@ from src.domains.bookmarks.errors import (
     raise_bookmark_not_found,
     raise_bookmark_nothing_to_keep,
 )
+from src.domains.bookmarks.indexing import discard_index, index_bookmark, unlink_quietly
 from src.domains.bookmarks.models import MessageBookmark
 from src.domains.bookmarks.queries import BookmarkFilters
 from src.domains.bookmarks.repository import BookmarkRepository
 from src.domains.conversations.models import ConversationMessage
+from src.infrastructure.async_utils import safe_fire_and_forget
+
+if TYPE_CHECKING:
+    from src.domains.rag_spaces.models import RAGDocument
 
 logger = structlog.get_logger(__name__)
 
@@ -126,6 +138,9 @@ class BookmarkService:
             message_id=str(message.id),
             has_request=request is not None,
         )
+        # The projection rides the commit that created the row — a bookmark
+        # that already existed was projected when it was kept.
+        safe_fire_and_forget(index_bookmark(bookmark.id), name=f"bookmark_index_{bookmark.id}")
         return bookmark, True
 
     async def list_page(
@@ -141,6 +156,17 @@ class BookmarkService:
             The rows and the count over the whole filtered set.
         """
         return await self.repository.list_page(user_id, filters)
+
+    async def documents_of(self, bookmarks: Sequence[MessageBookmark]) -> dict[UUID, RAGDocument]:
+        """The projection rows of a page — ONE query, keyed by document id.
+
+        Args:
+            bookmarks: The rows a response describes.
+
+        Returns:
+            ``document_id → rag_documents row`` for the links that resolve.
+        """
+        return await self.repository.documents_of(bookmarks)
 
     async def attached_message_ids(self, user_id: UUID) -> dict[UUID, UUID]:
         """What every bubble needs to draw its toggle: ``message_id → bookmark_id``.
@@ -166,8 +192,7 @@ class BookmarkService:
         bookmark = await self.repository.get_for_user(user_id, bookmark_id)
         if bookmark is None:
             raise_bookmark_not_found(bookmark_id)
-        await self.repository.delete(bookmark)
-        await self.db.commit()
+        await self._delete_with_projection(bookmark)
         logger.info("bookmark_removed", user_id=str(user_id), bookmark_id=str(bookmark_id))
 
     async def remove_by_message(self, user_id: UUID, message_id: UUID) -> bool:
@@ -181,10 +206,24 @@ class BookmarkService:
             True when a bookmark went, False when none was attached — the
             caller reports what happened rather than assuming.
         """
-        removed = await self.repository.delete_by_message(user_id, message_id)
+        bookmark = await self.repository.get_by_message(user_id, message_id)
+        if bookmark is None:
+            return False
+        await self._delete_with_projection(bookmark)
+        logger.info("bookmark_removed_by_message", user_id=str(user_id), message_id=str(message_id))
+        return True
+
+    async def _delete_with_projection(self, bookmark: MessageBookmark) -> None:
+        """Delete the projection and the row in ONE commit, then the stored file.
+
+        The chunks and the document row go in the same transaction as the
+        bookmark; the file goes after the commit, best effort — a stale file is
+        harmless and the storage tree goes with the account.
+
+        Args:
+            bookmark: The row to remove.
+        """
+        path = await discard_index(self.db, bookmark)
+        await self.repository.delete(bookmark)
         await self.db.commit()
-        if removed:
-            logger.info(
-                "bookmark_removed_by_message", user_id=str(user_id), message_id=str(message_id)
-            )
-        return removed
+        await asyncio.to_thread(unlink_quietly, path)

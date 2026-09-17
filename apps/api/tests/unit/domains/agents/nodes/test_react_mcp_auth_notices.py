@@ -95,7 +95,10 @@ class TestMcpAuthNoticesBlock:
         invariant 3). Source-level guard on the setup node's assembly list."""
         import inspect
 
-        from src.domains.agents.nodes import react_nodes
+        from src.domains.agents.nodes import react_context, react_nodes
 
-        source = inspect.getsource(react_nodes)
-        assert "build_mcp_auth_notices_block" in source
+        # The setup mounts its blocks through ONE assembler (react_context).
+        assert "react_context.build_setup_blocks(state, config, intelligence)" in inspect.getsource(
+            react_nodes.react_setup_node
+        )
+        assert "build_mcp_auth_notices_block" in inspect.getsource(react_context.build_setup_blocks)

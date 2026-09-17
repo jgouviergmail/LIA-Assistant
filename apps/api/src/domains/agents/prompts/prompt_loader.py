@@ -80,6 +80,7 @@ PromptName = Literal[
     "perplexity_tool_lines",
     "interest_perplexity_system_prompt",
     "journal_consolidation_lines",
+    "journal_portrait_source_lines",
     "semantic_validator_lines",
     "hitl_draft_modifier_lines",
     "interest_extraction_lines",

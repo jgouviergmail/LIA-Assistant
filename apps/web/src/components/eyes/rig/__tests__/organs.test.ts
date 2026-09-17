@@ -19,9 +19,15 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { POSES, resolvePose } from '@/components/eyes/rig/poses';
-import { createEyeRig } from '@/components/eyes/rig/runtime';
-import { CHANNELS } from '@/components/eyes/rig/channels';
-import { GROUP_LEAD_MS } from '@/components/eyes/rig/dynamics';
+import {
+  BROW_SMILE_LIFT_EM,
+  BROW_STRETCH_MAX,
+  BROW_STRETCH_MIN,
+  browStretchFor,
+  createEyeRig,
+} from '@/components/eyes/rig/runtime';
+import { CHANNELS, CHANNEL_KEYS } from '@/components/eyes/rig/channels';
+import { GROUP_FREQUENCY_SCALE, GROUP_LEAD_MS } from '@/components/eyes/rig/dynamics';
 import { EYE_EXPRESSIONS, type EyeExpression } from '@/components/eyes/expression-engine';
 
 const CSS = readFileSync(join(process.cwd(), 'src/styles/eyes.css'), 'utf8');
@@ -37,33 +43,129 @@ function innerEndDrop(expression: EyeExpression): { left: number; right: number 
 }
 
 describe('the brow', () => {
-  it('is PRESENT at rest, faintly — a face with no brows cannot act between two emotions', () => {
-    // ADR-264 reverses ADR-252 here. Ten of the fourteen psyche moods idle on
-    // `neutral`; a brow that only exists once an emotion lands has nothing to
-    // do for most of the session, and it APPEARS (a fade) instead of MOVING.
-    const rest = CHANNELS.browAL.rest;
-    expect(rest).toBeGreaterThan(0.3);
-    expect(rest).toBeLessThan(0.7);
-    expect(resolvePose('neutral', 'cozmo').browAL).toBe(rest);
+  it('is FULLY present, always — drawn, never faded in (no presence channel exists)', () => {
+    // ADR-264 kept the brows at half presence and inked them up for every
+    // scene; measured on the running widget (2026-09-17), that ink rose from
+    // 0.5 to 1 twenty-seven times in five minutes, in under 100 ms each time,
+    // and read as an interface element switching on. A face is drawn whole.
+    const keys: readonly string[] = CHANNEL_KEYS;
+    expect(keys.filter(key => /^browA[LR]$/.test(key))).toEqual([]);
+    expect(keys.includes('mouthA')).toBe(false);
+    expect(CSS).toMatch(/\.lia-eye-brow \{[^}]*opacity:\s*var\(--has-brow\)/);
+    expect(CSS).toMatch(/\.lia-mouth \{[^}]*opacity:\s*var\(--has-mouth\)/);
   });
 
-  it('commits harder for every expression that has something to say', () => {
-    const rest = CHANNELS.browAL.rest;
-    const relaxed = new Set(['neutral', 'sleepy', 'sleep', 'bored', 'tired']);
-    EYE_EXPRESSIONS.forEach(expression => {
-      const presence = resolvePose(expression, 'cozmo').browAL;
-      expect({ expression, ok: relaxed.has(expression) ? presence > 0 : presence > rest }).toEqual({
+  it('KNITS: a scowl, a worry and a fright pull the brows toward the nose, a startle sends them apart', () => {
+    const knit = (expression: EyeExpression) => {
+      const pose = resolvePose(expression, 'cozmo');
+      // Screen em: the left brow moves right (+) and the right brow moves
+      // left (-) to meet at the nose.
+      return { left: pose.browXL + 0, right: -pose.browXR + 0 };
+    };
+    (['anger', 'focused', 'worried', 'fear', 'sad'] as const).forEach(expression => {
+      const { left, right } = knit(expression);
+      expect({ expression, left: left > 0, right: right > 0 }).toEqual({
         expression,
-        ok: true,
+        left: true,
+        right: true,
       });
     });
+    expect(knit('surprise').left).toBeLessThan(0);
+    expect(knit('neutral')).toEqual({ left: 0, right: 0 });
+    expect(CHANNELS.browXL.unit).toBe('em');
   });
 
-  it('relaxes as the face falls asleep, and never vanishes', () => {
-    const rest = CHANNELS.browAL.rest;
-    expect(resolvePose('sleepy', 'cozmo').browAL).toBeLessThan(rest);
-    expect(resolvePose('sleep', 'cozmo').browAL).toBeLessThan(rest);
-    expect(resolvePose('sleep', 'cozmo').browAL).toBeGreaterThan(0);
+  it('is WEIGHTED by its own motion: raised it stretches thin, pressed it thickens', () => {
+    // Squash and stretch on the organ, derived from the motion it already
+    // makes: no pose declares a thickness, and no beat can forget one.
+    expect(CHANNELS.browSL.derived).toBe(true);
+    expect(browStretchFor(0, CHANNELS.browArcL.rest)).toBe(1);
+    expect(browStretchFor(-0.1, CHANNELS.browArcL.rest)).toBeLessThan(0.85);
+    expect(browStretchFor(0.03, CHANNELS.browArcL.rest)).toBeGreaterThan(1.04);
+    expect(browStretchFor(0, 0.85)).toBeLessThan(1);
+    expect(browStretchFor(-1, 1)).toBe(BROW_STRETCH_MIN);
+    expect(browStretchFor(1, 0)).toBe(BROW_STRETCH_MAX);
+    const settled = (expression: EyeExpression) => {
+      const rig = createEyeRig({
+        initial: { expression, styleId: 'cozmo', family: 'calm' },
+        reducedMotion: true,
+      });
+      rig.step(16);
+      return rig.values().browSL;
+    };
+    expect(settled('surprise')).toBeLessThan(0.85);
+    expect(settled('anger')).toBeGreaterThan(1.04);
+    expect(settled('neutral')).toBe(1);
+    // ...and the sheet draws the thickness AND the width from it, at
+    // constant ink: a thin brow is a long one.
+    const block = CSS.slice(CSS.indexOf('.lia-eye-brow {'));
+    const rule = block.slice(0, block.indexOf('\n}'));
+    expect(rule).toMatch(/border-top-width:\s*calc\(0\.13em \* var\(--brow-s\)\)/);
+    expect(rule).toMatch(/width:\s*calc\(var\(--eye-w, 1\.3em\) \* 0\.72 \/ var\(--brow-s\)\)/);
+  });
+
+  it('sits ON the eye: anchored to the visible top edge of the shape, so a dome never leaves it floating', () => {
+    // Measured on the running widget (2026-09-17): the brow was pinned to
+    // the top of the eye BOX, and a joy dome (the shape squashed to 0.55
+    // around its fifth) left it hanging a third of an eye above the eye.
+    const block = CSS.slice(CSS.indexOf('.lia-eye-brow {'));
+    const rule = block.slice(0, block.indexOf('\n}'));
+    expect(rule).toMatch(
+      /top:\s*calc\(var\(--oy\) \* \(1 - var\(--sy\)\) \+ var\(--lid-top\) \* var\(--sy\)\)/
+    );
+    expect(rule).not.toContain('bottom: 100%');
+    expect(rule).toMatch(
+      /translate:\s*calc\(-50% \+ var\(--brow-x\)\)\s*calc\(-100% - [\d.]+em \+ var\(--brow-y\)\)/
+    );
+  });
+
+  it('lifts a hair with a smile — the cheeks push the whole face up', () => {
+    const rig = createEyeRig({
+      initial: { expression: 'joy', styleId: 'cozmo', family: 'calm' },
+      reducedMotion: true,
+    });
+    rig.step(16);
+    const pose = resolvePose('joy', 'cozmo');
+    const smile = Math.max(0, pose.mouthCurve - CHANNELS.mouthCurve.rest);
+    expect(smile).toBeGreaterThan(0.5);
+    expect(rig.values().browYL).toBeCloseTo(pose.browYL - smile * BROW_SMILE_LIFT_EM, 6);
+    const scowl = createEyeRig({
+      initial: { expression: 'anger', styleId: 'cozmo', family: 'calm' },
+      reducedMotion: true,
+    });
+    scowl.step(16);
+    // A frown pushes nothing: the coupling is one-sided.
+    expect(scowl.values().browYL).toBeCloseTo(resolvePose('anger', 'cozmo').browYL, 6);
+  });
+
+  it('moves on its OWN dynamics, a beat ahead of the eye it sits on', () => {
+    // A startle is brows first: the pair flies before the lids have moved.
+    // A group of its own is what lets it lead on every preset without a
+    // per-expression script, and it departs with the willed channels.
+    (['browYL', 'browRotL', 'browArcL', 'browXL'] as const).forEach(key => {
+      expect({ key, group: CHANNELS[key].group }).toEqual({ key, group: 'brow' });
+    });
+    expect(GROUP_FREQUENCY_SCALE.brow).toBeGreaterThan(GROUP_FREQUENCY_SCALE.pose);
+    expect(GROUP_LEAD_MS.brow).toBe(0);
+    const rig = createEyeRig({
+      initial: { expression: 'neutral', styleId: 'cozmo', family: 'calm' },
+    });
+    const from = resolvePose('neutral', 'cozmo');
+    const to = resolvePose('surprise', 'cozmo');
+    rig.setPose({ expression: 'surprise', styleId: 'cozmo', family: 'calm' });
+    let browAt90 = -1;
+    let eyeAt90 = -1;
+    for (let frame = 1; frame <= 60; frame += 1) {
+      rig.step(16);
+      const values = rig.values();
+      const brow = (values.browArcL - from.browArcL) / (to.browArcL - from.browArcL);
+      const eye = (values.syL - from.syL) / (to.syL - from.syL);
+      if (browAt90 < 0 && brow >= 0.9) browAt90 = frame;
+      if (eyeAt90 < 0 && eye >= 0.9) eyeAt90 = frame;
+    }
+    expect(browAt90).toBeGreaterThan(0);
+    expect(eyeAt90).toBeGreaterThan(0);
+    expect(browAt90).toBeLessThan(eyeAt90);
   });
 
   it('mirrors between the eyes, except where the asymmetry IS the message', () => {
@@ -76,7 +178,7 @@ describe('the brow', () => {
         rot: -pose.browRotR + 0,
       });
       expect(pose.browYL).toBe(pose.browYR);
-      expect(pose.browAL).toBe(pose.browAR);
+      expect(pose.browXL + 0).toBe(-pose.browXR + 0);
     });
   });
 
@@ -111,23 +213,13 @@ describe('the brow', () => {
     const question = resolvePose('question', 'cozmo');
     expect(question.browYL).toBeLessThan(question.browYR);
   });
-
-  it('is never anticipated into an absent brow appearing backwards', () => {
-    // Presence is `aura`: it FOLLOWS the face instead of anticipating it, so a
-    // brow never flashes into view before the emotion that summons it.
-    expect(CHANNELS.browAL.group).toBe('aura');
-    expect(GROUP_LEAD_MS.aura).toBeGreaterThan(0);
-    // Height and tilt are willed motion, so they anticipate and exaggerate.
-    expect(CHANNELS.browYL.group).toBe('pose');
-    expect(CHANNELS.browRotL.group).toBe('pose');
-  });
 });
 
 describe('the arch', () => {
   const arcOf = (expression: EyeExpression) => resolvePose(expression, 'cozmo').browArcL;
 
   it('is a channel of its own: a bar can tilt, only an arch can wonder', () => {
-    expect(CHANNELS.browArcL.group).toBe('pose');
+    expect(CHANNELS.browArcL.group).toBe('brow');
     expect(CHANNELS.browArcL.unit).toBe('num');
     expect(CHANNELS.browArcL.rest).toBeGreaterThan(0);
     expect(CHANNELS.browArcL.rest).toBeLessThan(0.2);
@@ -192,10 +284,11 @@ describe('the arch', () => {
     // The curvature is bounded in the sheet: exaggeration may push an arc past
     // 1 and anticipation may pull it under 0, and neither must reach a radius.
     expect(rule).toMatch(/--brow-curve:\s*min\(1, max\(0, var\(--brow-arc\)\)\)/);
-    expect(rule).toContain('border-top-width: 0.13em');
     expect(rule).toContain('background: transparent');
     // At arc 0 the box is exactly its own thickness: the resting pill.
-    expect(rule).toMatch(/height:\s*calc\(0\.13em \+ var\(--brow-curve\) \* [\d.]+em\)/);
+    expect(rule).toMatch(
+      /height:\s*calc\(0\.13em \* var\(--brow-s\) \+ var\(--brow-curve\) \* [\d.]+em\)/
+    );
   });
 });
 
@@ -237,7 +330,7 @@ describe('per-style opt-in', () => {
   it('gates both organs on style tokens, not on hard-coded style lists', () => {
     expect(CSS).toContain('--has-brow');
     expect(CSS).toContain('--has-pupil');
-    expect(CSS).toMatch(/opacity:\s*calc\(var\(--brow-a\)\s*\*\s*var\(--has-brow\)\)/);
+    expect(CSS).toMatch(/opacity:\s*var\(--has-brow\)/);
     expect(CSS).toMatch(/opacity:\s*var\(--has-pupil\)/);
   });
 
