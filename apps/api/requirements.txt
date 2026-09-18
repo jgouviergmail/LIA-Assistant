@@ -38,7 +38,7 @@ tzdata==2026.2  # IANA timezone database for Windows/Python 3.9+
 # Authentication & Security
 python-jose[cryptography]==3.5.0  # CVE-2024-33663 fix (algorithm confusion)
 bcrypt==5.0.0  # direct import (core/security/utils.py); was transitive-only via the removed passlib extra — dropping passlib without this line breaks auth at install (ADR-241 follow-up)
-webauthn==2.8.0  # Passkeys (WebAuthn/FIDO2) server-side ceremonies (security program D1); 3.x needs cryptography>=49
+webauthn==3.0.0  # Passkeys (WebAuthn/FIDO2) server-side ceremonies (security program D1); 3.x needs cryptography>=49
 pyotp==2.10.0  # TOTP second factor (security program D1, Lot 2)
 qrcode==8.2  # TOTP enrollment QR (PNG data-URI via existing Pillow; security program D1, Lot 2)
 python-multipart==0.0.31  # CVE-2024-53981, CVE-2026-24486, CVE-2026-53540 fixes (DoS)
