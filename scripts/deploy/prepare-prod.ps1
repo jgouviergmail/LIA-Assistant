@@ -223,7 +223,15 @@ $infraDirs = @(
     # Caddyfile (the edge allowlist), squid.conf (the egress allowlist), the
     # OTel and Prometheus configuration. The demonstrator's envelope mounts
     # all four read-only; without them it starts and serves nothing.
-    "demo-instance"
+    "demo-instance",
+    # The sandbox egress proxy's entrypoint, CA template and bootstrap ruleset
+    # (ADR-298): docker-compose.skill-sandbox.yml bind-mounts the directory
+    # into the proxy and the API waits for that proxy to be healthy. Left out,
+    # Docker creates the directory EMPTY on the host, the proxy restarts on a
+    # missing entrypoint and the API never starts — measured on production,
+    # 2026-09-18. deploy-prod.Tests.ps1 now reads the compose files and
+    # refuses any mounted infrastructure/ directory this list forgets.
+    "sandbox-egress"
 )
 
 foreach ($dir in $infraDirs) {

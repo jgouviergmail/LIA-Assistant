@@ -126,6 +126,14 @@ FERNET_KEY=fake-fernet
         New-Item -ItemType Directory (Join-Path $proj "docs/runbooks/alerts") -Force | Out-Null
         Set-Content (Join-Path $proj "docs/runbooks/alerts/ServiceDown.md") "# ServiceDown RUNBOOK_SENTINEL"
         Set-Content (Join-Path $proj "docs/runbooks/DATABASE_BACKUP_RESTORE.md") "# restore"
+        # The egress proxy's entrypoint (ADR-298): the skill-sandbox overlay
+        # bind-mounts ./infrastructure/sandbox-egress into the proxy and the
+        # API waits for that proxy to be healthy. Left out of the staging
+        # list, Docker created the directory EMPTY on the host, the proxy
+        # restarted on "can't open entrypoint.sh" and production served 502
+        # (2026-09-18, the v1.46.0 deploy).
+        New-Item -ItemType Directory (Join-Path $proj "infrastructure/sandbox-egress") -Force | Out-Null
+        Set-Content (Join-Path $proj "infrastructure/sandbox-egress/entrypoint.sh") "#!/bin/sh`n# EGRESS_SENTINEL"
         New-Item -ItemType Directory (Join-Path $proj "apps/web/src") -Force | Out-Null
         Set-Content (Join-Path $proj "apps/web/src/page.tsx") "// WEB_SENTINEL"
         Set-Content (Join-Path $proj "apps/web/Dockerfile.prod") "FROM scratch"
@@ -594,6 +602,42 @@ Describe "deploy-prod.ps1 bundle + transfer sequence (hermetic, deploy step fail
         (Join-Path $prod "docs/runbooks/DATABASE_BACKUP_RESTORE.md") | Should -Exist
         Get-Content (Join-Path $prod "docs/runbooks/alerts/ServiceDown.md") -Raw |
             Should -Match "RUNBOOK_SENTINEL"
+    }
+
+    It "stages the egress proxy's entrypoint the skill-sandbox overlay mounts" {
+        # docker-compose.skill-sandbox.yml: ./infrastructure/sandbox-egress:/opt/lia-egress:ro.
+        # Without it the proxy has no entrypoint, the API never comes up.
+        (Join-Path $prod "infrastructure/sandbox-egress/entrypoint.sh") | Should -Exist
+        Get-Content (Join-Path $prod "infrastructure/sandbox-egress/entrypoint.sh") -Raw |
+            Should -Match "EGRESS_SENTINEL"
+    }
+
+    It "stages every infrastructure/ directory a shipped compose file bind-mounts" {
+        # The staging list is hand-maintained; the compose files are the
+        # authority on what production mounts. Read both from the REPOSITORY
+        # (not the fixture) and refuse any mounted directory the list forgets —
+        # the third copy of this knowledge (bundle, installer, deploy) is
+        # exactly where the sandbox-egress omission hid.
+        $repoRoot = (Resolve-Path (Join-Path $script:RepoDeployDir "../..")).Path
+        $prepare = Get-Content (Join-Path $repoRoot "scripts/deploy/prepare-prod.ps1") -Raw
+        # The list ends on a line holding the closing parenthesis alone: a
+        # comment inside the block may carry parentheses of its own.
+        $block = [regex]::Match($prepare, '(?m)\$infraDirs = @\((?<body>[\s\S]*?)^\)').Groups['body'].Value
+        $staged = @()
+        $staged = [regex]::Matches($block, '"(?<name>[A-Za-z0-9_.-]+)"') | ForEach-Object { $_.Groups['name'].Value }
+        $staged | Should -Contain "observability"
+        $staged | Should -Contain "demo-instance"
+        $mounted = @()
+        foreach ($compose in @("docker-compose.prod.yml", "docker-compose.skill-sandbox.yml", "docker-compose.devops.yml")) {
+            $text = Get-Content (Join-Path $repoRoot $compose) -Raw
+            foreach ($m in [regex]::Matches($text, '(?m)^\s*-\s*\./infrastructure/(?<dir>[A-Za-z0-9_.-]+)')) {
+                $mounted += $m.Groups['dir'].Value
+            }
+        }
+        $mounted | Should -Contain "sandbox-egress"
+        foreach ($dir in ($mounted | Sort-Object -Unique)) {
+            $staged | Should -Contain $dir
+        }
     }
 
     It "generated deploy.sh with the readiness-gate wiring in the right order" {
