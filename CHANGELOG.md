@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Synthèse repliée : `display/components/folded_synthesis.py` (`split_lead`, `format_synthesis_html`, `render_folded_synthesis`), constante `WEB_SEARCH_SYNTHESIS_PREVIEW_CHARS_DEFAULT`, réglage `WEB_SEARCH_SYNTHESIS_PREVIEW_CHARS`.
 - Code : `lib/markdown-code-block.ts`, `CodeBlock` (`useScrollBoxOverflow`, `data-overflowing`, `data-scrolled-end`), classes `.code-scroll` / `.code-scroll-frame`.
 - `infrastructure/media/heif.py` (`ensure_heif_support`), dépendance `pillow-heif` (manifeste et deux lockfiles).
+- Dépendances : `soupsieve` 2.8.4 → 2.9.2 dans les deux lockfiles (CVE-2026-85999, CVE-2026-86000 ; relevé par l'audit de dépendances de la CI).
 - Accueil : trois attentions `/more` (`knowledge_pick`, `code_scroll`, `sync_count`) avec leurs scènes ; FAQ `chat.q28`, `tool_examples_services.q19` ; changelog FAQ `v1_45_2` ; lexique `rag-spaces` enrichi ×6.
 
 ### Changed
