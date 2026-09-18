@@ -4,7 +4,7 @@
 
 **Version**: 6.0
 **Date**: 2026-09-18
-**Application**: LIA v1.45.2
+**Application**: LIA v1.46.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -85,7 +85,7 @@ The administrator accesses a third tab dedicated to instance management:
 - **Broadcast messages**: send important messages to all users or a selection, with optional expiration date
 - **Global consumption export**: export all-users consumption in CSV
 - **Instance daily budget**: bound in euros what the WHOLE instance may spend in a day — not only what each account consumes. The panel shows the day's spend, the ceiling actually applied and what is left. Once the budget is exhausted, users learn that the deployment is paused and are given the exact reset time, not a misleading message about their personal quota
-- **Platform capabilities**: turn twenty-five capabilities on or off instantly, with no redeploy — every feature a person actually experiences, from dictation and images to the ticket board, journals, long-term memory and proactive notifications — grouped into six families so a panel of switches stays readable. A switch removes the CAPABILITY, never the record: turning memory off stops new facts being learned while everything already learned stays readable and deletable. A disabled capability also disappears from the catalogue offered to the planner, so LIA stops proposing what the routes would refuse; each row shows what the deployment allows, what you chose, what is actually enforced, and where the switch bites
+- **Platform capabilities**: turn every capability on or off instantly, with no redeploy — every feature a person actually experiences, from dictation and images to the ticket board, journals, long-term memory and proactive notifications — grouped into six families so a panel of switches stays readable. A switch removes the CAPABILITY, never the record: turning memory off stops new facts being learned while everything already learned stays readable and deletable. A disabled capability also disappears from the catalogue offered to the planner, so LIA stops proposing what the routes would refuse; each row shows what the deployment allows, what you chose, what is actually enforced, and where the switch bites
 
 **AI and connectors:**
 
@@ -114,7 +114,7 @@ LIA acts concretely in your digital life through 20+ specialized agents covering
 You choose how LIA reasons, via a simple toggle (⚡) in the chat header:
 
 - **Pipeline mode** (default) — A genuine feat of engineering: LIA plans all steps upfront, validates them semantically, then executes tools in parallel. Result: the same power as an autonomous agent, but with 4 to 8 times fewer tokens consumed. This is the most economical and predictable mode.
-- **ReAct mode** (⚡) — The assistant reasons step by step: it calls a tool, analyzes the result, then decides what to do next. More autonomous, more adaptable, but more costly in tokens. Ideal for exploratory research or complex questions where the added value justifies the cost. It is also the only mode that can compute rather than estimate: when a step needs arithmetic over many rows or durations across timezones, it writes a few lines of Python and runs them in a locked-down sandbox. The tools it takes along are chosen by relevance to your question — your own MCP servers included — never by order of arrival, and it reads your knowledge spaces just as Pipeline mode does.
+- **ReAct mode** (⚡) — The assistant reasons step by step: it calls a tool, analyzes the result, then decides what to do next. More autonomous, more adaptable, but more costly in tokens. Ideal for exploratory research or complex questions where the added value justifies the cost. It is also the only mode that can compute rather than estimate: when a step needs arithmetic over many rows or durations across timezones, it writes a few lines of Python and runs them in a locked-down sandbox — and when a step needs a service no tool covers, that script may reach the web through a single proxy, your own keys swapped in outside it, an unknown host asked before with three answers. The tools it takes along are chosen by relevance to your question — your own MCP servers included — never by order of arrival, and it reads your knowledge spaces just as Pipeline mode does.
 
 ### 3.1. Natural conversation
 

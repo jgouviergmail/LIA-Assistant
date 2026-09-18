@@ -15,6 +15,7 @@ const AVAILABILITY: SettingsSearchAvailability = {
   openLoopsEnabled: true,
   habitsEnabled: true,
   peersEnabled: true,
+  sandboxEgressEnabled: true,
   debugUserAccess: true,
 };
 

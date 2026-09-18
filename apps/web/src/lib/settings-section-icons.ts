@@ -110,6 +110,7 @@ export const SETTINGS_SECTION_ICONS: Readonly<Record<SettingsSectionToken, Lucid
   'telephony-identity': Smartphone,
   'admin-mcp-servers': ServerCog,
   'mcp-servers': Server,
+  'sandbox-egress': Globe,
   'debug-panel': Bug,
 
   // ---- Features

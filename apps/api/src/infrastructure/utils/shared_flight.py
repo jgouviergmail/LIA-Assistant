@@ -33,7 +33,6 @@ Three rules it does not bend:
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import time
 import uuid
 from collections.abc import Awaitable, Callable
@@ -42,6 +41,7 @@ from typing import Any, NamedTuple, TypeVar
 import structlog
 
 from src.infrastructure.cache.redis import get_redis_cache
+from src.infrastructure.locks.redis_claim import release_claim, try_claim
 
 logger = structlog.get_logger(__name__)
 
@@ -62,14 +62,6 @@ CLAIM_TTL_SECONDS = 30
 
 #: How often a waiter looks for the published result.
 POLL_INTERVAL_SECONDS = 0.02
-
-#: Compare-and-delete: only the token that took the claim may drop it.
-_RELEASE_SCRIPT = """
-if redis.call('get', KEYS[1]) == ARGV[1] then
-    return redis.call('del', KEYS[1])
-end
-return 0
-"""
 
 
 class SharedFlightResult[V](NamedTuple):
@@ -166,7 +158,7 @@ async def _try_claim(redis: Any, claim_key: str, token: str) -> bool:
         is the floor, and waiting on a claim we could not read would be worse.
     """
     try:
-        return bool(await redis.set(claim_key, token, ex=CLAIM_TTL_SECONDS, nx=True))
+        return await try_claim(redis, claim_key, token, ttl_seconds=CLAIM_TTL_SECONDS)
     except Exception as exc:  # noqa: BLE001 - fall back to building
         logger.debug("shared_flight_claim_failed", error_type=type(exc).__name__)
         return True
@@ -218,8 +210,7 @@ async def _release(redis: Any, claim_key: str, token: str) -> None:
         claim_key: The claim's key.
         token: The owner token this caller took it with.
     """
-    with contextlib.suppress(Exception):
-        await redis.eval(_RELEASE_SCRIPT, 1, claim_key, token)
+    await release_claim(redis, claim_key, token)
 
 
 __all__ = [

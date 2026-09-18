@@ -95,6 +95,14 @@ NOT_A_CAPABILITY_READ: Final[dict[str, str]] = {
         "one call leaves the process — the second module listed as a read on "
         "the strength of its import alone."
     ),
+    "domains/agents/python_sandbox/egress/connectors.py": (
+        "Reads three API-key client CLASSES for their declared host and auth "
+        "shape (``api_base_url``, ``auth_method``, header or query name) to "
+        "render the egress proxy's rules (ADR-298). No instance is built and "
+        "no call leaves the process; the network run those rules serve is "
+        "recorded as an EFFECT (``python_sandbox_network``) by the tool, and "
+        "the sandbox's own reads are the person's script's, through the proxy."
+    ),
     "domains/agents/emails/attachment_content.py": (
         "Imports the attachment VOCABULARY of the clients (EmailAttachmentContent, a "
         "dataclass of bytes) to read what the tool already downloaded: it opens no "

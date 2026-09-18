@@ -5,6 +5,7 @@
 | 1.0 | 2026-04-09 | [ADR-070](../architecture/ADR-070-ReAct-Execution-Mode.md) |
 | 1.1 | 2026-07-28 | [ADR-169](../architecture/ADR-169-React-System-Blocks-Are-State.md), [ADR-170](../architecture/ADR-170-React-Compute-Budget-And-Loop-Guard.md) |
 | 1.2 | 2026-08-29 | [ADR-248](../architecture/ADR-248-React-Memory-Parity-And-Progress-Earned-Budget.md), [ADR-249](../architecture/ADR-249-Ephemeral-Python-In-The-Existing-Sandbox.md) |
+| 1.3 | 2026-09-18 | [ADR-298](../architecture/ADR-298-Sandbox-Egress-Toolbox.md) |
 
 ## Table of Contents
 
@@ -363,10 +364,13 @@ would schedule a step execution then refuses — a dead end invented for the use
 then re-reads `execution_mode` from the typed runtime context (ADR-231) at call time. One
 enforcement would have been a trap; two are a contract.
 
-**Everything enforced is published** (ADR-184): the manifest states the absence of network,
-database and writable filesystem beyond `/tmp`, the exact library list (stdlib + numpy,
-pandas, openpyxl, python-dateutil, pytz), the 30 s / 512 MB / 50 KB bounds — and says
-explicitly when *not* to use the tool.
+**Everything enforced is published** (ADR-184): the manifest and the `<Computation>` block
+state the four jobs (calculate, diagnose, fill a gap, transform), the absence of database and
+writable filesystem beyond `/tmp`, the library list rendered from ONE table
+(`python_sandbox/libraries.py` — every distribution pinned directly in `requirements.txt`,
+imported by the CI on the lockfile and by `task sandbox:libraries:check` inside the built
+image), every bound from the setting that enforces it — and say explicitly when *not* to use
+the tool.
 
 **The turn's data travels on stdin**, never copied into the source: copying would pay for
 those tokens twice and truncate exactly the large cases that justify the feature. The
@@ -378,8 +382,43 @@ same task 42, separate tasks 0).
 **Output is untrusted, code is auditable.** Results carry
 `structured_data={"content_trust": "untrusted", ...}` exactly like an e-mail body; the
 source and its stated purpose are surfaced to **administrators only**, in the debug panel's
-ReAct section. Hiding the code would buy no security — the model wrote it, it is already in
-context — and would cost all verifiability.
+ReAct section — for THIS turn: `react_scripts` joined `react_turn_reset()` (the thread is the
+conversation, and the list used to grow for its whole life). Hiding the code would buy no
+security — the model wrote it, it is already in context — and would cost all verifiability.
+
+### Network runs (ADR-298)
+
+A run that declares `hosts` joins the `lia-sandbox` internal Docker network, whose only routed
+member is the iron-proxy sibling container: HTTPS only, through the proxy, to the declared
+hosts — a raw socket, a DNS query, an undeclared host or a private address has nowhere to go.
+Every declared host has one of four statuses (`egress/hosts.py`): `connector` (a host of the
+person's own active API-key connectors, derived from the client classes), `operator`
+(`PYTHON_SANDBOX_EGRESS_HOSTS`), `grant` (what the person allowed before) or `unknown`.
+
+- **A credential never enters the container.** The script reads a per-run token from
+  `os.environ["LIA_KEY_<CONNECTOR>"]` and puts it in the carrier the client class declares
+  (header or query parameter); the proxy swaps it for the person's real key on that host
+  alone. The ruleset is rendered from a Redis registry of live runs (`egress/registry.py`,
+  `egress/publisher.py`) and reloaded through the management API before the container
+  starts; a reload the proxy refuses is a run that never starts (fail closed, counted as
+  `proxy_unavailable`). Measured on dev: `task sandbox:egress:probe`.
+- **An unknown host is asked, with three answers** — allow with the turn's data, allow
+  without it (stdin then carries no items), refuse — through a `SANDBOX_EGRESS` card
+  (`egress/draft.py`). The question is settled IN the loop (`nodes/react_egress_question.py`):
+  the node raises the interrupt like a mutation tool's confirmation, and on resume re-invokes
+  the SAME call with the answer bound to it (`tool_path.approved_for_call`), so the model goes
+  on with its plan — a dispatched draft would have answered from the run's result and dropped
+  every later step (measured 2026-09-18). A question costs none of the turn's runs. The answer
+  becomes a grant (`sandbox_egress_grants`); past `PYTHON_SANDBOX_MAX_GRANTS_PER_USER` it holds
+  for its run alone. The person reviews and revokes grants from *Settings › Sandbox network*.
+- **The prompt offers what the account may reach** (`react_prompt.network_available`): the
+  network section of `<Computation>` is rendered only when the egress capability is on, and
+  lists the reachable hosts with their token variable and carrier. Measured 2026-09-18: told
+  « `LIA_KEY_X` in the header », the model sent the variable's NAME as the value; the line now
+  spells `os.environ[...]` and the next turn reached Brave with the swapped key.
+- **A network run is an action** claimed before the container starts and closed from the
+  result (`effects/in_turn_effects.py`, capability `python_sandbox_network`); a run without
+  hosts stays pass-through, as ADR-249 made it.
 
 ## Configuration
 
@@ -400,9 +439,17 @@ REACT_PROGRESS_EXTENSION_MAX_ITERATIONS=10  # Ceiling on what progress can buy
 
 # Sandboxed Python (ADR-249) — requires the container skills sandbox
 PYTHON_SANDBOX_TOOL_ENABLED=true      # Off means the tool does not exist at runtime
-PYTHON_SANDBOX_MAX_RUNS_PER_TURN=3    # Bounds a repair loop (1-20)
+PYTHON_SANDBOX_MAX_RUNS_PER_TURN=5    # Bounds a repair loop (1-20): an attempt, corrections, a verification
 PYTHON_SANDBOX_RATE_LIMIT_CALLS=20    # Per user, per window
 PYTHON_SANDBOX_RATE_LIMIT_WINDOW=300  # Window, seconds
+
+# Network runs (ADR-298) — need the `egress` service of the compose file
+PYTHON_SANDBOX_EGRESS_ENABLED=false   # Deployment ceiling; the capability switch is read at the act
+PYTHON_SANDBOX_EGRESS_ASK_ENABLED=true  # Ask the person about an unknown host (false = refuse it)
+PYTHON_SANDBOX_EGRESS_HOSTS=[]        # Operator allowlist, JSON list of exact lowercase hostnames
+PYTHON_SANDBOX_MAX_HOSTS_PER_RUN=5    # Published on the manifest (ADR-184)
+PYTHON_SANDBOX_MAX_GRANTS_PER_USER=50 # Past it an approval holds for its run alone
+PYTHON_SANDBOX_NETWORK_TIMEOUT_SECONDS=60  # A network run's whole budget
 ```
 
 LLM type: `react_agent` — configurable in admin LLM config panel.

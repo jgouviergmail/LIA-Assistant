@@ -91,6 +91,23 @@ class TestMappingMatrix:
         assert result["draft_id"] == "d1"
         assert result["reason"]
 
+    async def test_draft_confirm_without_data_is_a_confirm_that_narrows_the_run(self):
+        """ADR-298: the egress card's second answer — allowed, without the
+        turn's data. Canonised to `confirm` so every reader downstream sees a
+        confirmation, the narrowing travelling as its own field."""
+        result = await _build(
+            {"message_id": MESSAGE_ID, "action": "confirm_without_data"},
+            _pending("draft_critique", draft_id="d1"),
+        )
+        assert result == {"action": "confirm", "draft_id": "d1", "share_turn_data": False}
+
+    async def test_a_plain_confirm_carries_no_narrowing(self):
+        result = await _build(
+            {"message_id": MESSAGE_ID, "action": "confirm"},
+            _pending("draft_critique", draft_id="d1"),
+        )
+        assert "share_turn_data" not in result
+
     async def test_destructive_confirm_maps_to_plan_approve(self):
         result = await _build(
             {"message_id": MESSAGE_ID, "action": "confirm"}, _pending("destructive_confirm")

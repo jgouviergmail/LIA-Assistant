@@ -235,6 +235,13 @@ def _summarize_tool_call(content: dict[str, Any], format_dt: _FormatDt) -> _Summ
     return "tool_call", {"tool": str(label)}
 
 
+def _summarize_sandbox_egress(content: dict[str, Any], format_dt: _FormatDt) -> _SummarySpec:
+    """A script asking to reach hosts (ADR-298): the hosts nobody permitted yet."""
+    unknown = content.get("hosts_unknown") or content.get("hosts") or []
+    hosts = ", ".join(str(h) for h in unknown) or _UNKNOWN
+    return "sandbox_egress", {"hosts": hosts}
+
+
 def _summarize_spreadsheet_write(content: dict[str, Any], format_dt: _FormatDt) -> _SummarySpec:
     """Rows about to land in a spreadsheet."""
     return "spreadsheet_write", {
@@ -281,6 +288,7 @@ _SUMMARY_RENDERERS: dict[DraftType, _SummaryRenderer] = {
     DraftType.VACATION_RESPONDER: _summarize_vacation_responder,
     DraftType.EMAIL_FILTER: _summarize_email_filter,
     DraftType.TOOL_CALL: _summarize_tool_call,
+    DraftType.SANDBOX_EGRESS: _summarize_sandbox_egress,
     DraftType.SPREADSHEET_WRITE: _summarize_spreadsheet_write,
     DraftType.DOCUMENT_APPEND: _summarize_document_append,
     DraftType.TICKET_DELETE: _summarize_ticket_delete,

@@ -4694,6 +4694,14 @@ graph TD
 
 ---
 
+### ADR-298 : le bac à sable atteint le réseau par UN proxy, avec des jetons qu'il ne peut pas lire et une question qu'il ne peut pas sauter
+
+**Fichier**: `docs/architecture/ADR-298-Sandbox-Egress-Toolbox.md`
+
+**Décision** : ADR-249 avait donné au script éphémère un conteneur SANS réseau ; le propriétaire a demandé l'inverse, mesuré d'abord — diagnostiquer un outil en panne (le tiers est-il tombé, la clé refusée, la faute est-elle à nous, avec code et latence), combler l'absence d'un outil par un client temporaire corrigé sur sa trace, transformer ce qu'un modèle lit mal. UNE porte : iron-proxy 0.49.0 en conteneur frère, seul membre routé d'un réseau Docker `internal` (`lia-sandbox`) que le bac à sable rejoint seul — socket brut, DNS propre, hôte non déclaré, adresse privée n'ont nulle part où aller ; son état est frappé par son propre point d'entrée dans trois volumes tmpfs (un conteneur d'init a été mesuré faux : Docker rendait le tmpfs à sa sortie). Chaque hôte déclaré a UN statut sur quatre (`connector` dérivé des classes clientes, `operator`, `grant`, `unknown`), la borne publiée. Un identifiant est un JETON par run que le script lit dans l'environnement et que le proxy ÉCHANGE contre la clé personnelle de la personne sur ce seul hôte (jamais OAuth, jamais une clé d'instance) ; le jeu de règles est rendu depuis un registre Redis des runs vivants et poussé par l'API de gestion, ferme en échec (11/11 à la sonde). Un hôte inconnu est DEMANDÉ, jamais refusé en silence, avec trois réponses (avec les données du tour, sans, refuser) par un brouillon `SANDBOX_EGRESS` mémorisé en accord (`sandbox_egress_grants`, plafond publié, `one_shot` au-delà) ; le rejeu ne voyage jamais sur le fil. Un run réseau est un ACTE réclamé avant le conteneur et clos du résultat (`python_sandbox_network`). Le prompt est le contrat vivant, mesuré avant d'être cru : quatre rôles, 22 bibliothèques d'UNE table épinglées directement et importées dans l'image construite, chaque borne depuis son réglage, les hôtes joignables lus sur le COMPTE au début du tour — au premier vrai tour le modèle a envoyé le NOM de la variable comme valeur (422 Brave, deux fois) ; la ligne épelle désormais `os.environ[...]` et le tour suivant a atteint Brave avec la clé échangée. `react_scripts` rejoint `react_turn_reset()` (la liste grossissait toute la vie du fil). Page de réglages « Réseau du bac à sable » (hôtes joignables, accords avec portée et révocation, total exact contre le plafond), alerte `SandboxEgressProxyDown` sur une sonde blackbox (le proxy n'expose aucune série en 0.49). Résidus consignés, jamais cachés.
+
+---
+
 ### ADR-297 : un dossier Drive lié est un ARBRE, et une synchronisation au-delà du seuil énonce son compte exact
 
 **Fichier**: `docs/architecture/ADR-297-Drive-Folder-Is-A-Tree-And-The-Count-Is-Exact.md`

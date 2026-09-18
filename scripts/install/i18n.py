@@ -53,8 +53,8 @@ MESSAGES: dict[str, dict[str, str]] = {
         "fr": "Activer l'auto-diagnostic de LIA ? L'assistante surveille sa propre santé, tient un historique d'incidents et, avec le profil observabilité, transforme les alertes en incidents dans l'application (yes/no)",
     },
     "question.skill_sandbox": {
-        "en": "Enable the script-skill sandbox (mounts the Docker socket)? yes/no",
-        "fr": "Activer le bac à sable des skills scripts (monte la socket Docker) ? yes/no",
+        "en": "Enable the script sandbox (mounts the Docker socket; also starts the egress proxy through which a script the assistant writes may reach the web with the person's own connector keys — switchable off in the admin panel)? yes/no",
+        "fr": "Activer le bac à sable des scripts (monte la socket Docker ; démarre aussi le proxy de sortie par lequel un script écrit par l'assistante peut atteindre le web avec les clés des connecteurs de la personne — désactivable dans le panneau d'administration) ? yes/no",
     },
     "question.admin_password": {
         "en": "Administrator password (min {min_length} chars, {min_uppercase} uppercase, {min_digits} digits, {min_special} special; input hidden)",

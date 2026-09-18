@@ -362,9 +362,14 @@ export default defineConfig({
         // ~30 new tests): statements 79.76 / branches 75.24 / functions 76.97 /
         // lines 80.50. `branches` rises 72 -> 73 (floor(measured - 2)); the
         // other three axes do not cross an integer step.
-        statements: 77,
+        // Re-measured 2026-09-18 after ADR-298 (the sandbox network: the
+        // three-answer egress card, the grants section and its hook — ~50 new
+        // tests): statements 80.04 / branches 75.39 / functions 77.29 /
+        // lines 80.80. `statements` rises 77 -> 78 and `functions` 74 -> 75
+        // (floor(measured - 2)); `branches` and `lines` do not cross a step.
+        statements: 78,
         branches: 73,
-        functions: 74,
+        functions: 75,
         lines: 78,
         // Chat state machine — fully covered, keep it that way (2026-07).
         'src/reducers/**/*.ts': {

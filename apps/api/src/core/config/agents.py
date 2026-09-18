@@ -260,7 +260,15 @@ from src.core.constants import (
     PLANNER_SEMANTIC_BROAD_BATCH_DEFAULT,
     PLANNER_TIMEOUT_SECONDS,
     PROACTIVE_CROSS_TYPE_COOLDOWN_MINUTES_DEFAULT,
+    PYTHON_SANDBOX_EGRESS_HEALTH_URL_DEFAULT,
+    PYTHON_SANDBOX_EGRESS_MANAGEMENT_URL_DEFAULT,
+    PYTHON_SANDBOX_EGRESS_MAX_BODY_BYTES_DEFAULT,
+    PYTHON_SANDBOX_EGRESS_PROXY_URL_DEFAULT,
+    PYTHON_SANDBOX_EGRESS_RELOAD_TIMEOUT_SECONDS_DEFAULT,
+    PYTHON_SANDBOX_MAX_GRANTS_PER_USER_DEFAULT,
+    PYTHON_SANDBOX_MAX_HOSTS_PER_RUN_DEFAULT,
     PYTHON_SANDBOX_MAX_RUNS_PER_TURN_DEFAULT,
+    PYTHON_SANDBOX_NETWORK_TIMEOUT_SECONDS_DEFAULT,
     PYTHON_SANDBOX_RATE_LIMIT_CALLS_DEFAULT,
     PYTHON_SANDBOX_RATE_LIMIT_WINDOW_SECONDS_DEFAULT,
     QUERY_ENGINE_SIMILARITY_THRESHOLD_DEFAULT,
@@ -740,6 +748,71 @@ class AgentsSettings(BaseSettings):
         default=PYTHON_SANDBOX_RATE_LIMIT_WINDOW_SECONDS_DEFAULT,
         ge=1,
         description="Rate-limit window for sandboxed script runs, in seconds.",
+    )
+    # --- ADR-298: controlled egress of a sandbox run ---------------------
+    python_sandbox_egress_enabled: bool = Field(
+        default=False,
+        description=(
+            "Let a sandbox run reach the Internet through the egress proxy "
+            "(ADR-298). Off, `hosts` is refused and every run stays air-gapped. "
+            "Needs the proxy of the skill-sandbox overlay."
+        ),
+    )
+    python_sandbox_egress_ask_enabled: bool = Field(
+        default=True,
+        description=(
+            "Ask the person before a script reaches an unknown host. Off, an "
+            "unknown host is refused instead of asked (the strict policy)."
+        ),
+    )
+    python_sandbox_egress_hosts: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Operator allowlist: hosts every account may reach without a "
+            "question (exact lowercase hostnames; a JSON list in the env, "
+            "like APPROVAL_AUTO_APPROVE_ROLES)."
+        ),
+    )
+    python_sandbox_egress_proxy_url: str = Field(
+        default=PYTHON_SANDBOX_EGRESS_PROXY_URL_DEFAULT,
+        description="The proxy URL handed to the sandbox as HTTPS_PROXY.",
+    )
+    python_sandbox_egress_management_url: str = Field(
+        default=PYTHON_SANDBOX_EGRESS_MANAGEMENT_URL_DEFAULT,
+        description="Base URL of the proxy's management API (POST /v1/reload).",
+    )
+    python_sandbox_egress_health_url: str = Field(
+        default=PYTHON_SANDBOX_EGRESS_HEALTH_URL_DEFAULT,
+        description="The proxy's liveness endpoint.",
+    )
+    python_sandbox_egress_reload_timeout_seconds: int = Field(
+        default=PYTHON_SANDBOX_EGRESS_RELOAD_TIMEOUT_SECONDS_DEFAULT,
+        ge=1,
+        le=60,
+        description="How long a ruleset reload may take before the run is refused.",
+    )
+    python_sandbox_egress_max_body_bytes: int = Field(
+        default=PYTHON_SANDBOX_EGRESS_MAX_BODY_BYTES_DEFAULT,
+        ge=1024,
+        description="Largest request body the proxy forwards (published to the model).",
+    )
+    python_sandbox_network_timeout_seconds: int = Field(
+        default=PYTHON_SANDBOX_NETWORK_TIMEOUT_SECONDS_DEFAULT,
+        ge=5,
+        le=600,
+        description="Wall-clock budget of a NETWORK sandbox run (a diagnosis waits on a slow service).",
+    )
+    python_sandbox_max_hosts_per_run: int = Field(
+        default=PYTHON_SANDBOX_MAX_HOSTS_PER_RUN_DEFAULT,
+        ge=1,
+        le=20,
+        description="Hosts one run may declare (published in the manifest).",
+    )
+    python_sandbox_max_grants_per_user: int = Field(
+        default=PYTHON_SANDBOX_MAX_GRANTS_PER_USER_DEFAULT,
+        ge=1,
+        le=500,
+        description="Egress grants an account may keep; past it an approval is one-shot.",
     )
     react_progress_extension_enabled: bool = Field(
         default=True,

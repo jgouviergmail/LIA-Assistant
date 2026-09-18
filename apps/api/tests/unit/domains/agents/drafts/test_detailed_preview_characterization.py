@@ -720,6 +720,44 @@ CASES: tuple[PreviewCase, ...] = (
         {"tool_label": "era: cancel subscription"},
         language="en",
     ),
+    # ADR-298: a script asks to reach hosts. The card names what the person
+    # decides on — the unknown hosts, what is already permitted, the stated
+    # purpose and a COUNT of the data the run would carry — never the code.
+    PreviewCase(
+        "sandbox_egress_full_fr",
+        DraftType.SANDBOX_EGRESS,
+        {
+            "hosts": ["api.search.brave.com", "status.example.org"],
+            "hosts_unknown": ["status.example.org"],
+            "purpose": "vérifier si le service répond",
+            "data_summary": {
+                "counts": {"email": 4, "contact": 2},
+                "available": True,
+                "language": "fr",
+            },
+        },
+    ),
+    PreviewCase(
+        "sandbox_egress_no_data_en",
+        DraftType.SANDBOX_EGRESS,
+        {
+            "hosts": ["status.example.org"],
+            "hosts_unknown": ["status.example.org"],
+            "purpose": "check the service",
+            "data_summary": {"counts": {}, "available": True, "language": "en"},
+        },
+        language="en",
+    ),
+    PreviewCase(
+        "sandbox_egress_too_large_en",
+        DraftType.SANDBOX_EGRESS,
+        {
+            "hosts": ["status.example.org"],
+            "hosts_unknown": ["status.example.org"],
+            "data_summary": {"counts": {"email": 40}, "available": False, "language": "en"},
+        },
+        language="en",
+    ),
     # Peers (A3): the relayed message is what the sender approves — full text.
     PreviewCase(
         "peer_message_full_fr",
@@ -909,6 +947,9 @@ EXPECTED: dict[str, str] = {
     "tool_call_full_fr": "- **Outil**\xa0: era: cancel subscription\n- **Détails**\xa0: plan: premium, immediate: true",
     "tool_call_hostile_values_fr": '- **Outil**\xa0: era: cancel subscription\n- **Détails**\xa0: flag: false, nothing: null, nested: {"k": "v"}, body: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…',
     "tool_call_minimal_en": "- **Tool**: era: cancel subscription",
+    "sandbox_egress_full_fr": "- **Hôtes à autoriser**\xa0: status.example.org\n- **Déjà permis**\xa0: api.search.brave.com\n- **Motif**\xa0: vérifier si le service répond\n- **Données du tour**\xa0: 2 Contacts, 4 E-mails",
+    "sandbox_egress_no_data_en": "- **Hosts to allow**: status.example.org\n- **Purpose**: check the service\n- **Turn data**: none",
+    "sandbox_egress_too_large_en": "- **Hosts to allow**: status.example.org\n- **Turn data**: too large to travel",
     "peer_message_full_fr": "- **Destinataire**\xa0: Marie Dupont\n\n**Message**\n\nDemande-lui comment il va",
     "peer_message_minimal_en": "- **Recipient**: Marie Dupont",
     "vacation_enable_full_fr": "- **Objet**\xa0: Absent jusqu'au 30/08\n- **Début**\xa0: 2026-08-24\n- **Fin**\xa0: 2026-08-30\n\n**Message**\n\nJe suis en congés, je répondrai à mon retour.",

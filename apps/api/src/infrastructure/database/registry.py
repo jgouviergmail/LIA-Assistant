@@ -24,6 +24,7 @@ def import_all_models() -> None:
 
     import src.domains.account_export.models  # noqa: F401
     import src.domains.agents.effects.models  # noqa: F401
+    import src.domains.agents.python_sandbox.egress.models  # noqa: F401
     import src.domains.attachments.models  # noqa: F401
     import src.domains.auth.models  # noqa: F401
     import src.domains.bookmarks.models  # noqa: F401

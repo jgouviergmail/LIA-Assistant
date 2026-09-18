@@ -49,6 +49,7 @@ const ALL_AVAILABLE: SettingsSearchAvailability = {
   openLoopsEnabled: true,
   habitsEnabled: true,
   peersEnabled: true,
+  sandboxEgressEnabled: true,
   debugUserAccess: true,
 };
 
@@ -104,7 +105,10 @@ describe('SETTINGS_SEARCH_META — describes the page it claims to describe', ()
     // (ADR-279, 2026-09-10): the images, documents and screenshots LIA
     // produced used to live in the conversation that produced them and
     // nowhere else.
-    expect(TOKENS).toHaveLength(60);
+    // 61 since the sandbox network section joined Features / Extensions & Data
+    // (ADR-298, 2026-09-18): what a script may reach without asking, and the
+    // permissions the person gave from a chat question.
+    expect(TOKENS).toHaveLength(61);
   });
 
   it.each(Object.keys(LOCALES) as LocaleCode[])(

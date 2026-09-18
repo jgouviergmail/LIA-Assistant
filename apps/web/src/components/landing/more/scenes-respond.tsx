@@ -1,8 +1,9 @@
 /**
  * Scenes of section 02 — "When LIA replies": follow-up chips, the floating
  * return-to-bottom button, the per-bubble action row, share/export, the
- * one-draft-at-a-time review, and the execution-trace backstage. Timer-driven
- * micro-demos; last phase = resting frame.
+ * one-draft-at-a-time review, the network question a script asks before going
+ * out, and the execution-trace backstage. Timer-driven micro-demos; last phase
+ * = resting frame.
  */
 
 'use client';
@@ -19,6 +20,7 @@ import {
   Copy,
   Download,
   FileText,
+  Globe,
   Handshake,
   Languages,
   Link2,
@@ -386,6 +388,63 @@ function DraftSequenceScene({ active, labels }: SceneProps) {
         className={cn(
           phase === 'confirm1' || phase === 'confirm2'
             ? 'left-[18%] top-[78%] opacity-100'
+            : 'left-[60%] top-[90%] opacity-0'
+        )}
+      />
+    </div>
+  );
+}
+
+type NetworkQuestionPhase = 'ask' | 'hover' | 'chosen' | 'resumed';
+const NETWORK_QUESTION_STEPS: readonly TimelineStep<NetworkQuestionPhase>[] = [
+  { at: 0, state: 'ask' },
+  { at: 1400, state: 'hover' },
+  { at: 2200, state: 'chosen' },
+  { at: 3200, state: 'resumed' },
+];
+
+/**
+ * The egress question (ADR-298): a card naming the host, three answers, the
+ * middle one ("without the data") picked, then the turn going on — the point
+ * of the attention is that a question is not the end of the answer.
+ */
+function NetworkQuestionScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(NETWORK_QUESTION_STEPS, { active });
+  const chosen = phase === 'chosen' || phase === 'resumed';
+  const resumed = phase === 'resumed';
+  return (
+    <div className={cn(STAGE, 'items-stretch justify-center gap-1.5')}>
+      <div
+        className={cn(
+          'w-4/5 self-start overflow-hidden rounded-lg border border-border bg-background text-[10px] transition-opacity duration-300',
+          resumed ? 'opacity-50' : 'opacity-100'
+        )}
+      >
+        <div className="flex items-center gap-1.5 border-b border-border bg-muted/60 px-2 py-1 text-muted-foreground">
+          <Globe className="h-3 w-3 text-primary" aria-hidden="true" />
+          <span className="truncate font-mono">{labels.host}</span>
+        </div>
+        <div className="px-2 py-1.5 text-foreground/80">{labels.question}</div>
+        <div className="flex flex-wrap gap-1.5 px-2 pb-1.5">
+          <MiniChip>{labels.with_data}</MiniChip>
+          <MiniChip pressed={chosen}>{labels.without_data}</MiniChip>
+          <MiniChip>{labels.refuse}</MiniChip>
+        </div>
+      </div>
+      <MiniToast
+        icon={Check}
+        tone="success"
+        className={cn(
+          'self-start transition-all duration-300',
+          resumed ? 'translate-y-0 opacity-100' : 'absolute translate-y-1 opacity-0'
+        )}
+      >
+        {labels.resumed}
+      </MiniToast>
+      <Cursor
+        className={cn(
+          phase === 'hover' || phase === 'chosen'
+            ? 'left-[40%] top-[62%] opacity-100'
             : 'left-[60%] top-[90%] opacity-0'
         )}
       />
@@ -871,6 +930,7 @@ export const RESPOND_SCENES: Readonly<Record<string, SceneComponent>> = {
   share_export: ShareExportScene,
   keep_answer: KeepAnswerScene,
   draft_sequence: DraftSequenceScene,
+  network_question: NetworkQuestionScene,
   backstage: BackstageScene,
   peer_actions: PeerActionsScene,
 };

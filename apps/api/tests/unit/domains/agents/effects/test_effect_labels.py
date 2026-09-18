@@ -74,6 +74,15 @@ class TestTheValuesCarryNoSurprises:
         for tool_name in EFFECT_LABEL_BUILDERS:
             assert build_effect_label(tool_name, {}) is not None, tool_name
 
+    def test_a_list_names_its_first_items_and_says_when_it_stops(self) -> None:
+        """A run that reached five hosts must not read as one that reached three."""
+        label = build_effect_label("python_sandbox_network", {"hosts": ["a.org", "b.org", "c.org"]})
+        assert label is not None and label["values"] == {"target": "a.org, b.org, c.org"}
+        label = build_effect_label(
+            "python_sandbox_network", {"hosts": ["a.org", "b.org", "c.org", "d.org", "e.org"]}
+        )
+        assert label is not None and label["values"] == {"target": "a.org, b.org, c.org, +2"}
+
     def test_long_values_are_capped(self) -> None:
         """A card is a sentence, not a payload — and the column is encrypted."""
         label = build_effect_label("draft:email", {"draft": {"to": "x" * 500}})
@@ -141,6 +150,18 @@ class TestCompleteness:
         assert "draft:email" in str(drafts_missing.value)
 
 
+def _flatten(tree: dict[str, Any], prefix: str = "") -> set[str]:
+    """Dotted leaf keys of a nested i18next namespace (``draft.email``)."""
+    keys: set[str] = set()
+    for key, value in tree.items():
+        dotted = f"{prefix}{key}"
+        if isinstance(value, dict):
+            keys |= _flatten(value, f"{dotted}.")
+        else:
+            keys.add(dotted)
+    return keys
+
+
 class TestEveryKeyExistsInAllSixLanguages:
     def test_the_backend_table_is_complete(self) -> None:
         """Same key set under every language — the shape of ``i18n_drafts``."""
@@ -164,6 +185,24 @@ class TestEveryKeyExistsInAllSixLanguages:
         produced |= {"effects.labels.mcp", "effects.labels.generic"}
         missing = sorted(produced - set(EFFECT_LABELS["en"]))
         assert not missing, f"labels produced but never translated: {missing}"
+
+    def test_the_web_locales_carry_every_backend_key(self) -> None:
+        """The live card resolves ``entry.label_key`` from the web locales and
+        falls back to the generic wording in silence: a key the backend
+        writes and the frontend lacks reads « Ran the “python_sandbox_network”
+        action » on screen while the archive names the hosts."""
+        import json
+
+        from src.core.i18n_effects import EFFECT_LABELS
+        from tests._repo_paths import repo_root_or_skip
+
+        root = repo_root_or_skip()
+        backend = {key.removeprefix("effects.labels.") for key in EFFECT_LABELS["en"]}
+        for locale in ("en", "fr", "de", "es", "it", "zh"):
+            path = root / "apps" / "web" / "locales" / locale / "translation.json"
+            web = _flatten(json.loads(path.read_text(encoding="utf-8"))["effects"]["labels"])
+            missing = sorted(backend - web)
+            assert not missing, f"{locale}: backend label keys absent from the web: {missing}"
 
 
 class TestRendering:

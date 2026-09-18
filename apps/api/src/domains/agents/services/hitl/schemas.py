@@ -273,6 +273,44 @@ HitlContextType = (
 )
 
 
+# ADR-298 — the egress card: allow with the turn's data, allow without, refuse.
+# `confirm_without_data` is canonised to `confirm` by the resume path with
+# `share_turn_data: False` beside it. The two-button variant is what the card
+# offers when the data cannot travel at all (too large for stdin).
+SANDBOX_EGRESS_ACTIONS = [
+    HitlAction(
+        action="confirm",
+        label="allow_with_data",
+        style=HitlActionStyle.PRIMARY,
+        keyboard_shortcut="Enter",
+    ),
+    HitlAction(
+        action="confirm_without_data",
+        label="allow_without_data",
+        style=HitlActionStyle.SECONDARY,
+    ),
+    HitlAction(
+        action="cancel",
+        label="refuse",
+        style=HitlActionStyle.DESTRUCTIVE,
+        keyboard_shortcut="Escape",
+    ),
+]
+SANDBOX_EGRESS_ACTIONS_NO_DATA = [
+    HitlAction(
+        action="confirm_without_data",
+        label="allow_without_data",
+        style=HitlActionStyle.PRIMARY,
+        keyboard_shortcut="Enter",
+    ),
+    HitlAction(
+        action="cancel",
+        label="refuse",
+        style=HitlActionStyle.DESTRUCTIVE,
+        keyboard_shortcut="Escape",
+    ),
+]
+
 # Standard action sets for common HITL types
 STANDARD_DRAFT_ACTIONS = [
     HitlAction(

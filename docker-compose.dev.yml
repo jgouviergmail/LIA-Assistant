@@ -153,12 +153,18 @@ services:
       - LANGFUSE_DEBUG=true
       # Trust X-Forwarded-Proto from reverse proxies
       - FORWARDED_ALLOW_IPS=*
-      # SEC-001: the skill-script sandbox reuses THIS service's image. The dev
-      # image is built by compose (no explicit tag) and installs its
-      # dependencies system-wide, so no PYTHONPATH override applies here —
+      # SEC-001: the skill-script sandbox reuses THIS service's image, tagged
+      # `lia-api-dev:latest` above (the 2026-08-03 collision fix — `lia-api`
+      # alone resolved to the PROD tag, absent on a dev host, so every sandbox
+      # run failed with "Script sandbox unavailable"). The dev image installs
+      # its dependencies system-wide, so no PYTHONPATH override applies here —
       # unlike the prod image, which uses `pip install --user`.
-      - SKILLS_SCRIPT_SANDBOX_IMAGE=lia-api
+      - SKILLS_SCRIPT_SANDBOX_IMAGE=lia-api-dev:latest
       - SKILLS_SCRIPT_SANDBOX_PYTHONPATH=
+      # ADR-298: a sandbox run may reach the Internet through the egress proxy
+      # below — never directly. Dev switches it on; the prod base keeps it off
+      # and the skill-sandbox overlay turns it on with the proxy it needs.
+      - PYTHON_SANDBOX_EGRESS_ENABLED=true
       # Bytecode stays INSIDE the container. `/app` is a bind mount shared with
       # the host, whose own Python (pytest, mypy) writes `__pycache__` there too;
       # a cache written by one interpreter and read by the other produced
@@ -178,6 +184,10 @@ services:
       - ./.git:/app/.git:ro  # Mount .git for prompt versioning (read-only)
       - ./docs/knowledge:/app/docs/knowledge:ro  # System RAG knowledge files
       - ./docs/runbooks:/app/docs/runbooks:ro  # Self-diagnostics runbook grounding (spec 2026-08-27)
+      # ADR-298: the API RENDERS the egress ruleset (proxy.yaml + one secret
+      # file per live run) into this tmpfs volume and reads the management
+      # token there. It never mounts the CA key volume, not even read-only.
+      - lia-egress-config:/etc/lia-egress/config
       # Reference content for a fresh install. Mounted in dev for PARITY: the
       # seed gate was dead code precisely because nothing exercised it locally,
       # the same asymmetry that hid the missing gettext catalogues in prod.
@@ -233,6 +243,8 @@ services:
         condition: service_healthy
       ssl-init:
         condition: service_completed_successfully
+      egress:
+        condition: service_healthy
     healthcheck:
       # Liveness probe on purpose (/health is 200 even if PG/Redis are down):
       # restarting the API cannot fix a dependency outage. Readiness = /ready.
@@ -247,6 +259,56 @@ services:
       start_period: 60s
     networks:
       - lia-network
+
+  # ---------------------------------------------------------------------------
+  # Sandbox egress proxy (ADR-298).
+  #
+  # A model-written script may reach the Internet ONLY through this proxy: the
+  # throwaway sandbox joins `lia-sandbox`, an internal network whose single
+  # routed member is this container, so a raw socket has nowhere to go — the
+  # bypass Hermes Agent documents for an env-based proxy is closed by topology.
+  # The proxy terminates TLS under a CA every sandbox trusts, allows only the
+  # hosts the API rendered for the runs currently alive, refuses private and
+  # metadata ranges at connect time, and swaps the opaque per-run token a script
+  # holds for the person's real API key on that host alone. The API is NOT on
+  # `lia-sandbox` (a script could reach it there); it reaches the management
+  # port over `lia-network` for `POST /v1/reload`.
+  # ---------------------------------------------------------------------------
+  egress:
+    image: ironsh/iron-proxy:0.49.0@sha256:c4628019c24f4cc8d77564a26b7c9cedb00accee6f93d06270e85fb8f9c6a7da
+    container_name: lia-egress-dev
+    restart: unless-stopped
+    user: "${LIA_RUNTIME_UID:-0}"
+    # The entrypoint mints the CA, the management token and the bootstrap
+    # ruleset as THIS uid into the three tmpfs volumes, then execs iron-proxy
+    # (see infrastructure/sandbox-egress/entrypoint.sh). No init container, no
+    # root, no chown.
+    entrypoint: ["/bin/sh", "/opt/lia-egress/entrypoint.sh"]
+    volumes:
+      - ./infrastructure/sandbox-egress:/opt/lia-egress:ro
+      - lia-egress-ca:/etc/lia-egress/ca
+      - lia-egress-key:/etc/lia-egress/key
+      - lia-egress-config:/etc/lia-egress/config
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    networks:
+      - lia-sandbox
+      - lia-network
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    mem_limit: 256m
+    pids_limit: 128
+    healthcheck:
+      # The "metrics" listener of iron-proxy 0.49 serves /healthz and nothing
+      # else (measured 2026-09-18: /metrics is 404) — same probe Prometheus
+      # runs through the blackbox exporter.
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9094/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
 
   # Frontend Web
   web:
@@ -867,7 +929,41 @@ volumes:
   minio_data:
   attachments_data:  # Persistent storage for file attachments (images, PDF)
   meetings_data:  # Meeting recordings (ADR-258): segments, normalized audio, kept audio
+  # ADR-298 — the egress proxy's three volumes. `name:` is explicit on each:
+  # the API mounts the CA into every sandbox with a raw `docker run -v`, which
+  # cannot see a Compose-prefixed volume name.
+  # All three are tmpfs: the CA key, the ruleset and the per-run secret files
+  # never touch the disk and vanish when the last container releases the
+  # volume. The CA directory is world-traversable because every sandbox
+  # (uid 65534) reads the certificate there.
+  lia-egress-ca:
+    name: lia-egress-ca
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: "uid=${LIA_RUNTIME_UID:-0},mode=0755"
+  lia-egress-key:
+    name: lia-egress-key
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: "uid=${LIA_RUNTIME_UID:-0},mode=0700"
+  lia-egress-config:
+    name: lia-egress-config
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: "uid=${LIA_RUNTIME_UID:-0},mode=0700"
 
 networks:
   lia-network:
     driver: bridge
+  # ADR-298 — where every NETWORK sandbox run lives. Internal: no route to
+  # the host or the Internet except through the `egress` service, its only
+  # other member. `name:` explicit for the same reason as the volumes above.
+  lia-sandbox:
+    name: lia-sandbox
+    internal: true

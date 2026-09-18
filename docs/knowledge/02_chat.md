@@ -446,6 +446,9 @@ earlier answers. It applies to conversational turns without tools too — unless
 your voice is on: a reply read aloud stays plain text, or the voice would read
 tags. Pick the mode under **Settings > Answer display**.
 
+## Can a script LIA writes reach the Internet? What does the three-answer question mean?
+Yes, since v1.46.0 and only in ReAct mode (⚡). When a step needs a service no tool covers, the short Python script LIA writes may reach it — through one dedicated proxy, HTTPS only, to the hosts it declares and nowhere else; a script that declares no host stays fully offline. The services you connected with your own API key are reachable without a question, the key never entering the script. When the script wants a host you never allowed, LIA stops and asks with three answers — **allow with the data** of this turn, **allow without it** (the script then receives nothing of what LIA gathered), or **refuse** — then the rest of your request goes on, and your answer is remembered as a permission you can revoke in **Settings → Sandbox network**. Every network run is written to your register before it starts. See *Computed Answers* for the details.
+
 ## What are the little animated eyes on the chat page?
 
 They are LIA's **expressive eyes** — a small companion widget that mirrors what

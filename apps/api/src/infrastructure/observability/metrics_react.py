@@ -6,7 +6,7 @@ counters share one subject, the ReAct loop and the guards that bound it, so they
 form that cohesive unit rather than an overflow bucket.
 """
 
-from prometheus_client import Counter, Histogram
+from prometheus_client import Counter, Gauge, Histogram
 
 react_agent_duration_seconds = Histogram(
     "react_agent_duration_seconds",
@@ -45,6 +45,32 @@ react_tool_result_truncated_total = Counter(
     "bound catalogue, so its cardinality is bounded (the same choice "
     "react_agent_tools_called_total made)",
     ["tool_name"],
+)
+
+python_sandbox_egress_runs_total = Counter(
+    "python_sandbox_egress_runs_total",
+    "Network sandbox runs by outcome (ADR-298): allowed (published to the proxy "
+    "and run), asked (an unknown host put to the person), refused (invalid or "
+    "unpermitted hosts under the strict policy), proxy_unavailable (the run was "
+    "refused because the egress proxy could not serve it — the operator's "
+    "signal, since the tool then fails closed in silence for the model)",
+    ["outcome"],
+)
+
+python_sandbox_egress_grants_total = Counter(
+    "python_sandbox_egress_grants_total",
+    "Answers to the sandbox egress question (ADR-298): with_data, without_data, "
+    "refused, one_shot (allowed for this run only because the account's grant "
+    "cap is reached)",
+    ["decision"],
+)
+
+python_sandbox_egress_enabled = Gauge(
+    "lia_python_sandbox_egress_enabled",
+    "1 when this deployment offers network sandbox runs (ADR-298). Gates the "
+    "SandboxEgressProxyDown alert: without the skill-sandbox overlay the proxy "
+    "does not exist and its absence is not an incident",
+    multiprocess_mode="max",
 )
 
 react_agent_tools_called_total = Counter(

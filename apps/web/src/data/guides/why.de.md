@@ -4,7 +4,7 @@
 
 **Version**: 6.0
 **Datum**: 2026-09-18
-**Anwendung**: LIA v1.45.2
+**Anwendung**: LIA v1.46.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -85,7 +85,7 @@ Der Administrator hat Zugriff auf eine dritte Registerkarte zur Verwaltung der I
 - **Broadcast-Nachrichten**: Wichtige Nachrichten an alle oder ausgewählte Benutzer senden, mit optionalem Ablaufdatum
 - **Globaler Verbrauchsexport**: Verbrauch aller Benutzer als CSV exportieren
 - **Tagesbudget der Instanz**: in Euro begrenzen, was die GESAMTE Instanz an einem Tag ausgeben darf — nicht nur, was jedes Konto verbraucht. Das Panel zeigt die Ausgaben des Tages, die tatsächlich angewandte Obergrenze und den Rest. Ist das Budget erschöpft, erfahren die Nutzer, dass die Installation pausiert ist, und erhalten die exakte Uhrzeit der Zurücksetzung — keine irreführende Meldung über ihr persönliches Kontingent
-- **Plattformfähigkeiten**: schalte fünfundzwanzig Fähigkeiten sofort ein oder aus, ohne neues Deployment — jede Funktion, die eine Person wirklich erlebt, von Diktat und Bildern bis zum Ticket-Board, den Journalen, dem Langzeitgedächtnis und den spontanen Benachrichtigungen — gruppiert in sechs Familien, damit eine Wand aus Schaltern lesbar bleibt. Ein Schalter nimmt die FÄHIGKEIT weg, nie den Bestand: das Gedächtnis abzuschalten stoppt das Lernen neuer Fakten, während alles bereits Gelernte lesbar und löschbar bleibt. Eine abgeschaltete Fähigkeit verschwindet auch aus dem Katalog, der dem Planer angeboten wird, sodass LIA nicht mehr vorschlägt, was die Routen ablehnen würden; jede Zeile zeigt, was das Deployment erlaubt, was du gewählt hast, was tatsächlich gilt und wo der Schalter greift
+- **Plattformfähigkeiten**: schalte jede Fähigkeit sofort ein oder aus, ohne neues Deployment — jede Funktion, die eine Person wirklich erlebt, von Diktat und Bildern bis zum Ticket-Board, den Journalen, dem Langzeitgedächtnis und den spontanen Benachrichtigungen — gruppiert in sechs Familien, damit eine Wand aus Schaltern lesbar bleibt. Ein Schalter nimmt die FÄHIGKEIT weg, nie den Bestand: das Gedächtnis abzuschalten stoppt das Lernen neuer Fakten, während alles bereits Gelernte lesbar und löschbar bleibt. Eine abgeschaltete Fähigkeit verschwindet auch aus dem Katalog, der dem Planer angeboten wird, sodass LIA nicht mehr vorschlägt, was die Routen ablehnen würden; jede Zeile zeigt, was das Deployment erlaubt, was du gewählt hast, was tatsächlich gilt und wo der Schalter greift
 
 **KI und Konnektoren:**
 
@@ -114,7 +114,7 @@ LIA handelt konkret in deinem digitalen Leben dank 20+ spezialisierter Agenten, 
 Du wählst, wie LIA denkt, über einen einfachen Toggle (⚡) im Chat-Header:
 
 - **Pipeline-Modus** (Standard) — Echte Ingenieurskunst: LIA plant alle Schritte im Voraus, validiert sie semantisch und führt Tools parallel aus. Ergebnis: dieselbe Leistung wie ein autonomer Agent, aber mit 4- bis 8-mal weniger Token-Verbrauch. Der wirtschaftlichste und vorhersagbarste Modus.
-- **ReAct-Modus** (⚡) — Der Assistent denkt Schritt für Schritt: Er ruft ein Tool auf, analysiert das Ergebnis und entscheidet dann, was als Nächstes zu tun ist. Autonomer, anpassungsfähiger, aber kostenintensiver bei den Tokens. Ideal für explorative Recherchen oder komplexe Fragen, bei denen der Mehrwert die Kosten rechtfertigt. Er ist zudem der einzige Modus, der rechnen statt schätzen kann: Braucht ein Schritt Arithmetik über viele Zeilen oder Dauern über Zeitzonen hinweg, schreibt er ein paar Zeilen Python und führt sie in einer abgeschotteten Sandbox aus. Die Tools, die er mitnimmt, werden nach Relevanz für deine Frage gewählt — deine eigenen MCP-Server eingeschlossen — nie nach Reihenfolge des Eintreffens, und er liest deine Wissensbereiche genau wie der Pipeline-Modus.
+- **ReAct-Modus** (⚡) — Der Assistent denkt Schritt für Schritt: Er ruft ein Tool auf, analysiert das Ergebnis und entscheidet dann, was als Nächstes zu tun ist. Autonomer, anpassungsfähiger, aber kostenintensiver bei den Tokens. Ideal für explorative Recherchen oder komplexe Fragen, bei denen der Mehrwert die Kosten rechtfertigt. Er ist zudem der einzige Modus, der rechnen statt schätzen kann: Braucht ein Schritt Arithmetik über viele Zeilen oder Dauern über Zeitzonen hinweg, schreibt er ein paar Zeilen Python und führt sie in einer abgeschotteten Sandbox aus — und braucht ein Schritt einen Dienst, den kein Tool abdeckt, darf dieses Skript das Web über einen einzigen Proxy erreichen, deine eigenen Schlüssel außerhalb getauscht, ein unbekannter Host vorher mit drei Antworten erfragt. Die Tools, die er mitnimmt, werden nach Relevanz für deine Frage gewählt — deine eigenen MCP-Server eingeschlossen — nie nach Reihenfolge des Eintreffens, und er liest deine Wissensbereiche genau wie der Pipeline-Modus.
 
 ### 3.1. Natürliche Unterhaltung
 

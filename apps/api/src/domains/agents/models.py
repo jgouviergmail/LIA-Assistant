@@ -726,7 +726,6 @@ def create_initial_state(
         # LLM-Native Semantic Architecture: Semantic Agent (Phase 2)
         filtered_tools=[],  # Tool names selected by semantic matching
         react_max_iterations_effective=None,  # ADR-238 adaptive budget (None = fixed cap)
-        react_scripts=[],  # ADR-249 ephemeral scripts (admin debug surface)
         react_script_runs=0,  # ADR-249 script budget consumed this turn
         pending_tool_calls=[],  # Tool calls awaiting execution
         # LLM-Native Semantic Architecture: HITL Tool Gate (Phase 3)

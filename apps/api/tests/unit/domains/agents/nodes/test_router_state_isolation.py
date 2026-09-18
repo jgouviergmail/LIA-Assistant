@@ -191,6 +191,7 @@ class TestRouterResetsTheReactTurn:
             "react_tool_seconds": 913.79,
             "react_productive_iterations": 40,
             "react_call_digests": {"digest": 3},
+            "react_scripts": [{"purpose": "last turn's script", "code": "print(1)"}],
         }
         state = _state(HumanMessage(content="cherche jean"))
         state.update(stale)

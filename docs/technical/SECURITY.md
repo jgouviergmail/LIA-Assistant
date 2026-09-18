@@ -2802,7 +2802,7 @@ sibling container:
 | Surface | Enforcement |
 | --- | --- |
 | Docker socket | Not mounted — absent from the container filesystem |
-| Network | `--network none` |
+| Network | `--network none`; a model-written script that declares hosts (ADR-298) joins `lia-sandbox` instead — an internal network whose only routed member is the egress proxy, HTTPS to the declared hosts alone, private ranges refused, the person's keys swapped in by the proxy and never in the container |
 | Filesystem | `--read-only` root + `--tmpfs /tmp` (`SKILLS_SCRIPT_SANDBOX_TMPFS_MB`), `HOME=/tmp` |
 | Identity | `--user 65534:65534`, `--cap-drop=ALL`, `--security-opt no-new-privileges` |
 | Resources | `--memory`, `--pids-limit`, `--ulimit cpu`/`fsize` from `SKILLS_SCRIPT_MAX_*` |

@@ -42,6 +42,11 @@ BUNDLE_DIRS: tuple[str, ...] = (
     # into the API for the diagnostician (ADR-266). Without them the mount is an
     # empty directory and every diagnosis carries had_runbook=false.
     "docs/runbooks",
+    # The skill-sandbox overlay bind-mounts this directory into the egress
+    # proxy (its entrypoint, CA template and bootstrap ruleset, ADR-298) and
+    # the API waits for that proxy to be healthy: without it the proxy has no
+    # entrypoint and the API never starts.
+    "infrastructure/sandbox-egress",
 )
 
 #: Sub-paths excluded from the production bundle (tests never ship).

@@ -665,9 +665,16 @@ _STRUCTURED_ACTION_ALIASES: dict[str, str] = {
     "approve": "confirm",
     "confirm_delete": "confirm",
     "confirm_all": "confirm",
+    # ADR-298: the egress card's second answer — a confirmation that narrows
+    # the run. Canonised so every reader sees a confirmation; the narrowing
+    # travels as its own field (see _structured_resume_payload).
+    "confirm_without_data": "confirm",
     "cancel": "cancel",
     "reject": "cancel",
 }
+
+#: Wire actions that carry a decision FIELD beside the canonical action.
+_ACTION_FIELDS: dict[str, dict[str, Any]] = {"confirm_without_data": {"share_turn_data": False}}
 
 
 # (interrupt_type, action) -> resume payload builders for one-click approvals.
@@ -682,6 +689,7 @@ def _structured_resume_payload(
     modification_instructions: str | None = None,
 ) -> dict[str, Any] | None:
     """Return the resume payload for a supported (type, action) pair, else None."""
+    fields = _ACTION_FIELDS.get(action, {})
     action = _STRUCTURED_ACTION_ALIASES.get(action, action)
     if interrupt_type == ACTION_TYPE_DRAFT_CRITIQUE and action == "edit":
         # Parity with _map_draft_critique_result EDIT: instructions required.
@@ -696,7 +704,7 @@ def _structured_resume_payload(
     if interrupt_type in ("tool_confirmation", "draft_critique"):
         if action not in ("confirm", "cancel"):
             return None
-        payload: dict[str, Any] = {"action": action}
+        payload: dict[str, Any] = {"action": action, **fields}
         if interrupt_type == ACTION_TYPE_DRAFT_CRITIQUE:
             payload[FIELD_DRAFT_ID] = draft_id
             if action == "cancel":

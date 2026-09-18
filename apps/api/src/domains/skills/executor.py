@@ -39,7 +39,8 @@ import sys
 import tempfile
 import time
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -129,6 +130,33 @@ def _build_rlimit_preexec(
     return _apply
 
 
+@dataclass(frozen=True)
+class EgressSpec:
+    """What a NETWORK sandbox run is handed (ADR-298).
+
+    Built by ``agents.python_sandbox.egress`` once the proxy serves the run;
+    declared here because this module must not import from ``agents`` (which
+    imports this one). Absent, a run is air-gapped exactly as before.
+
+    Attributes:
+        network: The internal Docker network whose only routed member is the
+            egress proxy.
+        proxy_url: What the sandbox receives as ``HTTPS_PROXY``.
+        ca_volume: The named volume holding the proxy's CA certificate.
+        ca_dir: Where that volume is mounted, read-only, in the sandbox.
+        ca_file: The certificate path every HTTPS library is pointed at.
+        tokens: ``{env name: opaque token}`` — the run's credentials, one per
+            connector host, under ``LIA_KEY_<CONNECTOR>``.
+    """
+
+    network: str
+    proxy_url: str
+    ca_volume: str
+    ca_dir: str
+    ca_file: str
+    tokens: Mapping[str, str] = field(default_factory=dict)
+
+
 class ScriptResult(BaseModel):
     """Result of a skill script execution."""
 
@@ -172,6 +200,7 @@ class SkillScriptExecutor:
         container_name: str,
         timeout: int,
         settings: Settings,
+        egress: EgressSpec | None = None,
     ) -> list[str]:
         """Build the `docker run` argv for one sandboxed script execution.
 
@@ -188,6 +217,8 @@ class SkillScriptExecutor:
             container_name: Unique name, so a timed-out run can be force-removed.
             timeout: Wall-clock budget, used for the CPU rlimit inside.
             settings: Application settings.
+            egress: The network run's proxy, CA and tokens (ADR-298), or None
+                for an air-gapped run.
 
         Returns:
             The argv list for `docker run`.
@@ -200,11 +231,13 @@ class SkillScriptExecutor:
             # budget — `time.sleep(1e9)` burns no CPU, so the CPU rlimit never
             # fires — would linger forever holding memory and pids.
             f"--name={container_name}",
-            # No network at all: no skill shipped today makes a network call
-            # (verified across all of them), and an isolated script has no
-            # business reaching the LAN or the metadata service.
+            # No network at all, unless the run was published to the egress
+            # proxy: then the sandbox joins an INTERNAL network whose only
+            # routed member is that proxy — a raw socket still has nowhere
+            # to go (measured 2026-09-18: `Network is unreachable`), and
+            # HTTPS goes through the proxy or not at all.
             "--network",
-            "none",
+            egress.network if egress is not None else "none",
             "--read-only",
             f"--user={SKILLS_SCRIPT_SANDBOX_UID}:{SKILLS_SCRIPT_SANDBOX_UID}",
             f"--tmpfs=/tmp:size={settings.skills_script_sandbox_tmpfs_mb}m,mode=1777",
@@ -225,6 +258,8 @@ class SkillScriptExecutor:
         ]
         if settings.skills_script_sandbox_pythonpath:
             limits += ["--env", f"PYTHONPATH={settings.skills_script_sandbox_pythonpath}"]
+        if egress is not None:
+            limits += SkillScriptExecutor._egress_args(egress)
 
         return [
             "docker",
@@ -236,6 +271,31 @@ class SkillScriptExecutor:
             "-c",
             source,
         ]
+
+    @staticmethod
+    def _egress_args(egress: EgressSpec) -> list[str]:
+        """The CA mount, the proxy and the tokens of a network run (ADR-298).
+
+        Only ``HTTPS_PROXY`` is set: there is no ``HTTP_PROXY`` because plain
+        HTTP is not offered, and no ``NO_PROXY`` because there is nothing to
+        reach directly. The three CA variables cover urllib/httpx
+        (``SSL_CERT_FILE``), requests and curl.
+        """
+        args = [
+            "-v",
+            f"{egress.ca_volume}:{egress.ca_dir}:ro",
+            "--env",
+            f"HTTPS_PROXY={egress.proxy_url}",
+            "--env",
+            f"SSL_CERT_FILE={egress.ca_file}",
+            "--env",
+            f"REQUESTS_CA_BUNDLE={egress.ca_file}",
+            "--env",
+            f"CURL_CA_BUNDLE={egress.ca_file}",
+        ]
+        for name, token in egress.tokens.items():
+            args += ["--env", f"{name}={token}"]
+        return args
 
     @staticmethod
     def _run_sandbox_sync(
@@ -342,6 +402,7 @@ class SkillScriptExecutor:
         max_output: int,
         user_id: str | None,
         settings: Settings,
+        egress: EgressSpec | None = None,
     ) -> ScriptResult:
         """Run Python SOURCE in a throwaway container (SEC-001).
 
@@ -359,6 +420,7 @@ class SkillScriptExecutor:
             max_output: Maximum stdout kept, in bytes.
             user_id: Caller, for the audit trail.
             settings: Application settings.
+            egress: The network run's proxy, CA and tokens (ADR-298), or None.
 
         Returns:
             The result, or a failure describing why it could not run.
@@ -380,6 +442,7 @@ class SkillScriptExecutor:
             container_name=container_name,
             timeout=timeout,
             settings=settings,
+            egress=egress,
         )
         start_time = time.monotonic()
 
@@ -487,6 +550,7 @@ class SkillScriptExecutor:
         label: str,
         timeout_seconds: int | None = None,
         user_id: str | None = None,
+        egress: EgressSpec | None = None,
     ) -> ScriptResult:
         """Run model-authored Python in the sandbox, with no file and no skill.
 
@@ -507,6 +571,7 @@ class SkillScriptExecutor:
             label: Short identity for logs and the container's ``SKILL_NAME``.
             timeout_seconds: Wall-clock budget (defaults to the sandbox's).
             user_id: Caller, for the audit trail.
+            egress: The network run's proxy, CA and tokens (ADR-298), or None.
 
         Returns:
             The result, or a failure describing why it could not run.
@@ -547,6 +612,7 @@ class SkillScriptExecutor:
             max_output=settings.skills_script_max_output_kb * 1024,
             user_id=user_id,
             settings=settings,
+            egress=egress,
         )
 
     @classmethod

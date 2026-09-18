@@ -1,0 +1,48 @@
+# Bootstrap ruleset of the sandbox egress proxy (ADR-298): ZERO live runs.
+#
+# Installed by entrypoint.sh when the config volume holds no proxy.yaml yet, so
+# the proxy can start before the API has rendered anything. It denies every host:
+# the allowlist is empty, and the API replaces this file — and reloads the
+# proxy — before each network run. It is byte-for-byte what the API renders for
+# an empty registry (test_ruleset.py holds the two equal), so there is ONE
+# declaration of the proxy's shape, kept here where the entrypoint can copy it
+# without a Python interpreter.
+dns:
+  listen: 127.0.0.1:0
+  proxy_ip: 127.0.0.1
+proxy:
+  tunnel_listen: 0.0.0.0:3128
+  http_listen: 127.0.0.1:0
+  https_listen: 127.0.0.1:0
+  max_request_body_bytes: 1048576
+  upstream_deny_cidrs:
+  - 127.0.0.0/8
+  - 0.0.0.0/8
+  - ::1/128
+  - ::/128
+  - 169.254.0.0/16
+  - fe80::/10
+  - 10.0.0.0/8
+  - 172.16.0.0/12
+  - 192.168.0.0/16
+  - fc00::/7
+  - ::ffff:0:0/96
+  - 64:ff9b::/96
+  - 100.64.0.0/10
+  - 198.18.0.0/15
+metrics:
+  listen: 0.0.0.0:9094
+management:
+  listen: 0.0.0.0:9093
+  api_key_env: IRON_MANAGEMENT_API_KEY
+tls:
+  ca_cert: /etc/lia-egress/ca/ca.crt
+  ca_key: /etc/lia-egress/key/ca.key
+  cert_cache_size: 256
+  leaf_cert_expiry_hours: 24
+transforms:
+- name: allowlist
+  config:
+    domains: []
+log:
+  level: info

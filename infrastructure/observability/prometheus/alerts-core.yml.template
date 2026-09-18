@@ -536,3 +536,23 @@ groups:
           summary: "Recurrence ledger recorded nothing in 7 days ({{ $value | humanize }} human actionable turns)"
           description: "Over 7 days more than <<<ALERT_CORE_RECURRENCE_ACTIONS_7D>>> human actionable turns were produced and the recurrence ledger wrote none of them, while the feature is not switched off. Recurring-request habits cannot form: the ledger is starved. Read recurrence_ledger_writes_total by outcome (redis_unavailable / failed = the store; nothing at all = the gate) and post_response_extraction_scheduled_total{kind=\"recurrence\"} by outcome — a not_applicable-only distribution means resolve_actionable_domain no longer matches what the router writes to state."
           runbook: "docs/runbooks/alerts/RecurrenceLedgerSilent.md"
+
+      # ADR-298: the egress proxy is the ONLY door a network sandbox run has.
+      # Gated on the API's own gauge: without the skill-sandbox overlay there
+      # is no proxy, and its absence is a configuration, not an incident. The
+      # probe series is absent on such an install, so the gauge comparison
+      # comes first and `or vector(0)` lets a missing probe read as down.
+      - alert: SandboxEgressProxyDown
+        expr: |
+          (max(lia_python_sandbox_egress_enabled) == 1)
+          and
+          ((max(probe_success{job="blackbox-egress"}) or vector(0)) == 0)
+        for: <<<ALERT_CORE_SANDBOX_EGRESS_DOWN_FOR>>>
+        labels:
+          severity: warning
+          component: sandbox
+          tier: core
+        annotations:
+          summary: "Sandbox egress proxy is down while network runs are enabled"
+          description: "This deployment offers network sandbox runs (ADR-298) but the egress proxy's /healthz has not answered for <<<ALERT_CORE_SANDBOX_EGRESS_DOWN_FOR>>>. Every run that declares a host is refused (python_sandbox_egress_runs_total{outcome=\"proxy_unavailable\"}) and the model is told to answer with what it has: the capability is silently gone for every account. Check `docker compose ps egress` and its log (the CA is minted at start; a missing management.token means the config volume is not shared)."
+          runbook: "docs/runbooks/alerts/SandboxEgressProxyDown.md"

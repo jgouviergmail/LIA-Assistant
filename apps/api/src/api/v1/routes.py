@@ -230,6 +230,13 @@ if getattr(settings, "skills_enabled", False):
     from src.domains.skills.router import router as skills_router
 
     api_router.include_router(skills_router)
+# The hosts a person allowed a sandbox script to reach (ADR-298): the RECORD
+# of the network act. Mounted with the sandbox itself, not with the egress
+# switch — a grant stays visible and revocable while the act is off (ADR-280).
+if getattr(settings, "python_sandbox_tool_enabled", False):
+    from src.domains.agents.python_sandbox.egress.router import router as egress_grants_router
+
+    api_router.include_router(egress_grants_router)
 if getattr(settings, "plugins_enabled", False) and getattr(settings, "skills_enabled", False):
     # ADR-225: the plugins pipeline materializes skills through the skills
     # domain (import_directory), so the feature requires skills to be on.
@@ -414,6 +421,11 @@ async def get_client_config() -> dict:
             # Message bookmarks (ADR-282): gates the bubble action and the
             # « Bookmarks » tab of the generated files.
             "bookmarks_enabled": getattr(settings, "bookmarks_enabled", False),
+            # Sandbox egress (ADR-298): gates the « Bac à sable » settings
+            # section that lists what a script may reach and the grants.
+            "python_sandbox_egress_enabled": getattr(
+                settings, "python_sandbox_egress_enabled", False
+            ),
         },
         # Every capability of the registry with its EFFECTIVE state (ceiling
         # AND operator switch): what a visitor will find on this instance.

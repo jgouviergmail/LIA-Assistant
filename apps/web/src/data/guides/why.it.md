@@ -4,7 +4,7 @@
 
 **Versione**: 6.0
 **Data**: 2026-09-18
-**Applicazione**: LIA v1.45.2
+**Applicazione**: LIA v1.46.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -85,7 +85,7 @@ L'amministratore ha accesso a una terza scheda dedicata alla gestione dell'istan
 - **Messaggi broadcast**: inviare messaggi importanti a tutti gli utenti o a una selezione, con data di scadenza opzionale
 - **Export dei consumi globale**: esportare i consumi di tutti gli utenti in CSV
 - **Budget quotidiano dell'istanza**: limitare in euro ciò che l'istanza INTERA può spendere in una giornata — e non solo ciò che consuma ogni account. Il pannello mostra la spesa del giorno, il tetto realmente applicato e ciò che resta. Esaurito il budget, gli utenti apprendono che il deployment è in pausa e ricevono l'ora esatta del ripristino, non un messaggio fuorviante sulla loro quota personale
-- **Capacità di piattaforma**: attiva o disattiva venticinque capacità all'istante, senza ridistribuire — tutte le funzioni che una persona vive davvero, dalla dettatura e le immagini alla lavagna dei ticket, ai diari, alla memoria a lungo termine e alle notifiche spontanee — raggruppate in sei famiglie perché un muro di interruttori resti leggibile. Un interruttore toglie la CAPACITÀ, mai l'archivio: spegnere la memoria ferma l'apprendimento di nuovi fatti mentre tutto ciò che è già stato appreso resta leggibile ed eliminabile. Una capacità disattivata sparisce anche dal catalogo offerto al pianificatore, quindi LIA smette di proporre ciò che le rotte rifiuterebbero; ogni riga mostra ciò che il deployment permette, ciò che hai scelto tu, ciò che viene davvero applicato e dove morde l'interruttore
+- **Capacità di piattaforma**: attiva o disattiva ogni capacità all'istante, senza ridistribuire — tutte le funzioni che una persona vive davvero, dalla dettatura e le immagini alla lavagna dei ticket, ai diari, alla memoria a lungo termine e alle notifiche spontanee — raggruppate in sei famiglie perché un muro di interruttori resti leggibile. Un interruttore toglie la CAPACITÀ, mai l'archivio: spegnere la memoria ferma l'apprendimento di nuovi fatti mentre tutto ciò che è già stato appreso resta leggibile ed eliminabile. Una capacità disattivata sparisce anche dal catalogo offerto al pianificatore, quindi LIA smette di proporre ciò che le rotte rifiuterebbero; ogni riga mostra ciò che il deployment permette, ciò che hai scelto tu, ciò che viene davvero applicato e dove morde l'interruttore
 
 **IA e connettori:**
 
@@ -114,7 +114,7 @@ LIA agisce concretamente nella tua vita digitale grazie a 20+ agenti specializza
 Scegli tu come ragiona LIA, tramite un semplice toggle (⚡) nell'intestazione della chat:
 
 - **Modalità Pipeline** (predefinita) — Un vero capolavoro di ingegneria: LIA pianifica tutti i passaggi in anticipo, li valida semanticamente ed esegue gli strumenti in parallelo. Risultato: la stessa potenza di un agente autonomo, ma con 4-8 volte meno token consumati. La modalità più economica e prevedibile.
-- **Modalità ReAct** (⚡) — L'assistente ragiona passo dopo passo: chiama uno strumento, analizza il risultato e decide cosa fare dopo. Più autonomo, più adattabile, ma più costoso in token. Ideale per ricerche esplorative o domande complesse il cui valore aggiunto giustifica il costo. È inoltre l'unica modalità in grado di calcolare invece di stimare: quando un passo richiede aritmetica su molte righe o durate tra fusi orari, scrive poche righe di Python e le esegue in una sandbox isolata. Gli strumenti che porta con sé sono scelti per rilevanza rispetto alla tua domanda — i tuoi server MCP compresi — mai per ordine di arrivo, e legge i tuoi spazi di conoscenza esattamente come la modalità Pipeline.
+- **Modalità ReAct** (⚡) — L'assistente ragiona passo dopo passo: chiama uno strumento, analizza il risultato e decide cosa fare dopo. Più autonomo, più adattabile, ma più costoso in token. Ideale per ricerche esplorative o domande complesse il cui valore aggiunto giustifica il costo. È inoltre l'unica modalità in grado di calcolare invece di stimare: quando un passo richiede aritmetica su molte righe o durate tra fusi orari, scrive poche righe di Python e le esegue in una sandbox isolata — e quando un passo ha bisogno di un servizio che nessuno strumento copre, quello script può raggiungere il web da un unico proxy, le tue chiavi scambiate fuori da esso, un host sconosciuto chiesto prima con tre risposte. Gli strumenti che porta con sé sono scelti per rilevanza rispetto alla tua domanda — i tuoi server MCP compresi — mai per ordine di arrivo, e legge i tuoi spazi di conoscenza esattamente come la modalità Pipeline.
 
 ### 3.1. Conversazione naturale
 

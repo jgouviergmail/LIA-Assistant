@@ -3,8 +3,9 @@
  * the group tones that turn a flat list into a map, the everyday-words settings
  * search, settings deep links that survive a reload, full history search, the
  * minutes-template library whose categories open closed, the phone logo
- * navigation, and the written debrief that opens a relationship card.
- * Timer-driven micro-demos; last phase = resting frame.
+ * navigation, the written debrief that opens a relationship card, and the
+ * sandbox-network permissions a person revokes in place. Timer-driven
+ * micro-demos; last phase = resting frame.
  */
 
 'use client';
@@ -15,7 +16,9 @@ import {
   ChevronDown,
   Fingerprint,
   FolderTree,
+  Globe,
   Hash,
+  KeyRound,
   Link2,
   Moon,
   NotebookPen,
@@ -770,6 +773,72 @@ function SyncCountScene({ active, labels }: SceneProps) {
   );
 }
 
+type NetworkGrantsPhase = 'list' | 'hover' | 'revoked' | 'rest';
+const NETWORK_GRANTS_STEPS: readonly TimelineStep<NetworkGrantsPhase>[] = [
+  { at: 0, state: 'list' },
+  { at: 1400, state: 'hover' },
+  { at: 2400, state: 'revoked' },
+  { at: 3800, state: 'rest' },
+];
+
+/**
+ * Settings › Sandbox network (ADR-298): the hosts reachable without asking,
+ * then the person's own permissions — one of them revoked on the spot. The
+ * resting frame shows the list whole (row, scope, revoke button): a card at
+ * rest must show what the attention IS, not the instant after it was used.
+ */
+function NetworkGrantsScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(NETWORK_GRANTS_STEPS, { active });
+  const revoked = phase === 'revoked';
+  return (
+    <div className={cn(STAGE, 'justify-center')}>
+      <div className="w-full max-w-[210px] space-y-1.5 text-[10px]">
+        <div className="px-1 text-[9px] uppercase tracking-wide text-muted-foreground">
+          {labels.reachable}
+        </div>
+        <MiniSettingRow icon={Globe} label={labels.connector} iconClassName="text-primary" />
+        <div
+          className={cn(
+            'grid overflow-hidden transition-[grid-template-rows,opacity] duration-500 motion-reduce:transition-none',
+            revoked ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100'
+          )}
+        >
+          <div className="min-h-0">
+            <div
+              className={cn(
+                'flex w-full items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5',
+                phase === 'hover' && 'ring-2 ring-primary/60'
+              )}
+            >
+              <KeyRound className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden="true" />
+              <span className="min-w-0 flex-1 truncate font-mono text-foreground/80">
+                {labels.grant}
+              </span>
+              <span className="truncate text-[9px] text-muted-foreground">{labels.scope}</span>
+              <span className="rounded-full border border-border px-1.5 py-0.5 text-[9px] text-destructive">
+                {labels.revoke}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div
+          className={cn(
+            'px-1 text-[9px] text-muted-foreground transition-opacity duration-300',
+            revoked ? 'opacity-100' : 'opacity-0'
+          )}
+        >
+          {labels.revoked}
+        </div>
+      </div>
+      <Cursor
+        className={cn(
+          phase === 'hover' ? 'left-[78%] top-[58%] opacity-100' : 'left-[60%] top-[90%] opacity-0'
+        )}
+      />
+    </div>
+  );
+}
+
 export const FIND_SCENES: Readonly<Record<string, SceneComponent>> = {
   settings_shell: SettingsShellScene,
   settings_tones: SettingsTonesScene,
@@ -784,4 +853,5 @@ export const FIND_SCENES: Readonly<Record<string, SceneComponent>> = {
   relation_sections: RelationSectionsScene,
   relation_debrief: RelationDebriefScene,
   pinned_dock: PinnedDockScene,
+  network_grants: NetworkGrantsScene,
 };

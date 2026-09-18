@@ -188,6 +188,24 @@ describe('normalizeHitlPayload — draft_critique (real capture)', () => {
     expect(result?.actions.map(a => a.action)).toEqual(['confirm', 'cancel']);
   });
 
+  it("keeps the egress card's three answers (ADR-298)", () => {
+    // `confirm_without_data` is a wire id of its own: dropped here, the
+    // button vanishes in silence and the person can only allow WITH the data.
+    const egress = structuredClone(DRAFT_METADATA) as Record<string, unknown>;
+    (egress.action_requests as Record<string, unknown>[])[0].draft_type = 'sandbox_egress';
+    (egress.action_requests as Record<string, unknown>[])[0].available_actions = [
+      { action: 'confirm', label: 'allow_with_data', style: 'primary' },
+      { action: 'confirm_without_data', label: 'allow_without_data', style: 'secondary' },
+      { action: 'cancel', label: 'refuse', style: 'destructive' },
+    ];
+    const result = normalizeHitlPayload(egress);
+    expect(result?.actions.map(a => [a.action, a.label])).toEqual([
+      ['confirm', 'allow_with_data'],
+      ['confirm_without_data', 'allow_without_data'],
+      ['cancel', 'refuse'],
+    ]);
+  });
+
   it('returns null when draft_id is missing (unusable resume)', () => {
     const broken = structuredClone(DRAFT_METADATA) as Record<string, unknown>;
     delete (broken.action_requests as Record<string, unknown>[])[0].draft_id;

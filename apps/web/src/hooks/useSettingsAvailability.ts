@@ -34,6 +34,7 @@ export function useSettingsAvailability(): SettingsSearchAvailability {
       openLoopsEnabled: !!config?.features?.open_loops_enabled,
       habitsEnabled: !!config?.features?.habits_enabled,
       peersEnabled: !!config?.features?.peers_enabled,
+      sandboxEgressEnabled: !!config?.features?.python_sandbox_egress_enabled,
       debugUserAccess: userAccessAvailable,
     }),
     [
@@ -41,6 +42,7 @@ export function useSettingsAvailability(): SettingsSearchAvailability {
       config?.features?.open_loops_enabled,
       config?.features?.habits_enabled,
       config?.features?.peers_enabled,
+      config?.features?.python_sandbox_egress_enabled,
       userAccessAvailable,
     ]
   );

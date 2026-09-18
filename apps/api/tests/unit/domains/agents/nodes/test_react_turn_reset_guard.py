@@ -129,6 +129,15 @@ class TestTheDeclaration:
         assert reset["react_tool_seconds"] == 0.0
         assert reset["react_productive_iterations"] == 0
 
+    def test_the_admin_visible_scripts_start_empty(self) -> None:
+        """The thread is the CONVERSATION (ADR-249's list was appended to for
+        its whole life): measured 2026-09-18, the debug panel of one turn showed
+        the scripts of the previous one. A list is an accumulator too."""
+        reset = react_turn_reset()
+
+        assert reset["react_scripts"] == []
+        assert reset["react_scripts"] is not react_turn_reset()["react_scripts"]
+
     def test_keeps_the_counters_the_router_already_reset(self) -> None:
         """Moving the list must not lose an entry on the way."""
         reset = react_turn_reset()

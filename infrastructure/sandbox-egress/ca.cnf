@@ -1,0 +1,17 @@
+# OpenSSL request template for the sandbox egress CA (ADR-298).
+#
+# iron-proxy refuses a plain self-signed certificate: it needs a real CA
+# (measured 2026-09-18: "CA certificate missing KeyUsageCertSign"). The v3
+# extensions below are the whole difference.
+[req]
+distinguished_name = dn
+x509_extensions    = v3_ca
+prompt             = no
+
+[dn]
+CN = LIA sandbox egress CA
+
+[v3_ca]
+basicConstraints       = critical, CA:TRUE, pathlen:0
+keyUsage               = critical, keyCertSign, cRLSign
+subjectKeyIdentifier   = hash

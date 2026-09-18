@@ -74,7 +74,10 @@ export type SettingsGroupKey =
  */
 export type SettingsSectionGate =
   | { kind: 'always' }
-  | { kind: 'instanceFlag'; flag: 'openLoopsEnabled' | 'peersEnabled' | 'habitsEnabled' }
+  | {
+      kind: 'instanceFlag';
+      flag: 'openLoopsEnabled' | 'peersEnabled' | 'habitsEnabled' | 'sandboxEgressEnabled';
+    }
   | { kind: 'userDebugPanel' }
   | { kind: 'superuser' }
   | { kind: 'runtime'; reason: string };
@@ -411,6 +414,15 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     group: 'extensions_data',
     gate: { kind: 'always' },
   },
+  // ADR-298: the component reads `features.python_sandbox_egress_enabled` and
+  // renders nothing when it is off — the flag IS the gate.
+  'sandbox-egress': {
+    titleKey: 'settings.sandbox_egress.title',
+    descriptionKey: 'settings.sandbox_egress.description',
+    keywordsKey: `${KEYWORDS_PREFIX}.sandbox-egress`,
+    group: 'extensions_data',
+    gate: { kind: 'instanceFlag', flag: 'sandboxEgressEnabled' },
+  },
   'rag-spaces': {
     titleKey: 'settings.rag_spaces.title',
     descriptionKey: 'settings.rag_spaces.description',
@@ -594,6 +606,8 @@ export interface SettingsSearchAvailability {
   habitsEnabled: boolean;
   /** `/config` → `features.peers_enabled` (peers program). */
   peersEnabled: boolean;
+  /** `/config` → `features.python_sandbox_egress_enabled` (ADR-298). */
+  sandboxEgressEnabled: boolean;
   /** `useDebugPanelEnabled()` → `userAccessAvailable`. */
   debugUserAccess: boolean;
 }

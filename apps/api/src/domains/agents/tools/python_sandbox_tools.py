@@ -112,6 +112,49 @@ def set_turn_data(items: dict[str, Any]) -> None:
     _turn_data.set(items or {})
 
 
+async def _refuse_if_not_runnable(context: Any) -> UnifiedToolOutput | None:
+    """The three refusals every run meets first: the switch, the mode, the budget.
+
+    Args:
+        context: The typed runtime context, or None outside a graph run.
+
+    Returns:
+        The refusal to return as is, or None when the run may proceed.
+    """
+    # The deployment ceiling AND the operator's switch (B7): an administrator
+    # who wants model-written code off should not have to redeploy.
+    from src.domains.feature_switches.registry import (
+        PlatformCapability,
+        is_capability_enabled,
+    )
+
+    if not await is_capability_enabled(PlatformCapability.PYTHON_SANDBOX):
+        return UnifiedToolOutput(
+            success=False,
+            message="Ephemeral Python execution is disabled on this instance.",
+            error_code=ToolErrorCode.CONFIGURATION_ERROR,
+        )
+    if getattr(context, "execution_mode", "") != EXECUTION_MODE_REACT:
+        # The pipeline plans ahead and cannot read a traceback to repair a
+        # script; it uses skills and plugins instead (ADR-249).
+        return UnifiedToolOutput(
+            success=False,
+            message="Ephemeral Python execution is only available in ReAct mode.",
+            error_code=ToolErrorCode.FORBIDDEN,
+        )
+    budget = int(getattr(get_settings(), "python_sandbox_max_runs_per_turn", 0))
+    if _runs_this_turn.get() >= budget:
+        return UnifiedToolOutput(
+            success=False,
+            message=(
+                f"Script budget for this turn is spent ({budget} runs). "
+                "Answer with what you already have, and say what is missing."
+            ),
+            error_code=ToolErrorCode.RATE_LIMIT_EXCEEDED,
+        )
+    return None
+
+
 @registered_tool
 @track_tool_metrics(
     tool_name="run_python",
@@ -127,67 +170,76 @@ def set_turn_data(items: dict[str, Any]) -> None:
 async def run_python_tool(
     code: str,
     purpose: str,
+    hosts: list[str] | None = None,
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
-    """Run a short Python script in an isolated sandbox and return its stdout.
+    """Run a short Python script in a fresh sandbox and return its stdout.
+
+    Four jobs: calculate what a model does badly (joins, dates, statistics),
+    diagnose a service a tool failed on (probe it over HTTPS, report status
+    and latency), fill a gap with a temporary client when no tool exists and
+    correct your own code from the traceback, transform a payload (CSV, XLSX,
+    XML, RSS, HTML, ICS). The turn's data arrives on stdin as JSON; the
+    libraries, bounds and reachable hosts are in <Computation>.
 
     Args:
-        code: The Python source to run. It reads its input from stdin as JSON.
+        code: The Python source to run. It reads its input from stdin as JSON
+            and reaches only the hosts declared in `hosts`.
         purpose: One short sentence on what this computes (shown to admins).
+        hosts: Bare lowercase hostnames the script will reach over HTTPS
+            (ADR-298). Empty: the run is offline. A host of the person's
+            connectors or the operator's list is reachable at once; any other
+            host is asked of the person before the run.
         runtime: LangChain tool runtime (injected).
 
     Returns:
         The script's stdout, or the failure with its traceback so it can be fixed.
     """
-    settings = get_settings()
     context = getattr(runtime, "context", None)
     user_id = getattr(context, "user_id", None)
-
-    # The deployment ceiling AND the operator's switch (B7): an administrator
-    # who wants model-written code off should not have to redeploy.
-    from src.domains.feature_switches.registry import (
-        PlatformCapability,
-        is_capability_enabled,
-    )
-
-    if not await is_capability_enabled(PlatformCapability.PYTHON_SANDBOX):
-        return UnifiedToolOutput(
-            success=False,
-            message="Ephemeral Python execution is disabled on this instance.",
-            error_code=ToolErrorCode.CONFIGURATION_ERROR,
-        )
-
-    if getattr(context, "execution_mode", "") != EXECUTION_MODE_REACT:
-        # The pipeline plans ahead and cannot read a traceback to repair a
-        # script; it uses skills and plugins instead (ADR-249).
-        return UnifiedToolOutput(
-            success=False,
-            message="Ephemeral Python execution is only available in ReAct mode.",
-            error_code=ToolErrorCode.FORBIDDEN,
-        )
-
+    refusal = await _refuse_if_not_runnable(context)
+    if refusal is not None:
+        return refusal
     spent = _runs_this_turn.get()
-    budget = int(getattr(settings, "python_sandbox_max_runs_per_turn", 0))
-    if spent >= budget:
-        return UnifiedToolOutput(
-            success=False,
-            message=(
-                f"Script budget for this turn is spent ({budget} runs). "
-                "Answer with what you already have, and say what is missing."
-            ),
-            error_code=ToolErrorCode.RATE_LIMIT_EXCEEDED,
+
+    network: dict[str, Any] = {}
+    if hosts:
+        from src.domains.agents.python_sandbox.egress.tool_path import run_with_network
+
+        network_result = await run_with_network(
+            hosts, code=code, purpose=purpose, context=context, items=_turn_data.get() or {}
         )
+        if isinstance(network_result, UnifiedToolOutput):
+            # A question or a refusal started no container: it costs no run.
+            return network_result
+        result, network = network_result
+    else:
+        from src.domains.skills.executor import SkillScriptExecutor
+
+        result = await SkillScriptExecutor.execute_source(
+            source=code,
+            payload={"items": _turn_data.get() or {}},
+            label="ephemeral",
+            user_id=str(user_id) if user_id else None,
+        )
+
+    # Charged once a container actually ran, whatever it printed.
     _runs_this_turn.set(spent + 1)
-
-    from src.domains.skills.executor import SkillScriptExecutor
-
-    result = await SkillScriptExecutor.execute_source(
-        source=code,
-        payload={"items": _turn_data.get() or {}},
-        label="ephemeral",
+    _record_script(purpose=purpose, code=code, result=result)
+    logger.info(
+        "ephemeral_script_executed",
+        purpose=purpose[:120],
+        success=result.success,
+        run_index=spent + 1,
+        code_bytes=len(code.encode("utf-8")),
+        network=bool(network),
         user_id=str(user_id) if user_id else None,
     )
+    return _shape_output(result, network=network, code=code, purpose=purpose)
 
+
+def _record_script(*, purpose: str, code: str, result: Any) -> None:
+    """Keep the run for the ADMIN debug panel — never for the answer surface."""
     recorded = list(_turn_scripts.get() or [])
     recorded.append(
         {
@@ -199,24 +251,31 @@ async def run_python_tool(
     )
     _turn_scripts.set(recorded)
 
-    logger.info(
-        "ephemeral_script_executed",
-        purpose=purpose[:120],
-        success=result.success,
-        run_index=spent + 1,
-        code_bytes=len(code.encode("utf-8")),
-        user_id=str(user_id) if user_id else None,
-    )
 
+def _shape_output(
+    result: Any, *, network: dict[str, Any], code: str, purpose: str
+) -> UnifiedToolOutput:
+    """The tool's answer to the model, from the script's result.
+
+    Args:
+        result: The executor's result.
+        network: What a network run adds (hosts, ``turn_data_shared``,
+            authorizations) — empty for an air-gapped run.
+        code: The script, for the debug metadata.
+        purpose: The stated purpose, for the debug metadata.
+
+    Returns:
+        The output, the stdout marked untrusted.
+    """
     if not result.success:
         return UnifiedToolOutput(
             success=False,
             message=f"The script failed: {result.error}",
             error_code=ToolErrorCode.INVALID_INPUT,
-            structured_data={"traceback": result.error},
+            # A traceback quotes what the script handled: as untrusted as stdout.
+            structured_data={"content_trust": "untrusted", "traceback": result.error, **network},
             metadata={"code": code, "purpose": purpose},
         )
-
     return UnifiedToolOutput(
         success=True,
         message="Script executed.",
@@ -226,6 +285,10 @@ async def run_python_tool(
             # context, like every other untrusted payload.
             "content_trust": "untrusted",
             "stdout": result.output,
+            # A network run says which hosts it could reach and whether the
+            # turn's data travelled (ADR-298) — so the loop knows why its
+            # script read an empty stdin.
+            **network,
         },
         # The code is admin-facing only (owner arbitration): it travels in the
         # debug metadata, never in the answer surface.

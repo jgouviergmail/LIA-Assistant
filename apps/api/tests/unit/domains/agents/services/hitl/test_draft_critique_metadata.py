@@ -62,3 +62,27 @@ class TestWhatTheChunkCarries:
         assert "batch_total" not in request
         assert "batch_drafts" not in request
         assert request["tool_name"] is None
+
+
+class TestTheEgressChunk:
+    """The egress card's chunk carries the three answers and the card's
+    fields — nothing of the script or the person's data ever reaches it
+    (the card never held them: ``egress/draft.py``)."""
+
+    def test_the_egress_chunk_publishes_three_answers(self) -> None:
+        chunk = _chunk(
+            {
+                "draft_id": "d-1",
+                "draft_type": "sandbox_egress",
+                "draft_content": {
+                    "hosts": ["example.com"],
+                    "hosts_unknown": ["example.com"],
+                    "purpose": "fetch the title",
+                    "data_summary": {"counts": {"email": 2}, "available": True, "language": "fr"},
+                },
+            }
+        )
+        content = chunk["action_requests"][0]["draft_content"]
+        assert content["hosts_unknown"] == ["example.com"]
+        assert content["data_summary"]["counts"] == {"email": 2}
+        assert chunk["available_actions"] == ["confirm", "confirm_without_data", "cancel"]

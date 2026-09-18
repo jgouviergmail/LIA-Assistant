@@ -557,8 +557,25 @@ jobs:
           context: ./apps/api
           file: ./apps/api/Dockerfile.prod
           push: false
+          # Loaded under the compose default tag so the step below can START it:
+          # the sandbox promise (ADR-298) is only proven on the image a run uses.
+          load: true
+          tags: lia-api:local
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Install Task
+        uses: arduino/setup-task@c0bc642852239c2689f73f4ea6459c29405f3c52 # v3.0.0
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Every library `<Computation>` promises imports inside the built image,
+      # offline (`--network none`, the sandbox's own footing). The unit test
+      # proves it on the lockfile; a slimmed stage or a missing system library
+      # is only visible here.
+      - name: Sandbox libraries import in the built image
+        run: task sandbox:libraries:check
 
       - name: Build Web image
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0

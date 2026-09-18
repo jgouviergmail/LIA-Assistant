@@ -83,17 +83,22 @@ function settleMask(): void {
  * file run on its own: 2.8-3.2 s each — the same order as the suite's
  * documented worst case (~3.3 s, the settings mega-forms). Re-measured
  * 2026-09-05 after ADR-264 (two more channels, the brows riding every idle
- * frame): 3.4-4.0 s each, same conditions. They exceed the 15 s default only
- * in the FULL parallel run, where this repository measures a ~5x stretch.
+ * frame): 3.4-4.0 s each, same conditions. Re-measured 2026-09-18 after
+ * ADR-294 (generated speech, per-channel warps, the sketches a resting face
+ * plays every 45-120 s — ten of them in a fifteen-minute doze): 7.2-8.1 s each
+ * alone with coverage, 44-50 s in the FULL 32-worker run, where this
+ * repository measures a ~5-6x stretch — past the 40 s the previous
+ * measurement had earned, three green tests reported as failures.
  *
  * That is the cost of simulating a quarter of an hour of animation, not a slow
  * test: the same fifteen minutes cost about 0.01 % of a CPU in a browser. Four
  * rounds of optimisation went in first (loops walked instead of channels, a
  * pure-idle fast path, one settling check per frame, tighter write precision);
  * what is left is inherent. The budget is per-test on purpose — the global
- * default must keep catching a genuinely hung test at 15 s.
+ * default must keep catching a genuinely hung test at 15 s — and it follows
+ * the measurement: raise it from a fresh one, never to silence a slow test.
  */
-const LONG_CLOCK_TIMEOUT_MS = 40_000;
+const LONG_CLOCK_TIMEOUT_MS = 75_000;
 
 function eyesRoot(): HTMLElement {
   const root = document.querySelector('.lia-eyes');

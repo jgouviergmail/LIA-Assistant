@@ -272,4 +272,7 @@ class TestTheExecutorIsNotDoubleRecorded:
             EXECUTORS_GATED_BY_THEIR_TOOL,
         )
 
+        # ADR-298's egress question has no executor at all: the loop settles it
+        # in place (react_egress_question) and the network run claims
+        # `python_sandbox_network` itself — nothing to exempt here.
         assert EXECUTORS_GATED_BY_THEIR_TOOL == frozenset({DraftType.TOOL_CALL.value})

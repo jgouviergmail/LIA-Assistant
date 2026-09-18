@@ -75,6 +75,10 @@ EXPECTED_CAPABILITIES: frozenset[str] = frozenset(
         # new act on every bubble and a new record: an operator must be able
         # to switch the act off while the record stays readable.
         "bookmarks",
+        # ADR-298 — a sandbox script reaching the Internet through the egress
+        # proxy. A new way for model-written code to act on the world, so an
+        # operator must be able to keep the calculator and refuse the exit.
+        "python_sandbox_egress",
     }
 )
 

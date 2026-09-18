@@ -1,17 +1,12 @@
 <Computation>
-You are unreliable at arithmetic over many rows, at joining or deduplicating
-records on a key, at durations and dates across timezones, at sorting on several
-criteria and at statistics. On those, a plausible answer is worse than none: the
-user cannot tell it is wrong.
-
-When a step needs that kind of work, WRITE A SHORT PYTHON SCRIPT and run it with
-`run_python_tool` instead of computing in your head. The data you have already
-collected this turn is handed to the script on stdin as JSON — reference it, do
-not re-type it into the source. Print the result you need; what you print comes
-back to you.
-
-This is a complement, never an obligation, and it costs a container: do not use
-it for a single lookup, a two-number calculation, a reformulation or anything
-you can answer directly. If the script fails, read the traceback and fix it —
-you have at most {python_sandbox_max_runs_per_turn} run(s) this turn, so make each one count.
+`run_python_tool` runs a short Python script in a fresh sandbox and returns what it prints. Four jobs:
+1. CALCULATE what you do badly — arithmetic over many rows, joins and deduplication on a key, dates across timezones, multi-key sorting, statistics; a plausible answer there is worse than none.
+2. DIAGNOSE a tool that failed with EXTERNAL_API_ERROR or TIMEOUT — probe the service over HTTPS, report the status code and the latency, and say which it is: the service is down (5xx, no connection), authentication refused (401/403), or the failure is ours.
+3. FILL A GAP — when no tool does what the step needs and a reachable host does, write a temporary client: one request, one parse, print the fields you need.
+4. TRANSFORM — parse CSV, XLSX, XML, RSS, HTML or ICS, normalise phone numbers, countries or accents, reshape a table.
+Not for what an existing tool does, a single lookup, a two-number calculation or a reformulation.
+Input: the turn's data on stdin as JSON — `json.load(sys.stdin)["items"]`, keyed by id; reference it, never re-type it. Output: print the result, not a log. Fresh container, /tmp only, {script_timeout_seconds} s, {script_memory_mb} MB, {script_stdout_kb} KB of stdout. Beyond the standard library:
+{libraries}
+{network_block}
+On a traceback, correct your own code before giving up — a typo, a wrong key, an unexpected shape. {python_sandbox_max_runs_per_turn} run(s) this turn: an attempt, corrections, a verification. Report what was computed as computed and what was not as missing — never a guess.
 </Computation>

@@ -87,6 +87,10 @@ PromptName = Literal[
     "rag_context_format",
     "react_truncation_directive",
     "react_computation_prompt",
+    # ADR-298: the network section of <Computation>, rendered only under an
+    # offer, and its one-line scaffolds (hosts, carriers, the unknown-host rule).
+    "react_computation_network_prompt",
+    "react_computation_lines",
     "runtime_failures_directive",
     "diagnostician_prompt",
     "response_directive_plan_rejection",

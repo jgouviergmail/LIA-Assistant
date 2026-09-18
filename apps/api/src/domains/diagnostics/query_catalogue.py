@@ -32,6 +32,10 @@ EXTERNAL_METRICS_ALLOWLIST: dict[str, str] = {
     "node_filesystem_size_bytes": "Produced by node-exporter (host disk telemetry).",
     "node_memory_MemAvailable_bytes": "Produced by node-exporter (host memory telemetry).",
     "node_memory_MemTotal_bytes": "Produced by node-exporter (host memory telemetry).",
+    "probe_success": (
+        "Produced by the blackbox exporter for every probed target — the egress "
+        "proxy's liveness (ADR-298), which exposes no series of its own."
+    ),
 }
 
 #: Tokens that look metric-shaped inside templates but are PromQL functions,
@@ -270,6 +274,26 @@ QUERY_CATALOGUE: dict[str, NamedQuery] = {
             unit="bool",
             lia_metrics=(),
             external_metrics=("up",),
+        ),
+        NamedQuery(
+            query_id="sandbox_egress_runs_by_outcome",
+            title="Network sandbox runs by outcome (ADR-298)",
+            promql_template=(
+                "sum by (outcome) (increase(python_sandbox_egress_runs_total[{window_minutes}m]))"
+            ),
+            params=(_WINDOW,),
+            unit="count",
+            lia_metrics=("python_sandbox_egress_runs_total",),
+            external_metrics=(),
+        ),
+        NamedQuery(
+            query_id="sandbox_egress_proxy_probe",
+            title="Egress proxy liveness (blackbox probe of /healthz)",
+            promql_template='probe_success{job="blackbox-egress"}',
+            params=(),
+            unit="bool",
+            lia_metrics=(),
+            external_metrics=("probe_success",),
         ),
         NamedQuery(
             query_id="disk_usage_percent",

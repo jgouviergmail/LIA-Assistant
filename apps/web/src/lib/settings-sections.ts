@@ -291,6 +291,14 @@ export const SETTINGS_SECTIONS = {
     accordionValue: 'mcp-servers',
     declaredIn: 'components/settings/MCPServersSettings.tsx',
   },
+  // What a sandbox script may reach on the network, and the permissions the
+  // person gave when asked (ADR-298): next to the MCP servers, the other door
+  // through which the assistant reaches services outside its connectors.
+  'sandbox-egress': {
+    tab: 'features',
+    accordionValue: 'sandbox-egress',
+    declaredIn: 'components/settings/SandboxEgressSettings.tsx',
+  },
   'rag-spaces': {
     tab: 'features',
     accordionValue: 'rag-spaces',

@@ -658,6 +658,9 @@ The old fact is **superseded, not silently erased**. When you correct something 
 
 **🧾 Keeps the trail** — the history of what changed and when remains inspectable in **Settings > Memory**, so you can always audit what LIA believes and since when.
 
+## What is the « Sandbox network » section for?
+It shows what a script LIA writes may reach on the network, and lets you take back what you allowed; it only appears once your administrator enabled the sandbox network. **Reachable without asking**: your own connectors (web search, answer engine, weather) — their key travels through the proxy, never into the script — and the hosts your instance allows for everyone. **Your permissions**: one line per host you allowed when LIA asked, with the date it was last used, a switch to change its scope (with or without the data of the turn) and a **Revoke** button — LIA will ask again the next time a script wants that host. The section shows your account's capacity; past it, a new approval holds for its run only. Deleting your account deletes them all.
+
 ## Can I change the look of the expressive eyes?
 Yes. **Settings > Personalization > Eyes style** offers several visual styles for the animated eyes shown on the chat page — each card renders a **live preview** of the style (neutral and joyful) so you pick by seeing, not by name.
 

@@ -363,6 +363,28 @@ tasks:
       - cmd: .venv/bin/python scripts/recurrence/measure_transcription.py {{.CLI_ARGS}}
         platforms: [linux, darwin]
 
+  sandbox:egress:probe:
+    desc: Measure the sandbox egress path on the running dev stack (NETWORK, on demand — ADR-298)
+    # A MEASUREMENT, never a gate: it needs the Docker socket, the egress proxy,
+    # the shared config volume and the Internet — none of which a unit test
+    # has, and a test that mocks the proxy proves nothing about the topology.
+    # Runs INSIDE the API container, through the real publisher and the real
+    # executor, so no isolation flag is duplicated here.
+    cmds:
+      - docker exec -w /app lia-api-dev python -m scripts.sandbox_egress.probe
+
+  sandbox:libraries:check:
+    desc: "Import every library the sandbox promises inside the image it runs on (ADR-298): task sandbox:libraries:check [IMAGE=lia-api:local]"
+    # The unit test proves the promise on the lockfile; only the IMAGE proves it
+    # for a run (a system library, a slimmed stage). CI runs it on the image the
+    # docker-build job just built under the compose default tag; a deployment
+    # runs it on the image it pins. The entrypoint is bypassed: it runs the
+    # migrations, and there is no database — nor any network — here.
+    vars:
+      IMAGE: '{{.IMAGE | default "lia-api:local"}}'
+    cmds:
+      - docker run --rm --network none --entrypoint python -w /app {{.IMAGE}} -m scripts.sandbox_egress.libraries_check
+
   react:selection:measure:
     desc: Replay real ReAct turns against the tool-selection policy (NETWORK, on demand — ADR-293)
     dir: "{{.API_DIR}}"

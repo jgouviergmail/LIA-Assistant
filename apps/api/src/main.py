@@ -125,6 +125,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     telegram_bot = await integrations.init_telegram_bot()
     await agents.init_semantic_services(registry)
     await agents.init_agent_graph()
+    # ADR-298: after Redis (the live-run registry) — renders the egress
+    # ruleset every worker's runs need, never blocks the boot.
+    await agents.init_sandbox_egress()
 
     observability.init_langfuse()
     await integrations.sync_currency_rates_at_startup()

@@ -4,7 +4,7 @@
 
 **Version** : 6.0
 **Date** : 2026-09-18
-**Application** : LIA v1.45.2
+**Application** : LIA v1.46.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -85,7 +85,7 @@ L'administrateur accède à un troisième onglet dédié à la gestion de l'inst
 - **Messages broadcast** : envoyer des messages importants à tous les utilisateurs ou à une sélection, avec date d'expiration optionnelle
 - **Export de consommation global** : exporter la consommation de tous les utilisateurs en CSV
 - **Budget quotidien de l'instance** : borner en euros ce que l'instance ENTIÈRE peut dépenser dans une journée — et pas seulement ce que consomme chaque compte. Le panneau affiche la dépense du jour, le plafond réellement appliqué et ce qu'il reste. Budget épuisé, les utilisateurs apprennent que le déploiement est en pause et reçoivent l'heure exacte de remise à zéro, pas un message trompeur sur leur quota personnel
-- **Capacités de plateforme** : activer ou couper vingt-cinq capacités instantanément, sans redéploiement — toutes les fonctions qu'une personne vit vraiment, de la dictée et des images au tableau de tickets, aux journaux, à la mémoire à long terme et aux notifications spontanées — groupées en six familles pour qu'un mur d'interrupteurs reste lisible. Un interrupteur retire la CAPACITÉ, jamais l'archive : couper la mémoire arrête l'apprentissage de nouveaux faits tandis que tout ce qui a déjà été appris reste lisible et supprimable. Une capacité coupée disparaît aussi du catalogue offert au planificateur, donc LIA cesse de proposer ce que les routes refuseraient ; chaque ligne montre ce que le déploiement autorise, ce que tu as choisi, ce qui s'applique réellement, et où l'interrupteur mord
+- **Capacités de plateforme** : activer ou couper chaque capacité instantanément, sans redéploiement — toutes les fonctions qu'une personne vit vraiment, de la dictée et des images au tableau de tickets, aux journaux, à la mémoire à long terme et aux notifications spontanées — groupées en six familles pour qu'un mur d'interrupteurs reste lisible. Un interrupteur retire la CAPACITÉ, jamais l'archive : couper la mémoire arrête l'apprentissage de nouveaux faits tandis que tout ce qui a déjà été appris reste lisible et supprimable. Une capacité coupée disparaît aussi du catalogue offert au planificateur, donc LIA cesse de proposer ce que les routes refuseraient ; chaque ligne montre ce que le déploiement autorise, ce que tu as choisi, ce qui s'applique réellement, et où l'interrupteur mord
 
 **IA et connecteurs :**
 
@@ -114,7 +114,7 @@ LIA agit concrètement dans ta vie numérique grâce à 20+ agents spécialisés
 Tu choisis comment LIA raisonne, via un simple toggle (⚡) dans le chat :
 
 - **Mode Pipeline** (par défaut) — Un vrai travail d'ingénierie : LIA planifie toutes les étapes à l'avance, les valide sémantiquement, puis les exécute en parallèle. Résultat : la même puissance qu'un agent autonome, mais avec 4 à 8 fois moins de tokens consommés. C'est le mode le plus économique et le plus prévisible.
-- **Mode ReAct** (⚡) — L'assistant raisonne étape par étape : il appelle un outil, analyse le résultat, puis décide quoi faire ensuite. Plus autonome, plus adaptable, mais plus coûteux en tokens. Idéal pour les recherches exploratoires ou les questions complexes dont la valeur ajoutée justifie le coût. C'est aussi le seul mode capable de calculer au lieu d'estimer : quand une étape demande de l'arithmétique sur beaucoup de lignes ou des durées entre fuseaux, il écrit quelques lignes de Python et les exécute dans un bac à sable verrouillé. Les outils qu'il emporte sont choisis par pertinence pour ta question — tes propres serveurs MCP compris — jamais par ordre d'arrivée, et il lit tes espaces de connaissances comme le mode Pipeline.
+- **Mode ReAct** (⚡) — L'assistant raisonne étape par étape : il appelle un outil, analyse le résultat, puis décide quoi faire ensuite. Plus autonome, plus adaptable, mais plus coûteux en tokens. Idéal pour les recherches exploratoires ou les questions complexes dont la valeur ajoutée justifie le coût. C'est aussi le seul mode capable de calculer au lieu d'estimer : quand une étape demande de l'arithmétique sur beaucoup de lignes ou des durées entre fuseaux, il écrit quelques lignes de Python et les exécute dans un bac à sable verrouillé — et quand une étape a besoin d'un service qu'aucun outil ne couvre, ce script peut atteindre le web par un seul proxy, tes propres clés échangées hors de lui, un hôte inconnu demandé avant, avec trois réponses. Les outils qu'il emporte sont choisis par pertinence pour ta question — tes propres serveurs MCP compris — jamais par ordre d'arrivée, et il lit tes espaces de connaissances comme le mode Pipeline.
 
 ### 3.1. Conversation naturelle
 

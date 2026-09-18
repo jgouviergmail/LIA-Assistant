@@ -216,27 +216,82 @@ class TestWhatComesBack:
 
         assert result.success is False
         assert "NameError" in json.dumps(result.model_dump(), default=str)
+        # A traceback quotes what the script handled — an e-mail body, a
+        # third-party answer (ADR-298): data, never instructions, like stdout.
+        assert result.structured_data["content_trust"] == "untrusted"
 
 
 class TestTheContractIsPublished:
-    """What the tool enforces, the model must be able to read (ADR-184)."""
+    """What the tool enforces, the model must be able to read (ADR-184) — and
+    what it is FOR, in the four roles ADR-298 gave it."""
+
+    @staticmethod
+    def _description() -> str:
+        from src.domains.agents.python_sandbox.catalogue_manifests import (
+            run_python_catalogue_manifest,
+        )
+
+        return run_python_catalogue_manifest.description
+
+    def test_the_description_names_the_four_roles_in_order(self) -> None:
+        text = self._description().lower()
+        positions = [text.index(role) for role in ("calculate", "diagnose", "fill", "transform")]
+        assert positions == sorted(positions), "calculate, diagnose, fill a gap, transform"
 
     def test_the_description_states_the_hard_facts(self) -> None:
-        from src.domains.agents.python_sandbox.catalogue_manifests import (
-            run_python_catalogue_manifest,
-        )
+        from src.domains.agents.python_sandbox.libraries import PYTHON_SANDBOX_LIBRARIES
 
-        description = run_python_catalogue_manifest.description.lower()
-        assert "no network" in description or "aucun réseau" in description
-        assert "numpy" in description, "the available libraries must be listed"
-        assert "stdin" in description, "the data channel must be explained"
+        text = self._description()
+        assert "stdin" in text, "the data channel must be explained"
+        for lib in PYTHON_SANDBOX_LIBRARIES:
+            assert lib.import_name in text, f"{lib.import_name} promised nowhere"
+        assert "no network" not in text.lower(), "the network is a declared host, not a denial"
+        assert "costs a container" not in text.lower()
+
+    def test_the_bounds_are_the_enforced_settings(self) -> None:
+        """A number in prose cannot be reconciled with the limit another layer
+        enforces (ADR-184): every bound is read from the setting that enforces it."""
+        from src.core.config import settings
+
+        text = self._description()
+        assert f"{settings.skills_script_timeout_seconds} s" in text
+        assert f"{settings.skills_script_max_memory_mb} MB" in text
+        assert f"{settings.skills_script_max_output_kb} KB" in text
+        assert f"{settings.python_sandbox_max_runs_per_turn} run" in text
+        assert f"{settings.python_sandbox_max_hosts_per_run}" in text
 
     def test_it_says_when_not_to_use_it(self) -> None:
+        text = self._description().lower()
+        assert "do not use" in text
+        assert "existing tool" in text, "the first thing not to replace is a tool that exists"
+
+    def test_the_code_parameter_no_longer_denies_the_network(self) -> None:
         from src.domains.agents.python_sandbox.catalogue_manifests import (
             run_python_catalogue_manifest,
         )
 
-        assert "do not use" in run_python_catalogue_manifest.description.lower()
+        code = next(p for p in run_python_catalogue_manifest.parameters if p.name == "code")
+        assert "no network" not in code.description.lower()
+        assert "hosts" in code.description, "the parameter says where the network is declared"
+
+    def test_the_bound_description_names_the_roles_too(self) -> None:
+        """The ReAct loop reads the LangChain tool's description (the
+        docstring), not the manifest: both must say what the tool is for."""
+        from src.domains.agents.tools.python_sandbox_tools import run_python_tool
+
+        text = run_python_tool.description.lower()
+        for role in ("calculate", "diagnose", "fill", "transform"):
+            assert role in text, role
+        assert "no network" not in text
+
+    def test_the_keywords_reach_the_new_roles(self) -> None:
+        from src.domains.agents.python_sandbox.catalogue_manifests import (
+            run_python_catalogue_manifest,
+        )
+
+        keywords = " ".join(run_python_catalogue_manifest.semantic_keywords).lower()
+        for word in ("diagnose", "outage", "api", "client", "parse"):
+            assert word in keywords, word
 
 
 class TestTheAdminSeesTheCode:

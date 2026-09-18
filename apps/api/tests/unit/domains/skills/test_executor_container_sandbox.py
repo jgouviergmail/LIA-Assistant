@@ -37,7 +37,7 @@ from src.core.constants import (
     SKILLS_SCRIPT_SANDBOX_STARTUP_GRACE_SECONDS,
     SKILLS_SCRIPT_SANDBOX_UID,
 )
-from src.domains.skills.executor import ScriptResult, SkillScriptExecutor
+from src.domains.skills.executor import EgressSpec, ScriptResult, SkillScriptExecutor
 
 
 def _sandbox_settings(**overrides: object) -> Settings:
@@ -221,6 +221,70 @@ class TestSandboxCommand:
 # ---------------------------------------------------------------------------
 # Execution contract
 # ---------------------------------------------------------------------------
+
+
+EGRESS = EgressSpec(
+    network="lia-sandbox",
+    proxy_url="http://egress:3128",
+    ca_volume="lia-egress-ca",
+    ca_dir="/etc/lia-egress/ca",
+    ca_file="/etc/lia-egress/ca/ca.crt",
+    tokens={"LIA_KEY_BRAVE_SEARCH": "sbx_run_abc"},
+)
+
+
+class TestEgressCommand:
+    """A NETWORK run (ADR-298): the sandbox network, the CA, the proxy, the
+    per-run tokens — and nothing that would let a script go around them."""
+
+    def _cmd(self) -> list[str]:
+        return SkillScriptExecutor._build_sandbox_command(
+            source="print(1)",
+            skill_name="ephemeral",
+            container_name="lia-skill-test",
+            timeout=60,
+            settings=_sandbox_settings(),
+            egress=EGRESS,
+        )
+
+    def _env(self, cmd: list[str]) -> dict[str, str]:
+        pairs = [cmd[i + 1] for i, arg in enumerate(cmd) if arg == "--env"]
+        return dict(pair.split("=", 1) for pair in pairs)
+
+    def test_joins_the_sandbox_network_instead_of_none(self) -> None:
+        cmd = self._cmd()
+        assert cmd[cmd.index("--network") + 1] == "lia-sandbox"
+        assert "none" not in cmd
+
+    def test_mounts_the_ca_read_only_and_nothing_else(self) -> None:
+        cmd = self._cmd()
+        volumes = [cmd[i + 1] for i, arg in enumerate(cmd) if arg == "-v"]
+        assert volumes == ["lia-egress-ca:/etc/lia-egress/ca:ro"]
+        assert not any("lia-egress-key" in arg or "lia-egress-config" in arg for arg in cmd)
+        assert not any("docker.sock" in arg for arg in cmd)
+
+    def test_points_every_https_library_at_the_proxy_and_the_ca(self) -> None:
+        env = self._env(self._cmd())
+        assert env["HTTPS_PROXY"] == "http://egress:3128"
+        assert env["SSL_CERT_FILE"] == "/etc/lia-egress/ca/ca.crt"
+        assert env["REQUESTS_CA_BUNDLE"] == "/etc/lia-egress/ca/ca.crt"
+        assert env["CURL_CA_BUNDLE"] == "/etc/lia-egress/ca/ca.crt"
+        assert env["LIA_KEY_BRAVE_SEARCH"] == "sbx_run_abc"
+
+    def test_no_plain_http_and_no_bypass(self) -> None:
+        env = self._env(self._cmd())
+        assert "HTTP_PROXY" not in env and "http_proxy" not in env
+        assert "NO_PROXY" not in env and "no_proxy" not in env
+
+    def test_every_hardening_flag_survives(self) -> None:
+        cmd = self._cmd()
+        for flag in (
+            "--rm",
+            "--read-only",
+            "--cap-drop=ALL",
+            "--security-opt=no-new-privileges:true",
+        ):
+            assert flag in cmd, flag
 
 
 class TestContainerExecution:

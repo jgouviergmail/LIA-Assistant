@@ -925,13 +925,26 @@
         "cancel": "取消",
         "confirm_deletion": "确认删除",
         "keep_items": "保留项目",
-        "edit": "修改"
+        "edit": "修改",
+        "allow_with_data": "允许并携带数据",
+        "allow_without_data": "允许但不携带数据",
+        "refuse": "拒绝"
       },
       "affected_count_one": "{{count}} 个项目受影响",
       "affected_count_other": "{{count}} 个项目受影响",
       "draft": {
         "to": "收件人",
         "subject": "主题"
+      },
+      "egress": {
+        "hosts_unknown": "待授权的主机",
+        "hosts_known": "已允许",
+        "purpose": "目的",
+        "turn_data": "本轮数据",
+        "data_none": "无",
+        "data_too_large": "数据过大，无法传递",
+        "data_count_one": "{{count}} {{kind}}",
+        "data_count_other": "{{count}} {{kind}}"
       },
       "resolved": {
         "confirmed": "已确认",
@@ -2600,6 +2613,30 @@
       "generate_description_success": "域描述已生成",
       "generate_description_no_tools": "未发现工具 — 请先测试连接"
     },
+    "sandbox_egress": {
+      "title": "沙盒网络",
+      "description": "LIA 编写的脚本可以访问哪些网络主机，以及你在它询问时给出的授权。",
+      "reachable_title": "无需询问即可访问",
+      "reachable_description": "你自己的连接器（密钥经代理传递，绝不进入脚本）以及本实例允许的主机。",
+      "reachable_empty": "没有任何主机可以无需询问访问。脚本访问主机之前，LIA 会先问你。",
+      "source_connector": "你的 {{connector}} 连接器",
+      "source_operator": "本实例允许",
+      "ask_disabled": "在本实例上，其他主机一律拒绝：LIA 不会询问。",
+      "grants_title": "你的授权",
+      "grants_description": "你在聊天中回答问题时允许的主机。撤销后，LIA 下次会再次询问。",
+      "grants_empty": "目前还没有授权。当脚本需要访问上方未列出的主机时，LIA 会先问你。",
+      "grants_not_shown": "还有 {{count}} 项授权未在此显示。",
+      "grants_not_shown_other": "还有 {{count}} 项授权未在此显示。",
+      "with_data": "携带本轮对话的数据",
+      "granted_on": "授权于 {{date}}",
+      "last_used": "上次使用于 {{date}}",
+      "never_used": "尚未使用",
+      "revoke": "撤销 {{host}}",
+      "revoked": "已撤销 {{host}}，LIA 下次会再次询问。",
+      "row_menu": "{{host}} 的操作",
+      "capacity_label": "账户容量",
+      "capacity": "{{held}} / {{max}} 项授权"
+    },
     "preferences": {
       "debug": {
         "title": "调试面板",
@@ -3721,7 +3758,8 @@
         "admin-registers": "记录, 透明度, 操作, 查阅, 导出, 日志, 审计, 管理，图表，统计，数字，总览, 主动, 主动行动, 第 12 条, 完整导出, 回合",
         "reminders": "提醒, 提醒我, 警报, 通知, 重复提醒, 重复, 便签，重复，每天，时间段",
         "workboard": "workboard 工单板 工单 看板 列 待办 待处理",
-        "generated-assets": "文件 图片 文档 截图 下载 图库 生成 过期 书签 收藏 保存的回答 bookmarks 已索引 知识空间 搜索"
+        "generated-assets": "文件 图片 文档 截图 下载 图库 生成 过期 书签 收藏 保存的回答 bookmarks 已索引 知识空间 搜索",
+        "sandbox-egress": "沙盒, python, 脚本, 网络, 互联网, 代理, 主机, 授权, 允许, 撤销, 出口, API, 集成"
       },
       "results_count_other": "找到 {{count}} 项设置"
     },
@@ -4674,7 +4712,7 @@
         },
         "security": {
           "title": "🔐 多层安全",
-          "description": "从登录到存储的纵深防御：通行密钥、带备用码的 TOTP、敏感操作的二次强认证，以及每个活跃会话都可见可吊销。底层还有带 PKCE 的 OAuth 2.1、日志中过滤个人信息、用户间隔离、静态数据加密、机密材料在结构上不可导出的 GDPR 导出，以及经过恢复演练的每日备份。技能在一次性容器中运行，没有 socket，也没有网络。而任何第三方写的文本——邮件、邀请、网页、MCP 服务器——送到模型时都标注为「待分析的数据」，绝不是指令。"
+          "description": "纵深防御：通行密钥、带备用码的 TOTP、敏感操作的二次强认证，每个会话都可见可吊销。底层还有带 PKCE 的 OAuth 2.1、日志中过滤个人信息、用户间隔离、静态数据加密、机密在结构上不可导出的 GDPR 导出。技能在没有 socket、没有网络的一次性容器中运行；LIA 写的脚本只能经由持有密钥的代理访问网络。而任何第三方写的文本——邮件、邀请、网页、MCP 服务器——送到模型时都是「待分析的数据」，绝不是指令。"
         },
         "resilience": {
           "title": "🛡️ 性能与 Token 优化",
@@ -4874,7 +4912,7 @@
         },
         "ephemeralScripts": {
           "title": "🧮 算出来的答案，而不是猜出来的",
-          "description": "问问你的中转加起来有多久、哪些人同时出现在两份名单里、一组数字跨时区算下来是多少：AI 会给出看似合理的回答，而回答里没有任何东西告诉你它错了。在自主模式下，LIA 现在会改为写几行 Python 并在严格隔离的沙箱中运行：没有网络，没有数据库，除本轮已收集的数据外什么也接触不到，每次都是一次性容器。答案是算出来的，不是估出来的。它始终只是补充——大多数问题都用不上——管理员则可以查看每个执行过的脚本、它的目的和输出。"
+          "description": "问问你的转机总共多久、谁同时出现在两份名单里、某个服务是否响应——AI 会答得像模像样，却没有任何提示告诉你它错了。在自主模式下，LIA 会写几行 Python，在上锁的沙箱里运行：没有数据库、只有本轮的数据，访问网络只经一个代理——只到脚本声明的主机，你的密钥在脚本之外替换，未知主机会以三种回答先问你。是算出来的，不是估的；是补充，不是习惯。"
         },
         "meetings": {
           "title": "🎙️ 会议纪要",
@@ -4895,6 +4933,18 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_46_0": {
+          "title": "v1.46.0 — 🧰 沙箱变成工具箱：脚本只经一道门访问网络，并且先问你",
+          "date": "2026 年 9 月",
+          "count": "5",
+          "items": {
+            "i1": "<b>🌐 LIA 写的脚本可以访问网络</b> — 在 ReAct 模式下，当某一步需要没有任何工具覆盖的服务时——检查某个 API 是否响应、读取一个订阅源、调用你使用的某个接口——LIA 写的那几行 Python 现在可以访问它。绝不直连：经由一个专用代理、仅限 HTTPS、只到脚本声明的主机，别处都不去；不声明任何主机的脚本保持离线。它仍然只是补充——大多数问题从不需要它。",
+            "i2": "<b>🔑 你的密钥从不进入脚本</b> — 你用自己的 API 密钥连接的服务（网页搜索、问答引擎、天气）无需询问即可访问：脚本读取一个临时令牌，代理只在该主机上把它换成你的真实密钥。脚本从未见过密钥，也无法把它发往别处。",
+            "i3": "<b>🙋 未知主机会先问你，有三种回答</b> — 当脚本想访问的主机既不是你的连接器、也不在实例的名单上时，LIA 会停下来问：允许<b>带上本轮的数据</b>、允许<b>不带数据</b>（脚本收不到 LIA 收集的任何内容），或者拒绝。之后你请求的其余部分继续进行——一个问题不是回答的终点——而你的回答会被记住，下次不再问。",
+            "i4": "<b>⚙️ 设置 › 沙箱网络</b> — 新的分区列出脚本无需询问即可访问的主机（你的连接器、管理员允许的主机），以及你给出的每一项许可，各自带有可修改的数据范围和撤销按钮。许可数量超过上限后，新的许可只对那一次运行有效。",
+            "i5": "<b>🧰 是工具箱，不只是计算器</b> — 脚本现在承担四种角色：计算、检查某个服务是否响应、填补没有工具覆盖的空缺、转换数据（订阅源、日历文件、XML、电子表格）。二十二个库已声明并在构建的镜像中验证。每次联网运行都会在启动前写入你的登记簿，管理员可以从能力地图关闭联网——计算器保留。"
+          }
+        },
         "v1_45_2": {
           "title": "v1.45.2 — 📎 知识空间的文档可加入消息，邮件附件可被读取，Drive 文件夹是一棵树",
           "date": "2026 年 9 月",
@@ -7406,7 +7456,7 @@
       "chat": {
         "title": "对话",
         "description": "使用聊天和对话",
-        "count": "28",
+        "count": "29",
         "questions": {
           "q1": {
             "question": "我可以同时进行多个对话吗？",
@@ -7519,13 +7569,17 @@
           "q28": {
             "question": "我可以把知识空间里的文档附加到消息中吗？",
             "answer": "可以。当你的知识空间已启用时，输入框的 <strong>「+」</strong> 按钮会打开一个菜单：<strong>附加文件</strong>（经典的文件选择器）和<strong>知识空间中的文档</strong>。<br><br><strong>📚 选择器列出的内容：</strong><br>• 你各空间中已索引的所有文档——<strong>包括已暂停的空间</strong>，会标明名称和状态，绝不隐藏<br>• 按名称搜索，每个文档旁显示所属空间和大小<br>• 可选数量受消息剩余附件位数限制<br><br><strong>📄 附加时会发生什么：</strong><br>• 文档的一份<strong>副本</strong>加入消息，和上传完全一样——空间、其索引和文件都不受影响<br>• 文本由知识空间的处理管线提取（十五种格式：PDF、Word、Excel、PowerPoint、EPUB…），不限于 PDF<br>• 重置对话只移除副本，绝不移除空间中的文档<br><br><strong>💡 适用场景</strong>：想针对某一份文档提问而不启用整个空间，或者读取你保持暂停的空间中的文档。"
+          },
+          "q29": {
+            "question": "LIA 写的脚本能访问互联网吗？「三种回答」的提问是什么意思？",
+            "answer": "可以，自 v1.46.0 起，且仅限 <strong>ReAct 模式</strong>（⚡）。当某一步需要没有任何工具覆盖的服务时——检查某个 API 是否响应、读取一个订阅源、调用你使用的某个接口——LIA 写的那段简短 Python 脚本可以访问它。<br><br><strong>🚪 只有一道门，绝不直连</strong><br>• 脚本经由一个专用代理出去，仅限 HTTPS，只到它声明的主机——别处都不去<br>• 不声明任何主机的脚本和以前一样完全离线<br>• 私有网络、服务器本身和云元数据一律拒绝<br><br><strong>🔑 你的连接器，无需询问</strong><br>• 你用自己的 API 密钥连接的服务（网页搜索、问答引擎、天气）可以直接访问<br>• 脚本读取一个临时令牌；代理只在该主机上把它换成你的真实密钥——密钥从不进入脚本<br><br><strong>🙋 未知主机会先问你，有三种回答</strong><br>• <strong>允许并带上数据</strong> — 脚本可以把 LIA 本轮收集的内容（你的邮件、日程……）发给该主机<br>• <strong>允许但不带数据</strong> — 脚本运行，但收不到任何这些内容<br>• <strong>拒绝</strong> — LIA 用已有的信息回答<br>• 之后你请求的其余部分继续进行，你的回答会被记为一项许可，可在<strong>设置 → 沙箱网络</strong>中撤销<br><br><strong>💡 值得了解</strong>：每次联网运行都会在启动前写入你的登记簿，管理员可以关闭联网而保留计算器，每一轮都有少量的运行预算。"
           }
         }
       },
       "settings": {
         "title": "设置",
         "description": "账户配置和偏好设置",
-        "count": "28",
+        "count": "29",
         "questions": {
           "q1": {
             "question": "如何更改时区？",
@@ -7638,6 +7692,10 @@
           "q28": {
             "question": "如何管理 LIA 学到的关于我习惯的内容？(v1.44.3)",
             "answer": "在<strong>设置 › 习惯</strong>中。每个学到的时段都是一行，写明做什么、何时做 — 重复请求显示为「搜索 · 邮件 — 每天 ~08:30」，活跃时段显示为一个时间段 — 并有三个操作：<br><br>• <strong>暂停</strong> — 保留，但在你恢复前不再使用<br>• <strong>屏蔽</strong> — 永不再用；被拒绝的键也不会再被建议<br>• <strong>删除</strong> — 忘记；如果模式再次出现，可以重新学到<br><br><strong>状态处处生效：</strong> 主动通知、它们的排程和助手的上下文读取的是同样的行，所以暂停的习惯是真的暂停了。<br><br><strong>习惯的生命周期：</strong> 夜间任务会把新的重复请求升为习惯、刷新已经移动的、降级你已放弃的 — 拿不准时绝不降级。「立即重新计算」按需做同样的事，面板会显示应用的每个阈值以及尚未达到的确切门槛。<br><br>顶部的<strong>学习开关</strong>一次关上所有的门：关闭后，不记录、不建议、不预置。已经学到的内容无论开关如何都仍可查看和修改。"
+          },
+          "q29": {
+            "question": "「沙箱网络」分区有什么用？",
+            "answer": "它显示 LIA 写的脚本可以在网络上访问什么，并让你收回已给出的许可。只有在管理员启用沙箱网络后它才会出现。<br><br><strong>🌐 无需询问即可访问</strong><br>• 你自己的连接器（网页搜索、问答引擎、天气）——它们的密钥经由代理传递，从不进入脚本<br>• 实例向所有人开放的主机<br><br><strong>🙋 你的许可</strong><br>• LIA 询问时你允许过的每个主机一行，附最近一次使用的日期<br>• 一个开关用来更改范围——带或不带本轮的数据<br>• 一个<strong>撤销</strong>按钮：下次脚本想访问该主机时，LIA 会再次询问<br><br>该分区会显示你账户的许可容量；超过后，新的批准只对那一次运行有效。删除账户会删除所有许可。"
           }
         }
       },
@@ -8483,7 +8541,7 @@
       "privacy": {
         "title": "安全和隐私",
         "description": "保护你的数据",
-        "count": "14",
+        "count": "15",
         "questions": {
           "q1": {
             "question": "我的对话是私密的吗？",
@@ -8540,6 +8598,10 @@
           "q14": {
             "question": "我能拿到 LIA 为我所做之事的完整记录吗？",
             "answer": "能，而且<strong>完整</strong>就是完整。在<strong>设置 &gt; 登记簿</strong>中，你可以下载 LIA <strong>做过</strong>什么、<strong>查阅</strong>过什么、对话的<strong>回合</strong>、每一次<strong>模型调用</strong>的明细，以及登记簿自身可能存在的<strong>缺口</strong>——可选可读的 Markdown、CSV，或已假名化的 JSON Lines。<br><br>这些文件从前有行数上限，现在没有了：无论数据量多大，<strong>都不作截断</strong>；文件开头会写明<strong>确切行数</strong>以及导出发生的时刻。当你的浏览器接受时，下载会顺带压缩，而文件名不会因此改变。"
+          },
+          "q15": {
+            "question": "LIA 写的脚本会看到我的 API 密钥，或把我的数据发到别处吗？",
+            "answer": "没有密钥，没有你同意也没有数据。<br><br><strong>🔑 密钥</strong><br>• 脚本只会看到一个临时令牌，仅对那一次运行有效<br>• 一个专用代理把它换成你的真实密钥，且只在该连接器的主机上——密钥从不进入运行脚本的容器<br>• LIA 自身账户的密钥和你的登录凭据从不提供给脚本<br><br><strong>📦 数据</strong><br>• 不声明任何主机的脚本完全离线运行，本轮的数据通过标准输入传给它<br>• 想访问你从未允许的主机的脚本会被拦下，由你选择：<strong>带上</strong>数据、<strong>不带</strong>数据，或者完全拒绝<br>• 「不带」意味着脚本收不到 LIA 收集的任何内容——它只能访问该主机<br><br><strong>📖 痕迹</strong><br>• 每次联网运行都会在启动前记入你的登记簿，附上它声明的主机<br>• 脚本本身只有管理员能在调试面板中看到，别处看不到"
           }
         }
       },
@@ -9181,6 +9243,14 @@
       "phone_channel": {
         "title": "LIA 打电话给你",
         "desc": "号码由你登记并经语音验证码确认后，LIA 无需确认卡片就能拨给你——来自聊天或例程。在电话里她读取聊天能读取的内容，却不执行任何操作；挂断后，你说的话会作为你自己的消息出现在聊天中。"
+      },
+      "network_question": {
+        "title": "出门前先问你",
+        "desc": "脚本想访问一个没人允许过的主机？LIA 会停下来问你，有三种回答：带上本轮的数据、不带数据，或者干脆拒绝。之后你请求的其余部分继续进行，你的回答会留到下次。"
+      },
+      "network_grants": {
+        "title": "你的许可，集中在一处",
+        "desc": "脚本无需询问即可访问的对象——你的连接器、实例允许的主机——以及你给出的每一项许可，各自带有范围和撤销按钮。这份清单里没有任何一项是背着你记下的。"
       }
     },
     "scenes": {
@@ -9346,6 +9416,22 @@
         "counting": "计数中…",
         "files": "个文件待索引",
         "confirm": "开始索引"
+      },
+      "network_question": {
+        "host": "api.example.org",
+        "question": "脚本可以访问这个主机吗？",
+        "with_data": "带上数据",
+        "without_data": "不带数据",
+        "refuse": "拒绝",
+        "resumed": "按你的回答继续"
+      },
+      "network_grants": {
+        "reachable": "无需询问即可访问",
+        "connector": "网页搜索",
+        "grant": "api.example.org",
+        "scope": "不带数据",
+        "revoke": "撤销",
+        "revoked": "许可已移除"
       }
     },
     "craft": {
@@ -10473,7 +10559,7 @@
       },
       "computed_answers": {
         "title": "算出来的，不是猜的",
-        "description": "把时长相加、交叉比对两份清单、跨时区换算时间：这类问题，AI 常常答得像模像样却是错的，而且没有任何提示。在 ReAct 模式下，LIA 会写几行 Python，在上锁的沙箱里运行——没有网络、没有数据库、只有已经收集到的数据，每次都是一次性容器。你得到的是可以核对的结果。这是补充，不是习惯：大多数问题并不需要它。"
+        "description": "把时长相加、交叉比对两份清单、检查某个服务是否响应：这类问题，AI 常常答得像模像样却是错的，而且没有任何提示。在 ReAct 模式下，LIA 会写几行 Python，在上锁的沙箱里运行——没有数据库、每次都是一次性容器，访问网络只经一个代理，只到脚本声明的主机，你的密钥在脚本之外替换；未知主机会以三种回答先问你。你得到的是可以核对的结果。这是补充，不是习惯。"
       },
       "personal_crm": {
         "title": "个人 CRM",
@@ -11349,9 +11435,9 @@
         "body": "<h2>隐私设计</h2><p>LIA从一开始就以数据保护为基本原则来设计，而非事后补充。</p><h2>Fernet对称加密</h2><p>所有敏感数据通过<strong>Fernet</strong>（AES-128 CBC + HMAC-SHA256）使用<code>encrypt_data()</code>函数加密。覆盖范围包括OAuth令牌、连接器凭据、PII和MCP服务器凭据。OAuth凭据在写入数据库前加密，读取时即时解密。加密密钥与数据分开管理。</p><h2>最小化数据收集</h2><p>LIA仅收集运行所需的最少数据：</p><ul><li>个人资料信息（姓名、邮箱、偏好设置）</li><li>对话历史（加密）</li><li>服务连接令牌（加密）</li><li>匿名使用指标</li></ul><h2>删除与级联</h2><p>删除用户账户会触发完整的<strong>级联删除</strong>：连接器、对话、设置、会话、记忆和所有关联数据都将不可逆地删除。数据库中不会保留任何孤立数据。</p><h2>安全会话与Cookie</h2><p>会话Cookie配置了<code>HttpOnly</code>、<code>Secure</code>（生产环境）和<code>SameSite=lax</code>属性。默认会话持续时间为7天，选择\"记住我\"可延长至30天。一次性令牌在首次使用后通过Redis黑名单机制失效。</p><h2>外部内容防护</h2><p>从外部来源（邮件、网页、文档）获取的内容在注入提示前标记为<code>UNTRUSTED</code>，并进行可配置封装。web_fetch工具限制为每个用户在60秒窗口内最多10次调用，以防止滥用。</p><h2>日志中PII过滤</h2><p>日志系统应用<strong>OWASP日志备忘录</strong>建议，自动从应用日志中过滤个人数据。敏感数据不会出现在日志中。</p><h2>数据可移植性 (v1.9.1)</h2><p>LIA允许每个用户从设置 > 功能中<strong>导出个人消费数据</strong>为CSV格式。三种导出类型：LLM消费（每次调用的Token和成本）、Google API消费和汇总摘要。安全性：<code>user_id</code>在服务器端强制设置——不暴露任何参数（IDOR防护）。</p><h2>恢复经过验证的备份</h2><p>保护数据也意味着确保数据能扛住事故。生产数据库每晚自动备份，保留 7 天、4 周和 6 个月的历史，存放在权限受限的专用目录中。而且，只有恢复被证明可行，备份才算数：恢复流程经过真实测试——将最新转储恢复到一次性容器中，并与线上数据库比对（模式修订、行数）——这一演练随技术栈一同交付。</p><h2>一份完整的记录，而不是一份样本</h2><p>三本自动维护的登记簿分别说明 LIA 为你<strong>做</strong>了什么、为回答你而<strong>查阅</strong>了什么，以及她<strong>自行着手</strong>做了什么。它们不承载任何内容：一次查阅只保留能力本身——「你的日程」——绝不保留搜索内容，因为写下来就等于抄录了这本登记簿正是为其问责而存在的那份数据。</p><p>你从<strong>设置 &gt; 登记簿</strong>下载的记录是<strong>完整</strong>的。它此前带有行数上限：那是一种真实的保护，因为整份文档要在 Raspberry Pi 上于内存中拼装——但它被施加在了错误的变量上。稀缺的是内存；被限制的却是真相。服务端游标如今限制的是缓冲区：无论数据量多大，文件都承载你的筛选条件所指定的全部内容，文件头写明确切行数与生成时刻，并在你的浏览器接受时顺带压缩。</p>"
       },
       "observability": {
-        "title": "565个Prometheus指标、29个Grafana仪表板和Langfuse追踪",
+        "title": "568个Prometheus指标、29个Grafana仪表板和Langfuse追踪",
         "excerpt": "LIA提供企业级可观测性：553 指标、Grafana仪表板、通过Langfuse的LLM追踪，以及带处置指南的邮件告警。",
-        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 565个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中并带有PII过滤</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>23个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。23个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>29个Grafana仪表板</h2><p>LIA提供29个编号01至29的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony、briefing、product-value、meetings、effect-ledger 和 workboard。每个仪表板提供按用户、时间段和环境可过滤的视图。 第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 14 项关键告警组成的核心——API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成拥有8个专用指标来追踪每次LLM调用：消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p><h2>而自 v1.34 起：助手读取自身遥测</h2><p>以上一切原本只为人类而存在；助手自己什么都不读。ADR-247 闭合了这个环路：周期性自检把黄金指标与直接探针汇成带精确数值的健康快照；警报与严重判定按故障收敛为唯一事件，由预算受限、以运维手册为依据的 LLM 诊断；管理员拥有平台健康面板、主动通知和只读聊天工具。已知故障如今还会塑造回答——规划阶段即绕开降级能力，失败步骤用类型化错误码解释，绝不引用原始日志。此后，诊断不再只凭一个数字：按事件类型声明的配方规定要读取哪些细分指标和日志事件，证据包在诊断时收集并去除个人数据，无法访问的来源被声明为不可用而非当作沉默，模型读到的内容会展示在判定下方。</p><h2>统计结果，而非尝试</h2><p>v1.38.3 重新审视了一个计数器。统计抵达服务商的调用次数，是关于服务商的事实——可一旦这些调用会被重试，它就成了错误的分母：被重试救回的失败会抬高错误率，尽管什么都没丢失。如今第二个计数器按逻辑操作各记一行，重试折叠其中，回答运维人员唯一会据以行动的问题：调用方拿到结果了吗？第三个计数器则说明限流对每次尝试做了什么，因为「预算太小」与「Redis 宕机」在布尔值里毫无区别，却需要相反的处置。</p><p>最近的一课，关乎选择度量什么。自主循环有迭代次数和时长的计数器，却唯独没有度量真正增长的东西：每一步交付给模型的提示词。在生产代码上实测，第一次迭代是 2.3k tokens，第九十次是 112k——因为每个工具结果都留在模型会反复重读的对话里。现在有两个直方图记录交付体积及其占模型上下文窗口的比例，由状态归约器本就维护的那个带记忆化的计数器供数，因此这项度量在热路径上不产生额外开销。它们并未附带任何压缩策略，这是刻意的：一个对从未观测过的量采取行动的系统，优化的只是一个猜测。</p>"
+        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 568个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中并带有PII过滤</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>23个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。23个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>29个Grafana仪表板</h2><p>LIA提供29个编号01至29的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony、briefing、product-value、meetings、effect-ledger 和 workboard。每个仪表板提供按用户、时间段和环境可过滤的视图。 第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 14 项关键告警组成的核心——API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成拥有8个专用指标来追踪每次LLM调用：消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p><h2>而自 v1.34 起：助手读取自身遥测</h2><p>以上一切原本只为人类而存在；助手自己什么都不读。ADR-247 闭合了这个环路：周期性自检把黄金指标与直接探针汇成带精确数值的健康快照；警报与严重判定按故障收敛为唯一事件，由预算受限、以运维手册为依据的 LLM 诊断；管理员拥有平台健康面板、主动通知和只读聊天工具。已知故障如今还会塑造回答——规划阶段即绕开降级能力，失败步骤用类型化错误码解释，绝不引用原始日志。此后，诊断不再只凭一个数字：按事件类型声明的配方规定要读取哪些细分指标和日志事件，证据包在诊断时收集并去除个人数据，无法访问的来源被声明为不可用而非当作沉默，模型读到的内容会展示在判定下方。</p><h2>统计结果，而非尝试</h2><p>v1.38.3 重新审视了一个计数器。统计抵达服务商的调用次数，是关于服务商的事实——可一旦这些调用会被重试，它就成了错误的分母：被重试救回的失败会抬高错误率，尽管什么都没丢失。如今第二个计数器按逻辑操作各记一行，重试折叠其中，回答运维人员唯一会据以行动的问题：调用方拿到结果了吗？第三个计数器则说明限流对每次尝试做了什么，因为「预算太小」与「Redis 宕机」在布尔值里毫无区别，却需要相反的处置。</p><p>最近的一课，关乎选择度量什么。自主循环有迭代次数和时长的计数器，却唯独没有度量真正增长的东西：每一步交付给模型的提示词。在生产代码上实测，第一次迭代是 2.3k tokens，第九十次是 112k——因为每个工具结果都留在模型会反复重读的对话里。现在有两个直方图记录交付体积及其占模型上下文窗口的比例，由状态归约器本就维护的那个带记忆化的计数器供数，因此这项度量在热路径上不产生额外开销。它们并未附带任何压缩策略，这是刻意的：一个对从未观测过的量采取行动的系统，优化的只是一个猜测。</p>"
       },
       "prompt-engineering": {
         "title": "版本化提示系统：78个提示作为代码管理",
@@ -11371,7 +11457,7 @@
       "react-execution-mode": {
         "title": "Pipeline vs ReAct：当结构化工程超越放任自流",
         "excerpt": "LIA 提供两种执行模式：精细编排、token 消耗少 4 到 8 倍的 Pipeline，以及用于无法预先列出步骤的请求的迭代式 ReAct 模式——后者是唯一能运行脚本、用计算代替估算的模式。",
-        "body": "<h2>两种哲学，同一目标</h2><p>在 AI 代理生态系统中，<strong>ReAct</strong>（Reasoning + Acting）已成为事实标准。其原则：让 LLM 在每次迭代中决定调用哪个工具，无需预定义计划。因其简单性而引人入胜，这是当今大多数框架的方法。LIA 也提供该模式 — 但通过其 <strong>Pipeline 模式</strong>走得更远：这是深度工程的成果，以根本性更高的效率实现相同的灵活性。</p><h2>Pipeline：规划、验证、执行</h2><p>Pipeline 模式遵循 <strong>8 节点</strong> LangGraph 图：</p><ol><li><strong>Router</strong> — 对请求分类</li><li><strong>Planner</strong> — 生成结构化 ExecutionPlan</li><li><strong>Semantic Validator</strong> — 执行前验证计划一致性</li><li><strong>Approval Gate</strong> — 必要时人工验证 (HITL)</li><li><strong>Task Orchestrator</strong> — 并行执行步骤</li><li><strong>Response</strong> — 最终综合</li></ol><p>此模式<strong>只规划一次</strong>然后执行。结果：Pipeline 消耗的 token <strong>比 ReAct 少 4 到 8 倍</strong>。</p><h2>效率：数字说明一切</h2><p>以取消会议并发邮件为例。ReAct 模式下，LLM 反复迭代，每次都重新注入全部上下文。Pipeline 模式下，规划器生成<strong>一个计划</strong>，编排器<strong>并行</strong>执行。更少调用，更少 token，相同结果。</p><h2>控制与可观测性</h2><p>Pipeline 提供 ReAct 无法匹敌的<strong>完整可追溯性</strong>。每个步骤都有名称、类型和单独度量。</p><h2>可靠性与保护</h2><p>Pipeline 集成了 ReAct 所缺少的验证层：<strong>Semantic Validator</strong>、<strong>幻觉防御</strong>和 <strong>6 个 HITL 确认级别</strong>。如今有两道护栏约束着循环本身：它的时限以<strong>计算时间</strong>衡量，因此你用于决定是否批准的那几分钟不再消耗预算 —— 此前，稍长一些的确认会切断该回合并迫使回答从头重做，已完成的步骤全部丢失；而以完全相同参数重复调用的工具，第四次会被拒绝，第五次则结束该回合，因为不断重复自己的智能体并没有在推进。</p><h2>可扩展架构</h2><p>Pipeline 的<strong>通用模块化设计</strong>是核心优势。添加新代理只需注册工具。Skills 系统进一步推动可扩展性。</p><h2>ReAct：当答案的形状无法预先确定时</h2><p>ReAct 并不是用于<em>简单</em>请求的模式，而是用于那些无法预先列出步骤的请求：探索性查询、根据上一个工具返回结果分岁的调用链、外部 MCP 服务器。它携带与 Pipeline 相同的记忆——同一份画像、同一份日志、同一份引用，包括降级信息——而它的迭代预算是<strong>靠进展挣来的</strong>：一次什么也没产出的迭代，买不到下一次。它也是唯一能够<strong>计算而不是估算</strong>的模式：当某一步需要对很多行做算术、在两份名单之间做关联，或者跨时区计算时长时，它会写几行 Python 并在严格隔离的沙箱中运行——没有网络，没有数据库，每次都是一次性容器——给出一个你可以核对的结果。而工具返回的内容会<strong>在 token 预算内逐项到达模型</strong>——被接纳的每一项都是完整的，至少有一项总会通过，截断会被明确说明而不是默不作声——因此一整箱完整邮件绝不会变成一段在第一封的邮件头中间被截断的转储。LIA 用原生 <code>interrupt()</code> 实现 HITL，用计算时间衡量截止期限，并配有 5 项专用 Prometheus 指标。</p><h2>循环带上的工具</h2><p>ReAct 循环拿到的不是整个目录：它带上的是<strong>问题所需要的工具</strong>。路由器本来就会为请求计算一个嵌入向量以识别其领域；同一个向量把每个可用工具——原生工具与个人 MCP 服务器一视同仁——排成一份全局排名。选择过程由组合得出，不写死任何工具名：先是识别出的领域的工具，再是其他每个家族里最好的几个以免任何家族不可触达，最后是排名的前列直至一个公开的预算。上限只剩下安全网。一份手工固定的「核心」列表曾被写出又被否决：它会把某一个账户的习惯编进一个为许多人打造的产品。而且循环读取个人知识空间的方式与管道完全相同——一方知道的，另一方也知道。</p><h2>选择权在用户</h2><p>偏好按<strong>用户级别</strong>持久化，可从仪表板一键切换。我们的信念：Pipeline 虽然设计更复杂，但证明了严谨编排在大多数场景中超越放任自流。</p>"
+        "body": "<h2>两种哲学，同一目标</h2><p>在 AI 代理生态系统中，<strong>ReAct</strong>（Reasoning + Acting）已成为事实标准。其原则：让 LLM 在每次迭代中决定调用哪个工具，无需预定义计划。因其简单性而引人入胜，这是当今大多数框架的方法。LIA 也提供该模式 — 但通过其 <strong>Pipeline 模式</strong>走得更远：这是深度工程的成果，以根本性更高的效率实现相同的灵活性。</p><h2>Pipeline：规划、验证、执行</h2><p>Pipeline 模式遵循 <strong>8 节点</strong> LangGraph 图：</p><ol><li><strong>Router</strong> — 对请求分类</li><li><strong>Planner</strong> — 生成结构化 ExecutionPlan</li><li><strong>Semantic Validator</strong> — 执行前验证计划一致性</li><li><strong>Approval Gate</strong> — 必要时人工验证 (HITL)</li><li><strong>Task Orchestrator</strong> — 并行执行步骤</li><li><strong>Response</strong> — 最终综合</li></ol><p>此模式<strong>只规划一次</strong>然后执行。结果：Pipeline 消耗的 token <strong>比 ReAct 少 4 到 8 倍</strong>。</p><h2>效率：数字说明一切</h2><p>以取消会议并发邮件为例。ReAct 模式下，LLM 反复迭代，每次都重新注入全部上下文。Pipeline 模式下，规划器生成<strong>一个计划</strong>，编排器<strong>并行</strong>执行。更少调用，更少 token，相同结果。</p><h2>控制与可观测性</h2><p>Pipeline 提供 ReAct 无法匹敌的<strong>完整可追溯性</strong>。每个步骤都有名称、类型和单独度量。</p><h2>可靠性与保护</h2><p>Pipeline 集成了 ReAct 所缺少的验证层：<strong>Semantic Validator</strong>、<strong>幻觉防御</strong>和 <strong>6 个 HITL 确认级别</strong>。如今有两道护栏约束着循环本身：它的时限以<strong>计算时间</strong>衡量，因此你用于决定是否批准的那几分钟不再消耗预算 —— 此前，稍长一些的确认会切断该回合并迫使回答从头重做，已完成的步骤全部丢失；而以完全相同参数重复调用的工具，第四次会被拒绝，第五次则结束该回合，因为不断重复自己的智能体并没有在推进。</p><h2>可扩展架构</h2><p>Pipeline 的<strong>通用模块化设计</strong>是核心优势。添加新代理只需注册工具。Skills 系统进一步推动可扩展性。</p><h2>ReAct：当答案的形状无法预先确定时</h2><p>ReAct 并不是用于<em>简单</em>请求的模式，而是用于那些无法预先列出步骤的请求：探索性查询、根据上一个工具返回结果分岁的调用链、外部 MCP 服务器。它携带与 Pipeline 相同的记忆——同一份画像、同一份日志、同一份引用，包括降级信息——而它的迭代预算是<strong>靠进展挣来的</strong>：一次什么也没产出的迭代，买不到下一次。它也是唯一能够<strong>计算而不是估算</strong>的模式：当某一步需要对很多行做算术、在两份名单之间做关联，或者跨时区计算时长时，它会写几行 Python 并在严格隔离的沙箱中运行——没有数据库，每次都是一次性容器——给出一个你可以核对的结果。而工具返回的内容会<strong>在 token 预算内逐项到达模型</strong>——被接纳的每一项都是完整的，至少有一项总会通过，截断会被明确说明而不是默不作声——因此一整箱完整邮件绝不会变成一段在第一封的邮件头中间被截断的转储。LIA 用原生 <code>interrupt()</code> 实现 HITL，用计算时间衡量截止期限，并配有 5 项专用 Prometheus 指标。</p><h2>循环带上的工具</h2><p>ReAct 循环拿到的不是整个目录：它带上的是<strong>问题所需要的工具</strong>。路由器本来就会为请求计算一个嵌入向量以识别其领域；同一个向量把每个可用工具——原生工具与个人 MCP 服务器一视同仁——排成一份全局排名。选择过程由组合得出，不写死任何工具名：先是识别出的领域的工具，再是其他每个家族里最好的几个以免任何家族不可触达，最后是排名的前列直至一个公开的预算。上限只剩下安全网。一份手工固定的「核心」列表曾被写出又被否决：它会把某一个账户的习惯编进一个为许多人打造的产品。而且循环读取个人知识空间的方式与管道完全相同——一方知道的，另一方也知道。</p><h2>作为工具箱的沙箱</h2><p>循环写出的脚本过去是完全隔离的，而一个隔离的脚本唯一做不到的事，就是向某个服务提问。现在它可以访问网络——绝不直连。一次联网运行会加入一个内部网络，其唯一出口是一个专用代理：仅限 HTTPS，只到脚本声明的主机，私有网段和服务器本身在建立连接时即被拒绝。用户用自己的 API 密钥连接的服务可以立即访问，而密钥从不进入容器：脚本读取一个每次运行专属的令牌，代理只在该主机上把它换成真实密钥。没人允许过的主机会在循环内<strong>先问</strong>，有三种回答——带上本轮的数据、不带数据，或者拒绝——同一个调用在回答之下继续，因此请求的其余部分绝不会因为这个问题而丢失。每次联网运行都会在容器启动前记入用户的登记簿，模型被告知四种角色（计算、诊断、填补空缺、转换），并有二十二个在构建镜像中验证过的库，管理员可以关闭联网而保留计算器。</p><h2>选择权在用户</h2><p>偏好按<strong>用户级别</strong>持久化，可从仪表板一键切换。我们的信念：Pipeline 虽然设计更复杂，但证明了严谨编排在大多数场景中超越放任自流。</p>"
       },
       "mcp-react-agent": {
         "title": "MCP ReAct：由迭代代理驱动的 MCP 服务器",
@@ -12156,6 +12242,8 @@
       "sub_agents_description": "将研究委派给只读子代理。关闭后在调用时拒绝委派。",
       "python_sandbox": "临时 Python",
       "python_sandbox_description": "在沙箱中运行模型编写的短脚本。关闭后在调用时拒绝。",
+      "python_sandbox_egress": "沙盒网络访问",
+      "python_sandbox_egress_description": "允许模型编写的脚本经代理通过 HTTPS 访问声明的主机，并替换为用户自己的连接器密钥。关闭后每次运行都保持离线。",
       "moments": "预期时刻",
       "moments_description": "LIA 会在重要的时刻主动联系你（例如重要会议刚结束时），而不是等到下一次定时扫描。主动通知的配额和时段仍然适用。",
       "bookmarks": "书签",
@@ -13097,6 +13185,7 @@
       "mcp": "已使用外部工具「{{tool}}」",
       "remove_labels_tool": "已从 {{count}} 个项目移除标签",
       "run_python_tool": "已在沙盒中执行计算",
+      "python_sandbox_network": "已执行访问 {{target}} 的脚本",
       "run_skill_script": "已执行技能「{{target}}」的脚本",
       "set_current_item": "已将「{{target}}」设为当前对话对象",
       "toggle_scheduled_action_tool": "已启用或暂停计划操作「{{target}}」",

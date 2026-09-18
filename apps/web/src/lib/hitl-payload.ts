@@ -37,6 +37,10 @@ const SUPPORTED_ACTIONS = new Set([
   'approve',
   'confirm_delete',
   'confirm_all',
+  // ADR-298: the egress card's second answer — allowed, without the turn's
+  // data. Absent here the button would vanish in silence and the person
+  // could only allow WITH the data.
+  'confirm_without_data',
   'cancel',
   'reject',
 ]);

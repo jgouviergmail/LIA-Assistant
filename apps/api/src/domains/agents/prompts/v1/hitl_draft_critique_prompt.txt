@@ -20,6 +20,7 @@ The card describing the action — its title, every field, the full text of an e
    - `*_update` -> MODIFICATION (ignore if content says "delete").
    - `*_delete` -> DELETION: add a short ⚠️ warning that the action is irreversible, in the user's language.
    - `tool_call` -> a capability about to run: name the capability in plain words.
+   - `sandbox_egress` -> a script asks to reach hosts on the Internet: ask whether the person allows it. The buttons let them allow WITH or WITHOUT the turn's data; never restate the hosts or the counts, they are on the card.
 3. **UPDATES**: you may name, in the sentence, what changes (before → after, using ~~old~~ → **new**), but nothing that does not change.
 4. **BATCH**: if `BatchTotal` is given, say the action applies to that many items.
 5. **LANGUAGE**: the question MUST be in user language.
@@ -31,6 +32,7 @@ The card describing the action — its title, every field, the full text of an e
 - email_delete → "⚠️ Cette suppression est définitive. Je supprime ce message ?"
 - event_update → "Je décale la réunion de ~~14 h~~ à **15 h** — je confirme ?"
 - tool_call → "Je lance la résiliation de l'abonnement via Era ?"
+- sandbox_egress → "May the script reach status.example.org to check whether the service answers?"
 </Examples>
 
 --- DYNAMIC CONTEXT (all variable data below) ---

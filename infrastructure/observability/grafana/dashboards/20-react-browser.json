@@ -1402,6 +1402,178 @@
           }
         }
       ]
+    },
+    {
+      "id": 70,
+      "type": "row",
+      "title": "ReAct · Sandbox Egress (ADR-298)",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 87
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 71,
+      "type": "timeseries",
+      "title": "Network Sandbox Runs (per interval, by outcome)",
+      "description": "Network sandbox runs by outcome (ADR-298): allowed (published to the proxy and run), asked (an unknown host put to the person), refused (invalid or unpermitted hosts), proxy_unavailable (refused because the egress proxy could not serve the run — the operator's signal, the tool then fails closed for the model). A labelled counter that never fired exposes no series: `or vector(0)` keeps the panel at 0 rather than 'No data'.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 80
+          },
+          "noValue": "0",
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 88
+      },
+      "targets": [
+        {
+          "expr": "sum by (outcome) (increase(python_sandbox_egress_runs_total[$__interval])) or vector(0)",
+          "legendFormat": "{{outcome}}",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ]
+    },
+    {
+      "id": 72,
+      "type": "bargauge",
+      "title": "Egress Question Answers (over the range, by decision)",
+      "description": "How the person answered the sandbox egress question (ADR-298): with_data, without_data, refused, one_shot (allowed for this run only because the account's grant cap is reached). A rising one_shot rate means the cap (PYTHON_SANDBOX_MAX_GRANTS_PER_USER) is too small for real use.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "noValue": "0",
+          "unit": "short",
+          "decimals": 0,
+          "min": 0
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 88
+      },
+      "targets": [
+        {
+          "expr": "sum by (decision) (increase(python_sandbox_egress_grants_total[$__range])) or vector(0)",
+          "legendFormat": "{{decision}}",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "instant": true,
+          "range": false
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true,
+        "valueMode": "color"
+      }
+    },
+    {
+      "id": 73,
+      "type": "stat",
+      "title": "Network Runs Enabled",
+      "description": "1 when this deployment offers network sandbox runs (lia_python_sandbox_egress_enabled). Gates SandboxEgressProxyDown: without the skill-sandbox overlay the proxy does not exist and its absence is not an incident.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 0,
+        "y": 96
+      },
+      "targets": [
+        {
+          "expr": "max(lia_python_sandbox_egress_enabled) or vector(0)",
+          "legendFormat": "enabled",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ]
+    },
+    {
+      "id": 74,
+      "type": "timeseries",
+      "title": "Egress Proxy Liveness (probe)",
+      "description": "Blackbox probe of the egress proxy's /healthz (job blackbox-egress). iron-proxy 0.49 exposes no Prometheus series of its own, so this probe is the liveness signal SandboxEgressProxyDown reads. Absent on an install without the skill-sandbox overlay.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "noValue": "0",
+          "unit": "bool"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 18,
+        "x": 6,
+        "y": 96
+      },
+      "targets": [
+        {
+          "expr": "max(probe_success{job=\"blackbox-egress\"}) or vector(0)",
+          "legendFormat": "probe_success",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ]
     }
   ]
 }

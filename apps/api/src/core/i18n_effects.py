@@ -12,8 +12,9 @@ language, the SAME key set under each, checked by
 
 The frontend resolves the same keys from its own locales for the live card —
 the API ships keys and values, never a translated sentence (``apps/web``
-conventions). ``scripts/i18n/validate_effect_labels.py`` keeps the two sides in
-step.
+conventions). ``test_effect_labels.py::test_the_web_locales_carry_every_backend_key``
+keeps the two sides in step (the script this docstring once named never
+existed — found 2026-09-18 when a key was added to one side only).
 """
 
 from typing import Any
@@ -79,6 +80,7 @@ EFFECT_LABELS: dict[str, dict[str, str]] = {
         "effects.labels.edit_image": "Image modifiée : {target}",
         "effects.labels.generate_document": "Document « {target} » généré",
         "effects.labels.run_python_tool": "Calcul exécuté dans le bac à sable",
+        "effects.labels.python_sandbox_network": "Script exécuté avec accès à {target}",
         "effects.labels.run_skill_script": "Script de la compétence « {target} » exécuté",
         "effects.labels.draft.email": "E-mail envoyé à {recipient}",
         "effects.labels.draft.email_reply": "Réponse envoyée à {recipient}",
@@ -130,6 +132,7 @@ EFFECT_LABELS: dict[str, dict[str, str]] = {
         "effects.labels.edit_image": "Edited an image: {target}",
         "effects.labels.generate_document": "Generated the document “{target}”",
         "effects.labels.run_python_tool": "Ran a computation in the sandbox",
+        "effects.labels.python_sandbox_network": "Ran a script that reached {target}",
         "effects.labels.run_skill_script": "Ran the “{target}” skill script",
         "effects.labels.draft.email": "Sent an email to {recipient}",
         "effects.labels.draft.email_reply": "Replied to {recipient}",
@@ -181,6 +184,7 @@ EFFECT_LABELS: dict[str, dict[str, str]] = {
         "effects.labels.edit_image": "Bild bearbeitet: {target}",
         "effects.labels.generate_document": "Dokument „{target}“ erzeugt",
         "effects.labels.run_python_tool": "Berechnung in der Sandbox ausgeführt",
+        "effects.labels.python_sandbox_network": "Skript mit Zugriff auf {target} ausgeführt",
         "effects.labels.run_skill_script": "Skript der Fähigkeit „{target}“ ausgeführt",
         "effects.labels.draft.email": "E-Mail an {recipient} gesendet",
         "effects.labels.draft.email_reply": "Antwort an {recipient} gesendet",
@@ -232,6 +236,7 @@ EFFECT_LABELS: dict[str, dict[str, str]] = {
         "effects.labels.edit_image": "Imagen modificada: {target}",
         "effects.labels.generate_document": "Documento «{target}» generado",
         "effects.labels.run_python_tool": "Cálculo ejecutado en el entorno aislado",
+        "effects.labels.python_sandbox_network": "Script ejecutado con acceso a {target}",
         "effects.labels.run_skill_script": "Script de la habilidad «{target}» ejecutado",
         "effects.labels.draft.email": "Correo enviado a {recipient}",
         "effects.labels.draft.email_reply": "Respuesta enviada a {recipient}",
@@ -283,6 +288,7 @@ EFFECT_LABELS: dict[str, dict[str, str]] = {
         "effects.labels.edit_image": "Immagine modificata: {target}",
         "effects.labels.generate_document": "Documento «{target}» generato",
         "effects.labels.run_python_tool": "Calcolo eseguito nella sandbox",
+        "effects.labels.python_sandbox_network": "Script eseguito con accesso a {target}",
         "effects.labels.run_skill_script": "Script della competenza «{target}» eseguito",
         "effects.labels.draft.email": "E-mail inviata a {recipient}",
         "effects.labels.draft.email_reply": "Risposta inviata a {recipient}",
@@ -334,6 +340,7 @@ EFFECT_LABELS: dict[str, dict[str, str]] = {
         "effects.labels.edit_image": "已修改图片：{target}",
         "effects.labels.generate_document": "已生成文档「{target}」",
         "effects.labels.run_python_tool": "已在沙盒中执行计算",
+        "effects.labels.python_sandbox_network": "已执行访问 {target} 的脚本",
         "effects.labels.run_skill_script": "已执行技能「{target}」的脚本",
         "effects.labels.draft.email": "已向 {recipient} 发送邮件",
         "effects.labels.draft.email_reply": "已回复 {recipient}",

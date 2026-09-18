@@ -319,6 +319,25 @@ def _build_request(
     )
 
 
+def claim_request_for(
+    tool_name: str, policy: str, arguments: dict[str, Any]
+) -> ClaimRequest | None:
+    """The claim a tool files for an act its own gate does not see (ADR-298).
+
+    Same construction as the gate's, under the scope the executor published
+    for the current call, so the row joins the turn's other records.
+
+    Args:
+        tool_name: The capability recorded.
+        policy: The mutation policy the row carries.
+        arguments: What the act was asked.
+
+    Returns:
+        The request, or None outside any run context.
+    """
+    return _build_request(tool_name, policy, arguments, current_scope())
+
+
 def _signature_of(coroutine: Callable[..., Awaitable[Any]]) -> inspect.Signature | None:
     """Read the tool's signature ONCE, at registration.
 

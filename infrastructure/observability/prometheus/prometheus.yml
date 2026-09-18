@@ -128,6 +128,29 @@ scrape_configs:
       - target_label: __address__
         replacement: 'blackbox-exporter:9115'
 
+  # Sandbox egress proxy liveness (ADR-298) — feeds SandboxEgressProxyDown.
+  # iron-proxy 0.49 exposes no Prometheus series of its own (measured
+  # 2026-09-18: /metrics is 404); its "metrics" listener serves /healthz. The
+  # target only exists under the skill-sandbox overlay, so the alert is gated
+  # on the API's own `lia_python_sandbox_egress_enabled` gauge rather than on
+  # this probe alone.
+  - job_name: 'blackbox-egress'
+    scrape_interval: 60s
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets: ['http://egress:9094/healthz']
+        labels:
+          service: 'sandbox-egress'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: 'blackbox-exporter:9115'
+
   # End-to-end public URL probe — feeds PublicEndpointDown / CertificateExpirySoon.
   # Targets come from a file_sd file rendered at container startup from
   # BLACKBOX_PUBLIC_PROBE_URL (.env) — the real domain is never committed

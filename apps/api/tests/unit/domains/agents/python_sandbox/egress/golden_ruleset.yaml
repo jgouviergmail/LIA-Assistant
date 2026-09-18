@@ -1,0 +1,81 @@
+dns:
+  listen: 127.0.0.1:0
+  proxy_ip: 127.0.0.1
+proxy:
+  tunnel_listen: 0.0.0.0:3128
+  http_listen: 127.0.0.1:0
+  https_listen: 127.0.0.1:0
+  max_request_body_bytes: 1048576
+  upstream_deny_cidrs:
+  - 127.0.0.0/8
+  - 0.0.0.0/8
+  - ::1/128
+  - ::/128
+  - 169.254.0.0/16
+  - fe80::/10
+  - 10.0.0.0/8
+  - 172.16.0.0/12
+  - 192.168.0.0/16
+  - fc00::/7
+  - ::ffff:0:0/96
+  - 64:ff9b::/96
+  - 100.64.0.0/10
+  - 198.18.0.0/15
+metrics:
+  listen: 0.0.0.0:9094
+management:
+  listen: 0.0.0.0:9093
+  api_key_env: IRON_MANAGEMENT_API_KEY
+tls:
+  ca_cert: /etc/lia-egress/ca/ca.crt
+  ca_key: /etc/lia-egress/key/ca.key
+  cert_cache_size: 256
+  leaf_cert_expiry_hours: 24
+transforms:
+- name: allowlist
+  config:
+    domains:
+    - api.openweathermap.org
+    - api.perplexity.ai
+    - api.search.brave.com
+    - example.org
+- name: secrets
+  config:
+    secrets:
+    - source:
+        type: file
+        path: /etc/lia-egress/config/secrets/run-a/brave_search.key
+      replace:
+        proxy_value: sbx_run-a_brave
+        match_headers:
+        - X-Subscription-Token
+        match_query: false
+        match_body: false
+        require: false
+      rules:
+      - host: api.search.brave.com
+    - source:
+        type: file
+        path: /etc/lia-egress/config/secrets/run-a/openweathermap.key
+      replace:
+        proxy_value: sbx_run-a_owm
+        match_headers: []
+        match_query: true
+        match_body: false
+        require: false
+      rules:
+      - host: api.openweathermap.org
+    - source:
+        type: file
+        path: /etc/lia-egress/config/secrets/run-b/perplexity.key
+      replace:
+        proxy_value: sbx_run-b_pplx
+        match_headers:
+        - Authorization
+        match_query: false
+        match_body: false
+        require: false
+      rules:
+      - host: api.perplexity.ai
+log:
+  level: info

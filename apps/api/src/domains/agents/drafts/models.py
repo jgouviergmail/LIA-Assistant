@@ -70,6 +70,7 @@ class DraftType(str, Enum):
     VACATION_RESPONDER = "vacation_responder"  # Gmail auto-reply settings (lot I)
     EMAIL_FILTER = "email_filter"  # Gmail filter creation (lot I)
     TOOL_CALL = "tool_call"  # A tool whose policy demands confirmation (ADR-263)
+    SANDBOX_EGRESS = "sandbox_egress"  # A script asks to reach hosts (ADR-298)
     SPREADSHEET_WRITE = "spreadsheet_write"  # Sheets range update / row append (lot F)
     DOCUMENT_APPEND = "document_append"  # Docs text append (lot F)
     TICKET_DELETE = "ticket_delete"  # Workboard ticket delete draft (ADR-276)

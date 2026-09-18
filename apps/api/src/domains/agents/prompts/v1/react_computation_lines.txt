@@ -1,0 +1,20 @@
+# One-line scaffolds of the <Computation> network section (ADR-298), one
+# `key|template` per line; blank lines and #-comments are ignored (ADR-284:
+# prose never lives in a .py). str.format templates, rendered by
+# nodes/react_prompt.py from the turn's NetworkOffer.
+
+# One reachable host per line. `env` is the token variable the script reads —
+# spelled as the READ, because told « `LIA_KEY_X` in the header » a model sent
+# the variable's name as the value (measured 2026-09-18). `carrier` is one of
+# the two carrier lines below.
+host_with_key|- `{host}` — put `os.environ["{env}"]` in {carrier}
+host_plain|- `{host}`
+no_hosts|- none pre-permitted this turn
+
+# Where a credential travels, as the client class declares it.
+carrier_header|the header `{name}: {prefix}<value>`
+carrier_query|the query parameter `{name}=<value>`
+
+# What happens to a host the list does not name — the rule the run enforces.
+unknown_ask|Any other host must be declared too: the person is asked before the run and may allow it WITHOUT the turn's data (stdin then carries no items) or refuse it.
+unknown_refuse|Only the hosts above are reachable this turn; any other host is refused before the run.

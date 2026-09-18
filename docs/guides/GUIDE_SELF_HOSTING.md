@@ -286,8 +286,9 @@ docker compose -f docker-compose.prod.yml -f docker-compose.install.yml \
   --profile observability ps
 ```
 
-**Script-skill sandbox** (`skill_sandbox = yes`) lets skills execute Python in
-a throwaway container. This **mounts the Docker socket into the API
+**Script sandbox** (`skill_sandbox = yes`) lets skills execute Python in a
+throwaway container, and lets the assistant run the short script it writes when
+a step needs a computation. This **mounts the Docker socket into the API
 container** — a deliberate privilege. Leave it off unless you need it.
 
 > If you enable the sandbox, set your host's Docker group id in `.env`,
@@ -295,6 +296,25 @@ container** — a deliberate privilege. Leave it off unless you need it.
 > ```bash
 > echo "DOCKER_GID=$(getent group docker | cut -d: -f3)" >> .env
 > ```
+
+The same overlay starts the **sandbox egress proxy** (`egress` service,
+[ADR-298](../architecture/ADR-298-Sandbox-Egress-Toolbox.md)): the only way a
+script the model wrote may reach the Internet — HTTPS only, to the hosts the run
+declares, with the person's own connector keys swapped in by the proxy and never
+inside the container. The overlay switches it **on** (it sets
+`PYTHON_SANDBOX_EGRESS_ENABLED=true` in the API's environment, exactly as it
+sets `SKILLS_SCRIPTS_ENABLED`, so the value in `.env` does not apply under the
+overlay): a script may then reach the hosts of the person's own active
+connectors, the hosts you list, and the hosts a person allowed when asked. To
+keep the calculator without the exit, switch **Sandbox network access** off in
+the admin panel's capability map — the switch is read at every run, no restart.
+The proxy's image is pinned by digest in the overlay (amd64 and arm64), it runs
+as `LIA_RUNTIME_UID` (1000 by default) and mints its own certificate authority
+at start; the API waits for it to be healthy. Set `PYTHON_SANDBOX_EGRESS_HOSTS`
+to a JSON list of hosts every account may reach without being asked, and keep
+`PYTHON_SANDBOX_EGRESS_ASK_ENABLED=true` so an unknown host is asked of the
+person rather than refused. The alert `SandboxEgressProxyDown` watches the
+proxy's health once the capability is on.
 
 ### 4.7 Unattended installs
 

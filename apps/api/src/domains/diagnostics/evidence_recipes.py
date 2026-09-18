@@ -208,6 +208,22 @@ EVIDENCE_RECIPES: dict[str, EvidenceRecipe] = {
                 events=("recurrence_record_scheduling_failed", "recurrence_record_failed"),
             ),
         ),
+        # ---- sandbox egress (ADR-298) -----------------------------------
+        # The proxy is the only door a network sandbox run has: down, every
+        # such run is refused (counted proxy_unavailable) and the model is told
+        # to answer with what it has. The probe says whether /healthz answers;
+        # the run census says whether anyone is paying for it.
+        EvidenceRecipe(
+            "SandboxEgressProxyDown",
+            prom_queries=("sandbox_egress_proxy_probe", "sandbox_egress_runs_by_outcome"),
+            logs=LogRecipe(
+                events=(
+                    "sandbox_egress_run_refused",
+                    "sandbox_egress_boot_publish_failed",
+                    "sandbox_egress_withdraw_publish_failed",
+                ),
+            ),
+        ),
         # ---- schedulers -------------------------------------------------
         EvidenceRecipe(
             "scheduler_tick",

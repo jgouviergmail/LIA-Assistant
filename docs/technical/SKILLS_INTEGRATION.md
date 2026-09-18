@@ -447,7 +447,7 @@ inherits, socket included.
 | Property | Enforcement |
 | --- | --- |
 | Docker socket | Not mounted — the container has no `/var/run/docker.sock` at all |
-| Network | `--network none` (no LAN, no metadata service, no egress) |
+| Network | `--network none` (no LAN, no metadata service, no egress) — a skill script is never online; only ADR-249's ephemeral script may declare hosts and then joins `lia-sandbox`, whose single exit is the egress proxy of [ADR-298](../architecture/ADR-298-Sandbox-Egress-Toolbox.md) |
 | Filesystem | `--read-only` root + a `--tmpfs /tmp` sized by `SKILLS_SCRIPT_SANDBOX_TMPFS_MB`; `HOME=/tmp` |
 | Identity | `--user 65534:65534`, `--cap-drop=ALL`, `--security-opt no-new-privileges` |
 | Resources | `--memory`, `--pids-limit`, `--ulimit cpu`/`fsize` from the same `SKILLS_SCRIPT_MAX_*` settings |
@@ -484,7 +484,10 @@ them system-wide and sets it empty.
 `_run_source_in_container()` core, for ADR-249's ephemeral scripts. One
 implementation means one set of isolation flags: hardening one path can never
 leave the other behind. It refuses the legacy subprocess mode outright — see
-below.
+below. A NETWORK run (ADR-298) differs from a skill run in exactly three flags:
+the `lia-sandbox` network instead of `none`, the proxy's certificate authority
+mounted read-only, and `HTTPS_PROXY` plus the per-run `LIA_KEY_*` tokens in the
+environment — everything else is the same core.
 
 If the Docker daemon is unreachable the execution is **refused**
 (`Script sandbox unavailable`) — it never falls back to the in-process path,

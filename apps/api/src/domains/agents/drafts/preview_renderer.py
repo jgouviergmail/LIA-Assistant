@@ -587,6 +587,49 @@ def _render_tool_call(
     return lines
 
 
+def _render_sandbox_egress(
+    content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
+) -> list[PreviewLine]:
+    """Render a script's request to reach hosts (ADR-298).
+
+    What the person decides on: the hosts nobody permitted yet, the hosts the
+    run may reach already, the purpose the model stated, and what the run
+    would carry — a COUNT per kind of data, never the data. The code stays
+    where ADR-249 put it: the admin debug panel.
+    """
+    lines: list[PreviewLine] = []
+    unknown = content.get("hosts_unknown") or []
+    if unknown:
+        lines.append(_row(lbl, "hosts_unknown", ", ".join(str(h) for h in unknown)))
+    known = [h for h in (content.get("hosts") or []) if h not in unknown]
+    if known:
+        lines.append(_row(lbl, "hosts_known", ", ".join(str(h) for h in known)))
+    purpose = content.get("purpose")
+    if purpose:
+        lines.append(_row(lbl, "purpose", _argument_value(purpose)))
+    lines.append(_row(lbl, "turn_data", _turn_data_wording(content.get("data_summary"), lbl)))
+    return lines
+
+
+def _turn_data_wording(summary: Any, lbl: dict[str, str]) -> str:
+    """« 4 E-mails, 2 Contacts », or why nothing would travel."""
+    if not isinstance(summary, dict):
+        return lbl["turn_data_none"]
+    if not summary.get("available", True):
+        return lbl["turn_data_too_large"]
+    counts = summary.get("counts") or {}
+    if not counts:
+        return lbl["turn_data_none"]
+    from src.core.i18n_treatments import render_treatment_domain
+
+    language = str(summary.get("language") or "en")
+    parts = [
+        f"{count} {render_treatment_domain(str(kind), language)}"
+        for kind, count in sorted(counts.items())
+    ]
+    return ", ".join(parts)
+
+
 def _render_phone_call(
     content: dict[str, Any], lbl: dict[str, str], format_dt: _FormatDt
 ) -> list[PreviewLine]:
@@ -811,6 +854,7 @@ _PREVIEW_RENDERERS: dict[DraftType, _PreviewRenderer] = {
     DraftType.TICKET_DELETE: _render_ticket_delete,
     DraftType.PHONE_CALL: _render_phone_call,
     DraftType.TOOL_CALL: _render_tool_call,
+    DraftType.SANDBOX_EGRESS: _render_sandbox_egress,
     DraftType.SCHEDULED_ACTION: _render_scheduled_action,
     DraftType.DEVOPS_TASK: _render_devops_task,
     DraftType.PEER_MESSAGE: _render_peer_message,

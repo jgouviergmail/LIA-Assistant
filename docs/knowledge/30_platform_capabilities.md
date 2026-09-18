@@ -4,22 +4,23 @@
 Because not every LIA instance offers the same features, and that is
 deliberate rather than a bug.
 
-An administrator can switch twenty-five capabilities on or off for the whole
+An administrator can switch every capability on or off for the whole
 instance, from the settings panel, without redeploying and without editing a
 configuration file — every feature a person actually experiences, grouped into
-six families so a wall of switches stays readable:
+families so a wall of switches stays readable:
 
 - **media and voice** — dictation · speech synthesis · image generation ·
-  document generation · file uploads
-- **memory and knowledge** — long-term memory · document spaces · personal
-  journals · learned habits · interest tracking
+  document generation · file uploads · telephony · meeting recording
+- **memory and knowledge** — document spaces · personal journals · learned
+  habits · kept answers · the psychological profile · long-term memory ·
+  interest tracking
 - **reach and tools** — web search · web browsing · skills · MCP servers ·
-  telephony · external channels
-- **work and initiative** — the ticket board · reminders and scheduled actions ·
-  proactive notifications
-- **people** — connections between accounts · relationship debriefs · open
-  loops · the psychological profile
-- **assistant** — delegated sub-agents · the ephemeral Python sandbox
+  external channels · delegated sub-agents · the ephemeral Python sandbox ·
+  the sandbox's network access (a switch of its own: an operator may keep the
+  calculator without the exit)
+- **work and initiative** — the ticket board · proactive notifications ·
+  anticipated moments · open loops
+- **people** — connections between accounts · relationship debriefs
 
 If one of them is off on your instance, LIA says so by name, in your language,
 rather than failing without explanation.

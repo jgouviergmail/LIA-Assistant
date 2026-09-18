@@ -60,6 +60,7 @@ from src.infrastructure.observability.logging import get_logger
 
 from ..protocols import HitlInteractionType
 from ..registry import HitlInteractionRegistry
+from ..schemas import SANDBOX_EGRESS_ACTIONS, SANDBOX_EGRESS_ACTIONS_NO_DATA
 
 if TYPE_CHECKING:
     from ..question_generator import HitlQuestionGenerator
@@ -187,6 +188,25 @@ def _sequence_summary(context: dict[str, Any], user_language: str, user_timezone
             lines.append(f"- {row}")
     lines.append("")
     return lines
+
+
+def _available_actions(draft_type: str, draft_content: dict[str, Any]) -> list[dict[str, Any]]:
+    """The buttons of the card, by draft type.
+
+    Every draft is confirmed, edited or cancelled — except the egress question
+    (ADR-298), which asks WHAT MAY TRAVEL: allow with the turn's data, allow
+    without, refuse; and only the last two when the data cannot travel.
+    """
+    if draft_type == DraftType.SANDBOX_EGRESS.value:
+        summary = draft_content.get("data_summary")
+        available = not isinstance(summary, dict) or summary.get("available", True)
+        actions = SANDBOX_EGRESS_ACTIONS if available else SANDBOX_EGRESS_ACTIONS_NO_DATA
+        return [{"action": a.action, "label": a.label, "style": a.style.value} for a in actions]
+    return [
+        {"action": DraftAction.CONFIRM.value, "label": "confirm", "style": "primary"},
+        {"action": DraftAction.EDIT.value, "label": "edit", "style": "secondary"},
+        {"action": DraftAction.CANCEL.value, "label": "cancel", "style": "destructive"},
+    ]
 
 
 @HitlInteractionRegistry.register(HitlInteractionType.DRAFT_CRITIQUE)
@@ -880,23 +900,7 @@ Generate the review question:"""
 
         # Build action_requests in expected format
         # Include available actions for frontend button rendering
-        available_actions = [
-            {
-                "action": DraftAction.CONFIRM.value,
-                "label": "confirm",
-                "style": "primary",
-            },
-            {
-                "action": DraftAction.EDIT.value,
-                "label": "edit",
-                "style": "secondary",
-            },
-            {
-                "action": DraftAction.CANCEL.value,
-                "label": "cancel",
-                "style": "destructive",
-            },
-        ]
+        available_actions = _available_actions(draft_type, draft_content)
 
         action_request: dict[str, Any] = {
             "type": "draft_critique",

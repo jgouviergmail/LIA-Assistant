@@ -78,9 +78,79 @@ function ToolArgsPreview({ args }: { args: Record<string, unknown> }) {
 }
 
 /** Typed preview of a draft (email fields first, generic fallback). */
+/** The egress question (ADR-298): the hosts nobody permitted yet, what the
+ * run may reach already, the stated purpose and a COUNT of the data the run
+ * would carry — never the code. */
+function EgressPreview({ content }: { content: Record<string, unknown> }) {
+  const { t } = useTranslation();
+  const unknown = Array.isArray(content.hosts_unknown)
+    ? content.hosts_unknown.filter((h): h is string => typeof h === 'string')
+    : [];
+  const hosts = Array.isArray(content.hosts)
+    ? content.hosts.filter((h): h is string => typeof h === 'string' && !unknown.includes(h))
+    : [];
+  const purpose = typeof content.purpose === 'string' ? content.purpose : null;
+  const summary =
+    content.data_summary && typeof content.data_summary === 'object'
+      ? (content.data_summary as { counts?: Record<string, number>; available?: boolean })
+      : null;
+  const counts = Object.entries(summary?.counts ?? {}).filter(([, n]) => typeof n === 'number');
+  const available = summary?.available !== false;
+  return (
+    <dl className="mt-2 space-y-1 text-xs">
+      {unknown.length > 0 && (
+        <div className="flex gap-2">
+          <dt className="shrink-0 font-medium text-muted-foreground">
+            {t('chat.hitl.egress.hosts_unknown')}
+          </dt>
+          <dd className="min-w-0 break-all">{unknown.join(', ')}</dd>
+        </div>
+      )}
+      {hosts.length > 0 && (
+        <div className="flex gap-2">
+          <dt className="shrink-0 font-medium text-muted-foreground">
+            {t('chat.hitl.egress.hosts_known')}
+          </dt>
+          <dd className="min-w-0 break-all">{hosts.join(', ')}</dd>
+        </div>
+      )}
+      {purpose && (
+        <div className="flex gap-2">
+          <dt className="shrink-0 font-medium text-muted-foreground">
+            {t('chat.hitl.egress.purpose')}
+          </dt>
+          <dd className="min-w-0">{purpose}</dd>
+        </div>
+      )}
+      <div className="flex gap-2">
+        <dt className="shrink-0 font-medium text-muted-foreground">
+          {t('chat.hitl.egress.turn_data')}
+        </dt>
+        <dd className="min-w-0">
+          {!available
+            ? t('chat.hitl.egress.data_too_large')
+            : counts.length === 0
+              ? t('chat.hitl.egress.data_none')
+              : counts
+                  .map(([kind, n]) =>
+                    t('chat.hitl.egress.data_count', {
+                      count: n,
+                      kind: t(`treatments.domains.${kind}`, { defaultValue: kind }),
+                    })
+                  )
+                  .join(', ')}
+        </dd>
+      </div>
+    </dl>
+  );
+}
+
 function DraftPreview({ payload }: { payload: NormalizedHitlPayload }) {
   const { t } = useTranslation();
   const content = payload.draftContent ?? {};
+  if (payload.draftType === 'sandbox_egress') {
+    return <EgressPreview content={content} />;
+  }
   const to = typeof content.to === 'string' ? content.to : null;
   const subject = typeof content.subject === 'string' ? content.subject : null;
   const body = typeof content.body === 'string' ? content.body : null;

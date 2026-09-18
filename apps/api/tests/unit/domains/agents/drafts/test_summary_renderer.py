@@ -54,6 +54,7 @@ CONTENTS: dict[DraftType, dict[str, object]] = {
     DraftType.VACATION_RESPONDER: {"enable": True, "subject": "Absent"},
     DraftType.EMAIL_FILTER: {"criteria": {"from": "news@x.com"}},
     DraftType.TOOL_CALL: {"tool_label": "era: cancel subscription"},
+    DraftType.SANDBOX_EGRESS: {"hosts_unknown": ["api.example.org"], "hosts": ["api.example.org"]},
     DraftType.SPREADSHEET_WRITE: {"spreadsheet_title": "Budget", "sheet_name": "Dépenses"},
     DraftType.DOCUMENT_APPEND: {"document_title": "Compte-rendu"},
     DraftType.TICKET_DELETE: {"title": "Réserver la salle"},
@@ -146,6 +147,11 @@ class TestTheNineThatWereMissing:
                 DraftType.TOOL_CALL,
                 "Action\u00a0: era: cancel subscription",
                 "Action: era: cancel subscription",
+            ),
+            (
+                DraftType.SANDBOX_EGRESS,
+                "Accès internet\u00a0: api.example.org",
+                "Internet access: api.example.org",
             ),
             (
                 DraftType.SPREADSHEET_WRITE,

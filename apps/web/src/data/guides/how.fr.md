@@ -6,7 +6,7 @@
 
 **Version** : 5.0
 **Date** : 2026-09-18
-**Application** : LIA v1.45.2
+**Application** : LIA v1.46.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -69,8 +69,8 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Auto-hébergement ARM64 | Docker multi-arch, embeddings sémantiques (multilingues), Playwright chromium cross-platform |
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
-| Transparence totale | 565 métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 296 ADRs, ~29 725 tests collectés par pytest sur 1 758 fichiers, observabilité native, HITL à 6 niveaux |
+| Transparence totale | 568 métriques Prometheus, debug panel embarqué, suivi token par token |
+| Fiabilité en production | 297 ADRs, ~30 096 tests collectés par pytest sur 1 786 fichiers, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -88,10 +88,10 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 
 | Métrique | Valeur |
 |----------|--------|
-| Tests | 29 725 collectés par pytest sur 1 758 fichiers de test + 8 423 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
+| Tests | 30 096 collectés par pytest sur 1 786 fichiers de test + 8 504 tests vitest côté frontend (seuils de couverture verrouillés, ADR-116) |
 | Fixtures pytest | 969, dont 46 partagées via conftest |
 | Documents de documentation | 647 |
-| ADRs (Architecture Decision Records) | 296 |
+| ADRs (Architecture Decision Records) | 297 |
 | Métriques Prometheus | 553 définitions |
 | Dashboards Grafana | 29 |
 | Langues supportées (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -995,7 +995,7 @@ Design **fail-open** : les échecs d'infrastructure ne bloquent pas les utilisat
 
 Trois surfaces exécutent quelque chose pour le compte de l'utilisateur, et chacune est traitée comme hostile par construction.
 
-**Les scripts de skills s'exécutent dans un conteneur jetable.** Pas de socket Docker, pas de réseau, un système de fichiers racine en lecture seule avec un petit tmpfs inscriptible, un uid non privilégié, toutes les capacités larguées, et des plafonds mémoire / processus / CPU / taille de fichier. Ce qui compte, c'est ce qu'un processus fils *hérite* : en production l'API appartient au groupe `docker`, et un groupe s'hérite — se contenter de changer d'uid laisserait la socket accessible. Le SOURCE du script est passé en argument plutôt que monté, parce que l'API est elle-même un conteneur et qu'un bind se résoudrait contre l'hôte ; ce choix laisse aussi stdin libre pour la charge JSON sur laquelle repose le contrat. Sans démon joignable, l'exécution est refusée plutôt que dégradée — un bac à sable qui se désactive tout seul ne protège de rien.
+**Les scripts de skills s'exécutent dans un conteneur jetable.** Pas de socket Docker, pas de réseau (un script que l'assistante écrit pour un calcul est la seule exception, et il ne sort que par une seule porte — le proxy de sortie du §34), un système de fichiers racine en lecture seule avec un petit tmpfs inscriptible, un uid non privilégié, toutes les capacités larguées, et des plafonds mémoire / processus / CPU / taille de fichier. Ce qui compte, c'est ce qu'un processus fils *hérite* : en production l'API appartient au groupe `docker`, et un groupe s'hérite — se contenter de changer d'uid laisserait la socket accessible. Le SOURCE du script est passé en argument plutôt que monté, parce que l'API est elle-même un conteneur et qu'un bind se résoudrait contre l'hôte ; ce choix laisse aussi stdin libre pour la charge JSON sur laquelle repose le contrat. Sans démon joignable, l'exécution est refusée plutôt que dégradée — un bac à sable qui se désactive tout seul ne protège de rien.
 
 **Les tâches d'infrastructure se confirment, elles ne se présument pas.** Une tâche sur un serveur distant est préparée, pas lancée : la confirmation montre le serveur visé, le texte intégral de la tâche et les consignes que le modèle a lui-même écrites dans l'invite distante — le champ qu'une injection utiliserait est précisément celui qu'il ne faut pas masquer. Le privilège est re-vérifié à l'exécution, car des droits accordés au moment où une demande est formulée peuvent ne plus valoir au moment où elle est approuvée.
 
@@ -1020,7 +1020,7 @@ La provenance est donc une propriété de la **donnée** : les 24 types du regis
 
 | Technologie | Rôle |
 |-------------|------|
-| Prometheus | 565 métriques custom (RED pattern) |
+| Prometheus | 568 métriques custom (RED pattern) |
 | Grafana | 29 dashboards production-ready |
 | Loki | Logs structurés JSON agrégés |
 | Tempo | Traces distribuées cross-service (OTLP gRPC) |
@@ -1028,7 +1028,7 @@ La provenance est donc une propriété de la **donnée** : les 24 types du regis
 | Alertmanager | Noyau de 14 alertes vitales notifiées par e-mail (runbooks liés, seuils par environnement) + webhook vers LIA : chaque alerte devient un incident dans le produit (ADR-247) |
 | structlog | Logging structuré avec PII filtering |
 
-**Une métrique qui n'atteint aucun tableau de bord est une métrique sur laquelle personne n'agit.** L'écart entre ce que le code émet et ce qu'un opérateur peut voir est mesuré, jamais supposé : `scripts/audit/measure_metric_coverage.py` analyse chaque définition de métrique (par AST et non par expression régulière — une regex lit `ZoneInfo("UTC")` comme une métrique `Info`) et confronte chaque nom à tous les panels, règles d'enregistrement et expressions d'alerte. 565 définies ; les 44 qui n'atteignent rien sont listées explicitement dans une base **shrink-only**, si bien qu'une métrique nouvellement aveugle fait rougir le build et qu'une métrique devenue visible doit quitter la liste — sinon la prochaine aveugle prend sa place en silence. Le prix de ne pas l'avoir eu : une source de heartbeat tombant en panne ouverte a supprimé les signaux de santé sur 46,5 % des ticks pendant une semaine, sans aucune métrique pour s'en apercevoir (ADR-148). Deux pièges que la garde ferme par construction — un compteur à labels qui n'a jamais été incrémenté n'expose **aucune série**, donc un panel qui guette une panne rare a besoin de `or vector(0)`, faute de quoi il affiche « No data » là où l'opérateur attend un zéro vert ; et la couverture est lue dans les **expressions** de panels et de règles uniquement, car une métrique citée dans un commentaire n'est pas câblée.
+**Une métrique qui n'atteint aucun tableau de bord est une métrique sur laquelle personne n'agit.** L'écart entre ce que le code émet et ce qu'un opérateur peut voir est mesuré, jamais supposé : `scripts/audit/measure_metric_coverage.py` analyse chaque définition de métrique (par AST et non par expression régulière — une regex lit `ZoneInfo("UTC")` comme une métrique `Info`) et confronte chaque nom à tous les panels, règles d'enregistrement et expressions d'alerte. 568 définies ; les 44 qui n'atteignent rien sont listées explicitement dans une base **shrink-only**, si bien qu'une métrique nouvellement aveugle fait rougir le build et qu'une métrique devenue visible doit quitter la liste — sinon la prochaine aveugle prend sa place en silence. Le prix de ne pas l'avoir eu : une source de heartbeat tombant en panne ouverte a supprimé les signaux de santé sur 46,5 % des ticks pendant une semaine, sans aucune métrique pour s'en apercevoir (ADR-148). Deux pièges que la garde ferme par construction — un compteur à labels qui n'a jamais été incrémenté n'expose **aucune série**, donc un panel qui guette une panne rare a besoin de `or vector(0)`, faute de quoi il affiche « No data » là où l'opérateur attend un zéro vert ; et la couverture est lue dans les **expressions** de panels et de règles uniquement, car une métrique citée dans un commentaire n'est pas câblée.
 
 ### 20.2. Debug Panel embarqué
 
@@ -1438,7 +1438,7 @@ Une règle CSS gouverne les espacements du design system : les marges verticales
 
 ## 24. Architecture des décisions (ADR)
 
-296 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
+297 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
 
 | ADR | Décision | Problème résolu | Impact mesuré |
 |-----|----------|----------------|---------------|
@@ -1636,11 +1636,19 @@ Demandez à un modèle de langage la durée totale d'une série d'escales, quels
 
 **Le mode autonome seulement, et appliqué deux fois.** Le manifeste de l'outil déclare `execution_modes={"react"}` et *tout* lecteur du catalogue applique le filtre, si bien que le planificateur déterministe ne voit jamais l'outil : un planificateur qui le verrait programmerait une étape que l'exécution refuse ensuite, c'est-à-dire une impasse inventée pour l'utilisateur. L'outil revérifie ensuite le mode dans le contexte d'exécution typé au moment de l'appel. Une seule application aurait été un piège ; deux font un contrat.
 
-**Tout ce qui est imposé est publié.** Le manifeste annonce l'absence de réseau, de base de données et de tout système de fichiers inscriptible hors `/tmp`, la liste exacte des bibliothèques, les budgets de taille et de temps — et dit explicitement quand *ne pas* recourir à l'outil. Sans cette dernière phrase, un outil capable devient un marteau ; sans la première, le modèle brûle une itération à découvrir une limite en s'y cognant.
+**Tout ce qui est imposé est publié.** Le manifeste annonce ce qu'une exécution peut atteindre — rien tant qu'elle ne déclare pas ses hôtes —, l'absence de base de données et de tout système de fichiers inscriptible hors `/tmp`, la liste exacte des bibliothèques, les budgets de taille et de temps — et dit explicitement quand *ne pas* recourir à l'outil. Sans cette dernière phrase, un outil capable devient un marteau ; sans la première, le modèle brûle une itération à découvrir une limite en s'y cognant.
 
 **Les données passent par stdin, et le budget vit dans l'état du graphe.** Recopier les lignes du tour dans la source paierait ces tokens deux fois et tronquerait exactement les gros cas qui justifient la fonctionnalité. Et le budget par tour ne vit délibérément pas dans une variable de contexte : une valeur posée dans une tâche asyncio est invisible depuis une tâche sœur, et un exécuteur de graphe est libre de lancer chaque nœud dans la sienne — l'état est le seul endroit où un budget survit à une itération.
 
 **La sortie n'est pas fiable, le code est auditable.** Ce qu'un script imprime est du code écrit par un modèle s'exécutant sur des données de tiers : c'est donc marqué comme contenu non fiable, exactement comme le corps d'un email. Le code lui-même, avec son intention déclarée et sa sortie, est visible des administrateurs dans le panneau de débogage : le cacher n'achèterait aucune sécurité — le modèle l'a écrit, il est déjà dans son contexte — et coûterait toute la vérifiabilité.
+
+**Le web par une seule porte, et la porte est la topologie.** Un script peut atteindre le web — seulement un script qui déclare ses hôtes, et seulement par un proxy de sortie dédié. Une exécution réseau rejoint un réseau Docker interne dont l'unique membre routé est ce proxy : un socket brut n'a nulle part où aller, ce qui est exactement le contournement qu'un proxy par variable d'environnement laisse ouvert (`HTTPS_PROXY` est une suggestion ; un réseau à une seule sortie est un fait). Le proxy termine le TLS sous une autorité qu'il frappe au démarrage, n'autorise que les hôtes que l'API a rendus pour les exécutions vivantes, refuse à la connexion les plages privées, le serveur lui-même et les métadonnées du nuage, et borne le corps qu'il transmet. Son état vit dans des volumes tmpfs écrits par son propre point d'entrée — un conteneur d'initialisation a été essayé et mesuré faux, Docker rendant le tmpfs à sa sortie.
+
+**Une clé voyage en jeton, et le jeton ne vaut rien hors de son exécution.** Chaque hôte porte un statut sur quatre — dérivé des connecteurs à clé API de la personne, autorisé par l'opérateur, accordé par la personne, ou inconnu. Pour l'hôte d'un connecteur, le script lit `os.environ["LIA_KEY_<CONNECTEUR>"]`, un jeton propre à l'exécution que le proxy échange contre la vraie clé de la personne sur cet hôte seulement : la clé n'entre jamais dans le conteneur, et les jetons OAuth comme les clés de l'instance ne sont jamais proposés. Les statuts sont dérivés des classes de clients — URL de base, en-tête, préfixe — jamais retapés dans une seconde table, si bien que la règle du proxy et le vrai appel du client ne peuvent pas diverger.
+
+**Un hôte inconnu est demandé, avec trois réponses, dans la boucle.** La carte nomme les hôtes et le but que le modèle déclare, avec un compte des données du tour — jamais les données —, et la personne autorise avec les données, sans (stdin ne porte alors rien) ou refuse ; la réponse est retenue comme un accord sous un plafond publié. L'endroit où la question se règle compte autant que ce qu'elle demande : le nœud lève lui-même l'interruption, comme la confirmation d'un outil de mutation, et à la reprise ré-invoque le même appel sous la réponse, de sorte que le reste de la demande continue. Confier la carte au dispatch des brouillons l'aurait exécutée comme une action et aurait répondu de son résultat, en laissant tomber chaque étape suivante — une permission n'est pas une action.
+
+**Le prompt a été mesuré avant d'être cru.** À qui l'on dit de mettre `LIA_KEY_X` dans l'en-tête, un modèle envoie le nom de la variable comme valeur ; la ligne épelle désormais la lecture. Les bibliothèques que le prompt promet vivent dans une seule table épinglée directement et sont importées dans l'image construite à chaque passage de la CI, et les quatre rôles — calculer, diagnostiquer, combler un manque, transformer — sont énoncés avec les bornes que le code impose, lues dans les réglages plutôt qu'écrites en prose.
 
 ## 35. Mesurer une couleur avant de la livrer : la palette des réglages
 
@@ -1754,8 +1762,8 @@ Le budget de connexions a un plancher, pas seulement un plafond. L'audit F004 bo
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 296 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~29 725 tests sur 1 758 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 297 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les ~30 096 tests sur 1 786 fichiers, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 296 ADRs, et du changelog (v1.0 à v1.45.2). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (490+ documents), des 297 ADRs, et du changelog (v1.0 à v1.46.0). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

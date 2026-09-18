@@ -406,3 +406,30 @@ async def init_agent_graph() -> None:
         logger.info("agent_graph_initialized", graph_compiled=agent_service.graph is not None)
     except (RuntimeError, ImportError, ValueError) as exc:
         logger.error("agent_graph_initialization_failed", error=str(exc), exc_info=True)
+
+
+async def init_sandbox_egress() -> None:
+    """Re-render the sandbox egress ruleset from the shared registry (ADR-298).
+
+    The proxy holds one ruleset for the whole deployment and the live runs
+    live in Redis: a worker that boots renders EVERY worker's runs, so a
+    restart never revokes a token another worker is still serving. Best
+    effort on purpose — a proxy that is down at boot must not stop the API;
+    each network run is refused at act time, with the reason.
+    """
+    from src.infrastructure.observability.metrics_react import python_sandbox_egress_enabled
+
+    # The gauge gates SandboxEgressProxyDown: without the overlay the proxy
+    # does not exist, and its absence must not page anyone.
+    python_sandbox_egress_enabled.set(1 if settings.python_sandbox_egress_enabled else 0)
+    if not settings.python_sandbox_egress_enabled:
+        return
+    from src.domains.agents.python_sandbox.egress.proxy_client import EgressProxyUnavailable
+    from src.domains.agents.python_sandbox.egress.service import deployment_publisher
+
+    try:
+        publisher = await deployment_publisher()
+        await publisher.publish()
+        logger.info("sandbox_egress_ruleset_published_at_boot")
+    except EgressProxyUnavailable as exc:
+        logger.warning("sandbox_egress_boot_publish_failed", reason=str(exc))

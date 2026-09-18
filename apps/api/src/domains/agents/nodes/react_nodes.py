@@ -15,7 +15,6 @@ State contract:
     - LLM and tools are recreated in each node (~1-2ms, standard LIA pattern)
 """
 
-import asyncio
 import contextlib
 import time
 from contextlib import suppress
@@ -29,6 +28,7 @@ from langchain_core.messages import (
     ToolMessage,
 )
 from langchain_core.runnables import RunnableConfig
+from langgraph.errors import GraphInterrupt
 from langgraph.types import interrupt
 
 from src.core.config import settings
@@ -40,10 +40,16 @@ from src.domains.agents.analysis.query_intelligence_helpers import (
 from src.domains.agents.effects.scope import effect_scope, react_call_scope
 from src.domains.agents.models import MessagesState, count_messages_tokens_cached
 from src.domains.agents.nodes import react_context
+from src.domains.agents.nodes.react_drafts import extract_draft_info as _extract_draft_info
+from src.domains.agents.nodes.react_egress_question import invoke_with_settlement
 from src.domains.agents.nodes.react_history import (
     window_messages_for_react as _window_messages_for_react,
 )
-from src.domains.agents.nodes.react_prompt import build_system_prompt, sandbox_available
+from src.domains.agents.nodes.react_prompt import (
+    build_system_prompt,
+    network_available,
+    sandbox_available,
+)
 from src.domains.agents.nodes.router_tool_scoring import GLOBAL_RANKING_KEY
 from src.domains.agents.orchestration.step_timeouts import compute_step_timeout
 from src.domains.agents.services.connector_error_notice import (
@@ -188,56 +194,6 @@ def _record_react_metrics(iteration: int, duration_s: float, status: str) -> Non
     react_agent_executions_total.labels(status=status).inc()
 
 
-def _extract_draft_info(raw_result: Any, tool_name: str) -> dict[str, Any] | None:
-    """Extract draft metadata from a tool result requiring confirmation.
-
-    Mirrors the pipeline's ``parallel_executor`` draft detection so the ReAct
-    loop can hand a prepared draft off to the shared draft_critique HITL flow.
-    A mutation tool (create/update/delete) returns ``requires_confirmation=True``
-    and stores the executable payload in its registry item — the actual action
-    is only performed after the user confirms.
-
-    Args:
-        raw_result: Raw tool output (``UnifiedToolOutput`` for draft tools).
-        tool_name: Name of the tool that produced the result.
-
-    Returns:
-        A ``PendingDraftInfo``-compatible dict (draft_id, draft_type,
-        draft_content, draft_summary, registry_ids, tool_name, step_id), or
-        ``None`` when the result is not a confirmable draft.
-    """
-    tool_metadata = getattr(raw_result, "tool_metadata", None)
-    if not isinstance(tool_metadata, dict) or not tool_metadata.get("requires_confirmation"):
-        return None
-
-    draft_id = tool_metadata.get("draft_id")
-    if not draft_id:
-        return None
-
-    registry_updates = getattr(raw_result, "registry_updates", None) or {}
-
-    # Extract the executable draft content from the registry item payload — the
-    # same source the pipeline's DraftExecutor consumes to perform the real action.
-    draft_content: dict[str, Any] = {}
-    item = registry_updates.get(draft_id)
-    if item is not None:
-        payload = getattr(item, "payload", None)
-        if payload is None and isinstance(item, dict):
-            payload = item.get("payload")
-        if isinstance(payload, dict):
-            draft_content = payload.get("content") or {}
-
-    return {
-        "draft_id": draft_id,
-        "draft_type": tool_metadata.get("draft_type"),
-        "draft_content": draft_content,
-        "draft_summary": getattr(raw_result, "summary_for_llm", "") or "",
-        "registry_ids": list(registry_updates.keys()),
-        "tool_name": tool_name,
-        "step_id": None,
-    }
-
-
 # ---------------------------------------------------------------------------
 # Node 1: react_setup
 # ---------------------------------------------------------------------------
@@ -281,8 +237,11 @@ async def react_setup_node(
     with suppress(Exception):  # a metric never breaks the turn
         react_bound_tool_tokens.observe(schema_tokens)
 
-    # Build system prompt — it promises only what this turn can actually run
-    system_prompt = build_system_prompt(state, computation=await sandbox_available(tool_names))
+    # Build system prompt — it promises only what this turn can actually run,
+    # and about the network only what this ACCOUNT may reach (ADR-298).
+    computation = await sandbox_available(tool_names)
+    network = await network_available(tool_names) if computation else None
+    system_prompt = build_system_prompt(state, computation=computation, network=network)
 
     # Context blocks, in injection ORDER (react_context.build_setup_blocks).
     setup_blocks = await react_context.build_setup_blocks(state, config, intelligence)
@@ -788,9 +747,8 @@ async def react_execute_tools_node(
             # approval one execution, and ``is_mutation`` is True only past the
             # interrupt above — so it IS the user's confirmation.
             with effect_scope(react_call_scope(config, tc_id, approved=is_mutation)):
-                raw_result = await asyncio.wait_for(
-                    wrapper._original_tool.coroutine(**injected_args),
-                    timeout=tool_timeout,
+                raw_result = await invoke_with_settlement(
+                    wrapper, injected_args, timeout=tool_timeout, state=state, tool_name=tc_name
                 )
             # Process through wrapper for string conversion + registry collection
             content = wrapper._process_result(raw_result, budget_tokens=result_budget)
@@ -801,6 +759,11 @@ async def react_execute_tools_node(
             draft_info = _extract_draft_info(raw_result, tc_name)
             if draft_info is not None:
                 pending_drafts.append(draft_info)
+        except GraphInterrupt:
+            # A question raised from INSIDE the call (the egress question,
+            # ADR-298) is a bubble-up, never a tool error: the net below
+            # swallowed it once (measured 2026-09-18) and the loop went on.
+            raise
         except TimeoutError:
             # Recoverable, like the pipeline's failed StepResult: the model is
             # told what happened and can choose another route. Killing the node

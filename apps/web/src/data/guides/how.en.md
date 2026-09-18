@@ -6,7 +6,7 @@
 
 **Version**: 5.0
 **Date**: 2026-09-18
-**Application**: LIA v1.45.2
+**Application**: LIA v1.46.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -69,8 +69,8 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | ARM64 self-hosting | Multi-arch Docker, semantic embeddings (multilingual), Playwright chromium cross-platform |
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
-| Full transparency | 565 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 296 ADRs, ~29,725 pytest-collected tests across 1,758 files, native observability, 6-level HITL |
+| Full transparency | 568 Prometheus metrics, embedded debug panel, token-by-token tracking |
+| Production reliability | 297 ADRs, ~30,096 pytest-collected tests across 1,786 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -88,10 +88,10 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | 29,725 collected by pytest across 1,758 test files + 8,423 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | 30,096 collected by pytest across 1,786 test files + 8,504 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | pytest fixtures | 969, 46 of them shared through conftest |
 | Documentation documents | 647 |
-| ADRs (Architecture Decision Records) | 296 |
+| ADRs (Architecture Decision Records) | 297 |
 | Prometheus metrics | 553 definitions |
 | Grafana dashboards | 29 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -992,7 +992,7 @@ Autonomous ReAct agent (headless Playwright Chromium). Redis-backed session pool
 
 Three surfaces execute something on the user's behalf, and each is treated as hostile by construction.
 
-**Skill scripts run in a throwaway container.** No Docker socket, no network, a read-only root filesystem with a small writable tmpfs, an unprivileged uid, every capability dropped, and memory / process / CPU / file-size ceilings. The point is what a child process *inherits*: the API belongs to the `docker` group in production, and a group is inherited — dropping the uid alone would leave the socket reachable. The script SOURCE is handed over as an argument rather than mounted, because the API is itself a container and a bind would resolve against the host; that choice also leaves stdin free for the JSON payload the contract is built on. When no daemon is reachable the execution is refused rather than downgraded — a sandbox that disables itself protects nothing.
+**Skill scripts run in a throwaway container.** No Docker socket, no network (a script the assistant writes for a computation is the one exception, and it leaves through a single door — the egress proxy of §34), a read-only root filesystem with a small writable tmpfs, an unprivileged uid, every capability dropped, and memory / process / CPU / file-size ceilings. The point is what a child process *inherits*: the API belongs to the `docker` group in production, and a group is inherited — dropping the uid alone would leave the socket reachable. The script SOURCE is handed over as an argument rather than mounted, because the API is itself a container and a bind would resolve against the host; that choice also leaves stdin free for the JSON payload the contract is built on. When no daemon is reachable the execution is refused rather than downgraded — a sandbox that disables itself protects nothing.
 
 **Infrastructure tasks are confirmed, never assumed.** A remote server task is prepared, not run: the confirmation shows the target server, the full task text and the instructions the model itself wrote into the remote prompt — the field an injection would use is exactly the one that must not be hidden. The privilege is verified again at execution, because rights granted when a request was phrased may no longer hold when it is approved.
 
@@ -1017,7 +1017,7 @@ Provenance is therefore a property of the **data**: the registry's 24 types are 
 
 | Technology | Role |
 |------------|------|
-| Prometheus | 565 custom metrics (RED pattern) |
+| Prometheus | 568 custom metrics (RED pattern) |
 | Grafana | 29 production-ready dashboards |
 | Loki | Aggregated structured JSON logs |
 | Tempo | Cross-service distributed traces (OTLP gRPC) |
@@ -1025,7 +1025,7 @@ Provenance is therefore a property of the **data**: the registry's 24 types are 
 | Alertmanager | 14-alert vital core delivered by email (linked runbooks, per-environment thresholds) + webhook to LIA: every alert becomes an in-product incident (ADR-247) |
 | structlog | Structured logging with PII filtering |
 
-**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 565 defined; the 44 that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. The price of not having had this: a heartbeat source failing open dropped the health signals on 46.5 % of ticks for a week, with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
+**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 568 defined; the 44 that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. The price of not having had this: a heartbeat source failing open dropped the health signals on 46.5 % of ticks for a week, with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
 
 ### 20.2. Embedded Debug Panel
 
@@ -1425,7 +1425,7 @@ One CSS rule governs the design system's spacing: vertical margins on an `inline
 
 ## 24. Architecture Decision Records (ADR)
 
-296 ADRs in MADR format document the major architectural decisions. Some representative examples:
+297 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1616,11 +1616,19 @@ Ask a language model how long a series of layovers adds up to, which names appea
 
 **The autonomous mode only, and enforced twice.** The tool's manifest declares `execution_modes={"react"}` and *every* reader of the catalogue applies the filter, so the deterministic planner never sees the tool at all: a planner that saw it would schedule a step execution then refuses, which is a dead end invented for the user. The tool then re-checks the mode from the typed runtime context at call time. One enforcement would have been a trap; two is a contract.
 
-**Everything enforced is published.** The manifest states the absence of network, of database and of any writable filesystem beyond `/tmp`, the exact library list, the size and time budgets — and says explicitly when *not* to reach for the tool. Without that last sentence a capable tool becomes a hammer; without the first, the model burns an iteration discovering a limit by hitting it.
+**Everything enforced is published.** The manifest states what a run may reach — nothing unless it declares its hosts —, the absence of database and of any writable filesystem beyond `/tmp`, the exact library list, the size and time budgets — and says explicitly when *not* to reach for the tool. Without that last sentence a capable tool becomes a hammer; without the first, the model burns an iteration discovering a limit by hitting it.
 
 **The data travels on stdin, and the budget lives in the graph state.** Copying the turn's rows into the source would pay for those tokens twice and truncate exactly the large cases that justify the feature. And the per-turn budget deliberately does not live in a context variable: a value set inside one asyncio task is invisible to a sibling task, and a graph executor is free to run each node in its own — the state is the only place a budget survives an iteration.
 
 **The output is untrusted, the code is auditable.** Anything a script prints is model-written code running over third-party data, so it is marked as untrusted content exactly like the body of an email. The code itself, with its stated purpose and its output, is visible to administrators in the debug panel: hiding it would buy no security — the model wrote it, it is already in the context — and would cost all of the verifiability.
+
+**The web through one door, and the door is the topology.** A script may reach the web — only a script that declares its hosts, and only through a dedicated egress proxy. A network run joins an internal Docker network whose single routed member is that proxy: a raw socket has nowhere to go, which is exactly the bypass an environment-variable proxy leaves open (`HTTPS_PROXY` is a suggestion; a network with one exit is a fact). The proxy terminates TLS under an authority it mints at start, allows only the hosts the API rendered for the runs currently alive, refuses private ranges, the server itself and cloud metadata at connection time, and bounds the body it forwards. Its state lives in tmpfs volumes written by its own entrypoint — an init container was tried and measured wrong, Docker releasing the tmpfs at its exit.
+
+**A key travels as a token, and the token is worth nothing outside its run.** Every host carries one of four statuses — derived from the person's own API-key connectors, allowed by the operator, granted by the person, or unknown. For a connector host the script reads `os.environ["LIA_KEY_<CONNECTOR>"]`, a per-run token the proxy swaps for the person's real key on that host alone: the key never enters the container, and OAuth tokens and the instance's own keys are never offered at all. The statuses are derived from the client classes — base URL, header, prefix — never typed into a second table, so the proxy's rule and the client's real call cannot disagree.
+
+**An unknown host is asked, with three answers, inside the loop.** The card names the hosts and the model's stated purpose with a count of the turn's data — never the data — and the person allows with the data, without it (stdin then carries nothing) or refuses; the answer is remembered as a grant under a published cap. Where the question is settled matters as much as what it asks: the node raises the interrupt itself, like a mutation tool's confirmation, and on resume re-invokes the same call under the answer, so the rest of the request goes on. Handing the card to the draft dispatch would have executed it as an action and answered from its result, dropping every later step — a permission is not an action.
+
+**The prompt was measured before it was trusted.** Told to put `LIA_KEY_X` in the header, a model sends the variable's name as the value; the line now spells the read. The libraries the prompt promises live in one table pinned directly and are imported inside the built image on every CI run, and the four roles — compute, diagnose, fill a gap, transform — are stated with the bounds the code enforces, read from settings rather than written in prose.
 
 ## 35. Measuring a colour before shipping it: the settings palette
 
@@ -1734,8 +1742,8 @@ The connection budget has a floor, not only a ceiling. Audit F004 bounded the bu
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 296 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~29,725 tests across 1,758 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 297 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~30,096 tests across 1,786 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 296 ADRs, and the changelog (v1.0 to v1.45.2). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 297 ADRs, and the changelog (v1.0 to v1.46.0). All metrics, versions, and patterns cited are verifiable in the codebase.*

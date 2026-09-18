@@ -186,3 +186,39 @@ def test_source_context_never_drops_tracked_code() -> None:
 
     # And the credentials directory stays out, whatever it contains.
     assert not any(path.startswith("apps/api/config/") for path in inventory)
+
+
+#: Relative bind-mount sources the HOST creates rather than the bundle ships:
+#: `prepare_host_paths` mkdir's the API config target on the target machine.
+_HOST_CREATED_MOUNTS = frozenset({"apps/api/config"})
+
+
+def _relative_bind_mounts(compose: str) -> set[str]:
+    """Every ``./path`` a shipped compose file bind-mounts, without the `./`."""
+    sources: set[str] = set()
+    for line in (REPO_ROOT / compose).read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if stripped.startswith("- ./"):
+            sources.add(stripped[len("- ./") :].split(":", 1)[0])
+    return sources
+
+
+def test_bundle_ships_every_bind_mount_of_the_compose_files_it_ships() -> None:
+    """A compose file the bundle ships mounts nothing the bundle leaves behind.
+
+    The skill-sandbox overlay bind-mounts `./infrastructure/sandbox-egress`
+    (the egress proxy's entrypoint, ADR-298) and the API waits for that proxy
+    to be healthy: a bundle without the directory starts a proxy with no
+    entrypoint, and the API never comes up. The same shape already bit the
+    runbooks (ADR-266) and the dependency catalogue (v1.30.1): a mount is a
+    runtime dependency of the installer, so the inventory is read off the
+    compose files rather than remembered.
+    """
+    files = set(iter_bundle_files(REPO_ROOT))
+    missing: list[str] = []
+    for compose in ("docker-compose.prod.yml", "docker-compose.skill-sandbox.yml"):
+        for source in sorted(_relative_bind_mounts(compose) - _HOST_CREATED_MOUNTS):
+            shipped = source in files or any(f.startswith(source + "/") for f in files)
+            if not shipped:
+                missing.append(f"{compose}: ./{source}")
+    assert missing == [], missing

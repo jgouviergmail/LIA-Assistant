@@ -60,6 +60,7 @@ import { JournalsSettings } from './JournalsSettings';
 import { LanguageSettings } from './LanguageSettings';
 import { LocationSettings } from './LocationSettings';
 import { MCPServersSettings } from './MCPServersSettings';
+import { SandboxEgressSettings } from './SandboxEgressSettings';
 import { MemorySettings } from './MemorySettings';
 import { MyShortcutsSettings } from './MyShortcutsSettings';
 import { NotificationSettings } from './NotificationSettings';
@@ -139,6 +140,10 @@ export const SETTINGS_SECTION_REGISTRY: Readonly<
     render: lng => <AdminMCPServersSettings lng={lng} />,
   },
   'mcp-servers': { feature: 'mcp-servers', render: lng => <MCPServersSettings lng={lng} /> },
+  'sandbox-egress': {
+    feature: 'sandbox-egress',
+    render: lng => <SandboxEgressSettings lng={lng} />,
+  },
   'debug-panel': { render: lng => <UserDebugSettings lng={lng} /> },
 
   // ---- Features / Identity & Memory

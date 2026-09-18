@@ -5756,9 +5756,43 @@ PYTHON_SANDBOX_AGENT_NAME: str = "python_sandbox_agent"
 # The tool's registered name — read by its manifest and by the ReAct prompt
 # assembler, which promises the tool only when it is bound for the turn.
 PYTHON_SANDBOX_TOOL_NAME: str = "run_python_tool"
-PYTHON_SANDBOX_MAX_RUNS_PER_TURN_DEFAULT: int = 3
+# ADR-298 raised the per-turn budget from 3 to 5: a network run is written,
+# corrected on its traceback and verified — one attempt, three repairs, one
+# check — and ADR-248's productivity rule still stops a loop that only fails.
+PYTHON_SANDBOX_MAX_RUNS_PER_TURN_DEFAULT: int = 5
 PYTHON_SANDBOX_RATE_LIMIT_CALLS_DEFAULT: int = 20
 PYTHON_SANDBOX_RATE_LIMIT_WINDOW_SECONDS_DEFAULT: int = 300
+
+# ADR-298 — controlled egress of a sandbox run through the iron-proxy sibling.
+# What the sandbox is told (URLs and paths) is declared once here and rendered
+# both into `docker run` and into the proxy's own ruleset, so the two cannot
+# name different places.
+PYTHON_SANDBOX_EGRESS_NETWORK: str = "lia-sandbox"
+PYTHON_SANDBOX_EGRESS_CA_VOLUME: str = "lia-egress-ca"
+PYTHON_SANDBOX_EGRESS_CA_DIR: str = "/etc/lia-egress/ca"
+PYTHON_SANDBOX_EGRESS_CA_FILE: str = "/etc/lia-egress/ca/ca.crt"
+PYTHON_SANDBOX_EGRESS_KEY_FILE: str = "/etc/lia-egress/key/ca.key"
+# The tmpfs volume shared by the API (rw) and the proxy, at the SAME path in
+# both containers, so a secret path the API writes is the path the proxy reads.
+PYTHON_SANDBOX_EGRESS_CONFIG_DIR: str = "/etc/lia-egress/config"
+PYTHON_SANDBOX_EGRESS_PROXY_URL_DEFAULT: str = "http://egress:3128"
+PYTHON_SANDBOX_EGRESS_MANAGEMENT_URL_DEFAULT: str = "http://egress:9093"
+PYTHON_SANDBOX_EGRESS_HEALTH_URL_DEFAULT: str = "http://egress:9094/healthz"
+PYTHON_SANDBOX_EGRESS_MANAGEMENT_API_KEY_ENV: str = "IRON_MANAGEMENT_API_KEY"
+PYTHON_SANDBOX_EGRESS_RELOAD_TIMEOUT_SECONDS_DEFAULT: int = 5
+PYTHON_SANDBOX_EGRESS_MAX_BODY_BYTES_DEFAULT: int = 1_048_576
+PYTHON_SANDBOX_NETWORK_TIMEOUT_SECONDS_DEFAULT: int = 60
+PYTHON_SANDBOX_MAX_HOSTS_PER_RUN_DEFAULT: int = 5
+PYTHON_SANDBOX_MAX_GRANTS_PER_USER_DEFAULT: int = 50
+# The grants listing (settings page): page bounds, published because enforced.
+PYTHON_SANDBOX_GRANTS_PAGE_MIN_LIMIT: int = 1
+PYTHON_SANDBOX_GRANTS_PAGE_MAX_LIMIT: int = 100
+PYTHON_SANDBOX_GRANTS_PAGE_DEFAULT_LIMIT: int = 50
+# The env name a script reads its per-run token from: LIA_KEY_<CONNECTOR>.
+PYTHON_SANDBOX_EGRESS_TOKEN_ENV_PREFIX: str = "LIA_KEY_"
+PYTHON_SANDBOX_EGRESS_TOKEN_PREFIX: str = "sbx_"
+# Live network runs, in Redis (one process cannot know the other workers' runs).
+REDIS_KEY_SANDBOX_EGRESS_PREFIX: str = "sandbox_egress:"
 REACT_AGENT_MAX_ITERATIONS_DEFAULT: int = 90
 REACT_AGENT_TIMEOUT_SECONDS_DEFAULT: int = 300
 # ADR-256: the DELEGATED half of a turn — a sub-agent loop, an iterative MCP

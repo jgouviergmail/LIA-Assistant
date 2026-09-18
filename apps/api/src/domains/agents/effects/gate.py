@@ -25,9 +25,13 @@ from src.domains.agents.effects.scope import EffectScope
 #: not happen at all at this point in the flow.
 #:
 #: - ``read`` changes nothing;
-#: - ``sandboxed`` runs in a throwaway container with no network and no host
-#:   filesystem (SEC-001), so there is no external effect to record — and a
-#:   ReAct loop calls it often enough that a row per run would be noise;
+#: - ``sandboxed`` runs in a throwaway container with no host filesystem
+#:   (SEC-001) and, by default, no network — so there is no external effect
+#:   to record, and a ReAct loop calls it often enough that a row per run
+#:   would be noise. A run that DOES reach the network (ADR-298) is the same
+#:   tool under the same policy, invisible to this gate: the tool itself
+#:   claims that act under ``python_sandbox_network``
+#:   (``effects/in_turn_effects.py``), before the container starts;
 #: - ``draft`` only BUILDS the confirmation the user will answer; the effect
 #:   happens later, in the draft executor, which has its own gate. It is
 #:   unconditional only where somebody can answer — see

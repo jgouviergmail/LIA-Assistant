@@ -87,6 +87,68 @@ describe('HitlActionCard — rendering by kind', () => {
     expect(screen.getByText('Sujet test')).toBeInTheDocument();
   });
 
+  it('egress draft: names the hosts, the purpose, the data counts and three answers', async () => {
+    const onAction = vi.fn();
+    render(
+      <HitlActionCard
+        hitl={cardState({
+          payload: payload({
+            kind: 'draft_critique',
+            draftId: 'd1',
+            draftType: 'sandbox_egress',
+            draftContent: {
+              hosts: ['api.search.brave.com', 'status.example.org'],
+              hosts_unknown: ['status.example.org'],
+              purpose: 'check whether the service answers',
+              data_summary: { counts: { email: 4, contact: 2 }, available: true, language: 'en' },
+            },
+            actions: [
+              { action: 'confirm', label: 'allow_with_data', style: 'primary' },
+              { action: 'confirm_without_data', label: 'allow_without_data', style: 'secondary' },
+              { action: 'cancel', label: 'refuse', style: 'destructive' },
+            ],
+          }),
+        })}
+        onAction={onAction}
+      />
+    );
+    expect(screen.getByText('status.example.org')).toBeInTheDocument();
+    expect(screen.getByText('api.search.brave.com')).toBeInTheDocument();
+    expect(screen.getByText('check whether the service answers')).toBeInTheDocument();
+    // Two kinds, one line: the mock renders `key:count`, joined in one definition.
+    expect(
+      screen.getByText('chat.hitl.egress.data_count:4, chat.hitl.egress.data_count:2')
+    ).toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole('button', { name: 'chat.hitl.actions.allow_without_data' })
+    );
+    expect(onAction).toHaveBeenCalledWith(
+      'confirm_without_data',
+      'chat.hitl.actions.allow_without_data'
+    );
+  });
+
+  it('egress draft: data that cannot travel is said so', () => {
+    render(
+      <HitlActionCard
+        hitl={cardState({
+          payload: payload({
+            kind: 'draft_critique',
+            draftId: 'd1',
+            draftType: 'sandbox_egress',
+            draftContent: {
+              hosts: ['status.example.org'],
+              hosts_unknown: ['status.example.org'],
+              data_summary: { counts: { email: 40 }, available: false, language: 'en' },
+            },
+          }),
+        })}
+        onAction={vi.fn()}
+      />
+    );
+    expect(screen.getByText('chat.hitl.egress.data_too_large')).toBeInTheDocument();
+  });
+
   it('destructive: warning banner with affected count and verbatim wire action', async () => {
     const onAction = vi.fn();
     render(

@@ -50,6 +50,8 @@ export interface AppConfig {
     workboard_enabled?: boolean;
     // Message bookmarks (ADR-282) — gates the bubble toggle and the « Bookmarks » tab.
     bookmarks_enabled?: boolean;
+    // Sandbox egress (ADR-298) — gates the « Sandbox network » settings section.
+    python_sandbox_egress_enabled?: boolean;
   };
   // Every capability of the registry with its EFFECTIVE state (deployment
   // ceiling AND operator switch), keyed like `capabilities.items.<key>`.

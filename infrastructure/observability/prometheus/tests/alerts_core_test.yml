@@ -900,3 +900,51 @@ tests:
         alertname: ApiWorkerMemoryHigh
         exp_alerts: []
 
+
+  # ===== SandboxEgressProxyDown: network runs enabled, proxy probe failing (ADR-298) =====
+  - interval: 1m
+    input_series:
+      - series: 'lia_python_sandbox_egress_enabled{pid="7"}'
+        values: '1x15'
+      - series: 'probe_success{job="blackbox-egress", instance="http://egress:9094/healthz"}'
+        values: '1x5 0x10'
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: SandboxEgressProxyDown
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              component: sandbox
+              tier: core
+            exp_annotations:
+              summary: "Sandbox egress proxy is down while network runs are enabled"
+              description: "This deployment offers network sandbox runs (ADR-298) but the egress proxy's /healthz has not answered for 5m. Every run that declares a host is refused (python_sandbox_egress_runs_total{outcome=\"proxy_unavailable\"}) and the model is told to answer with what it has: the capability is silently gone for every account. Check `docker compose ps egress` and its log (the CA is minted at start; a missing management.token means the config volume is not shared)."
+              runbook: "docs/runbooks/alerts/SandboxEgressProxyDown.md"
+
+  # ===== …the probe ABSENT (no overlay, no proxy) while the gauge says off — does NOT fire =====
+  - interval: 1m
+    input_series:
+      - series: 'lia_python_sandbox_egress_enabled{pid="7"}'
+        values: '0x15'
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: SandboxEgressProxyDown
+        exp_alerts: []
+
+  # ===== …the probe ABSENT while the gauge says ON — a proxy that never answered FIRES =====
+  - interval: 1m
+    input_series:
+      - series: 'lia_python_sandbox_egress_enabled{pid="7"}'
+        values: '1x15'
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: SandboxEgressProxyDown
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              component: sandbox
+              tier: core
+            exp_annotations:
+              summary: "Sandbox egress proxy is down while network runs are enabled"
+              description: "This deployment offers network sandbox runs (ADR-298) but the egress proxy's /healthz has not answered for 5m. Every run that declares a host is refused (python_sandbox_egress_runs_total{outcome=\"proxy_unavailable\"}) and the model is told to answer with what it has: the capability is silently gone for every account. Check `docker compose ps egress` and its log (the CA is minted at start; a missing management.token means the config volume is not shared)."
+              runbook: "docs/runbooks/alerts/SandboxEgressProxyDown.md"

@@ -264,6 +264,9 @@ When a long conversation is summarised to save room, provenance used to be lost 
 **✋ What LIA does not do:**
 It **never** rewrites your content. An email stays exactly what its author wrote; only a note is added beside it. Cleaning the text would give the illusion of a guarantee that the next bypass would deny — and would alter a message you may have wanted to read as-is.
 
+## Does a script written by LIA ever see my API keys or send my data somewhere?
+No key, and no data without your word. The script only ever sees a temporary token valid for that single run; a dedicated proxy swaps it for your real key on the host of that connector alone, so the key never enters the container the script runs in — and LIA's own account keys and your sign-in credentials are never offered to a script. A script that declares no host runs fully offline, with the data of the turn on its standard input; a script that wants a host you never allowed is stopped, and you choose: **with** the data, **without** it, or not at all — « without » means the script receives nothing of what LIA gathered. Every network run is claimed in your register before it starts, with the hosts it declared, and the script itself is visible to an administrator in the debug panel, nowhere else.
+
 ## What does LIA keep to explain its conclusions?
 A pointer and a timestamp — never your words. When LIA forms a conclusion (a
 memory, a journal entry, an interest), it records **which conversation and

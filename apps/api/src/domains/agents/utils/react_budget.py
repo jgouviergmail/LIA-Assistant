@@ -47,7 +47,7 @@ declaration does not name.
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING, TypedDict
+from typing import TYPE_CHECKING, Any, TypedDict
 
 if TYPE_CHECKING:
     from src.domains.agents.models import MessagesState
@@ -93,6 +93,7 @@ class ReactTurnReset(TypedDict):
     react_tool_seconds: float
     react_productive_iterations: int
     react_call_digests: dict[str, int]
+    react_scripts: list[dict[str, Any]]
 
 
 def react_turn_reset() -> ReactTurnReset:
@@ -123,6 +124,11 @@ def react_turn_reset() -> ReactTurnReset:
         react_productive_iterations=0,
         # ADR-170: the repetition brake forgets what the previous turn called.
         react_call_digests={},
+        # ADR-249: what the sandbox ran this turn, for the admin debug panel.
+        # Appended to per turn and read back from the checkpoint — the thread is
+        # the conversation, so without this line one turn's panel showed the
+        # scripts of every earlier turn (measured 2026-09-18).
+        react_scripts=[],
     )
 
 

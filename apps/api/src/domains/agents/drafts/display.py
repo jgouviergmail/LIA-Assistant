@@ -373,6 +373,24 @@ DRAFT_DISPLAY_REGISTRY: dict[DraftType, DraftDisplayConfig] = {
         noun_key="action",
         verb_past_key="executed",
     ),
+    # ADR-298: a sandbox script asks to reach hosts on the Internet. The card
+    # names the hosts nobody permitted yet, the purpose the model stated and
+    # what the run would carry — never the code (admin-only, ADR-249 §8).
+    DraftType.SANDBOX_EGRESS: DraftDisplayConfig(
+        emoji="🌐",  # 🌐
+        item_label_fields=("hosts_label",),
+        item_secondary_datetime_key=None,
+        detail_fields=(
+            DraftDisplayField("hosts_label", "🌐", "hosts_unknown"),
+            DraftDisplayField("purpose", "📝", "purpose"),
+            # Read from the execution DATA (the draft content never holds it):
+            # what the approved script printed, or its traceback.
+            DraftDisplayField("stdout", "📤", "stdout"),
+            DraftDisplayField("traceback", "⚠️", "traceback"),
+        ),
+        noun_key="script",
+        verb_past_key="executed",
+    ),
     # Peers (A3): sending a relayed message is the email-send class — the
     # draft IS the confirmation, `execute_peer_message_draft` enqueues only
     # once the user has approved.

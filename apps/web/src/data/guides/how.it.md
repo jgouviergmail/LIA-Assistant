@@ -6,7 +6,7 @@
 
 **Versione**: 5.0
 **Data**: 2026-09-18
-**Applicazione**: LIA v1.45.2
+**Applicazione**: LIA v1.46.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -69,8 +69,8 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Auto-hosting ARM64 | Docker multi-arch, embeddings semantici (multilingue), Playwright chromium cross-platform |
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
-| Trasparenza totale | 565 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 296 ADRs, ~29.725 test raccolti da pytest in 1.758 file, osservabilità nativa, HITL a 6 livelli |
+| Trasparenza totale | 568 metriche Prometheus, debug panel integrato, tracciamento token per token |
+| Affidabilità in produzione | 297 ADRs, ~30.096 test raccolti da pytest in 1.786 file, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -88,10 +88,10 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 
 | Metrica | Valore |
 |---------|--------|
-| Test | 29.725 raccolti da pytest su 1.758 file di test + 8.423 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
+| Test | 30.096 raccolti da pytest su 1.786 file di test + 8.504 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
 | Fixture pytest | 969, di cui 46 condivise tramite conftest |
 | Documenti di documentazione | 647 |
-| ADR (Architecture Decision Record) | 296 |
+| ADR (Architecture Decision Record) | 297 |
 | Metriche Prometheus | 553 definizioni |
 | Dashboard Grafana | 29 |
 | Lingue supportate (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -994,7 +994,7 @@ Design **fail-open**: i fallimenti dell'infrastruttura non bloccano gli utenti.
 
 Tre superfici eseguono qualcosa per conto dell'utente, e ciascuna è trattata come ostile per costruzione.
 
-**Gli script delle skill girano in un container usa e getta.** Nessun socket Docker, nessuna rete, un filesystem radice in sola lettura con un piccolo tmpfs scrivibile, un uid non privilegiato, tutte le capability rimosse e tetti su memoria, processi, CPU e dimensione dei file. Ciò che conta è quel che un processo figlio *eredita*: in produzione l'API appartiene al gruppo `docker`, e un gruppo si eredita — cambiare solo uid lascerebbe il socket raggiungibile. Il SORGENTE dello script viene passato come argomento anziché montato, perché l'API è essa stessa un container e un bind si risolverebbe contro l'host; questa scelta lascia inoltre stdin libero per il payload JSON su cui poggia il contratto. Senza un daemon raggiungibile l'esecuzione viene rifiutata anziché degradata — una sandbox che si disattiva da sola non protegge nulla.
+**Gli script delle skill girano in un container usa e getta.** Nessun socket Docker, nessuna rete (uno script che l'assistente scrive per un calcolo è l'unica eccezione, ed esce solo da un'unica porta — il proxy di uscita del §34), un filesystem radice in sola lettura con un piccolo tmpfs scrivibile, un uid non privilegiato, tutte le capability rimosse e tetti su memoria, processi, CPU e dimensione dei file. Ciò che conta è quel che un processo figlio *eredita*: in produzione l'API appartiene al gruppo `docker`, e un gruppo si eredita — cambiare solo uid lascerebbe il socket raggiungibile. Il SORGENTE dello script viene passato come argomento anziché montato, perché l'API è essa stessa un container e un bind si risolverebbe contro l'host; questa scelta lascia inoltre stdin libero per il payload JSON su cui poggia il contratto. Senza un daemon raggiungibile l'esecuzione viene rifiutata anziché degradata — una sandbox che si disattiva da sola non protegge nulla.
 
 **I compiti infrastrutturali si confermano, non si presumono.** Un compito su un server remoto viene preparato, non lanciato: la conferma mostra il server bersaglio, il testo integrale del compito e le istruzioni che il modello stesso ha scritto nel prompt remoto — il campo che un'iniezione userebbe è proprio quello che non va nascosto. Il privilegio viene verificato di nuovo all'esecuzione, perché diritti concessi quando una richiesta è stata formulata possono non valere più quando viene approvata.
 
@@ -1019,7 +1019,7 @@ La provenienza è dunque una proprietà del **dato**: i 24 tipi del registro son
 
 | Tecnologia | Ruolo |
 |------------|-------|
-| Prometheus | 565 metriche custom (RED pattern) |
+| Prometheus | 568 metriche custom (RED pattern) |
 | Grafana | 29 dashboard production-ready |
 | Loki | Log strutturati JSON aggregati |
 | Tempo | Trace distribuite cross-service (OTLP gRPC) |
@@ -1027,7 +1027,7 @@ La provenienza è dunque una proprietà del **dato**: i 24 tipi del registro son
 | Alertmanager | Nucleo di 14 alert vitali notificati via e-mail (runbook collegati, soglie per ambiente) + webhook verso LIA: ogni avviso diventa un incidente nel prodotto (ADR-247) |
 | structlog | Logging strutturato con filtraggio PII |
 
-**Una metrica che non raggiunge alcuna dashboard è una metrica su cui nessuno agisce.** La distanza fra ciò che il codice emette e ciò che un operatore può vedere è misurata, mai supposta: `scripts/audit/measure_metric_coverage.py` analizza ogni definizione di metrica (via AST e non con un'espressione regolare — una regex legge `ZoneInfo("UTC")` come una metrica `Info`) e confronta ogni nome con tutti i pannelli, le recording rule e le espressioni di alert. 565 definite; le 44 che non raggiungono nulla sono elencate esplicitamente in una baseline **che può solo restringersi**, così una metrica appena diventata cieca fa fallire la build e una metrica divenuta visibile deve lasciare l'elenco — altrimenti la prossima cieca ne occupa il posto in silenzio. Il prezzo di non averlo avuto: una sorgente di heartbeat caduta in modo aperto ha scartato i segnali di salute sul 46,5 % dei tick per una settimana, senza alcuna metrica che se ne accorgesse (ADR-148). Due trappole che la guardia chiude per costruzione — un contatore con label mai incrementato non espone **alcuna serie**, quindi un pannello che sorveglia un guasto raro ha bisogno di `or vector(0)`, altrimenti mostra «No data» dove l'operatore si aspetta uno zero verde; e la copertura è letta solo dalle **espressioni** di pannelli e regole, perché una metrica citata in un commento non è cablata.
+**Una metrica che non raggiunge alcuna dashboard è una metrica su cui nessuno agisce.** La distanza fra ciò che il codice emette e ciò che un operatore può vedere è misurata, mai supposta: `scripts/audit/measure_metric_coverage.py` analizza ogni definizione di metrica (via AST e non con un'espressione regolare — una regex legge `ZoneInfo("UTC")` come una metrica `Info`) e confronta ogni nome con tutti i pannelli, le recording rule e le espressioni di alert. 568 definite; le 44 che non raggiungono nulla sono elencate esplicitamente in una baseline **che può solo restringersi**, così una metrica appena diventata cieca fa fallire la build e una metrica divenuta visibile deve lasciare l'elenco — altrimenti la prossima cieca ne occupa il posto in silenzio. Il prezzo di non averlo avuto: una sorgente di heartbeat caduta in modo aperto ha scartato i segnali di salute sul 46,5 % dei tick per una settimana, senza alcuna metrica che se ne accorgesse (ADR-148). Due trappole che la guardia chiude per costruzione — un contatore con label mai incrementato non espone **alcuna serie**, quindi un pannello che sorveglia un guasto raro ha bisogno di `or vector(0)`, altrimenti mostra «No data» dove l'operatore si aspetta uno zero verde; e la copertura è letta solo dalle **espressioni** di pannelli e regole, perché una metrica citata in un commento non è cablata.
 
 ### 20.2. Debug Panel integrato
 
@@ -1433,7 +1433,7 @@ Una regola CSS governa le spaziature del design system: i margini verticali di u
 
 ## 24. Architettura delle decisioni (ADR)
 
-296 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
+297 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
 
 | ADR | Decisione | Problema risolto | Impatto misurato |
 |-----|-----------|-----------------|-----------------|
@@ -1591,11 +1591,19 @@ Chiedete a un modello linguistico quanto durano in totale una serie di scali, qu
 
 **Solo la modalità autonoma, e applicata due volte.** Il manifesto dello strumento dichiara `execution_modes={"react"}` e *ogni* lettore del catalogo applica il filtro, così il pianificatore deterministico non vede mai lo strumento: un pianificatore che lo vedesse programmerebbe un passo che l'esecuzione poi rifiuta, cioè un vicolo cieco inventato per l'utente. Lo strumento ricontrolla poi la modalità nel contesto di esecuzione tipizzato al momento della chiamata. Una sola applicazione sarebbe stata una trappola; due formano un contratto.
 
-**Tutto ciò che è imposto viene pubblicato.** Il manifesto annuncia l'assenza di rete, di database e di qualsiasi filesystem scrivibile fuori da `/tmp`, l'elenco esatto delle librerie, i budget di dimensione e di tempo — e dice esplicitamente quando *non* ricorrere allo strumento. Senza quest'ultima frase uno strumento capace diventa un martello; senza la prima, il modello brucia un'iterazione per scoprire un limite sbattendoci contro.
+**Tutto ciò che è imposto viene pubblicato.** Il manifesto annuncia ciò che un'esecuzione può raggiungere — nulla finché non dichiara i suoi host —, l'assenza di database e di qualsiasi filesystem scrivibile fuori da `/tmp`, l'elenco esatto delle librerie, i budget di dimensione e di tempo — e dice esplicitamente quando *non* ricorrere allo strumento. Senza quest'ultima frase uno strumento capace diventa un martello; senza la prima, il modello brucia un'iterazione per scoprire un limite sbattendoci contro.
 
 **I dati viaggiano su stdin e il budget vive nello stato del grafo.** Ricopiare le righe del turno nel sorgente pagherebbe quei token due volte e troncherebbe esattamente i casi grandi che giustificano la funzionalità. E il budget per turno non vive deliberatamente in una variabile di contesto: un valore impostato dentro un task asyncio è invisibile da un task fratello, e un esecutore di grafi è libero di lanciare ogni nodo nel proprio — lo stato è l'unico posto in cui un budget sopravvive a un'iterazione.
 
 **L'output non è affidabile, il codice è verificabile.** Ciò che uno script stampa è codice scritto da un modello che gira su dati di terzi: per questo è marcato come contenuto non affidabile, esattamente come il corpo di un'email. Il codice stesso, con il suo scopo dichiarato e il suo output, è visibile agli amministratori nel pannello di debug: nasconderlo non comprerebbe alcuna sicurezza — il modello l'ha scritto, è già nel suo contesto — e costerebbe tutta la verificabilità.
+
+**Il web da una sola porta, e la porta è la topologia.** Uno script può raggiungere il web — solo uno script che dichiara i suoi host, e solo attraverso un proxy di uscita dedicato. Un'esecuzione in rete entra in una rete Docker interna il cui unico membro instradato è quel proxy: un socket grezzo non ha dove andare, ed è esattamente l'aggiramento che un proxy per variabile d'ambiente lascia aperto (`HTTPS_PROXY` è un suggerimento; una rete con una sola uscita è un fatto). Il proxy termina il TLS sotto un'autorità che conia all'avvio, consente solo gli host che l'API ha reso per le esecuzioni vive, rifiuta alla connessione gli intervalli privati, il server stesso e i metadati del cloud, e limita il corpo che inoltra. Il suo stato vive in volumi tmpfs scritti dal suo stesso entrypoint — un contenitore di inizializzazione è stato provato e misurato sbagliato, perché Docker rilascia il tmpfs alla sua uscita.
+
+**Una chiave viaggia come token, e il token non vale nulla fuori dalla sua esecuzione.** Ogni host porta uno di quattro stati — derivato dai connettori con chiave API della persona, consentito dall'operatore, concesso dalla persona, o sconosciuto. Per l'host di un connettore lo script legge `os.environ["LIA_KEY_<CONNETTORE>"]`, un token proprio dell'esecuzione che il proxy scambia con la vera chiave della persona solo su quell'host: la chiave non entra mai nel contenitore, e né i token OAuth né le chiavi dell'istanza vengono mai offerti. Gli stati sono derivati dalle classi client — URL di base, header, prefisso — mai ribattuti in una seconda tabella, così che la regola del proxy e la vera chiamata del client non possano divergere.
+
+**Un host sconosciuto viene chiesto, con tre risposte, dentro il ciclo.** La scheda nomina gli host e lo scopo che il modello dichiara, con un conteggio dei dati del turno — mai i dati —, e la persona consente con i dati, senza (stdin allora non porta nulla) o rifiuta; la risposta è ricordata come un permesso sotto un tetto pubblicato. Dove la domanda viene risolta conta quanto ciò che chiede: il nodo solleva da sé l'interruzione, come la conferma di uno strumento di mutazione, e alla ripresa reinvoca la stessa chiamata sotto la risposta, così che il resto della richiesta prosegua. Affidare la scheda al dispatch delle bozze l'avrebbe eseguita come un'azione e avrebbe risposto dal suo risultato, lasciando cadere ogni passo successivo — un permesso non è un'azione.
+
+**Il prompt è stato misurato prima di essere creduto.** A chi viene detto di mettere `LIA_KEY_X` nell'header, un modello invia il nome della variabile come valore; la riga ora scrive per esteso la lettura. Le librerie che il prompt promette vivono in una sola tabella fissata direttamente e vengono importate dentro l'immagine costruita a ogni passaggio della CI, e i quattro ruoli — calcolare, diagnosticare, colmare una lacuna, trasformare — sono enunciati con i limiti che il codice impone, letti dalle impostazioni anziché scritti in prosa.
 
 ## 35. Misurare un colore prima di consegnarlo: la tavolozza delle impostazioni
 
@@ -1709,8 +1717,8 @@ Il budget di connessioni ha un pavimento, non solo un tetto. L'audit F004 limita
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 296 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~27.290 test in 1.601 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 297 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~30.096 test in 1.786 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 296 ADRs e del changelog (da v1.0 a v1.45.2). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 297 ADRs e del changelog (da v1.0 a v1.46.0). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

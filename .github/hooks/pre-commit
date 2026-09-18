@@ -329,7 +329,16 @@ if [ -n "$PYTHON_FILES" ]; then
                 RESOLVED_REFS="$RESOLVED_REFS $const"
             fi
         done
-        NEW_ENV_REFS=$(printf '%s\n' $QUOTED_REFS $RESOLVED_REFS | sed '/^$/d' | sort -u)
+        # A per-run TOKEN is not configuration either. ADR-298 mints one
+        # `LIA_KEY_<CONNECTOR>` token per network run of the sandbox
+        # (PYTHON_SANDBOX_EGRESS_TOKEN_ENV_PREFIX in core/constants.py): the
+        # API writes it into the CHILD container's environment and the proxy
+        # swaps it for the person's key. The reads the scan finds are the
+        # sandbox scripts the probe runs and the prompt line a test pins —
+        # never the API's own environment — and listing such a name in
+        # .env.example would invite a self-hoster to paste a real key where
+        # the design exists to keep it out.
+        NEW_ENV_REFS=$(printf '%s\n' $QUOTED_REFS $RESOLVED_REFS | sed '/^$/d' | grep -v '^LIA_KEY_' | sort -u)
 
         if [ -n "$NEW_ENV_REFS" ]; then
             MISSING_VARS=""

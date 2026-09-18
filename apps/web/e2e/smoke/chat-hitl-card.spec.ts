@@ -13,6 +13,7 @@
  *
  * No backend, LLM, or paid provider is contacted.
  */
+import type { Route } from '@playwright/test';
 import { test, expect, type MockRoute } from '../fixtures';
 
 const CONVERSATION = {
@@ -55,6 +56,34 @@ const PENDING_TOOL_CONFIRMATION = {
   ],
   interrupt_ts: '2026-07-18T10:00:00+00:00',
   generated_question: "Confirmer l'envoi de l'e-mail ?",
+};
+
+/** Pending egress question (ADR-298): a script asks to reach a host nobody
+ * permitted yet; the card offers THREE answers and names what would travel. */
+const PENDING_SANDBOX_EGRESS = {
+  message_id: 'hitl_e2e_egress_1',
+  action_requests: [
+    {
+      type: 'draft_critique',
+      draft_type: 'sandbox_egress',
+      draft_id: 'draft_e2e_egress',
+      draft_content: {
+        hosts: ['api.search.brave.com', 'status.example.org'],
+        hosts_unknown: ['status.example.org'],
+        purpose: 'vérifier si le service répond',
+        data_summary: { counts: { email: 4, contact: 2 }, available: true, language: 'fr' },
+      },
+      available_actions: [
+        { action: 'confirm', label: 'allow_with_data', style: 'primary' },
+        { action: 'confirm_without_data', label: 'allow_without_data', style: 'secondary' },
+        { action: 'cancel', label: 'refuse', style: 'destructive' },
+      ],
+      registry_ids: ['draft_e2e_egress'],
+    },
+  ],
+  draft_id: 'draft_e2e_egress',
+  interrupt_ts: '2026-09-18T10:00:00+00:00',
+  generated_question: 'Le script peut-il joindre status.example.org ?',
 };
 
 /** SSE body: a bare done chunk (resolves a submitted card). */
@@ -172,6 +201,55 @@ test.describe('chat HITL approval card', () => {
 
     // The via_text resolution is transient (badge visible while streaming,
     // component-tested); at done the card is cleared entirely.
+    await expect(card).toHaveCount(0);
+  });
+});
+
+const EGRESS_CARD = 'section[aria-label="Brouillon à valider"]';
+
+test.describe('chat HITL egress question (ADR-298)', () => {
+  test('names the hosts, the purpose, the data — and sends the second answer verbatim', async ({
+    page,
+    authenticate,
+    mockApi,
+  }) => {
+    await authenticate();
+    const decisions: Array<{ action?: string }> = [];
+    const routes = baseRoutes(PENDING_SANDBOX_EGRESS, sseDone).map(route =>
+      route.url === '**/api/v1/agents/chat/stream'
+        ? {
+            ...route,
+            handler: async (r: Route) => {
+              const body = (r.request().postDataJSON() ?? {}) as {
+                hitl_decision?: { action?: string };
+              };
+              decisions.push(body.hitl_decision ?? {});
+              await r.fulfill({
+                status: 200,
+                contentType: 'text/event-stream',
+                body: sseDone(),
+              });
+            },
+          }
+        : route
+    );
+    await mockApi(routes);
+
+    await page.goto('/fr/dashboard/chat');
+    const card = page.locator(EGRESS_CARD);
+    await expect(card).toBeVisible();
+    await expect(card.getByText('status.example.org')).toBeVisible();
+    await expect(card.getByText('api.search.brave.com')).toBeVisible();
+    await expect(card.getByText('vérifier si le service répond')).toBeVisible();
+    await expect(card.getByText(/4 E-mails/)).toBeVisible();
+    await expect(card.getByRole('button', { name: 'Autoriser avec les données' })).toBeEnabled();
+    await expect(card.getByRole('button', { name: 'Refuser' })).toBeEnabled();
+    // No « Modifier »: the egress question is not an editable draft.
+    await expect(card.getByRole('button', { name: 'Modifier' })).toHaveCount(0);
+
+    await card.getByRole('button', { name: 'Autoriser sans les données' }).click();
+    await expect.poll(() => decisions.length).toBe(1);
+    expect(decisions[0].action).toBe('confirm_without_data');
     await expect(card).toHaveCount(0);
   });
 });

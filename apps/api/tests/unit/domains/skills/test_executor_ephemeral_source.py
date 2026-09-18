@@ -23,7 +23,7 @@ import pytest
 
 from src.core.config import Settings, get_settings
 from src.core.constants import SKILLS_SCRIPT_SANDBOX_MAX_SOURCE_BYTES
-from src.domains.skills.executor import SkillScriptExecutor
+from src.domains.skills.executor import EgressSpec, SkillScriptExecutor
 
 pytestmark = [pytest.mark.unit]
 
@@ -156,3 +156,46 @@ class TestTheBoundsHold:
 
         assert result.success is False
         assert "NameError" in (result.error or "")
+
+
+class TestANetworkRun:
+    """ADR-298: an ``EgressSpec`` puts the run on the sandbox network under
+    its own, longer budget; without one the run is exactly what it was."""
+
+    async def test_the_spec_reaches_the_argv_and_the_budget_is_the_network_one(self) -> None:
+        spec = EgressSpec(
+            network="lia-sandbox",
+            proxy_url="http://egress:3128",
+            ca_volume="lia-egress-ca",
+            ca_dir="/etc/lia-egress/ca",
+            ca_file="/etc/lia-egress/ca/ca.crt",
+            tokens={"LIA_KEY_BRAVE_SEARCH": "sbx_x"},
+        )
+        with (
+            patch("src.core.config.get_settings", return_value=_settings()),
+            patch.object(
+                SkillScriptExecutor, "_run_sandbox_sync", return_value=_completed()
+            ) as spawn,
+        ):
+            result = await SkillScriptExecutor.execute_source(
+                source="pass", payload={}, label="ephemeral", timeout_seconds=60, egress=spec
+            )
+        assert result.success is True
+        argv = spawn.call_args.kwargs["cmd"]
+        assert argv[argv.index("--network") + 1] == "lia-sandbox"
+        assert "--env" in argv and "LIA_KEY_BRAVE_SEARCH=sbx_x" in argv
+        # The wall clock leaves the container its startup grace, as before.
+        assert spawn.call_args.kwargs["timeout"] > 60
+
+    async def test_without_a_spec_nothing_changes(self) -> None:
+        with (
+            patch("src.core.config.get_settings", return_value=_settings()),
+            patch.object(
+                SkillScriptExecutor, "_run_sandbox_sync", return_value=_completed()
+            ) as spawn,
+        ):
+            await SkillScriptExecutor.execute_source(source="pass", payload={}, label="ephemeral")
+        argv = spawn.call_args.kwargs["cmd"]
+        assert argv[argv.index("--network") + 1] == "none"
+        assert "-v" not in argv
+        assert not any(arg.startswith("HTTPS_PROXY=") for arg in argv)

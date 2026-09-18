@@ -35,12 +35,20 @@ DRAFT_TOOL_PREFIX = "draft:"
 GENERIC_LABEL_KEY = "effects.labels.generic"
 
 
+#: How many items of a list value a label names before counting the rest.
+LIST_ITEMS_SHOWN = 3
+
+
 def _text(value: Any, fallback: str = "?") -> str:
     """One readable, bounded value out of whatever the model sent."""
     if value is None or value == "":
         return fallback
     if isinstance(value, list | tuple):
-        value = ", ".join(str(item) for item in value[:3]) or fallback
+        # The first three, and how many the sentence leaves out: a run that
+        # reached five hosts must not read as one that reached three.
+        shown = ", ".join(str(item) for item in value[:LIST_ITEMS_SHOWN])
+        rest = len(value) - LIST_ITEMS_SHOWN
+        value = (f"{shown}, +{rest}" if rest > 0 else shown) or fallback
     text = " ".join(str(value).split())
     return text[:MAX_VALUE_CHARS] if len(text) > MAX_VALUE_CHARS else text
 
@@ -134,6 +142,8 @@ EFFECT_LABEL_BUILDERS: dict[str, LabelValuesBuilder] = {
     "edit_image": _target("prompt", "instruction", "image_id"),
     "generate_document": _target("title", "filename", "subject"),
     "run_python_tool": _nothing,
+    # ADR-298: a NETWORK sandbox run is a distinct act — it reached hosts.
+    "python_sandbox_network": _target("hosts"),
     "run_skill_script": _target("skill_name", "script", "name"),
     # --- confirmed drafts ---------------------------------------------------
     "draft:email": _draft("to", "recipient", key="recipient"),

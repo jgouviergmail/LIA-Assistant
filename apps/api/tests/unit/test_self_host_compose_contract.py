@@ -4,7 +4,9 @@ What must hold:
 - app images are parameterized (`LIA_API_IMAGE`/`LIA_WEB_IMAGE`) with the
   historical local defaults, and the skills sandbox image derives from the
   SAME variable — substituting a prebuilt API image can never leave the
-  sandbox on a different image;
+  sandbox on a different image; the DEV compose holds the same rule against
+  its own explicit tag (it pointed at the prod tag for six weeks after the
+  dev image was renamed, and every sandbox run failed as "unavailable");
 - exactly the 5 core services carry no profile; exactly the 12
   observability/management services carry only ["observability"];
 - the BASE api service holds no Docker socket, no group_add, and no
@@ -12,7 +14,11 @@ What must hold:
 - the skill-sandbox overlay adds socket + group_add + scripts ON;
 - the devops overlay adds only the two maintainer Claude mounts;
 - the Bash deploy helper lets Compose parse its native colon-separated
-  COMPOSE_FILE (never wraps the value in one -f).
+  COMPOSE_FILE (never wraps the value in one -f);
+- the sandbox egress proxy (ADR-298) is the ONLY routed member of the
+  ``lia-sandbox`` internal network, pinned by digest, identical in the dev
+  compose and the skill-sandbox overlay, and the CA private key never reaches
+  the API read-write nor the sandbox at all.
 """
 
 from __future__ import annotations
@@ -55,6 +61,14 @@ def test_app_images_are_parameterized_with_local_defaults() -> None:
     env = services["api"]["environment"]
     assert "SKILLS_SCRIPT_SANDBOX_IMAGE=${LIA_API_IMAGE:-lia-api:local}" in env
     assert "SKILLS_SCRIPTS_ENABLED=${SKILLS_SCRIPTS_ENABLED:-false}" in env
+
+
+def test_dev_sandbox_runs_on_the_dev_api_image() -> None:
+    """The dev sandbox image is the dev API service's own tag, never inferred."""
+    api = _load("docker-compose.dev.yml")["services"]["api"]
+    image = api["image"]
+    assert image == "lia-api-dev:latest"
+    assert f"SKILLS_SCRIPT_SANDBOX_IMAGE={image}" in api["environment"]
 
 
 def test_profile_split_is_exact() -> None:
@@ -109,3 +123,102 @@ def test_maintainer_default_compose_chain_preserves_behavior() -> None:
     assert (
         "docker-compose.prod.yml:docker-compose.skill-sandbox.yml:docker-compose.devops.yml" in body
     ), "the maintainer deploy keeps socket skills and Claude mounts via overlays"
+
+
+# ---- Sandbox egress proxy (ADR-298) -----------------------------------------
+
+EGRESS_COMPOSE_FILES = ("docker-compose.dev.yml", "docker-compose.skill-sandbox.yml")
+SANDBOX_NETWORK = "lia-sandbox"
+EGRESS_VOLUMES = ("lia-egress-ca", "lia-egress-key", "lia-egress-config")
+
+
+def _mounts(service: dict) -> dict[str, str]:
+    """``{volume: mode}`` for a service's named-volume mounts (mode "rw" when unstated)."""
+    out: dict[str, str] = {}
+    for entry in service.get("volumes", []):
+        parts = entry.split(":")
+        if len(parts) >= 2 and not parts[0].startswith((".", "/", "~", "$")):
+            out[parts[0]] = parts[2] if len(parts) == 3 else "rw"
+    return out
+
+
+@pytest.mark.parametrize("compose", EGRESS_COMPOSE_FILES)
+def test_egress_proxy_is_the_only_routed_member_of_the_sandbox_network(compose: str) -> None:
+    doc = _load(compose)
+    services = doc["services"]
+    network = doc["networks"][SANDBOX_NETWORK]
+    # `name:` is explicit: the API launches sandboxes with a raw `docker run
+    # --network`, which cannot see a Compose-prefixed network.
+    assert network["internal"] is True and network["name"] == SANDBOX_NETWORK
+    on_sandbox = {
+        name for name, svc in services.items() if SANDBOX_NETWORK in svc.get("networks", [])
+    }
+    assert on_sandbox == {"egress"}, on_sandbox
+    assert set(services["egress"]["networks"]) == {SANDBOX_NETWORK, "lia-network"}
+
+
+@pytest.mark.parametrize("compose", EGRESS_COMPOSE_FILES)
+def test_egress_proxy_is_hardened_and_owns_its_state(compose: str) -> None:
+    """The proxy generates its CA, token and bootstrap ruleset ITSELF, as its
+    own uid, in its entrypoint. A separate init container was measured wrong
+    (2026-09-18): it wrote into the tmpfs volume, exited, and Docker released
+    the tmpfs before the proxy mounted it — the proxy started on nothing."""
+    services = _load(compose)["services"]
+    assert "egress-init" not in services
+    egress = services["egress"]
+    assert egress["cap_drop"] == ["ALL"]
+    assert "no-new-privileges:true" in egress["security_opt"]
+    assert egress["read_only"] is True
+    assert "user" in egress
+    assert egress["entrypoint"] == ["/bin/sh", "/opt/lia-egress/entrypoint.sh"]
+    mounts = _mounts(egress)
+    assert mounts == dict.fromkeys(EGRESS_VOLUMES, "rw"), mounts
+    assert "./infrastructure/sandbox-egress:/opt/lia-egress:ro" in egress["volumes"]
+
+
+def test_egress_image_is_pinned_by_digest_and_identical_everywhere() -> None:
+    images = {
+        compose: _load(compose)["services"]["egress"]["image"] for compose in EGRESS_COMPOSE_FILES
+    }
+    assert len(set(images.values())) == 1, images
+    image = next(iter(images.values()))
+    assert re.fullmatch(r"ironsh/iron-proxy:\d+\.\d+\.\d+@sha256:[0-9a-f]{64}", image), image
+
+
+@pytest.mark.parametrize("compose", EGRESS_COMPOSE_FILES)
+def test_egress_volumes_are_named_and_never_touch_the_disk(compose: str) -> None:
+    """Three tmpfs volumes: the CA key, the ruleset and the per-run secrets live
+    in memory only and vanish with the stack — a CA is minted at every boot."""
+    volumes = _load(compose)["volumes"]
+    for name in EGRESS_VOLUMES:
+        assert volumes[name]["name"] == name, name
+        assert volumes[name]["driver_opts"]["type"] == "tmpfs", name
+
+
+@pytest.mark.parametrize("compose", EGRESS_COMPOSE_FILES)
+def test_api_writes_the_ruleset_and_never_holds_the_ca_key(compose: str) -> None:
+    api = _load(compose)["services"]["api"]
+    mounts = _mounts(api)
+    assert mounts.get("lia-egress-config") == "rw"
+    # The management token lives in the (tmpfs) config volume, so the API never
+    # mounts the volume holding the CA private key — not even read-only.
+    assert "lia-egress-key" not in mounts
+    assert "lia-egress-ca" not in mounts
+    assert SANDBOX_NETWORK not in api.get("networks", [])
+    assert "PYTHON_SANDBOX_EGRESS_ENABLED=true" in api["environment"]
+
+
+def test_prometheus_probes_the_egress_proxy_health() -> None:
+    """iron-proxy 0.49 exposes no Prometheus series (measured: /metrics is 404,
+    /healthz answers OK), so liveness goes through the blackbox exporter like
+    the backup sidecar's."""
+    prom = yaml.safe_load(
+        (ROOT / "infrastructure/observability/prometheus/prometheus.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    jobs = {job["job_name"]: job for job in prom["scrape_configs"]}
+    job = jobs["blackbox-egress"]
+    assert job["metrics_path"] == "/probe"
+    assert job["static_configs"][0]["targets"] == ["http://egress:9094/healthz"]
+    assert any(r.get("replacement") == "blackbox-exporter:9115" for r in job["relabel_configs"])

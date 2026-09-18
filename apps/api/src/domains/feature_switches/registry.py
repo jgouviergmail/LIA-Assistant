@@ -89,6 +89,7 @@ class PlatformCapability(str, Enum):
     RELATION_DEBRIEF = "relation_debrief"
     SUB_AGENTS = "sub_agents"
     PYTHON_SANDBOX = "python_sandbox"
+    PYTHON_SANDBOX_EGRESS = "python_sandbox_egress"
     MOMENTS = "moments"
     # ADR-282 — an answer a person keeps out of their conversations.
     BOOKMARKS = "bookmarks"
@@ -379,6 +380,17 @@ CAPABILITY_SPECS: dict[PlatformCapability, CapabilitySpec] = {
         family="reach",
         env_flag="python_sandbox_tool_enabled",
         setting_key=SystemSettingKey.CAPABILITY_PYTHON_SANDBOX_ENABLED,
+        service_enforced=True,
+    ),
+    # ADR-298 — a sandbox run reaching the Internet through the egress proxy.
+    # Distinct from the sandbox itself: an operator may want the calculator
+    # without the exit. Owns no tool of its own (the tool is the sandbox's);
+    # the tool refuses a run that declares hosts when this is off.
+    PlatformCapability.PYTHON_SANDBOX_EGRESS: CapabilitySpec(
+        capability=PlatformCapability.PYTHON_SANDBOX_EGRESS,
+        family="reach",
+        env_flag="python_sandbox_egress_enabled",
+        setting_key=SystemSettingKey.CAPABILITY_PYTHON_SANDBOX_EGRESS_ENABLED,
         service_enforced=True,
     ),
 }

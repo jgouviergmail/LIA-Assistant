@@ -122,7 +122,13 @@ class TestParityWithThePipeline:
             "the pipeline bounds every tool family and ReAct bounded none; "
             "a second copy of the policy would drift from the first"
         )
-        assert "wait_for" in source, "the computed bound must actually be applied"
+        # The bound travels to the ONE door every call goes through
+        # (`invoke_with_settlement`, ADR-298), which applies it to each
+        # invocation — the first and, after an egress answer, the second.
+        assert "timeout=tool_timeout" in source, "the computed bound must actually be applied"
+        from src.domains.agents.nodes import react_egress_question
+
+        assert "wait_for" in inspect.getsource(react_egress_question.invoke_with_settlement)
 
     def test_react_charges_the_time_it_spends_in_tools(self) -> None:
         source = inspect.getsource(react_nodes.react_execute_tools_node)

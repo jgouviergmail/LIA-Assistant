@@ -34,6 +34,8 @@ export interface HitlActionOption {
  *
  * P1-V2 adds `modification_instructions`, required by the backend when
  * `action` is 'edit' on a draft card (routes the live draft_modifier loop).
+ * ADR-298 adds `confirm_without_data` on a `sandbox_egress` card: the run is
+ * allowed but the turn's data stays out of the script's stdin.
  */
 export interface HitlDecisionWire {
   message_id: string;

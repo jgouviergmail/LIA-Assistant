@@ -168,6 +168,24 @@ numpy>=2.0  # Vector maths: semantic tool selection, embeddings, STT — importe
 pandas>=2.2  # ADR-249: the ephemeral-script sandbox runs on this image, and data combination is what models write pandas for (numpy/dateutil/pytz already present)
 striprtf>=0.0.26  # RTF text extraction for RAG Spaces (pure Python)
 
+# Sandbox contract (ADR-298): every library `<Computation>` promises is pinned
+# DIRECTLY — the sandbox runs on this image and a promise that rides a
+# transitive dependency dies on somebody else's upgrade. The table is
+# `python_sandbox/libraries.py`; `test_libraries.py` refuses a promise that is
+# not pinned here, and `task sandbox:libraries:check` imports each one in the
+# built image. Floors are the versions the lockfile already carried.
+requests>=2.34.2  # was transitive (google-*, langsmith); promised to the sandbox
+beautifulsoup4>=4.14.3  # was transitive (markdownify); promised to the sandbox as `bs4`
+lxml>=6.1.1  # was transitive; promised to the sandbox
+tabulate>=0.10.0  # was transitive (edge-tts); promised to the sandbox
+icalendar>=7.2.0  # was transitive (caldav); promised to the sandbox
+chardet>=7.1.0  # was transitive; promised to the sandbox
+xmltodict>=0.14.2  # pure Python — XML payloads of third-party APIs, promised to the sandbox
+feedparser>=6.0.11  # pure Python — RSS/Atom feeds, promised to the sandbox
+phonenumbers>=9.0.0  # pure Python — phone number normalisation, promised to the sandbox
+pycountry>=24.6.1  # pure Python — country/currency/language codes, promised to the sandbox
+unidecode>=1.3.8  # pure Python — accent stripping for matching, promised to the sandbox
+
 # Skills — used by bundled system skills (scripts/)
 segno>=1.6.6  # Pure-Python QR code generator (no C deps, tiny) — qr-code skill. >=1.6.6: security floor
 odfpy>=1.4.1  # ODF (ODT/ODS/ODP) text extraction for RAG Spaces

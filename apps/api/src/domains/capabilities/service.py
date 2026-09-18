@@ -305,6 +305,11 @@ CAPABILITIES_OFF_THE_MAP: dict[PlatformCapability, str] = {
         "Ambient, and deliberately admin-only: the code a model wrote is shown "
         "in the debug panel and nowhere else (ADR-249). Nothing to set up."
     ),
+    PlatformCapability.PYTHON_SANDBOX_EGRESS: (
+        "Ambient like the sandbox it extends (ADR-298): the person's grants "
+        "have a settings section of their own, but a star counting them would "
+        "count decisions taken on cards, not a thing the person set up."
+    ),
     PlatformCapability.MOMENTS: (
         "A facet of proactivity, not a thing of its own: a moment is served by "
         "the heartbeat, under its window, its quota and its cooldowns, and it "

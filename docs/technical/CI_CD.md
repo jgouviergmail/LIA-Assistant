@@ -379,6 +379,19 @@ Build smoke test (pas de push) avec cache GitHub Actions :
 | API | `./apps/api` | `Dockerfile.prod` |
 | Web | `.` (root) | `apps/web/Dockerfile.prod` |
 
+L'image API est en plus **chargee** sous le tag `lia-api:local` (le tag par
+defaut de la compose) pour que l'etape suivante puisse la DEMARRER :
+
+| Step | Commande |
+|------|----------|
+| Sandbox libraries import in the built image | `task sandbox:libraries:check` |
+
+Chaque bibliotheque que le bloc `<Computation>` promet au modele
+(`python_sandbox/libraries.py`, ADR-298) est importee dans l'image construite,
+hors ligne (`docker run --network none`, l'assise meme du bac a sable). Le test
+unitaire le prouve sur le lockfile ; une etape amincie ou une bibliotheque
+systeme manquante n'est visible qu'ici.
+
 #### Secret Scan
 
 [Gitleaks](https://github.com/gitleaks/gitleaks) sur l'historique complet (`fetch-depth: 0`).
