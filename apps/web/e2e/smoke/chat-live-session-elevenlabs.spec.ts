@@ -315,7 +315,11 @@ test.describe('chat live session on ElevenLabs', () => {
     await banner.getByRole('button', { name: 'Terminer la session live' }).click();
     await expect(banner).toHaveCount(0);
     await expect.poll(() => endBodies.length).toBe(1);
-    expect(endBodies[0]).toEqual({ outcome: 'ended', detail: null });
+    expect(endBodies[0]).toEqual({
+      outcome: 'ended',
+      detail: null,
+      provider_conversation_id: 'conv_e2e',
+    });
     const card = page.getByTestId('live-session-summary');
     await expect(card).toBeVisible();
     await expect(card).toContainText('terminée par toi');

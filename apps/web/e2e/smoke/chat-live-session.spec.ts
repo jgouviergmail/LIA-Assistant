@@ -360,7 +360,11 @@ test.describe('chat live session', () => {
     await banner.getByRole('button', { name: 'Terminer la session live' }).click();
     await expect(banner).toHaveCount(0);
     await expect.poll(() => endBodies.length).toBe(1);
-    expect(endBodies[0]).toEqual({ outcome: 'ended', detail: null });
+    expect(endBodies[0]).toEqual({
+      outcome: 'ended',
+      detail: null,
+      provider_conversation_id: null,
+    });
     const card = page.getByTestId('live-session-summary');
     await expect(card).toBeVisible();
     await expect(card).toContainText('terminée par toi');
@@ -451,7 +455,11 @@ test.describe('chat live session', () => {
     await banner.getByRole('button', { name: 'Terminer la session live' }).click();
     await expect(banner).toHaveCount(0);
     await expect.poll(() => endBodies.length).toBe(1);
-    expect(endBodies[0]).toEqual({ outcome: 'ended', detail: null });
+    expect(endBodies[0]).toEqual({
+      outcome: 'ended',
+      detail: null,
+      provider_conversation_id: null,
+    });
     // The card says what became of the words (ADR-301): relayed to the chat
     // as the person's own turn — the fate the end answered.
     const card = page.getByTestId('live-session-summary');
