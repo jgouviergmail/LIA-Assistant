@@ -13,6 +13,7 @@ from src.core.constants import (
 )
 from src.domains.shared.phone_domains import PHONE_DOMAINS
 from src.domains.telephony.models import CallKind, PhoneCallOutcome, PhoneCallStatus
+from src.domains.voice_sessions.session import VoiceSessionMode
 
 
 class StructuredCallData(BaseModel):
@@ -242,7 +243,11 @@ class TelephonyCallUsage(BaseModel):
     tokens_in: int = Field(..., description="Prompt tokens, cached ones excluded.")
     tokens_out: int = Field(..., description="Completion tokens.")
     tokens_cache: int = Field(..., description="Cached prompt tokens.")
-    cost_eur: float = Field(..., description="Model cost in euros.")
+    cost_eur: float = Field(
+        ...,
+        description="Every euro the platform paid for the call: model, Maps Platform "
+        "lookups and generated images (the summary row's billed total).",
+    )
     google_api_requests: int = Field(..., description="Maps/Places requests made for the call.")
 
 
@@ -259,6 +264,13 @@ class TelephonyCallSummary(BaseModel):
     callee_display: str = Field(..., description="Human-readable callee name.")
     objective: str = Field(..., description="What LIA was asked to accomplish.")
     status: PhoneCallStatus = Field(..., description="Terminal or in-flight call status.")
+    call_mode: VoiceSessionMode = Field(
+        default="direct",
+        description=(
+            "The mode an owner call ran under (ADR-301): delegated (Live) or direct; a "
+            "third-party call is direct."
+        ),
+    )
     outcome: PhoneCallOutcome | None = Field(
         default=None, description="Semantic outcome, if completed."
     )
@@ -309,6 +321,12 @@ class TelephonyCallSummary(BaseModel):
         the baked mandate, which is what every row before lot 2 was."""
         return CallKind.THIRD_PARTY if value is None else value
 
+    @field_validator("call_mode", mode="before")
+    @classmethod
+    def _mode_defaults_to_direct(cls, value: object) -> object:
+        """Same reading for the mode (ADR-301): unflushed, a row ran direct."""
+        return "direct" if value is None else value
+
     @model_validator(mode="before")
     @classmethod
     def _relay_outcome_from_payload(cls, value: object) -> object:
@@ -348,6 +366,25 @@ class TelephonyIdentityResponse(BaseModel):
     verification_pending: bool = Field(
         default=False,
         description="Whether a spoken verification code is still waiting to be typed.",
+    )
+    call_mode: VoiceSessionMode = Field(
+        default="delegated",
+        description=(
+            "How the person chose their own calls to run (ADR-301): delegated (Live) "
+            "or direct (Live direct)."
+        ),
+    )
+    call_mode_effective: VoiceSessionMode = Field(
+        default="delegated",
+        description="What a call placed now runs: the choice, or direct when Live is unavailable.",
+    )
+    live_available: bool = Field(
+        default=True,
+        description="Whether this instance can run a Live call (the vendor can call it back).",
+    )
+    live_unavailable_reason: str | None = Field(
+        default=None,
+        description="Why Live is unavailable, as a stable code the page translates; None when it is.",
     )
 
 
@@ -392,9 +429,19 @@ class TelephonyIdentityUpdateRequest(BaseModel):
         max_length=len(PHONE_DOMAINS),
         description="The phone domains to switch off for the person's own calls (lot 8).",
     )
+    call_mode: VoiceSessionMode | None = Field(
+        default=None,
+        description="How the person's own calls run (ADR-301): delegated (Live) or direct.",
+    )
 
     @model_validator(mode="after")
     def _at_least_one_switch(self) -> TelephonyIdentityUpdateRequest:
-        if self.rich_context_enabled is None and self.disabled_domains is None:
-            raise ValueError("Nothing to update: give rich_context_enabled or disabled_domains.")
+        if (
+            self.rich_context_enabled is None
+            and self.disabled_domains is None
+            and self.call_mode is None
+        ):
+            raise ValueError(
+                "Nothing to update: give rich_context_enabled, disabled_domains or call_mode."
+            )
         return self

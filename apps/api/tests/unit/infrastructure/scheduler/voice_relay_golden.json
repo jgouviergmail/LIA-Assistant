@@ -1,0 +1,8 @@
+{
+  "system": "SYSTEM<telephony_self_call_relay_prompt>",
+  "human": "LANGUAGE: French (fr). Write EVERY field ENTIRELY in French.\nCURRENT DATETIME: 2026-09-20 10:00 (Europe/Paris)\nSESSION: a phone call LIA placed to the account holder on their verified number.\nOBJECTIVE: a catch-up on the week\nOWNER FLAGS:\n- owner_confirmed (collected): True\n- requests (collected): a reminder to call the bank; a message to Anna\nVENDOR SUMMARY: The person asked for a reminder and a message.\nTRANSCRIPT:\nagent: Hello, am I speaking with Alex?\nuser: Yes. Remind me to call the bank tomorrow.\nagent: Noted. Anything else?\nuser: Send Anna a message that I am running late.",
+  "node_name": "telephony_synthesis",
+  "schema": "SelfCallRelay",
+  "provider": "openai",
+  "user_id": "00000000-0000-0000-0000-00000000abcd"
+}

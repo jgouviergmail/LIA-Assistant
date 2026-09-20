@@ -94,6 +94,7 @@ INSERT INTO llm_models (
     ('openai', 'gpt-realtime', 8192, 4096, true, true, false, true, false, false, true, true, true, true, 'realtime', NULL, NULL, true),
     ('openai', 'gpt-realtime-1.5', 8192, 4096, true, true, false, true, false, false, true, true, true, true, 'realtime', NULL, NULL, true),
     ('openai', 'gpt-realtime-mini', 8192, 4096, true, true, false, true, false, false, true, true, true, true, 'realtime', NULL, NULL, true),
+    ('openai', 'gpt-live-1', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'realtime', NULL, NULL, true),
     ('openai', 'o1', 200000, 100000, true, true, true, true, true, true, false, false, false, false, 'chat', '["low", "medium", "high"]'::jsonb, 'openai_o_series', true),
     ('openai', 'o1-mini', 128000, 65536, true, true, true, true, true, false, false, false, false, false, 'chat', NULL, NULL, true),
     ('openai', 'o1-pro', 8192, 4096, true, true, false, true, false, true, false, false, false, false, 'chat', '["low", "medium", "high"]'::jsonb, 'openai_o_series', true),
@@ -147,13 +148,22 @@ INSERT INTO llm_models (
     ('gemini', 'gemini-2.5-flash-image-preview', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'image', NULL, NULL, false),
     ('gemini', 'gemini-2.5-flash-lite', 1000000, 65536, true, true, false, true, true, true, true, true, false, false, 'chat', NULL, 'gemini_2_5_lite', true),
     ('gemini', 'gemini-2.5-flash-lite-preview-09-2025', 8192, 4096, true, true, false, true, false, false, true, true, false, false, 'chat', NULL, NULL, true),
-    ('gemini', 'gemini-2.5-flash-native-audio-preview-09-2025', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'audio', NULL, NULL, true),
+    -- The live (speech-to-speech) models, ADR-300 wave 3: kind `realtime`, required
+    -- by no slot, so a live model is never offered to a chat or STT slot. The
+    -- native-audio name used to carry `audio`, which offered a bidi model to the
+    -- voice_transcription slot. Token limits are the catalogue's defaults.
+    ('gemini', 'gemini-2.5-flash-native-audio-latest', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'realtime', NULL, NULL, true),
+    ('gemini', 'gemini-2.5-flash-native-audio-preview-09-2025', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'realtime', NULL, NULL, true),
+    ('gemini', 'gemini-2.5-flash-native-audio-preview-12-2025', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'realtime', NULL, NULL, true),
     ('gemini', 'gemini-2.5-flash-preview-09-2025', 8192, 4096, true, true, false, true, false, false, true, true, false, false, 'chat', NULL, NULL, true),
     ('gemini', 'gemini-2.5-flash-preview-tts', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'tts', NULL, NULL, true),
     ('gemini', 'gemini-2.5-pro', 1000000, 65536, true, true, false, true, true, true, true, true, false, false, 'chat', NULL, 'gemini_2_5_pro', true),
     ('gemini', 'gemini-2.5-pro-preview-tts', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'tts', NULL, NULL, true),
     ('gemini', 'gemini-3.1-flash-lite-preview', 8192, 4096, true, true, false, true, false, true, true, true, false, false, 'chat', '["minimal", "low", "medium", "high"]'::jsonb, 'gemini_3_x_flash', true),
+    ('gemini', 'gemini-3.1-flash-live-preview', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'realtime', NULL, NULL, true),
     ('gemini', 'gemini-3.1-pro-preview', 1000000, 65536, true, true, false, true, true, true, true, true, false, false, 'chat', '["low", "medium", "high"]'::jsonb, 'gemini_3_x_pro', true),
+    ('gemini', 'gemini-3.8-live', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'realtime', NULL, NULL, true),
+    ('gemini', 'gemini-3.8-live-extended-thinking', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'realtime', NULL, NULL, true),
     ('gemini', 'gemini-3.5-flash', 1048576, 65536, true, true, false, true, true, true, true, true, true, true, 'chat', '["minimal", "low", "medium", "high"]'::jsonb, NULL, true),
     ('gemini', 'gemini-3.5-flash-lite', 1000000, 65536, true, true, false, true, true, true, true, true, true, true, 'chat', NULL, NULL, true),
     ('gemini', 'gemini-3.6-flash', 1000000, 64000, true, true, false, true, true, true, true, true, true, true, 'chat', '["minimal", "low", "medium", "high"]'::jsonb, NULL, true),
@@ -168,6 +178,8 @@ INSERT INTO llm_models (
     ('qwen', 'qwen3.7-plus', 991000, 128000, true, true, false, true, true, true, true, true, false, true, 'chat', NULL, 'qwen3_7', true),
     ('qwen', 'qwen3.8-max', 1000000, 128000, true, true, false, true, true, true, true, true, false, true, 'chat', NULL, 'qwen3.8_max', true),
     ('qwen', 'qwen3-max', 262144, 65536, false, true, false, true, false, true, true, true, false, true, 'chat', NULL, 'qwen3_max', true),
+    ('elevenlabs', 'elevenlabs-agents', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'realtime', NULL, NULL, false),
+    ('elevenlabs', 'eleven_v3_conversational', 5000, 1, false, false, false, true, false, false, false, false, false, false, 'tts', NULL, NULL, true),
     ('elevenlabs', 'eleven_flash_v2_5', 40000, 1, false, false, false, true, false, false, false, false, false, false, 'tts', NULL, NULL, true),
     ('elevenlabs', 'eleven_multilingual_v2', 5000, 1, false, false, false, true, false, false, false, false, false, false, 'tts', NULL, NULL, true),
     ('elevenlabs', 'eleven_turbo_v2_5', 40000, 1, false, false, false, true, false, false, false, false, false, false, 'tts', NULL, NULL, true),
@@ -228,13 +240,19 @@ INSERT INTO _lia_pricing_bundle VALUES
     ('gemini-2.5-flash-image-preview', 0.300000, 0.030000, 2.500000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', false),
     ('gemini-2.5-flash-lite', 0.100000, 0.010000, 0.400000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
     ('gemini-2.5-flash-lite-preview-09-2025', 0.100000, 0.010000, 0.400000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
-    ('gemini-2.5-flash-native-audio-preview-09-2025', 1.000000, NULL, 2.500000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
+    ('gemini-2.5-flash-native-audio-latest', 0.500000, NULL, 2.000000, 'per_1m_tokens', '2026-09-19T14:00:00+00:00', true),
+    ('gemini-2.5-flash-native-audio-preview-09-2025', 1.000000, NULL, 2.500000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', false),
+    ('gemini-2.5-flash-native-audio-preview-09-2025', 0.500000, NULL, 2.000000, 'per_1m_tokens', '2026-09-19T14:00:00+00:00', true),
+    ('gemini-2.5-flash-native-audio-preview-12-2025', 0.500000, NULL, 2.000000, 'per_1m_tokens', '2026-09-19T14:00:00+00:00', true),
     ('gemini-2.5-flash-preview-09-2025', 0.300000, 0.030000, 2.500000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
     ('gemini-2.5-flash-preview-tts', 0.300000, 0.030000, 2.500000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
     ('gemini-2.5-pro', 1.250000, 0.125000, 10.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
     ('gemini-2.5-pro-preview-tts', 1.250000, 0.125000, 10.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
     ('gemini-3.1-flash-lite-preview', 0.250000, 0.025000, 1.500000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
+    ('gemini-3.1-flash-live-preview', 0.750000, NULL, 4.500000, 'per_1m_tokens', '2026-09-19T14:00:00+00:00', true),
     ('gemini-3.1-pro-preview', 2.000000, 0.200000, 12.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
+    ('gemini-3.8-live', 0.750000, NULL, 4.500000, 'per_1m_tokens', '2026-09-19T14:00:00+00:00', true),
+    ('gemini-3.8-live-extended-thinking', 0.750000, NULL, 4.500000, 'per_1m_tokens', '2026-09-19T14:00:00+00:00', true),
     ('gemini-3.5-flash', 1.500000, 1.000000, 9.000000, 'per_1m_tokens', '2026-05-21T17:57:32.004506+00:00', false),
     ('gemini-3.5-flash', 1.500000, 0.150000, 9.000000, 'per_1m_tokens', '2026-05-21T19:34:39.408402+00:00', true),
     ('gemini-3.5-flash-lite', 0.300000, 0.030000, 2.500000, 'per_1m_tokens', '2026-08-05T19:29:06.783270+00:00', true),
@@ -321,6 +339,9 @@ INSERT INTO _lia_pricing_bundle VALUES
     ('qwen3-max', 0.359000, 0.240000, 1.434000, 'per_1m_tokens', '2026-04-03T20:03:46.404402+00:00', true),
     ('gpt-4o-mini-transcribe', 0.003000, NULL, 0.000000, 'per_audio_minute', '2026-09-02T12:00:00+00:00', true),
     ('gpt-4o-transcribe-diarize', 0.006000, NULL, 0.000000, 'per_audio_minute', '2026-09-02T12:00:00+00:00', true),
+    ('elevenlabs-agents', 0.100000, NULL, 0.000000, 'per_audio_minute', '2026-09-19T20:00:00+00:00', false),
+    ('eleven_v3_conversational', 50.000000, NULL, 0.000000, 'per_1m_tokens', '2026-09-20T12:00:00+00:00', true),
+    ('gpt-live-1', 0.050000, NULL, 0.000000, 'per_audio_minute', '2026-09-19T14:00:00+00:00', true),
     ('scribe_v1', 0.220000, NULL, 0.000000, 'per_audio_hour', '2026-05-07T23:19:14.990416+00:00', false),
     ('scribe_v1', 0.220000, NULL, 0.000000, 'per_audio_hour', '2026-05-07T23:20:54.056007+00:00', true),
     ('scribe_v2', 0.220000, NULL, 0.000000, 'per_audio_hour', '2026-05-07T23:19:49.791524+00:00', false),
@@ -448,5 +469,28 @@ SET input_unit_price = 0.660000,
     ]'::jsonb
 FROM llm_models m
 WHERE m.id = p.model_id AND m.model_name = 'deepseek-v4-pro' AND p.is_active;
+
+-- ============================================================================
+-- Audio rates (ADR-300 wave 3) — a speech-to-speech model bills its audio at
+-- a rate of its own, per million tokens, next to its text rate. The bundle's
+-- temp table carries the three text columns only, so the audio pair is set
+-- HERE, on the active row, by absolute values (idempotent). Read on
+-- 2026-09-19 from ai.google.dev/gemini-api/docs/pricing: every Gemini live
+-- tier bills audio at 3.00 in / 12.00 out. GPT-Live is billed by the minute
+-- (per_audio_minute above) and declares no audio pair. Migration
+-- f1a3c5e7b9d2 writes the same values; a guard test holds the two equal.
+-- ============================================================================
+UPDATE llm_model_pricing p
+SET audio_input_unit_price = 3.000000,
+    audio_output_unit_price = 12.000000
+FROM llm_models m
+WHERE m.id = p.model_id AND p.is_active AND m.model_name IN (
+    'gemini-3.8-live',
+    'gemini-3.8-live-extended-thinking',
+    'gemini-3.1-flash-live-preview',
+    'gemini-2.5-flash-native-audio-preview-09-2025',
+    'gemini-2.5-flash-native-audio-preview-12-2025',
+    'gemini-2.5-flash-native-audio-latest'
+);
 
 SET session_replication_role = DEFAULT;

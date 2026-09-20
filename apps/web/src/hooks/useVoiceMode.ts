@@ -48,6 +48,7 @@ import { playReadyChime } from '@/lib/audio/ready-chime';
 import { useSherpaKws } from '@/hooks/useSherpaKws';
 import { isSherpaKwsSupported } from '@/lib/audio/sherpaKws';
 import { useVoiceModeStore, type VoiceModeState } from '@/stores/voiceModeStore';
+import { useLiveHoldsMicrophone } from '@/stores/liveStore';
 import { useMeetingIsCapturing } from '@/stores/meetingRecorderStore';
 import {
   VOICE_INPUT_SAMPLE_RATE,
@@ -123,8 +124,11 @@ export interface UseVoiceModeReturn {
 export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeReturn {
   const { onTranscription, onStartSpeaking, onStopSpeaking, onError, onWakeWordDetected } = options;
   // ADR-258: one microphone owner at a time — the wake-word detector and its
-  // listening loop pause while a meeting records, and resume by themselves.
+  // listening loop pause while a meeting records or a live session runs
+  // (ADR-299), and resume by themselves.
   const meetingCapturing = useMeetingIsCapturing();
+  const liveCapturing = useLiveHoldsMicrophone();
+  const microphoneTaken = meetingCapturing || liveCapturing;
 
   // Store state
   const {
@@ -496,7 +500,7 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
     processAudio: kwsProcessAudio,
   } = useSherpaKws({
     onKeywordDetected: handleKeywordDetected,
-    enabled: isEnabled && isKwsSupported && !meetingCapturing,
+    enabled: isEnabled && isKwsSupported && !microphoneTaken,
     onError: handleKwsError,
   });
 
@@ -892,11 +896,12 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
    */
   useEffect(() => {
     // Only start KWS listening when enabled, in listening state, and KWS is ready
-    if (!isEnabled || meetingCapturing || state !== 'listening' || !kwsIsReady || !isKwsSupported) {
+    if (!isEnabled || microphoneTaken || state !== 'listening' || !kwsIsReady || !isKwsSupported) {
       logger.debug('voice_mode_kws_effect_skip', {
         component: 'useVoiceMode',
         isEnabled,
         meetingCapturing,
+        liveCapturing,
         state,
         kwsIsReady,
         isKwsSupported,
@@ -1013,6 +1018,8 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
   }, [
     isEnabled,
     meetingCapturing,
+    liveCapturing,
+    microphoneTaken,
     state,
     kwsIsReady,
     isKwsSupported,

@@ -17,6 +17,7 @@ import pytest
 
 from src.domains.agents.services.streaming.voice_stream_helpers import (
     _should_start_voice,
+    voice_listens,
     voice_preference_of,
 )
 
@@ -39,6 +40,31 @@ class TestVoicePreferenceOf:
     def test_reads_the_profile_flag(self):
         assert voice_preference_of(_user(voice_enabled=True)) is True
         assert voice_preference_of(_user(voice_enabled=False)) is False
+
+
+@pytest.mark.unit
+class TestVoiceListens:
+    """A turn a live session delegated is spoken by the session's own voice
+    (ADR-299): no comment, whatever the account's preference — the TTS was
+    platform spend for a sound nobody heard (wave 2 spec A2)."""
+
+    def test_the_preference_alone_decides_off_a_live_session(self):
+        assert voice_listens(_user(True), live_session_id=None) is True
+        assert voice_listens(_user(False), live_session_id=None) is False
+
+    def test_a_live_session_silences_the_comment(self):
+        assert voice_listens(_user(True), live_session_id="a" * 32) is False
+
+    async def test_no_voice_start_point_speaks_over_a_live_session(self):
+        async def probe() -> bool:
+            return True
+
+        assert (
+            await _should_start_voice(
+                _user(), probe, "r", "chat_progressive", live_session_id="a" * 32
+            )
+            is False
+        )
 
 
 @pytest.mark.unit

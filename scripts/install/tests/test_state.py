@@ -45,6 +45,7 @@ def _public() -> PublicAnswers:
         default_language="zh-CN",
         observability=True,
         skill_sandbox=True,
+        live_mode=True,
         server_host=None,
         web_domain="lia.example.org",
         api_domain="api.example.org",

@@ -31,7 +31,10 @@ from src.core.field_names import (
 )
 from src.core.i18n import normalize_language
 from src.core.turn_verdicts import verdict_collector
-from src.domains.agents.api.archive_first import archive_user_message_first
+from src.domains.agents.api.archive_first import (
+    archive_user_message_first,
+    turn_attachment_meta,
+)
 from src.domains.agents.api.archive_metadata import (
     build_assistant_metadata,
     build_hitl_question_metadata,
@@ -68,7 +71,7 @@ from src.domains.agents.services.streaming.voice_coordinator import (
 )
 from src.domains.agents.services.streaming.voice_stream_helpers import (
     ListenerProbe,
-    voice_preference_of,
+    voice_listens,
 )
 from src.domains.agents.utils import generate_run_id
 from src.infrastructure.observability.logging import get_logger
@@ -464,6 +467,8 @@ class AgentService(
         hitl_decision: dict[str, Any] | None = None,
         directive: dict[str, str] | None = None,
         client_user_agent: str | None = None,
+        live_session_id: str | None = None,
+        spoken_text: str | None = None,
     ) -> AsyncGenerator[ChatStreamChunk]:
         """
         Stream chat response with SSE chunks and conversation persistence.
@@ -548,6 +553,8 @@ class AgentService(
             hitl_decision=hitl_decision,
             directive=directive,
             client_user_agent=client_user_agent,
+            live_session_id=live_session_id,
+            spoken_text=spoken_text,
         ):
             yield chunk
 
@@ -580,6 +587,8 @@ class AgentService(
         hitl_decision: dict[str, Any] | None = None,
         directive: dict[str, str] | None = None,
         client_user_agent: str | None = None,
+        live_session_id: str | None = None,
+        spoken_text: str | None = None,
     ) -> AsyncGenerator[ChatStreamChunk]:
         """
         Stream agent response using service-oriented architecture (Phase 3.3).
@@ -766,6 +775,7 @@ class AgentService(
                     user_obj=user_obj,
                     has_listeners=has_listeners,
                     start_time=start_time,
+                    live_session_id=live_session_id,
                 ),
                 tracker=tracker,
             )
@@ -870,24 +880,7 @@ class AgentService(
                         "stt_cost_usd": stt_cost_usd,
                         "stt_cost_eur": stt_cost_eur,
                     }
-                    _attachment_meta: dict[str, Any] = {}
-                    if attachment_ids and getattr(settings, "attachments_enabled", False):
-                        _turn_attachments = state.get("metadata", {}).get(
-                            "current_turn_attachments", []
-                        )
-                        if _turn_attachments:
-                            _attachment_meta = {
-                                "attachments": [
-                                    {
-                                        "id": a["id"],
-                                        "filename": a["original_filename"],
-                                        "mime_type": a["mime_type"],
-                                        "size": a.get("file_size", 0),
-                                        "content_type": a["content_type"],
-                                    }
-                                    for a in _turn_attachments
-                                ]
-                            }
+                    _attachment_meta = turn_attachment_meta(state, attachment_ids)
                     archived_user_msg_id: uuid.UUID | None = None
                     if archive_user_message:
                         archived_user_msg_id = await archive_user_message_first(
@@ -899,6 +892,8 @@ class AgentService(
                             attachment_meta=_attachment_meta,
                             stt_kwargs=stt_kwargs,
                             is_automated_source=is_automated_source,
+                            live_session_id=live_session_id,
+                            spoken_text=spoken_text,
                         )
                         # POINT at what was asked; never copy it (ADR-263, lot 6).
                         note_request_message(archived_user_msg_id)
@@ -987,8 +982,11 @@ class AgentService(
                                 user_journals_enabled=user_journals_enabled,  # User journals preference
                                 user_psyche_enabled=user_psyche_enabled,  # User psyche preference
                                 # The flag the voice coordinator starts the progressive
-                                # TTS on: the response node's HTML gate must read the same one.
-                                user_voice_enabled=voice_preference_of(user_obj),
+                                # TTS on: the response node's HTML gate must read the same
+                                # one — and a live session's turn is spoken by its own voice.
+                                user_voice_enabled=voice_listens(
+                                    user_obj, live_session_id=live_session_id
+                                ),
                                 user_display_mode=user_display_mode,  # User display mode (cards/html/markdown)
                                 user_execution_mode=user_execution_mode,  # Execution mode (pipeline/react)
                                 is_automated_source=is_automated_source,  # True for scheduled actions (skips extraction)

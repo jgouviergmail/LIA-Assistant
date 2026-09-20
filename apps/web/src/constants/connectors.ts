@@ -60,6 +60,10 @@ export const CONNECTOR_TYPES = [
   'philips_hue',
   // Telephony connectors (per-user ElevenLabs account, agentic outbound calls)
   'elevenlabs_telephony',
+  // Live voice mode (per-user provider key, ADR-299; an additive category)
+  'gemini_live',
+  'gpt_live',
+  'elevenlabs_live',
   // Future connectors (not yet implemented)
   'slack',
   'notion',
@@ -111,6 +115,10 @@ export const CONNECTOR_LABELS: Record<ConnectorType, string> = {
   philips_hue: 'Philips Hue',
   // Telephony connectors
   elevenlabs_telephony: 'ElevenLabs Telephony',
+  // Live voice mode
+  gemini_live: 'Live (Gemini)',
+  gpt_live: 'Live (OpenAI)',
+  elevenlabs_live: 'Live (ElevenLabs)',
   // Future connectors
   slack: 'Slack',
   notion: 'Notion',
@@ -145,6 +153,7 @@ export const CONNECTOR_CATEGORIES = {
   external: ['openweathermap', 'wikipedia', 'perplexity', 'brave_search', 'browser'],
   smart_home: ['philips_hue'],
   telephony: ['elevenlabs_telephony'],
+  live: ['gemini_live', 'gpt_live', 'elevenlabs_live'],
   productivity: ['slack', 'notion'],
   development: ['github'],
 } as const;
@@ -159,6 +168,7 @@ export const CATEGORY_LABELS = {
   external: 'Services Externes',
   smart_home: 'Smart Home',
   telephony: 'Telephony',
+  live: 'Live',
   productivity: 'Productivité',
   development: 'Développement',
 } as const;

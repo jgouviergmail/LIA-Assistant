@@ -99,7 +99,12 @@ def resolve_cache_path() -> Path:
     return resolve_cache_dir() / TOOL_EMBEDDINGS_CACHE_FILENAME
 
 
-def load(cache_path: Path, expected_hash: str, expected_count: int) -> list[list[float]] | None:
+def load(
+    cache_path: Path,
+    expected_hash: str,
+    expected_count: int,
+    expected_dimension: int | None = None,
+) -> list[list[float]] | None:
     """Load cached embeddings from disk if they match what the caller needs.
 
     Args:
@@ -107,6 +112,9 @@ def load(cache_path: Path, expected_hash: str, expected_count: int) -> list[list
         expected_hash: Hash of the current tool texts — must match the cached one.
         expected_count: Expected number of vectors. A truncated or mismatched
             file would otherwise index out of bounds downstream.
+        expected_dimension: Width every vector must have, when the caller knows
+            it. A cache of another width compares with the live queries to 0
+            on every tool — a stale file the hash alone cannot always catch.
 
     Returns:
         The vectors, or None when the cache is missing, stale or corrupt.
@@ -123,6 +131,13 @@ def load(cache_path: Path, expected_hash: str, expected_count: int) -> list[list
                 "tool_embedding_cache_count_mismatch",
                 cached=len(embeddings),
                 expected=expected_count,
+            )
+            return None
+        if expected_dimension and any(len(vector) != expected_dimension for vector in embeddings):
+            logger.warning(
+                "tool_embedding_cache_dimension_mismatch",
+                cached=len(embeddings[0]) if embeddings else 0,
+                expected=expected_dimension,
             )
             return None
         return embeddings
@@ -279,7 +294,10 @@ def release(lock_path: Path) -> None:
 
 
 async def load_or_claim(
-    cache_path: Path, expected_hash: str, expected_count: int
+    cache_path: Path,
+    expected_hash: str,
+    expected_count: int,
+    expected_dimension: int | None = None,
 ) -> tuple[list[list[float]] | None, Path | None]:
     """Serve the cache, or take the exclusive right to compute it.
 
@@ -287,13 +305,14 @@ async def load_or_claim(
         cache_path: Cache document.
         expected_hash: Hash the cache must carry to be usable.
         expected_count: Number of vectors the caller needs.
+        expected_dimension: Width the vectors must have (see :func:`load`).
 
     Returns:
         ``(embeddings, None)`` — serve these, nothing to release.
         ``(None, lock_path)`` — compute, then ``release(lock_path)``.
         ``(None, None)`` — compute unclaimed; coordination was unavailable.
     """
-    cached = load(cache_path, expected_hash, expected_count)
+    cached = load(cache_path, expected_hash, expected_count, expected_dimension)
     if cached is not None:
         tool_embeddings_cache_total.labels(result="hit").inc()
         return cached, None
@@ -311,7 +330,7 @@ async def load_or_claim(
             # claim in the window between our last read and this acquisition —
             # precisely the moment several workers are polling. Computing here
             # would spend a full catalogue embedding on a result already on disk.
-            cached = load(cache_path, expected_hash, expected_count)
+            cached = load(cache_path, expected_hash, expected_count, expected_dimension)
             if cached is not None:
                 release(lock_path)
                 tool_embeddings_cache_total.labels(result="hit_after_wait").inc()
@@ -355,7 +374,7 @@ async def load_or_claim(
             )
         await asyncio.sleep(min(_POLL_INTERVAL_SECONDS, remaining))
 
-        cached = load(cache_path, expected_hash, expected_count)
+        cached = load(cache_path, expected_hash, expected_count, expected_dimension)
         if cached is not None:
             tool_embeddings_cache_total.labels(result="hit_after_wait").inc()
             return cached, None

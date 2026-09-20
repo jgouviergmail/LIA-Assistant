@@ -43,6 +43,7 @@ from src.domains.users.models import User
 from src.domains.users.repository import UserRepository
 from src.infrastructure.cache.redis import get_redis_session
 from src.infrastructure.cache.session_store import SessionStore
+from src.infrastructure.database.session import get_db_context
 
 logger = structlog.get_logger(__name__)
 
@@ -90,6 +91,30 @@ async def get_current_session(
     Breaking Change:
         Previously returned UserSession, now returns User.
         Callers must update: session.user_id → user.id, session.email → user.email
+    """
+    return await _authenticate(lia_session, session_store, db)
+
+
+async def _authenticate(
+    lia_session: str | None, session_store: SessionStore, db: AsyncSession
+) -> User:
+    """The ONE authentication: the cookie's session in Redis, then the row in PostgreSQL.
+
+    Shared by :func:`get_current_session` (the request's own session) and
+    :func:`get_current_session_for_stream` (a session of its own, closed
+    before the route runs), so the two can never diverge on what a valid
+    session is.
+
+    Args:
+        lia_session: The cookie value, or None when the request carries none.
+        session_store: The Redis session store.
+        db: The session the account row is read on.
+
+    Returns:
+        The account row.
+
+    Raises:
+        HTTPException: 401 when there is no cookie, no session, or no account.
     """
     if not lia_session:
         logger.debug("authentication_required_no_cookie")
@@ -166,6 +191,11 @@ async def get_current_active_session(
         Parameter renamed: session → user
         Return type changed: UserSession → User
     """
+    return _ensure_active(user)
+
+
+def _ensure_active(user: User) -> User:
+    """Refuse an inactive or deleted account (403); the row otherwise."""
     # Defensive check (already filtered in get_user_minimal_for_session)
     if not user.is_active:
         raise_user_inactive(user.id)
@@ -175,6 +205,45 @@ async def get_current_active_session(
         raise_user_inactive(user.id)
 
     return user
+
+
+async def get_current_session_for_stream(
+    lia_session: Annotated[str | None, Cookie()] = None,
+    session_store: SessionStore = Depends(get_session_store),
+) -> User:
+    """The current user for a route that STREAMS: authenticated on a session of its own.
+
+    A ``yield`` dependency lives as long as the response — for a
+    ``StreamingResponse`` that is the life of the stream — and the request
+    session of :func:`get_current_session` begins a transaction on its one
+    SELECT. Measured on dev 2026-09-20: every open notifications stream pinned
+    one PostgreSQL backend in ``idle in transaction`` for as long as the tab
+    stayed open (14 minutes at the reading, hours in practice), one per tab,
+    on a pool of five plus fifteen per worker (ADR-283). This door reads the
+    account on a session it opens and closes here, so the route holds no
+    connection at all; the row it returns is detached (``expire_on_commit``
+    is False, every column is loaded) and read, never written, by a stream.
+    A guard refuses any SSE route that authenticates through the other door.
+
+    Args:
+        lia_session: Session ID from the HTTP-only cookie.
+        session_store: The Redis session store.
+
+    Returns:
+        The account row, detached from any session.
+
+    Raises:
+        HTTPException: 401 when the cookie, the session or the account is missing.
+    """
+    async with get_db_context() as db:
+        return await _authenticate(lia_session, session_store, db)
+
+
+async def get_current_active_session_for_stream(
+    user: User = Depends(get_current_session_for_stream),
+) -> User:
+    """:func:`get_current_active_session` for a route that streams (no request session)."""
+    return _ensure_active(user)
 
 
 async def get_current_verified_session(

@@ -78,7 +78,13 @@ _PRICING_KEYS: tuple[str, ...] = (
     "input_unit_price",
     "cached_input_unit_price",
     "output_unit_price",
+    "audio_input_unit_price",
+    "audio_output_unit_price",
 )
+
+#: The audio pair is one declaration (ADR-300): both cells emptied means
+#: « no audio rate », the shape the update schema reserves for it.
+_AUDIO_KEYS: tuple[str, str] = ("audio_input_unit_price", "audio_output_unit_price")
 
 
 @dataclass(frozen=True)
@@ -257,6 +263,13 @@ def _build_update(
     # drops nulls — so the intent takes the shape the schema reserves for it.
     if "cached_input_unit_price" in changed and values.get("cached_input_unit_price") is None:
         payload["clear_cached_input_price"] = True
+
+    # Both audio cells emptied is the pair's clearing; one emptied alone
+    # travels as an absent value and the service refuses the half pair.
+    if any(key in changed for key in _AUDIO_KEYS) and all(
+        values.get(key) is None for key in _AUDIO_KEYS
+    ):
+        payload["clear_audio_prices"] = True
 
     if change.slots_before != change.slots_after or (
         values.get("time_slots_mode") == "windows" and change.action is not ChangeAction.UNCHANGED

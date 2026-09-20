@@ -196,7 +196,7 @@ tasks:
         platforms: [windows]
       - cmd: 'echo "Linux/macOS: import exports/lia-dev-cert.pem into your trust store (see GETTING_STARTED > WebAuthn / Passkeys in Development)"'
         platforms: [linux, darwin]
-      - cmd: 'echo "Done. RESTART YOUR BROWSER COMPLETELY (certificate verdicts are cached for the browser lifetime). Firefox users: import exports/lia-dev-cert.pem in Settings > Certificates. Re-run this task after ssl-init regenerates certificates (every ~30 days or after: docker volume rm lia_ssl_certs)."'
+      - cmd: 'echo "Done. RESTART YOUR BROWSER COMPLETELY (certificate verdicts are cached for the browser lifetime). Firefox users: import exports/lia-dev-cert.pem in Settings > Certificates. Re-run this task when ssl-init renews the certificate (it says so in docker logs lia-ssl-init: expiring within SSL_RENEW_BEFORE_DAYS, SSL_DOMAIN no longer covered, or after: docker volume rm lia_ssl_certs)."'
 
   dev:all:
     desc: "Dev: restart BOTH the application stack and the demonstrator, then check them"
@@ -361,6 +361,50 @@ tasks:
       - cmd: .venv/Scripts/python scripts/recurrence/measure_transcription.py {{.CLI_ARGS}}
         platforms: [windows]
       - cmd: .venv/bin/python scripts/recurrence/measure_transcription.py {{.CLI_ARGS}}
+        platforms: [linux, darwin]
+
+  live:probe:
+    desc: Measure the Live API against the mode-live design (NETWORK, on demand, a TEST key)
+    dir: "{{.API_DIR}}"
+    # A MEASUREMENT, never a gate (ADR-155): CI holds no provider key. Answers
+    # spec §9 of docs/superpowers/specs/2026-09-18-live-llm-connector-design.md;
+    # the key comes from LIVE_PROBE_API_KEY and is never printed.
+    cmds:
+      - cmd: .venv/Scripts/python scripts/live/probe.py {{.CLI_ARGS}}
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/live/probe.py {{.CLI_ARGS}}
+        platforms: [linux, darwin]
+
+  telephony:simulate:live:
+    desc: Simulate a Live owner call end to end on the RUNNING dev API without a phone (ADR-301; the dev account, real turns)
+    # A SIMULATION, never a gate: it inserts a real DIALING row for the account,
+    # runs real chat turns through POST /telephony/tools/send_to_lia and closes
+    # the books through the signed post-call webhook. Runs inside the API
+    # container (the connector's secret, the database).
+    cmds:
+      - cmd: docker exec lia-api-dev python -m scripts.telephony.simulate_live_call {{.CLI_ARGS}}
+
+  telephony:probe:live:
+    desc: Run the phone's Live mode on the vendor's REAL engine through a public callback URL, without a phone (NETWORK, the operator's key)
+    # Lot 4's proof (ADR-301): the production Live mandate and delegation tool on
+    # a temporary vendor agent, a text-only conversation, the vendor calling this
+    # API back (a quick tunnel on a development machine), the closing on the
+    # vendor's own transcript. ELEVENLABS_API_KEY is handed to the container and
+    # never printed; everything vendor-side is deleted at the end.
+    cmds:
+      - cmd: docker exec -e ELEVENLABS_API_KEY lia-api-dev python -m scripts.telephony.probe_live_call {{.CLI_ARGS}}
+
+  telephony:probe:
+    desc: Measure an ElevenLabs async webhook tool against the phone Live design (NETWORK, on demand, the operator's key)
+    dir: "{{.API_DIR}}"
+    # A MEASUREMENT, never a gate (ADR-155): CI holds no vendor key. Answers
+    # spec §10 of docs/superpowers/specs/2026-09-20-voice-sessions-symmetry-design.md
+    # on the vendor's REAL engine (a text-only conversation, no phone line);
+    # the key comes from ELEVENLABS_API_KEY and is never printed.
+    cmds:
+      - cmd: .venv/Scripts/python scripts/telephony/probe_async_delegation.py {{.CLI_ARGS}}
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/telephony/probe_async_delegation.py {{.CLI_ARGS}}
         platforms: [linux, darwin]
 
   sandbox:egress:probe:

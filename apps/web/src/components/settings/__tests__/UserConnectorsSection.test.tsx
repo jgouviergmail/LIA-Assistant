@@ -15,6 +15,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { renderWithProviders, screen, waitFor } from '@/__tests__/test-utils';
 import { makeConnector } from '@/__tests__/factories';
+import { useRevisionStore } from '@/stores/revisionStore';
 import {
   queryResult,
   mutationResult,
@@ -78,6 +79,7 @@ async function openGoogleFamily(user: ReturnType<typeof render>['user']) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  useRevisionStore.setState({ revisions: { live_connectors: 0 } });
   deleteConnector = mutateSpy().mockResolvedValue(undefined);
   useApiMutation.mockReturnValue(mutationResult({ mutate: deleteConnector }));
   // The preference dropdown inside a connected card fetches its items.
@@ -154,6 +156,28 @@ describe('UserConnectorsSection — disconnect', () => {
       ],
     });
     expect(next?.connectors.map(c => c.id)).toEqual(['c2']);
+    // A calendar is not a live connector: the header's voice menu has nothing to re-read.
+    expect(useRevisionStore.getState().revisions.live_connectors).toBe(0);
+  });
+
+  it('declares a LIVE disconnect to the header voice menu (owner request 2026-09-19)', async () => {
+    // The live group needs the instance capability, read from `/config`.
+    setData = setDataSpy<ConnectorsResponse>();
+    useApiQuery.mockImplementation((endpoint: string) =>
+      endpoint === '/config'
+        ? queryResult({ data: { features: { live_enabled: true } } })
+        : queryResult<ConnectorsResponse>({
+            data: {
+              connectors: [makeConnector({ id: 'live1', connector_type: 'gemini_live' })],
+            },
+            setData,
+          })
+    );
+    const { user } = render();
+    await user.click(await screen.findByRole('button', { name: /connected_live/ }));
+    await disconnectAndConfirm(user);
+    await waitFor(() => expect(deleteConnector).toHaveBeenCalledWith('/connectors/live1'));
+    await waitFor(() => expect(useRevisionStore.getState().revisions.live_connectors).toBe(1));
   });
 
   it('reports a failed disconnect and leaves the cache untouched', async () => {

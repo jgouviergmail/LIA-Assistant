@@ -8,7 +8,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Index, Numeric, Text, text
+from sqlalchemy import DateTime, Enum, ForeignKey, Index, Numeric, String, Text, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -122,6 +122,18 @@ class PhoneCall(BaseModel):
     callee_display: Mapped[str] = mapped_column(Text, nullable=False)
     callee_phone: Mapped[str] = mapped_column(Text, nullable=False)  # encrypted by the service
     objective: Mapped[str] = mapped_column(Text, nullable=False)
+    # ADR-301: the mode an owner call RAN under (``voice_sessions.VoiceSessionMode``),
+    # written at the dial and read at the closing — the person's choice may
+    # change mid-call, the row's does not. A third-party call is ``direct``.
+    call_mode: Mapped[str] = mapped_column(
+        String(16),
+        nullable=False,
+        default="direct",
+        server_default="direct",
+        comment=(
+            "The mode an owner call ran under: delegated (Live) or direct; third-party calls are direct."
+        ),
+    )
     # Which mandate the call ran under (lot 2). native_enum=False stores the
     # NAME, so the server default is the NAME too — a value default would read
     # every pre-existing row as an unknown kind. SQL comment mirrors the

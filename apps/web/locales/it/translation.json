@@ -85,7 +85,15 @@
       "enabled": "Voce attivata",
       "disabled": "Voce disattivata",
       "tooltip_enabled": "Commenti vocali attivi - Commento le mie risposte ad alta voce",
-      "tooltip_disabled": "Commenti vocali disattivati - Modalità silenziosa"
+      "tooltip_disabled": "Commenti vocali disattivati - Modalità silenziosa",
+      "menu": "Voce e sessione live",
+      "comments": "Risposte vocali",
+      "live_start": "Sessione Live ({{provider}})",
+      "live_busy": "Una sessione live è già aperta",
+      "live_meeting": "Una riunione è in registrazione",
+      "live_active": "Sessione Live in corso",
+      "comments_live_busy": "Le risposte vocali sono disattivate durante una sessione Live",
+      "live_direct_start": "Sessione Live diretta ({{provider}})"
     }
   },
   "tokens_display": {
@@ -1539,6 +1547,28 @@
         "label": "Google Ambiente",
         "description": "Qualità dell'aria e previsioni dei pollini",
         "no_key_required": "Questo servizio non richiede una chiave API"
+      },
+      "connected_live": "Live connesso",
+      "available_live": "Live disponibile",
+      "live": {
+        "label": "Voce live ({{brand}})",
+        "description": "Parla con LIA in tempo reale, a voce, con la tua chiave {{brand}}",
+        "billing_notice": "Le sessioni live girano sul tuo account {{account}} e vengono fatturate lì. Ciò che LIA fa durante una sessione viene contato qui, come sempre.",
+        "step_key": "Incolla la tua chiave API {{brand}}",
+        "key_placeholder": "Chiave API {{brand}}",
+        "validate_key": "Convalida chiave",
+        "invalid_key": "Questa chiave API non è valida o non elenca alcun modello in grado di sostenere una conversazione live.",
+        "models_hint": "Convalida la tua chiave API per elencare i modelli live che può aprire.",
+        "step_model": "Modello",
+        "step_voice": "Voce",
+        "voices_provenance": "Il fornitore non offre un elenco di voci via API: questo è il suo elenco pubblicato, datato {{date}}.",
+        "voices_source": "Fonte",
+        "step_thinking": "Livello di ragionamento",
+        "activate": "Attiva la modalità Live",
+        "activated": "Modalità Live attivata. Il pulsante Live compare ora nella chat.",
+        "connect": "Configura la modalità Live",
+        "no_priced_model": "La tua chiave funziona, ma nessuno dei suoi modelli live ha una tariffa live nella tariffazione LLM — tariffe testo e audio, oppure un prezzo al minuto ({{models}}). Un amministratore ne dichiara una lì prima di poter configurare questo connettore.",
+        "step_agent": "Agente"
       }
     },
     "user": {
@@ -1666,7 +1696,8 @@
           "provider": "Provider",
           "time_slots_badge": "A fasce",
           "time_slots_badge_title_one": "{{count}} fascia oraria UTC",
-          "time_slots_badge_title_other": "{{count}} fasce orarie UTC"
+          "time_slots_badge_title_other": "{{count}} fasce orarie UTC",
+          "audio_price": "Audio input / output ($/1M)"
         },
         "edit": "Modifica",
         "disable": "Disattiva",
@@ -1717,7 +1748,12 @@
           "time_slots_remove": "Rimuovi la fascia {{index}}",
           "time_slots_error_incomplete": "Ogni fascia richiede orari validi e prezzi ≥ 0.",
           "time_slots_error_zero_length": "Una fascia non può iniziare e finire alla stessa ora.",
-          "time_slots_error_overlap": "Le fasce non devono sovrapporsi."
+          "time_slots_error_overlap": "Le fasce non devono sovrapporsi.",
+          "audio_input_label": "Prezzo input audio - Opzionale",
+          "audio_output_label": "Prezzo output audio - Opzionale",
+          "audio_hint": "Per un modello voce-a-voce (live) fatturato per milione di token: la sua tariffa audio accanto a quella testo. Dichiara entrambe o nessuna.",
+          "audio_placeholder": "3.000000 (lasciare vuoto se il modello non fattura audio)",
+          "audio_error_half_pair": "Dichiara entrambe le tariffe audio, o nessuna."
         },
         "errors": {
           "loading": "Errore nel caricamento dei modelli",
@@ -3663,9 +3699,21 @@
         "confirm_code": "Conferma",
         "rich_context_label": "Contesto arricchito al telefono",
         "rich_context_help": "Quando LIA ti chiama, porta con sé ciò che sa di te: ricordi, agenda, promemoria, questioni aperte e ultimi scambi. Disattivato, conosce solo le tue disponibilità.",
-        "domains_title": "Cosa LIA può consultare durante una chiamata",
-        "domains_help": "Durante una chiamata con te, LIA può leggere questo per te, e nient'altro — mai agire. Disattiva ciò che preferisci tenere fuori da una conversazione telefonica.",
-        "domain_memory": "Memoria"
+        "domains_title": "Cosa LIA può consultare per te in diretta",
+        "domains_help": "Durante una chiamata in Live diretto, o una sessione live diretta nel browser, LIA può leggere questo per te, e nient'altro — mai agire. Disattiva ciò che preferisci tenere fuori da una conversazione parlata. Una chiamata Live non legge nulla da sola.",
+        "domain_memory": "Memoria",
+        "call_mode": {
+          "label": "Come LIA conduce le tue chiamate",
+          "delegated": "Live",
+          "direct": "Live diretto",
+          "help_delegated": "Come la modalità Live del browser: ciò che chiedi al telefono è affidato a LIA, che agisce nella tua conversazione — con le sue domande, le sue conferme e la sua traccia. La voce non legge nulla dei tuoi dati da sola.",
+          "help_direct": "La voce legge i tuoi dati da sola durante la chiamata e non agisce mai; alla fine, ciò che hai chiesto è trasmesso alla tua conversazione come un messaggio tuo.",
+          "unavailable": "Live non è disponibile su questa istanza ({{reason}}): le tue chiamate avvengono in {{mode}}.",
+          "reasons": {
+            "callback_not_public": "l'operatore telefonico non può raggiungere questo server",
+            "unknown": "motivo sconosciuto"
+          }
+        }
       },
       "decisions": {
         "title": "Da decidere",
@@ -3714,7 +3762,7 @@
         "image-generation": "immagini, foto, disegno, illustrazione, generazione, arte",
         "connectors": "google, gmail, calendario, contatti, apple, microsoft, outlook, integrazioni, account, oauth, riconnettere, disconnesso, servizi, posizione, localizzazione, geolocalizzazione, domicilio, indirizzo, memoria della posizione, meteo, qualità dell'aria, polline, ambiente, foglio di calcolo, documento, risposta automatica, assenza, filtri",
         "telephony-calls": "telefono, chiamate, cronologia chiamate, comporre",
-        "telephony-identity": "telefono, numero, identità, verifica, codice, chiamata, chiamami, contesto, ambiti, memoria, mail, agenda, ricerche, personalità",
+        "telephony-identity": "telefono, numero, identità, verifica, codice, chiamata, chiamami, modalità di chiamata, Live, Live diretto, contesto, ambiti, memoria, mail, agenda, ricerche, personalità",
         "admin-mcp-servers": "MCP, model context protocol, server dell'applicazione, strumenti integrati, connessione, integrazione, server",
         "mcp-servers": "MCP, model context protocol, i miei server, strumenti, estensioni, oauth, autorizzazione, connessione, integrazione, server",
         "debug-panel": "sviluppatore, diagnostica, tracce, tecnico, risoluzione dei problemi, waterfall, anomalie, cronologia, pipeline",
@@ -3754,7 +3802,8 @@
         "reminders": "promemoria, ricordami, avviso, notifica, promemoria ricorrente, ripetere, appunto, ricorrenza, ogni giorno, fascia oraria",
         "workboard": "workboard bacheca ticket kanban colonne da fare backlog",
         "generated-assets": "file immagini documenti acquisizioni download galleria generati scadenza segnalibri bookmarks risposte conservate risposte salvate preferiti indicizzato spazio di conoscenza ricerca",
-        "sandbox-egress": "sandbox, python, script, rete, internet, proxy, host, permessi, consentire, revocare, uscita, API, integrazione"
+        "sandbox-egress": "sandbox, python, script, rete, internet, proxy, host, permessi, consentire, revocare, uscita, API, integrazione",
+        "live-mode": "live, tempo reale, voce, parlato, Gemini Live, GPT-Live, OpenAI, ElevenLabs, agente, sessione diretta, delega, modello, livello di ragionamento, silenzio, durata, tetto di spesa, interruzioni, premi per parlare, conversazione, microfono"
       }
     },
     "haptics": {
@@ -3941,6 +3990,52 @@
         "deferred": "Indicizzazione rinviata (limite di utilizzo)",
         "disabled": "Indicizzazione disattivata"
       }
+    },
+    "live_mode": {
+      "title": "Modalità Live",
+      "description": "Parla con LIA in tempo reale sul tuo connettore Live e scegli come si comporta la conversazione",
+      "connector_title": "Il tuo connettore Live",
+      "connector_missing": "Nessun connettore Live per ora.",
+      "connector_link": "Configuralo nella sezione Connettori",
+      "model": "Modello",
+      "voice": "Voce",
+      "thinking": "Livello di ragionamento",
+      "save": "Salva il connettore",
+      "saved": "Connettore Live aggiornato.",
+      "save_error": "Impossibile aggiornare il connettore.",
+      "preferences_title": "Come si comporta la conversazione",
+      "interruptions": "LIA si ferma quando parlo",
+      "interruptions_help": "Disattivato, LIA finisce la frase prima di ascoltarti.",
+      "end_of_speech": "Fine della frase",
+      "end_of_speech_help": "Quanto aspetta LIA dopo che smetti di parlare prima di rispondere.",
+      "end_of_speech_calm": "Calmo",
+      "end_of_speech_normal": "Normale",
+      "end_of_speech_lively": "Vivace",
+      "result_delivery": "Quando LIA ha una risposta",
+      "result_delivery_help": "Subito interrompe ciò che la voce sta dicendo; alla prossima pausa aspetta che finisca.",
+      "result_delivery_interrupt": "Dirlo subito",
+      "result_delivery_when_idle": "Aspettare la prossima pausa",
+      "preferences_saved": "Preferenze Live salvate.",
+      "preferences_error": "Impossibile salvare le preferenze Live.",
+      "voice_sample": "Ascolta questa voce",
+      "voice_sample_help": "Al cambio di voce viene letta una breve frase — con la tua chiave.",
+      "voice_sample_failed": "Il campione di voce non ha potuto essere riprodotto.",
+      "idle_timeout": "Silenzio prima della chiusura della sessione (secondi)",
+      "idle_timeout_help": "Nessuno parla, nemmeno LIA, nulla è in corso: dopo questo silenzio la sessione termina da sola ({{min}}–{{max}}).",
+      "session_max": "Durata massima di una sessione (minuti)",
+      "session_max_help": "Prima della fine ti viene chiesto se vuoi prolungare; senza limite la sessione continua finché non la chiudi ({{min}}–{{max}}).",
+      "unlimited_hint": "{{value}} = nessun limite.",
+      "billing_warning_title": "Verifica come viene fatturato questo modello.",
+      "billing_warning": "Alcuni modelli live fatturano l'intera sessione sulla tua chiave, secondo per secondo, attesa compresa; altri solo gli scambi. Un lungo silenzio o l'assenza di limite può pesare molto sulla tua fattura: regola queste durate secondo il listino del tuo fornitore.",
+      "duration_out_of_bounds": "Inserisci {{unlimited}} per nessun limite, oppure un valore tra {{min}} e {{max}}.",
+      "unpriced": "Rilevati con la tua chiave ma senza tariffa live nella tariffazione LLM (tariffe testo e audio), quindi non proposti: {{models}}. Un amministratore li dichiara lì.",
+      "budget": "Tetto di spesa per sessione su {{provider}} (€) — facoltativo",
+      "budget_placeholder": "Nessun tetto",
+      "budget_help": "Contato sulla tua chiave dai rapporti del fornitore e dalla tariffa dichiarata: indicativo. La sessione termina quando viene raggiunto. Fino a {{max}} €.",
+      "budget_out_of_bounds": "Lascia vuoto per nessun tetto, oppure inserisci un importo superiore a 0 e fino a {{max}} €.",
+      "voice_portal": "La voce, la lingua e i turni di parola sono quelli dell'agente, gestiti sul portale {{brand}}; LIA invia solo il suo prompt e i suoi strumenti.",
+      "agent_models": "voce {{voice}} · LLM {{llm}}",
+      "vendor_billed": "Le sessioni su {{brand}} sono fatturate sulla tua chiave, dal fornitore: qui non si imposta alcun tetto — l'importo esatto compare alla fine di ogni sessione."
     }
   },
   "relations": {
@@ -4727,7 +4822,7 @@
         },
         "voice": {
           "title": "🎙️ Modalità Vocale Completa",
-          "description": "Parlare ed essere ascoltati. Il riconoscimento vocale è per impostazione predefinita gratuito e sul server (Whisper, 99+ lingue, l’audio non lascia mai il server); ognuno può scegliere ElevenLabs Scribe da remoto per maggiore precisione sul parlato conversazionale. Sono preinstallati tre fornitori di voce, con flusso frase per frase: il primo audio parte in circa un secondo. Le chiamate a pagamento portano un badge di costo per messaggio e un tetto di durata protegge dai picchi. Parola di attivazione o pulsante microfono, rilevamento automatico di fine parlato — e il testo letto è ripulito dal markup, così la voce dice la frase e nient’altro."
+          "description": "Parlare ed essere ascoltati. Il riconoscimento vocale è per impostazione predefinita gratuito e sul server (Whisper, 99+ lingue, l’audio non lascia mai il server); ognuno può scegliere ElevenLabs Scribe da remoto per maggiore precisione sul parlato conversazionale. Sono preinstallati tre fornitori di voce, con flusso frase per frase: il primo audio parte in circa un secondo; una sintesi a pagamento è addebitata solo per le frasi davvero servite, con un badge di costo per messaggio. Parola di attivazione o pulsante microfono, rilevamento automatico di fine parlato — il testo letto è ripulito dal markup, così la voce dice la frase e nient’altro."
         },
         "reminders": {
           "title": "🔔 Promemoria e Notifiche Push",
@@ -4747,7 +4842,7 @@
         },
         "observability": {
           "title": "📊 Osservabilità Production-Ready",
-          "description": "Lo stack completo: metriche Prometheus (token, latenza, errori, costi), 29 dashboard Grafana, tracciamento Tempo, log Loki, allarmi via e-mail dove ogni allarme punta al suo runbook. La 26ª dashboard è un cockpit di prodotto: risultati convalidati — il tuo 👍 esplicito, o un’azione lasciata così com’è per un giorno — e costo per risultato utile, contati in PostgreSQL e letti da un ruolo che vede solo aggregati. E ogni processo dell’API pubblica ciò che trattiene in memoria: un totale di container si legge worker per worker."
+          "description": "Lo stack completo: metriche Prometheus (token, latenza, errori, costi), 30 dashboard Grafana, tracciamento Tempo, log Loki, allarmi via e-mail dove ogni allarme punta al suo runbook. La 26ª dashboard è un cockpit di prodotto: risultati convalidati — il tuo 👍 esplicito, o un’azione lasciata così com’è per un giorno — e costo per risultato utile, contati in PostgreSQL e letti da un ruolo che vede solo aggregati. E ogni processo dell’API pubblica ciò che trattiene in memoria: un totale di container si legge worker per worker."
         },
         "tools": {
           "title": "🔧 115 strumenti tipizzati",
@@ -4755,11 +4850,11 @@
         },
         "costTransparency": {
           "title": "💰 Trasparenza dei Costi",
-          "description": "Visualizzazione dal vivo, opzionale: token di ingresso, uscita e cache, costo in euro per messaggio e per la conversazione. Una quota non arriva più come un muro: un avviso compare all’80 % del limite che vincola per primo — token, messaggi o costo — nominandolo e dando la data di azzeramento, o dicendo che un limite assoluto non si azzera mai. Un tetto può anche riguardare l’intera istanza, e non ammette eccezioni: ogni chiamata a un modello che essa paga vi è soggetta. Un compito in background rifiutato rinuncia in silenzio anziché dichiararsi guasto."
+          "description": "Visualizzazione dal vivo, opzionale: token di ingresso, uscita e cache, costo in euro per messaggio e per la conversazione. Una quota non arriva più come un muro: un avviso compare all’80 % del limite che vincola per primo — token, messaggi o costo — nominandolo e dando la data di azzeramento. Un tetto può anche riguardare l’intera istanza, e tutto ciò che la piattaforma paga per te vi è soggetto, qualunque sia il percorso: una consultazione di mappa in chiamata, il meteo del briefing, una foto mostrata — ciascuno valutato alla tariffa del suo istante esatto."
         },
         "scheduledActions": {
           "title": "📅 Azioni Pianificate",
-          "description": "Azioni ricorrenti che l'assistente esegue da sola: indica il ritmo — ogni tre giorni, un martedì su due, il 2º martedì, l'ultimo giorno, ogni due ore tra le 9 e le 17, fino a una data o N volte —, allega un'istruzione e LIA la esegue. I giorni sono enumerati, mai affidati a un cron: il motore precedente saltava il giorno al cambio dell'ora. Risultati archiviati nella conversazione e inviati a te, disattivazione dopo cinque errori. Una vista della settimana li disegna, ore in verticale e giorni in orizzontale. Una routine la cui serie è finita si chiude da sola, e un gesto «Sorveglia» su un’e-mail del briefing mette una sorveglianza sulla risposta."
+          "description": "Azioni ricorrenti che l'assistente esegue da sola: indica il ritmo — ogni tre giorni, un martedì su due, il 2º martedì, l'ultimo giorno, ogni due ore tra le 9 e le 17, fino a una data o N volte —, allega un'istruzione e LIA la esegue. I giorni sono enumerati, mai affidati a un cron: il motore precedente saltava il giorno al cambio dell'ora. Risultati archiviati e inviati a te, disattivazione dopo cinque errori. Una vista della settimana colora ogni cella per ciò che è accaduto. Una serie finita si chiude da sola, e «Sorveglia» su un’e-mail del briefing mette una sorveglianza sulla risposta."
         },
         "mcp": {
           "title": "🔌 MCP (Model Context Protocol)",
@@ -4839,7 +4934,7 @@
         },
         "personalJournals": {
           "title": "📓 Diari Personali (coscienza stratificata)",
-          "description": "LIA tiene diari propri su quattro livelli — osservazione grezza, direttiva operativa, schema trasversale, sfaccettatura di ritratto — ciascuno con una confidenza. Un ciclo differito rivaluta al turno successivo se una direttiva iniettata sia stata confermata o smentita da te; la stessa passata compila il ritratto da quattro fonti — ricordi, interessi, abitudini apprese, debrief di relazione — ciascuna sotto il proprio interruttore, con la provenienza mostrata sotto il ritratto. Tu mantieni il controllo: leggere, modificare, segnalare, consolidare. I contatori li incrementa il sistema, mai il modello."
+          "description": "LIA tiene diari propri su quattro livelli — osservazione grezza, direttiva operativa, schema trasversale, sfaccettatura di ritratto — ciascuno con una confidenza. Un ciclo differito rivaluta al turno successivo se una direttiva iniettata sia stata confermata o smentita da te; la stessa passata compila il ritratto da quattro fonti — ricordi, interessi, abitudini apprese, debrief di relazione — ciascuna sotto il proprio interruttore, con la provenienza mostrata sotto. Tu mantieni il controllo: leggere, modificare, segnalare, consolidare. I contatori li incrementa il sistema, mai il modello."
         },
         "healthMetrics": {
           "title": "🩺 Dati sanitari iPhone (upsert batch polimorfico)",
@@ -4863,7 +4958,7 @@
         },
         "telephony": {
           "title": "📞 Telefonia agentica",
-          "description": "LIA effettua chiamate in uscita tramite un agente vocale orientato all'obiettivo, con le tue credenziali — e chiama te, a un numero dichiarato e verificato con un codice letto a voce, senza scheda di conferma. Un terzo sente solo le tue disponibilità; tu hai il contesto della chat, consultazioni in diretta per ambito, in sola lettura, e la tua personalità configurata. Nulla è registrato; ciò che hai detto torna come tuo messaggio, e ogni impegno ti attende."
+          "description": "LIA effettua chiamate in uscita tramite un agente vocale orientato all'obiettivo, con le tue credenziali — e chiama te, a un numero dichiarato e verificato con un codice letto a voce, senza scheda di conferma. Un terzo sente solo le tue disponibilità. Le tue chiamate seguono la modalità che scegli: Live, dove ogni richiesta diventa un turno di chat mentre parli, o Live diretto, dove la voce legge i tuoi dati per ambito senza agire su nulla, le tue parole riportate poi come tuo messaggio."
         },
         "todayBriefing": {
           "title": "🌅 Today Briefing",
@@ -4871,23 +4966,23 @@
         },
         "peers": {
           "title": "🤝 Connessioni tra utenti",
-          "description": "Due utenti della stessa istanza si collegano tramite un’unica riga di coppia canonica con transizioni rivendicate una sola volta: niente richieste doppie, niente corse. La riservatezza regge per costruzione: un destinatario bloccato, sconosciuto o in periodo di attesa risponde con un 404 identico byte per byte, quindi l’esistenza non può mai essere sondata. Un messaggio inoltrato è una bozza che confermi, consegnata dall’assistente del destinatario con la sua personalità e la sua memoria. Le condivisioni sono a livello di campo, in sola lettura e rivalidate al momento dell’esecuzione — libero/occupato o dettagli, titoli delle attività — e finiscono in un registro di accesso potato."
+          "description": "Due utenti della stessa istanza si collegano tramite un’unica riga di coppia canonica con transizioni rivendicate una sola volta: niente richieste doppie, niente corse. La riservatezza regge per costruzione: un destinatario bloccato, sconosciuto o in periodo di attesa risponde con un 404 identico byte per byte — l’esistenza non può mai essere sondata. Un messaggio inoltrato è una bozza che confermi, consegnata dall’assistente del destinatario. Le condivisioni sono a livello di campo, in sola lettura e rivalidate all’esecuzione — libero/occupato o dettagli, titoli delle attività — e finiscono in un registro di accesso potato."
         },
         "relations": {
           "title": "⭐ CRM personale — Relazioni",
-          "description": "Una lente, non un database: la pagina Relazioni raccoglie ciò che LIA già sa di una persona — impegni aperti, chiamate, ricordi, messaggi inoltrati — con un’identità risolta ripiegando accenti e maiuscole, e una confidenza mostrata anziché presunta. Ogni sezione porta il proprio totale esatto, calcolato sull’intero insieme. Tre sezioni vengono dagli account collegati — rubrica, posta, riunioni — trovate per indirizzo e non per nome. E un debriefing scritto apre ora la scheda: a che punto sei e che cosa affrontare, redatto al massimo una volta al giorno e letto dalla chat quando nomini quella persona."
+          "description": "Una lente, non un database: la pagina Relazioni raccoglie ciò che LIA già sa di una persona — impegni aperti, chiamate, ricordi, messaggi inoltrati — con un’identità risolta ripiegando accenti e maiuscole, e una confidenza mostrata anziché presunta. Ogni sezione porta il proprio totale esatto, calcolato sull’intero insieme. Tre sezioni vengono dagli account collegati — rubrica, posta, riunioni — trovate per indirizzo e non per nome. Un debriefing scritto apre la scheda: a che punto sei e che cosa affrontare, redatto al massimo una volta al giorno e letto dalla chat quando nomini quella persona."
         },
         "provenance": {
           "title": "🔍 Provenienza delle conclusioni",
-          "description": "Un ricordo afferma che preferisci le riunioni del mattino; una voce di diario conclude su un umore. Ognuno porta un riferimento limitato ai segnali che l’hanno prodotto: conversazione, turno, data e uno di tre ruoli — origine, prova, contraddizione. Ciò che viene memorizzato è un puntatore e un orario, mai le parole: una copia sarebbe una seconda casa permanente per contenuti che puoi cancellare altrove, e la tua cancellazione smetterebbe di esserlo. Cancellare una conversazione svuota quindi il riferimento e lascia una riga datata. La traccia è limitata a cinque riferimenti, e il limite è pubblicato nella risposta."
+          "description": "Un ricordo afferma che preferisci le riunioni del mattino; una voce di diario conclude su un umore. Ognuno porta un riferimento limitato ai segnali che l’hanno prodotto: conversazione, turno, data e uno di tre ruoli — origine, prova, contraddizione. Ciò che viene memorizzato è un puntatore e un orario, mai le parole: una copia sarebbe una seconda casa permanente per contenuti che puoi cancellare altrove. Cancellare una conversazione svuota quindi il riferimento e lascia una riga datata. La traccia è limitata a cinque riferimenti, e il limite è pubblicato nella risposta."
         },
         "capabilityMap": {
           "title": "🌌 Mappa delle capacità",
-          "description": "Una mappa stellare di ciò che l’assistente sa davvero fare per questo account. Ogni capacità è una stella — piena quando è realmente utilizzabile, a contorno quando attende configurazione — e la sua dimensione viene da ciò che contiene: quattrocento ricordi brillano più di tre. Una capacità disattivata dall’istanza è assente, mai in grigio. Nulla di ciò che è pubblicato è un livello o una percentuale: «tre connettori collegati» è un fatto, «62 %» sarebbe una gara. Il disegno è decorativo — ogni destinazione è un link con un nome, raggiungibile da tastiera, e uno schermo stretto riceve la stessa mappa sotto forma di elenco."
+          "description": "Una mappa stellare di ciò che l’assistente sa davvero fare per questo account. Ogni capacità è una stella — piena quando è realmente utilizzabile, a contorno quando attende configurazione — e la sua dimensione viene da ciò che contiene: quattrocento ricordi brillano più di tre. Una capacità disattivata dall’istanza è assente, mai in grigio. Nulla di ciò che è pubblicato è un livello o una percentuale: «tre connettori collegati» è un fatto, «62 %» sarebbe una gara. Ogni destinazione è un link con un nome, raggiungibile da tastiera; uno schermo stretto riceve la stessa mappa come elenco."
         },
         "selfHosting": {
           "title": "🏠 LIA sulla tua macchina",
-          "description": "LIA è software libero (AGPL-3.0) che puoi far girare sulla tua macchina, senza dipendere da nessuno. Un installatore guidato pone un breve questionario nella tua lingua costruisce le immagini dal sorgente che hai clonato, applica i dati di riferimento in una sola transazione, crea il tuo account amministratore, poi verifica che l’installazione funzioni davvero: una sola testa di migrazione, dati di riferimento presenti, chiavi decifrabili. Un server che risponde non è un’installazione riuscita. Nessun segreto passa dalla riga di comando, e un passo fallito riprende esattamente da dove si è fermato."
+          "description": "LIA è software libero (AGPL-3.0) che puoi far girare sulla tua macchina, senza dipendere da nessuno. Un installatore guidato pone un breve questionario nella tua lingua, costruisce le immagini dal sorgente che hai clonato, applica i dati di riferimento in una sola transazione, crea il tuo account amministratore, poi verifica che l’installazione funzioni davvero: una sola testa di migrazione, dati presenti, chiavi decifrabili. Un server che risponde non è un’installazione riuscita. Nessun segreto passa dalla riga di comando, e un passo fallito riprende da dove si è fermato."
         },
         "platformCapabilities": {
           "title": "🎛️ Che cosa offre questa istanza",
@@ -4895,11 +4990,11 @@
         },
         "plugins": {
           "title": "🧩 Agent Plugins (standard aperto)",
-          "description": "LIA è un client conforme allo standard aperto Agent Plugins v1.0.0 (guidato da AWS, Microsoft, OpenAI, Cursor e Vercel, adottato da ChatGPT, Codex, Cursor, Copilot e VS Code): un pacchetto portabile che raggruppa skill e server MCP. Un plugin si installa da uno zip o da un URL https irrobustito, attraverso la stessa catena delle singole skill — estrazione in area intermedia, guardie contro zip bomb e attraversamento di percorso, installazione atomica con ripristino — e restituisce un rapporto esaustivo componente per componente anziché un successo parziale silenzioso. I componenti conservano la propria provenienza: un aggiornamento preserva le credenziali configurate e un plugin non può mai essere amputato in silenzio."
+          "description": "LIA è un client conforme allo standard aperto Agent Plugins v1.0.0 (adottato da ChatGPT, Codex, Cursor, Copilot e VS Code): un pacchetto portabile che raggruppa skill e server MCP. Un plugin si installa da uno zip o da un URL https irrobustito, attraverso la stessa catena delle singole skill — estrazione in area intermedia, guardie contro zip bomb e attraversamento di percorso, installazione atomica con ripristino — e restituisce un rapporto esaustivo componente per componente, mai un successo parziale silenzioso. I componenti conservano la propria provenienza: un aggiornamento preserva le credenziali configurate."
         },
         "tabularAdmin": {
           "title": "📗 Amministrazione tramite cartella di lavoro",
-          "description": "Una schermata con cento voci non si modifica una finestra alla volta. Una descrizione dichiarativa della cartella di lavoro — i suoi fogli, le sue colonne, i loro referenziali — guida entrambe le direzioni: l’export scrive il file, l’import lo rilegge. Le colonne sono abbinate su chiavi tecniche nascoste, quindi riordinarle in Excel, nasconderne una, o esportare in una lingua e reimportare in un’altra non cambia nulla. L’import conferma in due tempi: il primo non scrive nulla e restituisce la differenza campo per campo, il secondo ricalcola quel piano e rifiuta se si è mosso. Una riga assente dal file non cancella mai nulla — la rimozione è una colonna esplicita."
+          "description": "Una schermata con cento voci non si modifica una finestra alla volta. Una descrizione dichiarativa della cartella di lavoro — fogli, colonne, referenziali — guida entrambe le direzioni: l’export scrive il file, l’import lo rilegge. Le colonne sono abbinate su chiavi tecniche nascoste: riordinarle in Excel, nasconderne una, o reimportare in un’altra lingua non cambia nulla. L’import conferma in due tempi: il primo non scrive nulla e restituisce la differenza campo per campo, il secondo rifiuta se quel piano si è mosso. Una riga assente dal file non cancella mai nulla."
         },
         "adaptiveThresholds": {
           "title": "🎚️ Soglie adattive per utente",
@@ -4911,7 +5006,7 @@
         },
         "nativeApps": {
           "title": "📱 App native Android e iOS",
-          "description": "Un’applicazione pubblicata per store, client di qualunque server LIA auto-ospitato: l’app carica l’interfaccia web del tuo server, il cui indirizzo digiti al primo avvio — le release web arrivano quindi subito, senza aggiornare lo store. L’accesso esce verso il browser di sistema (l’unica via che Google consente) e torna tramite un deep link riscattato contro un segreto che solo l’app possiede. Le notifiche sono native su entrambe le piattaforme e volutamente asimmetriche: Android parla con il progetto Firebase del tuo stesso server, mentre l’iPhone viene svegliato da un relè senza stato che dice una frase fissa e non sa mai chi è stato svegliato né perché."
+          "description": "Un’applicazione pubblicata per store, client di qualunque server LIA auto-ospitato: carica l’interfaccia web del tuo server, il cui indirizzo digiti al primo avvio — le release web arrivano subito, senza aggiornare lo store. L’accesso esce verso il browser di sistema e torna tramite un deep link riscattato contro un segreto che solo l’app possiede. Le notifiche sono native e volutamente asimmetriche: Android parla con il progetto Firebase del tuo server, l’iPhone viene svegliato da un relè senza stato che dice una frase fissa e non sa mai chi né perché."
         },
         "selfDiagnostics": {
           "title": "🩺 Autodiagnosi e memoria degli incidenti",
@@ -4932,6 +5027,10 @@
         "workboard": {
           "title": "🗂️ La lavagna dei ticket",
           "description": "Un ticket è un'unità di lavoro con ciclo di vita, responsabile e risultato — proprio ciò che manca a un elenco di attività, a un promemoria e a una routine. Sette colonne, sotto-ticket, commenti, una storia. Il responsabile sei tu, una persona con cui sei connesso, oppure LIA: affidale un ticket e lo prende da sola, lo esegue, commenta ciò che ha prodotto e te lo restituisce da validare. Davanti a un'azione che non può compiere da sola, chiede sul ticket invece di rifiutare, e un commento basta a rispondere: sì, no, o cosa cambiare."
+        },
+        "liveVoice": {
+          "title": "🎧 Modalità Live: due intelligenze, una cucitura",
+          "description": "Una conversazione in tempo reale, a viva voce, su un modello live che colleghi con la tua chiave — Gemini Live, GPT-Live o un agente ElevenLabs. La voce tiene la conversazione e delega ogni richiesta a LIA, che la esegue come un normale turno di chat, conferme e quote comprese, disegnato nel filo mentre parli. Una sessione diretta lascia che la voce legga i tuoi dati senza agire su nulla. Ciò che il fornitore fattura è mostrato, mai registrato; ciò che LIA spende è sulla scheda di chiusura."
         }
       },
       "diagram_alt": "Diagramma dell'architettura di LIA"
@@ -7409,6 +7508,19 @@
             "i4": "<b>🧠 Per gli amministratori — la memoria, processo per processo</b> — ogni worker dell'API pubblica ciò che trattiene in memoria: due pannelli nella dashboard infrastruttura e un allarme che nomina il processo. La trascrizione vocale tiene un solo modello residente per worker, il supervisore non carica più l'applicazione, e il database tiene metà della sua memoria per la cache. Chi si auto-ospita eredita il nuovo dimensionamento senza cambiare nulla."
           },
           "count": "4"
+        },
+        "v1_47_0": {
+          "title": "v1.47.0 — 🎧 La modalità Live: parla con LIA in tempo reale, con la tua chiave — e una politica per modalità, al telefono come nel browser",
+          "date": "Settembre 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>🎧 Una sessione Live, a viva voce</b> — l’icona vocale dell’intestazione apre ora una conversazione in tempo reale con LIA su un modello live che colleghi con <b>la tua chiave</b> (Gemini Live, GPT-Live o un agente ElevenLabs). Parli, LIA risponde, puoi interromperla; i sottotitoli e un contatore indicativo di ciò che il fornitore ti addebita stanno in una fascia sopra il filo. Nulla di ciò che il fornitore fattura viene registrato dalla piattaforma.",
+            "i2": "<b>🧠 Due intelligenze, una sola cucitura</b> — la voce tiene la conversazione e affida ogni richiesta di dati o di azione a LIA, che la esegue come un normale turno di chat: le stesse conferme, gli stessi registri, le stesse quote, disegnati nel filo mentre parli. Una domanda che LIA deve farti È la risposta che dà la voce. La scheda di chiusura somma ciò che LIA stessa ha speso.",
+            "i3": "<b>🎯 Una sessione diretta, e la modalità Live del telefono</b> — una terza voce del menu vocale, « Sessione Live diretta », lascia che la voce legga i tuoi dati da sola (agenda, mail, contatti, luoghi, memorie — i domini che autorizzi) senza agire su nulla; ciò che hai chiesto viene riportato nella conversazione alla fine come un tuo messaggio. Le stesse due modalità governano ora le chiamate che LIA ti fa: <b>Live</b> (il predefinito — ogni richiesta è trattata mentre parli) o <b>Live diretto</b>, scelto in Impostazioni › Telefonia · La mia identità.",
+            "i4": "<b>⚙️ Impostazioni › Modalità Live</b> — il modello (sceglierlo è scegliere il suo fornitore), la voce con un estratto a ogni cambio, il livello di ragionamento dove il modello lo offre, come si comporta la conversazione (interruzioni, fine frase, quando LIA consegna una risposta), il silenzio e la durata massima per modello, un tetto di spesa opzionale per sessione. Ogni modello che colleghi conserva le proprie impostazioni.",
+            "i5": "<b>💶 Ogni euro che la piattaforma paga per te è contato — qualunque sia il percorso</b> — una consultazione di mappa durante una chiamata o una sessione live, il meteo del briefing del mattino, una geocodifica, una foto che LIA ti mostra: ciascuno atterra ora nel tuo utilizzo e nei tuoi riquadri di costo come un messaggio di chat, e la fattura telefonica come la scheda live mostrano gli euro di Maps che prima contavano come semplici richieste. Una sintesi vocale è addebitata solo per le frasi davvero servite.",
+            "i6": "<b>🔧 Corretto anche</b> — la selezione degli strumenti e la classifica ReAct erano diventate cieche per una cache di embedding scritta nella dimensione sbagliata; il validatore semantico saltava ogni turno da una modifica di settembre; una risposta ambigua a una conferma era letta come una modifica; una chiamata Live a cui nessuno rispondeva non lasciava alcuna notifica; una scheda aperta tratteneva una connessione al database per tutta la sua vita; il certificato di sviluppo era rinnovato per la sua età anziché per la scadenza."
+          }
         }
       }
     },
@@ -7776,7 +7888,7 @@
       "telephony": {
         "title": "Chiamate telefoniche",
         "description": "LIA può fare vere telefonate al posto tuo. Guida di configurazione completa (Twilio + ElevenLabs) e uso quotidiano.",
-        "count": "18",
+        "count": "19",
         "questions": {
           "q1": {
             "question": "Cosa può fare LIA al telefono?",
@@ -7840,15 +7952,19 @@
           },
           "q16": {
             "question": "Cosa sa LIA durante una chiamata con me?",
-            "answer": "Due livelli, entrambi nelle tue mani.<br><br><strong>🧾 Il contesto che porta:</strong><br>con <b>Contesto ricco al telefono</b> attivo, la chiamata porta ciò che la chat saprebbe — i ricordi pertinenti, la tua agenda, i tuoi promemoria, i fili aperti con le persone, i tuoi ultimi scambi. Disattivato, LIA conosce solo le tue disponibilità.<br><br><strong>🔎 Cosa può consultare in diretta:</strong><br>se il tuo amministratore ha attivato le ricerche in diretta, l'assistente legge LIA durante la chiamata — le ultime mail, una giornata di agenda, un contatto, un file, un luogo vicino, il meteo, ciò che ricorda di un argomento — e ti legge il risultato a parole. Legge, e non agisce mai: nessun messaggio inviato, nessun evento creato, nulla di cancellato. In <b>La mia identità</b> ogni ambito ha il suo interruttore; ciò che disattivi non viene nemmeno collegato alla chiamata."
+            "answer": "Dipende dalla modalità scelta in <b>Impostazioni → Telefonia · La mia identità</b> (vedi la domanda seguente).<br><br><strong>🎧 In Live (il predefinito):</strong><br>la voce non sa nulla e non legge nulla da sola: ogni cosa che chiedi è affidata a LIA, che la esegue come un turno di chat mentre parli, con tutto ciò che la chat sa — memorie, agenda, promemoria, fili aperti, i tuoi ultimi scambi — e risponde attraverso la voce.<br><br><strong>🎯 In Live diretto:</strong><br>con <b>Contesto ricco al telefono</b> attivo, la chiamata porta ciò che la chat saprebbe; disattivato, LIA conosce solo le tue disponibilità. E se il tuo amministratore ha attivato le consultazioni in diretta, la voce legge i tuoi dati da sola durante la chiamata — le ultime e-mail, una giornata di agenda, un contatto, un file, un luogo vicino, il meteo, ciò che ricorda di un argomento — e ti legge il risultato a parole. Legge, e non agisce mai: nessun messaggio inviato, nessun evento creato, nulla di cancellato. In <b>La mia identità</b>, ogni dominio ha il suo interruttore — gli stessi interruttori governano una sessione live diretta nel browser."
           },
           "q17": {
             "question": "Cosa succede dopo la chiamata?",
-            "answer": "Ciò che hai detto torna <b>come tuo messaggio</b>: LIA lo scrive, lo ripropone nella chat come tuo turno — con un badge telefono — e risponde come se lo avessi digitato. Ciò che le hai chiesto di fare diventa una bozza che attende la tua conferma nella chat; l'assistente non promette mai di aver fatto qualcosa durante la chiamata.<br><br><strong>📣 E se non ha potuto:</strong><br>la notifica dice esattamente perché — nessuno ha risposto, la linea è caduta, ha risposto qualcun altro, una domanda ti aspettava già, la conversazione era occupata, un tetto era raggiunto — e l'elenco delle chiamate mostra lo stesso verdetto."
+            "answer": "<strong>🎧 In Live:</strong><br>non resta nulla da riportare — ogni cosa che hai chiesto è già stata eseguita come un tuo turno di chat mentre parlavi, e il filo le mostra, con un badge telefono. Ciò che richiedeva la tua conferma è una bozza che ti aspetta nella chat.<br><br><strong>🎯 In Live diretto:</strong><br>ciò che hai detto torna <b>come tuo messaggio</b>: LIA lo scrive, lo ripropone nella chat come tuo turno — con un badge telefono — e risponde come se lo avessi digitato. Ciò che le hai chiesto di fare diventa una bozza che attende la tua conferma nella chat; l'assistente non promette mai di aver fatto qualcosa durante la chiamata.<br><br><strong>📣 E se non ha potuto:</strong><br>qualunque sia la modalità, la notifica dice esattamente perché — nessuno ha risposto, la linea è caduta, ha risposto qualcun altro, una domanda ti aspettava già, la conversazione era occupata, un tetto era raggiunto — e l'elenco delle chiamate mostra lo stesso verdetto, accanto alla modalità in cui la chiamata è avvenuta."
           },
           "q18": {
             "question": "Quanto costa una chiamata con me?",
             "answer": "Due fatture, una delle quali solo tua.<br><br><strong>💶 Ciò che LIA conta:</strong><br>le ricerche in diretta fatte durante la chiamata, la sintesi successiva e il turno riportato sono contati sotto un'unica fattura, mostrata sulla risposta riportata nella chat e nell'elenco delle chiamate — come qualsiasi altra richiesta.<br><br><strong>📞 Ciò che fattura ElevenLabs:</strong><br>il modello proprio dell'agente vocale, il parlato, la linea — tutto ciò che gira sulla tua chiave ElevenLabs — lo fattura ElevenLabs sul tuo account e non è mai contato né mostrato in LIA. Stessa regola per ogni servizio che usi con le tue chiavi."
+          },
+          "q19": {
+            "question": "Live o Live diretto: come conduce LIA le mie chiamate?",
+            "answer": "Una scelta tua, in <b>Impostazioni → Telefonia · La mia identità</b>, e le stesse due modalità delle sessioni live del browser.<br><br><strong>🎧 Live (il predefinito):</strong><br>ciò che chiedi al telefono è trattato da LIA <b>mentre parli</b>, come un tuo turno di chat — la voce lo annuncia, continua a parlare e legge la risposta quando arriva. Una conferma di cui LIA ha bisogno è chiesta sulla linea e risolta dalle tue parole successive; una domanda che pone è la risposta. Tutto è nel filo con un badge telefono, contato sotto i tuoi limiti.<br><br><strong>🎯 Live diretto:</strong><br>la voce legge i tuoi dati da sola (i domini che autorizzi) e non agisce su nulla; ciò che hai detto è riportato nella conversazione alla fine come un tuo messaggio.<br><br><strong>🛰️ Quando Live non è disponibile:</strong><br>Live ha bisogno che il fornitore telefonico possa richiamare la tua istanza; dove non può (un indirizzo privato), l'impostazione lo dice e ogni chiamata parte in diretta. Se il fornitore rifiuta la delega su una data chiamata, quella chiamata parte in diretta e la notifica lo dice."
           }
         }
       },
@@ -8548,7 +8664,7 @@
       "privacy": {
         "title": "Sicurezza e privacy",
         "description": "Protezione dei tuoi dati",
-        "count": "15",
+        "count": "16",
         "questions": {
           "q1": {
             "question": "Le mie conversazioni sono private?",
@@ -8609,6 +8725,10 @@
           "q15": {
             "question": "Uno script scritto da LIA vede mai le mie chiavi API, o manda i miei dati da qualche parte?",
             "answer": "Nessuna chiave, e nessun dato senza il tuo consenso.<br><br><strong>🔑 Le chiavi</strong><br>• lo script vede sempre e solo un token temporaneo, valido per quella singola esecuzione<br>• un proxy dedicato lo scambia con la tua vera chiave, solo sull’host di quel connettore — la chiave non entra mai nel contenitore in cui gira lo script<br>• le chiavi dell’account di LIA e le tue credenziali di accesso non vengono mai offerte a uno script<br><br><strong>📦 I dati</strong><br>• uno script che non dichiara alcun host gira del tutto offline, con i dati del turno sul suo standard input<br>• uno script che vuole un host che non hai mai consentito viene fermato, e scegli tu: <strong>con</strong> i dati, <strong>senza</strong>, o per niente<br>• « senza » vuol dire che lo script non riceve nulla di ciò che LIA ha raccolto — può soltanto raggiungere l’host<br><br><strong>📖 Le tracce</strong><br>• ogni esecuzione in rete è rivendicata nel tuo registro prima di partire, con gli host che ha dichiarato<br>• lo script stesso è visibile a un amministratore nel pannello di debug, da nessun’altra parte"
+          },
+          "q16": {
+            "question": "In una sessione Live, cosa vede il fornitore e cosa conserva LIA?",
+            "answer": "<strong>🔑 Il fornitore, sulla tua chiave:</strong><br>la tua voce e le risposte di LIA transitano direttamente tra il tuo browser e il fornitore live che hai collegato con la tua chiave — l'audio non passa mai dal server di LIA. Il fornitore riceve il mandato che LIA genera per la sessione (come comportarsi, cosa affidarle) e, in una sessione diretta, le dichiarazioni degli strumenti e i risultati che legge per te. Il suo utilizzo e la sua fattura sono tuoi e ti sono mostrati una volta; la piattaforma non ne registra nulla.<br><br><strong>🧾 LIA, sul tuo account:</strong><br>ogni richiesta che hai delegato è un normale turno di chat — conservato, confermato, contato, annotato nei registri come uno scritto. Gli scambi solo vocali di una sessione Live sono archiviati come righe visibili; in una sessione diretta nulla è archiviato mentre parli, e le tue parole sono riportate alla fine come un tuo messaggio. I registri annotano la sessione e le capacità lette, mai l'audio né una sua trascrizione. Eliminare il tuo account cancella tutto questo."
           }
         }
       },
@@ -8642,7 +8762,7 @@
       "usage_limits": {
         "title": "Limiti di utilizzo",
         "description": "Quote di token, messaggi e costi per utente",
-        "count": "11",
+        "count": "12",
         "questions": {
           "q1": {
             "question": "Cosa sono i limiti di utilizzo?",
@@ -8687,13 +8807,17 @@
           "q11": {
             "question": "I tetti coprono tutto ciò che LIA consuma?",
             "answer": "Tutto ciò che <strong>paga l’istanza</strong>, sì. I modelli linguistici, la sintesi e il riconoscimento vocale, la generazione di immagini e le mappe girano sulle chiavi del deployment: ogni chiamata è quindi soggetta a <strong>entrambi i tetti</strong> — la tua quota personale e il budget giornaliero dell’istanza.<br><br>Ciò che passa dalla <strong>tua chiave</strong> presso un fornitore — ricerca web, meteo, telefonia — resta fuori: quel conto non lo paga l’istanza.<br><br>Un rifiuto si presenta in modo diverso a seconda di dove capita. Una richiesta appena fatta risponde con chiarezza, nominando il limite raggiunto e il momento in cui si allenta; un compito in background invece <strong>rinuncia in silenzio</strong> — un rifiuto per quota non è un guasto e non deve apparire come tale."
+          },
+          "q12": {
+            "question": "Tutto ciò che la piattaforma paga per me è contato — anche fuori dalla chat?",
+            "answer": "Sì — ed è una regola, non solo per i token del modello. Tutto ciò che la piattaforma paga per te con le proprie chiavi raggiunge il tuo utilizzo, i tuoi riquadri di costo e i tuoi limiti: una consultazione di mappa o di luogo durante una telefonata o una sessione live diretta, le chiamate meteo e qualità dell'aria del briefing del mattino, la geocodifica dell'indirizzo del tuo profilo, una foto di un luogo che LIA ti mostra (contata quando è davvero visualizzata, mai in anticipo), una sintesi vocale (contata solo per le frasi davvero consegnate). Ogni fattura telefonica e ogni scheda di sessione live mostrano una sola cifra per ciò che l'esecuzione è costata, euro di Maps compresi. Solo ciò che paghi con <b>le tue</b> chiavi di connettore — un modello live, l'agente telefonico, una ricerca web sulla tua chiave — resta fuori: ti è mostrato dove avviene, e registrato da nessuna parte. Un amministratore sorveglia un allarme che deve restare a zero: una chiamata a pagamento che non ha raggiunto alcun registro."
           }
         }
       },
       "voice_mode": {
         "title": "Modalità Vocale",
-        "description": "Parla con LIA e lascia che risponda ad alta voce. Premi per parlare, parola di attivazione, lingue di trascrizione e cosa esce dal tuo dispositivo.",
-        "count": "7",
+        "description": "Parla con LIA e lasciala rispondere a voce alta. Premi per parlare, parola di attivazione, lingue di trascrizione, ciò che lascia il tuo dispositivo — e la modalità Live, una conversazione in tempo reale con la tua chiave.",
+        "count": "11",
         "questions": {
           "q1": {
             "question": "Come attivo la modalità vocale?",
@@ -8722,6 +8846,22 @@
           "q7": {
             "question": "LIA legge correttamente numeri, prezzi e indirizzi?",
             "answer": "Sì. Un punto chiude una frase pronunciata solo se è seguito da uno spazio: un numero decimale, un prezzo, un numero di versione o un indirizzo web resta quindi dentro un'unica frase parlata. «ci sono 3,5 gradi» viene letto tutto d'un fiato, e non «ci sono tre» seguito da «cinque gradi» in una clip audio separata.<br><br>La regola è la stessa sia che la risposta venga pronunciata in una volta sia che venga trasmessa frase per frase: ciò che senti non dipende dalla velocità con cui la risposta è stata scritta."
+          },
+          "q8": {
+            "question": "Cos'è la modalità Live e come apro una sessione?",
+            "answer": "Una conversazione con LIA <b>a viva voce, in tempo reale</b>: parli, lei risponde mentre ascolta, puoi interromperla. Gira su un modello live che colleghi con <b>la tua chiave</b> — Gemini Live, GPT-Live o un agente ElevenLabs — da <b>Impostazioni → Connettori</b> (la famiglia « Live », additiva: puoi tenerne più d'uno). Con un connettore attivo, l'icona vocale dell'intestazione della chat diventa un menu: <b>Sessione Live (marca)</b> ne apre una. Una fascia sopra il filo mostra i sottotitoli, il tempo rimasto e un contatore indicativo; il dialogo di proroga chiede prima del limite, e la sessione termina da sola dopo un lungo silenzio.<br><br><strong>🧠 Due intelligenze, una sola cucitura:</strong><br>la voce tiene la conversazione; ogni richiesta di dati o di azione è affidata a LIA, che la esegue come un normale turno di chat — le stesse conferme, gli stessi registri, le stesse quote — disegnato nel filo mentre parli. Una domanda che LIA deve farti è ciò che la voce dice subito dopo."
+          },
+          "q9": {
+            "question": "« Sessione Live » o « Sessione Live diretta »: qual è la differenza?",
+            "answer": "<strong>🎧 Sessione Live</strong> — la voce delega: ogni cosa che chiedi diventa un tuo turno di chat, eseguito da LIA mentre parli, con conferme per tutto ciò che agisce e ogni risposta disegnata nel filo. È la modalità che può FARE cose.<br><br><strong>🎯 Sessione Live diretta</strong> — la voce legge i tuoi dati da sola, senza passare dalla chat: agenda, mail, contatti, attività, luoghi, meteo, ciò che LIA ricorda — i domini che autorizzi in <b>Impostazioni → Telefonia · La mia identità</b>, gli stessi interruttori del telefono. Non agisce su nulla: una richiesta viene annotata, e alla fine tutto ciò che hai detto viene riportato nella conversazione come un tuo messaggio, a cui LIA risponde. Compra latenza, non risparmio: le dichiarazioni degli strumenti sono rifatturate a ogni turno dal fornitore, circa nove volte il prompt di testo di una sessione delegata nella nostra misurazione. Offerta solo dove il filo del modello porta uno schema di strumenti (un agente ElevenLabs non lo porta)."
+          },
+          "q10": {
+            "question": "Quanto costa una sessione Live e chi paga?",
+            "answer": "Due fatture, di cui una è solo tua.<br><br><strong>🔑 Ciò che il fornitore addebita — sulla tua chiave:</strong><br>l'audio del modello live, in entrata e in uscita, è fatturato dal fornitore sul tuo account. La fascia mostra un contatore <b>indicativo</b>, ripiegato dai rapporti d'uso del fornitore e dalla tariffa dichiarata dal tuo amministratore, con la dimensione del contesto; un costo che richiederebbe una tariffa non dichiarata è indicato come non disponibile, mai mostrato parziale. Su un agente ElevenLabs la piattaforma non tariffa nulla: gira solo l'orologio, e la fattura del fornitore è mostrata una volta alla fine. Nulla di tutto ciò è registrato da nessuna parte — è la tua chiave. Impostazioni › Modalità Live consente un tetto di spesa opzionale per sessione.<br><br><strong>💶 Ciò che LIA conta:</strong><br>ciò che LIA stessa spende in una sessione — ogni richiesta che hai delegato, e in una sessione diretta le consultazioni e il turno riportato — è contato come qualsiasi messaggio di chat, sotto i tuoi limiti d'uso, e sommato sulla scheda di chiusura."
+          },
+          "q11": {
+            "question": "Cosa conserva LIA di una sessione Live?",
+            "answer": "<strong>🎧 In una sessione Live:</strong><br>ogni richiesta che hai delegato è un turno di chat, conservato come qualsiasi altro, e gli scambi rimasti solo vocali — due chiacchiere, un inciso — sono archiviati come due righe visibili alla fine di ogni turno, perché la conversazione si legga com'è avvenuta; memorie e interessi ne imparano come da un messaggio scritto. La sessione si chiude su una scheda: com'è finita, la durata, le richieste, gli scambi vocali, il costo proprio di LIA.<br><br><strong>🎯 In una sessione diretta:</strong><br>nulla è archiviato mentre parli — i sottotitoli vivono nella fascia. Alla fine, ciò che hai detto è redatto e riportato nella conversazione come un tuo messaggio; la scheda dice « in corso di inoltro », poi è riscritta quando LIA ha risposto, con il costo riletto. Ciò che era l'audio appartiene al fornitore e a te: la piattaforma non lo riceve mai.<br><br><strong>🧾 In ogni caso:</strong><br>i registri annotano che una sessione ha avuto luogo e quale capacità LIA ha letto per te — mai una parola di ciò che è stato detto."
           }
         }
       },
@@ -9258,6 +9398,10 @@
       "network_grants": {
         "title": "I tuoi permessi, in un solo posto",
         "desc": "Ciò che uno script può raggiungere senza chiedere — i tuoi connettori, gli host che la tua istanza consente — e ogni permesso che hai dato, ciascuno con la sua portata e un pulsante per revocarlo. Niente in quella lista è stato ricordato alle tue spalle."
+      },
+      "live_band": {
+        "title": "Una fascia mentre parli",
+        "desc": "In una sessione live, una sola fascia sopra il filo dice tutto: che stai parlando con LIA, i sottotitoli di ciò che è appena stato detto, « LIA lavora alla tua richiesta » mentre la chat la esegue, e — sotto l’ultimo sottotitolo, staccato da una barra — ciò che il fornitore ti addebita, indicativo e registrato da nessuna parte. Il filo sotto continua a scorrere: ogni richiesta delegata vi atterra come un tuo turno."
       }
     },
     "scenes": {
@@ -9439,6 +9583,13 @@
         "scope": "Senza i dati",
         "revoke": "Revoca",
         "revoked": "Permesso rimosso"
+      },
+      "live_band": {
+        "status": "Stai parlando con LIA · 0:12",
+        "you": "Cosa ho domani?",
+        "working": "LIA lavora alla tua richiesta…",
+        "lia": "Due appuntamenti: il dentista alle nove, poi Sarah a mezzogiorno.",
+        "meter": "Sulla tua chiave · 0,0175 € · contesto 6 k — indicativo"
       }
     },
     "craft": {
@@ -10466,7 +10617,7 @@
       },
       "telephony_callback": {
         "title": "LIA chiama te",
-        "description": "Su un numero che hai dichiarato e verificato con un codice letto ad alta voce — mai una carta di credito —, LIA può chiamarti: glielo chiedi tu, una routine o un ticket. Al telefono sa ciò che sa la chat, consulta la tua agenda, le tue email o le tue attività mentre parli, e non agisce su nulla. Ciò che hai detto torna poi nella chat come tuo messaggio, al quale lei risponde."
+        "description": "Su un numero che hai dichiarato e verificato con un codice letto ad alta voce — mai una carta di credito —, LIA può chiamarti: glielo chiedi tu, una routine o un ticket. In Live, il predefinito, ogni cosa che chiedi sulla linea gira come un turno di chat mentre parli, conferme comprese; in Live diretto ti legge agenda, email o attività e non agisce su nulla, e le tue parole tornano poi nella chat come tuo messaggio. Scegli tu, nelle impostazioni."
       },
       "reminders_scheduling": {
         "title": "Promemoria e routine",
@@ -10643,6 +10794,10 @@
       "workboard_delegation": {
         "title": "Affida un ticket a LIA",
         "description": "Dalle il ticket: lo prende da sola, fa il lavoro — in modalità Pipeline o ReAct, a scelta sul ticket —, commenta ciò che ha trovato e ti restituisce il risultato da approvare. Quando incontra qualcosa che non può fare da sola, non rinuncia e non decide al posto tuo: chiede sul ticket, mostrando esattamente cosa sta per fare, e un commento basta a rispondere — sì, no, o cosa cambiare. Sollecita ciò che è in ritardo o rimasto in attesa, citando ciò che aspetta davvero."
+      },
+      "live_voice": {
+        "title": "Parlale in diretta, con la tua chiave",
+        "description": "Una voce del menu vocale e stai parlando con LIA in tempo reale — risponde mentre ascolta, la interrompi, i sottotitoli scorrono in una fascia sopra il filo. Il modello live lo colleghi tu: Gemini Live, GPT-Live o il tuo agente ElevenLabs. Lei tiene la conversazione e affida ogni richiesta alla chat, che la esegue mentre parli — conferme e riquadri di costo compresi. Una sessione diretta le lascia leggerti i tuoi dati a voce senza agire su nulla. Ciò che il fornitore fattura è mostrato, mai registrato."
       }
     },
     "use_cases": {
@@ -10877,7 +11032,7 @@
         "b3_d": "«Abbassa le luci», «compila questo modulo»: luci, siti, navigazione — ci pensa lei.",
         "b4_t": "La serie, non la fatica.",
         "b4_d": "«Un promemoria la vigilia di ogni appuntamento»: itera su tutta la settimana, con una sola richiesta.",
-        "how": "20+ agenti orchestrati in parallelo · telefonia agentica col tuo connettore ElevenLabs · controllo del browser · Philips Hue · immagini e diagrammi su richiesta.",
+        "how": "20+ agenti orchestrati in parallelo · sessioni vocali live con la tua chiave Gemini, OpenAI o ElevenLabs · telefonia agentica col tuo connettore ElevenLabs · controllo del browser · Philips Hue · immagini e diagrammi su richiesta.",
         "catalog_hint": "{{count}} capacità nel dettaglio",
         "v_query": "«un promemoria la vigilia di ogni appuntamento»",
         "v_t1": "📅 Agenda",
@@ -11403,8 +11558,8 @@
       },
       "voice-mode": {
         "title": "Modalità vocale: Parla con LIA come un assistente personale",
-        "excerpt": "Il dominio vocale di LIA combina un STT locale gratuito (Sherpa-onnx Whisper, ElevenLabs Scribe remoto opzionale per maggiore precisione) e un TTS catalogue-driven (Edge / OpenAI / ElevenLabs). Lo streaming a livello di frase porta il primo chunk audio in ~1 secondo. L'attribuzione dei costi per messaggio rende le chiamate vocali a pagamento completamente verificabili.",
-        "body": "<h2>Tre modalità di attivazione</h2><p>LIA supporta tre modi per interagire con la voce:</p><ul><li><strong>Parola di attivazione</strong> — di' \"OK Guy\" per avviare l'ascolto a mani libere. Il rilevamento viene eseguito interamente nel browser tramite Sherpa-onnx WASM (modello solo inglese). Nessun audio lascia il browser per il rilevamento della parola di attivazione.</li><li><strong>Push-to-talk</strong> — tieni premuto il pulsante microfono per parlare. Ottimizzato per il mobile.</li><li><strong>Rilevamento automatico di fine parlato (VAD)</strong> — l'ascolto si interrompe automaticamente dopo ~0,75 s di silenzio.</li></ul><h2>Riconoscimento vocale: locale di default, remoto opzionale</h2><p>Ogni utente sceglie la sua modalità STT in <strong>Impostazioni → Modalità vocale</strong>:</p><ul><li><strong>Locale</strong> (predefinito, gratuito) — Sherpa-onnx Whisper eseguito sul server di LIA a <strong>16 kHz mono</strong> con quantizzazione INT8. Supporta <strong>99+ lingue</strong>. L'audio non lascia mai il server di LIA.</li><li><strong>Remoto</strong> (opt-in) — ElevenLabs Scribe a 0,22 $/h, fatturato a durata audio. Maggiore precisione sul parlato conversazionale, soprattutto in ambienti rumorosi. Un badge 🎤 discreto su ogni bolla utente mostra durata e costo in EUR; il costo alimenta il riquadro <strong>Costo</strong> del cruscotto e i tuoi limiti d'uso — nessuna quota separata.</li></ul><p>Due leve di sicurezza lato admin proteggono dai picchi di costo quando il remoto è attivato: un kill switch globale (<code>ELEVENLABS_STT_ENABLED</code>) e un cap di durata per clip (<code>ELEVENLABS_STT_MAX_AUDIO_DURATION_SECONDS</code>, 300 s predefiniti) verificato prima di ogni chiamata provider.</p><h2>Sintesi vocale catalogue-driven</h2><p>La sintesi vocale si configura ora da un unico modulo admin (Configurazione LLM → Voice TTS), con tre provider distribuiti dal primo giorno:</p><ul><li><strong>Edge TTS</strong> — voci neurali Microsoft, gratuito, predefinito. Regolazioni SSML rate / pitch / volume.</li><li><strong>OpenAI TTS</strong> — <code>tts-1</code> o <code>tts-1-hd</code>, voci premium (alloy, echo, fable, onyx, nova, shimmer). Regolazioni speed + response_format.</li><li><strong>ElevenLabs</strong> — <code>eleven_multilingual_v2</code>, <code>eleven_turbo_v2_5</code>, <code>eleven_flash_v2_5</code>. Regolazioni stability, similarity_boost, style, use_speaker_boost. Selettore voci in tempo reale dall'account configurato (voci custom + libreria).</li></ul><p>Per i provider a pagamento, un badge 🔊 sul messaggio assistente mostra il numero di caratteri e il costo in EUR; Edge resta gratuito, senza badge. Formati audio supportati: <strong>MP3, Opus, AAC, FLAC, WAV, PCM</strong> — selezionati per provider.</p><h2>Streaming a livello di frase per latenza sotto il secondo</h2><p>La pipeline vocale invia ora la sintesi TTS <strong>per frase completa in parallelo</strong>, invece di attendere la risposta LLM completa. La prima frase inizia ad essere riprodotta in <strong>circa un secondo</strong> mentre l'assistente sta ancora componendo il resto della risposta. Un keep-alive HTTP persistente su ElevenLabs risparmia altri ~100–300 ms per frase sulle chiamate #2…N. La consegna ordinata è garantita da una coda bufferizzata — gli slot falliti vengono saltati senza bloccare il flusso.</p><h2>Dove finisce una frase</h2><p>Spezzare «per frase» presuppone di sapere dove una frase finisce — e un punto da solo non lo dice. Un delimitatore chiude una frase solo se <strong>è seguito da uno spazio</strong>, o alla fine dell'input: «ci sono 3,5 gradi» resta così tutto intero, invece di essere letto «ci sono tre.» e poi, in una clip audio separata, «cinque gradi». Lo stesso vale per i prezzi, i numeri di versione e gli indirizzi web. Sul percorso progressivo la regola è doppiamente necessaria: il buffer cresce token dopo token, così <code>\"3.\"</code> è uno stato transitorio del tutto normale — dispacciare su di esso equivale a parlare prima di aver finito di leggere. I due divisori della pipeline sono fissati da una tabella di casi condivisa e da un test che ne esige l'accordo.</p><h2>Commenti vocali ed export</h2><p>LIA può allegare brevi <strong>commenti vocali</strong> (un inciso narrativo TTS) alle sue risposte. L'audio viene streamato via WebSocket con un ticket BFF monouso (TTL 60 s) per la sicurezza. Due nuovi export CSV — <code>stt-usage</code> e <code>tts-usage</code> — elencano ogni chiamata vocale a pagamento con conversazione, ID messaggio, provider, durata / caratteri e costo in EUR. L'export <code>consumption-summary</code> esistente riceve anch'esso colonne STT e TTS in modo che i totali rimangano in un unico posto.</p><h2>Quando LIA ti chiama</h2><p>La voce non si ferma al browser. Dichiara il tuo numero in <em>Telefonia · La mia identità</em>, lascia che LIA lo chiami e legga un codice che tu digiti, e da allora «chiamami alle otto per fare il punto sulla giornata» — o una routine che lo dica — fa squillare il tuo telefono senza scheda di conferma: la scheda protegge un terzo, e qui chi confermerebbe è chi risponde. Al telefono, l'agente vocale porta ciò che la chat sa e, quando le ricerche in diretta sono attive, legge LIA mentre parli — mail, agenda, attività, contatti, file, luoghi, meteo, memoria — con gli stessi strumenti in sola lettura della chat, ogni risultato ridotto a ciò che una voce può dire; non agisce su nulla. Quando riagganci, ciò che hai detto viene riproposto nella chat come tuo turno, con un badge telefono, e ogni richiesta vi attende la tua conferma.</p><h2>Da un comando parlato a una riunione di due ore</h2><p>Lo stesso microfono registra ora un’intera riunione. Questo ha cambiato i motori vocali più dell’interfaccia: il Whisper locale decodificava una finestra di trenta secondi e restituiva in silenzio i primi trenta secondi di tutto ciò che durava di più — un difetto che l’input vocale non aveva mai incontrato, perché un comando è breve. L’audio lungo è ora tagliato in finestre di parlato da un rilevatore di attività vocale, ogni finestra decodificata a sé, così nessuna registrazione è troppo lunga. I motori remoti prendono l’intero file in una richiesta e separano le voci; la catena va dal motore dell’amministratore a ElevenLabs, OpenAI e al modello locale, e un fornitore che rifiuta passa la mano al successivo. Il verbale è un’unica chiamata strutturata che riempie il modello dell’utente, e ogni unità pagata — audio presso il motore, token presso il modello — è dichiarata sulla scheda prodotta, sulla pagina della riunione e nell’elenco.</p>"
+        "excerpt": "Il dominio vocale di LIA combina un STT locale gratuito (Sherpa-onnx Whisper, ElevenLabs Scribe remoto opzionale per maggiore precisione), un TTS catalogue-driven (Edge / OpenAI / ElevenLabs) e, dalla v1.47, una modalità Live in tempo reale con la tua chiave Gemini, OpenAI o ElevenLabs. Lo streaming a livello di frase porta il primo chunk audio in ~1 secondo. L'attribuzione dei costi per messaggio rende le chiamate vocali a pagamento completamente verificabili.",
+        "body": "<h2>Tre modalità di attivazione</h2><p>LIA supporta tre modi per interagire con la voce:</p><ul><li><strong>Parola di attivazione</strong> — di' \"OK Guy\" per avviare l'ascolto a mani libere. Il rilevamento viene eseguito interamente nel browser tramite Sherpa-onnx WASM (modello solo inglese). Nessun audio lascia il browser per il rilevamento della parola di attivazione.</li><li><strong>Push-to-talk</strong> — tieni premuto il pulsante microfono per parlare. Ottimizzato per il mobile.</li><li><strong>Rilevamento automatico di fine parlato (VAD)</strong> — l'ascolto si interrompe automaticamente dopo ~0,75 s di silenzio.</li></ul><h2>Riconoscimento vocale: locale di default, remoto opzionale</h2><p>Ogni utente sceglie la sua modalità STT in <strong>Impostazioni → Modalità vocale</strong>:</p><ul><li><strong>Locale</strong> (predefinito, gratuito) — Sherpa-onnx Whisper eseguito sul server di LIA a <strong>16 kHz mono</strong> con quantizzazione INT8. Supporta <strong>99+ lingue</strong>. L'audio non lascia mai il server di LIA.</li><li><strong>Remoto</strong> (opt-in) — ElevenLabs Scribe a 0,22 $/h, fatturato a durata audio. Maggiore precisione sul parlato conversazionale, soprattutto in ambienti rumorosi. Un badge 🎤 discreto su ogni bolla utente mostra durata e costo in EUR; il costo alimenta il riquadro <strong>Costo</strong> del cruscotto e i tuoi limiti d'uso — nessuna quota separata.</li></ul><p>Due leve di sicurezza lato admin proteggono dai picchi di costo quando il remoto è attivato: un kill switch globale (<code>ELEVENLABS_STT_ENABLED</code>) e un cap di durata per clip (<code>ELEVENLABS_STT_MAX_AUDIO_DURATION_SECONDS</code>, 300 s predefiniti) verificato prima di ogni chiamata provider.</p><h2>Sintesi vocale catalogue-driven</h2><p>La sintesi vocale si configura ora da un unico modulo admin (Configurazione LLM → Voice TTS), con tre provider distribuiti dal primo giorno:</p><ul><li><strong>Edge TTS</strong> — voci neurali Microsoft, gratuito, predefinito. Regolazioni SSML rate / pitch / volume.</li><li><strong>OpenAI TTS</strong> — <code>tts-1</code> o <code>tts-1-hd</code>, voci premium (alloy, echo, fable, onyx, nova, shimmer). Regolazioni speed + response_format.</li><li><strong>ElevenLabs</strong> — <code>eleven_multilingual_v2</code>, <code>eleven_turbo_v2_5</code>, <code>eleven_flash_v2_5</code>. Regolazioni stability, similarity_boost, style, use_speaker_boost. Selettore voci in tempo reale dall'account configurato (voci custom + libreria).</li></ul><p>Per i provider a pagamento, un badge 🔊 sul messaggio assistente mostra il numero di caratteri e il costo in EUR; Edge resta gratuito, senza badge. Formati audio supportati: <strong>MP3, Opus, AAC, FLAC, WAV, PCM</strong> — selezionati per provider.</p><h2>Streaming a livello di frase per latenza sotto il secondo</h2><p>La pipeline vocale invia ora la sintesi TTS <strong>per frase completa in parallelo</strong>, invece di attendere la risposta LLM completa. La prima frase inizia ad essere riprodotta in <strong>circa un secondo</strong> mentre l'assistente sta ancora componendo il resto della risposta. Un keep-alive HTTP persistente su ElevenLabs risparmia altri ~100–300 ms per frase sulle chiamate #2…N. La consegna ordinata è garantita da una coda bufferizzata — gli slot falliti vengono saltati senza bloccare il flusso.</p><h2>Dove finisce una frase</h2><p>Spezzare «per frase» presuppone di sapere dove una frase finisce — e un punto da solo non lo dice. Un delimitatore chiude una frase solo se <strong>è seguito da uno spazio</strong>, o alla fine dell'input: «ci sono 3,5 gradi» resta così tutto intero, invece di essere letto «ci sono tre.» e poi, in una clip audio separata, «cinque gradi». Lo stesso vale per i prezzi, i numeri di versione e gli indirizzi web. Sul percorso progressivo la regola è doppiamente necessaria: il buffer cresce token dopo token, così <code>\"3.\"</code> è uno stato transitorio del tutto normale — dispacciare su di esso equivale a parlare prima di aver finito di leggere. I due divisori della pipeline sono fissati da una tabella di casi condivisa e da un test che ne esige l'accordo.</p><h2>Commenti vocali ed export</h2><p>LIA può allegare brevi <strong>commenti vocali</strong> (un inciso narrativo TTS) alle sue risposte. L'audio viene streamato via WebSocket con un ticket BFF monouso (TTL 60 s) per la sicurezza. Due nuovi export CSV — <code>stt-usage</code> e <code>tts-usage</code> — elencano ogni chiamata vocale a pagamento con conversazione, ID messaggio, provider, durata / caratteri e costo in EUR. L'export <code>consumption-summary</code> esistente riceve anch'esso colonne STT e TTS in modo che i totali rimangano in un unico posto.</p><h2>Quando LIA ti chiama</h2><p>La voce non si ferma al browser. Dichiara il tuo numero in <em>Telefonia · La mia identità</em>, lascia che LIA lo chiami e legga un codice che tu digiti, e da allora «chiamami alle otto per fare il punto sulla giornata» — o una routine che lo dica — fa squillare il tuo telefono senza scheda di conferma: la scheda protegge un terzo, e qui chi confermerebbe è chi risponde. Al telefono, l'agente vocale porta ciò che la chat sa e, quando le ricerche in diretta sono attive, legge LIA mentre parli — mail, agenda, attività, contatti, file, luoghi, meteo, memoria — con gli stessi strumenti in sola lettura della chat, ogni risultato ridotto a ciò che una voce può dire; non agisce su nulla. Quando riagganci, ciò che hai detto viene riproposto nella chat come tuo turno, con un badge telefono, e ogni richiesta vi attende la tua conferma.</p><h2>Modalità Live: due intelligenze, una sola cucitura</h2><p>Dalla v1.47 l’icona vocale apre una terza cosa: una <strong>sessione in tempo reale, da voce a voce</strong>, su un modello live che colleghi con la tua chiave — Gemini Live via WebSocket, GPT-Live via WebRTC, o un agente ElevenLabs la cui voce e turno di parola restano sul suo portale. L’audio non transita mai dal server di LIA: l’API conia una credenziale monouso e genera la configurazione, il browser la ripete e apre da solo la connessione.</p><p>Il design è una cucitura tra due intelligenze. Il modello vocale possiede la conversazione — ascoltare, parlare, interrompere, riempire un’attesa — e <strong>delega ogni richiesta di dati o di azione</strong> al motore della chat tramite una sola funzione dichiarata, <code>send_to_lia</code>. Il browser trasforma quella chiamata in un normale turno di chat sotto la tua sessione: le stesse conferme, gli stessi registri, le stesse quote, disegnati nel filo mentre parli. Una domanda che LIA deve porre è ciò che la voce dice subito dopo, e la scheda di chiusura somma ciò che LIA stessa ha speso. Ciò che il fornitore fattura sulla tua chiave è ripiegato in un contatore indicativo e mostrato, mai registrato.</p><p>Una <strong>sessione diretta</strong> porta la linea del telefono nel browser: la voce tiene da sola gli strumenti di lettura di LIA — i domini che autorizzi —, legge per te e non agisce su nulla, le tue parole riportate alla fine come un tuo messaggio. Misurato su una sessione reale, le dichiarazioni degli strumenti pesano il novanta per cento della configurazione e il primo turno costa circa nove volte quello delegato: una sessione diretta compra latenza, mai risparmio. Le stesse due modalità, Live e Live diretto, governano ora le chiamate che LIA ti fa, con una sola chiusura per entrambe le linee.</p><h2>Da un comando parlato a una riunione di due ore</h2><p>Lo stesso microfono registra ora un’intera riunione. Questo ha cambiato i motori vocali più dell’interfaccia: il Whisper locale decodificava una finestra di trenta secondi e restituiva in silenzio i primi trenta secondi di tutto ciò che durava di più — un difetto che l’input vocale non aveva mai incontrato, perché un comando è breve. L’audio lungo è ora tagliato in finestre di parlato da un rilevatore di attività vocale, ogni finestra decodificata a sé, così nessuna registrazione è troppo lunga. I motori remoti prendono l’intero file in una richiesta e separano le voci; la catena va dal motore dell’amministratore a ElevenLabs, OpenAI e al modello locale, e un fornitore che rifiuta passa la mano al successivo. Il verbale è un’unica chiamata strutturata che riempie il modello dell’utente, e ogni unità pagata — audio presso il motore, token presso il modello — è dichiarata sulla scheda prodotta, sulla pagina della riunione e nell’elenco.</p>"
       },
       "knowledge-spaces": {
         "title": "Knowledge Spaces: Trasforma i tuoi documenti in intelligenza IA",
@@ -11442,9 +11597,9 @@
         "body": "<h2>Privacy by design</h2><p>LIA è progettato fin dall'origine con la protezione dei dati come principio fondante, non come un'aggiunta a posteriori.</p><h2>Crittografia simmetrica Fernet</h2><p>Tutti i dati sensibili sono crittografati con <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256) tramite la funzione <code>encrypt_data()</code>. Ciò copre i token OAuth, le credenziali dei connettori, i PII e le credenziali dei server MCP. Le credenziali OAuth vengono crittografate prima della scrittura nel database e decrittografate al volo durante il recupero. Le chiavi di crittografia sono gestite separatamente dai dati.</p><h2>Minimizzazione della raccolta</h2><p>LIA raccoglie solo i dati strettamente necessari al suo funzionamento:</p><ul><li>Informazioni del profilo (nome, email, preferenze)</li><li>Storico delle conversazioni (crittografato)</li><li>Token di connessione ai servizi (crittografati)</li><li>Metriche di utilizzo anonimizzate</li></ul><h2>Eliminazione e cascading</h2><p>L'eliminazione di un account utente attiva un <strong>cascading delete</strong> completo: connettori, conversazioni, impostazioni, sessioni, memorie e tutti i dati associati vengono eliminati irreversibilmente. Nessun dato orfano persiste nel database.</p><h2>Sessioni e cookie sicuri</h2><p>I cookie di sessione sono configurati con gli attributi <code>HttpOnly</code>, <code>Secure</code> (in produzione) e <code>SameSite=lax</code>. La durata della sessione è di 7 giorni per impostazione predefinita, estensibile a 30 giorni con l'opzione \"Ricordami\". I token monouso vengono invalidati dopo il primo utilizzo tramite una blacklist Redis.</p><h2>Protezione dei contenuti esterni</h2><p>I contenuti recuperati da fonti esterne (email, pagine web, documenti) vengono contrassegnati come <code>UNTRUSTED</code> con un wrapping configurabile prima dell'iniezione nei prompt. Lo strumento web_fetch è limitato a 10 chiamate per finestra di 60 secondi per utente per prevenire gli abusi.</p><h2>Filtraggio PII nei log</h2><p>Il sistema di logging applica le raccomandazioni <strong>OWASP Logging Cheat Sheet</strong> per filtrare automaticamente i dati personali dai log applicativi. Nessun dato sensibile appare nei log.</p><h2>Portabilità dei dati (v1.9.1)</h2><p>LIA consente a ogni utente di <strong>esportare i propri dati di consumo</strong> in formato CSV da Impostazioni > Funzionalità. Tre tipi di esportazione: consumo LLM (token e costi per chiamata), consumo API Google e riepilogo aggregato. Sicurezza: lo <code>user_id</code> viene forzato lato server — nessun parametro è esposto (protezione IDOR).</p><h2>Backup con ripristino provato</h2><p>Proteggere i dati significa anche garantire che sopravvivano agli incidenti. Il database di produzione viene salvato automaticamente ogni notte, con 7 giorni, 4 settimane e 6 mesi di storico conservati, in una directory dedicata con permessi restrittivi. E poiché un backup conta solo quando il ripristino è stato provato, la procedura è testata davvero: l'ultimo dump viene ripristinato in un container usa e getta e confrontato con il database live (revisione di schema, conteggi di righe) — un'esercitazione inclusa nello stack.</p><h2>Un fascicolo completo, non un campione</h2><p>Tre registri tenuti automaticamente dicono che cosa LIA ha <strong>fatto</strong> per te, che cosa ha <strong>consultato</strong> per risponderti e che cosa ha intrapreso <strong>di propria iniziativa</strong>. Non portano alcun contenuto: una consultazione trattiene la capacità — «la tua agenda» — e mai ciò che è stato cercato, perché scriverlo equivarrebbe a ricopiare il dato stesso di cui il registro esiste per rendere conto.</p><p>Il fascicolo che scarichi da <strong>Impostazioni &gt; Registri</strong> è <strong>completo</strong>. Prima portava un tetto di righe: una protezione reale, dato che l'intero documento veniva assemblato in memoria su un Raspberry Pi, ma applicata alla variabile sbagliata. Scarsa era la memoria; limitata era la verità. Un cursore lato server limita ora il buffer: qualunque sia il volume, il file porta tutto ciò che i tuoi filtri designano, il conteggio esatto è dichiarato in testa insieme all'istante di generazione, e il download è compresso al volo quando il tuo browser lo accetta.</p>"
       },
       "observability": {
-        "title": "568 metriche Prometheus, 29 dashboard Grafana e tracing Langfuse",
+        "title": "581 metriche Prometheus, 30 dashboard Grafana e tracing Langfuse",
         "excerpt": "LIA offre osservabilità enterprise con 553 metriche, dashboard Grafana, tracing LLM via Langfuse e alert e-mail con runbook.",
-        "body": "<h2>I tre pilastri dell'osservabilità</h2><p>LIA implementa i tre pilastri dell'osservabilità moderna:</p><ul><li><strong>Metriche</strong> — 568 metriche Prometheus che coprono HTTP, agenti, token, costi, OAuth e prestazioni</li><li><strong>Log</strong> — Logging strutturato JSON tramite structlog, centralizzato in Loki con filtraggio PII</li><li><strong>Trace</strong> — Tracing distribuito tramite OpenTelemetry (Tempo) e tracing LLM tramite Langfuse</li></ul><h2>23 file di metriche specializzati</h2><p>Ogni dominio possiede il proprio file di metriche dichiarativo. I 23 moduli coprono: HTTP, agents (SSE/router/LLM/HITL/planner), database, LangGraph, Langfuse, voice, RAG spaces, OAuth, channels, errori, sub-agenti, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, metriche di salute, diari, telefonia e limiti di utilizzo. Ogni file definisce Counter, Histogram e Gauge Prometheus adattati al dominio.</p><h2>Definizione delle metriche Prometheus</h2><p>Ogni dominio definisce le proprie metriche in modo dichiarativo:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>29 dashboard Grafana</h2><p>LIA fornisce 29 dashboard Grafana numerati da 01 a 28: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony, briefing, product-value, meetings, effect-ledger e workboard. Ogni dashboard offre viste filtrabili per utente, periodo e ambiente. Il 26° è un cockpit prodotto: risultati validati (👍 esplicito o un'azione rimasta senza correzioni), funnel di attivazione, retention e costo per risultato utile — il conteggio esatto vive in PostgreSQL e Grafana lo legge tramite un ruolo in sola lettura ristretto alle viste aggregate.</p><h2>KPI target estratti dal codice</h2><p>LIA monitora indicatori precisi definiti nel codice sorgente: TTFT (Time To First Token) dello streaming, latenza del router tra 0.1 e 2 secondi, durata di esecuzione degli strumenti agenti tra 0.1 e 10 secondi, confidenza router p50 &gt; 0.8, costo LLM per richiesta &lt; 0.05€, tasso di errore HTTP 5xx &lt; 1%.</p><h2>Alert e-mail con runbook</h2><p>La supervisione non si ferma alle dashboard: un nucleo di 14 alert vitali — API, PostgreSQL o Redis non disponibili, disco, memoria dei container, tasso di errori 5xx, latenza di streaming, backup notturno fallito, URL pubblico irraggiungibile, certificato TLS prossimo alla scadenza, rate limiting fuori servizio — è valutato in continuo da Prometheus e notificato via e-mail tramite Alertmanager. Ogni alert referenzia il proprio runbook (procedura di risoluzione passo passo), le soglie sono configurate per ambiente in file .env, e test unitari promtool garantiscono che le soglie mostrate nelle notifiche corrispondano esattamente alle espressioni di attivazione. Una sonda blackbox testa perfino l'intera catena end-to-end, dall'edge Cloudflare al frontend, esattamente come un utente.</p><h2>Langfuse: tracing LLM dedicato</h2><p>L'integrazione Langfuse dispone di 8 metriche dedicate per tracciare ogni chiamata LLM: token consumati (input/output/cache), tempo di risposta, modello utilizzato, costo stimato e contesto della richiesta. Questo permette di identificare i prompt inefficaci, confrontare i modelli LLM tra loro e ottimizzare il consumo di token nel tempo.</p><h2>DevOps Claude CLI: Diagnostica in linguaggio naturale (v1.13.0)</h2><p>Ultima evoluzione dello stack di osservabilità: gli amministratori possono ora diagnosticare i server direttamente dalla conversazione LIA. Claude Code CLI — installato nel container API Docker — ispeziona in modo autonomo i log, verifica la salute dei container e analizza l'utilizzo delle risorse. Sessioni persistenti, permessi configurabili per ambiente e streaming in tempo reale dei passaggi di indagine via SSE.</p><h2>E dalla v1.34: l'assistente legge la propria telemetria</h2><p>Tutto quanto sopra esisteva per gli umani; l'assistente stessa non ne leggeva nulla. L'ADR-247 ha chiuso quel cerchio: un autocontrollo periodico trasforma i segnali aurei e sonde dirette in istantanee di salute con valori esatti; avvisi e verdetti critici convergono in un incidente per guasto, diagnosticato da un LLM con budget limitato e fondato sui runbook operativi; gli amministratori hanno un pannello Salute della piattaforma, notifiche proattive e strumenti di chat in sola lettura. E un guasto noto ora plasma le risposte — le capacità degradate vengono aggirate in pianificazione, e i passaggi falliti spiegati da codici di errore tipizzati, mai da log grezzi. Da allora la diagnosi non è più scritta da un numero solo: una ricetta dichiarata per tipo di incidente dice quali ripartizioni e quali eventi di log leggere, il fascicolo viene raccolto al momento della diagnosi con i dati personali rimossi, una fonte irraggiungibile è dichiarata non disponibile invece di essere letta come silenzio, e ciò che il modello ha letto è mostrato sotto il suo verdetto.</p><h2>Contare gli esiti, non i tentativi</h2><p>Un contatore è stato ripensato nella v1.38.3. Contare le chiamate che raggiungono un fornitore è la verità sul fornitore — e il denominatore sbagliato non appena quelle chiamate vengono ritentate, perché un errore recuperato gonfia il tasso di errore benché nulla sia andato perso. Un secondo contatore registra ora una riga per operazione logica, con i ritentativi ripiegati, e risponde all'unica domanda su cui un operatore agisce: il chiamante ha ottenuto il suo risultato? Un terzo dice cosa ha fatto la regolazione di frequenza di ogni tentativo, perché «il budget è troppo piccolo» e «Redis è caduto» sono indistinguibili in un booleano e richiedono azioni opposte.</p><p>La lezione più recente riguarda la scelta di ciò che si misura. Il ciclo autonomo contava le proprie iterazioni e la propria durata — e nulla per ciò che cresce davvero: il prompt consegnato al modello a ogni passo. Misurato sul codice di produzione, sono 2,3 k token alla prima iterazione e 112 k alla novantesima, perché ogni risultato di strumento resta nella conversazione che il modello rilegge. Due istogrammi registrano ora la dimensione consegnata e la sua quota della finestra di contesto del modello, alimentati dallo stesso contatore memoizzato che il riduttore di stato già mantiene, così la misura non costa nulla sul percorso caldo. Nessuna politica di compressione è partita con essi, deliberatamente: un sistema che agisce su una grandezza mai osservata sta ottimizzando una congettura.</p>"
+        "body": "<h2>I tre pilastri dell'osservabilità</h2><p>LIA implementa i tre pilastri dell'osservabilità moderna:</p><ul><li><strong>Metriche</strong> — 581 metriche Prometheus che coprono HTTP, agenti, token, costi, OAuth e prestazioni</li><li><strong>Log</strong> — Logging strutturato JSON tramite structlog, centralizzato in Loki con filtraggio PII</li><li><strong>Trace</strong> — Tracing distribuito tramite OpenTelemetry (Tempo) e tracing LLM tramite Langfuse</li></ul><h2>23 file di metriche specializzati</h2><p>Ogni dominio possiede il proprio file di metriche dichiarativo. I 23 moduli coprono: HTTP, agents (SSE/router/LLM/HITL/planner), database, LangGraph, Langfuse, voice, RAG spaces, OAuth, channels, errori, sub-agenti, Redis, attachments, browser, compaction, briefing, business, registry, heartbeat, metriche di salute, diari, telefonia e limiti di utilizzo. Ogni file definisce Counter, Histogram e Gauge Prometheus adattati al dominio.</p><h2>Definizione delle metriche Prometheus</h2><p>Ogni dominio definisce le proprie metriche in modo dichiarativo:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>30 dashboard Grafana</h2><p>LIA fornisce 30 dashboard Grafana numerati da 01 a 30: app-overview, slo-tracking, infra-resources, http-api, llm-tokens-cost, logs-traces, agents-pipeline, hitl, conversations-users, oauth-connectors-mcp, voice-websocket, channels, proactive-heartbeat, registry-checkpoints, langgraph-deep, meta-health, user-analytics-geo, rag-spaces, subagents-skills, react-browser, health-metrics, compaction, journals-user-model, telephony, briefing, product-value, meetings, effect-ledger, workboard e live. Ogni dashboard offre viste filtrabili per utente, periodo e ambiente. Il 26° è un cockpit prodotto: risultati validati (👍 esplicito o un'azione rimasta senza correzioni), funnel di attivazione, retention e costo per risultato utile — il conteggio esatto vive in PostgreSQL e Grafana lo legge tramite un ruolo in sola lettura ristretto alle viste aggregate.</p><h2>KPI target estratti dal codice</h2><p>LIA monitora indicatori precisi definiti nel codice sorgente: TTFT (Time To First Token) dello streaming, latenza del router tra 0.1 e 2 secondi, durata di esecuzione degli strumenti agenti tra 0.1 e 10 secondi, confidenza router p50 &gt; 0.8, costo LLM per richiesta &lt; 0.05€, tasso di errore HTTP 5xx &lt; 1%.</p><h2>Alert e-mail con runbook</h2><p>La supervisione non si ferma alle dashboard: un nucleo di 14 alert vitali — API, PostgreSQL o Redis non disponibili, disco, memoria dei container, tasso di errori 5xx, latenza di streaming, backup notturno fallito, URL pubblico irraggiungibile, certificato TLS prossimo alla scadenza, rate limiting fuori servizio — è valutato in continuo da Prometheus e notificato via e-mail tramite Alertmanager. Ogni alert referenzia il proprio runbook (procedura di risoluzione passo passo), le soglie sono configurate per ambiente in file .env, e test unitari promtool garantiscono che le soglie mostrate nelle notifiche corrispondano esattamente alle espressioni di attivazione. Una sonda blackbox testa perfino l'intera catena end-to-end, dall'edge Cloudflare al frontend, esattamente come un utente.</p><h2>Langfuse: tracing LLM dedicato</h2><p>L'integrazione Langfuse dispone di 8 metriche dedicate per tracciare ogni chiamata LLM: token consumati (input/output/cache), tempo di risposta, modello utilizzato, costo stimato e contesto della richiesta. Questo permette di identificare i prompt inefficaci, confrontare i modelli LLM tra loro e ottimizzare il consumo di token nel tempo.</p><h2>DevOps Claude CLI: Diagnostica in linguaggio naturale (v1.13.0)</h2><p>Ultima evoluzione dello stack di osservabilità: gli amministratori possono ora diagnosticare i server direttamente dalla conversazione LIA. Claude Code CLI — installato nel container API Docker — ispeziona in modo autonomo i log, verifica la salute dei container e analizza l'utilizzo delle risorse. Sessioni persistenti, permessi configurabili per ambiente e streaming in tempo reale dei passaggi di indagine via SSE.</p><h2>E dalla v1.34: l'assistente legge la propria telemetria</h2><p>Tutto quanto sopra esisteva per gli umani; l'assistente stessa non ne leggeva nulla. L'ADR-247 ha chiuso quel cerchio: un autocontrollo periodico trasforma i segnali aurei e sonde dirette in istantanee di salute con valori esatti; avvisi e verdetti critici convergono in un incidente per guasto, diagnosticato da un LLM con budget limitato e fondato sui runbook operativi; gli amministratori hanno un pannello Salute della piattaforma, notifiche proattive e strumenti di chat in sola lettura. E un guasto noto ora plasma le risposte — le capacità degradate vengono aggirate in pianificazione, e i passaggi falliti spiegati da codici di errore tipizzati, mai da log grezzi. Da allora la diagnosi non è più scritta da un numero solo: una ricetta dichiarata per tipo di incidente dice quali ripartizioni e quali eventi di log leggere, il fascicolo viene raccolto al momento della diagnosi con i dati personali rimossi, una fonte irraggiungibile è dichiarata non disponibile invece di essere letta come silenzio, e ciò che il modello ha letto è mostrato sotto il suo verdetto.</p><h2>Contare gli esiti, non i tentativi</h2><p>Un contatore è stato ripensato nella v1.38.3. Contare le chiamate che raggiungono un fornitore è la verità sul fornitore — e il denominatore sbagliato non appena quelle chiamate vengono ritentate, perché un errore recuperato gonfia il tasso di errore benché nulla sia andato perso. Un secondo contatore registra ora una riga per operazione logica, con i ritentativi ripiegati, e risponde all'unica domanda su cui un operatore agisce: il chiamante ha ottenuto il suo risultato? Un terzo dice cosa ha fatto la regolazione di frequenza di ogni tentativo, perché «il budget è troppo piccolo» e «Redis è caduto» sono indistinguibili in un booleano e richiedono azioni opposte.</p><p>La lezione più recente riguarda la scelta di ciò che si misura. Il ciclo autonomo contava le proprie iterazioni e la propria durata — e nulla per ciò che cresce davvero: il prompt consegnato al modello a ogni passo. Misurato sul codice di produzione, sono 2,3 k token alla prima iterazione e 112 k alla novantesima, perché ogni risultato di strumento resta nella conversazione che il modello rilegge. Due istogrammi registrano ora la dimensione consegnata e la sua quota della finestra di contesto del modello, alimentati dallo stesso contatore memoizzato che il riduttore di stato già mantiene, così la misura non costa nulla sul percorso caldo. Nessuna politica di compressione è partita con essi, deliberatamente: un sistema che agisce su una grandezza mai osservata sta ottimizzando una congettura.</p>"
       },
       "prompt-engineering": {
         "title": "Sistema di prompt versionati: 78 prompt gestiti come codice",
@@ -11672,7 +11827,8 @@
       "relation_debrief": "Un debriefing per relazione",
       "workboard": "La lavagna dei ticket",
       "process_anatomy": "L'anatomia di un processo",
-      "conclusion": "Conclusione"
+      "conclusion": "Conclusione",
+      "live_mode": "La modalità Live: una cucitura, una politica per modalità"
     }
   },
   "healthMetrics": {
@@ -12196,7 +12352,8 @@
       "mcp_servers": "Server MCP",
       "telephony": "Chiamate",
       "meetings": "Riunioni",
-      "bookmarks": "Segnalibri"
+      "bookmarks": "Segnalibri",
+      "live": "Live"
     },
     "items": {
       "stt": "Input vocale (trascrizione)",
@@ -12254,7 +12411,9 @@
       "moments": "Momenti anticipati",
       "moments_description": "LIA torna da te in un momento che conta — subito dopo una riunione importante, per esempio — invece di aspettare il passaggio successivo. Restano validi la quota e la fascia oraria delle notifiche proattive.",
       "bookmarks": "Segnalibri",
-      "bookmarks_description": "Conservare una risposta fuori da una conversazione con il segnalibro della sua bolla. Disattivandolo scompare l'azione; ciò che è già stato conservato resta leggibile ed eliminabile."
+      "bookmarks_description": "Conservare una risposta fuori da una conversazione con il segnalibro della sua bolla. Disattivandolo scompare l'azione; ciò che è già stato conservato resta leggibile ed eliminabile.",
+      "live": "Modalità vocale Live",
+      "live_description": "Una sessione vocale in tempo reale sulla chiave del fornitore della persona, che affida ogni richiesta alla chat. Disattivarla chiude le rotte live."
     }
   },
   "showroom": {
@@ -13724,5 +13883,116 @@
     "requires_connector": "Richiede {{sources}}, che non è collegato su questo account.",
     "settings_title": "Momenti anticipati",
     "settings_description": "In quali momenti LIA può tornare da te. Restano validi l'orario e il limite giornaliero impostati sopra."
+  },
+  "live": {
+    "button": {
+      "start": "Live",
+      "start_hint": "Avvia una sessione vocale live con LIA",
+      "end": "Termina la sessione live",
+      "stop_all": "Ferma LIA e termina la sessione"
+    },
+    "mic": {
+      "mute": "Disattiva il microfono",
+      "unmute": "Riattiva il microfono"
+    },
+    "status": {
+      "minting": "Preparazione della sessione…",
+      "connecting": "Connessione…",
+      "live": "Stai parlando con LIA",
+      "reconnecting": "Riconnessione…",
+      "ending": "Chiusura…",
+      "delegating": "LIA sta lavorando alla tua richiesta…",
+      "time_left_one": "{{count}} s rimanente",
+      "time_left_other": "{{count}} s rimanenti",
+      "idle_countdown_one": "Nessuno parla — la sessione termina tra {{count}} secondo",
+      "idle_countdown_other": "Nessuno parla — la sessione termina tra {{count}} secondi",
+      "looking_up": "LIA sta consultando…",
+      "direct": "Sessione diretta"
+    },
+    "captions": {
+      "title": "Sessione live",
+      "you": "Tu",
+      "lia": "LIA",
+      "show": "Mostra i sottotitoli",
+      "hide": "Nascondi i sottotitoli"
+    },
+    "composer_locked": "La sessione live è in corso — parla, o terminala per scrivere.",
+    "outcome": {
+      "ended": "terminata da te",
+      "expired": "ha raggiunto il limite di durata",
+      "idle_timeout": "terminata dopo un lungo silenzio",
+      "hidden": "terminata quando la pagina è passata in secondo piano",
+      "provider_closed": "chiusa dal fornitore",
+      "resumption_failed": "impossibile riprenderla dopo un'interruzione",
+      "error": "terminata per un errore",
+      "mic_denied": "impossibile avviarla: microfono rifiutato",
+      "superseded": "sostituita da una nuova sessione",
+      "budget_reached": "terminata al tetto di spesa che hai fissato"
+    },
+    "summary": {
+      "title": "Sessione live",
+      "body": "{{minutes}} min · {{delegations}} richiesta/e a LIA · {{voice_turns}} scambio/i vocale/i",
+      "cost": "Costo LIA: {{amount}}",
+      "no_cost": "Nessuna richiesta a LIA — niente da contare.",
+      "extended_one": "prolungata {{count}} volta",
+      "extended_other": "prolungata {{count}} volte",
+      "body_direct": "{{minutes}} min · sessione diretta",
+      "relay": {
+        "scheduled": "Le tue parole vengono trasmesse alla conversazione come un messaggio tuo.",
+        "answered": "Le tue parole sono state trasmesse alla conversazione e LIA ha risposto.",
+        "waiting": "Le tue parole sono state trasmesse alla conversazione; LIA ha una domanda per te.",
+        "empty": "Niente da trasmettere alla conversazione.",
+        "pending_question": "Non trasmesso: una domanda di LIA è ancora in attesa nella conversazione.",
+        "busy": "Non trasmesso: la conversazione era occupata.",
+        "quota_blocked": "Non trasmesso: il tetto di spesa lo ha rifiutato.",
+        "failed": "La trasmissione alla conversazione non è riuscita.",
+        "not_owner": "Non trasmesso: non era il titolare dell'account a parlare.",
+        "unanswered": "Non trasmesso: nessuno ha risposto.",
+        "call_failed": "Non trasmesso: la linea non ha funzionato."
+      }
+    },
+    "error": {
+      "start": "La sessione live non è potuta partire.",
+      "connector_missing": "Attiva un connettore Live prima di aprire una sessione vocale.",
+      "session_in_progress": "Una sessione live è già aperta su questo account.",
+      "instance_busy": "Troppe sessioni live sono aperte su questa istanza in questo momento; riprova tra poco.",
+      "mint_rate_limited": "Troppi avvii di sessione in poco tempo; attendi un minuto.",
+      "provider_refused": "Il fornitore ha rifiutato il modello configurato. Controlla le impostazioni del connettore.",
+      "session_not_found": "Questa sessione live non esiste o è terminata.",
+      "unsupported_browser": "Questo browser non può aprire una sessione live (microfono o audio non supportati).",
+      "thinking_level_unknown": "Questo modello non offre il livello di ragionamento scelto; scegline uno dall'elenco.",
+      "voice_unknown": "Il fornitore non offre questa voce; scegline una dall'elenco.",
+      "session_expired": "Questa sessione live ha raggiunto il limite prima della proroga; avviane una nuova.",
+      "credential_invalid": "Questa credenziale di connessione è già stata usata o è scaduta; riconnettiti per ottenerne una nuova.",
+      "model_unpriced": "Questo modello non ha una tariffa live dichiarata nella tariffazione LLM (tariffe testo e audio, oppure un prezzo al minuto); un amministratore la dichiara, oppure scegli un altro modello nelle impostazioni Live.",
+      "mode_unsupported": "Questo modello non può tenere una sessione diretta; apri una sessione live o scegli nelle impostazioni Live un modello che lo consenta."
+    },
+    "extend": {
+      "title": "Continuiamo?",
+      "body_one": "La sessione live termina tra {{count}} secondo. Prolungala di {{minutes}} minuti o lasciala finire.",
+      "body_other": "La sessione live termina tra {{count}} secondi. Prolungala di {{minutes}} minuti o lasciala finire.",
+      "confirm": "Prolunga di {{minutes}} min",
+      "decline": "Lascia finire",
+      "failed": "La sessione non ha potuto essere prolungata; termina al suo limite."
+    },
+    "toast": {
+      "started": "Sessione Live attivata"
+    },
+    "meter": {
+      "hint": "Contato sulla tua chiave dai rapporti del fornitore: indicativo, registrato da nessuna parte.",
+      "context": "contesto {{value}}",
+      "cost_unavailable": "costo non disponibile (tariffa audio non dichiarata)",
+      "vendor_billed": "fatturato dal fornitore sulla tua chiave — l'importo esatto arriva alla fine",
+      "vendor_hint": "La piattaforma non tariffa nulla di questa sessione: il fornitore addebita la tua chiave e indica l'importo una volta terminata."
+    },
+    "direct_notice": "Sessione diretta: LIA legge i tuoi dati per te e non agisce su nulla mentre parli; alla fine, ciò che hai chiesto è trasmesso alla tua conversazione come un messaggio tuo.",
+    "vendor_bill": {
+      "total": "{{brand}} ha addebitato {{total}} sulla tua chiave per questa sessione",
+      "unstated": "un importo non indicato",
+      "shares": "LLM {{llm}} cr. ({{llmModel}}), chiamata {{call}} cr. ({{voice}})",
+      "duration": "{{seconds}} s",
+      "credits_one": "{{count}} credito",
+      "credits_other": "{{count}} crediti"
+    }
   }
 }

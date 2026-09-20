@@ -1040,17 +1040,13 @@ class ConversationService:
                 msg_data[FIELD_TOKENS_IN] = summary.total_prompt_tokens
                 msg_data[FIELD_TOKENS_OUT] = summary.total_completion_tokens
                 msg_data[FIELD_TOKENS_CACHE] = summary.total_cached_tokens
-                # Use historical cost from message_token_summary (stored at execution time)
-                # Include Google API costs for accurate total billing display
-                llm_cost = float(summary.total_cost_eur) if summary.total_cost_eur else 0.0
-                google_cost = (
-                    float(summary.google_api_cost_eur) if summary.google_api_cost_eur else 0.0
-                )
+                # Historical cost from message_token_summary (stored at execution
+                # time): the row's billed total (model + Maps Platform + images).
                 # TTS cost lives per-message on conversation_messages (silo,
                 # mirror STT). Add it to the displayed cost so the bubble
-                # badge surfaces a single grand total (LLM + Google + TTS).
+                # badge surfaces a single grand total.
                 tts_cost = float(msg.tts_cost_eur) if msg.tts_cost_eur is not None else 0.0
-                grand_total = llm_cost + google_cost + tts_cost
+                grand_total = float(summary.billed_cost_eur) + tts_cost
                 msg_data[FIELD_COST_EUR] = grand_total if grand_total else None
                 # Google API tracking
                 msg_data[FIELD_GOOGLE_API_REQUESTS] = summary.google_api_requests

@@ -692,4 +692,6 @@ USER_COLUMNS: dict[str, UserColumnClass] = {
     "settings_shortcuts": _PREFERENCE,
     "phone_rich_context_enabled": _PREFERENCE,
     "phone_disabled_domains": _PREFERENCE,
+    "phone_call_mode": _PREFERENCE,
+    "live_preferences": _PREFERENCE,
 }

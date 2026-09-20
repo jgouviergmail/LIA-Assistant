@@ -20,7 +20,7 @@ owner's, so neither grows past its cap.
 
 from __future__ import annotations
 
-from typing import Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any
 from uuid import UUID
 
 import structlog
@@ -42,10 +42,16 @@ from src.domains.agents.tools.telephony_tools import (
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.service import ConnectorService
 from src.domains.telephony.connector import TelephonyConnectorService
+from src.domains.telephony.delegation_tool import ensure_vendor_delegation_tool
 from src.domains.telephony.live_tools import LiveToolBinding
 from src.domains.telephony.models import CallKind
 from src.domains.telephony.self_call_context import MEMORY_LINES_MAX, SectionFetcher
 from src.domains.telephony.service import InitiateCallResult
+
+if TYPE_CHECKING:
+    # A type-only edge: ``agents`` must not import ``voice_sessions`` at
+    # runtime (the projection there reads the display package back).
+    from src.domains.voice_sessions.session import VoiceSessionMode
 
 logger = structlog.get_logger(__name__)
 
@@ -154,16 +160,68 @@ async def _live_tools_for(
     return tuple(b for b in bindings if b.domain not in disabled_domains)
 
 
+async def _delegation_tool_for(db: Any, user_id: UUID, *, user_name: str) -> str | None:
+    """The delegation tool of a Live owner call (ADR-301), provisioned if needed.
+
+    The same three pieces a live tool needs — the active connector, its key,
+    its secret — and the same rule: a missing piece or a vendor refusal means
+    a call WITHOUT the tool (the dial then runs direct and says so), never a
+    refused call.
+    """
+    connector = await TelephonyConnectorService(db).get_active(user_id)
+    if connector is None:
+        return None
+    creds = await ConnectorService(db).get_api_key_credentials(
+        user_id, ConnectorType.ELEVENLABS_TELEPHONY
+    )
+    if creds is None or not creds.api_secret:
+        return None
+    return await ensure_vendor_delegation_tool(
+        db,
+        connector=connector,
+        api_key=creds.api_key,
+        api_secret=creds.api_secret,
+        user_name=user_name,
+    )
+
+
 async def _initiate_owner_call(
     *,
     user_id: UUID,
     callee_phone: str,
     objective: str,
     user_language: str,
-    user_context: str,
+    timezone: str,
+    call_mode: VoiceSessionMode,
+    rich_context_enabled: bool,
     disabled_domains: frozenset[str] = frozenset(),
 ) -> InitiateCallResult:
-    """Dial the person under the owner mandate, on a session of its own."""
+    """Dial the person under the owner mandate, on a session of its own.
+
+    The mode is settled HERE, before anything is built for it (ADR-301): a
+    LIVE call (``delegated``) is handed the one delegation tool and nothing
+    else — no lookup, no context: the voice knows nothing, LIA does — and a
+    DIRECT call is handed its lookups and the context block. A Live call
+    whose delegation tool cannot be provisioned runs DIRECT, with what a
+    direct call needs (review 2026-09-20: it used to degrade AFTER the
+    lookups and the context had been skipped — a voice that could answer
+    nothing). A vendor refusal at the attach itself, inside the dial, still
+    degrades without them — the same envelope as a direct call whose attach
+    was refused.
+
+    Args:
+        user_id: The person being called.
+        callee_phone: Their verified number.
+        objective: The purpose of the call, in their words.
+        user_language: Backend-canonical language.
+        timezone: Their IANA zone.
+        call_mode: The EFFECTIVE mode the identity resolved.
+        rich_context_enabled: The person's own switch on a direct call's context.
+        disabled_domains: The domains the person switched off for their voice.
+
+    Returns:
+        The dial's result.
+    """
     from src.core.user_display import resolve_user_display_name
     from src.domains.telephony.service import TelephonyService
     from src.domains.users.models import User
@@ -172,7 +230,30 @@ async def _initiate_owner_call(
     async with get_db_context() as db:
         user = await db.get(User, user_id)
         display = resolve_user_display_name(user.full_name, user.email) if user else ""
-        live_tools = await _live_tools_for(db, user_id, disabled_domains=disabled_domains)
+        delegation_tool_id: str | None = None
+        if call_mode == "delegated":
+            delegation_tool_id = await _delegation_tool_for(db, user_id, user_name=display)
+            if delegation_tool_id is None:
+                # A Live mandate with no way to delegate would promise what the
+                # voice cannot do (ADR-184): the call runs direct, and is
+                # handed what a direct call needs below.
+                logger.warning(
+                    "telephony_live_call_degraded_to_direct",
+                    user_id=str(user_id),
+                    reason="delegation_tool_unavailable",
+                )
+                call_mode = "direct"
+        live_tools: tuple[LiveToolBinding, ...] = ()
+        context = ""
+        if call_mode == "direct":
+            live_tools = await _live_tools_for(db, user_id, disabled_domains=disabled_domains)
+            context = await _owner_context(
+                user_id,
+                language=user_language,
+                timezone=timezone,
+                objective=objective,
+                rich_context_enabled=rich_context_enabled,
+            )
         return await TelephonyService(db).initiate_call(
             user_id=user_id,
             callee_display=display,
@@ -181,8 +262,10 @@ async def _initiate_owner_call(
             date_window=None,
             user_language=user_language,
             kind=CallKind.SELF,
-            user_context=user_context,
+            user_context=context,
             live_tools=live_tools,
+            call_mode=call_mode,
+            delegation_tool_id=delegation_tool_id,
         )
 
 
@@ -204,19 +287,17 @@ async def _build_call_me_output(
         )
 
     purpose = objective.strip()
-    context = await _owner_context(
-        user_id,
-        language=locale,
-        timezone=timezone,
-        objective=purpose,
-        rich_context_enabled=identity.rich_context_enabled,
-    )
+    # The EFFECTIVE mode (ADR-301): the person's choice, or direct when this
+    # instance cannot be called back. The dial builds what the mode needs
+    # once the mode is settled — a Live call opens none of the sources.
     result = await _initiate_owner_call(
         user_id=user_id,
         callee_phone=identity.phone_number,
         objective=purpose,
         user_language=locale,
-        user_context=context,
+        timezone=timezone,
+        call_mode=identity.call_mode_effective,
+        rich_context_enabled=identity.rich_context_enabled,
         disabled_domains=frozenset(identity.disabled_domains),
     )
     if result.status != "placed":
@@ -254,9 +335,10 @@ async def call_me_tool(
 ) -> UnifiedToolOutput:
     """Call the user on their own verified phone number (no confirmation needed).
 
-    LIA phones the account holder, talks with them about the objective, and
-    relays what they asked for into the chat once the call ends. Requires the
-    telephony connector and a verified number in the settings.
+    LIA phones the account holder and talks with them about the objective;
+    what they ask for reaches their chat — during the call (Live) or relayed
+    as their own message once it ends (Live direct), as they chose in the
+    settings. Requires the telephony connector and a verified number.
 
     Args:
         objective: The purpose of the call.

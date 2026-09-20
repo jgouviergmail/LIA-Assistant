@@ -41,6 +41,10 @@ export interface ModelPricingFormData {
   input_unit_price: string;
   cached_input_unit_price: string | null;
   output_unit_price: string;
+  // The audio pair of a speech-to-speech model (ADR-300): input strings,
+  // '' = not declared. Both or neither, and only on a token-billed unit.
+  audio_input_unit_price: string;
+  audio_output_unit_price: string;
   // Time-slot tariff (ADR-223): the toggle drives the editor's visibility;
   // rows are kept in state even while the toggle is off so an accidental
   // toggle does not destroy the admin's typed windows.
@@ -151,6 +155,64 @@ export function buildReasoningSamplingPayload(
   }
 
   return { ...alwaysExplicit, is_reasoning_model: true, reasoning_enum_values: ladder };
+}
+
+// ============================================================================
+// The audio pair (ADR-300) and the cached price — the two prices whose
+// EMPTYING must travel as an explicit clearing on update, because the
+// backend builds its change-set with exclude_none and would otherwise keep
+// the old value.
+// ============================================================================
+
+/** Why the audio pair cannot be submitted, or null. */
+export type AudioPairError = 'half_pair';
+
+/** The pair is whole or absent; an audio unit ignores the cells (not shown). */
+export function validateAudioPair(formData: ModelPricingFormData): AudioPairError | null {
+  if (formData.pricing_unit !== 'per_1m_tokens') return null;
+  const hasInput = formData.audio_input_unit_price.trim() !== '';
+  const hasOutput = formData.audio_output_unit_price.trim() !== '';
+  return hasInput !== hasOutput ? 'half_pair' : null;
+}
+
+/** The audio block of the create/update payload. */
+export interface AudioPricesPayload {
+  audio_input_unit_price?: string;
+  audio_output_unit_price?: string;
+  clear_audio_prices?: boolean;
+}
+
+/** Build the audio block from the form state.
+ *
+ *  A whole pair on a token-billed unit travels as two values. Otherwise the
+ *  block is empty at create time (no audio rate) and the explicit clearing
+ *  at update time — an omitted pair INHERITS the current row's. */
+export function buildAudioPricesPayload(
+  formData: ModelPricingFormData,
+  mode: 'create' | 'update'
+): AudioPricesPayload {
+  const declared =
+    formData.pricing_unit === 'per_1m_tokens' &&
+    formData.audio_input_unit_price.trim() !== '' &&
+    formData.audio_output_unit_price.trim() !== '';
+  if (declared) {
+    return {
+      audio_input_unit_price: formData.audio_input_unit_price,
+      audio_output_unit_price: formData.audio_output_unit_price,
+    };
+  }
+  return mode === 'create' ? {} : { clear_audio_prices: true };
+}
+
+/** The cached-price block of an UPDATE: a value, or its explicit clearing.
+ *  Before this, an emptied cell sent `null`, which the backend dropped, so the
+ *  old price silently survived the edit. (A creation sends the null itself:
+ *  there is nothing to clear.) */
+export function buildCachedPriceUpdate(
+  formData: ModelPricingFormData
+): { cached_input_unit_price: string } | { clear_cached_input_price: true } {
+  const value = formData.cached_input_unit_price?.trim() ?? '';
+  return value ? { cached_input_unit_price: value } : { clear_cached_input_price: true };
 }
 
 // ============================================================================

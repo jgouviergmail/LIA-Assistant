@@ -17,7 +17,6 @@ in ``llm_model_pricing``; this service only returns the duration.
 from __future__ import annotations
 
 import io
-import struct
 from typing import Any, BinaryIO
 
 import httpx
@@ -26,26 +25,12 @@ import structlog
 from src.core.constants import OPENAI_STT_DIARIZE_MODEL_DEFAULT
 from src.domains.voice.stt.exceptions import STTProviderError
 from src.domains.voice.stt.protocol import STTFileResult, STTResult, TranscriptWord
+from src.infrastructure.media.wav import wav_bytes
 
 logger = structlog.get_logger(__name__)
 
 DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1"
 _VALID_ISO_639_1: frozenset[str] = frozenset({"en", "fr", "de", "es", "it", "zh"})
-
-
-def _wav_header(pcm_len: int, sample_rate: int) -> bytes:
-    """44-byte RIFF header for 16-bit mono PCM (the WebSocket path sends raw PCM)."""
-    byte_rate = sample_rate * 2
-    return b"".join(
-        [
-            b"RIFF",
-            struct.pack("<I", 36 + pcm_len),
-            b"WAVEfmt ",
-            struct.pack("<IHHIIHH", 16, 1, 1, sample_rate, byte_rate, 2, 16),
-            b"data",
-            struct.pack("<I", pcm_len),
-        ]
-    )
 
 
 class OpenAISttService:
@@ -81,7 +66,7 @@ class OpenAISttService:
         """WebSocket parity: raw PCM wrapped in a WAV header (OpenAI has no raw-PCM format)."""
         if not pcm_int16_bytes:
             return STTResult(text="", audio_duration_seconds=0.0, language_code=language)
-        wav = _wav_header(len(pcm_int16_bytes), sample_rate) + pcm_int16_bytes
+        wav = wav_bytes(pcm_int16_bytes, sample_rate)
         result = await self._post(
             io.BytesIO(wav),
             "audio.wav",

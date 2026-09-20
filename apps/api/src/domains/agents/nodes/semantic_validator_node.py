@@ -43,7 +43,6 @@ from src.domains.agents.constants import (
     STATE_KEY_SEMANTIC_VALIDATION,
     STATE_KEY_VALIDATION_RESULT,
 )
-from src.domains.agents.orchestration.plan_predicates import approval_is_refused
 from src.domains.agents.orchestration.semantic_validator import (
     PlanSemanticValidator,
     plan_contains_mutation,
@@ -235,8 +234,15 @@ async def semantic_validator_node(
     # Instead, return a valid result and let routing proceed to execution.
     # =========================================================================
     plan_approved = state.get(STATE_KEY_PLAN_APPROVED, False)
-    # ADR-263: same reading as the router — only an explicit refusal is one.
-    if not approval_is_refused(plan_approved):
+    # Only the person's EXPLICIT confirmation (clarification_node writes True)
+    # skips the validation. The router resets the flag to None at every turn —
+    # « nobody looked » — and reading None as « not refused » here made the
+    # validator skip EVERY fresh turn from 2026-09-05 (ADR-263) to 2026-09-19:
+    # measured on dev, 11 skips and 0 validations in a day, an early
+    # « insufficient content » detection lost on the way and reported to the
+    # person as a rejected plan. ADR-263's three-valued reading belongs to the
+    # ROUTER (an unknown verdict never blocks execution), not to this skip.
+    if plan_approved is True:
         logger.info(
             "semantic_validator_node_plan_approved_skip",
             plan_approved=True,

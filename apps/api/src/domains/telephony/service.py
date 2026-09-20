@@ -43,6 +43,7 @@ from src.domains.telephony.mandates import MandateInputs, build_override, mandat
 from src.domains.telephony.models import CallKind, PhoneCall, PhoneCallStatus
 from src.domains.telephony.repository import TelephonyRepository
 from src.domains.users.models import User
+from src.domains.voice_sessions.session import VoiceSessionMode
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -241,43 +242,49 @@ class TelephonyService:
         logger.info("telephony_agent_synced", agent_id=agent_id)
         return True
 
-    async def _arm_live_tools(
+    async def _arm_agent_tools(
         self,
         active: _ActiveConnector,
         kind: CallKind,
         live_tools: Sequence[LiveToolBinding],
-    ) -> tuple[LiveToolBinding, ...]:
-        """Put the agent in the tool state THIS call needs (lot 7).
+        delegation_tool_id: str | None,
+    ) -> tuple[tuple[LiveToolBinding, ...], bool]:
+        """Put the agent in the tool state THIS call needs (lot 7, ADR-301).
 
-        The live tools serve the owner's call only, and the vendor refuses
+        The owner's tools serve the owner's call only, and the vendor refuses
         them per call (measured 2026-09-16: « Tool IDs not attached to this
         agent », the call dies at pickup), so they live on the AGENT between
-        the dial and the end of the owner call. Before an owner call with
-        tools they are attached; before any other call, an agent still
-        carrying them (a webhook that never came) is detached first — a
-        stranger is never phoned by an agent holding the owner's lookups.
-        Vendor HTTP outside any transaction; the connector's new state is
-        committed before the dialing row opens its own.
+        the dial and the end of the owner call. A DIRECT owner call attaches
+        its lookups; a LIVE one attaches the one delegation tool; before any
+        other call, an agent still carrying tools (a webhook that never came)
+        is detached first — a stranger is never phoned by an agent holding
+        the owner's lookups or their delegation. Vendor HTTP outside any
+        transaction; the connector's new state is committed before the
+        dialing row opens its own.
 
         Args:
             active: The provisioned agent and its key.
             kind: The mandate of the call about to leave.
-            live_tools: The bindings an owner call was handed.
+            live_tools: The bindings a direct owner call was handed.
+            delegation_tool_id: The delegation tool a Live owner call was
+                handed, or None.
 
         Returns:
-            The bindings the prompt may name: what was attached, or nothing
-            when the attach was refused (a call without lookups beats a
-            prompt promising lookups the agent cannot make).
+            The bindings the prompt may name and whether the delegation tool
+            is on the agent — each empty/False when the attach was refused (a
+            call without tools beats a prompt promising what the agent cannot
+            make).
         """
         wanted = tuple(live_tools) if kind is CallKind.SELF else ()
-        if not wanted and not live_tools_attached(active.connector):
-            return ()
+        delegation = delegation_tool_id if kind is CallKind.SELF else None
+        ids = [binding.vendor_id for binding in wanted] + ([delegation] if delegation else [])
+        if not ids and not live_tools_attached(active.connector):
+            return (), False
         client = self._client_factory(active.api_key)
-        ids = [binding.vendor_id for binding in wanted]
         if not await attach_live_tools(client, active.connector, ids):
-            return ()
+            return (), False
         await self.db.commit()
-        return wanted
+        return wanted, delegation is not None
 
     async def _personality_for(self, user_id: UUID) -> str:
         """The instruction the person configured for LIA's personality (lot 9).
@@ -338,6 +345,8 @@ class TelephonyService:
         user_context: str = "",
         verification_code: str = "",
         live_tools: Sequence[LiveToolBinding] = (),
+        call_mode: VoiceSessionMode = "direct",
+        delegation_tool_id: str | None = None,
     ) -> InitiateCallResult:
         """Dial the callee via the user's ElevenLabs agent.
 
@@ -359,11 +368,20 @@ class TelephonyService:
                 already provisioned vendor-side by the caller and attached
                 to the agent here for the call; empty when the flag is off
                 or nothing is available.
+            call_mode: How an owner call runs (ADR-301): ``delegated`` (Live —
+                the one delegation tool, no context, no lookup) or ``direct``.
+                Written on the row, so the closing reads what the call RAN.
+            delegation_tool_id: The provisioned delegation tool of a Live
+                owner call; None when it could not be provisioned — the call
+                then runs DIRECT, honestly, rather than Live without a way
+                to delegate.
 
         Returns:
             InitiateCallResult with the terminal status and the call id.
         """
-        mandate = mandate_for(kind)
+        if kind is not CallKind.SELF or (call_mode == "delegated" and delegation_tool_id is None):
+            call_mode = "direct"
+        mandate = mandate_for(kind, mode=call_mode)
         active = await self._active_connector(user_id)
         if active is None:
             return InitiateCallResult(status="not_configured")
@@ -408,7 +426,18 @@ class TelephonyService:
                 kind=kind.value,
             )
             return InitiateCallResult(status="agent_sync_failed")
-        live_tools = await self._arm_live_tools(active, kind, live_tools)
+        live_tools, delegation_armed = await self._arm_agent_tools(
+            active,
+            kind,
+            live_tools if call_mode == "direct" else (),
+            delegation_tool_id if call_mode == "delegated" else None,
+        )
+        if call_mode == "delegated" and not delegation_armed:
+            # The agent refused the delegation tool: a Live mandate with no way
+            # to delegate would promise what the voice cannot do (ADR-184).
+            logger.warning("telephony_live_call_degraded_to_direct", user_id=str(user_id))
+            call_mode = "direct"
+            mandate = mandate_for(kind, mode=call_mode)
 
         personality = await self._personality_for(user_id)
         availability_summary = ""
@@ -435,7 +464,9 @@ class TelephonyService:
                 verification_code=verification_code,
                 live_tool_domains=tuple(sorted({binding.domain for binding in live_tools})),
                 personality=personality,
+                result_budget_tokens=settings.live_delegation_result_max_tokens,
             ),
+            mode=call_mode,
         )
 
         created = await self._create_dialing_row(
@@ -446,6 +477,7 @@ class TelephonyService:
                 "callee_phone": encrypt_data(callee_phone),  # PII encrypted at rest
                 "objective": objective,
                 "call_kind": kind,
+                "call_mode": call_mode,
                 "objective_window_start": window_start,
                 "objective_window_end": window_end,
                 "status": PhoneCallStatus.DIALING,

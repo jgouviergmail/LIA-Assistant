@@ -72,6 +72,14 @@ function CallRow({ call, lng }: { call: TelephonyCallSummary; lng: Language }) {
             {t(`settings.telephony.calls.kind.${call.call_kind}`)}
           </Badge>
         )}
+        {/* ADR-301: a call WITH the person ran Live (every request handed to the
+            chat as it was said) or Live direct (relayed at its end) — the mode
+            it RAN, which the closing honoured, not today's setting. */}
+        {call.call_kind === 'self' && (
+          <Badge variant="outline" size="sm">
+            {t(`settings.telephony.identity.call_mode.${call.call_mode}`)}
+          </Badge>
+        )}
         {call.relay_outcome && (
           <Badge variant={relayOutcomeTone(call.relay_outcome)} size="sm">
             {t(`settings.telephony.calls.relay.${call.relay_outcome}`)}

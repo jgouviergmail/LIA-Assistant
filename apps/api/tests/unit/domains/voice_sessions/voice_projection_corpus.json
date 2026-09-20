@@ -1,0 +1,134 @@
+{
+  "_doc": "Shared corpus of the voice projection (ADR-301): read by pytest (voice_sessions/projection.py) AND by vitest (lib/live/delegation.ts). A rule that drifts on one side fails the other's build.",
+  "flatten": [
+    {
+      "id": "plain",
+      "input": "The meeting is at three.",
+      "expected": "The meeting is at three."
+    },
+    {
+      "id": "heading-and-bullets",
+      "input": "# Tomorrow\n\n- Meeting at 15:00 with Anna\n- Dentist at 17:30\n\nHave a good day.",
+      "expected": "Tomorrow. Meeting at 15:00 with Anna. Dentist at 17:30. Have a good day."
+    },
+    {
+      "id": "numbered",
+      "input": "1. Call the bank\n2) Send the report\n10. Rest",
+      "expected": "Call the bank. Send the report. Rest."
+    },
+    {
+      "id": "emphasis-and-links",
+      "input": "**Urgent**: see [the report](https://example.com/r?x=1) and _reply_ ~today~.",
+      "expected": "Urgent: see the report and reply today."
+    },
+    {
+      "id": "code-fence",
+      "input": "Here:\n```python\nprint('x')\n```\nDone.",
+      "expected": "Here: Done."
+    },
+    {
+      "id": "ellipsis-and-spaces",
+      "input": "Well...  it   depends....\n\n\nMaybe.",
+      "expected": "Well. it depends. Maybe."
+    },
+    {
+      "id": "html-card",
+      "input": "<div class=\"lia-card\"><h3>Agenda</h3><p>Meeting at <strong>15:00</strong></p><ul><li>Anna</li><li>Bob</li></ul></div>",
+      "expected": "Agenda Meeting at 15:00 Anna. Bob."
+    },
+    {
+      "id": "html-links",
+      "input": "<p>See <a href=\"https://example.com\">the page</a> now.</p>",
+      "expected": "See the page now."
+    },
+    {
+      "id": "cjk",
+      "input": "明天下午三点有一个会议。\n\n- 与安娜见面",
+      "expected": "明天下午三点有一个会议。 与安娜见面."
+    },
+    {
+      "id": "bullet-with-star",
+      "input": "* first\n+ second\n• third",
+      "expected": "first second. third."
+    },
+    {
+      "id": "nbsp",
+      "input": "Il fait beau !",
+      "expected": "Il fait beau !"
+    },
+    {
+      "id": "empty",
+      "input": "   ",
+      "expected": ""
+    },
+    {
+      "id": "html-response-with-definition-list-and-stats",
+      "input": "<div class=\"lia-response\"><p>Demain, ta journée est <strong>libre</strong>.</p><h2>L'événement du jour</h2><dl class=\"lia-kv\"><dt>Intitulé</dt><dd><strong>Anniversaire de Nicolas</strong></dd><dt>Type</dt><dd><span class=\"lia-chip\"><span class=\"material-symbols-outlined\">cake</span>Journée entière</span></dd></dl><div class=\"lia-stats\"><div class=\"lia-stat\"><span class=\"lia-stat__value\">0</span><span class=\"lia-stat__label\">créneau occupé</span></div></div></div>",
+      "expected": "Demain, ta journée est libre. L'événement du jour Intitulé : Anniversaire de Nicolas Type : Journée entière 0 créneau occupé"
+    }
+  ],
+  "bound": [
+    {
+      "id": "under-budget",
+      "input": "short answer",
+      "max_tokens": 10,
+      "cut_line": "(cut)",
+      "expected": "short answer"
+    },
+    {
+      "id": "cut-at-word",
+      "input": "one two three four five six seven eight nine ten eleven twelve",
+      "max_tokens": 5,
+      "cut_line": "(cut)",
+      "expected": "one two three four (cut)"
+    },
+    {
+      "id": "cjk-no-word-cut",
+      "input": "明天下午三点有一个会议在办公室",
+      "max_tokens": 6,
+      "cut_line": "(cut)",
+      "expected": "明天下午三点 (cut)"
+    },
+    {
+      "id": "mixed",
+      "input": "Meeting 明天 at three with Anna and Bob at the office downtown",
+      "max_tokens": 6,
+      "cut_line": "(cut)",
+      "expected": "Meeting 明天 at thre (cut)"
+    },
+    {
+      "id": "exact",
+      "input": "abcd efgh",
+      "max_tokens": 2,
+      "cut_line": "(cut)",
+      "expected": "abcd (cut)"
+    }
+  ],
+  "tokens": [
+    {
+      "id": "latin",
+      "input": "abcdefgh",
+      "expected": 2
+    },
+    {
+      "id": "latin-odd",
+      "input": "abcde",
+      "expected": 2
+    },
+    {
+      "id": "cjk",
+      "input": "明天下午",
+      "expected": 4
+    },
+    {
+      "id": "mixed",
+      "input": "ab明天c",
+      "expected": 3
+    },
+    {
+      "id": "empty",
+      "input": "",
+      "expected": 0
+    }
+  ]
+}

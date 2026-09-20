@@ -2743,6 +2743,104 @@
         }
       },
       "description": "Chat turns that carried a written debrief. A debrief nothing ever injects is a capability paid for and never spent."
+    },
+    {
+      "id": 131,
+      "title": "Platform-paid families — accounting completeness",
+      "type": "row",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 141
+      },
+      "panels": []
+    },
+    {
+      "id": 132,
+      "title": "Google Maps calls unaccounted (24h)",
+      "type": "stat",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 0,
+        "y": 142
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(google_api_calls_unaccounted_total[24h])) or vector(0)",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "green"
+              },
+              {
+                "value": 1,
+                "color": "red"
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "auto",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "description": "Paid Google Maps Platform calls (Places, Routes, Geocoding, Weather, Static Maps, Street View) made with NO accounting context: the deployment paid them and no ledger received them. Expected 0 — every out-of-turn surface opens its own TrackingContext (domains/google_api/spend_roads.py). A rise names, in the logs (google_api_call_unaccounted), a surface reaching a paid client outside a tracker. Alert: GoogleApiCallsUnaccounted."
+    },
+    {
+      "id": 133,
+      "title": "Google Maps calls unaccounted by API (24h)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 6,
+        "w": 18,
+        "x": 6,
+        "y": 142
+      },
+      "targets": [
+        {
+          "expr": "sum by (api_name) (increase(google_api_calls_unaccounted_total[1h]))",
+          "legendFormat": "{{api_name}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "Which API the unaccounted calls hit — the pricing table names each (Places Text Search ≈ 0.03 €, Routes and Geocoding ≈ 0.004 €)."
     }
   ],
   "time": {

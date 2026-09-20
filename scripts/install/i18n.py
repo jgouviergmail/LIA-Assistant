@@ -56,6 +56,10 @@ MESSAGES: dict[str, dict[str, str]] = {
         "en": "Enable the script sandbox (mounts the Docker socket; also starts the egress proxy through which a script the assistant writes may reach the web with the person's own connector keys — switchable off in the admin panel)? yes/no",
         "fr": "Activer le bac à sable des scripts (monte la socket Docker ; démarre aussi le proxy de sortie par lequel un script écrit par l'assistante peut atteindre le web avec les clés des connecteurs de la personne — désactivable dans le panneau d'administration) ? yes/no",
     },
+    "question.live_mode": {
+        "en": "Enable the Live voice mode? Each person talks with LIA in real time on a live model they connect with their OWN Gemini, OpenAI or ElevenLabs key; the instance pays only what LIA itself spends inside a session (yes/no)",
+        "fr": "Activer le mode Live vocal ? Chaque personne parle avec LIA en temps réel sur un modèle live qu'elle connecte avec SA PROPRE clé Gemini, OpenAI ou ElevenLabs ; l'instance ne paie que ce que LIA elle-même dépense dans une session (yes/no)",
+    },
     "question.admin_password": {
         "en": "Administrator password (min {min_length} chars, {min_uppercase} uppercase, {min_digits} digits, {min_special} special; input hidden)",
         "fr": "Mot de passe administrateur (min {min_length} caractères, {min_uppercase} majuscules, {min_digits} chiffres, {min_special} spéciaux ; saisie masquée)",

@@ -33,8 +33,17 @@ function identity(overrides: Partial<TelephonyIdentity> = {}): TelephonyIdentity
     disabled_domains: [],
     available_domains: ['email', 'event', 'context'],
     verification_pending: false,
+    call_mode: 'delegated',
+    call_mode_effective: 'delegated',
+    live_available: true,
+    live_unavailable_reason: null,
     ...overrides,
   };
+}
+
+/** A Live direct identity: the rich-context switch is drawn under it alone. */
+function direct(overrides: Partial<TelephonyIdentity> = {}): TelephonyIdentity {
+  return identity({ call_mode: 'direct', call_mode_effective: 'direct', ...overrides });
 }
 
 function mockHook(value: TelephonyIdentity | null, overrides: Record<string, unknown> = {}) {
@@ -45,6 +54,7 @@ function mockHook(value: TelephonyIdentity | null, overrides: Record<string, unk
     confirmCode: vi.fn().mockResolvedValue(null),
     setRichContext: vi.fn().mockResolvedValue(null),
     setDisabledDomains: vi.fn().mockResolvedValue(null),
+    setCallMode: vi.fn().mockResolvedValue(null),
     refetch: vi.fn(),
   };
   useTelephonyIdentity.mockReturnValue({
@@ -137,7 +147,7 @@ describe('TelephonyIdentitySection', () => {
   });
 
   it('the context switch is a switch with a translated name and persists', async () => {
-    const actions = mockHook(identity({ verified: true }));
+    const actions = mockHook(direct({ verified: true }));
     renderWithProviders(<TelephonyIdentitySection lng="fr" />);
 
     const toggle = screen.getByRole('switch', {
@@ -152,7 +162,7 @@ describe('TelephonyIdentitySection', () => {
   it('offers one switch per domain the phone may read, on unless switched off', async () => {
     // Lot 8: the server publishes the domains it offers and the ones the
     // person switched off; the memories domain wears its own name.
-    const actions = mockHook(identity({ disabled_domains: ['email'] }));
+    const actions = mockHook(direct({ disabled_domains: ['email'] }));
     renderWithProviders(<TelephonyIdentitySection lng="fr" />);
 
     const email = screen.getByRole('switch', { name: 'treatments.domains.email' });
@@ -179,5 +189,66 @@ describe('TelephonyIdentitySection', () => {
     );
 
     expect(actions.clearNumber).toHaveBeenCalledTimes(1);
+  });
+
+  // --- the call mode (ADR-301) ----------------------------------------------
+
+  it('offers Live and Live direct as one glyph list, Live by default, and persists the choice', async () => {
+    const actions = mockHook(identity());
+    renderWithProviders(<TelephonyIdentitySection lng="fr" />);
+
+    const list = screen.getByRole('combobox', {
+      name: 'settings.telephony.identity.call_mode.label',
+    });
+    expect(list).toHaveTextContent('settings.telephony.identity.call_mode.delegated');
+    expect(list).not.toBeDisabled();
+    expect(screen.getByText('settings.telephony.identity.call_mode.help_delegated')).toBeTruthy();
+
+    await userEvent.click(list);
+    await userEvent.click(
+      await screen.findByRole('option', { name: 'settings.telephony.identity.call_mode.direct' })
+    );
+    expect(actions.setCallMode).toHaveBeenCalledWith('direct');
+  });
+
+  it('under Live, the phone context switch is gone but the domain switches stay', async () => {
+    // A Live call reads nothing itself, so the phone's rich-context switch
+    // has no object; the DOMAIN switches govern every direct voice surface —
+    // the browser's direct session reads them too (ADR-300 wave 4) — and a
+    // person on Live must still be able to tune them (ADR-301 review).
+    const actions = mockHook(identity({ disabled_domains: ['event'] }));
+    renderWithProviders(<TelephonyIdentitySection lng="fr" />);
+
+    expect(
+      screen.queryByRole('switch', { name: 'settings.telephony.identity.rich_context_label' })
+    ).toBeNull();
+    const email = screen.getByRole('switch', { name: 'treatments.domains.email' });
+    expect(email).toBeChecked();
+    expect(screen.getByRole('switch', { name: 'treatments.domains.event' })).not.toBeChecked();
+    await userEvent.click(email);
+    expect(actions.setDisabledDomains).toHaveBeenLastCalledWith(['email', 'event']);
+  });
+
+  it('when Live cannot run here, the list is disabled and says which mode a call will run', () => {
+    mockHook(
+      identity({
+        call_mode: 'delegated',
+        call_mode_effective: 'direct',
+        live_available: false,
+        live_unavailable_reason: 'callback_not_public',
+      })
+    );
+    renderWithProviders(<TelephonyIdentitySection lng="fr" />);
+
+    expect(
+      screen.getByRole('combobox', { name: 'settings.telephony.identity.call_mode.label' })
+    ).toBeDisabled();
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'settings.telephony.identity.call_mode.unavailable'
+    );
+    // The call runs direct, so the direct panels are drawn.
+    expect(
+      screen.getByRole('switch', { name: 'settings.telephony.identity.rich_context_label' })
+    ).toBeTruthy();
   });
 });

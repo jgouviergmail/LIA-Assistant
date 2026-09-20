@@ -99,6 +99,16 @@ def _render_gemini_level(level: str, intent: ReasoningIntent, _max_output: int) 
     return {"thinking_level": level, "include_thoughts": not intent.exclude_from_output}
 
 
+def _render_gemini_live_level(
+    level: str, _intent: ReasoningIntent, _max_output: int
+) -> dict[str, Any]:
+    # A live model is reached through a session ``setup``, not a LangChain
+    # kwarg: ``domains/live/providers/gemini.py`` renders ``thinkingConfig``
+    # itself. This renderer keeps the family complete in the one registry and
+    # says the same thing in the kwarg vocabulary.
+    return {} if level == _NO_DEPTH else {"thinking_level": level}
+
+
 def _render_gemini_budget(level: str, intent: ReasoningIntent, max_output: int) -> dict[str, Any]:
     budget = intent.budget_tokens
     if level == _NO_DEPTH:
@@ -166,6 +176,7 @@ _RENDERERS: dict[str, Callable[[str, ReasoningIntent, int], dict[str, Any]]] = {
     "anthropic_budget": _render_anthropic_budget,
     "gemini_level": _render_gemini_level,
     "gemini_budget": _render_gemini_budget,
+    "gemini_live_level": _render_gemini_live_level,
     "deepseek_toggle": _render_deepseek_toggle,
     "qwen_toggle_budget": _render_qwen_toggle_budget,
     "perplexity": _render_perplexity,

@@ -53,6 +53,7 @@ def _user(**overrides: Any) -> SimpleNamespace:
         "phone_number_verified_at": None,
         "phone_rich_context_enabled": True,
         "phone_disabled_domains": [],
+        "phone_call_mode": "delegated",
     }
     base.update(overrides)
     return SimpleNamespace(**base)
@@ -247,3 +248,65 @@ async def test_mark_verified_refuses_when_no_number_is_declared() -> None:
     with pytest.raises(ResourceConflictError):
         await service.mark_verified(user.id)
     assert users.updates == []
+
+
+# --- the call mode (ADR-301): Live by default, Live direct on request ---------
+
+
+@pytest.mark.unit
+async def test_the_call_mode_is_live_by_default_and_read_back(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "api_url", "https://lia-back.example.com", raising=False)
+    monkeypatch.setattr(settings, "telephony_callback_base_url", None, raising=False)
+    user = _user()
+    service, _, _ = _service(user)
+    identity = await service.get_identity(user.id)
+    assert identity.call_mode == "delegated"
+    assert identity.live_available is True
+    assert identity.live_unavailable_reason is None
+    assert identity.call_mode_effective == "delegated"
+
+
+@pytest.mark.unit
+async def test_the_call_mode_is_persisted_and_refuses_an_unknown_value() -> None:
+    user = _user()
+    service, users, db = _service(user)
+    identity = await service.set_call_mode(user.id, "direct")
+    assert identity.call_mode == "direct"
+    assert users.updates == [{"phone_call_mode": "direct"}]
+    assert db.commits == 1
+    with pytest.raises(ValidationError):
+        await service.set_call_mode(user.id, "loud")
+
+
+@pytest.mark.unit
+async def test_live_is_unavailable_when_the_vendor_cannot_call_this_api_back(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A private callback host means the delegation webhook can never arrive:
+    the choice stays stored, the EFFECTIVE mode says what a call will run."""
+    monkeypatch.setattr(settings, "api_url", "https://localhost:8000", raising=False)
+    monkeypatch.setattr(settings, "telephony_callback_base_url", None, raising=False)
+    user = _user(phone_call_mode="delegated")
+    service, _, _ = _service(user)
+    identity = await service.get_identity(user.id)
+    assert identity.call_mode == "delegated"
+    assert identity.live_available is False
+    assert identity.live_unavailable_reason == "callback_not_public"
+    assert identity.call_mode_effective == "direct"
+
+
+@pytest.mark.unit
+async def test_a_declared_callback_base_url_wins_over_the_api_url(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "api_url", "https://localhost:8000", raising=False)
+    monkeypatch.setattr(
+        settings, "telephony_callback_base_url", "https://tunnel.example.org", raising=False
+    )
+    user = _user()
+    service, _, _ = _service(user)
+    identity = await service.get_identity(user.id)
+    assert identity.live_available is True
+    assert identity.call_mode_effective == "delegated"

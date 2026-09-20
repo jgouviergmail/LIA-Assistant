@@ -61,6 +61,9 @@ headers** — the probe imports them from
 | Notifications / Push API | **absent** → push must be native |
 | `crossOriginIsolated` / `SharedArrayBuffer` | **absent**, even under COEP `require-corp` → **no wake word** |
 | `getUserMedia`, `MediaRecorder`, geolocation | **yes** — the API exists; an actual capture also needs `RECORD_AUDIO` + `MODIFY_AUDIO_SETTINGS` in the manifest overlay (`apps/mobile/native/android/…/AndroidManifest.xml`), which Capacitor checks before granting the WebView's `AUDIO_CAPTURE` request. The bench only measures presence. |
+| Outbound WebSocket to the live provider under the production `connect-src` (ADR-299) | **to measure** — `task mobile:probe:*` now reports `external_websocket`: `open` or `error` (the provider refuses a handshake without a credential, which is fine); `blocked:*` would mean the policy or the engine refused the socket before it left the page |
+| A WebRTC offer with a data channel (the GPT-Live wire, ADR-300) and an AudioWorklet module from a `blob:` URL (the live PCM player) under the production CSP | `task mobile:probe:*` reports `webrtc_offer` (`offer` expected) and `audio_worklet_blob` (`loaded` expected) — **measured on Android 2026-09-19: `offer` and `loaded`** |
+| A WebRTC session to GPT-Live (ADR-300): `getUserMedia` handed to a peer connection, the `oai-events` data channel, remote audio on a track | **to measure** — no CSP directive governs a peer connection, so the policy is not the question; the WebView's WebRTC support and the microphone permission plumbing are. Measured on desktop Chromium only |
 
 Two consequences worth stating plainly:
 

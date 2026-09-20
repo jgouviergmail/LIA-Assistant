@@ -12,7 +12,7 @@ Components:
 - schemas.py: Pydantic schemas for API
 - repository.py: Database access layer
 - pricing_service.py: Pricing cache and cost calculation
-- service.py: Usage tracking service for non-chat contexts
+- spend_roads.py: where each module's Maps Platform spend is recorded (declared, guarded)
 
 Author: Claude Code (Opus 4.5)
 Date: 2026-02-04

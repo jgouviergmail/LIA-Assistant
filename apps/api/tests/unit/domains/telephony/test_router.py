@@ -119,6 +119,20 @@ class _FakeIdentityService:
             rich_context_enabled=enabled,
         )
 
+    async def set_call_mode(self, user_id, mode, *, language):  # noqa: ANN001
+        from src.domains.telephony.identity import PhoneIdentity
+
+        self.calls.append(("set_call_mode", mode))
+        return PhoneIdentity(
+            phone_number="+33612345678",
+            verified=True,
+            verified_at=None,
+            rich_context_enabled=True,
+            call_mode=mode,
+            live_available=False,
+            live_unavailable_reason="callback_not_public",
+        )
+
 
 @pytest.fixture
 def _identity_service(monkeypatch):
@@ -170,6 +184,109 @@ async def test_patch_identity_switches_rich_context(_identity_service):
     )
     assert resp.rich_context_enabled is False
     assert _identity_service[0].calls == [("set_rich_context", False)]
+
+
+@pytest.mark.unit
+async def test_patch_identity_chooses_the_call_mode_and_publishes_what_a_call_will_run(
+    _identity_service,
+):
+    """ADR-301: the choice is stored; the EFFECTIVE mode and the reason travel with it."""
+    from src.domains.telephony.schemas import TelephonyIdentityUpdateRequest
+
+    resp = await rmod.update_identity(
+        TelephonyIdentityUpdateRequest(call_mode="delegated"), user=_user(), db=None
+    )
+    assert resp.call_mode == "delegated"
+    assert resp.live_available is False
+    assert resp.live_unavailable_reason == "callback_not_public"
+    assert resp.call_mode_effective == "direct"
+    assert _identity_service[0].calls == [("set_call_mode", "delegated")]
+
+
+@pytest.mark.unit
+async def test_the_calls_list_sums_a_live_calls_delegated_runs(monkeypatch):
+    """A Live call's bill is the SUM of its delegated turns and its own run —
+    read in two batches for the page, never one query per call (ADR-301)."""
+    from datetime import UTC, datetime
+    from decimal import Decimal
+
+    from src.domains.telephony.models import CallKind, PhoneCallStatus
+
+    live_id, direct_id = uuid4(), uuid4()
+
+    def _row(call_id, kind, mode):  # noqa: ANN001
+        return SimpleNamespace(
+            id=call_id,
+            callee_display="Alex",
+            objective="o",
+            status=PhoneCallStatus.COMPLETED,
+            outcome=None,
+            summary=None,
+            debrief=None,
+            structured_data=None,
+            call_seconds=None,
+            created_at=datetime(2026, 9, 20, 10, 0, tzinfo=UTC),
+            completed_at=None,
+            call_kind=kind,
+            call_mode=mode,
+            relay_outcome=None,
+        )
+
+    class _Repo:
+        def __init__(self, _db) -> None:  # noqa: ANN001
+            pass
+
+        async def list_recent_for_user(self, _user_id, *, limit):  # noqa: ANN001
+            return [
+                _row(live_id, CallKind.SELF, "delegated"),
+                _row(direct_id, CallKind.SELF, "direct"),
+            ]
+
+    class _Conversations:
+        async def get_active_conversation(self, _user_id, _db):  # noqa: ANN001
+            return SimpleNamespace(id=uuid4())
+
+    async def _by_key(_db, *, conversation_id, live_session_ids):  # noqa: ANN001
+        assert live_session_ids == [f"phone_call_{live_id.hex}"]
+        return {f"phone_call_{live_id.hex}": ["run_1", "run_2"]}
+
+    def _summary(prompt, cost):  # noqa: ANN001
+        return SimpleNamespace(
+            total_prompt_tokens=prompt,
+            total_completion_tokens=1,
+            total_cached_tokens=0,
+            billed_cost_eur=Decimal(cost),
+            google_api_requests=0,
+        )
+
+    class _Chat:
+        def __init__(self, _db) -> None:  # noqa: ANN001
+            pass
+
+        async def get_token_summaries_by_run_ids(self, run_ids):  # noqa: ANN001
+            assert set(run_ids) == {
+                f"phone_call_{live_id.hex}",
+                f"phone_call_{direct_id.hex}",
+                "run_1",
+                "run_2",
+            }
+            return {
+                "run_1": _summary(100, "0.10"),
+                "run_2": _summary(50, "0.05"),
+                f"phone_call_{direct_id.hex}": _summary(7, "0.01"),
+            }
+
+    monkeypatch.setattr(rmod, "TelephonyRepository", _Repo)
+    monkeypatch.setattr(rmod, "ConversationService", _Conversations)
+    monkeypatch.setattr(rmod, "session_run_ids_by_key", _by_key)
+    monkeypatch.setattr(rmod, "ChatRepository", _Chat)
+
+    listed = await rmod.list_calls(user=_user(), db=None, limit=20)
+    live, direct = listed
+    assert live.call_mode == "delegated"
+    assert live.usage is not None and live.usage.tokens_in == 150
+    assert live.usage.cost_eur == 0.15
+    assert direct.usage is not None and direct.usage.tokens_in == 7
 
 
 class _FakeVerification:

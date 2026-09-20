@@ -47,6 +47,7 @@ from .habits import HabitsSettings
 from .health_metrics import HealthMetricsSettings
 from .image_generation import ImageGenerationSettings
 from .journals import JournalsSettings
+from .live import LiveSettings
 from .llm import (
     DEFAULT_CONTEXT_WINDOW,
     MODEL_CONTEXT_WINDOWS,
@@ -140,6 +141,7 @@ class Settings(
     BackgroundRunsSettings,
     TelephonySettings,
     MeetingsSettings,
+    LiveSettings,
     BookmarksSettings,
     MFASettings,
     AccountExportSettings,
@@ -440,6 +442,7 @@ __all__ = [
     "ConnectorsSettings",
     "AdvancedSettings",
     "VoiceSettings",
+    "LiveSettings",
     "NotificationSettings",
     "MCPSettings",
     "ChannelsSettings",

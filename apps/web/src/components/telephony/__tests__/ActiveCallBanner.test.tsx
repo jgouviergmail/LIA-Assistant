@@ -33,6 +33,7 @@ function call(overrides: Partial<TelephonyCallSummary> = {}): TelephonyCallSumma
     call_seconds: null,
     created_at: '2026-07-26T09:00:00Z',
     call_kind: 'third_party',
+    call_mode: 'direct',
     relay_outcome: null,
     completed_at: null,
     ...overrides,

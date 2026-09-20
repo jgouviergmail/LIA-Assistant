@@ -9,6 +9,7 @@ and CONNECTOR_FUNCTIONAL_CATEGORIES completeness (3 providers + tasks category).
 import pytest
 
 from src.domains.connectors.models import (
+    CONNECTOR_ADDITIVE_CATEGORIES,
     CONNECTOR_FUNCTIONAL_CATEGORIES,
     ConnectorType,
     get_conflicting_connector_type,
@@ -133,6 +134,19 @@ class TestGetConflictingConnectorTypes:
         result = get_conflicting_connector_types(ConnectorType.GOOGLE_DRIVE)
         assert result == frozenset()
         assert isinstance(result, frozenset)
+
+    @pytest.mark.unit
+    def test_an_additive_category_conflicts_with_nobody(self):
+        """The live category is ADDITIVE (wave 2 spec A10): two provider keys
+        may be active at once — activating one must not deactivate the other."""
+        for member in CONNECTOR_FUNCTIONAL_CATEGORIES["live"]:
+            assert get_conflicting_connector_types(member) == frozenset()
+            assert get_functional_category(member) == "live"
+
+    @pytest.mark.unit
+    def test_every_additive_category_exists(self):
+        """A category declared additive must be a category: the two tables hold together."""
+        assert CONNECTOR_ADDITIVE_CATEGORIES <= set(CONNECTOR_FUNCTIONAL_CATEGORIES)
 
 
 # ---------------------------------------------------------------------------
@@ -309,6 +323,7 @@ class TestFunctionalCategoriesCompleteness:
             "weather",
             "smart_home",
             "telephony",
+            "live",
         }
 
     @pytest.mark.unit
@@ -358,6 +373,8 @@ class TestFunctionalCategoriesCompleteness:
         multiple providers exist for the same functional category.
         """
         for category, types in CONNECTOR_FUNCTIONAL_CATEGORIES.items():
+            if category in CONNECTOR_ADDITIVE_CATEGORIES:
+                continue  # every member may be active: no conflict by design (own test above)
             for ct in types:
                 conflicts = get_conflicting_connector_types(ct)
                 if len(types) == 1:

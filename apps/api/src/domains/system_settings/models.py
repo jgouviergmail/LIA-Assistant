@@ -71,6 +71,7 @@ class SystemSettingKey(str, enum.Enum):
     CAPABILITY_MCP_ENABLED = "capability_mcp_enabled"
     CAPABILITY_TELEPHONY_ENABLED = "capability_telephony_enabled"
     CAPABILITY_MEETINGS_ENABLED = "capability_meetings_enabled"
+    CAPABILITY_LIVE_ENABLED = "capability_live_enabled"
     # B7 — thirteen features an operator could neither see nor switch off.
     CAPABILITY_WORKBOARD_ENABLED = "capability_workboard_enabled"
     CAPABILITY_JOURNALS_ENABLED = "capability_journals_enabled"

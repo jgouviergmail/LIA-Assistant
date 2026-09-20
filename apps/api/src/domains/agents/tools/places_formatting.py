@@ -24,7 +24,7 @@ from src.core.constants import (
 )
 from src.domains.agents.utils.distance import calculate_distance_sync
 from src.domains.agents.utils.i18n_location import get_price_level
-from src.domains.connectors.clients.google_api_tracker import track_google_api_call
+from src.domains.connectors.media_attribution import with_attribution
 
 logger = structlog.get_logger(__name__)
 
@@ -105,9 +105,11 @@ def _distance_fields(
 def _photo_fields(place: dict[str, Any], *, include_names: bool = False) -> dict[str, Any]:
     """Photo proxy URLs (and optionally raw resource names) for a place.
 
-    Tracks the billed thumbnail photo call. Carousel photos follow
-    settings.place_carousel_enabled: when disabled, one photo per place keeps
-    the billing exact (carousel photos are NOT tracked).
+    Every URL carries the turn's signed run id: the photo is BILLED when the
+    browser fetches it, and the proxy counts it then, on this turn. It used
+    to be pre-counted here — one call per place whether or not the image
+    ever loaded, and never the carousel's other photos. Carousel photos
+    follow settings.place_carousel_enabled.
     """
     photos = place.get("photos", [])
     photo_names = [p.get("name") for p in photos if p.get("name")]
@@ -116,11 +118,12 @@ def _photo_fields(place: dict[str, Any], *, include_names: bool = False) -> dict
         fields["photos"] = photo_names
     if not photo_names:
         return fields
-    fields["photo_url"] = f"/api/v1/connectors/google-places/photo/{photo_names[0]}"
-    track_google_api_call("places", "/{photo}/media", cached=False)
+    fields["photo_url"] = with_attribution(
+        f"/api/v1/connectors/google-places/photo/{photo_names[0]}"
+    )
     if settings.place_carousel_enabled:
         fields["photo_urls"] = [
-            f"/api/v1/connectors/google-places/photo/{name}"
+            with_attribution(f"/api/v1/connectors/google-places/photo/{name}")
             for name in photo_names[:PLACES_MAX_GALLERY_PHOTOS]
         ]
     else:

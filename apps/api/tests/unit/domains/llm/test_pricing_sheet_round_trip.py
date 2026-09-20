@@ -13,6 +13,7 @@ the two halves are declared in one place but consumed by two.
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Any
 
 import pytest
@@ -115,7 +116,36 @@ def test_the_template_column_is_no_longer_written() -> None:
 
 
 def test_the_schema_version_travels_and_matches() -> None:
-    """A file written before the columns changed must be refusable by version."""
+    """A file written before the columns changed must be refusable by version.
+
+    v3: the audio pair joined as two editable columns (ADR-300), which a v2
+    file cannot carry.
+    """
     spec = build_pricing_workbook_spec()
 
-    assert spec.schema_version == SCHEMA_VERSION == 2
+    assert spec.schema_version == SCHEMA_VERSION == 3
+
+
+def test_the_audio_pair_survives_a_real_write_and_read() -> None:
+    """Two decimal cells, written and parsed back as the pair the service reads."""
+    values = _round_trip(
+        _row(
+            model_name="gemini-live-model",
+            provider="gemini",
+            kind="realtime",
+            is_reasoning_model=False,
+            reasoning_enum_values=None,
+            audio_input_unit_price="3.0",
+            audio_output_unit_price="12.0",
+        )
+    )
+
+    assert Decimal(str(values["audio_input_unit_price"])) == Decimal("3")
+    assert Decimal(str(values["audio_output_unit_price"])) == Decimal("12")
+
+
+def test_an_absent_audio_pair_comes_back_empty() -> None:
+    values = _round_trip(_row())
+
+    assert values.get("audio_input_unit_price") in (None, "")
+    assert values.get("audio_output_unit_price") in (None, "")

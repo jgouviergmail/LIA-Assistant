@@ -34,6 +34,15 @@ end
 return 0
 """
 
+#: Give the key a new TTL only if it still holds the caller's token.
+REFRESH_SCRIPT = """
+if redis.call('get', KEYS[1]) == ARGV[1] then
+    redis.call('set', KEYS[1], ARGV[1], 'EX', ARGV[2])
+    return 1
+end
+return 0
+"""
+
 
 async def try_claim(redis: Any, key: str, token: str, *, ttl_seconds: int) -> bool:
     """Take the claim, or report that someone else holds it.
@@ -52,6 +61,26 @@ async def try_claim(redis: Any, key: str, token: str, *, ttl_seconds: int) -> bo
             failure means.
     """
     return bool(await redis.set(key, token, ex=ttl_seconds, nx=True))
+
+
+async def refresh_claim(redis: Any, key: str, token: str, *, ttl_seconds: int) -> bool:
+    """Extend the claim's life, and only if this caller still owns it.
+
+    Args:
+        redis: The cache client.
+        key: The claim's key.
+        token: The owner token the claim was taken with.
+        ttl_seconds: The claim's new life from now.
+
+    Returns:
+        True when the claim was this caller's and now lives ``ttl_seconds``;
+        False when a successor holds it.
+
+    Raises:
+        Exception: Whatever the cache raised — the caller decides what a
+            failure means (a live extension is refused, never assumed).
+    """
+    return bool(await redis.eval(REFRESH_SCRIPT, 1, key, token, ttl_seconds))
 
 
 async def release_claim(redis: Any, key: str, token: str) -> bool:
@@ -107,4 +136,11 @@ async def acquire_claim(
         await asyncio.sleep(poll_seconds)
 
 
-__all__ = ["RELEASE_SCRIPT", "acquire_claim", "release_claim", "try_claim"]
+__all__ = [
+    "REFRESH_SCRIPT",
+    "RELEASE_SCRIPT",
+    "acquire_claim",
+    "refresh_claim",
+    "release_claim",
+    "try_claim",
+]

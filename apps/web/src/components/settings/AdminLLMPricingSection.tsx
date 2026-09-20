@@ -46,12 +46,15 @@ import {
 } from '@/lib/actions/settings-actions';
 import {
   EMPTY_TIME_SLOT_ROW,
+  buildAudioPricesPayload,
+  buildCachedPriceUpdate,
   buildReasoningSamplingPayload,
   buildTimeSlotsPayload,
   formatEnumValuesCsv,
   parseEnumValuesCsv,
   slotRowsFromModel,
   utcOffsetLabel,
+  validateAudioPair,
   validateTimeSlotRows,
   type ModelPricingFormData,
   type TimeSlotFormRow,
@@ -93,6 +96,13 @@ const PRICING_UNIT_OPTIONS: readonly PricingUnitName[] = [
 function defaultPricingUnitForKind(kind: LLMModelKindName): PricingUnitName {
   if (kind === 'audio' || kind === 'tts') return 'per_audio_hour';
   return 'per_1m_tokens';
+}
+
+/** The audio pair as one cell (ADR-300): both rates, or a dash when none is declared. */
+function formatAudioPair(model: LLMModelPricing): string {
+  if (model.audio_input_unit_price === null || model.audio_output_unit_price === null) return '—';
+  const fmt = (raw: string) => `$${parseFloat(raw).toFixed(6)}`;
+  return `${fmt(model.audio_input_unit_price)} / ${fmt(model.audio_output_unit_price)}`;
 }
 
 // Capability toggles directly editable in the form (independent of the
@@ -142,6 +152,9 @@ export interface LLMModelPricing {
   input_unit_price: string;
   cached_input_unit_price: string | null;
   output_unit_price: string;
+  /** The audio pair of a speech-to-speech model (ADR-300); null = none declared. */
+  audio_input_unit_price: string | null;
+  audio_output_unit_price: string | null;
   /** UTC windowed tariff (ADR-223); null = flat pricing. */
   time_slots: TimeSlotPricePayload[] | null;
   effective_from: string;
@@ -343,6 +356,7 @@ export default function AdminLLMPricingSection({ lng }: BaseSettingsProps) {
 
   const handleAddModel = (formData: ModelPricingFormData) => {
     startTransition(async () => {
+      const audioPayload = buildAudioPricesPayload(formData, 'create');
       // Optimistic placeholder — the real reasoning + sampling block lands
       // when fetchModels() refreshes. Default to neutral values here.
       const tempModel: LLMModelPricing = {
@@ -373,6 +387,8 @@ export default function AdminLLMPricingSection({ lng }: BaseSettingsProps) {
         input_unit_price: formData.input_unit_price,
         cached_input_unit_price: formData.cached_input_unit_price,
         output_unit_price: formData.output_unit_price,
+        audio_input_unit_price: audioPayload.audio_input_unit_price ?? null,
+        audio_output_unit_price: audioPayload.audio_output_unit_price ?? null,
         time_slots: buildTimeSlotsPayload(formData, 'create') ?? null,
         effective_from: new Date().toISOString(),
         is_active: true,
@@ -399,6 +415,7 @@ export default function AdminLLMPricingSection({ lng }: BaseSettingsProps) {
           input_unit_price: formData.input_unit_price,
           cached_input_unit_price: formData.cached_input_unit_price,
           output_unit_price: formData.output_unit_price,
+          ...audioPayload,
           time_slots: buildTimeSlotsPayload(formData, 'create'),
           ...reasoningSampling,
         });
@@ -433,6 +450,9 @@ export default function AdminLLMPricingSection({ lng }: BaseSettingsProps) {
       // Always sent on update: [] clears, a list replaces — omission would
       // inherit, which is not what the toggle state says.
       const slotsPayload = buildTimeSlotsPayload(formData, 'update');
+      // The two prices whose emptying is a CLEARING on the wire (the backend
+      // drops nulls from its change-set): sent as their own shape.
+      const audioPayload = buildAudioPricesPayload(formData, 'update');
       const updatePayload: LLMPricingUpdateData = {
         model_name: formData.model_name,
         max_input_tokens: formData.max_input_tokens,
@@ -444,8 +464,9 @@ export default function AdminLLMPricingSection({ lng }: BaseSettingsProps) {
         supports_vision: formData.supports_vision,
         pricing_unit: formData.pricing_unit,
         input_unit_price: formData.input_unit_price,
-        cached_input_unit_price: formData.cached_input_unit_price,
+        ...buildCachedPriceUpdate(formData),
         output_unit_price: formData.output_unit_price,
+        ...audioPayload,
         time_slots: slotsPayload,
         ...reasoningSampling,
       };
@@ -465,6 +486,8 @@ export default function AdminLLMPricingSection({ lng }: BaseSettingsProps) {
           input_unit_price: formData.input_unit_price,
           cached_input_unit_price: formData.cached_input_unit_price,
           output_unit_price: formData.output_unit_price,
+          audio_input_unit_price: audioPayload.audio_input_unit_price ?? null,
+          audio_output_unit_price: audioPayload.audio_output_unit_price ?? null,
           time_slots: slotsPayload && slotsPayload.length > 0 ? slotsPayload : null,
         },
       });
@@ -621,6 +644,12 @@ export default function AdminLLMPricingSection({ lng }: BaseSettingsProps) {
                 className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
                 role="columnheader"
               >
+                {t('settings.admin.llm.table.audio_price')}
+              </th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                role="columnheader"
+              >
                 {t('settings.admin.llm.table.actions')}
               </th>
             </tr>
@@ -690,6 +719,9 @@ export default function AdminLLMPricingSection({ lng }: BaseSettingsProps) {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
                   ${parseFloat(model.output_unit_price).toFixed(6)}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
+                  {formatAudioPair(model)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm">
                   <div className="flex gap-2">
@@ -1323,7 +1355,8 @@ function PricingFields({
   setFormData,
   t,
   slotsError,
-}: PricingSectionProps & { slotsError: string | null }) {
+  audioError,
+}: PricingSectionProps & { slotsError: string | null; audioError: string | null }) {
   const unitShort = t(`settings.admin.llm.modal.pricing_unit_short_${formData.pricing_unit}`);
   return (
     <fieldset className="border border-border rounded-lg p-4 space-y-3">
@@ -1408,6 +1441,15 @@ function PricingFields({
       </div>
 
       {formData.pricing_unit === 'per_1m_tokens' && (
+        <PricingAudioFields
+          formData={formData}
+          setFormData={setFormData}
+          t={t}
+          audioError={audioError}
+        />
+      )}
+
+      {formData.pricing_unit === 'per_1m_tokens' && (
         <PricingTimeSlotFields
           formData={formData}
           setFormData={setFormData}
@@ -1416,6 +1458,53 @@ function PricingFields({
         />
       )}
     </fieldset>
+  );
+}
+
+/** The audio pair of a speech-to-speech model (ADR-300): two optional cells,
+ * declared together. Rendered only for token-billed models — an audio unit
+ * already bills the audio by its unit. */
+function PricingAudioFields({
+  formData,
+  setFormData,
+  t,
+  audioError,
+}: PricingSectionProps & { audioError: string | null }) {
+  const unitShort = t('settings.admin.llm.modal.pricing_unit_short_per_1m_tokens');
+  const fields = [
+    ['audio_input_unit_price', 'audio-input-price', 'audio_input_label'],
+    ['audio_output_unit_price', 'audio-output-price', 'audio_output_label'],
+  ] as const;
+  return (
+    <div className="space-y-3">
+      {fields.map(([key, id, labelKey]) => (
+        <div key={key}>
+          <label htmlFor={id} className="block text-sm font-medium text-foreground mb-3">
+            {t(`settings.admin.llm.modal.${labelKey}`)}{' '}
+            <span className="text-xs text-muted-foreground font-normal">({unitShort})</span>
+          </label>
+          <Input
+            id={id}
+            type="number"
+            step="0.000001"
+            min="0"
+            value={formData[key]}
+            onChange={e => setFormData({ ...formData, [key]: e.target.value })}
+            placeholder={t('settings.admin.llm.modal.audio_placeholder')}
+            aria-describedby="audio-pair-hint"
+            aria-invalid={audioError ? true : undefined}
+          />
+        </div>
+      ))}
+      <p id="audio-pair-hint" className="text-xs text-muted-foreground">
+        {t('settings.admin.llm.modal.audio_hint')}
+      </p>
+      {audioError && (
+        <p role="alert" className="text-sm text-destructive">
+          {audioError}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -1442,6 +1531,8 @@ const DEFAULT_PRICING_FORM: ModelPricingFormData = {
   input_unit_price: '',
   cached_input_unit_price: '',
   output_unit_price: '',
+  audio_input_unit_price: '',
+  audio_output_unit_price: '',
   time_slots_enabled: false,
   time_slots: [],
 };
@@ -1473,6 +1564,8 @@ function pricingFormFromModel(model: LLMModelPricing): ModelPricingFormData {
     input_unit_price: model.input_unit_price,
     cached_input_unit_price: model.cached_input_unit_price ?? '',
     output_unit_price: model.output_unit_price,
+    audio_input_unit_price: model.audio_input_unit_price ?? '',
+    audio_output_unit_price: model.audio_output_unit_price ?? '',
     time_slots_enabled: (model.time_slots?.length ?? 0) > 0,
     time_slots: slotRowsFromModel(model.time_slots),
   };
@@ -1526,20 +1619,26 @@ export function ModelPricingModal({ lng, model, onClose, onSubmit }: ModelPricin
   // Time-slot validation (ADR-223): derived live so fixing the rows clears
   // the message, but only DISPLAYED after a submit attempt — a freshly
   // seeded empty row must not greet the admin with an error.
-  const [slotsSubmitAttempted, setSlotsSubmitAttempted] = useState(false);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const slotsErrorCode =
     formData.pricing_unit === 'per_1m_tokens' && formData.time_slots_enabled
       ? validateTimeSlotRows(formData.time_slots)
       : null;
   const slotsError =
-    slotsSubmitAttempted && slotsErrorCode
+    submitAttempted && slotsErrorCode
       ? t(`settings.admin.llm.modal.time_slots_error_${slotsErrorCode}`)
+      : null;
+  // The audio pair (ADR-300): half a pair blocks the submit, said next to the cells.
+  const audioErrorCode = validateAudioPair(formData);
+  const audioError =
+    submitAttempted && audioErrorCode
+      ? t(`settings.admin.llm.modal.audio_error_${audioErrorCode}`)
       : null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (slotsErrorCode) {
-      setSlotsSubmitAttempted(true);
+    if (slotsErrorCode || audioErrorCode) {
+      setSubmitAttempted(true);
       return;
     }
     onSubmit({
@@ -1588,6 +1687,7 @@ export function ModelPricingModal({ lng, model, onClose, onSubmit }: ModelPricin
               setFormData={setFormData}
               t={t}
               slotsError={slotsError}
+              audioError={audioError}
             />
 
             <div className="flex space-x-2 pt-2">

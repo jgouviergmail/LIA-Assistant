@@ -308,10 +308,6 @@ class TestNotifyReady:
 
         tracked = AsyncMock(return_value="meeting-run")
         monkeypatch.setattr("src.infrastructure.proactive.tracking.track_proactive_tokens", tracked)
-        monkeypatch.setattr(
-            "src.infrastructure.proactive.tracking.generate_proactive_run_id",
-            lambda task_type, target: f"{task_type}-{target}-run",
-        )
         dispatcher = MagicMock()
         dispatcher.dispatch = AsyncMock()
         monkeypatch.setattr(
@@ -330,6 +326,9 @@ class TestNotifyReady:
             cost_eur=0.0046,
         )
         synthesis = _synthesis()
+        # The run id is minted ONCE by the job, before the enrichment's own
+        # billed call, and handed down: the notification never mints its own.
+        run_id = f"{processing.MEETINGS_PROACTIVE_TASK_TYPE}-{meeting.id}-run"
         await processing._notify_ready(
             MagicMock(),
             meeting=meeting,
@@ -338,8 +337,8 @@ class TestNotifyReady:
             outcome=outcome,
             language="fr",
             gaps=0,
+            run_id=run_id,
         )
-        run_id = f"{processing.MEETINGS_PROACTIVE_TASK_TYPE}-{meeting.id}-run"
         assert tracked.await_args.kwargs["run_id"] == run_id
         kwargs = dispatcher.dispatch.await_args.kwargs
         assert kwargs["run_id"] == run_id

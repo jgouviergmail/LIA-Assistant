@@ -55,6 +55,9 @@ import {
 import { AppleCredentialForm } from './connectors/AppleCredentialForm';
 import { HueBridgePairingForm } from './connectors/HueBridgePairingForm';
 import { TelephonyConnectorForm } from './connectors/TelephonyConnectorForm';
+import { LiveConnectorGroup } from './connectors/LiveConnectorGroup';
+import { isLiveConnectorType } from '@/lib/live/providers';
+import { bumpRevision } from '@/stores/revisionStore';
 import { DisconnectConnectorConfirm } from './connectors/DisconnectConnectorConfirm';
 import { CONNECTOR_LABELS, type ConnectorType } from '@/constants/connectors';
 import type { BaseSettingsProps } from '@/types/settings';
@@ -208,6 +211,7 @@ export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
 
     try {
       await deleteConnector(`/connectors/${connectorId}`);
+      const removed = data?.connectors.find(c => c.id === connectorId);
       setData(prev => {
         if (!prev) return prev;
         return {
@@ -215,6 +219,8 @@ export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
           connectors: prev.connectors.filter(c => c.id !== connectorId),
         };
       });
+      // The header's voice menu follows the live connectors (ADR-300 wave 4).
+      if (removed && isLiveConnectorType(removed.connector_type)) bumpRevision('live_connectors');
     } catch {
       toast.error(t('settings.connectors.disconnect_error'));
     }
@@ -959,6 +965,16 @@ export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
               </AccordionContent>
             </AccordionItem>
           )}
+
+          {/* Live voice connector (ADR-299) — the group decides its own
+              presence (instance capability) and holds both accordion items. */}
+          <LiveConnectorGroup
+            connectors={connectors}
+            lng={lng}
+            t={t}
+            refetch={refetch}
+            onDisconnect={setPendingDisconnect}
+          />
 
           {/* Available External (API Key) Connectors */}
           <AccordionItem value="available-api-key" className="border rounded-lg px-3">

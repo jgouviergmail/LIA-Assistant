@@ -34,6 +34,7 @@ from src.core.repository import BaseRepository
 from src.domains.conversations.message_reads import (
     matching_content,
     older_than,
+    out_of_graph_rows,
     token_summary_payload,
     visible_only,
 )
@@ -1017,8 +1018,10 @@ class ConversationRepository(BaseRepository[Conversation]):
 
         Retrieves assistant messages with metadata.type starting with 'proactive_'
         (e.g., 'proactive_interest', 'proactive_birthday') created after the
-        specified timestamp. Used to inject proactive messages into LangGraph
-        state so the LLM has context when a user replies to a notification.
+        specified timestamp — and, since ADR-299, the voice-only exchanges of a
+        live session (type ``live_turn``, BOTH roles). Used to inject the rows
+        the graph never saw into LangGraph state so the LLM has context when a
+        user replies to a notification or continues a spoken conversation.
 
         Args:
             conversation_id: Conversation UUID
@@ -1040,11 +1043,11 @@ class ConversationRepository(BaseRepository[Conversation]):
         try:
             stmt = (
                 visible_only(
-                    select(ConversationMessage).where(
-                        ConversationMessage.conversation_id == conversation_id,
-                        ConversationMessage.role == "assistant",
-                        ConversationMessage.created_at > after_timestamp,
-                        ConversationMessage.message_metadata["type"].astext.like("proactive_%"),
+                    out_of_graph_rows(
+                        select(ConversationMessage).where(
+                            ConversationMessage.conversation_id == conversation_id,
+                            ConversationMessage.created_at > after_timestamp,
+                        )
                     ),
                     include_hidden=include_hidden,
                 )
@@ -1159,10 +1162,7 @@ class ConversationRepository(BaseRepository[Conversation]):
                 func.sum(MessageTokenSummary.total_prompt_tokens).label(FIELD_TOTAL_TOKENS_IN),
                 func.sum(MessageTokenSummary.total_completion_tokens).label(FIELD_TOTAL_TOKENS_OUT),
                 func.sum(MessageTokenSummary.total_cached_tokens).label(FIELD_TOTAL_TOKENS_CACHE),
-                (
-                    func.sum(MessageTokenSummary.total_cost_eur)
-                    + func.coalesce(func.sum(MessageTokenSummary.google_api_cost_eur), 0)
-                ).label(FIELD_TOTAL_COST_EUR),
+                func.sum(MessageTokenSummary.billed_cost_sql()).label(FIELD_TOTAL_COST_EUR),
                 func.sum(MessageTokenSummary.google_api_requests).label(
                     FIELD_TOTAL_GOOGLE_API_REQUESTS
                 ),

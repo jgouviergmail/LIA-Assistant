@@ -20,6 +20,7 @@ from pydantic_settings import BaseSettings
 from src.core.constants import (
     TELEPHONY_CALL_RETENTION_DAYS_DEFAULT,
     TELEPHONY_DEFAULT_COUNTRY_CODE_DEFAULT,
+    TELEPHONY_DELEGATION_TIMEOUT_SECONDS_DEFAULT,
     TELEPHONY_LIVE_TOOL_MAX_CALLS_PER_CALL_DEFAULT,
     TELEPHONY_LIVE_TOOL_RESULT_MAX_TOKENS_DEFAULT,
     TELEPHONY_LIVE_TOOL_TIMEOUT_SECONDS_DEFAULT,
@@ -244,6 +245,14 @@ class TelephonySettings(BaseSettings):
             "bound to an active owner call, off by default."
         ),
     )
+    telephony_callback_base_url: str | None = Field(
+        default=None,
+        description=(
+            "Public base URL the vendor calls this API back on for live tools and the "
+            "Live mode's delegation (ADR-301); None = API_URL. A private host means "
+            "the phone's Live mode is unavailable and every owner call runs direct."
+        ),
+    )
     telephony_live_tool_timeout_seconds: int = Field(
         default=TELEPHONY_LIVE_TOOL_TIMEOUT_SECONDS_DEFAULT,
         ge=5,
@@ -251,6 +260,16 @@ class TelephonySettings(BaseSettings):
         description=(
             "Vendor-side timeout of a live tool call; the lookup itself is bounded "
             "a few seconds under it so the agent hears a refusal, not a timeout."
+        ),
+    )
+    telephony_delegation_timeout_seconds: int = Field(
+        default=TELEPHONY_DELEGATION_TIMEOUT_SECONDS_DEFAULT,
+        ge=20,
+        le=290,
+        description=(
+            "Vendor-side timeout of the Live mode's asynchronous delegation call-back "
+            "(ADR-301); the bridge answers a few seconds under it so the voice hears "
+            "« still working », never a vendor error."
         ),
     )
     telephony_live_tool_result_max_tokens: int = Field(

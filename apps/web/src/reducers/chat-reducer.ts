@@ -77,6 +77,10 @@ function applyDoneMetadata(m: Message, metadata: StreamDoneMetadata): Message {
     metadata: {
       ...m.metadata,
       psyche_state: metadata.psyche_state,
+      // Expressivity (ADR-253): the register the answering model declared for
+      // THIS answer — read by the live bridge as the voice's delivery note. Live
+      // only: the archived row never carries it, so a reload never re-performs.
+      ...(metadata.expressivity ? { expressivity: metadata.expressivity } : {}),
       ...(metadata.cancelled ? { interrupted: true, interrupt_reason: 'cancelled' } : {}),
       // QW-5 (ADR-138): DB id of the archived row — the feedback buttons only
       // render when a message can be targeted server-side.

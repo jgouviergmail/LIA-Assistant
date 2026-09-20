@@ -406,3 +406,57 @@ describe('mobile scroll architecture', () => {
     expect(wrapper.className).toContain('items-center');
   });
 });
+
+describe('the audio pair (ADR-300)', () => {
+  const fillRequired = () => {
+    fireEvent.change(screen.getByLabelText('settings.admin.llm.modal.model_name_label'), {
+      target: { value: 'gemini-live-x' },
+    });
+    fireEvent.change(screen.getByLabelText(/input_price_label/), { target: { value: '0.75' } });
+    fireEvent.change(screen.getByLabelText(/output_price_label/), { target: { value: '4.5' } });
+  };
+
+  it('submits a whole pair as two values', () => {
+    const { onSubmit } = renderModal(null);
+    fillRequired();
+    fireEvent.change(screen.getByLabelText(/audio_input_label/), { target: { value: '3' } });
+    fireEvent.change(screen.getByLabelText(/audio_output_label/), { target: { value: '12' } });
+    submit();
+    const payload = onSubmit.mock.calls[0][0];
+    expect(payload.audio_input_unit_price).toBe('3');
+    expect(payload.audio_output_unit_price).toBe('12');
+  });
+
+  it('blocks half a pair with an alert next to the cells, until the pair is whole', () => {
+    const { onSubmit } = renderModal(null);
+    fillRequired();
+    fireEvent.change(screen.getByLabelText(/audio_input_label/), { target: { value: '3' } });
+    submit();
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'settings.admin.llm.modal.audio_error_half_pair'
+    );
+    expect(screen.getByLabelText(/audio_input_label/)).toHaveAttribute('aria-invalid', 'true');
+    fireEvent.change(screen.getByLabelText(/audio_output_label/), { target: { value: '12' } });
+    expect(screen.queryByRole('alert')).toBeNull();
+    submit();
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  it('hides the pair on an audio unit — the unit already bills the audio', () => {
+    renderModal(null);
+    fireEvent.change(screen.getByLabelText('Kind'), { target: { value: 'tts' } });
+    expect(screen.queryByLabelText(/audio_input_label/)).toBeNull();
+  });
+
+  it('seeds the pair from the row being edited', () => {
+    const { onSubmit } = renderModal(
+      editModel({ audio_input_unit_price: '3.000000', audio_output_unit_price: '12.000000' })
+    );
+    expect((screen.getByLabelText(/audio_input_label/) as HTMLInputElement).value).toBe(
+      '3.000000'
+    );
+    submitEdit();
+    expect(onSubmit.mock.calls[0][0].audio_output_unit_price).toBe('12.000000');
+  });
+});

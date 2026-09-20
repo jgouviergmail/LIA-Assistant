@@ -46,6 +46,15 @@ FIELD_TOOL_NAME = "tool_name"
 # actions) so response_node skips long-term memory / interest / journal / psyche
 # extraction. Only direct user inputs (web chat, channels, voice) feed those.
 FIELD_IS_AUTOMATED_SOURCE = "is_automated_source"
+# Live mode (ADR-299): the session a delegated turn was spoken in, and what the
+# person actually said (the request is the model's transcription of it).
+FIELD_LIVE_SESSION_ID = "live_session_id"
+# The closing card's figures block (ADR-299/ADR-301). Its OWN key, never an origin
+# kind: `with_origin_stamp` writes `metadata[origin.kind]`, and a relayed turn's
+# origin is `live_session` — a card archived under that origin would have had
+# its figures REPLACED by the stamp (review 2026-09-20).
+FIELD_LIVE_SUMMARY = "live_summary"
+FIELD_SPOKEN_TEXT = "spoken_text"
 # Archive metadata: the row belongs to an out-of-turn run and must not be read
 # back into the chat (ADR-276). Declared here because TWO sides depend on the
 # same spelling — the stamp that writes it (`agents/api/run_origin.py`) and the

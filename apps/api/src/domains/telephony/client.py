@@ -124,6 +124,20 @@ class ElevenLabsAgentsError(RuntimeError):
         super().__init__(f"ElevenLabs API error {status_code}: {detail}")
 
 
+def first_refusal(group: BaseExceptionGroup[BaseException]) -> ElevenLabsAgentsError:
+    """The first vendor refusal a ``TaskGroup`` gathered, nested groups walked.
+
+    ``except*`` hands a group whose members may be groups themselves; the
+    callers roll back on ONE refusal and re-raise or report that one.
+    """
+    for member in group.exceptions:
+        if isinstance(member, ElevenLabsAgentsError):
+            return member
+        if isinstance(member, BaseExceptionGroup):
+            return first_refusal(member)
+    raise AssertionError("no ElevenLabsAgentsError in the group")  # pragma: no cover
+
+
 def _is_auth_response(resp: httpx.Response) -> bool:
     """Vendor-declared authentication failure, classified STRUCTURALLY.
 
@@ -191,6 +205,30 @@ class ElevenLabsAgentsClient:
             )
             raise ElevenLabsAgentsError(resp.status_code, detail, auth_error=auth_error)
         return resp
+
+    async def get_agent(self, agent_id: str) -> dict[str, Any]:
+        """The agent's stored config, as the vendor serves it."""
+        resp = await self._request("GET", f"/agents/{agent_id}")
+        payload = resp.json()
+        return payload if isinstance(payload, dict) else {}
+
+    async def signed_url(self, agent_id: str) -> str:
+        """A signed WebSocket URL opening ONE conversation with the agent (ADR-300 wave 4).
+
+        The browser opens it on the ``convai`` subprotocol; the key never
+        leaves the API (the URL carries a signature, not the key).
+        """
+        resp = await self._request(
+            "GET", "/conversation/get-signed-url", params={"agent_id": agent_id}
+        )
+        url = resp.json().get("signed_url")
+        if not isinstance(url, str) or not url:
+            raise ElevenLabsAgentsError(resp.status_code, "no signed_url in the answer")
+        return url
+
+    async def patch_agent(self, agent_id: str, body: dict[str, Any]) -> None:
+        """One PATCH of the agent, MERGED by the vendor with what it stores."""
+        await self._request("PATCH", f"/agents/{agent_id}", json=body)
 
     async def validate_key(self) -> bool:
         """Return True if the API key authenticates (lists agents => 200)."""
@@ -341,9 +379,14 @@ class ElevenLabsAgentsClient:
         the conversations API (initiated / in-progress / processing / done /
         failed).
         """
-        resp = await self._request("GET", f"/conversations/{conversation_id}")
-        status: str = resp.json().get("status", "")
+        status: str = (await self.get_conversation(conversation_id)).get("status", "")
         return status
+
+    async def get_conversation(self, conversation_id: str) -> dict[str, Any]:
+        """The conversation as the vendor returns it (status, transcript, metadata, charging)."""
+        resp = await self._request("GET", f"/conversations/{conversation_id}")
+        payload: dict[str, Any] = resp.json()
+        return payload
 
     async def initiate_outbound_call(
         self,

@@ -39,6 +39,8 @@ def _pricing_row(model_name: str, input_price: str, unit: str = "per_1m_tokens")
         input_unit_price=Decimal(input_price),
         output_unit_price=Decimal("1.0"),
         cached_input_unit_price=None,
+        audio_input_unit_price=None,
+        audio_output_unit_price=None,
         pricing_unit=SimpleNamespace(value=unit),
         time_slots=None,
         model=SimpleNamespace(model_name=model_name),

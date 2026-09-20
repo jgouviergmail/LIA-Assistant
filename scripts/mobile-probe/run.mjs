@@ -325,6 +325,29 @@ function assertions(first, second, restartMode, apiHost, platform) {
       ok: first.has_getUserMedia === true && first.has_geolocation === true,
       detail: `getUserMedia=${first.has_getUserMedia} geolocation=${first.has_geolocation}`,
     },
+    {
+      // ADR-299: the live mode opens the provider's WebSocket from the page.
+      // Without a credential the provider refuses the handshake (`error`), and
+      // that is fine — what must NOT happen is the policy or the engine
+      // refusing the socket before it leaves the page (`blocked:*`).
+      name: 'the live provider WebSocket leaves the page (connect-src, ADR-299)',
+      ok: first.external_websocket === 'open' || first.external_websocket === 'error',
+      detail: `external_websocket=${first.external_websocket}`,
+    },
+    {
+      // ADR-300: GPT-Live is a WebRTC session — the engine must produce an SDP
+      // offer with a data channel; the API exchanges it on the person's key.
+      name: 'the engine produces a WebRTC offer with a data channel (GPT-Live wire, ADR-300)',
+      ok: first.webrtc_offer === 'offer',
+      detail: `webrtc_offer=${first.webrtc_offer}`,
+    },
+    {
+      // ADR-300: the PCM player is ONE AudioWorklet loaded from a blob: URL
+      // (script-src blob:) — the shape that replaced per-chunk scheduling.
+      name: 'an AudioWorklet module loads from a blob: URL under the CSP (live player, ADR-300)',
+      ok: first.audio_worklet_blob === 'loaded',
+      detail: `audio_worklet_blob=${first.audio_worklet_blob}`,
+    },
   ];
 
   // An advisory check is measured and reported, never fatal: it records a

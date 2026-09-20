@@ -26,6 +26,7 @@ Three assertions, closing the loop:
 from __future__ import annotations
 
 import ast
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -37,6 +38,8 @@ from src.domains.agents.api.archive_metadata import (
     build_assistant_metadata,
     build_hitl_question_metadata,
     build_interrupted_stream_metadata,
+    build_live_session_summary_metadata,
+    build_live_turn_metadata,
 )
 from src.domains.agents.api.run_origin import RunOrigin, out_of_turn_origin_ctx
 
@@ -77,6 +80,22 @@ def _builders() -> dict[str, dict[str, Any]]:
         ),
         "build_interrupted_stream_metadata": lambda: build_interrupted_stream_metadata(
             run_id="run-1", reason="client_gone"
+        ),
+        # ADR-299 — the two rows of a live session the graph never wrote.
+        "build_live_turn_metadata": lambda: build_live_turn_metadata(
+            run_id="run-1",
+            live_session_id="a" * 32,
+            started_at=datetime(2026, 9, 18, tzinfo=UTC),
+            ended_at=datetime(2026, 9, 18, tzinfo=UTC),
+        ),
+        "build_live_session_summary_metadata": lambda: build_live_session_summary_metadata(
+            run_id="run-1",
+            live_session_id="a" * 32,
+            outcome="ended",
+            duration_seconds=1,
+            delegations=0,
+            voice_turns=0,
+            usage=None,
         ),
     }
 

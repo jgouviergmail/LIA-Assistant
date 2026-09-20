@@ -231,6 +231,22 @@ def test_count_mismatch_is_rejected(cache_path: Path) -> None:
     assert load(cache_path, HASH, len(VECTORS) + 1) is None
 
 
+def test_a_cache_of_another_width_is_rejected(cache_path: Path) -> None:
+    """The same model serves several widths on request; a cache written at one width
+    compared with queries at another scored every tool 0 in silence (dev, 2026-09-19).
+
+    Args:
+        cache_path: Target cache file.
+    """
+    save(cache_path, HASH, VECTORS)
+
+    width = len(VECTORS[0])
+    assert load(cache_path, HASH, len(VECTORS), expected_dimension=width) == VECTORS
+    assert load(cache_path, HASH, len(VECTORS), expected_dimension=width + 1) is None
+    # A caller that does not know the width is served as before.
+    assert load(cache_path, HASH, len(VECTORS)) == VECTORS
+
+
 @pytest.mark.parametrize(
     "payload",
     [

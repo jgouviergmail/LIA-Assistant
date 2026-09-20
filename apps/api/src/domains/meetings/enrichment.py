@@ -136,3 +136,38 @@ async def place_label(lat: float, lon: float, *, language: str) -> str | None:
     except (TimeoutError, httpx.HTTPError, ValueError, KeyError, OSError) as exc:
         logger.debug("meeting_reverse_geocode_failed", error=str(exc))
         return None
+
+
+async def enrich_meeting(
+    db: AsyncSession, meeting: Any, *, stopped_at: datetime, language: str, run_id: str
+) -> tuple[CalendarMatch | None, str | None]:
+    """The calendar event and the place name of a recording, under its run's accounting.
+
+    The reverse geocoding is a BILLED Geocoding call on the deployment's key,
+    made in a background job where no tracker is ambient — it was dropped in
+    silence until 2026-09-20. The meeting's run id is the minutes' own
+    (``_notify_ready`` files the synthesis tokens under it), so the euro joins
+    the same summary row.
+
+    Args:
+        db: Session.
+        meeting: The ``Meeting`` row.
+        stopped_at: When the recording stopped.
+        language: The owner's language, for the place name.
+        run_id: The meeting run's correlation key.
+
+    Returns:
+        The overlapping calendar event (or None) and a location label (or None).
+    """
+    from src.infrastructure.proactive.tracking import out_of_turn_spend
+
+    async with out_of_turn_spend(run_id, meeting.user_id, "meeting_enrichment"):
+        calendar = await match_calendar_event(
+            db, user_id=meeting.user_id, started_at=meeting.started_at, stopped_at=stopped_at
+        )
+        label = meeting.location_label
+        if label is None and meeting.location_lat is not None and meeting.location_lon is not None:
+            label = await place_label(meeting.location_lat, meeting.location_lon, language=language)
+    if label is None and calendar is not None and calendar.location:
+        label = calendar.location
+    return calendar, label

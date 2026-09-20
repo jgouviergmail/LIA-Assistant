@@ -432,7 +432,7 @@ class UserService:
         from src.domains.users.geocoding import resolve_home_coordinates
 
         final_lat, final_lon, final_place_id = await resolve_home_coordinates(
-            db=self.db, user_id=user_id, user=user, location=location
+            user_id=user_id, user=user, location=location
         )
 
         # Encrypt location data with geocoded coordinates

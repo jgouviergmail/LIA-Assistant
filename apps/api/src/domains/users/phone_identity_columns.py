@@ -2,17 +2,17 @@
 
 Extracted from ``users/models.py`` (lot 8 of the phone-as-a-channel
 programme) as one cohesive mixin: the number the person declared, when LIA
-heard them answer it, and the two switches of their own calls. ``User``
+heard them answer it, and the switches of their own calls. ``User``
 inherits it; nothing else does. The migrations that created these columns are
-``f1a6c8e4d2b3`` (number, verification, rich context) and ``c4d9f1a3e5b7``
-(disabled domains).
+``f1a6c8e4d2b3`` (number, verification, rich context), ``c4d9f1a3e5b7``
+(disabled domains) and ``c9e2a4b6d8f1`` (call mode, ADR-301).
 """
 
 from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, Text
+from sqlalchemy import DateTime, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -49,6 +49,18 @@ class PhoneIdentityColumns:
         nullable=False,
         server_default="[]",
         comment="Phone domains switched off for owner calls (the disabled set).",
+    )
+    # ADR-301: how the person's own calls run, in the voice sessions' mode
+    # vocabulary (``voice_sessions/session.VoiceSessionMode``): ``delegated``
+    # — Live, the voice hands every request to the chat — or ``direct`` —
+    # Live direct, the voice reads LIA's tools itself and the call is relayed
+    # at its end. Live is the default (owner decision 2026-09-20).
+    phone_call_mode: Mapped[str] = mapped_column(
+        String(16),
+        default="delegated",
+        nullable=False,
+        server_default="delegated",
+        comment="How the person's own calls run: delegated (Live) or direct (Live direct).",
     )
 
 

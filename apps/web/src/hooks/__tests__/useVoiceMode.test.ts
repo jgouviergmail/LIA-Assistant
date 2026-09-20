@@ -122,6 +122,7 @@ vi.mock('@/lib/logger', () => ({
 }));
 
 import { useVoiceMode, type UseVoiceModeOptions } from '../useVoiceMode';
+import { useLiveStore } from '@/stores/liveStore';
 import { useVoiceModeStore } from '@/stores/voiceModeStore';
 
 // ---------------------------------------------------------------------------
@@ -247,6 +248,20 @@ describe('useVoiceMode — enable / KWS listening', () => {
     // WebSocket pre-warmed in the background for lower recording latency.
     expect(h.services).toHaveLength(1);
     expect(h.services[0].isConnected).toBe(true);
+  });
+
+  it('stands aside while a live session holds the microphone (ADR-299)', async () => {
+    useLiveStore.getState().begin('s1');
+    useLiveStore.getState().apply('minted');
+    useLiveStore.getState().apply('setup_complete');
+    try {
+      const { result } = await renderEnabled();
+      expect(result.current.state).toBe('listening');
+      expect(getUserMedia).not.toHaveBeenCalled();
+      expect(result.current.isKwsListening).toBe(false);
+    } finally {
+      useLiveStore.getState().reset();
+    }
   });
 
   it('does not open the KWS mic when the wake-word engine is not ready', async () => {

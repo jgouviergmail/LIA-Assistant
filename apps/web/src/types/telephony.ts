@@ -113,6 +113,8 @@ export interface TelephonyCallSummary {
   completed_at: string | null;
   /** Which mandate the call ran under; `third_party` for every pre-lot-2 row. */
   call_kind: CallKind;
+  /** The mode an owner call ran under (ADR-301); `direct` for every other call. */
+  call_mode: PhoneCallMode;
   /** The call's cumulated bill (lot 8); absent or null while nothing was spent. */
   usage?: TelephonyCallUsage | null;
   /** How an owner call's words reached the chat, or why they did not; null otherwise. */
@@ -123,20 +125,35 @@ export interface TelephonyCallSummary {
 export type CallKind = 'third_party' | 'self' | 'verification';
 
 /**
- * How an owner call's words reached the chat (`answered`, `waiting`), or why
- * they did not. Null while the relay runs, and for every other kind.
+ * How a voice session's words reached the chat (`answered`, `waiting`), or
+ * why they did not — the API's `RelayOutcome`, on a phone call or a direct
+ * live session (ADR-301). A RUNTIME list, so the labels guard walks it and
+ * the live card's fate vocabulary derives from it rather than copying it.
+ * Null while the relay runs, and for every other kind of call.
  */
-export type RelayOutcome =
-  | 'answered'
-  | 'waiting'
-  | 'empty'
-  | 'not_owner'
-  | 'unanswered'
-  | 'call_failed'
-  | 'pending_question'
-  | 'busy'
-  | 'quota_blocked'
-  | 'failed';
+export const RELAY_OUTCOMES = [
+  'answered',
+  'waiting',
+  'empty',
+  'not_owner',
+  'unanswered',
+  'call_failed',
+  'pending_question',
+  'busy',
+  'quota_blocked',
+  'failed',
+] as const;
+export type RelayOutcome = (typeof RELAY_OUTCOMES)[number];
+
+/**
+ * How the person's own calls run (ADR-301): `delegated` — Live, the voice
+ * hands every request to the chat, which acts in the conversation — or
+ * `direct` — Live direct, the voice reads LIA's tools itself and the call is
+ * relayed at its end. The stored vocabulary is the voice sessions'; the page
+ * says « Live » / « Live direct ».
+ */
+export const PHONE_CALL_MODES = ['delegated', 'direct'] as const;
+export type PhoneCallMode = (typeof PHONE_CALL_MODES)[number];
 
 /**
  * The person's own phone identity — `TelephonyIdentityResponse`.
@@ -154,6 +171,14 @@ export interface TelephonyIdentity {
   /** Every domain the phone may read — the server's vocabulary, never guessed here. */
   available_domains: string[];
   verification_pending: boolean;
+  /** The mode the person chose (ADR-301). */
+  call_mode: PhoneCallMode;
+  /** What a call placed now runs: the choice, or `direct` when Live is unavailable. */
+  call_mode_effective: PhoneCallMode;
+  /** Whether this instance can run a Live call (the vendor can call it back). */
+  live_available: boolean;
+  /** Why not, as a stable code this page translates; null when it can. */
+  live_unavailable_reason: string | null;
 }
 
 /** What the page learns when the verification call leaves. */

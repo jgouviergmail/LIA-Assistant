@@ -64,6 +64,14 @@ class ConnectorType(str, enum.Enum):
     # Telephony (API Key - per-user ElevenLabs account for agentic outbound calls)
     ELEVENLABS_TELEPHONY = "elevenlabs_telephony"
 
+    # Live (API Key - per-user provider account for the duplex voice mode, ADR-299).
+    # The ``live`` category is ADDITIVE (wave 2 spec A10): every provider key may
+    # be active, the person chooses which one a session opens on. The key is the
+    # person's own, which is what keeps the live tokens off LIA's ledger.
+    GEMINI_LIVE = "gemini_live"
+    GPT_LIVE = "gpt_live"
+    ELEVENLABS_LIVE = "elevenlabs_live"
+
     # Legacy (deprecated - use GOOGLE_GMAIL instead)
     GMAIL = "gmail"
 
@@ -294,7 +302,20 @@ CONNECTOR_FUNCTIONAL_CATEGORIES: dict[str, frozenset[ConnectorType]] = {
     # Single-member category today: gives telephony its own UI grouping and leaves
     # room for alternative providers later. No mutual-exclusivity effect while alone.
     "telephony": frozenset({ConnectorType.ELEVENLABS_TELEPHONY}),
+    # Live voice mode (ADR-299): a category for the UI grouping and the
+    # capability's own reading — ADDITIVE (below): two provider keys may be
+    # active at once, the person chooses which one a session opens on.
+    "live": frozenset(
+        {ConnectorType.GEMINI_LIVE, ConnectorType.GPT_LIVE, ConnectorType.ELEVENLABS_LIVE}
+    ),
 }
+
+#: Categories whose members may ALL be active at once (wave 2 spec A10): the
+#: doctrine « one active provider per category » is for data sources, where
+#: two mailboxes would answer one question twice; a live voice on the person's
+#: own key is a choice per session, not a source. A category listed here must
+#: exist above — a guard holds the two tables together.
+CONNECTOR_ADDITIVE_CATEGORIES: frozenset[str] = frozenset({"live"})
 
 # Display names for functional categories (used in error messages).
 CATEGORY_DISPLAY_NAMES: dict[str, str] = {
@@ -305,6 +326,7 @@ CATEGORY_DISPLAY_NAMES: dict[str, str] = {
     "weather": "Weather",
     "smart_home": "Smart Home",
     "telephony": "Telephony",
+    "live": "Live",
 }
 
 
@@ -337,7 +359,7 @@ def get_conflicting_connector_types(connector_type: ConnectorType) -> frozenset[
         for GOOGLE_GMAIL), or empty frozenset if no mutual exclusivity applies.
     """
     category = get_functional_category(connector_type)
-    if category is None:
+    if category is None or category in CONNECTOR_ADDITIVE_CATEGORIES:
         return frozenset()
     return frozenset(ct for ct in CONNECTOR_FUNCTIONAL_CATEGORIES[category] if ct != connector_type)
 
@@ -380,6 +402,9 @@ CONNECTOR_DISPLAY_NAMES: dict[ConnectorType, str] = {
     ConnectorType.BROWSER: "Browser",
     ConnectorType.PHILIPS_HUE: "Philips Hue",
     ConnectorType.ELEVENLABS_TELEPHONY: "Telephony",
+    ConnectorType.GEMINI_LIVE: "Live (Gemini)",
+    ConnectorType.GPT_LIVE: "Live (OpenAI)",
+    ConnectorType.ELEVENLABS_LIVE: "Live (ElevenLabs)",
     ConnectorType.GMAIL: "Gmail",  # Legacy
     ConnectorType.SLACK: "Slack",
     ConnectorType.NOTION: "Notion",

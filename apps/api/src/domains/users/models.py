@@ -37,6 +37,7 @@ from src.core.constants import (
     JOURNAL_MAX_ENTRY_CHARS_DEFAULT,
     JOURNAL_MAX_TOTAL_CHARS_DEFAULT,
 )
+from src.domains.users.live_preferences_columns import LivePreferencesColumns
 from src.domains.users.phone_identity_columns import PhoneIdentityColumns
 from src.infrastructure.database.models import BaseModel, UUIDMixin
 from src.infrastructure.database.session import Base
@@ -54,7 +55,7 @@ if TYPE_CHECKING:
     from src.domains.usage_limits.models import UserUsageLimit
 
 
-class User(PhoneIdentityColumns, BaseModel):
+class User(LivePreferencesColumns, PhoneIdentityColumns, BaseModel):
     """
     User model for authentication and profile.
     """

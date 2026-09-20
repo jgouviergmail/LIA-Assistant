@@ -122,6 +122,9 @@ def derive_environment(
         # Alertmanager webhook only exists when the observability profile runs
         # on this install (prod API serves plain HTTP on 8000).
         "DIAGNOSTICS_ENABLED": "true" if public.self_diagnostics else "false",
+        # Live voice mode (ADR-299): a capability ceiling only — the person's
+        # own provider key opens the sessions, nothing else is provisioned.
+        "LIVE_ENABLED": "true" if public.live_mode else "false",
         "DIAGNOSTICS_WEBHOOK_SECRET": (
             secrets.token_urlsafe(32)
             if public.self_diagnostics and public.observability

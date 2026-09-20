@@ -19,6 +19,7 @@ import {
 import { normalizeHitlPayload } from '@/lib/hitl-payload';
 import type { HitlDecisionWire } from '@/types/hitl';
 import type { CapabilityDirectiveWire } from '@/types/directive';
+import type { LiveSpokenMeta } from '@/lib/live/session-controller';
 import type { ExecutionTraceStep } from '@/types/execution-trace';
 import {
   chatReducer,
@@ -102,7 +103,13 @@ export interface UseChatReturn {
      * it is part of the plan; the message text is unchanged and still what
      * the assistant answers.
      */
-    directive?: CapabilityDirectiveWire
+    directive?: CapabilityDirectiveWire,
+    /**
+     * The live session a delegated request comes from (ADR-299): the row is
+     * stamped with the session and keeps the person's spoken words beside the
+     * request the voice model wrote.
+     */
+    liveMeta?: LiveSpokenMeta
   ) => Promise<void>;
   clearMessages: () => void;
   setMessages: (messages: Message[]) => void;
@@ -191,6 +198,7 @@ function buildChatRequest(args: {
   };
   hitlDecision?: HitlDecisionWire;
   directive?: CapabilityDirectiveWire;
+  liveMeta?: LiveSpokenMeta;
 }) {
   const {
     content,
@@ -201,6 +209,7 @@ function buildChatRequest(args: {
     sttMeta,
     hitlDecision,
     directive,
+    liveMeta,
   } = args;
   return {
     message: content,
@@ -218,6 +227,9 @@ function buildChatRequest(args: {
       : {}),
     ...(hitlDecision ? { hitl_decision: hitlDecision } : {}),
     ...(directive ? { directive } : {}),
+    ...(liveMeta
+      ? { live_session_id: liveMeta.live_session_id, spoken_text: liveMeta.spoken_text }
+      : {}),
   };
 }
 
@@ -490,7 +502,8 @@ export const useChat = ({
         stt_audio_duration_seconds?: number | null;
       },
       hitlDecision?: HitlDecisionWire,
-      directive?: CapabilityDirectiveWire
+      directive?: CapabilityDirectiveWire,
+      liveMeta?: LiveSpokenMeta
     ) => {
       // ✅ CRITICAL: Cancel any pending stream before starting new one
       // Prevents double token counting and ensures clean state
@@ -630,6 +643,7 @@ export const useChat = ({
         sttMeta,
         hitlDecision,
         directive,
+        liveMeta,
       });
 
       try {

@@ -82,10 +82,6 @@ def _format_voice_audio_chunk(audio_chunk: Any) -> ChatStreamChunk:
 def voice_preference_of(user_obj: UserProfile | None) -> bool:
     """The account's spoken-replies preference, False without a profile.
 
-    ONE reading for its two consumers — every voice start point below and
-    the response node's HTML gate, which receives it through the runtime
-    context — so they cannot disagree on whether a voice listens.
-
     Args:
         user_obj: The user profile the stream loaded, or None.
 
@@ -95,11 +91,34 @@ def voice_preference_of(user_obj: UserProfile | None) -> bool:
     return user_obj is not None and bool(user_obj.voice_enabled)
 
 
+def voice_listens(user_obj: UserProfile | None, *, live_session_id: str | None) -> bool:
+    """Whether a voice comment should be produced for THIS turn.
+
+    ONE reading for its consumers — every voice start point below and the
+    response node's HTML gate, which receives it through the runtime context
+    — so they cannot disagree. A turn delegated by a live session (ADR-299)
+    is spoken by the session's own voice: a voice comment on top would read
+    the same answer twice, at the platform's TTS cost, for a sound nobody
+    listens to.
+
+    Args:
+        user_obj: The user profile the stream loaded, or None.
+        live_session_id: The live session that delegated the turn, or None.
+
+    Returns:
+        True when the account wants its replies spoken and no live voice
+        already speaks them.
+    """
+    return live_session_id is None and voice_preference_of(user_obj)
+
+
 async def _should_start_voice(
     user_obj: UserProfile | None,
     has_listeners: ListenerProbe | None,
     run_id: str,
     voice_path: str,
+    *,
+    live_session_id: str | None = None,
 ) -> bool:
     """Gate every voice-synthesis start point (ADR-117 Lot 2).
 
@@ -115,11 +134,13 @@ async def _should_start_voice(
         run_id: Run identifier (logging).
         voice_path: Which start point is asking (logging):
             "chat_progressive" | "agent_parallel" | "sync_fallback".
+        live_session_id: The live session that delegated the turn (its own
+            voice speaks the answer), or None.
 
     Returns:
         True when voice synthesis should start.
     """
-    if not voice_preference_of(user_obj):
+    if not voice_listens(user_obj, live_session_id=live_session_id):
         return False
     # An administrator can switch speech synthesis off instance-wide. Checked
     # HERE because spoken answers have no route of their own: they are

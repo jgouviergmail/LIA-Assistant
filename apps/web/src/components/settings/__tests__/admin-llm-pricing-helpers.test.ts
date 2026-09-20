@@ -18,6 +18,9 @@ import {
   slotRowsFromModel,
   utcOffsetLabel,
   validateTimeSlotRows,
+  buildAudioPricesPayload,
+  buildCachedPriceUpdate,
+  validateAudioPair,
   type ModelPricingFormData,
   type TimeSlotFormRow,
 } from '@/components/settings/admin-llm-pricing-helpers';
@@ -44,6 +47,8 @@ const baseFormData: ModelPricingFormData = {
   input_unit_price: '1.0',
   cached_input_unit_price: null,
   output_unit_price: '3.0',
+  audio_input_unit_price: '',
+  audio_output_unit_price: '',
   time_slots_enabled: false,
   time_slots: [],
 };
@@ -318,5 +323,77 @@ describe('utcOffsetLabel', () => {
     expect(utcOffsetLabel(300)).toBe('UTC-05:00');
     expect(utcOffsetLabel(0)).toBe('UTC+00:00');
     expect(utcOffsetLabel(-330)).toBe('UTC+05:30');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The audio pair (ADR-300) and the cached price's clearing
+// ---------------------------------------------------------------------------
+
+describe('validateAudioPair', () => {
+  it('accepts no pair and a whole pair', () => {
+    expect(validateAudioPair(baseFormData)).toBeNull();
+    expect(
+      validateAudioPair({
+        ...baseFormData,
+        audio_input_unit_price: '3',
+        audio_output_unit_price: '12',
+      })
+    ).toBeNull();
+  });
+
+  it('refuses half a pair', () => {
+    expect(validateAudioPair({ ...baseFormData, audio_input_unit_price: '3' })).toBe('half_pair');
+    expect(validateAudioPair({ ...baseFormData, audio_output_unit_price: ' 12 ' })).toBe(
+      'half_pair'
+    );
+  });
+
+  it('ignores the cells on an audio unit (they are not shown)', () => {
+    expect(
+      validateAudioPair({
+        ...baseFormData,
+        pricing_unit: 'per_audio_minute',
+        audio_input_unit_price: '3',
+      })
+    ).toBeNull();
+  });
+});
+
+describe('buildAudioPricesPayload', () => {
+  const paired = { ...baseFormData, audio_input_unit_price: '3', audio_output_unit_price: '12' };
+
+  it('sends a whole pair as two values, in both modes', () => {
+    const expected = { audio_input_unit_price: '3', audio_output_unit_price: '12' };
+    expect(buildAudioPricesPayload(paired, 'create')).toEqual(expected);
+    expect(buildAudioPricesPayload(paired, 'update')).toEqual(expected);
+  });
+
+  it('sends nothing on create and the explicit clearing on update when empty', () => {
+    expect(buildAudioPricesPayload(baseFormData, 'create')).toEqual({});
+    expect(buildAudioPricesPayload(baseFormData, 'update')).toEqual({ clear_audio_prices: true });
+  });
+
+  it('never sends the pair on an audio unit — the unit already bills the audio', () => {
+    const minute = { ...paired, pricing_unit: 'per_audio_minute' as const };
+    expect(buildAudioPricesPayload(minute, 'create')).toEqual({});
+    expect(buildAudioPricesPayload(minute, 'update')).toEqual({ clear_audio_prices: true });
+  });
+});
+
+describe('buildCachedPriceUpdate', () => {
+  it('sends the value when typed', () => {
+    expect(buildCachedPriceUpdate({ ...baseFormData, cached_input_unit_price: '0.3' })).toEqual({
+      cached_input_unit_price: '0.3',
+    });
+  });
+
+  it('sends the explicit clearing when emptied — a null would be dropped server-side', () => {
+    expect(buildCachedPriceUpdate({ ...baseFormData, cached_input_unit_price: '' })).toEqual({
+      clear_cached_input_price: true,
+    });
+    expect(buildCachedPriceUpdate({ ...baseFormData, cached_input_unit_price: null })).toEqual({
+      clear_cached_input_price: true,
+    });
   });
 });

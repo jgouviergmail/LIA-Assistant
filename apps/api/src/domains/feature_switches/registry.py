@@ -70,6 +70,8 @@ class PlatformCapability(str, Enum):
     MCP = "mcp"
     TELEPHONY = "telephony"
     MEETINGS = "meetings"
+    # ADR-299 — a duplex voice session on the person's provider key.
+    LIVE = "live"
     # B7 (2026-09-10) — thirteen features that shipped without a switch. The
     # panel offered twelve capabilities while the product had a workboard,
     # journals, habits, proactive notifications, peer connections, a
@@ -240,6 +242,16 @@ CAPABILITY_SPECS: dict[PlatformCapability, CapabilitySpec] = {
         family="media",
         env_flag="meetings_enabled",
         setting_key=SystemSettingKey.CAPABILITY_MEETINGS_ENABLED,
+        route_enforced=True,
+    ),
+    # Live voice mode (ADR-299). No agent of its own: the voice delegates to the
+    # chat engine, so the switch removes the routes (credential minting, the
+    # session record) — and with them the chat button and the settings section.
+    PlatformCapability.LIVE: CapabilitySpec(
+        capability=PlatformCapability.LIVE,
+        family="media",
+        env_flag="live_enabled",
+        setting_key=SystemSettingKey.CAPABILITY_LIVE_ENABLED,
         route_enforced=True,
     ),
     # ------------------------------------------------------------------ B7 --

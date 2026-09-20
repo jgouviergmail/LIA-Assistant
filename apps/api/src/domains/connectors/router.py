@@ -121,7 +121,10 @@ async def list_connector_types() -> list[str]:
 # Media proxies (static maps, Street View) live in media_proxy_router
 # (extracted 2026-08, file-size ratchet). Included HERE so they stay
 # before /{connector_id} and inherit the demo-mode guard dependency.
-from src.domains.connectors.media_proxy_router import media_proxy_router  # noqa: E402
+from src.domains.connectors.media_proxy_router import (  # noqa: E402
+    media_proxy_router,
+    serve_billed_image,
+)
 
 router.include_router(media_proxy_router)
 
@@ -1274,6 +1277,8 @@ async def proxy_places_photo(
     photo_name: str,
     max_height: int = 400,
     max_width: int = 400,
+    run: str | None = None,
+    sig: str | None = None,
     current_user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
 ) -> StreamingResponse:
@@ -1281,12 +1286,16 @@ async def proxy_places_photo(
     Proxy Google Places photo with global API key.
 
     Requires the user to have the Places connector enabled.
-    Uses the global GOOGLE_API_KEY for authentication.
+    Uses the global GOOGLE_API_KEY for authentication. Every served photo is
+    a billed Places call, counted on the 200 by ``serve_billed_image`` and
+    filed on the turn whose signed run id the URL carries.
 
     Args:
         photo_name: Full photo resource name (e.g., "places/ChIJ.../photos/AWYs...")
         max_height: Maximum height in pixels (default 400)
         max_width: Maximum width in pixels (default 400)
+        run: The signed run id of the turn that built the URL, if any.
+        sig: Its signature.
 
     Returns:
         StreamingResponse with the image data
@@ -1345,43 +1354,18 @@ async def proxy_places_photo(
             photo_name=photo_name[:50] + "..." if len(photo_name) > 50 else photo_name,
         )
 
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                photo_url,
-                follow_redirects=True,
-                timeout=settings.http_timeout_connector_long,
-            )
-
-            if response.status_code != 200:
-                logger.warning(
-                    "places_photo_proxy_error",
-                    user_id=str(user_id),
-                    status_code=response.status_code,
-                    photo_name=photo_name[:50],
-                )
-                raise_external_service_fetch_error("google_places", "photo", response.status_code)
-
-            # Get content type from response
-            content_type = response.headers.get("content-type", "image/jpeg")
-
-            # NOTE: Photo API calls are tracked in places_tools.py when photo_url is generated
-            # This ensures the cost is associated with the correct message (run_id).
-            # The proxy endpoint just fetches the image, it doesn't track separately
-            # to avoid double-counting.
-
-            logger.info(
-                "places_photo_proxy_success",
-                user_id=str(user_id),
-                content_length=len(response.content),
-            )
-
-            return StreamingResponse(
-                iter([response.content]),
-                media_type=content_type,
-                headers={
-                    "Cache-Control": "public, max-age=86400",  # Cache for 24 hours
-                },
-            )
+        return await serve_billed_image(
+            photo_url,
+            api_name="places",
+            endpoint="/{photo}/media",
+            service="google_places",
+            operation="places_photo",
+            timeout=settings.http_timeout_connector_long,
+            default_media_type="image/jpeg",
+            user_id=user_id,
+            run=run,
+            sig=sig,
+        )
     except httpx.RequestError as e:
         logger.error(
             "places_photo_proxy_request_error",

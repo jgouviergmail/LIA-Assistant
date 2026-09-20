@@ -308,6 +308,13 @@ if [ -n "$PYTHON_FILES" ]; then
         # A variable a migration reads AND runtime code reads is still caught,
         # because the runtime file stays in the scan.
         SCANNED_PY=$(echo "$PYTHON_FILES" | grep -v "alembic/versions/" || true)
+        # A PROBE is not configuration either. `apps/api/scripts/<domain>/probe*.py`
+        # measures a provider on a key the OPERATOR hands the script for one run
+        # (`LIVE_PROBE_API_KEY`, the ElevenLabs key of a throwaway agent) and
+        # prints anonymous figures; the API never reads those names. Listing
+        # them in .env.example would invite a self-hoster to paste a real key
+        # for a script only a measurement runs (2026-09-20).
+        SCANNED_PY=$(echo "$SCANNED_PY" | grep -vE "apps/api/scripts/[a-z_]+/probe[a-z_]*[.]py$" || true)
 
         # Search for os.environ / os.getenv references in those files.
         # Two shapes reach this scan and only one names a variable directly:
@@ -338,7 +345,10 @@ if [ -n "$PYTHON_FILES" ]; then
         # never the API's own environment — and listing such a name in
         # .env.example would invite a self-hoster to paste a real key where
         # the design exists to keep it out.
-        NEW_ENV_REFS=$(printf '%s\n' $QUOTED_REFS $RESOLVED_REFS | sed '/^$/d' | grep -v '^LIA_KEY_' | sort -u)
+        # A golden file's regeneration switch (`<NAME>_GOLDEN_WRITE=1 pytest …`)
+        # is a developer knob read by ONE test to rewrite the file it pins —
+        # never a setting of a running instance.
+        NEW_ENV_REFS=$(printf '%s\n' $QUOTED_REFS $RESOLVED_REFS | sed '/^$/d' | grep -v '^LIA_KEY_' | grep -v '_GOLDEN_WRITE$' | sort -u)
 
         if [ -n "$NEW_ENV_REFS" ]; then
             MISSING_VARS=""

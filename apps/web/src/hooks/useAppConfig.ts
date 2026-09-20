@@ -52,6 +52,9 @@ export interface AppConfig {
     bookmarks_enabled?: boolean;
     // Sandbox egress (ADR-298) — gates the « Sandbox network » settings section.
     python_sandbox_egress_enabled?: boolean;
+    // Live voice mode (ADR-299) — gates the Live button, the « Live mode »
+    // settings section and the Live connector group.
+    live_enabled?: boolean;
   };
   // Every capability of the registry with its EFFECTIVE state (deployment
   // ceiling AND operator switch), keyed like `capabilities.items.<key>`.

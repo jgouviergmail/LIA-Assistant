@@ -65,6 +65,7 @@ from src.domains.agents.utils.distance import calculate_distance_sync, circle_to
 from src.domains.agents.utils.i18n_location import DistanceSource
 from src.domains.connectors.clients.google_geocoding_helpers import forward_geocode
 from src.domains.connectors.clients.google_places_client import GooglePlacesClient
+from src.domains.connectors.media_attribution import with_attribution
 from src.domains.connectors.models import ConnectorType
 
 logger = structlog.get_logger(__name__)
@@ -1277,11 +1278,12 @@ class GetCurrentLocationTool(ToolOutputMixin, ConnectorTool[GooglePlacesClient])
         lat = data.get("location", {}).get("lat", 0)
         lon = data.get("location", {}).get("lon", 0)
 
-        # Build static map URL via proxy (API key hidden server-side)
+        # Build static map URL via proxy (API key hidden server-side); the map
+        # is billed when fetched and counted then, on this turn (signed run id).
         location_static_map_url: str | None = None
         if lat and lon:
-            location_static_map_url = (
-                f"/api/v1/connectors/google-location/static-map" f"?lat={lat}&lng={lon}"
+            location_static_map_url = with_attribution(
+                f"/api/v1/connectors/google-location/static-map?lat={lat}&lng={lon}"
             )
 
         location_item = LocationItem(

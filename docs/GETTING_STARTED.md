@@ -5,7 +5,7 @@
 
 **Version**: 4.0
 **Last Updated**: 2026-08-22
-**Compatibility**: LIA v1.46.0
+**Compatibility**: LIA v1.47.0
 
 ## Table of Contents
 
@@ -467,7 +467,7 @@ Three traps:
 
 1. **Fully restart the browser afterwards** (all windows) — certificate verdicts are cached for the browser process's lifetime; a simple reload keeps failing.
 2. **Firefox has its own store** — import `exports/lia-dev-cert.pem` under Settings > Certificates.
-3. **`ssl-init` regenerates the certificate** when it is older than ~30 days (or after `docker volume rm lia_ssl_certs`) — re-run `task dev:trust-cert` when that happens.
+3. **`ssl-init` renews the certificate only when it must** — when it expires within `SSL_RENEW_BEFORE_DAYS` (30) of its 365-day life, when `SSL_DOMAIN` (or the LAN IP a nip.io name carries) is no longer in its SAN, when its key no longer matches it, or after `docker volume rm lia_ssl_certs`. It says which case applied (`docker logs lia-ssl-init`, with the served fingerprint) — re-run `task dev:trust-cert` when that happens. Until 2026-09-19 it renewed on AGE (older than 30 days), so the first restart after a month served a new certificate to a browser that trusted the old one.
 
 Production is unaffected: the public domains serve real certificates (Cloudflare), and the WebAuthn rpId/origin derive from `FRONTEND_URL` (see [GUIDE_DEPLOYMENT.md](./guides/GUIDE_DEPLOYMENT.md)).
 
@@ -858,6 +858,7 @@ Every subsystem below ships with working defaults; the values shown are the **pr
 | `MCP_ENABLED` / `MCP_USER_ENABLED` / `MCP_REACT_ENABLED` | Admin MCP / per-user MCP / MCP ReAct loop | `true` |
 | `REACT_AGENT_ENABLED` | ReAct execution mode toggle | `true` |
 | `FCM_ENABLED` | Firebase push notifications | `true` |
+| `LIVE_ENABLED` | Live voice mode (ADR-299): speech-to-speech sessions on the person's own Gemini / OpenAI / ElevenLabs key, delegating to the chat | `true` |
 | `PUSH_RELAY_URL` | iOS wake relay for the native app (no default: pointing it somewhere is a privacy decision you take, not a constant) | *(unset)* |
 | `FIREBASE_ANDROID_APP_ID` / `FIREBASE_API_KEY` / `FIREBASE_SENDER_ID` | Android native-app push from YOUR Firebase project (all three or none) | *(unset)* |
 | `MFA_ENABLED` | Passkeys WebAuthn + TOTP + step-up (ADR-143) | `false`¹ |
@@ -1066,6 +1067,19 @@ ELEVENLABS_STT_MAX_AUDIO_DURATION_SECONDS=300
 ```
 
 Wake word ("OK") and VAD run **in the browser** (Sherpa-onnx / Silero WASM) — no server configuration.
+
+**Live mode (ADR-299, ADR-300, ADR-301)** — a real-time, speech-to-speech session on a live model each person connects with **their own key** (Settings › Connectors, family « Live »: Gemini Live, GPT-Live or an ElevenLabs agent). Nothing to provision on the server beyond the flag and the tariff rows the seed already ships; the audio never transits the API.
+
+```bash
+LIVE_ENABLED=true                      # capability ceiling: routes, header menu, settings section
+LIVE_SESSION_MAX_MINUTES=10            # default cap before the extension dialog (per model, 0 = unlimited)
+LIVE_IDLE_TIMEOUT_SECONDS=60           # default silence before the client ends the session (per model)
+LIVE_MAX_CONCURRENT_SESSIONS=8         # sessions open at once on this instance
+LIVE_DIRECT_TOOL_CALLS_MAX=60          # lookups a DIRECT session may run
+TELEPHONY_CALLBACK_BASE_URL=           # phone Live mode: public base URL the vendor calls back (empty = API_URL; a private host makes owner calls run direct)
+```
+
+The full list lives in `.env.prod.example` § [97]. A live model is offered only when the LLM pricing table declares its tariff (text and audio rates, or a per-minute price) — an ElevenLabs agent is billed by the vendor on the person's key and priced by nobody here.
 
 **Output (TTS) and the voice-comment LLM are configured in the Admin UI** (LLM slots `voice_tts`, `voice_transcription`, `voice_comment`), not in `.env`. Production uses ElevenLabs `eleven_flash_v2_5` (TTS) and `scribe_v2` (STT); Edge TTS is the free default and always available. For a paid provider, set its API key in the Provider Keys admin section (ElevenLabs keys need the `voices_read` scope for the live voice catalogue).
 

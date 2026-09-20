@@ -60,6 +60,8 @@ async def create_llm_pricing_async(
     cached_input_price: Decimal | None = None,
     is_active: bool = True,
     provider: LLMProviderEnum = LLMProviderEnum.openai,
+    audio_input_price: Decimal | None = None,
+    audio_output_price: Decimal | None = None,
 ) -> LLMModelPricing:
     """Async TEST HELPER: create both an LLMModel (if missing) and a pricing row.
 
@@ -87,6 +89,8 @@ async def create_llm_pricing_async(
         input_unit_price=input_price,
         cached_input_unit_price=cached_input_price,
         output_unit_price=output_price,
+        audio_input_unit_price=audio_input_price,
+        audio_output_unit_price=audio_output_price,
         pricing_unit=PricingUnitEnum.per_1m_tokens,
         effective_from=datetime.now(UTC),
         is_active=is_active,

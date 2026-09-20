@@ -63,7 +63,8 @@ export function ActiveCallBanner({ lng, conversationTick = 0 }: ActiveCallBanner
     // Polite: the user is mid-conversation. Worth announcing, not interrupting.
     <div
       role="status"
-      className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-primary/25 bg-primary/10 px-4 py-2 text-xs"
+      // An opaque base under the tint (the thread scrolls beneath the sticky block).
+      className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-primary/25 bg-card bg-gradient-to-r from-primary/10 to-primary/10 px-4 py-2 text-xs"
     >
       <PhoneCall className="h-3.5 w-3.5 shrink-0 animate-pulse text-primary" aria-hidden="true" />
       <span className="font-semibold text-primary">

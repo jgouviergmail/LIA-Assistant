@@ -262,6 +262,7 @@ async def build_owner_context(
     language: str,
     rich_context_enabled: bool,
     fetchers: Mapping[str, SectionFetcher],
+    surface: str = _SURFACE,
 ) -> str:
     """Assemble the context block of an owner call, and file what was opened.
 
@@ -270,6 +271,9 @@ async def build_owner_context(
         language: Backend-canonical language of the headings and dates.
         rich_context_enabled: The person's own switch; off renders nothing.
         fetchers: Section readers — :func:`default_fetchers` for the real ones.
+        surface: The consultation surface the reads are filed on — the
+            call's by default, a direct live session's when it is the caller
+            (ADR-300 wave 4: the same block, filed where it was read).
 
     Returns:
         The rendered block, or "" when the switch is off.
@@ -282,7 +286,7 @@ async def build_owner_context(
         sections, language=language, budget_tokens=settings.telephony_self_context_max_tokens
     )
     record_surface_consultations(
-        surface=_SURFACE,
+        surface=surface,
         user_id=user_id,
         opened=[section.key for section in sections if section.opened],
         failed=[section.key for section in sections if section.failed],

@@ -150,7 +150,13 @@ class TestListRecurrenceCandidates:
             )
         assert down == ([], 0)
 
-    async def test_malformed_entries_are_tolerated(self) -> None:
+    async def test_malformed_entries_are_tolerated(self, caplog: pytest.LogCaptureFixture) -> None:
+        # `list_recurrence_candidates` swallows EVERY exception into `[], 0`
+        # and names the cause at DEBUG only. This test failed once in six full
+        # xdist runs (2026-09-01) and once in CI (2026-09-18), each time as a
+        # mute `[] != ["good"]`; the swallowed cause was never seen. Capture it
+        # so the next occurrence says what raised instead of what was missing.
+        caplog.set_level("DEBUG", logger="src.domains.habits.candidates")
         user_id = uuid4()
         stg = _settings()
         redis = MagicMock()
@@ -172,7 +178,12 @@ class TestListRecurrenceCandidates:
             candidates, _ = await list_recurrence_candidates(
                 user_id, local_today=TODAY, exclude_keys=set(), settings=stg, limit=5
             )
-        assert [c.key for c in candidates] == ["good"]
+        swallowed = [
+            record.getMessage()
+            for record in caplog.records
+            if "habit_candidates_read_failed" in record.getMessage()
+        ]
+        assert [c.key for c in candidates] == ["good"], f"swallowed: {swallowed}"
 
     async def test_empty_hour_lists_do_not_count_as_observed_days(self) -> None:
         user_id = uuid4()

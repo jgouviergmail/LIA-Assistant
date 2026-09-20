@@ -9,6 +9,13 @@ Token tracking ensures:
 - User statistics updated (lifetime and billing cycle)
 - Audit trail via token_usage_logs
 - Aggregation via message_token_summary
+
+And the model's tokens are not the only euros a run spends: :func:`out_of_turn_spend`
+is the door an out-of-turn surface opens around its WHOLE act so that what its
+sources bill on the deployment's key — a Google Maps Platform call, an
+embedding — reaches the same ledgers (ADR-272 amendment, 2026-09-20). It lives
+here, in infrastructure, because a domain the chat already reads (the briefing)
+cannot import the chat's tracker without closing a cycle.
 """
 
 from __future__ import annotations
@@ -24,9 +31,35 @@ from src.infrastructure.llm.usage_metadata import tokens_from_usage_metadata
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
+    from src.domains.chat.service import TrackingContext
     from src.infrastructure.proactive.base import ProactiveTaskResult
 
 logger = get_logger(__name__)
+
+
+def out_of_turn_spend(run_id: str, user_id: UUID, session_id: str) -> TrackingContext:
+    """The accounting an out-of-turn surface opens around its whole act.
+
+    A ``TrackingContext`` on the surface's own run id, persisted when it
+    exits — with whatever the act billed in ANY family (``pending_families``),
+    so a run that called Google and no model still writes its rows. The
+    model's tokens keep their own door (:func:`track_proactive_tokens`, same
+    run id, additive UPSERT). One of the ``ACCOUNTING_DOORS`` the Google spend
+    roads guard checks for.
+
+    Args:
+        run_id: The act's correlation key (the run everything it costs files under).
+        user_id: The account that benefits.
+        session_id: The synthetic session label of the summary row.
+
+    Returns:
+        An entered-by-the-caller tracker (``async with``).
+    """
+    # Runtime import: the chat service imports this package's siblings, and
+    # the module-level edge would be a cycle for the domains that read it.
+    from src.domains.chat.service import TrackingContext
+
+    return TrackingContext(run_id, user_id, session_id, None)
 
 
 def generate_proactive_run_id(task_type: str, target_id: str) -> str:

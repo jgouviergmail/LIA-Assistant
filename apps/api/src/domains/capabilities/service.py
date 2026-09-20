@@ -246,6 +246,9 @@ SWITCH_NODE_KEYS: tuple[str, ...] = (
     # a number (ADR-185). What an operator switches here is the dated synthesis
     # LIA writes about each relationship (ADR-269).
     "relations",
+    # The live voice mode (ADR-299): a session is a moment, not a record — the
+    # node says whether the person can open one (a live connector is active).
+    "live",
 )
 
 #: Every node key the payload can carry. The client must be able to name each.
@@ -279,6 +282,7 @@ PLATFORM_CAPABILITY_NODES: dict[PlatformCapability, str] = {
     PlatformCapability.INTERESTS: "interests",
     PlatformCapability.RELATION_DEBRIEF: "relations",
     PlatformCapability.BOOKMARKS: "bookmarks",
+    PlatformCapability.LIVE: "live",
 }
 
 #: Capabilities deliberately absent from the map, and why. The map's third
@@ -523,6 +527,46 @@ async def _count_peers(user_id: UUID) -> int:
         return 0
 
 
+async def _has_live_connector(user_id: UUID) -> bool:
+    """Whether the account holds an ACTIVE connector of the ``live`` category.
+
+    Read through the connectors repository, not re-expressed as a filter
+    here: which types form the category is that module's rule (ADR-185).
+
+    Args:
+        user_id: Owner.
+
+    Returns:
+        True when a session could open; False on a failed read, like every
+        other probe.
+    """
+    try:
+        async with get_db_context() as db:
+            from src.domains.connectors.models import (
+                CONNECTOR_FUNCTIONAL_CATEGORIES,
+                ConnectorStatus,
+            )
+            from src.domains.connectors.repository import ConnectorRepository
+
+            repository = ConnectorRepository(db)
+            for connector_type in CONNECTOR_FUNCTIONAL_CATEGORIES["live"]:
+                row = await repository.get_by_user_and_type(user_id, connector_type)
+                if row is not None and row.status == ConnectorStatus.ACTIVE:
+                    return True
+            return False
+    except Exception as exc:  # noqa: BLE001 — a probe degrades, it never fails
+        logger.debug("capability_probe_failed", model="live", error=str(exc))
+        return False
+
+
+async def _live_probe(user_id: UUID, disabled: frozenset[PlatformCapability]) -> CapabilityProbe:
+    """The live switch node: available when the instance offers it, active when
+    the person activated a live connector (ADR-299)."""
+    available = _offers(PlatformCapability.LIVE, None, disabled)
+    active = available and await _has_live_connector(user_id)
+    return CapabilityProbe("live", available=available, active=active)
+
+
 def _from_user(user: User, disabled: frozenset[PlatformCapability]) -> list[CapabilityProbe]:
     """Capabilities the USER row already answers — no query needed.
 
@@ -639,4 +683,4 @@ async def resolve_capabilities(user: User) -> list[CapabilityProbe]:
     # codebase's own rule — « for a handful of indexed queries, a plain
     # sequential loop is fine and simpler ».
     probes = [await _probe(node, user_id, disabled) for node in COUNTED_NODES]
-    return [*probes, *_from_user(user, disabled)]
+    return [*probes, *_from_user(user, disabled), await _live_probe(user_id, disabled)]

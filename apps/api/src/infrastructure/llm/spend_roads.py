@@ -81,7 +81,9 @@ LLM_SPEND_ROADS: dict[str, SpendRoad] = {
     # tracking door lives in ``telephony/synthesis_usage.py`` (extracted in
     # lot 4 so the owner path never imports the third-party one).
     "domains/telephony/return_synthesis.py": SpendRoad.CALLER,
-    "domains/telephony/self_call_relay.py": SpendRoad.CALLER,
+    # The relay synthesis of a DIRECT voice session (phone or browser, ADR-301)
+    # spends through the same telephony usage door.
+    "infrastructure/scheduler/voice_relay.py": SpendRoad.CALLER,
     "domains/user_mcp/description_generation.py": SpendRoad.ACCOUNTED,
     "infrastructure/scheduler/interest_subject_clustering.py": SpendRoad.ACCOUNTED,
     "infrastructure/scheduler/peer_message_delivery.py": SpendRoad.ACCOUNTED,
@@ -164,7 +166,7 @@ CALLER_ROAD_ACCOUNTANTS: dict[str, str] = {
     "domains/meetings/transcript_rewrite.py": "domains/meetings/processing.py",
     "domains/relations/debrief/llm.py": "domains/relations/debrief/service.py",
     "domains/telephony/return_synthesis.py": "domains/telephony/synthesis_usage.py",
-    "domains/telephony/self_call_relay.py": "domains/telephony/synthesis_usage.py",
+    "infrastructure/scheduler/voice_relay.py": "domains/telephony/synthesis_usage.py",
 }
 
 

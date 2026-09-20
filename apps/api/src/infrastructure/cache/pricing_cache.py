@@ -107,6 +107,10 @@ class CachedModelPrice:
     cached_input_unit_price: float  # 0.0 if caching not supported by model
     pricing_unit: str = "per_1m_tokens"
     time_slots: list[dict[str, Any]] | None = None
+    #: The audio pair of a speech-to-speech model (ADR-300), None when the
+    #: tariff declares none. Defaults keep a pre-audio blob deserializable.
+    audio_input_unit_price: float | None = None
+    audio_output_unit_price: float | None = None
 
     def to_json(self) -> str:
         """Serialize to JSON for Redis storage."""
@@ -195,9 +199,38 @@ def build_price_index(rows: Iterable[LLMModelPricing]) -> dict[str, CachedModelP
                 cached_input_unit_price=float(pricing.cached_input_unit_price or 0),
                 pricing_unit=pricing.pricing_unit.value,
                 time_slots=pricing.time_slots or None,
+                audio_input_unit_price=(
+                    None
+                    if pricing.audio_input_unit_price is None
+                    else float(pricing.audio_input_unit_price)
+                ),
+                audio_output_unit_price=(
+                    None
+                    if pricing.audio_output_unit_price is None
+                    else float(pricing.audio_output_unit_price)
+                ),
             ),
         )
     return index
+
+
+def get_cached_model_price(model: str) -> CachedModelPrice | None:
+    """The cached tariff of a model, exact name first then normalised (sync-safe).
+
+    The read side of ``resolve_priced_name`` for a caller that needs the
+    RATES rather than a cost — the live meter publishes them to the browser,
+    which counts on the person's own key (ADR-300 wave 3).
+
+    Args:
+        model: The model name as the provider or the caller reports it.
+
+    Returns:
+        The cached price, or None when the cache is cold or the model unpriced.
+    """
+    if _local_cache is None:
+        return None
+    priced_name = resolve_priced_name(model, _local_cache.models.__contains__)
+    return _local_cache.models.get(priced_name) if priced_name else None
 
 
 class PricingCacheService:

@@ -929,6 +929,12 @@ TELEPHONY_RELAY_MAX_AGE_MINUTES_DEFAULT = 15
 # read aloud, and how many lookups one call may make.
 TELEPHONY_LIVE_TOOL_TIMEOUT_SECONDS_DEFAULT = 20
 TELEPHONY_LIVE_TOOL_INNER_MARGIN_SECONDS = 3
+# The Live mode's delegation tool (ADR-301): the vendor's own timeout on the
+# asynchronous ``send_to_lia`` call-back — generous, because a delegated turn
+# runs the whole graph, and bounded by the vendor (5..300 s, measured lot 0);
+# the bridge answers ``timed_out`` the inner margin BEFORE it fires, since a
+# vendor timeout hands the voice an error and loses the late answer.
+TELEPHONY_DELEGATION_TIMEOUT_SECONDS_DEFAULT = 90
 TELEPHONY_LIVE_TOOL_RESULT_MAX_TOKENS_DEFAULT = 2000
 TELEPHONY_LIVE_TOOL_MAX_CALLS_PER_CALL_DEFAULT = 40
 REDIS_KEY_TELEPHONY_LIVE_TOOL_PREFIX = "telephony_live_tool:"
@@ -6300,3 +6306,168 @@ BOOKMARKS_DOCUMENT_NAME_EXCERPT_CHARS: int = 60
 #: initiative: ``proactive_<task_type>``. ONE prefix, read by the heartbeat's
 #: context sources and by the bookmarks (a notification answers no request).
 PROACTIVE_MESSAGE_TYPE_PREFIX: str = "proactive_"
+
+# =============================================================================
+# Live mode (ADR-299)
+# =============================================================================
+# A duplex voice session on the PERSON's provider key. The voice delegates every
+# request to the chat engine through ONE function; see domains/live/.
+
+#: The generation method a model must support to serve a live session
+#: (``models.list().supported_actions``).
+LIVE_BIDI_METHOD: str = "bidiGenerateContent"
+#: Purpose words of models that carry the live method but are NOT a
+#: conversation (measured 2026-09-18: the listing marks a transcription, a
+#: translation and a robotics model ``bidiGenerateContent`` too, and nothing
+#: structural tells them apart). A name carrying one of these is not offered.
+LIVE_NON_CONVERSATIONAL_MODEL_WORDS: tuple[str, ...] = ("transcribe", "translate", "robotics")
+#: The model preselected in the connector form. A DEFAULT, never « the model
+#: used »: the person picks among what their key discovers.
+GEMINI_LIVE_DEFAULT_MODEL: str = "gemini-3.8-live"
+#: The one function the voice model may call.
+LIVE_DELEGATION_TOOL_NAME: str = "send_to_lia"
+#: Run id prefix of a session — one family in the ledger and the logs.
+LIVE_SESSION_RUN_PREFIX: str = "live_session_"
+#: ``message_metadata["type"]`` of an archived voice-only exchange (both roles).
+LIVE_TURN_MESSAGE_TYPE: str = "live_turn"
+#: ``message_metadata["type"]`` of the end-of-session card.
+LIVE_SESSION_SUMMARY_MESSAGE_TYPE: str = "live_session_summary"
+#: Redis: the one live session an account may hold (claim + record).
+REDIS_KEY_LIVE_SESSION_PREFIX: str = "live:session:"
+#: Redis: sorted set of active sessions across workers (the instance cap).
+REDIS_KEY_LIVE_ACTIVE: str = "live:active"
+#: Redis: the mint rate limiter bucket per account.
+REDIS_KEY_LIVE_MINT_PREFIX: str = "live_mint:"
+#: Redis: the voice-sample rate limiter bucket per account (the mint's bounds).
+REDIS_KEY_LIVE_SAMPLE_PREFIX: str = "live_sample:"
+#: Redis: the lookup counter of a DIRECT live session (ADR-300 wave 4), per session.
+REDIS_KEY_LIVE_TOOL_BUDGET_PREFIX: str = "live_tools:"
+#: The provider model a voice sample is synthesised with (the person's key).
+#: Measured 2026-09-19 on the dev key: ``gemini-3.1-flash-tts-preview`` BLOCKS
+#: the sample sentence as PROHIBITED_CONTENT (no candidate at all), the 2.5
+#: preview speaks it — an operator who switches models is told the reason.
+GEMINI_TTS_SAMPLE_MODEL_DEFAULT: str = "gemini-2.5-flash-preview-tts"
+#: The sample rate of the provider's TTS output (16-bit mono PCM).
+GEMINI_TTS_SAMPLE_RATE: int = 24_000
+#: OpenAI GPT-Live (wave 2 spec A9): the listing prefix, the default model, the
+#: session endpoints, the sample session's rate and bounds. The voices are
+#: vendored in the provider — no listing endpoint exists, and the speech
+#: endpoint does not serve them (measured 2026-09-19).
+OPENAI_API_BASE_URL_DEFAULT: str = "https://api.openai.com/v1"
+OPENAI_LIVE_MODEL_PREFIX: str = "gpt-live"
+OPENAI_LIVE_DEFAULT_MODEL: str = "gpt-live-1"
+OPENAI_LIVE_WS_URL: str = "wss://api.openai.com/v1/live/sessions"
+OPENAI_LIVE_HTTP_TIMEOUT_SECONDS: float = 20.0
+OPENAI_LIVE_WS_MAX_MESSAGE_BYTES: int = 8 * 1024 * 1024
+OPENAI_LIVE_SAMPLE_RATE: int = 24_000
+#: Audio wall time collected after the first delta of a sample; the transcript's
+#: quiet closes it sooner (measured 2026-09-19: a 3 s sentence, the first delta
+#: 0.7 s after the ask, then a continuous silent stream).
+OPENAI_LIVE_SAMPLE_MAX_SECONDS: float = 8.0
+OPENAI_LIVE_SAMPLE_TRANSCRIPT_QUIET_SECONDS: float = 1.2
+#: The input silence a server-side session streams, at real-time pace.
+OPENAI_LIVE_SILENCE_CHUNK_MS: int = 40
+#: How long a server-side session waits for `session.closed` after asking (measured
+#: 2026-09-19: 2.7 s after a sample, 6.5 s on an idle session — the socket closes anyway).
+OPENAI_LIVE_CLOSE_WAIT_SECONDS: float = 3.0
+#: ElevenLabs Agents as a live provider (ADR-300 wave 4): the person's own AGENT
+#: stands where a model stands, everything but the prompt and LIA's tools is the
+#: portal's. The tariff is the agent's VOICE MODEL (read from its configuration,
+#: ``eleven_v3_conversational`` on the portal's default — a minute of
+#: conversation; the LLM behind the agent is billed by the vendor on top), the
+#: voice a sentinel the form never offers, the input format the one LIA
+#: captures at (the agent's output format is read from the session's metadata).
+ELEVENLABS_LIVE_PORTAL_VOICE: str = "agent"
+ELEVENLABS_LIVE_INPUT_FORMAT: str = "pcm_16000"
+ELEVENLABS_LIVE_OUTPUT_FORMAT_PREFIX: str = "pcm_"
+ELEVENLABS_LIVE_SAMPLE_RATE: int = 16_000
+#: A signed URL opens ONE conversation within this window (documented: 15 minutes).
+ELEVENLABS_LIVE_SIGNED_URL_TTL_SECONDS: int = 15 * 60
+ELEVENLABS_LIVE_WS_SUBPROTOCOL: str = "convai"
+ELEVENLABS_LIVE_AGENTS_PAGE_SIZE: int = 100
+#: The connector metadata keys of what LIA holds on the person's agent: the
+#: client tools it created in their workspace (by fingerprint of the
+#: declarations) and the agents whose prompt-override permission it granted.
+ELEVENLABS_LIVE_TOOLS_METADATA_KEY: str = "elevenlabs_live_tools"
+#: Which fingerprint each KIND of set (the delegation function, the direct
+#: tools) currently holds: a new fingerprint of a kind retires the old set of
+#: that kind — the phone's own rule on drift — so at most one set per kind
+#: lives in the person's workspace.
+ELEVENLABS_LIVE_TOOL_KINDS_METADATA_KEY: str = "elevenlabs_live_tool_kinds"
+ELEVENLABS_LIVE_OVERRIDE_METADATA_KEY: str = "elevenlabs_live_override_granted"
+#: How long the agent waits for a client tool's result before giving up on it.
+ELEVENLABS_LIVE_TOOL_TIMEOUT_MAX_SECONDS: int = 120
+#: How long the activation probe keeps the conversation open AFTER the metadata:
+#: measured 2026-09-19, the provider answers the metadata FIRST and closes 1008
+#: on a refused initiation only afterwards — a probe that returns on the
+#: metadata is a false positive.
+ELEVENLABS_LIVE_PROBE_SETTLE_SECONDS: float = 2.0
+#: A vendor settles a conversation's bill AFTER the socket closes: measured
+#: 2026-09-20 on the real API, ``in-progress`` and no cost while the close
+#: frame lands, the bill stated 0.3 s after the close handshake, ``done`` at
+#: 1.4 s. The end reads again, this many times, this long apart — bounded,
+#: because the closing card must not wait on a vendor.
+LIVE_VENDOR_BILL_SETTLE_ATTEMPTS: int = 4
+LIVE_VENDOR_BILL_SETTLE_INTERVAL_SECONDS: float = 0.5
+#: Bounds of the live settings (published by GET /live/config, ADR-184).
+#: Owner decision 2026-09-19: a provider that bills the session's DURATION
+#: (GPT-Live) tolls while nobody speaks — a short cap, explicitly extended.
+LIVE_SESSION_MAX_MINUTES_DEFAULT: int = 10
+#: Bounds of the two per-model durations (owner decision 2026-09-19), shared by the
+#: instance settings and the per-model schema so one constant is enforced and
+#: published (ADR-184); ``LIVE_DURATION_UNLIMITED`` is the value that means « no limit ».
+LIVE_SESSION_MAX_MINUTES_MIN: int = 1
+LIVE_SESSION_MAX_MINUTES_MAX: int = 240
+LIVE_IDLE_TIMEOUT_SECONDS_MIN: int = 5
+LIVE_IDLE_TIMEOUT_SECONDS_MAX: int = 3600
+LIVE_DURATION_UNLIMITED: int = 0
+#: Longest technical detail a client may attach to how a live session ended
+#: (a provider's close code and reason) — logged, never shown.
+LIVE_END_DETAIL_MAX_CHARS: int = 200
+#: The most lookups a DIRECT live session may run (ADR-300 wave 4) — the default of
+#: ``LIVE_DIRECT_TOOL_CALLS_MAX``; a voice model in a loop must not spend for ever.
+LIVE_DIRECT_TOOL_CALLS_MAX_DEFAULT: int = 60
+#: The most arguments one voice tool call may carry: a voice fills a handful.
+LIVE_TOOL_CALL_MAX_ARGUMENTS: int = 16
+#: The most a person may set as a per-session spend ceiling on a live connector
+#: (euros, on THEIR key — the browser's indicative meter ends the session at it;
+#: ADR-300 wave 3). Published by GET /live/config because enforced by the schema.
+LIVE_SESSION_BUDGET_EUR_MAX: float = 100.0
+LIVE_CONNECT_WINDOW_SECONDS_DEFAULT: int = 60
+LIVE_IDLE_TIMEOUT_SECONDS_DEFAULT: int = 60
+#: Minutes one explicit extension adds to the cap (unlimited, each explicit).
+LIVE_EXTENSION_MINUTES_DEFAULT: int = 10
+#: Seconds before the cap at which the person is asked whether to extend.
+LIVE_EXTENSION_PROMPT_SECONDS_DEFAULT: int = 60
+LIVE_HIDDEN_GRACE_SECONDS_DEFAULT: int = 20
+LIVE_MAX_CONCURRENT_SESSIONS_DEFAULT: int = 8
+LIVE_MINT_RATE_LIMIT_MAX_CALLS_DEFAULT: int = 12
+LIVE_MINT_RATE_LIMIT_WINDOW_SECONDS_DEFAULT: int = 60
+LIVE_DELEGATION_TIMEOUT_SECONDS_DEFAULT: int = 90
+LIVE_DELEGATION_RESULT_MAX_TOKENS_DEFAULT: int = 600
+#: The longest message a person may send in one turn — typed in the chat, or
+#: spoken and handed over by a voice (ADR-301). One bound, read by both doors.
+CHAT_MESSAGE_MAX_LENGTH: int = 10_000
+# The server-side delegation bridge (ADR-301, the phone's Live mode): the hard
+# bound of the delegated turn itself — whatever the voice could wait, the run
+# goes on in the thread up to this —, how long a request waits for the
+# conversation's lease before the voice is told LIA is busy, how often a
+# running bridge reads the newest-request marker, and that marker's key.
+VOICE_DELEGATION_RUN_TIMEOUT_SECONDS_DEFAULT: int = 240
+VOICE_DELEGATION_LEASE_WAIT_SECONDS_DEFAULT: int = 8
+VOICE_DELEGATION_SUPERSEDE_POLL_SECONDS: float = 0.25
+REDIS_KEY_VOICE_DELEGATION_NEWEST_PREFIX: str = "voice_delegation:newest:"
+LIVE_CONTEXT_TRIGGER_TOKENS_DEFAULT: int = 25_000
+LIVE_CONTEXT_TARGET_TOKENS_DEFAULT: int = 8_000
+LIVE_PROBE_TIMEOUT_SECONDS_DEFAULT: int = 15
+#: A DIRECT session keeps its exchanges in its record until its end, when they
+#: become the message the person would have typed (ADR-301): bounded in rows,
+#: the relay projection cutting under its own token budget anyway.
+LIVE_DIRECT_TRANSCRIPT_MAX_ROWS: int = 400
+#: A voice-only exchange row is bounded (a voice reads a gist, ADR-286).
+LIVE_TURN_TEXT_MAX_CHARS: int = 4_000
+#: Seconds the session RECORD outlives the session's longest life, so the
+#: closing call of a session that ran to its cap still finds its record (the
+#: card, the decision row, the learning pass). The provider credential itself
+#: expires at the cap; only the Redis record is kept a little longer.
+LIVE_SESSION_RECORD_GRACE_SECONDS: int = 120

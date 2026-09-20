@@ -443,6 +443,36 @@ tests:
         alertname: LLMCallsWithoutUsage
         exp_alerts: []
 
+  # ===== GoogleApiCallsUnaccounted: a paid Maps call reached no ledger =====
+  # One unaccounted Routes call inside the hour must fire (zero threshold).
+  - interval: 30s
+    input_series:
+      - series: 'google_api_calls_unaccounted_total{api_name="routes"}'
+        values: '0+0x60 1+0x180'
+    alert_rule_test:
+      - eval_time: 70m
+        alertname: GoogleApiCallsUnaccounted
+        exp_alerts:
+          - exp_labels:
+              api_name: routes
+              severity: warning
+              component: connectors
+              tier: core
+            exp_annotations:
+              summary: "Google Maps Platform calls completing unaccounted on routes"
+              description: "1 paid Google routes call(s) were made with no accounting context in the last hour (threshold: 0). The deployment paid them and no ledger received them: google_api_usage_logs, the person's statistics, the instance spend ceiling and the cost dashboards did not see it."
+              runbook: "docs/runbooks/alerts/GoogleApiCallsUnaccounted.md"
+
+  # ===== …and a flat counter stays silent =====
+  - interval: 30s
+    input_series:
+      - series: 'google_api_calls_unaccounted_total{api_name="routes"}'
+        values: '0+0x240'
+    alert_rule_test:
+      - eval_time: 70m
+        alertname: GoogleApiCallsUnaccounted
+        exp_alerts: []
+
   # ===== SystemKnowledgeIndexationFailing: repeated indexation failures =====
   # Two failures in six hours must fire. The counter is the aggregate across
   # uvicorn workers (multiprocess mode), and only the worker holding the claim

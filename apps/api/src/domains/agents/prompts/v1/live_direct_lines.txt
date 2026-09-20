@@ -1,0 +1,19 @@
+# One-line scaffolds of the DIRECT live mandate (ADR-300 wave 4; ADR-284: prose
+# lives in a file). `key|template`, str.format templates, read by
+# domains/live/direct_mandate.py. `live_tools` names in words the domains the
+# tools declared on the session may read (`live_tool_domains`); `no_live_tools`
+# stands in when the person switched every domain off or the feature is off;
+# `no_context` when the context block is empty. `refused_*` are the sentences
+# handed back to the voice as a tool result when the API refuses a lookup
+# (technical English, ADR-256): the voice says them in the person's language.
+# `lookup_failed` is the one line the BROWSER holds (GET /live/config,
+# `direct_lines`): what it answers the model when the tool door itself
+# could not be reached.
+
+live_tools|- You may LOOK THINGS UP with the tools declared on this session, and only those. They read, never act, in: {live_tool_domains}. Use them freely whenever the person asks about their own data or the world — several in a row when one question spans several sources — say in a few words that you are checking, then read the result back in the person's language, in spoken words: never an identifier, a link, a raw date or a field name. A result that says items were left out means: ask a narrower question, or tell the person there is more.
+no_live_tools|- You have no lookup on this session: what you know is in WHAT YOU KNOW below.
+no_context|No context was shared for this session: rely on what the person tells you.
+refused_mode|This session cannot run lookups; tell the person to start a direct session for that.
+refused_tool|This lookup is not available on this session; tell the person you cannot look that up here.
+budget_exhausted|The lookup budget of this session is spent; tell the person you cannot look anything else up in this session.
+lookup_failed|The lookup could not be run right now; tell the person you could not look that up, and go on.

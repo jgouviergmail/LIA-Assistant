@@ -54,18 +54,38 @@ telephony_relay_total = Counter(
     ["outcome"],
 )
 
+# The Live mode's delegation (ADR-301): one request the voice on the phone
+# handed to LIA through ``send_to_lia``, by how it ended — the bridge's own
+# vocabulary (answered | question | empty | superseded | timed_out | busy |
+# quota_blocked | failed) plus the route's refusals (refused_call |
+# refused_secret | refused_mode | refused_request).
+telephony_delegations_total = Counter(
+    "telephony_delegations_total",
+    "Requests a Live owner call handed to LIA, by outcome (ADR-301).",
+    ["outcome"],
+)
+
+telephony_delegation_duration_seconds = Histogram(
+    "telephony_delegation_duration_seconds",
+    "Seconds a Live owner call's delegation took, from the vendor's call-back to its answer (ADR-301).",
+    buckets=(1, 2, 5, 10, 20, 30, 45, 60, 90, 120, 180),
+)
+
+# ``surface``: the voice the lookup served — the owner call (``phone_call``) or a
+# direct live session (``live_session``, ADR-300 wave 4). Same rule, same door.
 telephony_live_tool_calls_total = Counter(
     "telephony_live_tool_calls_total",
-    "Live lookups the voice agent asked for during an owner call, by tool and outcome (lot 7).",
-    ["tool", "outcome"],
+    "Live lookups a voice asked for — an owner call or a direct live session — by tool, outcome and surface (lot 7, ADR-300 wave 4).",
+    ["tool", "outcome", "surface"],
     # tool: the allow-listed registry name, or "unknown" before one is resolved
     # outcome: ok | failed | timeout | budget_exceeded | refused_flag
-    #        | refused_call | refused_secret | refused_tool
+    #        | refused_call | refused_secret | refused_tool | refused_mode
+    # surface: phone_call | live_session
 )
 
 telephony_live_tool_duration_seconds = Histogram(
     "telephony_live_tool_duration_seconds",
-    "Wall-clock duration of a live lookup run for the voice agent (lot 7).",
-    ["tool"],
+    "Wall-clock duration of a live lookup run for a voice (lot 7, ADR-300 wave 4).",
+    ["tool", "surface"],
     buckets=(0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0),
 )

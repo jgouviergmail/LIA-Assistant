@@ -87,6 +87,8 @@ export function makeLLMPricing(over: Partial<LLMModelPricing> = {}): LLMModelPri
     input_unit_price: '3.0',
     cached_input_unit_price: '0.3',
     output_unit_price: '15.0',
+    audio_input_unit_price: null,
+    audio_output_unit_price: null,
     time_slots: null,
     effective_from: '2026-01-01T00:00:00Z',
     is_active: true,

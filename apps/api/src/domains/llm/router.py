@@ -38,7 +38,11 @@ from src.domains.llm.schemas import (
     ReasoningFamilyResponse,
     RetiringModelPayload,
 )
-from src.domains.llm.service import LLMModelService, TimeSlotsUnitMismatchError
+from src.domains.llm.service import (
+    AudioRatesMergeError,
+    LLMModelService,
+    TimeSlotsUnitMismatchError,
+)
 from src.domains.users.models import AdminAuditLog, User
 from src.infrastructure.cache.pricing_cache import PricingCacheService
 from src.infrastructure.cache.redis import get_redis_cache
@@ -61,6 +65,8 @@ def _pricing_to_response(pricing: LLMModelPricing) -> ModelPriceResponse:
             "input_unit_price": pricing.input_unit_price,
             "cached_input_unit_price": pricing.cached_input_unit_price,
             "output_unit_price": pricing.output_unit_price,
+            "audio_input_unit_price": pricing.audio_input_unit_price,
+            "audio_output_unit_price": pricing.audio_output_unit_price,
             "pricing_unit": pricing.pricing_unit.value,
             "effective_from": pricing.effective_from,
             "is_active": pricing.is_active,
@@ -439,9 +445,10 @@ async def update_pricing(
         model, new_pricing = await service.update(model_name, data)
     except LookupError:
         raise_pricing_not_found(model_name)
-    except TimeSlotsUnitMismatchError as exc:
-        # Merged state pairs time slots with an audio unit — a 400, caught
-        # BEFORE plain ValueError whose handler answers 409 already_exists.
+    except (TimeSlotsUnitMismatchError, AudioRatesMergeError) as exc:
+        # Merged state pairs time slots with an audio unit, or breaks the audio
+        # pair — a 400, caught BEFORE plain ValueError whose handler answers
+        # 409 already_exists.
         raise_invalid_input(str(exc))
     except ValueError:
         # Rename target conflicts with an existing model.

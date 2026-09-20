@@ -18,6 +18,7 @@ import pytest
 import src.infrastructure.scheduler.phone_relay_runner as runner
 from src.core.config import settings
 from src.domains.telephony.schemas import SelfCallRelay
+from src.infrastructure.scheduler import voice_relay
 from src.infrastructure.scheduler.out_of_turn_run import RunContext, RunOutcome, RunResult
 from src.infrastructure.scheduler.phone_relay_runner import RelayOutcome, RelayRequest, run_relay
 
@@ -71,10 +72,21 @@ def _install(
 
     async def _stream(request):  # noqa: ANN001
         captured["request"] = request
+        # No session of any runner's may be open while the turn runs.
+        captured["open_during_turn"] = captured.get("open", 0)
         return result or RunResult(outcome=RunOutcome.SUCCESS, text="ok", attempts=1)
 
     async def _redis():
         return object()
+
+    @contextlib.asynccontextmanager
+    async def _db_context():  # noqa: ANN202
+        captured["open"] = captured.get("open", 0) + 1
+        captured["sessions"] = captured.get("sessions", 0) + 1
+        try:
+            yield object()
+        finally:
+            captured["open"] -= 1
 
     class _Dispatcher:
         def __init__(self, **kwargs: Any) -> None:
@@ -83,12 +95,21 @@ def _install(
         async def dispatch(self, **kwargs: Any) -> None:
             captured["push"] = kwargs
 
+    class _Conversations:
+        async def get_or_create_conversation(self, _user_id, _db, *, language):  # noqa: ANN001
+            return SimpleNamespace(id=uuid4())
+
+    # The phone wrapper resolves the account and the conversation; the TURN
+    # runs on the shared voice relay (ADR-301), whose seams are patched there.
     monkeypatch.setattr(runner, "resolve_run_context", _context)
-    monkeypatch.setattr(runner, "conversation_has_pending_hitl", _pending)
-    monkeypatch.setattr(runner, "active_run_lease", _lease)
-    monkeypatch.setattr(runner, "stream_instruction", _stream)
-    monkeypatch.setattr(runner, "get_redis_cache", _redis)
+    monkeypatch.setattr(runner, "ConversationService", _Conversations)
     monkeypatch.setattr(runner, "NotificationDispatcher", _Dispatcher)
+    monkeypatch.setattr(runner, "get_db_context", _db_context)
+    monkeypatch.setattr(voice_relay, "get_db_context", _db_context)
+    monkeypatch.setattr(voice_relay, "conversation_has_pending_hitl", _pending)
+    monkeypatch.setattr(voice_relay, "active_run_lease", _lease)
+    monkeypatch.setattr(voice_relay, "stream_instruction", _stream)
+    monkeypatch.setattr(voice_relay, "get_redis_cache", _redis)
     monkeypatch.setattr(settings, "telephony_relay_busy_retries", 2, raising=False)
     monkeypatch.setattr(settings, "telephony_relay_busy_delay_seconds", 0, raising=False)
     return captured
@@ -99,7 +120,7 @@ async def test_the_relay_runs_as_the_persons_own_turn(monkeypatch: pytest.Monkey
     captured = _install(monkeypatch)
     request = _request()
 
-    outcome = await run_relay(request, db=object())
+    outcome = await run_relay(request)
 
     assert outcome is RelayOutcome.ANSWERED
     stream = captured["request"]
@@ -122,14 +143,18 @@ async def test_the_relay_runs_as_the_persons_own_turn(monkeypatch: pytest.Monkey
     assert stream.timeout_seconds == settings.telephony_relay_timeout_seconds
     # The answer lives in the chat; the push only says so (archive/SSE off).
     assert captured["dispatcher_kwargs"] == {"archive_enabled": False, "sse_enabled": False}
+    # Three short sessions — the account and the thread, the probes, the push
+    # — and NONE open while the turn ran (the workboard runner's rule).
+    assert captured["sessions"] == 3
+    assert captured["open_during_turn"] == 0
+    assert captured["open"] == 0
 
 
 @pytest.mark.unit
 async def test_someone_else_on_the_line_relays_nothing(monkeypatch: pytest.MonkeyPatch) -> None:
     captured = _install(monkeypatch)
     outcome = await run_relay(
-        _request(relay=SelfCallRelay(owner_confirmed=False, relay_message="x", summary="S")),
-        db=object(),
+        _request(relay=SelfCallRelay(owner_confirmed=False, relay_message="x", summary="S"))
     )
     assert outcome is RelayOutcome.NOT_OWNER
     assert "request" not in captured
@@ -139,8 +164,7 @@ async def test_someone_else_on_the_line_relays_nothing(monkeypatch: pytest.Monke
 async def test_nothing_to_relay_is_honest(monkeypatch: pytest.MonkeyPatch) -> None:
     captured = _install(monkeypatch)
     outcome = await run_relay(
-        _request(relay=SelfCallRelay(owner_confirmed=True, relay_message="  ", summary="S")),
-        db=object(),
+        _request(relay=SelfCallRelay(owner_confirmed=True, relay_message="  ", summary="S"))
     )
     assert outcome is RelayOutcome.EMPTY
     assert "request" not in captured
@@ -151,7 +175,7 @@ async def test_a_pending_question_on_the_thread_stops_the_relay(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     captured = _install(monkeypatch, pending=True)
-    outcome = await run_relay(_request(), db=object())
+    outcome = await run_relay(_request())
     assert outcome is RelayOutcome.PENDING_QUESTION
     assert "request" not in captured
 
@@ -159,7 +183,7 @@ async def test_a_pending_question_on_the_thread_stops_the_relay(
 @pytest.mark.unit
 async def test_a_busy_thread_is_retried_then_given_up(monkeypatch: pytest.MonkeyPatch) -> None:
     captured = _install(monkeypatch, lease_acquired=False)
-    outcome = await run_relay(_request(), db=object())
+    outcome = await run_relay(_request())
     assert outcome is RelayOutcome.BUSY
     assert captured["lease_attempts"] == settings.telephony_relay_busy_retries
     assert "request" not in captured
@@ -170,7 +194,7 @@ async def test_an_unresolved_conversation_runs_without_a_lock(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     captured = _install(monkeypatch, conversation_id=None)
-    outcome = await run_relay(_request(), db=object())
+    outcome = await run_relay(_request())
     assert outcome is RelayOutcome.ANSWERED
     assert "lease_attempts" not in captured
 
@@ -182,7 +206,7 @@ async def test_drafts_waiting_send_a_push_and_nothing_else(
     captured = _install(
         monkeypatch, result=RunResult(outcome=RunOutcome.WAITING, text="?", attempts=1)
     )
-    outcome = await run_relay(_request(), db=object())
+    outcome = await run_relay(_request())
     assert outcome is RelayOutcome.WAITING
     assert captured["dispatcher_kwargs"] == {"archive_enabled": False, "sse_enabled": False}
     assert captured["push"]["task_type"] == "phone_call"
@@ -199,7 +223,7 @@ async def test_an_answered_relay_sends_a_push_saying_the_chat_holds_the_answer(
     captured = _install(monkeypatch)
     from src.core.i18n_telephony import get_return_phrases
 
-    outcome = await run_relay(_request(), db=object())
+    outcome = await run_relay(_request())
     assert outcome is RelayOutcome.ANSWERED
     assert captured["dispatcher_kwargs"] == {"archive_enabled": False, "sse_enabled": False}
     assert captured["push"]["content"] == get_return_phrases("fr")["relay_answered"]
@@ -219,13 +243,13 @@ async def test_refusals_and_failures_are_named(
     monkeypatch: pytest.MonkeyPatch, run_outcome: RunOutcome, expected: RelayOutcome
 ) -> None:
     _install(monkeypatch, result=RunResult(outcome=run_outcome, text="", attempts=1, error="e"))
-    assert await run_relay(_request(), db=object()) is expected
+    assert await run_relay(_request()) is expected
 
 
 @pytest.mark.unit
 async def test_an_inactive_account_fails_the_relay(monkeypatch: pytest.MonkeyPatch) -> None:
     _install(monkeypatch, context=None)
-    assert await run_relay(_request(), db=object()) is RelayOutcome.FAILED
+    assert await run_relay(_request()) is RelayOutcome.FAILED
 
 
 @pytest.mark.unit

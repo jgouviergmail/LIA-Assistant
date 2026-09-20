@@ -47,6 +47,7 @@ from src.core.config import settings
 from src.core.constants import REDIS_KEY_TELEPHONY_LIVE_TOOL_PREFIX
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.service import ConnectorService
+from src.domains.telephony.callback import callback_base_url
 from src.domains.telephony.client import ElevenLabsAgentsClient, ElevenLabsAgentsError
 from src.domains.telephony.connector import TelephonyConnectorService
 from src.domains.telephony.models import CallKind, PhoneCall, PhoneCallStatus
@@ -164,9 +165,11 @@ def live_tool_url(tool_name: str) -> str:
         tool_name: The registry name of the tool.
 
     Returns:
-        ``{API_URL}{API_PREFIX}/telephony/tools/{tool_name}``.
+        ``{callback base}{API_PREFIX}/telephony/tools/{tool_name}`` — the base
+        being ``TELEPHONY_CALLBACK_BASE_URL`` when declared, else ``API_URL``
+        (``callback.callback_base_url``, ONE reader for the two tool kinds).
     """
-    return f"{settings.api_url}{settings.api_prefix}/telephony/tools/{tool_name}"
+    return f"{callback_base_url()}{settings.api_prefix}/telephony/tools/{tool_name}"
 
 
 def webhook_tool_body(
@@ -177,12 +180,17 @@ def webhook_tool_body(
     token: str,
     parameters: Sequence[LiveToolParameter],
     timeout_seconds: int,
+    asynchronous: bool = False,
 ) -> dict[str, Any]:
     """The vendor's ``POST /convai/tools`` body for one live tool.
 
     Shape measured 2026-09-16 on the production workspace: ``tool_config`` of
     type ``webhook`` with an ``api_schema`` whose ``request_body_schema``
-    binds ``call_id`` to the dial path's dynamic variable.
+    binds ``call_id`` to the dial path's dynamic variable. An ASYNCHRONOUS
+    tool (measured 2026-09-20, ADR-301 lot 0: ``execution_mode: async`` and
+    ``pre_tool_speech: force``) lets the voice announce the call in one
+    sentence and keep talking while the result is on its way — the shape of
+    the Live mode's delegation.
 
     Args:
         name: The tool's name (the vendor shows it to its model).
@@ -191,6 +199,7 @@ def webhook_tool_body(
         token: The derived call-back token, sent as a header.
         parameters: The exposed parameters, in order.
         timeout_seconds: The vendor's own timeout on the call-back.
+        asynchronous: Whether the voice keeps talking while the tool runs.
 
     Returns:
         The request body.
@@ -211,12 +220,18 @@ def webhook_tool_body(
         properties[parameter.name] = prop
         if parameter.required:
             required.append(parameter.name)
+    config: dict[str, Any] = {
+        "type": "webhook",
+        "name": name,
+        "description": description,
+        "response_timeout_secs": timeout_seconds,
+    }
+    if asynchronous:
+        config["execution_mode"] = "async"
+        config["pre_tool_speech"] = "force"
     return {
         "tool_config": {
-            "type": "webhook",
-            "name": name,
-            "description": description,
-            "response_timeout_secs": timeout_seconds,
+            **config,
             "api_schema": {
                 "url": url,
                 "method": "POST",

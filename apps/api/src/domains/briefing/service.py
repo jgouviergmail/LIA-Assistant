@@ -88,6 +88,7 @@ from src.infrastructure.observability.metrics_briefing import (
     briefing_refresh_requests_total,
     briefing_section_status_total,
 )
+from src.infrastructure.proactive.tracking import out_of_turn_spend
 from src.infrastructure.utils.shared_flight import CLAIM_PREFIX, run_shared_flight
 from src.infrastructure.utils.single_flight import run_single_flight
 
@@ -264,7 +265,15 @@ class BriefingService:
             scope = "all" if "all" in force else "single"
             briefing_refresh_requests_total.labels(scope=scope).inc()
 
-        async with consultation_collector(self._consultation_run_id) as consulted:
+        # The spend ledger is fed around the whole act, like the consultation
+        # register: the weather card reads Google Weather on the deployment's
+        # key, and a paid call with no ambient tracker was dropped in silence
+        # (2026-09-19). A joiner's tracker stays empty — the shared build runs
+        # in the owner's context — and an empty tracker persists nothing.
+        async with (
+            consultation_collector(self._consultation_run_id) as consulted,
+            out_of_turn_spend(self._consultation_run_id, self.user.id, "briefing_cards"),
+        ):
             flight = await run_single_flight(
                 self._flight_key(force), lambda: self._gather_once_per_deployment(force)
             )

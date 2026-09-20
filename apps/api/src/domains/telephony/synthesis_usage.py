@@ -54,27 +54,56 @@ def capture_to_usage(capture: TokenCaptureHandler) -> SynthUsage | None:
 async def track_synthesis_usage(usage: SynthUsage | None, *, call_id: UUID, user_id: UUID) -> None:
     """Best-effort proactive-token tracking (G-1) — never loses the delivery.
 
-    Extracted from ``process_completed_call`` (CC discipline).
+    Extracted from ``process_completed_call`` (CC discipline). The phone's
+    door: the call's own run id, shared with its live lookups and its relayed
+    turn, so one summary row holds the whole bill (lot 8).
+    """
+    await track_voice_synthesis_usage(
+        usage,
+        user_id=user_id,
+        task_type=_TASK_TYPE,
+        target_id=str(call_id),
+        run_id=phone_call_run_id(call_id),
+    )
+
+
+async def track_voice_synthesis_usage(
+    usage: SynthUsage | None, *, user_id: UUID, task_type: str, target_id: str, run_id: str
+) -> None:
+    """The ONE accountant of a relay synthesis, whichever carrier (ADR-301).
+
+    Args:
+        usage: What the provider reported; None records nothing.
+        user_id: The account the synthesis ran for.
+        task_type: The surface (``phone_call``, ``live_session``).
+        target_id: The call or the session.
+        run_id: The run the euros are filed under — the carrier's own, so the
+            session's card and the calls listing read one row.
     """
     if usage is None:
         return
     try:
         await track_proactive_tokens(
             user_id=user_id,
-            task_type=_TASK_TYPE,
-            target_id=str(call_id),
+            task_type=task_type,
+            target_id=target_id,
             conversation_id=None,
             tokens_in=usage.tokens_in,
             tokens_out=usage.tokens_out,
             tokens_cache=usage.tokens_cache,
             model_name=usage.model_name,
             source="user",
-            # Lot 8: the call's own run id, shared with its live lookups and
-            # its relayed turn, so one summary row holds the whole bill.
-            run_id=phone_call_run_id(call_id),
+            run_id=run_id,
         )
     except Exception as exc:  # noqa: BLE001 — tracking must not lose the delivery
-        logger.warning("telephony_token_tracking_failed", call_id=str(call_id), error=str(exc))
+        logger.warning(
+            "telephony_token_tracking_failed", target_id=target_id, error_type=type(exc).__name__
+        )
 
 
-__all__ = ["SynthUsage", "capture_to_usage", "track_synthesis_usage"]
+__all__ = [
+    "SynthUsage",
+    "capture_to_usage",
+    "track_synthesis_usage",
+    "track_voice_synthesis_usage",
+]

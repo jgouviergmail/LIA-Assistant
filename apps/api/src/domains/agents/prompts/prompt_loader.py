@@ -101,6 +101,14 @@ PromptName = Literal[
     "reminder_prompt",
     "reminder_origin_once",
     "reminder_origin_recurring",
+    # Live mode (ADR-299)
+    "live_system_prompt",
+    "live_lines",
+    "live_tone_lines",
+    "live_direct_system_prompt",
+    "live_direct_lines",
+    # Voice sessions (ADR-301): the delegation block every voice mandate composes
+    "voice_delegation_block",
     # Email content generation
     "email_content_generation_prompt",
     "email_subject_generation_prompt",
@@ -231,9 +239,13 @@ PromptName = Literal[
     # Owner and verification mandates (lot 2): rendered server-side by
     # telephony/mandates.py into the per-call override.
     "telephony_self_call_system_prompt",
+    # The owner mandate in Live mode (ADR-301): the same frame around the
+    # voice sessions' shared delegation block.
+    "telephony_self_live_system_prompt",
     "telephony_verification_prompt",
     "telephony_self_call_relay_prompt",
     "telephony_self_call_lines",
+    "voice_relay_lines",
     # Live read-only tools during an owner call (lot 7): the vendor-facing
     # description of each tool, and what a lookup answers besides its data.
     "telephony_live_tools",

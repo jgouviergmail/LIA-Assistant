@@ -79,6 +79,35 @@ class CatalogueStatusResponse(BaseModel):
     )
 
 
+def validate_audio_pair(
+    audio_input: Decimal | None, audio_output: Decimal | None, pricing_unit: str
+) -> None:
+    """Refuse half an audio pair, and a pair on a unit that already bills the audio.
+
+    ONE rule for the creation payload and the service's merged update state
+    (ADR-300): a model with an audio input rate and no output rate has no
+    meaningful bill, and a minute-billed model's unit already says it all.
+
+    Args:
+        audio_input: The audio input rate, or None.
+        audio_output: The audio output rate, or None.
+        pricing_unit: The tariff's unit.
+
+    Raises:
+        ValueError: On half a pair, or a pair beside a non-token unit.
+    """
+    if (audio_input is None) != (audio_output is None):
+        raise ValueError(
+            "audio_input_unit_price and audio_output_unit_price are declared together "
+            "or not at all"
+        )
+    if audio_input is not None and pricing_unit != "per_1m_tokens":
+        raise ValueError(
+            "audio rates are only accepted with pricing_unit='per_1m_tokens' "
+            f"(a {pricing_unit!r} tariff already bills the audio by its unit)"
+        )
+
+
 class ModelPriceResponse(BaseModel):
     """Response model for an LLM model + its active pricing.
 
@@ -94,6 +123,14 @@ class ModelPriceResponse(BaseModel):
     input_unit_price: Decimal
     cached_input_unit_price: Decimal | None
     output_unit_price: Decimal
+    audio_input_unit_price: Decimal | None = Field(
+        default=None,
+        description="Audio input rate in USD (ADR-300); None = no audio rate declared",
+    )
+    audio_output_unit_price: Decimal | None = Field(
+        default=None,
+        description="Audio output rate in USD (ADR-300); None = no audio rate declared",
+    )
     pricing_unit: PricingUnitLiteral
     effective_from: datetime
     is_active: bool
@@ -241,6 +278,18 @@ class ModelPriceCreate(BaseModel):
     output_unit_price: Decimal = Field(
         ..., ge=0, description="Output unit price in USD (0 for STT models)"
     )
+    audio_input_unit_price: Decimal | None = Field(
+        default=None,
+        ge=0,
+        description=(
+            "Audio input rate in USD per the unit (ADR-300): a speech-to-speech model "
+            "bills its audio beside its text. Declared with audio_output_unit_price or "
+            "not at all, and only with pricing_unit='per_1m_tokens'."
+        ),
+    )
+    audio_output_unit_price: Decimal | None = Field(
+        default=None, ge=0, description="Audio output rate in USD per the unit (ADR-300)."
+    )
     time_slots: list[TimeSlotPrice] | None = Field(
         default=None,
         description=(
@@ -251,6 +300,14 @@ class ModelPriceCreate(BaseModel):
             "flat pricing."
         ),
     )
+
+    @model_validator(mode="after")
+    def _validate_audio_prices(self) -> ModelPriceCreate:
+        """The audio pair is whole or absent, and token-billed."""
+        validate_audio_pair(
+            self.audio_input_unit_price, self.audio_output_unit_price, self.pricing_unit
+        )
+        return self
 
     @model_validator(mode="after")
     def _validate_time_slots(self) -> ModelPriceCreate:
@@ -316,6 +373,17 @@ class ModelPriceUpdate(BaseModel):
     input_unit_price: Decimal | None = Field(default=None, ge=0)
     cached_input_unit_price: Decimal | None = Field(default=None, ge=0)
     output_unit_price: Decimal | None = Field(default=None, ge=0)
+    audio_input_unit_price: Decimal | None = Field(
+        default=None,
+        ge=0,
+        description=(
+            "Audio input rate (ADR-300). Omitted = inherit the current row's; the "
+            "MERGED pair must be whole and token-billed, which the service judges."
+        ),
+    )
+    audio_output_unit_price: Decimal | None = Field(
+        default=None, ge=0, description="Audio output rate (ADR-300); same rules."
+    )
     time_slots: list[TimeSlotPrice] | None = Field(
         default=None,
         description=(
@@ -340,6 +408,15 @@ class ModelPriceUpdate(BaseModel):
         ),
     )
 
+    clear_audio_prices: bool = Field(
+        default=False,
+        description=(
+            "Explicitly set BOTH audio rates back to NULL — the pair is one "
+            "declaration. A plain None cannot express it: the service builds "
+            "its change-set with exclude_none (the cached price's own trap)."
+        ),
+    )
+
     clear_reasoning_enum_values: bool = Field(
         default=False,
         description=(
@@ -360,6 +437,28 @@ class ModelPriceUpdate(BaseModel):
             raise ValueError(
                 "clear_reasoning_enum_values and reasoning_enum_values are "
                 "mutually exclusive: choose clearing or a ladder, not both"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _validate_audio_prices(self) -> ModelPriceUpdate:
+        """Refuse clearing and setting together, and a rate beside an audio unit.
+
+        A payload may carry ONE rate (the other is inherited): the merged
+        pair is the service's to judge, as for the time slots.
+        """
+        carried = (
+            self.audio_input_unit_price is not None or self.audio_output_unit_price is not None
+        )
+        if self.clear_audio_prices and carried:
+            raise ValueError(
+                "clear_audio_prices and an audio rate are mutually exclusive: "
+                "choose clearing or a value, not both"
+            )
+        if carried and self.pricing_unit is not None and self.pricing_unit != "per_1m_tokens":
+            raise ValueError(
+                "audio rates are only accepted with pricing_unit='per_1m_tokens' "
+                f"(a {self.pricing_unit!r} tariff already bills the audio by its unit)"
             )
         return self
 

@@ -220,32 +220,40 @@ someone else answers, the assistant apologises, shares nothing and hangs up.
 Changing the number cancels the verification.
 
 ## What does LIA know during a call with me?
-Two layers, both yours to switch.
+It depends on the mode you chose in **Settings → Telephony · My identity**
+(see « Live or Live direct » below).
 
-**🧾 The context it brings:** with **Rich context on the phone** on, the call
-carries what the chat would know — relevant memories, your agenda, your
-reminders, the open threads with people, your latest exchanges. Off, LIA only
-knows your free/busy times.
+**🎧 In Live (the default):** the voice knows nothing and reads nothing by
+itself: each thing you ask is handed to LIA, which runs it as a chat turn
+while you speak, with everything the chat knows — memories, agenda,
+reminders, open threads, your last exchanges — and answers through the voice.
 
-**🔎 What it can look up live:** if your administrator enabled live lookups,
-the assistant reads LIA during the call — the latest e-mails, a day in the
-calendar, a contact, a file, a place nearby, the weather, what it remembers
-about a subject — and reads the result back in words. It reads, and never
-acts: no message sent, no event created, nothing deleted. In **My identity**
-every domain has its own switch; what you switch off is not even attached to
-the call. The assistant speaks with the personality you configured for LIA.
+**🎯 In Live direct:** with **Rich context on the phone** on, the call carries
+what the chat would know; off, LIA knows only your availability. And if your
+administrator enabled live lookups, the voice reads your data itself during
+the call — the latest e-mails, a day of agenda, a contact, a file, a place
+nearby, the weather, what it retains about a topic — and reads the result to
+you in words. It reads and never acts: no message sent, no event created,
+nothing deleted. In **My identity**, each domain has its switch — the same
+switches govern a direct live session in the browser. The assistant speaks
+with the personality you configured for LIA.
 
 ## What happens after a call with me?
-What you said comes back **as your own message**: LIA writes it up, replays
-it in the chat as your turn — with a phone badge — and answers as it would
-have if you had typed it. Something you asked it to do becomes a draft waiting
-for your confirmation in the chat; the assistant never promises to have done
-something during the call.
+**🎧 In Live:** nothing is left to relay — each thing you asked already ran
+as a chat turn of yours while you spoke, and the thread shows them, with a
+phone badge. Something that needed your confirmation is a draft waiting in
+the chat.
 
-**📣 And if it could not:** the notification says exactly why — nobody picked
-up, the line failed, someone else answered, a question was already waiting for
-you, the conversation was busy, a ceiling was reached — and the calls list
-shows the same verdict.
+**🎯 In Live direct:** what you said comes back **as your own message**: LIA
+writes it up, replays it in the chat as your turn — with a phone badge — and
+answers as it would have if you had typed it. Something you asked it to do
+becomes a draft waiting for your confirmation in the chat; the assistant never
+promises to have done anything during the call.
+
+**📣 And if it could not:** whatever the mode, the notification says exactly
+why — nobody answered, the line failed, someone else picked up, a question
+was already waiting for you, the conversation was busy, a ceiling was reached
+— and the call list shows the same verdict, next to the mode the call ran in.
 
 ## How much does a call with me cost?
 Two bills, one of them yours alone.
@@ -258,3 +266,22 @@ answer in the chat and on the calls list — like any other request.
 line — everything that runs on your ElevenLabs key — is billed by ElevenLabs
 on your account and is never counted nor shown in LIA. Same rule for every
 service you use with your own keys.
+
+## Live or Live direct: how does LIA conduct my calls?
+A choice of yours, in **Settings → Telephony · My identity**, and the same two
+modes as the browser's live sessions.
+
+**🎧 Live (the default):** what you ask on the phone is handled by LIA **while
+you speak**, as a chat turn of yours — the voice announces it, keeps talking,
+and reads the answer when it lands. A confirmation LIA needs is asked on the
+line and settled by your next words; a question it asks is the answer.
+Everything is in the thread with a phone badge, counted under your limits.
+
+**🎯 Live direct:** the voice reads your data itself (the domains you allow)
+and acts on nothing; what you said is relayed to the conversation at the end
+as a message from you.
+
+**🛰️ When Live is not available:** Live needs the phone provider to reach
+your instance back; where it cannot (a private address), the setting says so
+and every call runs direct. Should the provider refuse the delegation on a
+given call, that call runs direct and the notification says so.

@@ -85,6 +85,8 @@ class VoiceStreamContext:
         has_listeners: Async presence probe (ADR-117 Lot 2), or None on
             paths without presence tracking.
         start_time: Stream start timestamp (elapsed-ms logging).
+        live_session_id: The live session that delegated this turn (ADR-299)
+            — its own voice speaks the answer, no comment is synthesized.
     """
 
     run_id: str
@@ -97,6 +99,7 @@ class VoiceStreamContext:
     user_obj: UserProfile | None
     has_listeners: ListenerProbe | None
     start_time: float
+    live_session_id: str | None = None
 
 
 class VoiceStreamCoordinator:
@@ -164,7 +167,11 @@ class VoiceStreamCoordinator:
             and self._voice_parallel_task is None
             and intention == "conversation"
             and await _should_start_voice(
-                self._ctx.user_obj, self._ctx.has_listeners, self._ctx.run_id, "chat_progressive"
+                self._ctx.user_obj,
+                self._ctx.has_listeners,
+                self._ctx.run_id,
+                "chat_progressive",
+                live_session_id=self._ctx.live_session_id,
             )
         ):
             return
@@ -247,7 +254,11 @@ class VoiceStreamCoordinator:
             and self._chat_voice_drain_task is None
             and voice_context_registry is not None
             and await _should_start_voice(
-                self._ctx.user_obj, self._ctx.has_listeners, self._ctx.run_id, "agent_parallel"
+                self._ctx.user_obj,
+                self._ctx.has_listeners,
+                self._ctx.run_id,
+                "agent_parallel",
+                live_session_id=self._ctx.live_session_id,
             )
         ):
             # Import voice dependencies (lazy)
@@ -439,7 +450,11 @@ class VoiceStreamCoordinator:
             and not self._voice_complete_emitted  # Skip if already completed during streaming
             # Listener gating last (may hit Redis) — cheap checks first
             and await _should_start_voice(
-                self._ctx.user_obj, self._ctx.has_listeners, self._ctx.run_id, "sync_fallback"
+                self._ctx.user_obj,
+                self._ctx.has_listeners,
+                self._ctx.run_id,
+                "sync_fallback",
+                live_session_id=self._ctx.live_session_id,
             )
         )
 

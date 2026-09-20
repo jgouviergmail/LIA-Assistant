@@ -190,6 +190,8 @@ def _model_row(
         "input_unit_price": pricing.input_unit_price if pricing else None,
         "cached_input_unit_price": pricing.cached_input_unit_price if pricing else None,
         "output_unit_price": pricing.output_unit_price if pricing else None,
+        "audio_input_unit_price": pricing.audio_input_unit_price if pricing else None,
+        "audio_output_unit_price": pricing.audio_output_unit_price if pricing else None,
         "effective_from": pricing.effective_from.isoformat() if pricing else None,
         "time_slots_mode": "windows" if windows else "flat",
         "time_slots_summary": _slots_summary(windows, labels),

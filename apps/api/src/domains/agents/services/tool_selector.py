@@ -159,6 +159,7 @@ class SemanticToolSelector:
         self._embeddings: Any | None = None
         # Max-pooling: store list of embeddings per tool (one per keyword)
         self._tool_keyword_embeddings: dict[str, list[list[float]]] = {}
+        self._embedding_dimensions: int = 0
         # Track which keywords belong to which tool (for debugging)
         self._tool_keywords: dict[str, list[str]] = {}
         self._tool_manifests: dict[str, ToolManifest] = {}
@@ -299,7 +300,15 @@ class SemanticToolSelector:
         from src.infrastructure.llm.memory_embeddings import get_memory_embeddings
 
         self._embeddings = get_memory_embeddings()
-        self._embedding_model_name = app_settings.memory_embedding_model
+        # The cache is keyed on the model AND the width it is asked for: the same
+        # model serves 384 or 1536 dimensions on request, and a cache written at
+        # one width compared with queries at the other scored every tool 0 in
+        # silence (measured on dev 2026-09-19: 163 dimension-mismatch warnings per
+        # turn, the ranking blind, no error).
+        self._embedding_model_name = (
+            f"{app_settings.memory_embedding_model}:{app_settings.memory_embedding_dimensions}"
+        )
+        self._embedding_dimensions = int(app_settings.memory_embedding_dimensions)
 
         # Collect ALL texts for batch embedding (descriptions + keywords)
         all_texts: list[str] = []
@@ -370,7 +379,10 @@ class SemanticToolSelector:
             # once, which the provider answered with a capacity 429 and which
             # killed two workers in production (ADR-163).
             cached_embeddings, claim = await embeddings_cache.load_or_claim(
-                cache_path, content_hash, expected_count=len(all_texts)
+                cache_path,
+                content_hash,
+                expected_count=len(all_texts),
+                expected_dimension=self._embedding_dimensions,
             )
 
             if cached_embeddings is not None:

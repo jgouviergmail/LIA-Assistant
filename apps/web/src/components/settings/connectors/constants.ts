@@ -43,6 +43,7 @@ export const HUE_CONNECTOR_TYPES = ['philips_hue'] as const;
 
 export const TELEPHONY_CONNECTOR_TYPES = ['elevenlabs_telephony'] as const;
 
+
 // Gmail types (new + legacy) for checking if Gmail is connected
 export const GMAIL_TYPES = ['google_gmail', 'gmail'] as const;
 

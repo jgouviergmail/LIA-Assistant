@@ -9,22 +9,25 @@ failure mode.
 **It is a READ, and it is recorded.** The call reaches Google Places through
 its CLIENT rather than a tool, so the gate that fills the consultation register
 never saw it — and it is a paid Maps call on the DEPLOYMENT's key, made on the
-person's own address.
+person's own address. The spend goes through the ONE persistence path every
+family shares, a ``TrackingContext`` of its own: the direct recorder it used
+until 2026-09-20 wrote the usage log and the user statistics but neither the
+run's summary row nor the instance's daily ledger — half a ledger. The
+tracker keeps its own session on purpose: Google bills a search that finds
+nothing, and the request that then answers 400 rolls ITS session back.
 """
 
 from __future__ import annotations
 
 from time import perf_counter
-from typing import TYPE_CHECKING, Any
-from uuid import UUID
+from typing import Any
+from uuid import UUID, uuid4
 
 import structlog
 
 from src.core.config import settings
 from src.core.exceptions import raise_invalid_input
-
-if TYPE_CHECKING:  # pragma: no cover - typing only
-    from sqlalchemy.ext.asyncio import AsyncSession
+from src.domains.chat.service import TrackingContext
 
 logger = structlog.get_logger(__name__)
 
@@ -34,7 +37,6 @@ SECTION_GEOCODING = "geocoding"
 
 async def resolve_home_coordinates(
     *,
-    db: AsyncSession,
     user_id: UUID,
     user: Any,
     location: Any,
@@ -42,7 +44,6 @@ async def resolve_home_coordinates(
     """Geocode the address when the coordinates say nothing.
 
     Args:
-        db: Session, for the Google API usage record.
         user_id: Whose home location is being set.
         user: The account, for its language.
         location: The submitted location (address, lat, lon, place_id).
@@ -76,18 +77,21 @@ async def resolve_home_coordinates(
                 language=user.language or settings.default_language,
             )
 
-            # Use search_text to geocode the address. Recorded: it is a
-            # paid Maps call on the deployment's key, made on the person's
-            # own address — theirs, immediate, and reached through the
-            # CLIENT rather than a tool, so the gate never saw it.
+            # Use search_text to geocode the address. Recorded twice over: as
+            # a CONSULTATION (it is the person's own address, reached through
+            # the client rather than a tool, so the gate never saw it) and as
+            # a SPEND (the client records into the tracker opened here).
             _started = perf_counter()
             _geocode_failed = False
             try:
-                result = await places_client.search_text(
-                    query=location.address,
-                    max_results=1,
-                    use_cache=False,  # Don't cache geocoding results
-                )
+                async with TrackingContext(
+                    f"profile_geocoding_{uuid4().hex[:12]}", user_id, "profile_geocoding", None
+                ):
+                    result = await places_client.search_text(
+                        query=location.address,
+                        max_results=1,
+                        use_cache=False,  # Don't cache geocoding results
+                    )
             except Exception:
                 _geocode_failed = True
                 raise
@@ -126,17 +130,6 @@ async def resolve_home_coordinates(
             final_lat = place_location["latitude"]
             final_lon = place_location["longitude"]
             final_place_id = first_place.get("id")
-
-            # Track the API call (outside chat context, direct logging)
-            # Note: search_text tracking via ContextVar is skipped when no tracker active
-            from src.domains.google_api.service import GoogleApiUsageService
-
-            await GoogleApiUsageService.record_api_call(
-                db=db,
-                user_id=user_id,
-                api_name="places",
-                endpoint="/places:searchText",
-            )
 
             logger.info(
                 "home_location_geocoded",

@@ -1113,8 +1113,11 @@ class TestMetricsTracking:
         context = [{"name": "search_contacts", "args": {"query": "john"}}]
         await classifier.classify("peut-être", context)
 
-        # Verify clarification fallback metric was incremented
-        mock_fallback.inc.assert_called_once()
+        # Verify clarification fallback metric was incremented, WITH its label:
+        # incrementing it bare raised inside the classification and turned every
+        # AMBIGUOUS answer into an EDIT (measured 2026-09-19).
+        mock_fallback.labels.assert_called_once_with(reason="classified")
+        mock_fallback.labels.return_value.inc.assert_called_once()
 
 
 # ============================================================================

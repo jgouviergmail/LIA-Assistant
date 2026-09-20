@@ -50,6 +50,7 @@ const ALL_AVAILABLE: SettingsSearchAvailability = {
   habitsEnabled: true,
   peersEnabled: true,
   sandboxEgressEnabled: true,
+  liveEnabled: true,
   debugUserAccess: true,
 };
 
@@ -108,7 +109,10 @@ describe('SETTINGS_SEARCH_META — describes the page it claims to describe', ()
     // 61 since the sandbox network section joined Features / Extensions & Data
     // (ADR-298, 2026-09-18): what a script may reach without asking, and the
     // permissions the person gave from a chat question.
-    expect(TOKENS).toHaveLength(61);
+    // 62 since the live mode section joined Preferences / Voice & Media
+    // (ADR-299, 2026-09-18): the live connector's model, voice and thinking
+    // level, and the four conversation reflexes.
+    expect(TOKENS).toHaveLength(62);
   });
 
   it.each(Object.keys(LOCALES) as LocaleCode[])(

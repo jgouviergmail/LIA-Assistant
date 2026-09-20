@@ -42,6 +42,12 @@ class ReadScope(str, Enum):
 #: Module path → (scope, reason). Every reader outside the repository, and
 #: nothing else: the guard refuses an omission AND a stale entry.
 MESSAGE_READERS: Final[dict[str, tuple[ReadScope, str]]] = {
+    "src.domains.voice_sessions.summary": (
+        ReadScope.WHOLE_RECORD,
+        "narrows to rows stamped with a voice session key (ADR-299, ADR-301 — a browser "
+        "session id or a phone call's run id), a key a hidden run never writes: the run "
+        "ids of the session's delegated turns and its voice-only rows",
+    ),
     "src.domains.conversations.activity_probe": (
         ReadScope.VISIBLE_ONLY,
         "when the person was last active — a run's synthetic question is not them speaking",

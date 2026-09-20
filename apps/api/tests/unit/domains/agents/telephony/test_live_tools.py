@@ -30,6 +30,7 @@ from src.domains.agents.registry.catalogue import ParameterConstraint, Parameter
 from src.domains.agents.telephony.live_tools import (
     NATIVE_LOOKUPS,
     LiveToolSpec,
+    VoiceToolHost,
     assert_live_tools_completeness,
     available_live_tools,
     derive_live_tool_specs,
@@ -385,6 +386,62 @@ async def test_availability_reads_the_flag_the_capabilities_and_the_person_s_swi
     assert await available_live_tools() == ()
 
 
+@pytest.mark.unit
+async def test_availability_takes_the_caller_s_gate_over_the_telephony_flag(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # ADR-300 wave 4: a direct live session is gated by the live capability,
+    # not by the telephony flag — it passes its own gate explicitly.
+    specs = derive_live_tool_specs(_catalogue(), domain_of=_domain_of)
+    monkeypatch.setattr(mod, "_SPECS", specs)
+
+    async def _hidden(_registry: object) -> set[str]:
+        return set()
+
+    monkeypatch.setattr(mod, "tools_hidden_by_capabilities", _hidden)
+    monkeypatch.setattr(mod, "get_global_registry", lambda: object())
+    monkeypatch.setattr(settings, "telephony_live_tools_enabled", False)
+    assert await available_live_tools(feature_enabled=True) == specs
+    monkeypatch.setattr(settings, "telephony_live_tools_enabled", True)
+    assert await available_live_tools(feature_enabled=False) == ()
+
+
+@pytest.mark.unit
+def test_function_declaration_projects_a_derived_tool_and_a_native_lookup(
+    _provisioning: dict,
+) -> None:
+    """One provider-neutral shape (ADR-300 wave 4): the OpenAPI subset every
+    live provider's function calling reads, the same projection the vendor
+    bodies use without the vendor envelope, and no ``behavior`` — a result
+    is awaited."""
+    declaration = mod.function_declaration(spec_for("get_route_tool"))  # type: ignore[arg-type]
+    assert declaration["name"] == "get_route_tool"
+    assert declaration["description"]
+    parameters = declaration["parameters"]
+    assert parameters["type"] == "object"
+    assert parameters["required"] == ["destination"]
+    assert parameters["properties"]["destination"]["type"] == "string"
+    # The items carry a description: the vendor refuses an array without one
+    # (422, measured on the phone and on a live session).
+    assert parameters["properties"]["waypoints"] == {
+        "type": "array",
+        "description": "waypoints",
+        "items": {"type": "string", "description": "One value."},
+    }
+    assert parameters["properties"]["avoid_tolls"]["type"] == "boolean"
+    assert "behavior" not in declaration
+    native = mod.function_declaration(spec_for("recall_memories"))  # type: ignore[arg-type]
+    assert native["name"] == "recall_memories"
+    assert native["parameters"]["required"] == ["query"]
+    assert native["parameters"]["properties"]["query"]["type"] == "string"
+    # The same parameters the vendor bodies carry — plus the vendor's own
+    # ``call_id``, which the direct session has no use for: one projection,
+    # two envelopes.
+    body = vendor_bodies([spec_for("get_route_tool")], token="t")[0]  # type: ignore[list-item]
+    schema = body["tool_config"]["api_schema"]["request_body_schema"]
+    assert set(schema["properties"]) - {"call_id"} == set(parameters["properties"])
+
+
 # ---------------------------------------------------------------------------
 # Provisioning, idempotent by fingerprint
 # ---------------------------------------------------------------------------
@@ -715,7 +772,7 @@ async def _run(spec_name: str = "get_events_tool", **args: Any) -> str:
         language="fr",
         timezone="Europe/Paris",
         display_name="Alex",
-        call_id=uuid4(),
+        host=VoiceToolHost.phone_call(uuid4()),
     )
 
 
@@ -825,7 +882,7 @@ async def test_run_spends_under_the_call_s_own_run_id(
         language="fr",
         timezone="Europe/Paris",
         display_name="Alex",
-        call_id=call_id,
+        host=VoiceToolHost.phone_call(call_id),
     )
     tracker = _execution["tracker"]
     assert tracker["run_id"] == phone_call_run_id(call_id)
@@ -840,6 +897,48 @@ async def test_run_spends_under_the_call_s_own_run_id(
     # node enrichment adds), so the tool's own model calls reach the tracker.
     assert _execution["callback_instance"] in seen["callbacks"]
     assert seen["node"] == "telephony_live_tool"
+
+
+@pytest.mark.unit
+async def test_run_files_a_live_session_lookup_under_the_session_s_own_run(
+    _execution: dict, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """ADR-300 wave 4: the same runner, another host — everything a direct
+    session looks up is filed on the ``live_session`` surface under the
+    session's run id, its spend under its own node."""
+    seen: dict[str, Any] = {}
+
+    @tool
+    async def get_events_tool(
+        runtime: Annotated[ToolRuntime, InjectedToolArg], query: str = ""
+    ) -> UnifiedToolOutput:
+        """Fake agenda reading its config."""
+        seen["node"] = (runtime.config.get("metadata") or {}).get("langgraph_node")
+        seen["thread"] = runtime.context.thread_id
+        return UnifiedToolOutput.data_success(message="ok", structured_data={"events": []})
+
+    monkeypatch.setattr(mod, "get_tool", lambda _n: get_events_tool)
+    session_id = "s" * 32
+    run_id = f"live_session_{session_id}"
+    await run_live_tool(
+        spec_for("get_events_tool"),  # type: ignore[arg-type]
+        {"query": "q"},
+        user_id=uuid4(),
+        language="fr",
+        timezone="Europe/Paris",
+        display_name="Alex",
+        host=VoiceToolHost.live_session(session_id, run_id),
+    )
+    assert _execution["tracker"]["run_id"] == run_id
+    assert _execution["tracker"]["session_id"] == f"live_session_{session_id}"
+    assert _execution["collector_run_id"] == run_id
+    consultation = _execution["consultations"][0]
+    assert consultation["surface"] == "live_session"
+    assert consultation["run_id"] == run_id
+    assert consultation["opened"] == [spec_for("get_events_tool").section]  # type: ignore[union-attr]
+    assert seen["node"] == "live_session_tool"
+    # The thread is the session's own: context saved by a tool never lands in a conversation.
+    assert seen["thread"] == f"live_session:{session_id}"
 
 
 @pytest.mark.unit

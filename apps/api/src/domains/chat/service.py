@@ -189,20 +189,20 @@ class TrackingContext:
             current_tracker.reset(self._context_token)
             self._context_token = None
 
-        # Check if there are NEW records to commit (supports incremental commits)
-        # Records are cleared after each commit, so _node_records only contains pending ones
-        pending_records = len(self._node_records)
-        if pending_records == 0:
+        # Anything billed and not yet filed — in ANY family, never the model's
+        # alone (supports incremental commits: buckets are cleared after each
+        # persist, so they only ever hold what is pending).
+        pending = self.pending_families()
+        if not any(pending.values()):
             logger.debug(
                 "tracking_context_no_pending_records",
                 run_id=self.run_id,
                 total_committed=self._total_committed_records,
-                message_count=self._message_count,
             )
             return
 
         # Persist whenever auto_commit is enabled — INCLUDING on exception or
-        # cancellation (ADR-117): pending records correspond to LLM calls that
+        # cancellation (ADR-117): pending records correspond to calls that
         # actually happened and were billed by the provider. The UPSERT commit
         # is incremental and idempotent (records are cleared after persist),
         # so this cannot double-count.
@@ -218,9 +218,8 @@ class TrackingContext:
                 logger.info(
                     "tracking_context_persisted",
                     run_id=self.run_id,
-                    node_records_count=pending_records,
+                    pending=pending,
                     total_committed=self._total_committed_records,
-                    message_count=self._message_count,
                     exit_exception=exc_type.__name__ if exc_type else None,
                 )
             except Exception as e:
@@ -235,8 +234,7 @@ class TrackingContext:
             logger.debug(
                 "tracking_context_skipped_auto_commit",
                 run_id=self.run_id,
-                node_records_count=len(self._node_records),
-                message_count=self._message_count,
+                pending=pending,
             )
 
         logger.debug(
@@ -940,6 +938,29 @@ class TrackingContext:
         summary_dict = await self.get_aggregated_summary_from_db()
         return TokenSummaryDTO.from_dict(summary_dict)
 
+    def pending_families(self) -> dict[str, int]:
+        """What is billed and not yet filed, per family — the ONE persistence predicate.
+
+        Both doors (``__aexit__`` and :meth:`commit`) read this and nothing
+        else. They used to count the model's records alone: ``commit()`` had
+        learnt TTS one incident later (a sync-fallback voice flow records only
+        TTS) and Google API never, so a tracker holding only Maps Platform
+        records — a phone-call or live-session lookup on Places or Routes,
+        which makes no model call — wrote nothing to any ledger (2026-09-19).
+        A guard refuses a record bucket this method does not read.
+
+        Returns:
+            One count per family; ``message`` is the not-yet-filed user
+            message count, ``google_api`` counts billable (non-cached) calls.
+        """
+        return {
+            "llm": len(self._node_records),
+            "google_api": sum(1 for r in self._google_api_records if not r.cached),
+            "image_generation": len(self._image_generation_records),
+            "tts": len(self._tts_records),
+            "message": 0 if self._message_count_committed else self._message_count,
+        }
+
     async def commit(self) -> None:
         """
         Manually commit tracking data to database.
@@ -957,16 +978,8 @@ class TrackingContext:
             >>>     # TTS tokens tracked via record_node_tokens()
             >>>     # __aexit__ commits remaining TTS tokens
         """
-        # Check for pending records (not yet committed)
-        pending_records = len(self._node_records)
-        pending_message = self._message_count > 0 and not self._message_count_committed
-        # TTS records sit in their own bucket — a sync-fallback voice flow
-        # (PATH 2A direct_tts / PATH 2B sync voice_comment) records ONLY
-        # TTS, no LLM. Without this guard the commit would short-circuit and
-        # _run_tts_records would never be populated for the late backfill.
-        pending_tts = len(self._tts_records)
-
-        if pending_records == 0 and not pending_message and pending_tts == 0:
+        pending = self.pending_families()
+        if not any(pending.values()):
             logger.debug(
                 "tracking_context_commit_skipped_no_pending",
                 run_id=self.run_id,
@@ -980,9 +993,8 @@ class TrackingContext:
             logger.info(
                 "tracking_context_manually_committed",
                 run_id=self.run_id,
-                node_records_count=pending_records,
+                pending=pending,
                 total_committed=self._total_committed_records,
-                message_count=self._message_count,
             )
         except Exception as e:
             logger.error(

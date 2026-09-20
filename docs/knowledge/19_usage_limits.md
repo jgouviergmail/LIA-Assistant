@@ -127,6 +127,9 @@ an operator can tighten what the deployment allows, never widen it.
 ## Do the ceilings cover everything LIA consumes?
 Everything **the instance pays for**, yes. Language models, speech synthesis and recognition, image generation and maps all run on the deployment's own provider keys, so every one of those calls answers to **both ceilings**: your personal quota and the instance's daily budget.
 
-What goes through **your own key** at a provider — web search, weather, telephony — stays outside them: the instance is not paying that bill.
+What goes through **your own key** at a provider — web search, weather, telephony, a live voice model — stays outside them: the instance is not paying that bill.
+
+## Is everything the platform pays for me counted — even outside the chat?
+Yes — and it is a rule, not only for the model's tokens. Whatever the platform pays for you with its own keys reaches your usage, your cost tiles and your limits: a map or place lookup during a phone call or a direct live session, the weather and air-quality calls of the morning briefing, the geocoding of your profile address, a photo of a place LIA shows you (counted when it is actually displayed, never in advance), a voice synthesis (counted only for the sentences actually delivered). Each phone bill and each live session card show one figure for what the run cost, Maps euros included. Only what you pay with **your own** connector keys — a live model, the phone agent, a web search on your key — stays outside: it is displayed to you where it happens, and recorded nowhere. An administrator watches an alert that must stay at zero: a paid call that reached no ledger.
 
 A refusal looks different depending on where it lands, and that is deliberate. A request you just made answers plainly, naming the limit reached and when it lifts. A background task — a reminder notification, a dashboard synthesis, a self-check — **gives up quietly** and records itself as *skipped*, never as *failed*: a quota refusal is not a generation failure, and displaying it as one would send an operator looking for a fault that does not exist.

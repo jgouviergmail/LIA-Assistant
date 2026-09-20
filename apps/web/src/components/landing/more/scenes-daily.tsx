@@ -20,6 +20,7 @@ import {
   Sparkles,
   LifeBuoy,
   Phone,
+  AudioLines,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -557,6 +558,67 @@ function PhoneChannelScene({ active, labels }: SceneProps) {
   );
 }
 
+type LiveBandPhase = 'live' | 'you' | 'working' | 'lia' | 'meter';
+const LIVE_BAND_STEPS: readonly TimelineStep<LiveBandPhase>[] = [
+  { at: 0, state: 'live' },
+  { at: 900, state: 'you' },
+  { at: 1900, state: 'working' },
+  { at: 3100, state: 'lia' },
+  { at: 4000, state: 'meter' },
+];
+const LIVE_BAND_ORDER: readonly LiveBandPhase[] = ['live', 'you', 'working', 'lia', 'meter'];
+
+/**
+ * A live session: the band above the thread says you are talking with LIA,
+ * the captions run, the status names the delegation while the chat works,
+ * and the indicative meter of what the provider bills sits under the last
+ * caption — shown, never recorded (ADR-299, ADR-300 wave 3).
+ */
+function LiveBandScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(LIVE_BAND_STEPS, { active });
+  const reached = (step: LiveBandPhase) =>
+    LIVE_BAND_ORDER.indexOf(phase) >= LIVE_BAND_ORDER.indexOf(step);
+  const working = phase === 'working';
+  return (
+    <div className={cn(STAGE, 'justify-start gap-1.5')}>
+      <div className="flex items-center gap-1.5 self-stretch rounded-md border border-primary/30 bg-primary/5 px-2 py-1 text-[10px]">
+        <AudioLines
+          className={cn('h-3 w-3 shrink-0 text-primary', !working && 'motion-safe:animate-pulse')}
+        />
+        <span className="truncate font-medium text-primary">
+          {working ? labels.working : labels.status}
+        </span>
+      </div>
+      <MiniBubble
+        side="user"
+        className={cn(
+          'transition-all duration-300',
+          reached('you') ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
+        )}
+      >
+        {labels.you}
+      </MiniBubble>
+      <MiniBubble
+        side="assistant"
+        className={cn(
+          'transition-all duration-300',
+          reached('lia') ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
+        )}
+      >
+        {labels.lia}
+      </MiniBubble>
+      <div
+        className={cn(
+          'ml-1 border-l-2 border-primary/30 pl-2 text-[9px] text-muted-foreground transition-opacity duration-300',
+          phase === 'meter' ? 'opacity-100' : 'opacity-0'
+        )}
+      >
+        {labels.meter}
+      </div>
+    </div>
+  );
+}
+
 export const DAILY_SCENES: Readonly<Record<string, SceneComponent>> = {
   alerts_hub: AlertsHubScene,
   briefing_custom: BriefingCustomScene,
@@ -567,5 +629,6 @@ export const DAILY_SCENES: Readonly<Record<string, SceneComponent>> = {
   empty_starters: EmptyStartersScene,
   pwa: PwaScene,
   phone_channel: PhoneChannelScene,
+  live_band: LiveBandScene,
   server_escape_hatch: ServerEscapeHatchScene,
 };

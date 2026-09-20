@@ -8,6 +8,7 @@ import {
 } from '@/types/chat';
 import {
   AlertCircle,
+  AudioLines,
   Check,
   Copy,
   Download,
@@ -31,6 +32,8 @@ import { isInterestNotificationMetadata } from './InterestNotificationCard';
 import { MeetingMinutesCard } from '@/components/meetings/MeetingMinutesCard';
 import { isMeetingNotificationMetadata } from '@/types/meetings';
 import { CallDebrief } from '@/components/telephony/CallDebrief';
+import { LiveSessionSummaryCard } from '@/components/live/LiveSessionSummaryCard';
+import { isLiveRow, isLiveSummary } from '@/lib/live/live-message';
 import { isPhoneCallDebrief } from '@/types/telephony';
 import {
   ProactiveFeedbackButtons,
@@ -174,16 +177,17 @@ export function proactiveFeedbackProps(
 }
 
 /**
- * Token fields of a bubble: proactive notifications read from metadata
- * (centrally injected by the runner) with message-level fields (DB JOIN via
- * run_id) as fallback; ordinary messages read the message fields directly.
+ * Token fields of a bubble: proactive notifications and the live session
+ * summary (ADR-299: LIA's own spend over the session, aggregated at its end)
+ * read from metadata (centrally injected) with message-level fields (DB JOIN
+ * via run_id) as fallback; ordinary messages read the message fields directly.
  * Pure helper extracted from the render hotspot (CC discipline).
  */
 function resolveTokenFields(
   message: Message,
   isProactiveMessage: boolean
 ): { tokensIn?: number; tokensOut?: number; tokensCache: number; costEur: number } {
-  if (!isProactiveMessage) {
+  if (!isProactiveMessage && !isLiveSummary(message.metadata)) {
     return {
       tokensIn: message.tokensIn,
       tokensOut: message.tokensOut,
@@ -294,6 +298,37 @@ function PhoneOriginMark({ metadata }: { metadata?: Record<string, unknown> }) {
       </span>
     </>
   );
+}
+
+/**
+ * Said during a live session (ADR-299): a voice-only exchange or a delegated
+ * request, either role, carries the session's mark. Renders nothing otherwise.
+ */
+function LiveOriginMark({ metadata }: { metadata?: Record<string, unknown> }) {
+  const { t } = useTranslation();
+  if (!isLiveRow(metadata) || isLiveSummary(metadata)) return null;
+  return (
+    <>
+      {' | '}
+      <span
+        className="inline-flex items-center gap-1 text-primary"
+        role="img"
+        aria-label={t('live.captions.title')}
+        title={t('live.captions.title')}
+      >
+        <AudioLines className="inline h-3 w-3" aria-hidden="true" />
+      </span>
+    </>
+  );
+}
+
+/**
+ * The Markdown an assistant bubble renders: everything, except a live
+ * session summary, whose Markdown is the FALLBACK for other surfaces and is
+ * drawn here as a card instead (module-level — CC discipline).
+ */
+function assistantBody(message: Message): string {
+  return isLiveSummary(message.metadata) ? '' : message.content;
 }
 
 function PhoneCallDebriefBlock({ metadata }: { metadata?: Record<string, unknown> }) {
@@ -419,7 +454,9 @@ function AssistantActionRow({
 function assistantBubbleSurface(metadata: Record<string, unknown> | undefined): string {
   const rawType = metadata?.type;
   const type = typeof rawType === 'string' ? rawType : '';
-  if (type.startsWith('proactive_peer')) {
+  // ADR-299: the live session's closing card wears the same primary tint as
+  // the band the session was drawn in.
+  if (type.startsWith('proactive_peer') || isLiveSummary(metadata)) {
     return 'bg-primary/10 border-primary/25 hover:bg-primary/15';
   }
   if (type.startsWith('proactive_')) {
@@ -1075,11 +1112,14 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
                 stitch unrelated sentences). */}
             <div key={markdownKey} className={phaseFadeClass} data-selection-scope="assistant">
               <MarkdownContent
-                content={message.content}
+                content={assistantBody(message)}
                 isUser={false}
                 searchHighlight={props.searchHighlight}
               />
             </div>
+            {/* ADR-299: the live session's closing card (renders nothing on
+                every other row — the card owns its check). */}
+            <LiveSessionSummaryCard metadata={message.metadata} />
             {/* AI-generated images — inside bubble after text content */}
             {message.generatedImages && message.generatedImages.length > 0 && (
               <GeneratedImageCards images={message.generatedImages} />
@@ -1123,6 +1163,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
           </div>
           <span className="text-[11px] mobile:text-xs text-muted-foreground mt-1.5 px-1 font-medium whitespace-nowrap w-full text-right">
             {formatTime(message.timestamp)}
+            <LiveOriginMark metadata={message.metadata} />
             {/* ADR-117 Lot 3: partial answer of a cancelled/interrupted run.
                 Same metadata flag for live bubbles (synthesized done) and
                 archived history rows. */}
@@ -1206,6 +1247,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(props => {
         <span className="text-[11px] mobile:text-xs text-muted-foreground mt-1.5 px-1 font-medium whitespace-nowrap w-full text-left">
           {formatTime(message.timestamp)}
           <PhoneOriginMark metadata={message.metadata} />
+          <LiveOriginMark metadata={message.metadata} />
           {/* Voice source indicator (only for voice messages) */}
           {message.source === 'voice' && (
             <span className="hidden mobile:inline">

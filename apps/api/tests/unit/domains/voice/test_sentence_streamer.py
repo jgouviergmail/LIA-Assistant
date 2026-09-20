@@ -10,7 +10,7 @@ Covers the invariants of :class:`ProgressiveSentenceStreamer`:
 - ``cancel_pending()`` releases tasks and emits the sentinel exactly once
 - ``close_input()`` with no buffered text + zero dispatched sentences
   produces an empty stream and a single sentinel
-- ``on_chars_synthesized`` callback fires per sentence and exceptions
+- ``on_chars_synthesized`` callback fires per SERVED sentence (never for a refused one) and exceptions
   raised inside it never break the stream
 - ``first_audio_latency_seconds`` is populated only after a chunk lands
 """
@@ -295,6 +295,58 @@ async def test_on_chars_synthesized_called_once_per_sentence() -> None:
 
     # "AB." → 3 chars, "CDEF." → 5 chars. Order matches dispatch order.
     assert counts == [3, 5]
+
+
+@pytest.mark.unit
+async def test_a_refused_sentence_costs_nothing_a_served_one_costs_its_length() -> None:
+    """The characters are counted when the provider RETURNS audio, never at dispatch.
+
+    Measured on Docker dev 2026-09-20: four streams refused on every sentence
+    (``invalid_api_key``, zero chunks) each recorded a TTS cost and stamped
+    the message — absence of delivery was billed. A refused sentence spends
+    nothing; a served one costs exactly its length.
+    """
+    counts: list[int] = []
+
+    async def _synth(sentence: str) -> str:
+        if sentence.startswith("KO"):
+            raise RuntimeError("provider refused")
+        return f"ok-{sentence}"
+
+    streamer = ProgressiveSentenceStreamer(
+        synth=_synth,
+        max_sentences=5,
+        audio_format="mp3",
+        on_chars_synthesized=counts.append,
+    )
+    streamer.feed("KO one. Served two. KO three.")
+    streamer.close_input()
+    chunks = await _collect(streamer)
+
+    assert [c.phrase_text for c in chunks] == ["Served two."]
+    assert counts == [len("Served two.")]
+
+
+@pytest.mark.unit
+async def test_a_stream_refused_on_every_sentence_counts_no_character() -> None:
+    counts: list[int] = []
+
+    async def _refuse(_: str) -> str:
+        raise RuntimeError("invalid_api_key")
+
+    streamer = ProgressiveSentenceStreamer(
+        synth=_refuse,
+        max_sentences=5,
+        audio_format="mp3",
+        on_chars_synthesized=counts.append,
+    )
+    streamer.feed("One. Two. Three.")
+    streamer.close_input()
+    chunks = await _collect(streamer)
+
+    assert chunks == []
+    assert counts == []
+    assert streamer.dispatched_sentences == 3
 
 
 @pytest.mark.unit

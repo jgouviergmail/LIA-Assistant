@@ -4,7 +4,7 @@
 
 **Versión**: 2.1
 **Fecha**: 2026-09-18
-**Aplicación**: LIA v1.46.0
+**Aplicación**: LIA v1.47.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -19,9 +19,9 @@ La casi totalidad del código fue escrita por una IA, bajo dirección humana: un
 | --- | --- |
 | Código escrito por una IA — dirigida, encuadrada, controlada | **≈ 100 %** |
 | Líneas de código (sin tests) — 49 dominios funcionales | **660.000** |
-| Tests automatizados, ejecutados en cada commit y entrega | **38.000+** |
-| Decisiones de arquitectura documentadas (ADR) | **297** |
-| Versiones entregadas a ritmo regular | **264** |
+| Tests automatizados, ejecutados en cada commit y entrega | **39.000+** |
+| Decisiones de arquitectura documentadas (ADR) | **300** |
+| Versiones entregadas a ritmo regular | **265** |
 | Idiomas, paridad verificada automáticamente | **6** |
 | Auditoría técnica sobre 24 perímetros | **8,3/10** |
 
@@ -50,19 +50,19 @@ Una IA que programa produce volumen; solo produce calidad bajo restricción. Cua
 
 ## 4. Los arbitrajes
 
-Tres decisiones estructurantes, entre las 297 documentadas:
+Tres decisiones estructurantes, entre las 300 documentadas:
 
 **Soberanía y reversibilidad — ninguna dependencia irreversible de proveedor.** Los modelos de IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modelos locales vía Ollama) están detrás de una abstracción única: cada uso puede cambiar de proveedor por configuración, con comparación de costes. Mismo principio del lado del negocio: Google, Apple y Microsoft son intercambiables por categoría funcional. El alojamiento está íntegramente controlado; los datos personales están cifrados y permanecen en la infraestructura.
 
 **Economía de la IA — el coste por petición es un criterio de diseño.** Dos modos de ejecución coexisten: un pipeline determinista y económico para las peticiones corrientes, un modo agente autónomo para las exploratorias — la diferencia de consumo medida va de 1 a 4-8, con servicio equivalente en los casos estándar. Cada llamada se cuenta por token, se valora en euros, se agrega por usuario y por modelo, se gobierna por cuotas. Incluso una notificación de dos frases se pide sin razonamiento, porque un modelo que razona por defecto factura su razonamiento dentro del presupuesto de la respuesta. Y el modo agente solo lleva consigo las herramientas que la pregunta reclama — elegidas por relevancia, nunca por orden de llegada —, porque ochenta esquemas de herramientas pesaban lo esencial de una primera llamada sin contarse.
 
-**Control del riesgo — ninguna acción irreversible sin validación humana.** Seis niveles de control humano, graduados según la sensibilidad de la acción — de la clarificación a la confirmación de las operaciones destructivas. El comportamiento en caso de interrupción está especificado y probado: una validación pendiente sobrevive a los reinicios, sin pérdida ni doble ejecución. Varias acciones en una misma petición se presentan una a una, cada una en su tarjeta, y el informe dice qué se hizo y para quién. El teléfono sigue la misma línea: la tarjeta protege a un tercero, así que cuando LIA llama a la propia persona — a un número declarado y verificado con un código leído en voz alta — la tarjeta es la persona; al teléfono la asistente lee todo lo que lee el chat y no actúa sobre nada, y lo que corre con la clave propia del proveedor se factura allí, nunca se cuenta aquí. Lo que envía un desconocido — un correo, su adjunto — sigue siendo un dato que leer, nunca una instrucción que seguir. Y un script que la asistente escribe llega a la web por una sola puerta, las claves de la persona cambiadas fuera de él — un host que nadie permitió se pregunta antes: con los datos, sin ellos, o nada.
+**Control del riesgo — ninguna acción irreversible sin validación humana.** Seis niveles de control humano, graduados según la sensibilidad de la acción — de la clarificación a la confirmación de las operaciones destructivas. El comportamiento en caso de interrupción está especificado y probado: una validación pendiente sobrevive a los reinicios, sin pérdida ni doble ejecución. Varias acciones en una misma petición se presentan una a una, cada una en su tarjeta, y el informe dice qué se hizo y para quién. El teléfono sigue la misma línea: la tarjeta protege a un tercero, así que cuando LIA llama a la propia persona — a un número declarado y verificado con un código leído en voz alta — la tarjeta es la persona; al teléfono — como en una sesión de voz live del navegador, con la clave propia de Gemini, OpenAI o ElevenLabs de la persona — el modo es su elección: la voz confía cada petición al chat en cuanto se dice, con sus confirmaciones, o lee sola y no actúa sobre nada; y lo que corre con la clave propia del proveedor se factura allí, se muestra una vez, nunca se cuenta aquí. Lo que la propia plataforma paga por la persona — una consulta de mapa durante una llamada, el tiempo del briefing, una foto mostrada — llega a su libro, sea cual sea el camino. Lo que envía un desconocido — un correo, su adjunto — sigue siendo un dato que leer, nunca una instrucción que seguir. Y un script que la asistente escribe llega a la web por una sola puerta, las claves de la persona cambiadas fuera de él — un host que nadie permitió se pregunta antes: con los datos, sin ellos, o nada.
 
 ## 5. La explotación
 
 Un sistema que se pilota con instrumentos:
 
-- **Observabilidad**: veintinueve paneles — salud aplicativa, compromisos de servicio, costes de IA, comportamiento de los agentes, infraestructura. Más de 540 métricas; logs estructurados centralizados con filtrado de datos personales; trazado distribuido de extremo a extremo. Unos cuarenta procedimientos de explotación escritos — diagnóstico, remediación, restauración. Y el asistente lee él mismo esa telemetría: autocomprobación periódica, una memoria de incidentes diagnosticados sobre esas mismas procedimientos, y respuestas que esquivan una avería conocida. Y un diagnóstico muestra las evidencias de las que nació. Y los instrumentos llegan hasta los procesos: cada worker de la API publica lo que retiene en memoria, de modo que un total de contenedor se lee proceso a proceso.
+- **Observabilidad**: treinta paneles — salud aplicativa, compromisos de servicio, costes de IA, comportamiento de los agentes, infraestructura. Más de 540 métricas; logs estructurados centralizados con filtrado de datos personales; trazado distribuido de extremo a extremo. Unos cuarenta procedimientos de explotación escritos — diagnóstico, remediación, restauración. Y el asistente lee él mismo esa telemetría: autocomprobación periódica, una memoria de incidentes diagnosticados sobre esas mismas procedimientos, y respuestas que esquivan una avería conocida. Y un diagnóstico muestra las evidencias de las que nació. Y los instrumentos llegan hasta los procesos: cada worker de la API publica lo que retiene en memoria, de modo que un total de contenedor se lee proceso a proceso.
 - **Entrega**: despliegue contenerizado, migraciones de esquema automatizadas, imágenes publicadas para dos arquitecturas de hardware (amd64/arm64).
 - **Costes**: infraestructura frugal por elección — unos 150 € de hardware, cero licencias, bloques open source dimensionados a la necesidad real.
 - **Conformidad**: seguridad revisada punto de acceso por punto de acceso; cifrado de los datos personales; ciclo de vida de las cuentas alineado con el RGPD.

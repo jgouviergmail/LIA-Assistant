@@ -140,7 +140,7 @@ class TelephonyRepository(BaseRepository[PhoneCall]):
         completed_at: datetime,
         notification_content: str,
         notification_title: str,
-        notification_status: NotificationStatus = NotificationStatus.PENDING,
+        notification_status: NotificationStatus | None = NotificationStatus.PENDING,
     ) -> bool:
         """Atomically transition an in-flight call to terminal + arm the return.
 
@@ -158,7 +158,10 @@ class TelephonyRepository(BaseRepository[PhoneCall]):
         ``notification_status`` is ``PENDING`` for a return the dispatcher
         delivers, ``RELAYING`` for an owner call whose return becomes the
         person's own chat turn (lot 4) — the payload is then the FALLBACK the
-        reaper sends if the relay never settles.
+        reaper sends if the relay never settles — and ``None`` for a LIVE
+        owner call (ADR-301), whose every request already reached the chat
+        while the person was on the line: nothing is left to deliver, and the
+        notification reaper reads NULL as exactly that.
 
         Returns:
             ``True`` if this call transitioned the row (winner), ``False`` if the

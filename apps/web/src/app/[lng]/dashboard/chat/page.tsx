@@ -56,6 +56,10 @@ import type { CapabilityDirectiveWire } from '@/types/directive';
 import { useUsageLimits } from '@/hooks/useUsageLimits';
 import { UsageBanners } from '@/components/usage/UsageBanners';
 import { ActiveCallBanner } from '@/components/telephony/ActiveCallBanner';
+import { LiveBanner } from '@/components/live/LiveBanner';
+import { useLiveChatBindings } from '@/components/live/useLiveChatBindings';
+import { useLiveSession } from '@/hooks/useLiveSession';
+import { useLiveHoldsMicrophone } from '@/stores/liveStore';
 import { ActiveSpacesIndicator } from '@/components/spaces/ActiveSpacesIndicator';
 
 /** Short locale of an i18n language tag ("fr-FR" → "fr"; default "fr"). */
@@ -79,6 +83,27 @@ function composerFeatureFlags(config: AppConfig | null): {
     attachmentsEnabled: config?.features?.attachments_enabled ?? true,
     knowledgeDocumentsEnabled: config?.features?.rag_spaces_enabled ?? false,
     meetingsEnabled: config?.features?.meetings_enabled ?? false,
+  };
+}
+
+/**
+ * What locks the composer and the voice badge (module-level — CC discipline):
+ * a running turn, the quota wall, and — ADR-299 — a live session, which owns
+ * the microphone and the turn (the person speaks; the composer says why it is
+ * closed). `apiUsable` is what the composer's own availability line reads.
+ */
+function composerLocks(flags: {
+  apiAvailable: boolean;
+  isTyping: boolean;
+  isUsageBlocked: boolean;
+  liveOpen: boolean;
+}): { input: boolean; voice: boolean; apiUsable: boolean; reasonKey: string | null } {
+  const { apiAvailable, isTyping, isUsageBlocked, liveOpen } = flags;
+  return {
+    input: isTyping || isUsageBlocked || liveOpen,
+    voice: !apiAvailable || isTyping || isUsageBlocked || liveOpen,
+    apiUsable: apiAvailable && !isUsageBlocked,
+    reasonKey: liveOpen ? 'live.composer_locked' : null,
   };
 }
 
@@ -209,6 +234,19 @@ export default function ChatPage() {
   // Blink the tab title while LIA works and the tab is in the background (I5)
   useLiveTabTitle(isTyping);
 
+  // Live mode (ADR-299): the session speaks to the chat through its own
+  // doors, and locks the composer while it holds the microphone.
+  const liveBindings = useLiveChatBindings({
+    messages,
+    hitl,
+    sendMessage,
+    appendMessage,
+    stopGeneration,
+  });
+  const liveSession = useLiveSession(liveBindings);
+  const liveOpen = useLiveHoldsMicrophone();
+  const locks = composerLocks({ apiAvailable, isTyping, isUsageBlocked, liveOpen });
+
   const {
     loadConversationPage,
     loadOlderMessages,
@@ -284,8 +322,36 @@ export default function ChatPage() {
 
   // Callback to handle proactive notifications (interest, heartbeat, future types)
   // Same pattern as reminders: append locally to avoid race conditions
+  // The relayed turn of a DIRECT live session settled (ADR-301): its rows
+  // and the rewritten closing card are in the thread — reload it, never
+  // append a bubble that exists nowhere.
+  const reloadConversation = useCallback(
+    async (reason: string) => {
+      try {
+        const page = await loadConversationPage();
+        if (page.messages.length > 0) {
+          setMessages(page.messages);
+        }
+        // Reset pagination state — list snaps back to the newest page.
+        setHasMoreOlder(page.hasMore);
+        setOldestCursor(page.nextCursor);
+      } catch (error) {
+        logger.warn(`Failed to reload conversation after ${reason}`, {
+          component: 'ChatPage',
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    },
+    [loadConversationPage, setMessages]
+  );
+
   const handleProactiveNotification = useCallback(
     (content: string, targetId: string, metadata?: Record<string, unknown>) => {
+      if (metadata?.event === 'live_relay') {
+        toast.info(content, { duration: 5000 });
+        void reloadConversation('live relay');
+        return;
+      }
       // 1. Toast — title/tint derived module-level (peers vs interest vs generic)
       const presentation = proactiveToastPresentation(metadata);
       toast.info(presentation.message, {
@@ -315,7 +381,7 @@ export default function ChatPage() {
 
       appendMessage(proactiveMessage);
     },
-    [appendMessage]
+    [appendMessage, reloadConversation]
   );
 
   // Callback to handle scheduled action execution results
@@ -331,22 +397,9 @@ export default function ChatPage() {
       });
 
       // 2. Reload full conversation history (result already archived by stream_chat_response)
-      try {
-        const page = await loadConversationPage();
-        if (page.messages.length > 0) {
-          setMessages(page.messages);
-        }
-        // Reset pagination state — list snaps back to the newest page.
-        setHasMoreOlder(page.hasMore);
-        setOldestCursor(page.nextCursor);
-      } catch (error) {
-        logger.warn('Failed to reload conversation after scheduled action', {
-          component: 'ChatPage',
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
+      await reloadConversation('scheduled action');
     },
-    [loadConversationPage, setMessages]
+    [reloadConversation]
   );
 
   // Connect to SSE notifications for real-time reminders, proactive notifications, and scheduled actions
@@ -943,8 +996,11 @@ export default function ChatPage() {
                       onTranscription={(text, meta) =>
                         sendMessageFromPresent(text, undefined, undefined, meta)
                       }
-                      disabled={!apiAvailable || isTyping || isUsageBlocked}
+                      disabled={locks.voice}
                     />
+                    {/* ADR-299 (wave 2, A1): the entry into the live mode is the
+                        header's voice menu; the session it opens lives HERE, with
+                        the chat's doors (`useLiveSession` consumes the start). */}
                     {/* data-eyes-anchor-end: the eyes widget docks centered
                     between the search field and this RAG-knowledge badge. */}
                     <span className="inline-flex" data-eyes-anchor-end>
@@ -1020,6 +1076,15 @@ export default function ChatPage() {
               {/* A6: while LIA is on the phone, say so — the chat used to go
               completely silent between the confirmation and the recap. */}
               <ActiveCallBanner lng={lng} conversationTick={messages.length} />
+              {/* ADR-299: « you are talking with LIA » — Stop cancels LIA's
+                  turn AND ends the session, the one door that kills a turn. */}
+              <LiveBanner
+                session={liveSession}
+                onStopAll={() => {
+                  void stopGeneration();
+                  void liveSession.end('ended');
+                }}
+              />
               <UsageBanners
                 limits={usageLimits}
                 isBlocked={isUsageBlocked}
@@ -1109,9 +1174,10 @@ export default function ChatPage() {
                   onLocalCommand={handleLocalCommand}
                   spotlightVoice={spotlightVoice}
                   onSendMessage={sendMessageFromPresent}
-                  disabled={isTyping || isUsageBlocked}
+                  disabled={locks.input}
+                  disabledReasonKey={locks.reasonKey}
                   isConnected={isConnected}
-                  apiAvailable={apiAvailable && !isUsageBlocked}
+                  apiAvailable={locks.apiUsable}
                   onMessageChange={handleMessageChange}
                   {...composerFeatureFlags(appConfig)}
                   isGenerating={isTyping}

@@ -43,6 +43,10 @@ CONSULTATION_RECORDERS: Final[dict[str, str]] = {
     # DURING the call (lot 7, ``agents/telephony/live_tools.py``) files on the
     # same surface through the same door.
     "phone_call": "domains/telephony/service.py",
+    # A DIRECT live session (ADR-300 wave 4) reads through the phone's own
+    # door: the context block at the start and every lookup during the
+    # session are filed on the ``live_session`` surface by the shared runner.
+    "live_session": "domains/agents/telephony/live_tools.py",
     "moment": "infrastructure/scheduler/moment_sweep.py",
 }
 

@@ -1,4 +1,5 @@
 import {
+  AudioLines,
   Activity,
   ArrowRightLeft,
   BadgeCheck,
@@ -120,6 +121,7 @@ export const HOW_TOC_SECTIONS: readonly GuideTocSection[] = [
   { id: 'relation_debrief', icon: NotebookPen },
   { id: 'workboard', icon: SquareKanban },
   { id: 'process_anatomy', icon: MemoryStick },
+  { id: 'live_mode', icon: AudioLines },
   { id: 'conclusion', icon: Flag },
 ] as const;
 

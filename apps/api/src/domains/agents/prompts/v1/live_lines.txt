@@ -1,0 +1,36 @@
+# One-line scaffolds of the live mandate and of the delegation bridge
+# (ADR-284: prose lives in a file; ADR-299). `key|template`, str.format
+# templates. Read by domains/live/mandate.py; `timed_out`, `result_cut`,
+# `superseded` and `empty_request` are handed to the browser bridge through
+# GET /live/config and returned to the voice model as tool results (technical
+# English, ADR-256); `busy`, `quota_blocked` and `failed` are the server-side
+# bridge's own (ADR-301: a phone has no page to render an error on). `delegate_by_call` / `delegate_native` is the verb the
+# mandate uses for the provider's delegation wire (a declared function, or the
+# model's own act); `tool_description` and `request_parameter` are the ONE
+# function's words on every wire (the browser's declaration, the phone's
+# webhook tool); `sample_*` drive the voice sample of a provider whose
+# voices only a live session can speak; `tone_note_call` / `tone_note_native`
+# tell the voice what to do with the delivery note the bridge hands it
+# beside a result (one line per register in live_tone_lines.txt, ADR-253).
+
+personality|PERSONALITY: {personality}
+no_personality|PERSONALITY: the default manner of LIA - attentive, precise, kind.
+delegate_by_call|call {tool_name}
+delegate_native|delegate to LIA
+delegation_async|- First say ONE short sentence aloud that you are on it, THEN {delegate}. While LIA works, keep the conversation going in short sentences; do not repeat the request. One request at a time: when the person corrects or adds to a request that is still running, {delegate} again with the COMPLETE new request.
+delegation_blocking|- Say ONE short sentence that you are checking, then {delegate}; you cannot speak again until its result arrives. One request at a time: when the person corrects or adds to a request that is still running, {delegate} again with the COMPLETE new request.
+delegation_native|- {delegate} BEFORE giving any answer that depends on LIA; never guess the result while waiting. First say ONE short sentence aloud that you are on it, THEN delegate. While LIA works, keep the conversation going in short sentences; do not repeat the request. One request at a time: when the person corrects or adds to a request that is still running, delegate again - LIA reads the whole conversation. Stopping your speech does not cancel LIA's work.
+tone_note_call|- A result may carry a "tone" field: it says HOW LIA said the answer (warmly, carefully, playfully...). Restitute the answer in that manner; never read the note itself aloud.
+tone_note_native|- A silent note may precede a result: it says HOW LIA said the answer (warmly, carefully, playfully...). Restitute the answer in that manner; never say the note itself.
+tool_description|Hand {user_name}'s request to LIA, in their own words. Use it for anything about their data, their tools, an action, a document, a search, or anything you cannot answer from the conversation alone. LIA answers in the chat; the result is that answer, shortened. One request at a time. When the result is a question from LIA, ask the person and send their answer through this same function.
+request_parameter|The person's request, in their own words.
+sample_instructions|You are a voice sample. Speak only what you are instructed to say, then stop.
+sample_greeting|Greet now, without waiting for the person to speak: say exactly "{text}" and then stop.
+superseded|This request was replaced by the person's newer request; nothing to say about it.
+empty_request|The request was empty; ask the person to repeat it.
+timed_out|LIA is still working; the answer will appear in the chat. Tell the person exactly that.
+result_cut|(The answer was shortened; the complete answer is in the chat.)
+busy|LIA is busy with another request of the person in the chat; tell them and offer to try again in a moment.
+quota_blocked|LIA's spending ceiling refused this request; tell the person LIA cannot run it right now.
+failed|LIA could not complete this request; tell the person and suggest trying again in the chat.
+budget_exhausted|No more requests can be handed to LIA on this call; tell the person to continue in the chat.

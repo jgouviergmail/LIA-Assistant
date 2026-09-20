@@ -48,7 +48,11 @@ from src.infrastructure.observability.metrics import (
 from src.infrastructure.proactive.base import ProactiveTask, ProactiveTaskResult
 from src.infrastructure.proactive.eligibility import EligibilityChecker
 from src.infrastructure.proactive.notification import NotificationDispatcher, NotificationResult
-from src.infrastructure.proactive.tracking import generate_proactive_run_id, track_proactive_tokens
+from src.infrastructure.proactive.tracking import (
+    generate_proactive_run_id,
+    out_of_turn_spend,
+    track_proactive_tokens,
+)
 
 logger = get_logger(__name__)
 
@@ -456,10 +460,21 @@ class ProactiveTaskRunner:
         # 2026-09-11 — the silence ADR-263 lot 4 was written to end). Task
         # eligibility is inside too: the in-meeting guard reads the calendar
         # there (ADR-281), and a tick that stood aside had filed nothing.
+        #
+        # The SPEND ledger is fed around the whole run for the same reason:
+        # the heartbeat's departure advice calls Routes and its weather source
+        # Google Weather from ``select_target``, on the deployment's key, and
+        # a paid call made with no ambient tracker was dropped in silence
+        # (2026-09-19 — not one Google row outside a chat turn). The model's
+        # tokens keep their own door (``track_proactive_tokens``, same run id,
+        # additive UPSERT); this tracker receives what the sources bill.
         from src.domains.agents.effects.treatment_recorder import treatment_recorder
 
         run_id = generate_proactive_run_id(self.task.task_type, str(user.id))
-        async with treatment_recorder(run_id=run_id):
+        async with (
+            treatment_recorder(run_id=run_id),
+            out_of_turn_spend(run_id, user.id, f"proactive_{self.task.task_type}"),
+        ):
             # 2. Task-specific eligibility
             if not await self.task.check_eligibility(user.id, user_settings, now):
                 logger.debug(

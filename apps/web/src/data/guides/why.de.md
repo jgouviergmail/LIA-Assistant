@@ -4,7 +4,7 @@
 
 **Version**: 6.0
 **Datum**: 2026-09-18
-**Anwendung**: LIA v1.46.0
+**Anwendung**: LIA v1.47.0
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -148,6 +148,7 @@ LIA bietet einen vollständigen Sprachmodus:
 - **Aktivierungswort "OK Guy"**: Freihändige Erkennung, die **vollständig in deinem Browser** via Sherpa-onnx WASM ausgeführt wird — kein Ton wird übertragen, bis das Aktivierungswort erkannt wurde
 - **Sprachsynthese**: drei admin-konfigurierbare Provider — Edge TTS (kostenlos), OpenAI TTS (`tts-1` / `tts-1-hd`) oder ElevenLabs (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`)
 - **Telegram-Sprachnachrichten**: Sende Audiobotschaften, LIA transkribiert sie und antwortet
+- **Live-Modus**: ein Echtzeitgespräch von Stimme zu Stimme auf einem Live-Modell, das du mit **deinem eigenen Schlüssel** verbindest – Gemini Live, GPT-Live oder ein ElevenLabs-Agent. Die Stimme führt das Gespräch und reicht jede Bitte an LIA weiter, die sie als gewöhnlichen Chat-Zug ausführt, während du sprichst; eine direkte Sitzung lässt die Stimme deine Daten selbst lesen, ohne zu handeln. Was der Anbieter berechnet, wird dir gezeigt, nie aufgezeichnet.
 
 ### 3.5. Erstellung und Medien
 
@@ -202,7 +203,7 @@ Du bleibst stets eingebunden: Vor dem Wählen sagt dir LIA genau, **wen** sie an
 
 Und es bleibt konstruktionsbedingt privat. Während eines Anrufs kann LIA nur mitteilen, ob du zu einem bestimmten Zeitpunkt frei oder gebucht bist — nie die Titel, Gäste oder Orte in deinem Kalender. Nichts wird aufgezeichnet, das Gespräch wird nie gespeichert, und nur eine kurze Zusammenfassung bleibt erhalten, bevor sie abläuft. Anrufe laufen über deinen eigenen ElevenLabs-Connector, abgerechnet über dein Konto, und die Funktion ist nur vorhanden, wenn dein Administrator sie aktiviert hat.
 
-Und LIA kann *dich* anrufen. Hinterlege deine Nummer unter *Telefonie · Meine Identität*, lass LIA sie anrufen und einen Code vorlesen, den du eintippst, und von da an lässt „ruf mich um acht an, um meinen Tag durchzugehen“ — oder eine Routine, die das sagt — dein Telefon ohne Bestätigungskarte klingeln: wer bestätigen würde, ist die Person, die abnimmt. Am Telefon weiß LIA, was sie im Chat weiß — deine Erinnerungen, deinen Kalender, deine Erinnerungshinweise, was mit anderen offen ist — und schlägt, wenn dein Administrator es freigeschaltet hat, nach, während du sprichst: eine E-Mail, einen Kontakt, eine Datei, einen Ort in der Nähe, das Wetter, was sie zu einem Thema behält. Sie liest alles und handelt in nichts; jeder Bereich hat einen Schalter, der dir gehört, und die Assistentin spricht mit der Persönlichkeit, die du ihr gegeben hast. Wenn du auflegst, kommt das Gesagte als deine eigene Nachricht in den Chat zurück, mit einem Telefon-Abzeichen, und was du erbeten hast, wartet dort auf deine Bestätigung.
+Und LIA kann *dich* anrufen. Hinterlege deine Nummer unter *Telefonie · Meine Identität*, lass LIA sie anrufen und einen Code vorlesen, den du eintippst, und von da an lässt „ruf mich um acht an, um meinen Tag durchzugehen“ — oder eine Routine, die das sagt — dein Telefon ohne Bestätigungskarte klingeln: die Person, die bestätigen würde, ist die, die abnimmt. Wie der Anruf verläuft, ist deine Wahl, in denselben Einstellungen, und es ist dieselbe Wahl wie bei den Live-Sitzungen im Browser. In **Live**, dem Standard, bearbeitet LIA alles, worum du in der Leitung bittest, während du sprichst, als Chat-Zug von dir – die Stimme kündigt es an, spricht weiter, liest die Antwort vor, sobald sie da ist; eine Bestätigung, die LIA braucht, wird in der Leitung erfragt, eine Frage, die sie stellt, ist die Antwort, und alles steht im Verlauf mit einem Telefon-Abzeichen. In **Live direkt** liest die Stimme für dich – deinen Kalender, eine E-Mail, einen Kontakt, einen Ort in der Nähe, das Wetter, was sie behält – und handelt in nichts; jeder Bereich hat einen Schalter, der dir gehört, und was du gesagt hast, kommt danach als deine eigene Nachricht zurück. Live gibt es nur dort, wo der Telefonanbieter deine Instanz zurückrufen kann; anderswo sagt es die Einstellung, und der Anruf läuft direkt. In beiden Fällen spricht die Assistentin mit der Persönlichkeit, die du ihr gegeben hast, und was auf deinem ElevenLabs-Schlüssel läuft, wird dort abgerechnet, hier nie gezählt.
 
 ### 3.11. Mit deinen Menschen sprechen, von Assistent zu Assistent
 
@@ -312,6 +313,8 @@ Jede Nachricht zeigt ihre Kosten in Tokens und Euro an. Der Benutzer kann seinen
 Du zahlst kein Abonnement, das die tatsächlichen Kosten verschleiert. Du siehst genau, was jede Interaktion kostet, und können optimieren: ein günstigeres Modell für das Routing, ein leistungsfähigeres für die Antwort.
 
 Dieselbe Transparenz gilt für Aktionen: Unter jeder Antwort zeigt eine eingeklappte Zeile „⚙ N Schritte · X s“ den tatsächlichen Ablauf — Routing, aufgerufene Werkzeuge, Dauer — und diese Spur wird mit der Nachricht gespeichert: Sie bleibt nach einem Neuladen erhalten, auf allen Geräten. Jede Antwort lässt sich zudem mit einem dezenten 👍/👎 bewerten, das gespeichert und in das Lernen des Assistenten zurückgespielt wird — niemals, um die Antwort ungefragt neu zu generieren.
+
+Die Regel kennt keine Ausnahme nach Pfad. Alles, was die Plattform mit ihren eigenen Schlüsseln für dich zahlt, erreicht deine Nutzung und deine Grenzen, welcher Modalität auch immer: eine Kartenabfrage während eines Telefonats oder einer direkten Live-Sitzung, die Wetterabfragen des Morgenbriefings, die Geokodierung deiner Adresse, ein dir gezeigtes Ortsfoto (gezählt, wenn es angezeigt wird, nie im Voraus), eine Sprachsynthese (nur für die tatsächlich gelieferten Sätze gezählt). Eine Telefonrechnung und eine Live-Sitzungskarte zeigen eine Zahl für das, was der Lauf gekostet hat, Maps-Euro eingeschlossen. Und was du mit **deinen eigenen** Konnektor-Schlüsseln zahlst – ein Live-Modell, der Telefonagent, eine Websuche – bleibt außen vor: dort gezeigt, wo es entsteht, nirgends aufgezeichnet.
 
 ### 6.4. Vertrauen durch Beweis
 

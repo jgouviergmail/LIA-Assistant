@@ -65,6 +65,7 @@ from src.domains.connectors.clients.google_routes_client import (
     RoutingPreference,
     TravelMode,
 )
+from src.domains.connectors.media_attribution import with_attribution
 from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.cache.routes_cache import RoutesCache
 from src.infrastructure.observability.decorators import track_tool_metrics
@@ -535,6 +536,9 @@ async def _resolve_destination(
             response = await client.post(url, headers=headers, json=body)
             response.raise_for_status()
             results = response.json()
+        # A billed Places Text Search on the deployment's key — it went
+        # uncounted until 2026-09-20, the dearest call of the family.
+        track_google_api_call("places", "/places:searchText", cached=False)
 
         places = results.get("places", [])
         if places:
@@ -545,7 +549,9 @@ async def _resolve_destination(
             place_lon = place_location.get("longitude")
 
             if place_lat and place_lon:
-                logger.info(
+                # DEBUG: a place name and its coordinates are the person's
+                # whereabouts (no PII at INFO).
+                logger.debug(
                     "destination_resolved_via_places",
                     original=destination,
                     resolved_name=place_name,
@@ -1024,9 +1030,9 @@ def _format_route_response(
             if final_dest_coords:
                 static_map_url += f"&dest={final_dest_coords[0]},{final_dest_coords[1]}"
 
-            # Track Static Maps API call - the browser will fetch this URL automatically
-            # Static Maps proxy is public (no auth) but we track here in chat context
-            track_google_api_call("static_maps", "/staticmap", cached=False)
+            # The map is BILLED when the browser fetches it, and the proxy counts
+            # it then, on this turn: the URL carries the signed run id.
+            static_map_url = with_attribution(static_map_url)
 
             logger.debug(
                 "static_map_url_generated",

@@ -68,6 +68,11 @@ export interface ChatInputProps {
     sttMeta?: SendSttMeta
   ) => void;
   disabled?: boolean;
+  /**
+   * The i18n key of why the composer is closed while `disabled` (ADR-299: a
+   * live session holds the turn). Null keeps the generic line.
+   */
+  disabledReasonKey?: string | null;
   isConnected?: boolean;
   apiAvailable?: boolean;
   className?: string;
@@ -528,6 +533,7 @@ function useComposerRecorder(
 export const ChatInput: React.FC<ChatInputProps> = ({
   onSendMessage,
   disabled = false,
+  disabledReasonKey,
   isConnected: _isConnected = true,
   apiAvailable = true,
   className,
@@ -860,7 +866,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       return t('chat.input.placeholder_unavailable');
     }
     if (disabled) {
-      return t('chat.input.placeholder_disabled');
+      // ADR-299: a live session closes the composer and says why.
+      return t(disabledReasonKey ?? 'chat.input.placeholder_disabled');
     }
     return t('chat.input.placeholder');
   };

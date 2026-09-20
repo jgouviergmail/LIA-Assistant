@@ -88,17 +88,32 @@ describe('buildConnectSrc', () => {
   // constant would make a typo in that constant pass its own pinning test.
   const FIREBASE_HOSTS =
     'https://firebaseinstallations.googleapis.com https://fcmregistrations.googleapis.com';
+  // Two live hosts, one per WebSocket provider (Gemini, ElevenLabs — ADR-300 wave 4).
+  const LIVE_HOSTS = 'wss://generativelanguage.googleapis.com wss://api.elevenlabs.io';
 
   it('includes the API origin and its websocket variant in prod', () => {
     expect(buildConnectSrc(false, 'https://api.example.com')).toBe(
-      `'self' https://api.example.com wss://api.example.com ${FIREBASE_HOSTS}`
+      `'self' https://api.example.com wss://api.example.com ${FIREBASE_HOSTS} ${LIVE_HOSTS}`
     );
   });
 
-  it('falls back to self (plus push enrolment) on malformed API URL', () => {
+  it('falls back to self (plus push enrolment and the live provider) on malformed API URL', () => {
     const value = buildConnectSrc(false, 'not a url');
-    expect(value).toBe(`'self' ${FIREBASE_HOSTS}`);
+    expect(value).toBe(`'self' ${FIREBASE_HOSTS} ${LIVE_HOSTS}`);
     expect(value).not.toContain('not a url');
+  });
+
+  // ADR-299: the live mode opens the provider's WebSocket from the page, on a
+  // credential the API minted — the audio never transits the API, so the host
+  // must be allowlisted here. An exact host, never a wildcard.
+  it('allows every live provider WebSocket host in prod and dev', () => {
+    for (const host of LIVE_HOSTS.split(' ')) {
+      expect(buildConnectSrc(false, 'https://api.example.com').split(' ')).toContain(host);
+      expect(buildConnectSrc(true, undefined).split(' ')).toContain(host);
+      expect(
+        parsePolicy(buildAppCsp(false, 'https://api.example.com')).get('connect-src')
+      ).toContain(host);
+    }
   });
 
   it('adds HMR websockets and local API origins in dev', () => {
@@ -130,9 +145,12 @@ describe('buildConnectSrc', () => {
     expect(sources.filter(s => s.includes('googleapis.com'))).toEqual([
       'https://firebaseinstallations.googleapis.com',
       'https://fcmregistrations.googleapis.com',
+      'wss://generativelanguage.googleapis.com',
     ]);
     expect(sources).not.toContain('https:');
     expect(sources).not.toContain('*');
+    // The ElevenLabs host is exact too: the API host, never the whole domain.
+    expect(sources.filter(s => s.includes('elevenlabs'))).toEqual(['wss://api.elevenlabs.io']);
   });
 });
 

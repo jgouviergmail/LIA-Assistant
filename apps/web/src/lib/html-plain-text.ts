@@ -126,6 +126,9 @@ export function htmlToPlainText(text: string): string {
   // ADR-177 vocabulary (absent from the backend's email-oriented set):
   out = out.replace(/<\/dt>/gi, ' : ');
   out = out.replace(/<\/(?:dd|dl|summary|details|figcaption|caption)>/gi, '\n');
+  // Two adjacent spans (a stat's value and its label) keep a space between
+  // them, or « 0créneau » is what a voice reads (mirrors base.py step 7b).
+  out = out.replace(/<\/span>\s*(?=<span)/gi, ' ');
   // Generic strip — remaining tags (incl. inline strong/em/span) drop to ''.
   out = out.replace(/<[^>]+>/g, '');
   for (const [entity, char] of Object.entries(ENTITIES)) {

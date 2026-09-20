@@ -135,6 +135,10 @@ class PublicAnswers:
     # Self-diagnostics opt-in (ADR-247). Defaulted so older persisted states
     # deserialize unchanged; the wizard always asks explicitly.
     self_diagnostics: bool = False
+    # Live voice mode opt-in (ADR-299): each person brings their own live
+    # provider key, the instance only publishes the capability. Same default
+    # rule as self-diagnostics.
+    live_mode: bool = False
 
 
 @dataclass(frozen=True)

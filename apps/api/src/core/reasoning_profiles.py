@@ -36,6 +36,7 @@ FAMILIES: frozenset[str] = frozenset(
         "anthropic_budget",
         "gemini_level",
         "gemini_budget",
+        "gemini_live_level",
         "deepseek_toggle",
         "qwen_toggle_budget",
         "perplexity",
@@ -145,10 +146,20 @@ _RULES: list[tuple[str, tuple[str, ...], ReasoningProfile]] = [
         _NO_REASONING,
     ),
     ("qwen", ("qwen2.5",), _NO_REASONING),
+    # The live extended-thinking model (ADR-299): a ladder of three, no
+    # ``minimal``, and NO off switch — reasoning is what the model is. The plain
+    # live model matches no rule and resolves unknown: it reasons on its own
+    # terms and nothing about it is configurable. Rendered into a Live API
+    # ``setup`` by ``domains/live/providers/gemini.py``, never into a kwarg.
+    (
+        "gemini_live",
+        ("gemini-3.8-live-extended-thinking",),
+        ReasoningProfile("gemini_live_level", ("low", "medium", "high"), False, None, False, True),
+    ),
     (
         "gemini",
         (
-            "gemini-3.1-flash-preview-tts",
+            "gemini-3.1-flash-tts-preview",
             "gemini-2.0",
             "gemini-1.5",
             "embedding-",

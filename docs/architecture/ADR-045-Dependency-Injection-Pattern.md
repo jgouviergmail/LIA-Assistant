@@ -56,7 +56,25 @@ get_current_session(cookie, session_store, db) → User
         ↓
     get_current_verified_session(user) → User (verified is_verified)
     get_current_superuser_session(user) → User (verified is_superuser)
+
+get_current_session_for_stream(cookie, session_store) → User   (a session of its OWN, closed before the route)
+        ↓
+    get_current_active_session_for_stream(user) → User          (every SSE route: /notifications/stream, /chat/stream, /runs/{id}/stream)
 ```
+
+**A route that STREAMS never authenticates through `get_db`** (amendment
+2026-09-20, ADR-283): a `yield` dependency lives as long as the response —
+for a Server-Sent Events stream, the life of the tab — and the one SELECT of
+`get_current_session` begins a transaction on it. Measured on dev: every open
+notifications stream pinned one PostgreSQL backend in `idle in transaction`
+for as long as it stayed open (14 minutes at the reading), one per tab. The
+stream door reads the account on a session it opens and closes itself
+(`get_db_context`), through the SAME `_authenticate` and `_ensure_active` as
+the request door, so the two cannot diverge; the row it returns is detached
+(every column loaded, `expire_on_commit=False`) and only ever READ by a
+stream. The guard `tests/unit/test_streaming_routes_hold_no_session_guard.py`
+walks `app.routes` and refuses any endpoint that mentions `text/event-stream`
+and still reaches `get_db` in its dependency tree.
 
 ### Authentication Dependency Chain
 

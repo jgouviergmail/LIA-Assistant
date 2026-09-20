@@ -335,6 +335,37 @@ describe('useChat — nominal send/stream/done cycle', () => {
     });
   });
 
+  it('stamps a delegated live request with its session and the spoken words (ADR-299)', async () => {
+    scriptStream([done()]);
+    const { result } = renderHook(() => useChat());
+
+    await act(async () => {
+      await result.current.sendMessage(
+        'What is on my agenda tomorrow?',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        { live_session_id: 'a'.repeat(32), spoken_text: 'what do I have tomorrow' }
+      );
+    });
+
+    const request = h.streamChat.mock.calls[0][0] as Record<string, unknown>;
+    expect(request).toMatchObject({
+      message: 'What is on my agenda tomorrow?',
+      live_session_id: 'a'.repeat(32),
+      spoken_text: 'what do I have tomorrow',
+    });
+    // A typed message carries neither key: the API's stamp is opt-in.
+    await act(async () => {
+      await result.current.sendMessage('typed');
+    });
+    const typed = h.streamChat.mock.calls[1][0] as Record<string, unknown>;
+    expect(typed).not.toHaveProperty('live_session_id');
+    expect(typed).not.toHaveProperty('spoken_text');
+  });
+
   it('sends even when the audio warmup fails (silent catch)', async () => {
     h.voice.warmupAudio.mockRejectedValueOnce(new Error('iOS locked'));
     scriptStream([done()]);

@@ -16,11 +16,13 @@ no new aggregate: the correlation key is the design.
 
 from __future__ import annotations
 
-from typing import Final
 from uuid import UUID
 
-#: The relay's session prefix, kept: one family in the logs and the ledger.
-PHONE_CALL_RUN_PREFIX: Final = "phone_call_"
+# The prefix and the key are minted by the voice-session value (ADR-301): the
+# call's run id is ALSO the key every row of a phone session files under, and
+# the shared rules read it from there — ``telephony`` imports the value, the
+# value imports no carrier.
+from src.domains.voice_sessions.session import PHONE_CALL_RUN_PREFIX, phone_session_key
 
 
 def phone_call_run_id(call_id: UUID) -> str:
@@ -33,7 +35,7 @@ def phone_call_run_id(call_id: UUID) -> str:
         ``phone_call_<hex>`` — stable for the call's whole life, so a retried
         relay and a late lookup still land on the same summary row.
     """
-    return f"{PHONE_CALL_RUN_PREFIX}{call_id.hex}"
+    return phone_session_key(call_id)
 
 
 __all__ = ["PHONE_CALL_RUN_PREFIX", "phone_call_run_id"]

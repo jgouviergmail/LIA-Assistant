@@ -342,6 +342,29 @@ export const VOICE_INPUT_SAMPLE_RATE = 16000;
 export const VOICE_INPUT_CHUNK_SIZE = 4096;
 
 // ============================================================================
+// LIVE MODE (ADR-299) — duplex voice on the person's own provider key
+// ============================================================================
+
+/**
+ * The last stretch of the idle countdown the banner shows before a session
+ * ends on silence (the whole silence is `LIVE_IDLE_TIMEOUT_SECONDS`, published
+ * by the API).
+ */
+export const LIVE_IDLE_COUNTDOWN_MS = 5000;
+
+/** Captions kept in the banner (older ones are in the chat thread anyway). */
+export const LIVE_CAPTIONS_MAX = 60;
+
+/** Reconnections attempted with the resumption handle before giving up. */
+export const LIVE_RECONNECT_ATTEMPTS = 3;
+
+/** Reconnect this long BEFORE the provider's announced disconnection. */
+export const LIVE_GO_AWAY_MARGIN_MS = 1500;
+
+/** Silence after a voice-only exchange before it is archived as one turn. */
+export const LIVE_TURN_SETTLE_MS = 400;
+
+// ============================================================================
 // VOICE MODE (Wake Word Detection + Talk Mode)
 // ============================================================================
 // Configuration for Sherpa-onnx WASM KWS and Voice Activity Detection.

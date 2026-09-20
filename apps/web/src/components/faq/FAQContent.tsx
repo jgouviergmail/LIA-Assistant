@@ -21,6 +21,7 @@ import { CHANGELOG_VERSION_KEYS, changelogDateKey, changelogTitleKey } from '@/l
 import { Button } from '@/components/ui/button';
 import { FAQ_SECTION_ICONS } from './faq-sections';
 import {
+  AudioLines,
   Zap,
   HelpCircle,
   Search,
@@ -166,6 +167,7 @@ export const featureIcons = {
   i18n: Languages,
   observability: Activity,
   voice: Volume2,
+  liveVoice: AudioLines,
   expressiveEyes: Eye,
   costTransparency: DollarSign,
   scheduledActions: CalendarClock,
@@ -240,6 +242,8 @@ export const featureKeys = [
   'i18n',
   'observability',
   'voice',
+  // Wired at v1.47.0 with ADR-299/300 — the real-time Live mode on the person's own key.
+  'liveVoice',
   // v1.30.16 (ADR-240): the signal-driven companion widget on the chat page.
   'expressiveEyes',
   'costTransparency',

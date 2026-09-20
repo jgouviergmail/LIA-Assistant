@@ -38,6 +38,7 @@ BASE_PUBLIC = {
     "observability": "no",
     "self_diagnostics": "no",
     "skill_sandbox": "no",
+    "live_mode": "no",
 }
 SECRETS = {
     "admin_password": ADMIN_PASSWORD,

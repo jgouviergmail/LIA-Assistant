@@ -225,6 +225,33 @@ describe('AdminLLMPricingSection — editing', () => {
     );
     await waitFor(() => expect(invalidateCatalogue).toHaveBeenCalledWith(CATALOGUE_KEY));
   });
+
+  it('sends an emptied cached price and an absent audio pair as explicit clearings', async () => {
+    // The backend drops nulls from its change-set: an emptied cell that
+    // travelled as null kept the old price in silence (measured on the
+    // cached price; the audio pair follows the same rule, ADR-300).
+    const { user } = await renderLoaded();
+    await user.click(screen.getByRole('button', { name: EDIT }));
+    const cached = await screen.findByLabelText(/cached_input_label/);
+    await user.clear(cached);
+    await user.click(await screen.findByRole('button', { name: SUBMIT_EDIT }));
+    await answerConfirmDialog(user);
+    await waitFor(() =>
+      expect(updateLLMPricing).toHaveBeenCalledWith(
+        'claude-x',
+        expect.objectContaining({ clear_cached_input_price: true, clear_audio_prices: true })
+      )
+    );
+    const payload = updateLLMPricing.mock.calls[0][1];
+    expect(payload).not.toHaveProperty('cached_input_unit_price');
+    expect(payload).not.toHaveProperty('audio_input_unit_price');
+  });
+
+  it('draws the audio pair in the table, a dash when none is declared', async () => {
+    await renderLoaded();
+    expect(screen.getByRole('columnheader', { name: `${I18N}.table.audio_price` })).toBeVisible();
+    expect(screen.getByText('—')).toBeVisible();
+  });
 });
 
 describe('AdminLLMPricingSection — section toolbar (ADR-208)', () => {

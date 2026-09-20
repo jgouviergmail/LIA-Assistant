@@ -198,6 +198,7 @@ async def test_list_calls_omits_encrypted_phone(monkeypatch) -> None:
         call_seconds=Decimal("42.5"),
         created_at=datetime.now(UTC),
         completed_at=datetime.now(UTC),
+        call_mode="direct",
         callee_phone="ENCRYPTED_SECRET_BLOB",  # must NEVER surface
     )
 
@@ -212,6 +213,7 @@ async def test_list_calls_omits_encrypted_phone(monkeypatch) -> None:
 
     from decimal import Decimal as _D
 
+    from src.domains.chat.models import MessageTokenSummary
     from src.domains.telephony.spend import phone_call_run_id
 
     class _FakeChat:
@@ -221,12 +223,20 @@ async def test_list_calls_omits_encrypted_phone(monkeypatch) -> None:
         async def get_token_summaries_by_run_ids(self, run_ids):  # noqa: ANN001
             assert run_ids == [phone_call_run_id(call.id)]
             return {
-                phone_call_run_id(call.id): SimpleNamespace(
+                # The REAL row shape: the bill is the row's billed total, so a
+                # stub carrying the model column alone would hide the two
+                # Places lookups' euros (they did, until 2026-09-20).
+                phone_call_run_id(call.id): MessageTokenSummary(
+                    user_id=uuid4(),
+                    session_id="phone",
+                    run_id=phone_call_run_id(call.id),
                     total_prompt_tokens=1200,
                     total_completion_tokens=300,
                     total_cached_tokens=100,
                     total_cost_eur=_D("0.0421"),
                     google_api_requests=2,
+                    google_api_cost_eur=_D("0.0580"),
+                    image_generation_cost_eur=_D("0"),
                 )
             }
 
@@ -249,7 +259,7 @@ async def test_list_calls_omits_encrypted_phone(monkeypatch) -> None:
         "tokens_in": 1200,
         "tokens_out": 300,
         "tokens_cache": 100,
-        "cost_eur": 0.0421,
+        "cost_eur": 0.1001,
         "google_api_requests": 2,
     }
 
@@ -269,6 +279,7 @@ async def test_list_calls_carries_no_bill_for_a_call_that_spent_nothing(
         created_at=datetime.now(UTC),
         completed_at=None,
         call_kind=CallKind.SELF,
+        call_mode="direct",
         notification_payload=None,
         callee_phone="ENCRYPTED_SECRET_BLOB",
     )

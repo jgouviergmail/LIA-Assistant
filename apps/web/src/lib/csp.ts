@@ -91,6 +91,20 @@ export const FIREBASE_MESSAGING_CONNECT_SRC = [
 ] as const;
 
 /**
+ * Live voice mode (ADR-299): the page opens the provider's WebSocket ITSELF,
+ * on a single-use credential the API minted — the audio never transits the
+ * API. One exact host per provider, never a wildcard; a WebSocket provider
+ * adds its host here and its transport in `lib/live/transports/`. A WebRTC
+ * provider (GPT-Live, ADR-300) adds NO host: no CSP directive governs a peer
+ * connection, and its offer is exchanged by our own API.
+ */
+export const LIVE_PROVIDER_CONNECT_SRC = [
+  'wss://generativelanguage.googleapis.com',
+  // ElevenLabs Agents over a signed WebSocket URL (ADR-300 wave 4).
+  'wss://api.elevenlabs.io',
+] as const;
+
+/**
  * Build the connect-src directive value for the app policy.
  *
  * @param isDev - Whether running in development mode (adds HMR websockets
@@ -111,6 +125,7 @@ export function buildConnectSrc(isDev: boolean, apiUrl: string | undefined): str
   }
   // Push enrolment — required in dev too, or the feature cannot be tested
   sources.push(...FIREBASE_MESSAGING_CONNECT_SRC);
+  sources.push(...LIVE_PROVIDER_CONNECT_SRC);
   if (isDev) {
     sources.push('ws:', 'wss:', 'http://localhost:8000', 'http://127.0.0.1:8000');
   }

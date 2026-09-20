@@ -25,9 +25,10 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, TypeVar
 
-from sqlalchemy import func
+from sqlalchemy import and_, func, or_
 from sqlalchemy.sql import Select
 
+from src.core.constants import LIVE_TURN_MESSAGE_TYPE
 from src.core.field_names import FIELD_GOOGLE_API_REQUESTS, FIELD_RUN_ID
 from src.core.sql_search import LIKE_ESCAPE, escape_like
 from src.domains.conversations.models import ConversationMessage
@@ -49,6 +50,29 @@ def visible_only(stmt: _SelectT, *, include_hidden: bool) -> _SelectT:
     if include_hidden:
         return stmt
     return stmt.where(ConversationMessage.hidden.is_(False))
+
+
+def out_of_graph_rows(stmt: _SelectT) -> _SelectT:
+    """Narrow a read to the rows the GRAPH never wrote, injected before the next turn.
+
+    Two families: a proactive notification (an ``assistant`` row of type
+    ``proactive_*``) and, since ADR-299, a voice-only exchange of a live
+    session (type ``live_turn``, EITHER role). One predicate, so a third
+    family joins here rather than in a second copy of the query.
+
+    Args:
+        stmt: The statement to narrow.
+
+    Returns:
+        The same statement, narrowed.
+    """
+    kind = ConversationMessage.message_metadata["type"].astext
+    return stmt.where(
+        or_(
+            and_(ConversationMessage.role == "assistant", kind.like("proactive_%")),
+            kind == LIVE_TURN_MESSAGE_TYPE,
+        )
+    )
 
 
 def matching_content(stmt: _SelectT, search: str | None) -> _SelectT:
@@ -104,8 +128,9 @@ def older_than(stmt: _SelectT, before_created_at: datetime | None) -> _SelectT:
 def token_summary_payload(token_summary: Any | None) -> dict[str, Any] | None:
     """Render one message's token summary for the API.
 
-    Google API costs are added to the LLM cost: what the reader is shown is
-    what the turn actually cost, not the model half of it.
+    The cost is the row's billed total (model, Maps Platform, generated
+    images): what the reader is shown is what the turn actually cost, not the
+    model half of it.
 
     Args:
         token_summary: The joined ``MessageTokenSummary`` row, or None when the
@@ -117,9 +142,7 @@ def token_summary_payload(token_summary: Any | None) -> dict[str, Any] | None:
     """
     if not token_summary:
         return None
-    llm_cost = float(token_summary.total_cost_eur or 0)
-    google_cost = float(token_summary.google_api_cost_eur or 0)
-    total_cost = llm_cost + google_cost
+    total_cost = float(token_summary.billed_cost_eur)
     return {
         FIELD_RUN_ID: token_summary.run_id,
         "total_tokens": (token_summary.total_prompt_tokens + token_summary.total_completion_tokens),

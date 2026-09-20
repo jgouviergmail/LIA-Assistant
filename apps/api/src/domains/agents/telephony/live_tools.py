@@ -29,6 +29,15 @@ cannot without importing ``agents``:
   shorter than the vendor's timeout, and its result is projected the way the
   ReAct loop projects one (items under a token budget, the cut stated).
 
+The execution serves TWO voice surfaces through one :class:`VoiceToolHost`
+(ADR-300 wave 4): the owner call, where the vendor calls this API back through
+a webhook tool, and the DIRECT live session, where the browser posts the
+provider's function call on the person's own session (``POST
+/live/sessions/{id}/tools``). The host names where the lookup is FILED — the
+consultation surface, the run id the spend lands under, the thread the tool
+saves context under — and nothing else differs: same rule, same projection,
+same bound.
+
 Every line the voice agent reads besides the data lives in
 ``telephony_live_tool_lines.txt``; a tool's vendor description is its voice
 line in ``telephony_live_tools.txt`` when one exists, else its catalogue
@@ -75,8 +84,13 @@ from src.domains.shared.consultation_surfaces import (
     record_surface_consultations,
 )
 from src.domains.shared.phone_domains import is_phone_domain
-from src.domains.telephony.client import ElevenLabsAgentsClient, ElevenLabsAgentsError
+from src.domains.telephony.client import (
+    ElevenLabsAgentsClient,
+    ElevenLabsAgentsError,
+    first_refusal,
+)
 from src.domains.telephony.live_tools import (
+    ARRAY_ITEM_DESCRIPTION,
     LiveToolBinding,
     LiveToolParameter,
     live_tool_token,
@@ -101,10 +115,13 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 
-#: The consultation surface live lookups file under — the dial path's own.
+#: The consultation surface the PHONE's live lookups file under — the dial path's own.
 SURFACE: Final = "phone_call"
-#: The node name a lookup's model spend is filed under in ``token_usage_logs``.
+#: The consultation surface a DIRECT live session's lookups file under.
+LIVE_SESSION_SURFACE: Final = "live_session"
+#: The node names a lookup's model spend is filed under in ``token_usage_logs``.
 _SPEND_NODE: Final = "telephony_live_tool"
+_LIVE_SPEND_NODE: Final = "live_session_tool"
 #: Metadata keys on the telephony connector.
 METADATA_IDS: Final = "live_tool_ids"
 METADATA_HASH: Final = "live_tools_hash"
@@ -123,6 +140,50 @@ _IDENTIFIER_NAME: Final = re.compile(r"(^|_)(id|ids|token)$|^resource_names?$")
 _MECHANICS: Final = frozenset(
     {"page_token", "use_cache", "force_refresh", "output_as_registry", "include_content"}
 )
+
+
+@dataclass(frozen=True, slots=True)
+class VoiceToolHost:
+    """Where a live lookup is FILED: one host per voice surface (ADR-300 wave 4).
+
+    Attributes:
+        surface: The consultation surface (``phone_call`` or ``live_session``).
+        key: The host's own id — the call id or the session id — the thread
+            the tool saves context under and the label of the log line.
+        spend_run_id: The run id the lookup's model spend is filed under
+            (the call's, the session's).
+        consultation_run_id: The run id the consultation rows are filed under
+            (the phone files them under the call id, the session under its run).
+        spend_node: The node name the spend is filed under in ``token_usage_logs``.
+    """
+
+    surface: str
+    key: str
+    spend_run_id: str
+    consultation_run_id: str
+    spend_node: str
+
+    @classmethod
+    def phone_call(cls, call_id: UUID) -> VoiceToolHost:
+        """The owner call's host: the dial path's own surface and run id."""
+        return cls(
+            surface=SURFACE,
+            key=str(call_id),
+            spend_run_id=phone_call_run_id(call_id),
+            consultation_run_id=str(call_id),
+            spend_node=_SPEND_NODE,
+        )
+
+    @classmethod
+    def live_session(cls, session_id: str, run_id: str) -> VoiceToolHost:
+        """A direct live session's host: everything under the session's run id."""
+        return cls(
+            surface=LIVE_SESSION_SURFACE,
+            key=session_id,
+            spend_run_id=run_id,
+            consultation_run_id=run_id,
+            spend_node=_LIVE_SPEND_NODE,
+        )
 
 
 @dataclass(frozen=True)
@@ -451,6 +512,47 @@ def _manifest_of(name: str) -> ToolManifest:
     return get_global_registry().get_tool_manifest(name)
 
 
+def function_declaration(spec: LiveToolSpec) -> dict[str, Any]:
+    """One derived tool as a provider-neutral function declaration (ADR-300 wave 4).
+
+    The OpenAPI-subset shape every live provider's function calling reads
+    (``name``, ``description``, ``parameters`` as a JSON-schema object) —
+    the same projection the vendor webhook bodies use, without the vendor
+    envelope. A result is awaited (no ``NON_BLOCKING``): the voice reads it
+    back before it goes on.
+
+    Args:
+        spec: The derived entry.
+
+    Returns:
+        The declaration.
+    """
+    manifest = None if spec.native else _manifest_of(spec.name)
+    properties: dict[str, Any] = {}
+    required: list[str] = []
+    for parameter in live_tool_parameters(spec, manifest):
+        prop: dict[str, Any] = {"type": parameter.type, "description": parameter.description}
+        if parameter.enum:
+            prop["enum"] = list(parameter.enum)
+        if parameter.type == "array":
+            # The items carry a description too: measured 2026-09-16 on the
+            # phone and again 2026-09-19 on a live session, the vendor refuses
+            # an array whose items have none (422), and a description costs
+            # nothing on a wire that does not require it.
+            prop["items"] = {
+                "type": parameter.items_type or "string",
+                "description": ARRAY_ITEM_DESCRIPTION,
+            }
+        properties[parameter.name] = prop
+        if parameter.required:
+            required.append(parameter.name)
+    return {
+        "name": spec.name,
+        "description": live_tool_description(spec, manifest),
+        "parameters": {"type": "object", "properties": properties, "required": required},
+    }
+
+
 def vendor_bodies(specs: Iterable[LiveToolSpec], *, token: str) -> list[dict[str, Any]]:
     """The vendor tool bodies of a set of specs.
 
@@ -478,18 +580,21 @@ def vendor_bodies(specs: Iterable[LiveToolSpec], *, token: str) -> list[dict[str
 
 
 async def available_live_tools(
-    *, disabled_domains: frozenset[str] = frozenset()
+    *, disabled_domains: frozenset[str] = frozenset(), feature_enabled: bool | None = None
 ) -> tuple[LiveToolSpec, ...]:
     """The derived list minus what the flag, the capabilities and the person hide.
 
     Args:
-        disabled_domains: The domains the person switched off for their calls.
+        disabled_domains: The domains the person switched off for their voice.
+        feature_enabled: The gate of the CALLER's feature — the telephony
+            live-tools flag by default; a direct live session (ADR-300 wave 4)
+            is gated by the live capability and passes True.
 
     Returns:
-        The specs an owner call may attach right now; empty when the feature
-        is off.
+        The specs a voice may hold right now; empty when the feature is off.
     """
-    if not settings.telephony_live_tools_enabled:
+    gate = settings.telephony_live_tools_enabled if feature_enabled is None else feature_enabled
+    if not gate:
         return ()
     hidden = await tools_hidden_by_capabilities(get_global_registry())
     return tuple(
@@ -572,15 +677,24 @@ async def _create_vendor_tools(
         async with gate:
             created[spec.name] = await client.create_tool(body)
 
+    # A TaskGroup, never `gather`: on a refusal the siblings are cancelled and
+    # awaited BEFORE the rollback reads the dict they were filling (measured
+    # 2026-09-19 on the live session's twin: fifty creations went on after the
+    # first refusal, all orphaned).
+    refused: ElevenLabsAgentsError | None = None
     try:
-        await asyncio.gather(*(_create(s, b) for s, b in zip(specs, bodies, strict=True)))
-    except ElevenLabsAgentsError as exc:
+        async with asyncio.TaskGroup() as group:
+            for spec, body in zip(specs, bodies, strict=True):
+                group.create_task(_create(spec, body))
+    except* ElevenLabsAgentsError as refusals:
+        refused = first_refusal(refusals)
+    if refused is not None:
         logger.warning(
             "telephony_live_tools_provisioning_failed",
-            status_code=exc.status_code,
+            status_code=refused.status_code,
             created=len(created),
         )
-        for tool_id in created.values():
+        for tool_id in list(created.values()):
             await client.delete_tool(tool_id)
         return None
     return created
@@ -597,7 +711,7 @@ async def _synthetic_runtime(
     language: str,
     timezone: str,
     display_name: str,
-    call_id: UUID,
+    host: VoiceToolHost,
     deps: ToolDependencies,
     callbacks: list[Any],
 ) -> Any:
@@ -619,7 +733,7 @@ async def _synthetic_runtime(
 
     from src.domains.agents.orchestration.parallel_executor import NullStreamWriter
 
-    thread_id = f"{SURFACE}:{call_id}"
+    thread_id = f"{host.surface}:{host.key}"
     context = LiaRuntimeContext(
         user_id=user_id,
         thread_id=thread_id,
@@ -635,7 +749,7 @@ async def _synthetic_runtime(
             "configurable": {"thread_id": thread_id, "user_id": str(user_id)},
             "callbacks": callbacks,
         },
-        node_name=_SPEND_NODE,
+        node_name=host.spend_node,
     )
     return ToolRuntime(
         state=None,
@@ -718,7 +832,7 @@ async def _run_registry_tool(
     language: str,
     timezone: str,
     display_name: str,
-    call_id: UUID,
+    host: VoiceToolHost,
     db: Any,
     callbacks: list[Any],
 ) -> Any:
@@ -733,7 +847,7 @@ async def _run_registry_tool(
             language=language,
             timezone=timezone,
             display_name=display_name,
-            call_id=call_id,
+            host=host,
             deps=deps,
             callbacks=callbacks,
         )
@@ -750,43 +864,47 @@ async def run_live_tool(
     language: str,
     timezone: str,
     display_name: str,
-    call_id: UUID,
+    host: VoiceToolHost,
 ) -> str:
     """Run one derived tool — or native lookup — for the person, in plain text.
 
     The arguments are validated through the tool's OWN call schema (unknown
     keys dropped, scalars coerced), the run is bounded under the vendor's
-    timeout, and whatever happens the voice agent gets a sentence it can say.
-    The consultation is filed on the ``phone_call`` surface like the dial
-    path's own reads — under a collector THIS function opens, because a
-    call-back runs in no turn and a row nobody collects is a row nobody
-    writes (ADR-263); the outcome is counted per tool. What the lookup
-    SPENDS (a digest, an embedding search, a Maps request) is recorded under
-    the call's own run id (lot 8): a tracker opened here, its callback on the
+    timeout, and whatever happens the voice gets a sentence it can say.
+    The consultation is filed on the HOST's surface like the dial path's own
+    reads — under a collector THIS function opens, because a call-back runs
+    in no turn and a row nobody collects is a row nobody writes (ADR-263);
+    the outcome is counted per tool and surface. What the lookup SPENDS (a
+    digest, an embedding search, a Maps request) is recorded under the
+    host's own run id (lot 8): a tracker opened here, its callback on the
     runtime config, the ambient tracker for the clients that read it.
 
     Args:
         spec: The derived entry.
-        args: What the vendor posted, minus the call id.
+        args: What the voice asked, minus the host's own id.
         user_id: The person.
         language: Their backend-canonical language.
         timezone: Their IANA zone.
         display_name: What the tools may sign as.
-        call_id: The owner call.
+        host: Where the lookup is filed — the owner call or the live session.
 
     Returns:
-        The text handed back to the vendor.
+        The text handed back to the voice.
     """
     lines = result_lines()
     tool = None if spec.native else get_tool(spec.name)
     coroutine = getattr(tool, "coroutine", None) if tool is not None else None
     if not spec.native and (tool is None or coroutine is None):
-        telephony_live_tool_calls_total.labels(tool=spec.name, outcome="failed").inc()
+        telephony_live_tool_calls_total.labels(
+            tool=spec.name, outcome="failed", surface=host.surface
+        ).inc()
         logger.error("telephony_live_tool_unregistered", tool=spec.name)
         return lines["failed"].format(tool=spec.name)
     validated = _native_args(spec, args) if spec.native else _validated_args(tool, args)
     if validated is None:
-        telephony_live_tool_calls_total.labels(tool=spec.name, outcome="failed").inc()
+        telephony_live_tool_calls_total.labels(
+            tool=spec.name, outcome="failed", surface=host.surface
+        ).inc()
         logger.info("telephony_live_tool_invalid_arguments", tool=spec.name)
         return lines["failed"].format(tool=spec.name)
 
@@ -796,11 +914,11 @@ async def run_live_tool(
     started = time.monotonic()
     outcome = "ok"
     succeeded = False
-    run_id = phone_call_run_id(call_id)
+    run_id = host.spend_run_id
     async with (
         get_db_context() as db,
-        treatment_recorder(run_id=str(call_id)),
-        TrackingContext(run_id, user_id, f"{SURFACE}_{call_id}", None) as tracker,
+        treatment_recorder(run_id=host.consultation_run_id),
+        TrackingContext(run_id, user_id, f"{host.surface}_{host.key}", None) as tracker,
     ):
         callbacks: list[Any] = [TokenTrackingCallback(tracker, run_id)]
         try:
@@ -821,7 +939,7 @@ async def run_live_tool(
                     language=language,
                     timezone=timezone,
                     display_name=display_name,
-                    call_id=call_id,
+                    host=host,
                     db=db,
                     callbacks=callbacks,
                 )
@@ -836,26 +954,32 @@ async def run_live_tool(
             text = lines["failed"].format(tool=spec.name)
         duration_ms = int((time.monotonic() - started) * 1000)
         record_surface_consultations(
-            surface=SURFACE,
+            surface=host.surface,
             user_id=user_id,
             opened=[spec.section],
             failed=[] if succeeded else [spec.section],
             duration_ms=duration_ms,
-            run_id=str(call_id),
+            run_id=host.consultation_run_id,
         )
-    telephony_live_tool_duration_seconds.labels(tool=spec.name).observe(duration_ms / 1000)
-    telephony_live_tool_calls_total.labels(tool=spec.name, outcome=outcome).inc()
+    telephony_live_tool_duration_seconds.labels(tool=spec.name, surface=host.surface).observe(
+        duration_ms / 1000
+    )
+    telephony_live_tool_calls_total.labels(
+        tool=spec.name, outcome=outcome, surface=host.surface
+    ).inc()
     logger.info(
         "telephony_live_tool_ran",
         tool=spec.name,
         outcome=outcome,
         duration_ms=duration_ms,
-        call_id=str(call_id),
+        surface=host.surface,
+        host=host.key,
     )
     return text
 
 
 __all__ = [
+    "LIVE_SESSION_SURFACE",
     "LIVE_TOOL_DESCRIPTION_MAX_CHARS",
     "LIVE_TOOL_PROVISIONING_CONCURRENCY",
     "METADATA_HASH",
@@ -863,11 +987,13 @@ __all__ = [
     "NATIVE_LOOKUPS",
     "SURFACE",
     "LiveToolSpec",
+    "VoiceToolHost",
     "assert_live_tools_completeness",
     "available_live_tools",
     "derive_live_tool_specs",
     "domain_of",
     "ensure_vendor_live_tools",
+    "function_declaration",
     "exposed_parameter_names",
     "live_tool_description",
     "live_tool_parameters",

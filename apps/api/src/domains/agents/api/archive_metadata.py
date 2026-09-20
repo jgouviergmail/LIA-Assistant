@@ -32,12 +32,19 @@ at any archive call site of this package.
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 from typing import Any
 
 import structlog
 
 from src.core.config import settings
-from src.core.field_names import FIELD_RUN_ID
+from src.core.constants import LIVE_SESSION_SUMMARY_MESSAGE_TYPE, LIVE_TURN_MESSAGE_TYPE
+from src.core.field_names import (
+    FIELD_LIVE_SESSION_ID,
+    FIELD_LIVE_SUMMARY,
+    FIELD_RUN_ID,
+    FIELD_SPOKEN_TEXT,
+)
 from src.domains.agents.api.run_origin import with_origin_stamp
 from src.domains.agents.data_registry.message_widgets import with_persisted_widgets
 from src.domains.agents.services.streaming.followup_metadata import (
@@ -52,6 +59,29 @@ logger = structlog.get_logger(__name__)
 #: Message-metadata key carrying what the turn actually did (ADR-263). Absent
 #: when nothing was performed — the pure-conversation common case.
 FIELD_PERFORMED_EFFECTS = "performed_effects"
+
+
+def with_live_stamp(
+    message_metadata: dict[str, Any], live_session_id: str | None, spoken_text: str | None
+) -> dict[str, Any]:
+    """Attach the live session a delegated turn was spoken in (ADR-299).
+
+    Args:
+        message_metadata: Metadata being assembled for the user message.
+        live_session_id: The session, or None outside the live mode.
+        spoken_text: The person's transcribed words, kept beside the request
+            the voice model wrote from them.
+
+    Returns:
+        The input unchanged (same object) outside a live session, otherwise a
+        NEW dict carrying the session and, when there is one, the transcription.
+    """
+    if not live_session_id:
+        return message_metadata
+    stamped = {**message_metadata, FIELD_LIVE_SESSION_ID: live_session_id}
+    if spoken_text:
+        stamped[FIELD_SPOKEN_TEXT] = spoken_text
+    return stamped
 
 
 def with_performed_effects(
@@ -135,6 +165,102 @@ def build_hitl_question_metadata(*, run_id: str, intention: str | None) -> dict[
         The metadata to archive with the question.
     """
     return with_origin_stamp({FIELD_RUN_ID: run_id, "hitl_question": True, "intention": intention})
+
+
+def build_live_turn_metadata(
+    *, run_id: str, live_session_id: str, started_at: datetime, ended_at: datetime
+) -> dict[str, Any]:
+    """What a voice-only exchange row carries, either role (ADR-299).
+
+    Args:
+        run_id: The session's run id.
+        live_session_id: The session.
+        started_at: When the exchange started, as the client measured it.
+        ended_at: When it ended.
+
+    Returns:
+        A NEW dict, stamped when a run is driving — never, for a live session
+        (the person is present), but the doctrine holds for every builder.
+    """
+    return with_origin_stamp(
+        {
+            FIELD_RUN_ID: run_id,
+            "type": LIVE_TURN_MESSAGE_TYPE,
+            FIELD_LIVE_SESSION_ID: live_session_id,
+            "started_at": started_at.isoformat(),
+            "ended_at": ended_at.isoformat(),
+        }
+    )
+
+
+def build_live_session_summary_metadata(
+    *,
+    run_id: str,
+    live_session_id: str,
+    outcome: str,
+    duration_seconds: int,
+    delegations: int,
+    voice_turns: int,
+    usage: dict[str, Any] | None,
+    extensions: int = 0,
+    mode: str = "delegated",
+    relay: str | None = None,
+    relay_summary: str | None = None,
+) -> dict[str, Any]:
+    """What the end-of-session card carries (ADR-299).
+
+    The usage keys are the chat meter's (``tokens_in`` …), so the bubble reads
+    them exactly as it reads a proactive notification's; they are LIA's own
+    spend over the session's delegated turns and nothing of the provider's.
+
+    Args:
+        run_id: The session's run id.
+        live_session_id: The session.
+        outcome: How it ended (a ``LiveOutcome``).
+        duration_seconds: From the first credential to the end.
+        delegations: Requests handed to LIA.
+        voice_turns: Exchanges the voice held alone.
+        usage: The aggregated meter figures, or None when nothing was spent.
+        extensions: How many times the person prolonged the session.
+        mode: ``delegated`` or ``direct`` (ADR-300 wave 4) — a DIRECT session
+            archives no exchange, so the card draws no exchange count.
+        relay: A DIRECT session's relay fate (ADR-301): ``scheduled`` at the
+            closing, then the ``RelayOutcome`` the settle patches in; None
+            for a delegated session.
+        relay_summary: The neutral recap of the words when the relay did not
+            run (the phone's fallback push carries the same); None otherwise.
+
+    Returns:
+        A NEW dict.
+    """
+    metadata: dict[str, Any] = {
+        FIELD_RUN_ID: run_id,
+        "type": LIVE_SESSION_SUMMARY_MESSAGE_TYPE,
+        FIELD_LIVE_SESSION_ID: live_session_id,
+        # Under its OWN key: the origin stamp writes under the origin KIND, and
+        # a relayed turn's kind is `live_session` (review 2026-09-20).
+        FIELD_LIVE_SUMMARY: {
+            "outcome": outcome,
+            "duration_seconds": duration_seconds,
+            "delegations": delegations,
+            "voice_turns": voice_turns,
+            "extensions": extensions,
+            "mode": mode,
+            **({"relay": relay} if relay is not None else {}),
+            **({"relay_summary": relay_summary} if relay_summary else {}),
+        },
+    }
+    if usage:
+        metadata.update(
+            {
+                "tokens_in": usage["tokens_in"],
+                "tokens_out": usage["tokens_out"],
+                "tokens_cache": usage["tokens_cache"],
+                "cost_eur": usage["cost_eur"],
+                "google_api_requests": usage["google_api_requests"],
+            }
+        )
+    return with_origin_stamp(metadata)
 
 
 def build_interrupted_stream_metadata(*, run_id: str, reason: str) -> dict[str, Any]:

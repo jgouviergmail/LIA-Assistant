@@ -282,3 +282,20 @@ The trail is bounded — five references per conclusion, oldest pruned — and t
 bound is published alongside the list, so "five signals" never reads as "all of
 them". Deleting your account removes these references explicitly, before the
 conclusions they point at.
+
+## In a Live session, what does the provider see and what does LIA keep?
+**🔑 The provider, on your key:** your voice and LIA's answers transit directly
+between your browser and the live provider you connected with your own key —
+the audio never passes through the LIA server. The provider receives the
+mandate LIA renders for the session (how to behave, what to hand over) and,
+in a direct session, the tools' declarations and the results it reads for you.
+Its own usage and its bill are yours and shown to you once; the platform
+records none of it.
+
+**🧾 LIA, on your account:** each request you delegated is an ordinary chat
+turn — kept, confirmed, counted, filed in the registers like a typed one. The
+voice-only exchanges of a Live session are archived as visible lines; in a
+direct session nothing is archived while you speak, and your words are
+relayed at the end as a message from you. The registers record the session
+and the capabilities read, never the audio nor a transcript of it. Deleting
+your account removes all of it.

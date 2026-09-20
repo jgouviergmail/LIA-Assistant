@@ -310,7 +310,9 @@ class HitlResponseClassifier:
             # PRODUCTION FIX 1: Demote EDIT with missing params to AMBIGUOUS
             # If LLM classifies as EDIT but fails to extract edited_params,
             # treat as AMBIGUOUS and ask for clarification
+            fallback_reason = "classified"
             if classification.decision == "EDIT" and not classification.edited_params:
+                fallback_reason = "missing_params"
                 reasoning_preview = (
                     classification.reasoning[:100] if classification.reasoning else ""
                 )
@@ -335,40 +337,11 @@ class HitlResponseClassifier:
                     from_decision="EDIT", to_decision="AMBIGUOUS", reason="missing_params"
                 ).inc()
 
-            # PRODUCTION FIX 2: Demote low-confidence EDIT to AMBIGUOUS
-            # Prevents false positives when LLM is uncertain about EDIT intent
-            # Threshold: Configurable via HITL_CLASSIFIER_CONFIDENCE_THRESHOLD (default: 0.7)
-            #
-            # Issue #60 Fix: Don't demote if edited_params contains valid values!
-            # If the LLM extracted actual parameters, trust the extraction even with lower confidence.
-            # This fixes plan-level HITL where user says "juste 2" → EDIT {max_results: 2}
-            elif (
-                classification.decision == "EDIT"
-                and classification.confidence < settings.hitl_classifier_confidence_threshold
-                and not classification.edited_params  # Only demote if no params extracted
-            ):
-                reasoning_preview = (
-                    classification.reasoning[:100] if classification.reasoning else ""
-                )
-                logger.warning(
-                    "edit_decision_demoted_to_ambiguous",
-                    original_confidence=classification.confidence,
-                    reasoning_preview=reasoning_preview,
-                    user_response=user_response[:50],
-                )
-
-                # Convert to AMBIGUOUS, keeping whatever question the LLM produced
-                # (the previous code overwrote it, discarding a more specific
-                # question than any fallback could be). Localization of the
-                # fallback belongs to the resume mapper, which knows the language.
-                classification.decision = "AMBIGUOUS"
-                classification.confidence = settings.hitl_demotion_confidence
-                classification.edited_params = {}  # Clear uncertain edits
-
-                # Track demotion for monitoring
-                hitl_classification_demoted_total.labels(
-                    from_decision="EDIT", to_decision="AMBIGUOUS", reason="low_confidence"
-                ).inc()
+            # A low-confidence EDIT WITH parameters is kept (issue #60: « juste 2 » →
+            # EDIT {max_results: 2}); a low-confidence EDIT WITHOUT parameters is
+            # the missing-params demotion above — the separate « low confidence »
+            # demotion that stood here could never run (it also required no
+            # parameters) and was removed 2026-09-19.
 
             # METRICS: Track clarification fallback (AMBIGUOUS decisions)
             if classification.decision == "AMBIGUOUS":
@@ -376,7 +349,11 @@ class HitlResponseClassifier:
                     hitl_clarification_fallback_total,
                 )
 
-                hitl_clarification_fallback_total.inc()
+                # Labelled by WHY the answer needs a clarification: the model said so,
+                # or an EDIT was demoted. Incremented without its label, the counter
+                # raised inside the classification and every AMBIGUOUS answer became
+                # an EDIT through the caller's error fallback (dev logs, 2026-09-19).
+                hitl_clarification_fallback_total.labels(reason=fallback_reason).inc()
 
             return classification
 

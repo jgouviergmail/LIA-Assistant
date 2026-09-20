@@ -5,8 +5,19 @@ Authenticated, rate-limited proxies for BILLED Google image requests
 connectors/router.py (file-size ratchet) as one cohesive sub-router,
 included by the main connectors router so paths and the demo-mode
 account-linking guard are unchanged.
+
+**Every image served here is counted where Google bills it** — on the 200,
+under the fetch's own ``TrackingContext`` (``media_attribution``), filed on the
+turn that built the URL when its signed run id is presented and on a fresh
+``media_<hex>`` run otherwise. The tools used to pre-count the route map
+when they built its URL and never counted the location map at all; a count
+made before the fetch is a claim, and a fetch nobody counted is a euro the
+deployment paid for nobody (2026-09-19).
 """
 
+from uuid import UUID
+
+import httpx
 import structlog
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
@@ -34,11 +45,68 @@ from src.core.exceptions import (
 )
 from src.core.session_dependencies import get_current_active_session
 from src.domains.auth.dependencies import create_user_rate_limiter
+from src.domains.connectors.clients.google_api_tracker import track_google_api_call
+from src.domains.connectors.media_attribution import media_spend_context
 from src.domains.users.models import User
 
 logger = structlog.get_logger(__name__)
 
 media_proxy_router = APIRouter()
+
+#: Browser cache on every proxied image: a re-render inside the day is served
+#: locally and costs nothing; past it, the fetch is billed again and counted
+#: again.
+_CACHE_HEADERS = {"Cache-Control": "public, max-age=86400"}
+
+
+async def serve_billed_image(
+    url: str,
+    *,
+    api_name: str,
+    endpoint: str,
+    service: str,
+    operation: str,
+    timeout: float,
+    default_media_type: str,
+    user_id: UUID,
+    run: str | None,
+    sig: str | None,
+) -> StreamingResponse:
+    """Fetch one billed Google image and count it at the instant Google bills it.
+
+    The ONE fetch-and-count path of every image proxy (routes map, location
+    map, Street View, Places photo). The count is recorded on a 200 only —
+    a refused request is not billed — into the accounting the signed URL
+    names, and persisted when that accounting closes, before the bytes are
+    returned.
+
+    Args:
+        url: The Google URL, key included.
+        api_name: The pricing table's API name (``static_maps``, ``street_view``…).
+        endpoint: The pricing table's endpoint (``/staticmap``…).
+        service: The service name the raised errors carry.
+        operation: The operation name the raised errors and the log lines carry.
+        timeout: The HTTP timeout.
+        default_media_type: When Google names none.
+        user_id: The authenticated caller — the account the fetch is filed on.
+        run: The signed run id the URL carried, if any.
+        sig: Its signature, if any.
+
+    Returns:
+        The image, cacheable for a day.
+    """
+    async with media_spend_context(run, sig, user_id), httpx.AsyncClient() as client:
+        response = await client.get(url, follow_redirects=True, timeout=timeout)
+        if response.status_code != 200:
+            logger.warning(f"{operation}_proxy_error", status_code=response.status_code)
+            raise_external_service_fetch_error(service, operation, response.status_code)
+        track_google_api_call(api_name, endpoint, cached=False)
+        media_type = response.headers.get("content-type", default_media_type)
+    logger.debug(f"{operation}_proxy_success", content_length=len(response.content))
+    return StreamingResponse(
+        iter([response.content]), media_type=media_type, headers=_CACHE_HEADERS
+    )
+
 
 # Per-user budget for the Google media proxies. The dependency chains
 # `get_current_active_session`, so it also carries the authentication these
@@ -83,6 +151,8 @@ async def proxy_routes_static_map(
     height: int = 300,
     origin: str | None = None,
     dest: str | None = None,
+    run: str | None = None,
+    sig: str | None = None,
     current_user: User = Depends(get_current_active_session),
     _rate_limit: None = Depends(rate_limit_static_map),
 ) -> StreamingResponse:
@@ -104,14 +174,14 @@ async def proxy_routes_static_map(
         height: Map height in pixels (50-2048, default 300)
         origin: Optional origin coordinates as "lat,lng" for green marker
         dest: Optional destination coordinates as "lat,lng" for red marker
+        run: The signed run id of the turn that built the URL, if any.
+        sig: Its signature.
 
     Returns:
         StreamingResponse with the map image
     """
     import re
     from urllib.parse import quote
-
-    import httpx
 
     try:
         api_key = settings.google_api_key
@@ -175,37 +245,18 @@ async def proxy_routes_static_map(
             has_dest_marker=bool(dest),
         )
 
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                static_map_url,
-                follow_redirects=True,
-                timeout=settings.http_timeout_connector_standard,
-            )
-
-            if response.status_code != 200:
-                logger.warning(
-                    "static_map_proxy_error",
-                    status_code=response.status_code,
-                    response_text=response.text[:200] if response.text else None,
-                )
-                raise_external_service_fetch_error(
-                    "google_routes", "static_map", response.status_code
-                )
-
-            content_type = response.headers.get("content-type", "image/png")
-
-            logger.debug(
-                "static_map_proxy_success",
-                content_length=len(response.content),
-            )
-
-            return StreamingResponse(
-                iter([response.content]),
-                media_type=content_type,
-                headers={
-                    "Cache-Control": "public, max-age=86400",  # Cache for 24 hours
-                },
-            )
+        return await serve_billed_image(
+            static_map_url,
+            api_name="static_maps",
+            endpoint="/staticmap",
+            service="google_routes",
+            operation="static_map",
+            timeout=settings.http_timeout_connector_standard,
+            default_media_type="image/png",
+            user_id=current_user.id,
+            run=run,
+            sig=sig,
+        )
     except httpx.RequestError as e:
         logger.error(
             "static_map_proxy_request_error",
@@ -249,6 +300,8 @@ async def proxy_location_static_map(
     width: int = 600,
     height: int = 300,
     zoom: int = 14,
+    run: str | None = None,
+    sig: str | None = None,
     current_user: User = Depends(get_current_active_session),
     _rate_limit: None = Depends(rate_limit_static_map),
 ) -> StreamingResponse:
@@ -260,13 +313,13 @@ async def proxy_location_static_map(
         width: Map width in pixels (50-2048, default 600).
         height: Map height in pixels (50-2048, default 300).
         zoom: Zoom level (1-20, default 14).
+        run: The signed run id of the turn that built the URL, if any.
+        sig: Its signature.
 
     Returns:
         StreamingResponse with the map image.
     """
     import re
-
-    import httpx
 
     try:
         api_key = settings.google_api_key
@@ -302,31 +355,18 @@ async def proxy_location_static_map(
             zoom=zoom,
         )
 
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                static_map_url,
-                follow_redirects=True,
-                timeout=settings.http_timeout_connector_standard,
-            )
-
-            if response.status_code != 200:
-                logger.warning(
-                    "location_static_map_proxy_error",
-                    status_code=response.status_code,
-                )
-                raise_external_service_fetch_error(
-                    "google_location", "static_map", response.status_code
-                )
-
-            content_type = response.headers.get("content-type", "image/png")
-
-            return StreamingResponse(
-                iter([response.content]),
-                media_type=content_type,
-                headers={
-                    "Cache-Control": "public, max-age=86400",
-                },
-            )
+        return await serve_billed_image(
+            static_map_url,
+            api_name="static_maps",
+            endpoint="/staticmap",
+            service="google_location",
+            operation="location_static_map",
+            timeout=settings.http_timeout_connector_standard,
+            default_media_type="image/png",
+            user_id=current_user.id,
+            run=run,
+            sig=sig,
+        )
     except httpx.RequestError as e:
         logger.error(
             "location_static_map_proxy_request_error",
@@ -368,6 +408,8 @@ async def proxy_street_view(
     location: str,
     width: int = STREET_VIEW_DEFAULT_WIDTH,
     height: int = STREET_VIEW_DEFAULT_HEIGHT,
+    run: str | None = None,
+    sig: str | None = None,
     current_user: User = Depends(get_current_active_session),
     _rate_limit: None = Depends(rate_limit_static_map),
 ) -> StreamingResponse:
@@ -377,16 +419,15 @@ async def proxy_street_view(
         location: Coordinates as "lat,lng".
         width: Image width in pixels (50-2048, default 600).
         height: Image height in pixels (50-2048, default 300).
+        run: The signed run id of the turn that built the URL, if any.
+        sig: Its signature.
 
     Returns:
         StreamingResponse with the Street View image.
     """
     import re
 
-    import httpx
-
     from src.core.constants import STREET_VIEW_IMAGE_URL
-    from src.domains.connectors.clients.google_api_tracker import track_google_api_call
 
     try:
         api_key = settings.google_api_key
@@ -405,32 +446,18 @@ async def proxy_street_view(
             f"{STREET_VIEW_IMAGE_URL}?size={width}x{height}&location={location}&key={api_key}"
         )
 
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                street_view_url,
-                follow_redirects=True,
-                timeout=settings.http_timeout_connector_standard,
-            )
-
-            if response.status_code != 200:
-                logger.warning(
-                    "street_view_proxy_error",
-                    status_code=response.status_code,
-                )
-                raise_external_service_fetch_error(
-                    "street_view", "street_view_image", response.status_code
-                )
-
-            # Billed call — tracked so the pricing table stays exact.
-            track_google_api_call("street_view", "/streetview", cached=False)
-
-            return StreamingResponse(
-                iter([response.content]),
-                media_type=response.headers.get("content-type", "image/jpeg"),
-                headers={
-                    "Cache-Control": "public, max-age=86400",
-                },
-            )
+        return await serve_billed_image(
+            street_view_url,
+            api_name="street_view",
+            endpoint="/streetview",
+            service="street_view",
+            operation="street_view",
+            timeout=settings.http_timeout_connector_standard,
+            default_media_type="image/jpeg",
+            user_id=current_user.id,
+            run=run,
+            sig=sig,
+        )
     except httpx.RequestError as e:
         logger.error(
             "street_view_proxy_request_error",

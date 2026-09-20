@@ -44,6 +44,7 @@ _NON_METRIC_TOKENS: frozenset[str] = frozenset(
     {
         "histogram_quantile",
         "clamp_min",
+        "api_name",
         "error_type",
         "job_name",
         "window_minutes",
@@ -230,6 +231,18 @@ QUERY_CATALOGUE: dict[str, NamedQuery] = {
             params=(_WINDOW,),
             unit="count",
             lia_metrics=("llm_api_errors_total",),
+            external_metrics=(),
+        ),
+        NamedQuery(
+            query_id="google_api_unaccounted_by_api",
+            title="Paid Google Maps Platform calls that reached no ledger, by API",
+            promql_template=(
+                "sum by (api_name) "
+                "(increase(google_api_calls_unaccounted_total[{window_minutes}m]))"
+            ),
+            params=(_WINDOW,),
+            unit="count",
+            lia_metrics=("google_api_calls_unaccounted_total",),
             external_metrics=(),
         ),
         NamedQuery(

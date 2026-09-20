@@ -79,6 +79,9 @@ EXPECTED_CAPABILITIES: frozenset[str] = frozenset(
         # proxy. A new way for model-written code to act on the world, so an
         # operator must be able to keep the calculator and refuse the exit.
         "python_sandbox_egress",
+        # ADR-299 — the live voice mode: a new way to reach every capability by
+        # voice, so an operator must be able to close it without a deployment.
+        "live",
     }
 )
 

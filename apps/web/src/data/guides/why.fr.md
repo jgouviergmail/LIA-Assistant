@@ -4,7 +4,7 @@
 
 **Version** : 6.0
 **Date** : 2026-09-18
-**Application** : LIA v1.46.0
+**Application** : LIA v1.47.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -148,6 +148,7 @@ LIA propose un mode vocal complet :
 - **Mot-clé "OK Guy"** : détection mains-libres exécutée **entièrement dans ton navigateur** via Sherpa-onnx WASM — aucun son n'est transmis tant que le mot-clé n'est pas détecté
 - **Synthèse vocale** : trois providers configurables côté admin — Edge TTS (gratuit), OpenAI TTS (`tts-1` / `tts-1-hd`) ou ElevenLabs (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`)
 - **Messages vocaux Telegram** : envoie des messages audio, LIA les transcrit et répond
+- **Mode Live** : une conversation en temps réel, de vive voix, sur un modèle live que tu connectes avec **ta propre clé** — Gemini Live, GPT-Live ou un agent ElevenLabs. La voix tient la conversation et confie chaque demande à LIA, qui la traite comme un tour de chat ordinaire pendant que tu parles ; une session directe laisse la voix lire tes données elle-même sans agir sur rien. Ce que le fournisseur facture t'est montré, jamais enregistré.
 
 ### 3.5. Création et médias
 
@@ -202,7 +203,7 @@ Tu gardes toujours la main : avant de composer, LIA t’indique précisément **
 
 Et cela reste confidentiel par construction. Pendant un appel, LIA peut seulement indiquer si tu es libre ou occupé à un moment donné — jamais les titres, invités ou lieux de ton agenda. Rien n'est enregistré, la conversation n'est jamais conservée, et seul un résumé court est gardé avant d'expirer. Les appels passent par ton propre connecteur ElevenLabs, facturés sur ton compte, et la fonctionnalité n'est là que si ton administrateur l'a activée.
 
-Et LIA peut *t'*appeler. Déclare ton numéro dans *Téléphonie · Mon identité*, laisse LIA l'appeler et lire un code que tu retapes, et dès lors « appelle-moi à huit heures pour faire le point sur ma journée » — ou une routine qui le dit — fait sonner ton téléphone sans carte de confirmation : la personne qui confirmerait est celle qui décroche. En ligne, LIA sait ce qu'elle sait dans le chat — tes mémoires, ton agenda, tes rappels, ce qui est ouvert avec les gens — et, si ton administrateur l'a activé, consulte pendant que tu parles : un e-mail, un contact, un fichier, un lieu à proximité, la météo, ce qu'elle retient d'un sujet. Elle lit tout et n'agit sur rien ; chaque domaine a un interrupteur qui est à toi, et l'assistante parle avec la personnalité que tu lui as donnée. Quand tu raccroches, ce que tu as dit revient dans le chat comme ton propre message, avec un badge téléphone, et ce que tu as demandé y attend ta confirmation.
+Et LIA peut *t'*appeler. Déclare ton numéro dans *Téléphonie · Mon identité*, laisse LIA l'appeler et lire un code que tu retapes, et dès lors « appelle-moi à huit heures pour faire le point sur ma journée » — ou une routine qui le dit — fait sonner ton téléphone sans carte de confirmation : la personne qui confirmerait est celle qui décroche. La façon dont l'appel se passe est un choix qui t'appartient, dans les mêmes réglages, et c'est le même choix que pour les sessions live du navigateur. En **Live**, le défaut, chaque chose que tu demandes en ligne est traitée par LIA pendant que tu parles, comme un tour de chat de toi — la voix l'annonce, continue de parler, lit la réponse quand elle arrive ; une confirmation dont LIA a besoin est demandée sur la ligne, une question qu'elle pose est la réponse, et tout est dans le fil avec un badge téléphone. En **Live direct**, la voix lit pour toi — ton agenda, un e-mail, un contact, un lieu à proximité, la météo, ce qu'elle retient — et n'agit sur rien ; chaque domaine a un interrupteur qui est à toi, et ce que tu as dit revient ensuite comme ton propre message. Live n'existe que là où le fournisseur téléphonique peut rappeler ton instance ; ailleurs le réglage le dit et l'appel part en direct. Dans les deux cas l'assistante parle avec la personnalité que tu lui as donnée, et ce qui tourne sur ta clé ElevenLabs y est facturé, jamais compté ici.
 
 ### 3.11. Parler à tes proches, d’assistant à assistant
 
@@ -312,6 +313,8 @@ Chaque message affiche son coût en tokens et en euros. L'utilisateur peut expor
 Tu ne paies pas un abonnement qui masque les coûts réels. Tu vois exactement ce que chaque interaction coûte, et tu peux optimiser : modèle économique pour le routage, plus puissant pour la réponse.
 
 La même transparence s'applique aux actions : sous chaque réponse, une ligne repliée « ⚙ N étapes · X s » déplie le déroulé réel — routage, outils appelés, durée — et cette trace est conservée avec le message : elle reste consultable après un rechargement, sur tous tes appareils. Chaque réponse peut aussi être jugée d'un 👍/👎 discret, mémorisé et réinjecté dans l'apprentissage de l'assistant — jamais pour régénérer la réponse à ta place.
+
+La règle ne souffre aucune exception par chemin. Tout ce que la plateforme paie pour toi avec ses propres clés atteint ton usage et tes limites, quelle que soit la modalité : une consultation de carte pendant un appel téléphonique ou une session live directe, les appels météo du briefing du matin, le géocodage de ton adresse, une photo de lieu qu'on te montre (comptée quand elle s'affiche, jamais d'avance), une synthèse vocale (comptée seulement pour les phrases réellement livrées). Une facture téléphonique et une carte de session live montrent un seul chiffre pour ce que le run a coûté, euros Maps compris. Et ce que tu paies avec **tes propres** clés de connecteur — un modèle live, l'agent téléphonique, une recherche web — reste dehors : montré là où il se produit, enregistré nulle part.
 
 ### 6.4. La confiance par la preuve
 

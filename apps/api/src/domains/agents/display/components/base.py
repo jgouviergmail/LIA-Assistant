@@ -696,6 +696,16 @@ def html_to_text(html_content: str | None, preserve_links: bool = False) -> str:
     # 7. Handle blockquotes (common in email replies)
     text = re.sub(r"<blockquote[^>]*>", "\n> ", text, flags=re.IGNORECASE)
     text = re.sub(r"</blockquote>", "\n", text, flags=re.IGNORECASE)
+    # 7b. The response vocabulary (ADR-177): a definition list reads « label :
+    # value » per line, and two adjacent spans (a stat's value and label) keep
+    # a space between them — the browser's ``htmlToPlainText`` already did the
+    # first, and a voice on the phone read « IntituléSenterre » (measured
+    # 2026-09-20, ADR-301). The voice corpus pins the two sides to each other.
+    text = re.sub(r"</dt>", " : ", text, flags=re.IGNORECASE)
+    text = re.sub(
+        r"</(?:dd|dl|summary|details|figcaption|caption)>", "\n", text, flags=re.IGNORECASE
+    )
+    text = re.sub(r"</span>\s*(?=<span)", " ", text, flags=re.IGNORECASE)
 
     # 8. Bold/italic → keep text, remove tags
     text = re.sub(r"</?(?:b|strong)[^>]*>", "", text, flags=re.IGNORECASE)

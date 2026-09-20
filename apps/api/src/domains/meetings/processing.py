@@ -42,7 +42,7 @@ from src.domains.meetings.audio_store import (
     pcm_duration_seconds,
 )
 from src.domains.meetings.engine import ResolvedEngine, resolve_engine
-from src.domains.meetings.enrichment import CalendarMatch, match_calendar_event, place_label
+from src.domains.meetings.enrichment import CalendarMatch, enrich_meeting
 from src.domains.meetings.error_codes import (
     ERROR_AUDIO_UNAVAILABLE,
     ERROR_NO_ENGINE,
@@ -92,6 +92,7 @@ from src.infrastructure.observability.metrics_meetings import (
     meeting_stt_audio_seconds_total,
     meetings_total,
 )
+from src.infrastructure.proactive.tracking import generate_proactive_run_id
 
 logger = structlog.get_logger(__name__)
 
@@ -314,20 +315,6 @@ async def _acquire_transcript(
     return outcome
 
 
-async def _enrich(
-    db: Any, meeting: Meeting, *, stopped_at: datetime, language: str
-) -> tuple[CalendarMatch | None, str | None]:
-    calendar = await match_calendar_event(
-        db, user_id=meeting.user_id, started_at=meeting.started_at, stopped_at=stopped_at
-    )
-    label = meeting.location_label
-    if label is None and meeting.location_lat is not None and meeting.location_lon is not None:
-        label = await place_label(meeting.location_lat, meeting.location_lon, language=language)
-    if label is None and calendar is not None and calendar.location:
-        label = calendar.location
-    return calendar, label
-
-
 async def _synthesize(
     meeting: Meeting,
     outcome: TranscriptionOutcome,
@@ -409,23 +396,22 @@ async def _notify_ready(
     outcome: TranscriptionOutcome,
     language: str,
     gaps: int,
+    run_id: str,
 ) -> None:
     """Account the synthesis tokens and dispatch the « minutes ready » notification.
 
     Same contract as the proactive runner: the archived message carries the
     ``run_id`` that links it to ``token_usage_logs`` and the token/cost fields
-    the chat bubble displays. Here the paid units are TWO — the transcription
-    (audio, already recorded by the engine) and the minutes (tokens) — so the
-    metadata states both and ``cost_eur`` is their sum: what this exchange cost.
+    the chat bubble displays. Here the paid units are THREE — the transcription
+    (audio, already recorded by the engine), the place name (a Geocoding call,
+    filed under the same run id by ``enrich_meeting``) and the minutes (tokens)
+    — so the metadata states them and ``cost_eur`` is their sum: what this
+    exchange cost.
     """
     from src.infrastructure.proactive.notification import NotificationDispatcher
-    from src.infrastructure.proactive.tracking import (
-        generate_proactive_run_id,
-        track_proactive_tokens,
-    )
+    from src.infrastructure.proactive.tracking import track_proactive_tokens
 
     report, usage = synthesis.report, synthesis.usage
-    run_id = generate_proactive_run_id(MEETINGS_PROACTIVE_TASK_TYPE, str(meeting.id))
     if usage.tokens_in or usage.tokens_out:
         await track_proactive_tokens(
             user_id=meeting.user_id,
@@ -532,6 +518,7 @@ async def _after_ready(
     preference: MeetingPreference | None,
     language: str,
     gaps: int,
+    run_id: str,
 ) -> None:
     """Notify, email, index and purge — each best effort, each logged.
 
@@ -555,6 +542,7 @@ async def _after_ready(
             outcome=outcome,
             language=language,
             gaps=gaps,
+            run_id=run_id,
         )
         if preference is not None and preference.auto_email:
             await _auto_email(
@@ -665,9 +653,14 @@ async def _run(job: _Job, repo: MeetingRepository, db: Any, meeting: Meeting) ->
         language_hint=_language_hint(preference, meeting),
     )
 
-    # 3. synthesizing (enrichment first — both are hints for the same call)
+    # 3. synthesizing (enrichment first — both are hints for the same call).
+    # ONE run id for everything this meeting costs from here: the place name
+    # (Geocoding), the minutes (tokens) — minted once, before the first bill.
     await job.enter_stage(repo, MeetingStage.SYNTHESIZING)
-    calendar, location_label = await _enrich(db, meeting, stopped_at=stopped_at, language=language)
+    run_id = generate_proactive_run_id(MEETINGS_PROACTIVE_TASK_TYPE, str(meeting.id))
+    calendar, location_label = await enrich_meeting(
+        db, meeting, stopped_at=stopped_at, language=language, run_id=run_id
+    )
     decision = await decide_template(
         db,
         meeting=meeting,
@@ -726,6 +719,7 @@ async def _run(job: _Job, repo: MeetingRepository, db: Any, meeting: Meeting) ->
         preference=preference,
         language=language,
         gaps=gaps,
+        run_id=run_id,
     )
 
 

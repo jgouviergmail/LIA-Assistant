@@ -29,6 +29,24 @@ Ce document définit les patterns obligatoires pour l'implémentation de nouveau
 - Réutilisation des helpers centralisés
 - Maintenabilité à long terme
 
+**Deux connecteurs ne portent aucun outil** et suivent un patron plus court, celui d'une
+CAPACITÉ à clé personnelle : la téléphonie (`ELEVENLABS_TELEPHONY`, [TELEPHONY.md](./TELEPHONY.md))
+et le mode Live (`GEMINI_LIVE`, `GPT_LIVE`, `ELEVENLABS_LIVE`, catégorie `live`,
+[LIVE_MODE.md](./LIVE_MODE.md), ADR-299, ADR-300). Leur clé est vérifiée par un vérificateur
+fonctionnel (`connectors/api_key_verifiers.py` — pour le Live, la liste même des modèles qui
+remplit le formulaire, partagée dans `infrastructure/llm/providers/gemini_live_listing.py`,
+`openai_live_listing.py` et `elevenlabs_live_listing.py` — les agents de l'espace de travail —
+pour que `connectors` n'importe jamais `live` ni `telephony`), leurs choix vivent dans
+`connector_metadata` (modèle — ou AGENT pour ElevenLabs, dont la voix est celle du portail —,
+voix, niveau de réflexion, et ce que LIA tient sur l'agent de la personne : ses outils client
+par empreinte, la permission de prompt accordée), et la famille de coût est `USER`
+(`usage_limits/cost_bearers.py`) : rien de ce que le fournisseur facture n'est compté par LIA.
+**La catégorie `live` est ADDITIVE** (`CONNECTOR_ADDITIVE_CATEGORIES`, ADR-300) : la règle « un
+fournisseur actif par catégorie » vaut pour les SOURCES de données, où deux boîtes mail
+répondraient deux fois à une question ; une voix live sur la clé de la personne est un choix par
+session, pas une source — les deux clés restent actives et les sessions ouvrent sur le choix du
+compte (`users.live_preferences.provider`).
+
 ---
 
 ## 🏗️ Architecture Standard

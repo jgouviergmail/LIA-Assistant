@@ -19,7 +19,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { apiClient, ApiError } from '@/lib/api-client';
 import { logger } from '@/lib/logger';
 import { useStaleGuard } from '@/hooks/useStaleGuard';
-import type { TelephonyIdentity, TelephonyIdentityVerifyStart } from '@/types/telephony';
+import type {
+  PhoneCallMode,
+  TelephonyIdentity,
+  TelephonyIdentityVerifyStart,
+} from '@/types/telephony';
 
 export interface UseTelephonyIdentityReturn {
   identity: TelephonyIdentity | null;
@@ -39,6 +43,8 @@ export interface UseTelephonyIdentityReturn {
   setRichContext: (enabled: boolean) => Promise<string | null>;
   /** Replace the set of domains switched off for the person's own calls (lot 8). */
   setDisabledDomains: (domains: string[]) => Promise<string | null>;
+  /** Choose how the person's own calls run: Live or Live direct (ADR-301). */
+  setCallMode: (mode: PhoneCallMode) => Promise<string | null>;
   refetch: () => Promise<void>;
 }
 
@@ -160,6 +166,12 @@ export function useTelephonyIdentity(enabled = true): UseTelephonyIdentityReturn
     [run]
   );
 
+  const setCallMode = useCallback(
+    (mode: PhoneCallMode) =>
+      run(() => apiClient.patch<TelephonyIdentity>(ENDPOINT, { call_mode: mode })),
+    [run]
+  );
+
   return {
     identity,
     isLoading,
@@ -172,6 +184,7 @@ export function useTelephonyIdentity(enabled = true): UseTelephonyIdentityReturn
     confirmCode,
     setRichContext,
     setDisabledDomains,
+    setCallMode,
     refetch,
   };
 }

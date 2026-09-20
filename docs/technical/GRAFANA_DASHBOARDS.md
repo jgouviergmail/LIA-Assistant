@@ -2,7 +2,7 @@
 
 **Document de reference technique - Observabilite Production avec Grafana**
 
-> **Version 4.5** | 2026-07-29 | 29 dashboards, 905 panels
+> **Version 4.6** | 2026-09-20 | 30 dashboards, 778 panels (rows excluded)
 
 ---
 
@@ -23,7 +23,7 @@
 
 ### Objectifs
 
-Les **29 dashboards Grafana** fournissent une observabilite complete pour :
+Les **30 dashboards Grafana** fournissent une observabilite complete pour :
 
 1. **Monitoring production** : Sante applicative, SLOs, performance HTTP, ressources infrastructure
 2. **Agent debugging** : Pipeline d'orchestration LangGraph, router, planner, outils, HITL
@@ -38,7 +38,7 @@ Les **29 dashboards Grafana** fournissent une observabilite complete pour :
 | Indicateur | Valeur |
 |------------|--------|
 | Dashboards | 28 |
-| Panels total | 719 |
+| Panels total | 721 |
 | Recording rules | 86 |
 | Schema version | 38 (Grafana 11.3) |
 | graphTooltip | 1 (shared crosshair) sur tous les dashboards |
@@ -120,7 +120,7 @@ OpenTelemetry OTLP --> Tempo --> Grafana
 | 02 | SLO Tracking | `02-slo-tracking` | lia, slo, reliability | 17 | SLOs API, SLOs agents, SLOs providers LLM, SLOs DB et business |
 | 03 | Infrastructure & Resources | `03-infra-resources` | lia, infra, docker, raspberry-pi | 26 | Systeme hote (RPi), ressources conteneurs, PostgreSQL, Redis |
 | 04 | HTTP & API Performance | `04-http-api` | lia, http, api, latency | 17 | Trafic, latence, erreurs, rate limiting |
-| 05 | LLM Tokens & Cost | `05-llm-tokens-cost` | lia, llm, tokens, cost | 56 | Headlines couts, ventilation, consommation tokens, efficacite, suivi par utilisateur (Loki), performance API LLM, cache LLM et economies, pricing, metriques cumulees, embeddings (issues, regulateur, refus fournisseur par raison) |
+| 05 | LLM Tokens & Cost | `05-llm-tokens-cost` | lia, llm, tokens, cost | 58 | Headlines couts, ventilation, consommation tokens, efficacite, suivi par utilisateur (Loki), performance API LLM, cache LLM et economies, pricing, metriques cumulees, embeddings (issues, regulateur, refus fournisseur par raison), completude comptable des familles payees par la plateforme (appels Google Maps non comptabilises, attendu 0) |
 | 06 | Logs, Traces & Correlations | `06-logs-traces` | lia, logs, traces, debug | 17 | Logs, traces, correlation metrique-log, vue correlee, jobs background, recherche |
 | 07 | Agent Orchestration Pipeline | `07-agents-pipeline` | lia, agents, langgraph, orchestration | 62 | Router, planner et orchestrateur, execution nodes agent, execution outils, contexte et etat, SSE streaming, background runs (ADR-117), couche semantique (ADR-120/121) |
 | 08 | HITL Human-in-the-Loop | `08-hitl` | lia, hitl, approval | 29 | Vue d'ensemble HITL, qualite classification, comportement utilisateur, editions et rejets, reprise |
@@ -150,7 +150,7 @@ OpenTelemetry OTLP --> Tempo --> Grafana
 ## Lecture par tiers (audience)
 
 Le catalogue ci-dessus est ordonne par numero ; celui-ci l'est par **qui ouvre
-quoi**. Les deux vues portent sur les memes 29 dashboards — elles vivent dans ce
+quoi**. Les deux vues portent sur les memes 30 dashboards — elles vivent dans ce
 document, et non dans un second fichier, parce que la version enveloppe qui les
 separait a derive quatre fois du catalogue qu'elle resumait (elle annoncait
 encore 25 dashboards apres l'ajout du 26).
@@ -193,7 +193,7 @@ Trafic HTTP detaille : requetes/s par endpoint, distribution latence (p50/p95/p9
 
 ### 05 - LLM Tokens & Cost (56 panels)
 
-Dashboard le plus riche en panels avec le 07. Headlines de couts (jour, mois, projection), ventilation par modele et par node, consommation tokens (prompt, completion, cached), metriques d'efficacite (cout par requete, tokens par seconde). Section Loki pour le suivi par utilisateur. Performance des appels API LLM (latence, erreurs par provider). Cache LLM (hits/misses, erreurs, migrations de format) et economies estimees (`llm_cache_cost_saved_total`), fallbacks du cache pricing. Metriques de cout cumulees sur la duree de vie. La section compaction historique a ete deplacee vers le dashboard 22.
+Dashboard le plus riche en panels avec le 07. Headlines de couts (jour, mois, projection), ventilation par modele et par node, consommation tokens (prompt, completion, cached), metriques d'efficacite (cout par requete, tokens par seconde). Section Loki pour le suivi par utilisateur. Performance des appels API LLM (latence, erreurs par provider). Cache LLM (hits/misses, erreurs, migrations de format) et economies estimees (`llm_cache_cost_saved_total`), fallbacks du cache pricing. Metriques de cout cumulees sur la duree de vie. La section compaction historique a ete deplacee vers le dashboard 22. Derniere ligne, la **completude comptable** des familles payees par la plateforme : `google_api_calls_unaccounted_total` (appels Google Maps Platform faits sans `TrackingContext` ambiant — attendu 0, `or vector(0)`, alerte `GoogleApiCallsUnaccounted`), le pendant cote Maps de `LLMCallsWithoutUsage`.
 
 **Datasources** : Prometheus + Loki (pour les logs de suivi utilisateur).
 
@@ -539,4 +539,4 @@ docker compose restart grafana
 **Version** : 4.5
 **Date** : 2026-07-29
 **Auteur** : Equipe LIA
-**Statut** : Production (29 dashboards, 905 panels)
+**Statut** : Production (30 dashboards, 778 panels)

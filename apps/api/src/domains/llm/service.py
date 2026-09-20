@@ -15,6 +15,7 @@ transaction boundary so audit logging stays consistent with the data write.
 from __future__ import annotations
 
 import uuid
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import select, update
@@ -34,6 +35,7 @@ from src.domains.llm.repository import LLMModelRepository
 from src.domains.llm.schemas import (
     ModelPriceCreate,
     ModelPriceUpdate,
+    validate_audio_pair,
 )
 from src.infrastructure.llm.catalogue.sync_diff import CORRECTABLE_FIELDS
 from src.infrastructure.observability.logging import get_logger
@@ -50,6 +52,16 @@ class TimeSlotsUnitMismatchError(ValueError):
     unit) is only detectable here. Subclass of :class:`ValueError`, but the
     router must catch it FIRST — the generic ``ValueError`` handler answers
     ``409 already_exists``, which would misdiagnose this 400.
+    """
+
+
+class AudioRatesMergeError(ValueError):
+    """Raised when the merged pricing state breaks the audio pair's rule (ADR-300).
+
+    Same doctrine as :class:`TimeSlotsUnitMismatchError`: one rate sent while
+    the current row holds none, or a unit switched away from ``per_1m_tokens``
+    while the pair would be inherited, is only detectable on the merged
+    state. Caught by the router before the generic ``ValueError`` handler.
     """
 
 
@@ -87,6 +99,8 @@ _PRICING_FIELDS: frozenset[str] = frozenset(
         "input_unit_price",
         "cached_input_unit_price",
         "output_unit_price",
+        "audio_input_unit_price",
+        "audio_output_unit_price",
         "pricing_unit",
         "time_slots",
     }
@@ -141,6 +155,8 @@ class LLMModelService:
             input_unit_price=data.input_unit_price,
             cached_input_unit_price=data.cached_input_unit_price,
             output_unit_price=data.output_unit_price,
+            audio_input_unit_price=data.audio_input_unit_price,
+            audio_output_unit_price=data.audio_output_unit_price,
             pricing_unit=PricingUnitEnum(data.pricing_unit),
             # [] normalizes to NULL: both mean flat pricing, and NULL keeps
             # the runtime resolver's fast "no slots" exit.
@@ -226,7 +242,7 @@ class LLMModelService:
         # payload carries no value, so it would otherwise leave price_changes
         # empty and the intent would evaporate.
         new_pricing: LLMModelPricing | None = None
-        if price_changes or data.clear_cached_input_price:
+        if price_changes or data.clear_cached_input_price or data.clear_audio_prices:
             current = await self._get_active_pricing(model.id)
             if current is None:
                 raise LookupError(f"Model {model.model_name!r} has no active pricing row to update")
@@ -250,6 +266,17 @@ class LLMModelService:
                     "in the same update."
                 )
 
+            # The audio pair (ADR-300): cleared as one, else each rate inherited
+            # unless the payload carries it — then the MERGED pair is judged by
+            # the one rule the creation payload obeys.
+            audio_input, audio_output = self._merged_audio_pair(data, price_changes, current)
+            try:
+                validate_audio_pair(audio_input, audio_output, new_pricing_unit_value)
+            except ValueError as exc:
+                raise AudioRatesMergeError(
+                    f"{exc}. Pass clear_audio_prices=true to drop the pair in the same update."
+                ) from exc
+
             current.is_active = False
             await self.db.flush()
 
@@ -263,6 +290,8 @@ class LLMModelService:
                 input_unit_price=price_changes.get("input_unit_price", current.input_unit_price),
                 cached_input_unit_price=cached_price,
                 output_unit_price=price_changes.get("output_unit_price", current.output_unit_price),
+                audio_input_unit_price=audio_input,
+                audio_output_unit_price=audio_output,
                 pricing_unit=PricingUnitEnum(new_pricing_unit_value),
                 time_slots=new_time_slots,
                 is_active=True,
@@ -287,6 +316,28 @@ class LLMModelService:
             pricing_changed=new_pricing is not None,
         )
         return model, new_pricing
+
+    @staticmethod
+    def _merged_audio_pair(
+        data: ModelPriceUpdate, price_changes: dict[str, Any], current: LLMModelPricing
+    ) -> tuple[Decimal | None, Decimal | None]:
+        """The audio pair the new tariff version will carry.
+
+        Args:
+            data: The update payload (its clearing flag).
+            price_changes: The payload's pricing change-set (nulls dropped).
+            current: The active tariff row being superseded.
+
+        Returns:
+            ``(audio_input, audio_output)`` — both None when cleared, else
+            each taken from the payload when carried and inherited otherwise.
+        """
+        if data.clear_audio_prices:
+            return None, None
+        return (
+            price_changes.get("audio_input_unit_price", current.audio_input_unit_price),
+            price_changes.get("audio_output_unit_price", current.audio_output_unit_price),
+        )
 
     async def deactivate(self, model_name: str) -> None:
         """Soft-delete the model AND its active pricing row, atomically.

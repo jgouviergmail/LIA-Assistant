@@ -187,3 +187,46 @@ def test_self_override_without_live_tools_says_so() -> None:
     override = build_override(CallKind.SELF, _inputs())
     assert override is not None
     assert "no live lookup" in override["agent"]["prompt"]["prompt"]
+
+
+# ---------------------------------------------------------------------------
+# The owner mandate in LIVE mode (ADR-301): the same frame around the voice
+# sessions' shared delegation block — no context, no lookup, no prefetch.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_the_mode_picks_the_live_owner_mandate_and_only_for_the_owner() -> None:
+    live = mandate_for(CallKind.SELF, mode="delegated")
+    assert live.prompt_name == "telephony_self_live_system_prompt"
+    assert live.overrides_agent is True
+    assert live.prefetch_availability is False
+    assert live.rich_context is False
+    assert mandate_for(CallKind.SELF, mode="direct") is MANDATES[CallKind.SELF]
+    assert mandate_for(CallKind.VERIFICATION, mode="delegated") is MANDATES[CallKind.VERIFICATION]
+    assert mandate_for(CallKind.THIRD_PARTY, mode="delegated") is MANDATES[CallKind.THIRD_PARTY]
+
+
+@pytest.mark.unit
+def test_the_live_override_carries_the_shared_delegation_block_and_no_data() -> None:
+    from src.core.constants import LIVE_DELEGATION_TOOL_NAME
+    from src.domains.voice_sessions.mandate import DelegationBlockInputs, render_delegation_block
+
+    inputs = _inputs(result_budget_tokens=350, personality="warm and brisk")
+    override = build_override(CallKind.SELF, inputs, mode="delegated")
+    assert override is not None
+    prompt = override["agent"]["prompt"]["prompt"]
+    assert "{" not in prompt
+    # The block is the browser mandate's own, rendered for an ASYNC delegation.
+    block = render_delegation_block(
+        DelegationBlockInputs(user_name="Alex", result_budget_tokens=350, async_delegation=True)
+    )
+    assert block in prompt
+    assert f"call {LIVE_DELEGATION_TOOL_NAME}" in prompt
+    assert "keep the conversation going" in prompt
+    # Nothing of the person's data and no lookup reaches the voice.
+    assert "10:00 dentist" not in prompt
+    assert "Busy: 10:00-11:00" not in prompt
+    assert "<what_you_know>" not in prompt
+    assert "warm and brisk" in prompt
+    assert "Alex" in override["agent"]["first_message"]

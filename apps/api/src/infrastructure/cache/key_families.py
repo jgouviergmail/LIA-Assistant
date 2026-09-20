@@ -123,6 +123,18 @@ KEY_FAMILIES: dict[str, KeyScope] = {
     # How many live lookups one owner call has made (lot 7): bounded to the
     # call's own lifetime, never learning.
     "telephony_live_tool": KeyScope.USER_RUNTIME,
+    # The one live session an account may hold (ADR-299): a claim with an owner
+    # token and the session record, expiring with the session. Never purged by
+    # a reset — deleting a live claim would let a second session open. The
+    # mint limiter bucket dies with its window.
+    "live:session": KeyScope.USER_RUNTIME,
+    "live_mint": KeyScope.USER_RUNTIME,
+    "live_sample": KeyScope.USER_RUNTIME,
+    # The lookup counter of a direct live session (ADR-300 wave 4): a session's own, gone with it.
+    "live_tools": KeyScope.USER_RUNTIME,
+    # The newest request of a voice session's server-side delegation (ADR-301):
+    # the running bridge steps aside for it; expires with the turn's bound.
+    "voice_delegation:newest": KeyScope.USER_RUNTIME,
     "channel_rate": KeyScope.USER_RUNTIME,
     "mcp_oauth_state": KeyScope.USER_RUNTIME,
     # --- global ---------------------------------------------------------------
@@ -142,6 +154,8 @@ KEY_FAMILIES: dict[str, KeyScope] = {
     "heartbeat:geocode": KeyScope.GLOBAL,
     "telegram_update": KeyScope.GLOBAL,
     "channel_msg_lock": KeyScope.GLOBAL,
+    # Sorted set of live sessions open across workers — the instance cap (ADR-299).
+    "live:active": KeyScope.GLOBAL,
 }
 
 #: Families whose keys carry no ``:`` separator after the prefix

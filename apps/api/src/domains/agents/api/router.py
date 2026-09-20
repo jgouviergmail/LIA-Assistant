@@ -34,7 +34,10 @@ from src.core.field_names import (
 from src.core.i18n import DEFAULT_LANGUAGE, Language
 from src.core.i18n_api_messages import APIMessages
 from src.core.i18n_hitl import get_user_language
-from src.core.session_dependencies import get_current_active_session
+from src.core.session_dependencies import (
+    get_current_active_session,
+    get_current_active_session_for_stream,
+)
 from src.core.user_display import resolve_user_display_name
 from src.domains.agents.api.background_runner import (
     PartialFinalizer,
@@ -334,7 +337,9 @@ def _build_partial_finalizer(conversation_id: str, run_id: str) -> PartialFinali
 async def stream_chat(
     http_request: Request,
     request: ChatRequest,
-    current_user: User = Depends(get_current_active_session),
+    # A stream authenticates on a session of its own (no request session):
+    # the response lives for the whole turn (ADR-283, review 2026-09-20).
+    current_user: User = Depends(get_current_active_session_for_stream),
     accept_language: str | None = Header(None, alias="Accept-Language"),
 ) -> StreamingResponse:
     """
@@ -718,6 +723,8 @@ async def stream_chat(
                         ),
                         directive=(request.directive.model_dump() if request.directive else None),
                         client_user_agent=http_request.headers.get("user-agent"),
+                        live_session_id=request.live_session_id,
+                        spoken_text=request.spoken_text,
                     )
                     if settings.background_runs_enabled:
                         # ADR-117: detached execution — the run survives client
@@ -843,6 +850,8 @@ async def stream_chat(
                     stt_cost_eur=request.stt_cost_eur,
                     directive=(request.directive.model_dump() if request.directive else None),
                     client_user_agent=http_request.headers.get("user-agent"),
+                    live_session_id=request.live_session_id,
+                    spoken_text=request.spoken_text,
                 )
                 if settings.background_runs_enabled:
                     # ADR-117: detached execution — the run survives client
@@ -1135,7 +1144,7 @@ async def cancel_active_run(
 @router.get("/runs/{stream_id}/stream")
 async def reattach_run_stream(
     stream_id: str,
-    current_user: User = Depends(get_current_active_session),
+    current_user: User = Depends(get_current_active_session_for_stream),
     lia_session: str | None = Cookie(default=None),
 ) -> StreamingResponse:
     """Reattach to an in-flight background run (full replay + live tail).

@@ -55,6 +55,8 @@ export const CAPABILITY_ORDER: readonly { key: string; ring: 'inner' | 'outer' }
   { key: 'peers', ring: 'outer' },
   { key: 'channels', ring: 'outer' },
   { key: 'telephony', ring: 'outer' },
+  // The live voice mode (ADR-299): a switch node beside the phone.
+  { key: 'live', ring: 'outer' },
   { key: 'meetings', ring: 'outer' },
   { key: 'spaces', ring: 'outer' },
   { key: 'journals', ring: 'outer' },

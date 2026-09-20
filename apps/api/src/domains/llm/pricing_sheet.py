@@ -33,8 +33,10 @@ from src.infrastructure.tabular_io.spec import ColumnSpec, SheetSpec, WorkbookSp
 #: v2 replaced the ``reasoning_template`` dropdown with the two columns the
 #: runtime actually reads (``is_reasoning_model``, ``reasoning_enum_values``):
 #: a file written against v1 names a column that no longer exists and offers no
-#: way to express the ladder, so it cannot be read back.
-SCHEMA_VERSION = 2
+#: way to express the ladder, so it cannot be read back. v3 added the audio
+#: pair (ADR-300): two EDITABLE columns a v2 file lacks, which the reader
+#: refuses as ``COLUMN_MISSING`` — the version says why before it does.
+SCHEMA_VERSION = 3
 
 #: Hidden column carrying each row's fingerprint, for the per-row optimistic lock.
 FINGERPRINT_COLUMN = "row_fingerprint"
@@ -133,6 +135,24 @@ _MODEL_COLUMNS: tuple[ColumnSpec, ...] = (
     _column(
         "output_unit_price", "decimal", "pricing", decimals=_PRICE_SCALE, minimum=_ZERO, width=15
     ),
+    # The audio pair of a speech-to-speech model (ADR-300): both cells or
+    # neither, on a token-billed unit only — the service refuses the rest.
+    _column(
+        "audio_input_unit_price",
+        "decimal",
+        "pricing",
+        decimals=_PRICE_SCALE,
+        minimum=_ZERO,
+        width=15,
+    ),
+    _column(
+        "audio_output_unit_price",
+        "decimal",
+        "pricing",
+        decimals=_PRICE_SCALE,
+        minimum=_ZERO,
+        width=15,
+    ),
     _column("effective_from", "text", "pricing", editable=False, width=22),
     # --- time slots -------------------------------------------------------
     _column("time_slots_mode", "enum", "slots", referential="SLOTMODE", width=14),
@@ -221,6 +241,8 @@ PRICING_SOURCE_COLUMNS: Mapping[str, str] = {
     "input_unit_price": "pricing",
     "cached_input_unit_price": "pricing",
     "output_unit_price": "pricing",
+    "audio_input_unit_price": "pricing",
+    "audio_output_unit_price": "pricing",
     "effective_from": "effective_from (read-only)",
     "time_slots": "time_slots_mode + the time-slot sheet",
 }

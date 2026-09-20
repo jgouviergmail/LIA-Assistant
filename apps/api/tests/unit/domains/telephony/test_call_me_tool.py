@@ -24,6 +24,7 @@ from src.domains.agents.telephony.catalogue_manifests import (
 )
 from src.domains.telephony.identity import PhoneIdentity
 from src.domains.telephony.service import InitiateCallResult
+from src.domains.voice_sessions.session import VoiceSessionMode
 
 
 def _patch(
@@ -33,6 +34,8 @@ def _patch(
     verified_number: str | None = "+33612345678",
     status: str = "placed",
     context: str = "## Agenda",
+    call_mode: VoiceSessionMode = "direct",
+    live_available: bool = True,
 ) -> dict:
     captured: dict = {}
 
@@ -46,13 +49,10 @@ def _patch(
             verified_at=None,
             rich_context_enabled=True,
             disabled_domains=("email",),
+            call_mode=call_mode,
+            live_available=live_available,
+            live_unavailable_reason=None if live_available else "callback_not_public",
         )
-
-    async def _context(
-        _user_id, *, language, timezone, objective, rich_context_enabled
-    ) -> str:  # noqa: ANN001
-        captured["context_requested"] = rich_context_enabled
-        return context
 
     async def _initiate(**kwargs):  # noqa: ANN003
         captured["initiate"] = kwargs
@@ -60,7 +60,6 @@ def _patch(
 
     monkeypatch.setattr(smod, "_telephony_connector_active", _active)
     monkeypatch.setattr(smod, "_owner_identity", _identity)
-    monkeypatch.setattr(smod, "_owner_context", _context)
     monkeypatch.setattr(smod, "_initiate_owner_call", _initiate)
     return captured
 
@@ -92,8 +91,29 @@ async def test_places_an_owner_call_on_the_verified_number(monkeypatch: pytest.M
     initiate = captured["initiate"]
     assert initiate["callee_phone"] == "+33612345678"
     assert initiate["objective"] == "go over the week"
-    assert initiate["user_context"] == "## Agenda"
-    assert captured["context_requested"] is True
+    assert initiate["call_mode"] == "direct"
+    assert initiate["rich_context_enabled"] is True
+
+
+@pytest.mark.unit
+async def test_a_live_choice_reaches_the_dial_as_the_effective_mode(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ADR-301: the person's choice, when this instance can run it."""
+    captured = _patch(monkeypatch, call_mode="delegated")
+    out = await _run()
+    assert out.success is True
+    assert captured["initiate"]["call_mode"] == "delegated"
+
+
+@pytest.mark.unit
+async def test_a_live_choice_runs_direct_when_the_vendor_cannot_call_back(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The EFFECTIVE mode is dialled, never the bare choice (ADR-184)."""
+    captured = _patch(monkeypatch, call_mode="delegated", live_available=False)
+    await _run()
+    assert captured["initiate"]["call_mode"] == "direct"
 
 
 @pytest.mark.unit
@@ -318,3 +338,195 @@ def test_spoken_text_reads_a_card_and_markdown_as_words() -> None:
     text = smod.spoken_text('<div class="lia-card"><p><strong>Dentist</strong> at 10:00</p></div>')
     assert "<" not in text and "Dentist" in text and "10:00" in text
     assert smod.spoken_text("**Remind me** to *call* the bank") == "Remind me to call the bank"
+
+
+# ---------------------------------------------------------------------------
+# The delegation tool of a Live call (ADR-301): provisioned before the dial
+# ---------------------------------------------------------------------------
+
+
+class _Dial:
+    """The telephony service as the dial sees it: records what it was handed."""
+
+    calls: list[dict] = []
+
+    def __init__(self, _db) -> None:  # noqa: ANN001
+        pass
+
+    async def initiate_call(self, **kwargs):  # noqa: ANN003
+        _Dial.calls.append(kwargs)
+        return InitiateCallResult(status="placed", call_id=uuid4())
+
+
+def _wire_dial(
+    monkeypatch: pytest.MonkeyPatch, *, delegation_tool_id: str | None
+) -> dict[str, object]:
+    """Wire `_initiate_owner_call` on fakes: a db context, the user, the three providers."""
+    from contextlib import asynccontextmanager
+    from types import SimpleNamespace
+
+    import src.domains.telephony.service as service_module
+    import src.infrastructure.database.session as dbsession
+    from src.domains.telephony.live_tools import LiveToolBinding
+
+    seen: dict[str, object] = {}
+    user = SimpleNamespace(full_name="Alex", email="alex@example.com")
+
+    class _Db:
+        async def get(self, _model, _user_id):  # noqa: ANN001
+            return user
+
+    @asynccontextmanager
+    async def _ctx():
+        yield _Db()
+
+    async def _delegation(db, user_id, *, user_name):  # noqa: ANN001
+        seen["delegation_asked"] = user_name
+        return delegation_tool_id
+
+    async def _lookups(db, user_id, *, disabled_domains=frozenset()):  # noqa: ANN001
+        seen["lookups_asked"] = disabled_domains
+        return (LiveToolBinding("get_events_tool", "tool_a", "event"),)
+
+    async def _context(
+        _user_id, *, language, timezone, objective, rich_context_enabled
+    ) -> str:  # noqa: ANN001
+        seen["context_asked"] = rich_context_enabled
+        return "## Agenda"
+
+    _Dial.calls = []
+    monkeypatch.setattr(dbsession, "get_db_context", _ctx)
+    monkeypatch.setattr(service_module, "TelephonyService", _Dial)
+    monkeypatch.setattr(smod, "_delegation_tool_for", _delegation)
+    monkeypatch.setattr(smod, "_live_tools_for", _lookups)
+    monkeypatch.setattr(smod, "_owner_context", _context)
+    return seen
+
+
+async def _dial(call_mode: VoiceSessionMode) -> InitiateCallResult:
+    return await smod._initiate_owner_call(
+        user_id=uuid4(),
+        callee_phone="+33612345678",
+        objective="go over the week",
+        user_language="fr",
+        timezone="Europe/Paris",
+        call_mode=call_mode,
+        rich_context_enabled=True,
+        disabled_domains=frozenset({"email"}),
+    )
+
+
+@pytest.mark.unit
+async def test_a_direct_dial_is_handed_its_lookups_and_its_context(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen = _wire_dial(monkeypatch, delegation_tool_id="tool_delegation")
+    await _dial("direct")
+    handed = _Dial.calls[0]
+    assert handed["call_mode"] == "direct"
+    assert handed["delegation_tool_id"] is None
+    assert handed["user_context"] == "## Agenda"
+    assert [b.name for b in handed["live_tools"]] == ["get_events_tool"]
+    assert seen["lookups_asked"] == frozenset({"email"})
+    assert seen["context_asked"] is True
+    assert "delegation_asked" not in seen
+
+
+@pytest.mark.unit
+async def test_a_live_dial_is_handed_the_delegation_tool_and_nothing_else(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ADR-301: under Live the voice reads nothing itself, so no source is opened."""
+    seen = _wire_dial(monkeypatch, delegation_tool_id="tool_delegation")
+    await _dial("delegated")
+    handed = _Dial.calls[0]
+    assert handed["call_mode"] == "delegated"
+    assert handed["delegation_tool_id"] == "tool_delegation"
+    assert handed["user_context"] == ""
+    assert handed["live_tools"] == ()
+    assert seen["delegation_asked"] == "Alex"
+    assert "lookups_asked" not in seen and "context_asked" not in seen
+
+
+@pytest.mark.unit
+async def test_a_live_dial_without_a_delegation_tool_runs_direct_with_what_direct_needs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The fallback is a REAL direct call, not a voice that knows nothing.
+
+    Review 2026-09-20: a Live call whose delegation tool could not be
+    provisioned degraded to direct AFTER its lookups and its context had
+    been skipped — a direct mandate with « no context » and « no lookup »,
+    a voice that could answer nothing. The mode is decided first, and the
+    call is handed what THAT mode needs.
+    """
+    seen = _wire_dial(monkeypatch, delegation_tool_id=None)
+    await _dial("delegated")
+    handed = _Dial.calls[0]
+    assert handed["call_mode"] == "direct"
+    assert handed["delegation_tool_id"] is None
+    assert handed["user_context"] == "## Agenda"
+    assert [b.name for b in handed["live_tools"]] == ["get_events_tool"]
+    assert seen["delegation_asked"] == "Alex"
+    assert seen["context_asked"] is True
+
+
+@pytest.mark.unit
+async def test_the_delegation_tool_is_provisioned_for_a_live_call(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from types import SimpleNamespace
+
+    connector = SimpleNamespace(connector_metadata={"agent_id": "ag"})
+    seen: dict = {}
+
+    class _Connectors:
+        def __init__(self, _db) -> None:  # noqa: ANN001
+            pass
+
+        async def get_active(self, _user_id):  # noqa: ANN001
+            return connector
+
+    class _Creds:
+        def __init__(self, _db) -> None:  # noqa: ANN001
+            pass
+
+        async def get_api_key_credentials(self, _user_id, _type):  # noqa: ANN001
+            return SimpleNamespace(api_key="k", api_secret="whsec")
+
+    async def _ensure(db, *, connector, api_key, api_secret, user_name):  # noqa: ANN001
+        seen["ensure"] = (connector, api_key, api_secret, user_name)
+        return "tool_delegation"
+
+    monkeypatch.setattr(smod, "TelephonyConnectorService", _Connectors)
+    monkeypatch.setattr(smod, "ConnectorService", _Creds)
+    monkeypatch.setattr(smod, "ensure_vendor_delegation_tool", _ensure)
+
+    tool_id = await smod._delegation_tool_for(object(), uuid4(), user_name="Alex")
+    assert tool_id == "tool_delegation"
+    assert seen["ensure"] == (connector, "k", "whsec", "Alex")
+
+
+@pytest.mark.unit
+async def test_the_delegation_tool_is_skipped_without_a_secret(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from types import SimpleNamespace
+
+    class _Connectors:
+        def __init__(self, _db) -> None:  # noqa: ANN001
+            pass
+
+        async def get_active(self, _user_id):  # noqa: ANN001
+            return SimpleNamespace(connector_metadata={})
+
+    class _Creds:
+        def __init__(self, _db) -> None:  # noqa: ANN001
+            pass
+
+        async def get_api_key_credentials(self, _user_id, _type):  # noqa: ANN001
+            return SimpleNamespace(api_key="k", api_secret="")
+
+    monkeypatch.setattr(smod, "TelephonyConnectorService", _Connectors)
+    monkeypatch.setattr(smod, "ConnectorService", _Creds)
+    assert await smod._delegation_tool_for(object(), uuid4(), user_name="Alex") is None

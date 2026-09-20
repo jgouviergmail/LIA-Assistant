@@ -13,8 +13,14 @@
  *  - the verification: a button places the call, and the code field appears
  *    only while a spoken code is pending (a field that is always there invites
  *    a guess);
+ *  - the call mode (ADR-301): Live — the voice hands every request to the
+ *    chat, which acts in the conversation — or Live direct — the voice reads
+ *    LIA's tools itself and the call is relayed at its end;
  *  - the switch that decides whether an owner call carries the chat's context
- *    beyond free/busy.
+ *    beyond free/busy — shown under Live direct alone, since a Live call
+ *    reads nothing itself — and the domains a voice may read, ALWAYS shown:
+ *    they govern every direct voice surface, the browser's direct session
+ *    included (ADR-300 wave 4), whatever mode the phone runs in.
  *
  * A refusal is the backend's own translated sentence, attached to the field it
  * concerns (`aria-invalid` + `role="alert"`), never a generic toast.
@@ -29,6 +35,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Switch } from '@/components/ui/switch';
+import { CallModeField } from '@/components/settings/CallModeField';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import {
   useTelephonyIdentity,
@@ -392,13 +399,27 @@ function IdentityPanels({ lng, hook }: { lng: Language; hook: UseTelephonyIdenti
         onStart={hook.startVerification}
         onConfirm={hook.confirmCode}
       />
-      <RichContextSwitch
+      <CallModeField
+        lng={lng}
+        id="telephony-identity-call-mode"
+        identity={identity}
+        busy={isBusy}
+        onChange={hook.setCallMode}
+      />
+      {identity.call_mode_effective === 'direct' && (
+        <RichContextSwitch
+          lng={lng}
+          identity={identity}
+          busy={isBusy}
+          onChange={hook.setRichContext}
+        />
+      )}
+      <DomainsPanel
         lng={lng}
         identity={identity}
         busy={isBusy}
-        onChange={hook.setRichContext}
+        onChange={hook.setDisabledDomains}
       />
-      <DomainsPanel lng={lng} identity={identity} busy={isBusy} onChange={hook.setDisabledDomains} />
     </div>
   );
 }

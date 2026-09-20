@@ -168,6 +168,7 @@ describe('chatReducer — STREAM_DONE', () => {
       },
     ],
     browser_screenshot: { url: 'https://shot/1.jpg', alt: 'shot' },
+    expressivity: { register: 'warm', intensity: 0.6, accent: 'nod' },
     psyche_state: {
       mood_label: 'joyful',
       mood_color: '#00ff00',
@@ -212,6 +213,9 @@ describe('chatReducer — STREAM_DONE', () => {
       browserScreenshot: { url: 'https://shot/1.jpg', alt: 'shot' },
     });
     expect(next.messages[0].metadata?.psyche_state).toEqual(fullMetadata.psyche_state);
+    // ADR-253: the answer's register lands on the live bubble (read by the live
+    // voice bridge); a done without one leaves nothing behind.
+    expect(next.messages[0].metadata?.expressivity).toEqual(fullMetadata.expressivity);
     // A NORMAL done never marks the bubble as interrupted (ADR-117 Lot 3)
     expect(next.messages[0].metadata?.interrupted).toBeUndefined();
     // No archived id in the metadata → no feedback target on the live bubble

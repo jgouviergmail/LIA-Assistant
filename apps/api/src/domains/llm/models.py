@@ -245,7 +245,8 @@ class LLMModelPricing(Base, TimestampMixin):
     """
     LLM model pricing configuration with temporal versioning.
 
-    Stores unit prices for input, cached input, and output. The semantic of
+    Stores unit prices for input, cached input, and output — and, for a
+    speech-to-speech model, the audio pair beside them. The semantic of
     the unit is given by ``pricing_unit``:
       - ``per_1m_tokens``: price per 1 million tokens (LLM chat/text).
       - ``per_audio_minute``: price per minute of audio.
@@ -264,6 +265,13 @@ class LLMModelPricing(Base, TimestampMixin):
             input_unit_price         = 0.22  ($/hour of audio)
             cached_input_unit_price  = NULL
             output_unit_price        = 0     (no token output billed)
+
+        A Gemini live model (speech-to-speech, ADR-300)::
+            pricing_unit             = per_1m_tokens
+            input_unit_price         = 0.75  ($/1M text input tokens)
+            output_unit_price        = 4.50  ($/1M text output tokens)
+            audio_input_unit_price   = 3.00  ($/1M audio input tokens)
+            audio_output_unit_price  = 12.00 ($/1M audio output tokens)
     """
 
     __tablename__ = "llm_model_pricing"
@@ -308,6 +316,28 @@ class LLMModelPricing(Base, TimestampMixin):
         DECIMAL(10, 6),
         nullable=False,
         comment="Output unit price in USD (semantic = pricing_unit; 0 for STT models)",
+    )
+
+    # A speech-to-speech model bills its audio at a rate of its own, next to
+    # its text rate (ADR-300 wave 3). Declared as a PAIR or not at all, only
+    # on ``per_1m_tokens`` (a minute-billed model's unit already says it all),
+    # and flat: the UTC windows above override the three text prices only.
+    audio_input_unit_price: Mapped[Decimal | None] = mapped_column(
+        DECIMAL(10, 6),
+        nullable=True,
+        comment=(
+            "Audio input unit price in USD (NULL if the model bills no audio at a rate "
+            "of its own; semantic = pricing_unit)"
+        ),
+    )
+
+    audio_output_unit_price: Mapped[Decimal | None] = mapped_column(
+        DECIMAL(10, 6),
+        nullable=True,
+        comment=(
+            "Audio output unit price in USD (NULL if the model bills no audio at a rate "
+            "of its own; semantic = pricing_unit)"
+        ),
     )
 
     pricing_unit: Mapped[PricingUnitEnum] = mapped_column(

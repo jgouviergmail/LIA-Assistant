@@ -38,6 +38,7 @@ function call(overrides: Partial<TelephonyCallSummary> = {}): TelephonyCallSumma
     call_seconds: 62,
     created_at: '2026-07-26T09:00:00Z',
     call_kind: 'third_party',
+    call_mode: 'direct',
     relay_outcome: null,
     completed_at: '2026-07-26T09:01:02Z',
     ...overrides,
@@ -58,18 +59,14 @@ function mockCalls(calls: TelephonyCallSummary[], overrides: Record<string, unkn
 describe('TelephonyCallsSection', () => {
   it('renders nothing when the feature is off', () => {
     mockCalls([], { isUnavailable: true });
-    const { container } = renderWithProviders(
-      <TelephonyCallsSection lng="fr" />
-    );
+    const { container } = renderWithProviders(<TelephonyCallsSection lng="fr" />);
     expect(container).toBeEmptyDOMElement();
   });
 
   it('renders nothing when no call was ever placed', () => {
     // An empty shelf on an already long settings page is noise.
     mockCalls([]);
-    const { container } = renderWithProviders(
-      <TelephonyCallsSection lng="fr" />
-    );
+    const { container } = renderWithProviders(<TelephonyCallsSection lng="fr" />);
     expect(container).toBeEmptyDOMElement();
   });
 
@@ -91,9 +88,7 @@ describe('TelephonyCallsSection', () => {
   it('never shows a phone number', () => {
     // The API omits it; this asserts nothing reintroduces one from elsewhere.
     mockCalls([call()]);
-    const { container } = renderWithProviders(
-      <TelephonyCallsSection lng="fr" />
-    );
+    const { container } = renderWithProviders(<TelephonyCallsSection lng="fr" />);
     expect(container.textContent ?? '').not.toMatch(/\+?\d[\d ().-]{7,}/);
   });
 
@@ -133,9 +128,7 @@ describe('TelephonyCallsSection', () => {
 
   it('never renders an invalid date', () => {
     mockCalls([call({ created_at: 'not-a-date' })]);
-    const { container } = renderWithProviders(
-      <TelephonyCallsSection lng="fr" />
-    );
+    const { container } = renderWithProviders(<TelephonyCallsSection lng="fr" />);
     expect(container.textContent ?? '').not.toContain('Invalid Date');
   });
 
@@ -159,6 +152,18 @@ describe('TelephonyCallsSection — calls with the person (phone as a channel)',
     renderWithProviders(<TelephonyCallsSection lng="fr" />);
     expect(screen.getByText('settings.telephony.calls.kind.self')).toBeInTheDocument();
     expect(screen.getByText('settings.telephony.calls.relay.waiting')).toBeInTheDocument();
+    // The mode it RAN (ADR-301): a direct call says so; a stranger's call says nothing.
+    expect(screen.getByText('settings.telephony.identity.call_mode.direct')).toBeInTheDocument();
+  });
+
+  it('names Live on an owner call that ran delegated, and never on a third-party call', () => {
+    mockCalls([
+      call({ id: 'live', callee_display: 'Alex', call_kind: 'self', call_mode: 'delegated' }),
+      call({ id: 'errand', callee_display: 'Marie', call_kind: 'third_party' }),
+    ]);
+    renderWithProviders(<TelephonyCallsSection lng="fr" />);
+    expect(screen.getAllByText('settings.telephony.identity.call_mode.delegated')).toHaveLength(1);
+    expect(screen.queryByText('settings.telephony.identity.call_mode.direct')).toBeNull();
   });
 
   it('draws the cumulated bill of a call that spent, and nothing otherwise', () => {

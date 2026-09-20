@@ -753,3 +753,59 @@ class TestATurnSpokenByThePerson:
         assert context.memory_enabled is True
         assert context.journals_enabled is False
         assert context.psyche_enabled is True
+
+
+class TestADelegatedVoiceTurn:
+    """A voice session's delegation is a chat turn the engine drives (ADR-301).
+
+    Three things travel that no ticket needs: the session's KEY (the rows are
+    stamped so the closing card finds them), the words the person actually
+    spoke (archived beside the request), and — when LIA had asked a question —
+    the run the answer resumes, whose id the turn REUSES for its accounting
+    exactly as the chat router does.
+    """
+
+    async def test_the_session_stamp_and_the_spoken_words_reach_the_turn(self) -> None:
+        service = _service_yielding([_chunk("token", "ok")])
+        with patch("src.domains.agents.api.service.AgentService", return_value=service):
+            await stream_instruction(
+                _request(live_session_id="phone_call_abc", spoken_text="Rappelle-moi la banque")
+            )
+        kwargs = service.calls[0]
+        assert kwargs["live_session_id"] == "phone_call_abc"
+        assert kwargs["spoken_text"] == "Rappelle-moi la banque"
+
+    async def test_an_answer_to_a_pending_question_resumes_that_run(self) -> None:
+        service = _service_yielding([_chunk("token", "ok")])
+        with patch("src.domains.agents.api.service.AgentService", return_value=service):
+            await stream_instruction(_request(original_run_id="run-asked", run_id="run-asked"))
+        kwargs = service.calls[0]
+        assert kwargs["original_run_id"] == "run-asked"
+        assert kwargs["run_id"] == "run-asked"
+
+    async def test_an_unattended_run_resumes_nothing(self) -> None:
+        service = _service_yielding([_chunk("token", "ok")])
+        with patch("src.domains.agents.api.service.AgentService", return_value=service):
+            await stream_instruction(_request())
+        kwargs = service.calls[0]
+        assert kwargs["original_run_id"] is None
+        assert kwargs["live_session_id"] is None
+        assert kwargs["spoken_text"] is None
+
+    async def test_the_register_of_the_answer_is_read_from_the_done_chunk(self) -> None:
+        """The delivery note the voice restitutes (ADR-253) rides ``done``."""
+        service = _service_yielding(
+            [
+                _chunk("token", "Bonjour"),
+                _chunk("done", "", {"expressivity": {"register": "warm", "face": "smile"}}),
+            ]
+        )
+        with patch("src.domains.agents.api.service.AgentService", return_value=service):
+            result = await stream_instruction(_request())
+        assert result.register == "warm"
+
+    async def test_a_turn_with_no_annotation_carries_no_register(self) -> None:
+        service = _service_yielding([_chunk("token", "ok"), _chunk("done", "", {})])
+        with patch("src.domains.agents.api.service.AgentService", return_value=service):
+            result = await stream_instruction(_request())
+        assert result.register is None

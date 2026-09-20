@@ -53,6 +53,7 @@ def _install_fakes(
     sync_error: bool = False,
     vendor_conversation_status: str | object = "in-progress",
     close_zombie_result: bool = True,
+    tool_ids_error: bool = False,
 ) -> tuple[dict, object]:
     captured: dict = {}
     conn = (
@@ -130,6 +131,8 @@ def _install_fakes(
             captured["update_kwargs"] = kwargs
 
         async def set_agent_tool_ids(self, agent_id, tool_ids) -> None:  # noqa: ANN001
+            if tool_ids_error:
+                raise ElevenLabsAgentsError(500, "tools boom")
             captured.setdefault("tool_ids_patches", []).append((agent_id, list(tool_ids)))
 
         async def get_conversation_status(self, conversation_id: str) -> str:
@@ -150,7 +153,7 @@ def _user() -> SimpleNamespace:
     return SimpleNamespace(full_name="Jean Test", email="jean@example.com", timezone="Europe/Paris")
 
 
-async def _call(service: TelephonyService) -> object:
+async def _call(service: TelephonyService, **kwargs: object) -> object:
     return await service.initiate_call(
         user_id=uuid4(),
         callee_display="Marie",
@@ -158,6 +161,7 @@ async def _call(service: TelephonyService) -> object:
         objective="Lui demander si elle est libre mardi",
         date_window="cette semaine",
         user_language="fr",
+        **kwargs,
     )
 
 
@@ -739,3 +743,76 @@ async def test_an_owner_call_without_tools_leaves_a_detached_agent_alone(
     result = await _owner_call(TelephonyService(db, client_factory=factory))
     assert result.status == "placed"
     assert "tool_ids_patches" not in captured
+
+
+# ---------------------------------------------------------------------------
+# The owner call in LIVE mode (ADR-301): the one delegation tool on the agent,
+# the Live mandate, the mode on the row — and an honest degradation.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+async def test_a_live_owner_call_attaches_the_delegation_tool_and_records_its_mode(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.core.constants import LIVE_DELEGATION_TOOL_NAME
+
+    db = _FakeDB(_user())
+    captured, factory = _install_fakes(monkeypatch)
+    service = TelephonyService(db, client_factory=factory)
+    result = await _owner_call(service, call_mode="delegated", delegation_tool_id="tool_d")
+
+    assert result.status == "placed"
+    assert captured["tool_ids_patches"] == [("ag_1", ["tool_d"])]
+    assert captured["create_data"]["call_mode"] == "delegated"
+    prompt = captured["call_kwargs"]["conversation_config_override"]["agent"]["prompt"]["prompt"]
+    assert f"call {LIVE_DELEGATION_TOOL_NAME}" in prompt
+    # The voice holds nothing of the person's data under Live.
+    assert "10:00 dentist" not in prompt
+    assert "BUSY: Tue 09:00" not in prompt
+    assert "availability_read" not in captured  # nothing prefetched
+
+
+@pytest.mark.unit
+async def test_a_live_owner_call_without_a_delegation_tool_runs_direct_and_says_so(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A Live mandate with no way to delegate would promise what the voice
+    cannot do (ADR-184): the call runs DIRECT, the row says direct."""
+    from src.domains.telephony.live_tools import LiveToolBinding
+
+    db = _FakeDB(_user())
+    captured, factory = _install_fakes(monkeypatch)
+    service = TelephonyService(db, client_factory=factory)
+    result = await _owner_call(
+        service,
+        call_mode="delegated",
+        delegation_tool_id=None,
+        live_tools=(LiveToolBinding("get_events_tool", "tool_a", "event"),),
+    )
+    assert result.status == "placed"
+    assert captured["create_data"]["call_mode"] == "direct"
+    prompt = captured["call_kwargs"]["conversation_config_override"]["agent"]["prompt"]["prompt"]
+    assert "10:00 dentist" in prompt
+    assert captured["tool_ids_patches"] == [("ag_1", ["tool_a"])]
+
+
+@pytest.mark.unit
+async def test_a_live_call_whose_tool_attach_is_refused_runs_direct(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    db = _FakeDB(_user())
+    captured, factory = _install_fakes(monkeypatch, tool_ids_error=True)
+    service = TelephonyService(db, client_factory=factory)
+    result = await _owner_call(service, call_mode="delegated", delegation_tool_id="tool_d")
+    assert result.status == "placed"
+    assert captured["create_data"]["call_mode"] == "direct"
+
+
+@pytest.mark.unit
+async def test_a_third_party_call_ignores_a_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    db = _FakeDB(_user())
+    captured, factory = _install_fakes(monkeypatch)
+    result = await _call(TelephonyService(db, client_factory=factory), call_mode="delegated")
+    assert result.status == "placed"
+    assert captured["create_data"]["call_mode"] == "direct"

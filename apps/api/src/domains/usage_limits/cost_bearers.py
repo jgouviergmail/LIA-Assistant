@@ -124,6 +124,17 @@ COST_FAMILIES: dict[str, CostFamily] = {
         ),
         credential="ConnectorType.ELEVENLABS_TELEPHONY",
     ),
+    "live": CostFamily(
+        bearer=CostBearer.USER,
+        reason=(
+            "A live voice session runs on the person's own provider key, held in "
+            "the `live` connector category (ADR-299): the provider bills them "
+            "directly, and the session's usage metadata is neither stored nor "
+            "shown. What LIA spends INSIDE a session — every delegated chat turn — "
+            "is the `llm` family above, counted per turn under the turn's run id."
+        ),
+        credential="ConnectorType.GEMINI_LIVE",
+    ),
     "google_workspace": CostFamily(
         bearer=CostBearer.USER,
         reason=(
@@ -150,6 +161,7 @@ QUOTA_COLUMN_OF: dict[str, str | None] = {
     "brave_search": None,
     "openweathermap": None,
     "elevenlabs_telephony": None,
+    "live": None,
     "google_workspace": None,
 }
 

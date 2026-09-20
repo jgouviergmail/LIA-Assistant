@@ -154,6 +154,14 @@ export const SETTINGS_SECTIONS = {
     accordionValue: 'voice-mode',
     declaredIn: 'components/settings/VoiceModeSettings.tsx',
   },
+  // Live voice mode (ADR-299): the person's conversation reflexes and the
+  // model, voice and thinking level of their live connector. Renders nothing
+  // when the capability is off, like the telephony sections.
+  'live-mode': {
+    tab: 'preferences',
+    accordionValue: 'live-mode',
+    declaredIn: 'components/settings/LiveModeSettings.tsx',
+  },
   'image-generation': {
     tab: 'preferences',
     accordionValue: 'image-generation',

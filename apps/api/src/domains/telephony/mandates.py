@@ -43,6 +43,12 @@ from src.core.prompt_store import parse_prompt_sections, read_prompt_file
 from src.core.time_utils import format_datetime_for_display
 from src.domains.telephony.models import CallKind
 from src.domains.telephony.prompts.loader import TelephonyPromptName, load_telephony_prompt
+from src.domains.voice_sessions.mandate import (
+    DelegationBlockInputs,
+    personality_block,
+    render_delegation_block,
+)
+from src.domains.voice_sessions.session import VoiceSessionMode
 
 #: The vendor reads ``{{name}}`` as a dynamic variable. A value carrying that
 #: sequence is broken apart so it stays text — the doubled brace never reaches
@@ -106,6 +112,8 @@ class MandateInputs:
         personality: The instruction the person configured for LIA's
             personality (lot 9) — the same the chat and the voice flow weave
             in; "" when none could be read.
+        result_budget_tokens: The published bound of a delegated answer
+            (Live mode, ADR-301) — what the delegation block states.
     """
 
     language: str
@@ -118,6 +126,7 @@ class MandateInputs:
     verification_code: str = ""
     live_tool_domains: tuple[str, ...] = ()
     personality: str = ""
+    result_budget_tokens: int = 0
 
 
 MANDATES: Final[Mapping[CallKind, CallMandate]] = {
@@ -144,6 +153,19 @@ MANDATES: Final[Mapping[CallKind, CallMandate]] = {
     ),
 }
 
+#: The owner mandate in LIVE mode (ADR-301): the voice holds no context and no
+#: lookup of its own — every request goes through the one delegation function
+#: and LIA acts in the person's conversation — so nothing is prefetched and
+#: nothing of the chat's context is rendered. Same kind, another shape; the
+#: MODE picks it (``mandate_for``), never a second call kind.
+LIVE_SELF_MANDATE: Final = CallMandate(
+    kind=CallKind.SELF,
+    overrides_agent=True,
+    prompt_name="telephony_self_live_system_prompt",
+    prefetch_availability=False,
+    rich_context=False,
+)
+
 
 def assert_mandate_completeness() -> None:
     """Refuse to boot on a call kind without a mandate (ADR-085).
@@ -156,15 +178,18 @@ def assert_mandate_completeness() -> None:
         raise RuntimeError(f"CallKind without a mandate in telephony/mandates.py: {missing}")
 
 
-def mandate_for(kind: CallKind) -> CallMandate:
-    """The mandate of a kind.
+def mandate_for(kind: CallKind, *, mode: VoiceSessionMode = "direct") -> CallMandate:
+    """The mandate of a kind — and, for the owner's call, of its mode.
 
     Args:
         kind: The call kind.
+        mode: How the owner's call runs (ADR-301); ignored for every other kind.
 
     Returns:
         Its mandate; the boot assert guarantees one exists.
     """
+    if kind is CallKind.SELF and mode == "delegated":
+        return LIVE_SELF_MANDATE
     return MANDATES[kind]
 
 
@@ -217,21 +242,53 @@ def _self_prompt(inputs: MandateInputs) -> str:
         if inputs.live_tool_domains
         else lines["no_live_tools"]
     )
-    personality = neutralise_vendor_syntax(inputs.personality.strip())
-    personality_block = (
-        lines["personality"].format(personality=personality)
-        if personality
-        else lines["no_personality"]
+    # The placeholders stay EXPLICIT in both owner frames: the AST guard on
+    # placeholders reads keyword arguments, and a spread ``**fields`` would
+    # blind it to the whole frame.
+    return template.format(
+        current_datetime=format_datetime_for_display(inputs.now, inputs.timezone, inputs.language),
+        user_name=neutralise_vendor_syntax(inputs.user_name),
+        language_name=get_language_name(inputs.language),
+        objective=_objective(inputs, lines),
+        user_context_block=context_block,
+        availability_block=availability_block,
+        live_tools_block=live_tools_block,
+        personality_block=personality_block(lines, neutralise_vendor_syntax(inputs.personality)),
+    )
+
+
+def _objective(inputs: MandateInputs, lines: dict[str, str]) -> str:
+    """The call's purpose, neutralised, or the lines file's catch-up when none was stated."""
+    return neutralise_vendor_syntax(inputs.objective.strip() or lines["no_objective"])
+
+
+def _self_live_prompt(inputs: MandateInputs) -> str:
+    """The owner mandate in Live mode: the direct frame around the shared delegation block.
+
+    The block is the browser mandate's own (``voice_sessions/mandate.py``),
+    rendered for an ASYNCHRONOUS delegation — the vendor tool is async, so the
+    voice announces the call and keeps talking (lot 0). No context, no
+    availability, no lookup: the voice holds nothing, LIA does.
+    """
+    template = load_telephony_prompt("telephony_self_live_system_prompt", "v1")
+    lines = _scaffold_lines()
+    # The whole block is neutralised once, the person's name inside it included.
+    delegation_block = neutralise_vendor_syntax(
+        render_delegation_block(
+            DelegationBlockInputs(
+                user_name=inputs.user_name,
+                result_budget_tokens=inputs.result_budget_tokens,
+                async_delegation=True,
+            )
+        )
     )
     return template.format(
         current_datetime=format_datetime_for_display(inputs.now, inputs.timezone, inputs.language),
         user_name=neutralise_vendor_syntax(inputs.user_name),
         language_name=get_language_name(inputs.language),
-        objective=neutralise_vendor_syntax(inputs.objective.strip() or "A catch-up call."),
-        user_context_block=context_block,
-        availability_block=availability_block,
-        live_tools_block=live_tools_block,
-        personality_block=personality_block,
+        objective=_objective(inputs, lines),
+        personality_block=personality_block(lines, neutralise_vendor_syntax(inputs.personality)),
+        delegation_block=delegation_block,
     )
 
 
@@ -244,20 +301,32 @@ def _verification_prompt(inputs: MandateInputs) -> str:
     )
 
 
-def build_override(kind: CallKind, inputs: MandateInputs) -> dict[str, Any] | None:
+#: Which renderer draws each override prompt — ONE table, so a prompt name
+#: without a renderer is a boot-time omission rather than a silent fallback.
+_RENDERERS: Final[Mapping[TelephonyPromptName, Callable[[MandateInputs], str]]] = {
+    "telephony_self_call_system_prompt": _self_prompt,
+    "telephony_self_live_system_prompt": _self_live_prompt,
+    "telephony_verification_prompt": _verification_prompt,
+}
+
+
+def build_override(
+    kind: CallKind, inputs: MandateInputs, *, mode: VoiceSessionMode = "direct"
+) -> dict[str, Any] | None:
     """The per-call ``conversation_config_override`` of a kind, fully rendered.
 
     Args:
         kind: The call kind.
         inputs: What the render can draw on.
+        mode: How the owner's call runs (ADR-301).
 
     Returns:
         The override body the client sends, or None for the baked mandate.
     """
-    mandate = mandate_for(kind)
-    if not mandate.overrides_agent:
+    mandate = mandate_for(kind, mode=mode)
+    if not mandate.overrides_agent or mandate.prompt_name is None:
         return None
-    prompt = _verification_prompt(inputs) if kind is CallKind.VERIFICATION else _self_prompt(inputs)
+    prompt = _RENDERERS[mandate.prompt_name](inputs)
     return {
         "agent": {
             "prompt": {"prompt": prompt},

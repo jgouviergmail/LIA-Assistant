@@ -135,6 +135,20 @@ describe('error-class contract the extractor depends on', () => {
   });
 });
 
+describe('getApiErrorDetail — a coded refusal carrying its sentence', () => {
+  it('reads detail.message beside the code (live mode, ADR-299)', () => {
+    const error = apiErrorWithDetail(
+      { code: 'connector_missing', message: 'Activate a Live connector first.' },
+      409
+    );
+    expect(getApiErrorDetail(error)).toBe('Activate a Live connector first.');
+  });
+
+  it('answers nothing for a code with no sentence', () => {
+    expect(getApiErrorDetail(apiErrorWithDetail({ code: 'x' }, 409))).toBeUndefined();
+  });
+});
+
 describe('getApiErrorCode — a refusal that names itself', () => {
   it('reads the stable code a coded 409 carries', () => {
     expect(getApiErrorCode(apiErrorWithDetail({ code: 'drive_folder_nested' }, 409))).toBe(

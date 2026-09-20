@@ -247,6 +247,27 @@ groups:
           description: "{{ $value | humanize }} LLM call(s) on node {{ $labels.node_name }} completed without usage metadata in the last hour (threshold: <<<ALERT_CORE_LLM_NO_USAGE_1H>>>). Their spend reached no ledger: token_usage_logs, the instance spend ceiling and the cost dashboards did not see it."
           runbook: "docs/runbooks/alerts/LLMCallsWithoutUsage.md"
 
+      # A paid Google Maps Platform call (Places, Routes, Geocoding, Weather,
+      # Static Maps, Street View) made where NO TrackingContext was accounting
+      # for it. The counter used to « do nothing » without one, so every
+      # paid call outside a chat turn — the heartbeat's departure advice, the
+      # briefing's weather, a meeting's reverse geocoding, the image proxies —
+      # left no ledger row (measured 2026-09-19: 3 020 usage rows, none
+      # outside a turn). Every out-of-turn surface now opens its own
+      # accounting; this alert is the proof, and zero is the honest threshold.
+      - alert: GoogleApiCallsUnaccounted
+        expr: |
+          sum by (api_name) (increase(google_api_calls_unaccounted_total[1h])) > <<<ALERT_CORE_GOOGLE_UNACCOUNTED_1H>>>
+        for: 0m
+        labels:
+          severity: warning
+          component: connectors
+          tier: core
+        annotations:
+          summary: "Google Maps Platform calls completing unaccounted on {{ $labels.api_name }}"
+          description: "{{ $value | humanize }} paid Google {{ $labels.api_name }} call(s) were made with no accounting context in the last hour (threshold: <<<ALERT_CORE_GOOGLE_UNACCOUNTED_1H>>>). The deployment paid them and no ledger received them: google_api_usage_logs, the person's statistics, the instance spend ceiling and the cost dashboards did not see it."
+          runbook: "docs/runbooks/alerts/GoogleApiCallsUnaccounted.md"
+
   # ===== SYSTEM KNOWLEDGE — the FAQ the assistant answers about itself from =====
   - name: core_system_knowledge
     interval: 60s

@@ -4,7 +4,7 @@
 
 **Version**: 6.0
 **Date**: 2026-09-18
-**Application**: LIA v1.46.0
+**Application**: LIA v1.47.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -148,6 +148,7 @@ LIA offers a complete voice mode:
 - **"OK Guy" wake word**: hands-free detection running **entirely in your browser** via Sherpa-onnx WASM — no audio is transmitted until the wake word is detected
 - **Voice synthesis**: three admin-configurable providers — Edge TTS (free), OpenAI TTS (`tts-1` / `tts-1-hd`), or ElevenLabs (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`)
 - **Telegram voice messages**: send audio messages, LIA transcribes and responds
+- **Live mode**: a real-time, voice-to-voice conversation on a live model you connect with **your own key** — Gemini Live, GPT-Live or an ElevenLabs agent. The voice holds the conversation and hands every request to LIA, which runs it as an ordinary chat turn while you speak; a direct session lets the voice read your data itself and act on nothing. What the provider bills is shown to you, never recorded.
 
 ### 3.5. Creation and media
 
@@ -202,7 +203,7 @@ You are always in the loop: before dialing, LIA tells you exactly **who** it wil
 
 And it stays private by construction. During a call LIA can only tell whether you're free or busy at a given time — never the titles, guests or places on your calendar. Nothing is recorded, the conversation is never stored, and only a short summary is kept before it expires. Phone calls run through your own ElevenLabs connector, billed on your account, and the feature is there only if your administrator turned it on.
 
-And LIA can call *you*. Declare your number under *Telephony · My identity*, let LIA call it and read a code you type back, and from then on "call me at eight to go over my day" — or a routine that says it — rings your phone with no confirmation card: the person who would confirm is the one who picks up. On the line, LIA knows what it knows in the chat — your memories, your agenda, your reminders, what is open with people — and, if your administrator enabled it, looks things up as you talk: an e-mail, a contact, a file, a place nearby, the weather, what it remembers about a subject. It reads everything and acts on nothing; each domain has a switch that is yours, and the assistant speaks with the personality you gave it. When you hang up, what you said comes back in the chat as your own message, with a phone badge, and anything you asked for waits there for your confirmation.
+And LIA can call *you*. Declare your number under *Telephony · My identity*, let LIA call it and read a code you type back, and from then on "call me at eight to go over my day" — or a routine that says so — rings your phone with no confirmation card: the person who would confirm is the one who picks up. How the call goes is your choice, in the same settings, and it is the same choice as the browser's live sessions. In **Live**, the default, each thing you ask on the line is handled by LIA while you speak, as a chat turn of yours — the voice announces it, keeps talking, reads the answer when it lands; a confirmation LIA needs is asked on the line, a question it asks is the answer, and everything sits in the thread with a phone badge. In **Live direct**, the voice reads for you — your agenda, an e-mail, a contact, a place nearby, the weather, what it retains — and acts on nothing; each domain has a switch that is yours, and what you said comes back afterwards as your own message. Live exists only where the phone provider can reach your instance back; elsewhere the setting says so and the call runs direct. Either way the assistant speaks with the personality you gave it, and what runs on your ElevenLabs key is billed there, never counted here.
 
 ### 3.11. Talking to your people, assistant to assistant
 
@@ -312,6 +313,8 @@ Each message shows its cost in tokens and currency. Users can export their consu
 You're not paying a subscription that hides the real costs. You see exactly what each interaction costs, and you can optimize: economical model for routing, more powerful for the response.
 
 The same transparency applies to actions: under every response, a collapsed “⚙ N steps · X s” line unfolds what actually happened — routing, tools called, duration — and that trace is stored with the message: it survives reloads, on every device. Every response can also be rated with a discreet 👍/👎, remembered and fed back into the assistant's learning — never used to regenerate the answer on your behalf.
+
+The rule has no exception by path. Everything the platform pays for you with its own keys reaches your usage and your limits, whatever the modality: a map lookup during a phone call or a direct live session, the weather calls of the morning briefing, the geocoding of your address, a place photo shown to you (counted when it is displayed, never in advance), a voice synthesis (counted only for the sentences actually delivered). A phone bill and a live session card show one figure for what the run cost, Maps euros included. And what you pay with your **own** connector keys — a live model, the phone agent, a web search — stays outside: shown to you where it happens, recorded nowhere.
 
 ### 6.4. Trust through evidence
 

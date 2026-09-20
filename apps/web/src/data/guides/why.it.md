@@ -4,7 +4,7 @@
 
 **Versione**: 6.0
 **Data**: 2026-09-18
-**Applicazione**: LIA v1.46.0
+**Applicazione**: LIA v1.47.0
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -148,6 +148,7 @@ LIA offre una modalità vocale completa:
 - **Parola chiave "OK Guy"**: rilevamento hands-free eseguito **interamente nel tuo browser** via Sherpa-onnx WASM — nessun audio viene trasmesso finché la parola chiave non viene rilevata
 - **Sintesi vocale**: tre provider configurabili da admin — Edge TTS (gratuito), OpenAI TTS (`tts-1` / `tts-1-hd`) o ElevenLabs (`eleven_multilingual_v2`, `eleven_turbo_v2_5`, `eleven_flash_v2_5`)
 - **Messaggi vocali Telegram**: invia messaggi audio, LIA li trascrive e risponde
+- **Modalità Live**: una conversazione in tempo reale, a viva voce, su un modello live che colleghi con **la tua chiave** — Gemini Live, GPT-Live o un agente ElevenLabs. La voce tiene la conversazione e affida ogni richiesta a LIA, che la esegue come un normale turno di chat mentre parli; una sessione diretta lascia che la voce legga i tuoi dati da sola senza agire su nulla. Ciò che il fornitore fattura ti è mostrato, mai registrato.
 
 ### 3.5. Creazione e media
 
@@ -202,7 +203,7 @@ Mantieni sempre il controllo: prima di comporre il numero, LIA ti dice esattamen
 
 E resta riservato per costruzione. Durante una chiamata LIA può solo indicare se sei libero o occupato in un dato momento — mai i titoli, gli invitati o i luoghi del tuo calendario. Nulla viene registrato, la conversazione non viene mai conservata e si mantiene solo un breve riepilogo prima che scada. Le chiamate passano dal tuo connettore ElevenLabs personale, addebitate sul tuo account, e la funzione è presente solo se il tuo amministratore l'ha attivata.
 
-E LIA può chiamare *te*. Dichiara il tuo numero in *Telefonia · La mia identità*, lascia che LIA lo chiami e legga un codice che tu digiti, e da allora «chiamami alle otto per fare il punto sulla giornata» — o una routine che lo dica — fa squillare il tuo telefono senza scheda di conferma: chi confermerebbe è chi risponde. Al telefono, LIA sa ciò che sa nella chat — i tuoi ricordi, la tua agenda, i tuoi promemoria, ciò che è aperto con le persone — e, se il tuo amministratore l'ha attivato, consulta mentre parli: una mail, un contatto, un file, un luogo vicino, il meteo, ciò che ricorda di un argomento. Legge tutto e non agisce su nulla; ogni ambito ha un interruttore che è tuo, e l'assistente parla con la personalità che le hai dato. Quando riagganci, ciò che hai detto torna nella chat come tuo messaggio, con un badge telefono, e ciò che hai chiesto vi attende la tua conferma.
+E LIA può chiamare *te*. Dichiara il tuo numero in *Telefonia · La mia identità*, lascia che LIA lo chiami e legga un codice che ridigiti, e da allora «chiamami alle otto per fare il punto sulla giornata» — o una routine che lo dice — fa squillare il tuo telefono senza scheda di conferma: la persona che confermerebbe è quella che risponde. Come si svolge la chiamata è una scelta tua, nelle stesse impostazioni, ed è la stessa scelta delle sessioni live del browser. In **Live**, il predefinito, ogni cosa che chiedi sulla linea è trattata da LIA mentre parli, come un tuo turno di chat — la voce lo annuncia, continua a parlare, legge la risposta quando arriva; una conferma di cui LIA ha bisogno è chiesta sulla linea, una domanda che pone è la risposta, e tutto è nel filo con un badge telefono. In **Live diretto**, la voce legge per te — la tua agenda, un'e-mail, un contatto, un luogo vicino, il meteo, ciò che ricorda — e non agisce su nulla; ogni dominio ha un interruttore che è tuo, e ciò che hai detto torna poi come tuo messaggio. Live esiste solo dove il fornitore telefonico può richiamare la tua istanza; altrove l'impostazione lo dice e la chiamata parte in diretta. In entrambi i casi l'assistente parla con la personalità che le hai dato, e ciò che gira sulla tua chiave ElevenLabs è fatturato lì, mai contato qui.
 
 ### 3.11. Parlare con i tuoi, da assistente ad assistente
 
@@ -312,6 +313,8 @@ Ogni messaggio mostra il suo costo in token e in euro. L'utente può esportare i
 Non paghi un abbonamento che nasconde i costi reali. Vedi esattamente quanto costa ogni interazione, e puoi ottimizzare: modello economico per il routing, più potente per la risposta.
 
 La stessa trasparenza vale per le azioni: sotto ogni risposta, una riga ripiegata «⚙ N passaggi · X s» mostra ciò che è realmente accaduto — instradamento, strumenti chiamati, durata — e questa traccia è conservata con il messaggio: resta consultabile dopo un ricaricamento, su tutti i tuoi dispositivi. Ogni risposta può inoltre essere valutata con un discreto 👍/👎, memorizzato e reimmesso nell'apprendimento dell'assistente — mai per rigenerare la risposta al posto tuo.
+
+La regola non ammette eccezioni per percorso. Tutto ciò che la piattaforma paga per te con le proprie chiavi raggiunge il tuo utilizzo e i tuoi limiti, qualunque sia la modalità: una consultazione di mappa durante una telefonata o una sessione live diretta, le chiamate meteo del briefing del mattino, la geocodifica del tuo indirizzo, una foto di un luogo che ti viene mostrata (contata quando è visualizzata, mai in anticipo), una sintesi vocale (contata solo per le frasi davvero consegnate). Una fattura telefonica e una scheda di sessione live mostrano una sola cifra per ciò che l'esecuzione è costata, euro di Maps compresi. E ciò che paghi con **le tue** chiavi di connettore — un modello live, l'agente telefonico, una ricerca web — resta fuori: mostrato dove avviene, registrato da nessuna parte.
 
 ### 6.4. La fiducia attraverso la prova
 

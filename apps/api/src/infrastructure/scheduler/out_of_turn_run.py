@@ -177,6 +177,15 @@ class StreamRequest:
         memory_enabled: Their long-term memory switch (spoken turns only).
         journals_enabled: Their journals switch (spoken turns only).
         psyche_enabled: Their psyche-engine switch (spoken turns only).
+        original_run_id: The run this turn RESUMES when LIA had stopped on a
+            question and the prompt is the person's answer (a voice
+            delegation, ADR-301) — the chat router's own resumption, so the
+            caller also passes it as ``run_id``: the accounting of a question
+            and of its answer share one id.
+        live_session_id: The voice session's key, stamped on the turn's rows
+            so the closing card counts them (ADR-299 A5); None otherwise.
+        spoken_text: What the person actually said when the prompt is a
+            voice model's rendering of it; archived beside the request.
     """
 
     user_id: UUID
@@ -196,6 +205,9 @@ class StreamRequest:
     memory_enabled: bool = False
     journals_enabled: bool = False
     psyche_enabled: bool = False
+    original_run_id: str | None = None
+    live_session_id: str | None = None
+    spoken_text: str | None = None
 
 
 @dataclass(frozen=True)
@@ -229,6 +241,9 @@ class RunResult:
         refusals: ``(tool, error_code)`` the gate refused during the turn —
             the STRUCTURED signal a settle reads instead of the model's prose.
         interrupt: The question the turn stopped on, when it stopped on one.
+        register: The register the answering model declared (ADR-253), read
+            from the ``done`` chunk — a voice restitutes the answer in that
+            manner; None when the annotation is off or the turn declared none.
     """
 
     outcome: RunOutcome
@@ -237,6 +252,7 @@ class RunResult:
     error: str | None = None
     refusals: list[tuple[str, str]] = field(default_factory=list)
     interrupt: TurnInterrupt | None = None
+    register: str | None = None
 
 
 async def resolve_run_context(db: Any, user_id: UUID) -> RunContext | None:
@@ -350,7 +366,7 @@ async def _attempt_until_settled(request: StreamRequest) -> RunResult:
 
     for attempt in range(1, request.max_attempts + 1):
         try:
-            text, interrupt, failure = await asyncio.wait_for(
+            read = await asyncio.wait_for(
                 _one_attempt(request, attempt), timeout=request.timeout_seconds
             )
         except _TRANSIENT_ERRORS as transient:
@@ -378,10 +394,16 @@ async def _attempt_until_settled(request: StreamRequest) -> RunResult:
                 error=f"{type(fatal).__name__}: {fatal}",
             )
 
+        text, interrupt, failure = read.text, read.interrupt, read.failure
         if interrupt is not None:
             # Nobody answered the question; asking it again is not a retry.
             return _settled(
-                request, RunOutcome.WAITING, attempt=attempt, text=text, interrupt=interrupt
+                request,
+                RunOutcome.WAITING,
+                attempt=attempt,
+                text=text,
+                interrupt=interrupt,
+                register=read.register,
             )
         if failure is not None:
             # NOT retried: a ceiling that refused this call refuses the next
@@ -402,7 +424,7 @@ async def _attempt_until_settled(request: StreamRequest) -> RunResult:
             if request.origin is not None and request.origin.refusals
             else RunOutcome.SUCCESS
         )
-        return _settled(request, outcome, attempt=attempt, text=text)
+        return _settled(request, outcome, attempt=attempt, text=text, register=read.register)
 
     return _settled(
         request,
@@ -412,9 +434,7 @@ async def _attempt_until_settled(request: StreamRequest) -> RunResult:
     )
 
 
-async def _one_attempt(
-    request: StreamRequest, attempt: int
-) -> tuple[str, TurnInterrupt | None, StreamFailure | None]:
+async def _one_attempt(request: StreamRequest, attempt: int) -> _StreamReader:
     """Consume one full generation.
 
     The generator is consumed to its end even when it announces a question:
@@ -426,9 +446,9 @@ async def _one_attempt(
         attempt: 1-based attempt number.
 
     Returns:
-        ``(text, interrupt, failure)`` — the post-processed answer, the
-        question the turn stopped on, and the refusal the stream announced;
-        each None when the turn had none.
+        The reader, holding the post-processed answer, the question the turn
+        stopped on, the refusal the stream announced and the register it
+        declared — each None when the turn had none.
     """
     # A fresh session per retry: attempt one may have half-run the graph, and
     # attempt two must start clean rather than resume a broken checkpoint.
@@ -461,9 +481,14 @@ async def _one_attempt(
         # The SAME id across attempts on purpose: the ticket paid for every one
         # of them, so the cost aggregate must find them all under one run.
         run_id=request.run_id,
+        # A voice delegation (ADR-301): the run a pending question is answered
+        # on, the session stamp of the rows, the words actually spoken.
+        original_run_id=request.original_run_id,
+        live_session_id=request.live_session_id,
+        spoken_text=request.spoken_text,
     ):
         reader.feed(chunk)
-    return reader.text, reader.interrupt, reader.failure
+    return reader
 
 
 @dataclass
@@ -477,6 +502,7 @@ class _StreamReader:
         question_tokens: The question's own deltas.
         question: The question the stream settled on, when it said so.
         failure: The refusal the stream announced, when it announced one.
+        register: The register the ``done`` chunk declared (ADR-253), if any.
     """
 
     tokens: list[str] = field(default_factory=list)
@@ -485,6 +511,7 @@ class _StreamReader:
     question_tokens: list[str] = field(default_factory=list)
     question: str | None = None
     failure: StreamFailure | None = None
+    register: str | None = None
 
     def feed(self, chunk: Any) -> None:
         """Read one chunk.
@@ -515,6 +542,8 @@ class _StreamReader:
             # `workboard_empty_answer`. An invented diagnosis (ADR-182), on
             # the one line the person reads to know what happened.
             self.failure = StreamFailure(code=_error_code(chunk), message=text or "")
+        elif chunk.type == "done":
+            self.register = _register_of(chunk)
 
     @property
     def text(self) -> str:
@@ -527,6 +556,25 @@ class _StreamReader:
         if self.asked is None and self.question is None:
             return None
         return _interrupt_of(self.asked, self.question or "".join(self.question_tokens))
+
+
+def _register_of(chunk: Any) -> str | None:
+    """The register the ``done`` chunk's expressivity annotation names, or None.
+
+    Args:
+        chunk: The ``done`` chunk.
+
+    Returns:
+        ``metadata.expressivity.register`` when it is a non-empty string.
+    """
+    metadata = getattr(chunk, "metadata", None)
+    if not isinstance(metadata, Mapping):
+        return None
+    annotation = metadata.get("expressivity")
+    if not isinstance(annotation, Mapping):
+        return None
+    register = annotation.get("register")
+    return register if isinstance(register, str) and register else None
 
 
 def _error_code(chunk: Any) -> str | None:
@@ -616,6 +664,7 @@ def _settled(
     text: str = "",
     error: str | None = None,
     interrupt: TurnInterrupt | None = None,
+    register: str | None = None,
 ) -> RunResult:
     """Build the result, carrying whatever the gate refused along the way.
 
@@ -626,6 +675,7 @@ def _settled(
         text: The answer, when there is one.
         error: A typed message, on failure.
         interrupt: The question the turn stopped on, when it stopped on one.
+        register: The register the answer was said in, when one was declared.
 
     Returns:
         The result the caller settles its row from.
@@ -637,6 +687,7 @@ def _settled(
         error=error,
         refusals=list(request.origin.refusals) if request.origin is not None else [],
         interrupt=interrupt,
+        register=register,
     )
 
 

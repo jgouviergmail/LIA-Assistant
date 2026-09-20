@@ -30,9 +30,10 @@ TELEPHONY_AGENT_MANIFEST = AgentManifest(
         "confirmed by the user (HITL draft) before dialing, read-only during the call, "
         "free/busy shared but never meeting details — and returns an asynchronous "
         "summary; call_me_tool phones the USER THEMSELVES on their verified number, "
-        "NOW and with no confirmation, to talk things over, and relays what they said "
-        "into the chat as their own message once the call ends. A call asked for later "
-        "or on a schedule is a reminder or a routine whose instruction is 'call me'."
+        "NOW and with no confirmation, to talk things over — what they ask for reaches "
+        "their chat, during the call or relayed as their own message once it ends, as "
+        "they chose in the settings. A call asked for later or on a schedule is a "
+        "reminder or a routine whose instruction is 'call me'."
     ),
     tools=[
         "place_phone_call_tool",
@@ -185,8 +186,9 @@ call_me_catalogue_manifest = ToolManifest(
         "reach a third party (that is place_phone_call_tool), and never for a call asked "
         "for LATER or on a SCHEDULE ('call me in an hour', 'every morning at eight'): "
         "that is a reminder or a routine whose instruction is 'call me'. Needs no "
-        "confirmation. What the user says on the call is relayed into the chat as their "
-        "own message once the call ends, so nothing is done during the call itself."
+        "confirmation. What the user asks for on the call reaches their chat: during the "
+        "call (Live) or relayed as their own message once it ends (Live direct), as they "
+        "chose in the settings — never decided here."
     ),
     parameters=[
         ParameterSchema(

@@ -48,6 +48,7 @@ export const CAPABILITY_SECTION: Readonly<Record<string, SettingsSectionToken>> 
   peers: 'peer-connections',
   channels: 'channels',
   telephony: 'telephony-calls',
+  live: 'live-mode',
   spaces: 'rag-spaces',
   journals: 'journals',
   skills: 'skills',

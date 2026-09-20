@@ -79,6 +79,10 @@ def _router_for(capability: PlatformCapability) -> object:
     # kept answers are the record.
     elif capability is PlatformCapability.BOOKMARKS:
         from src.domains.bookmarks.router import router
+    # ADR-299 — the live voice mode: the routes ARE the ability (credential
+    # minting, the session record); a delegated turn goes through the chat's door.
+    elif capability is PlatformCapability.LIVE:
+        from src.domains.live.router import router
     else:  # pragma: no cover - defensive
         raise AssertionError(f"no router mapped for {capability}")
     return router

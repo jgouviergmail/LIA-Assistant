@@ -1,0 +1,20 @@
+# The delivery note handed to the live voice beside a delegated answer, one
+# per register of the closed tone vocabulary (agents/expressivity/vocabulary.py,
+# ADR-253): the answering model declared HOW it said the answer, the voice
+# restitutes it in that manner. `key|template`, no placeholder, technical
+# English (ADR-256). Read by domains/live/mandate.py, published by
+# GET /live/config as `tone_lines`; a guard holds the file complete over
+# TONE_REGISTERS and free of any other key.
+
+celebratory|LIA said this with a small celebration: something worked and it is worth it. Sound glad.
+playful|LIA said this lightly, teasing a little. Keep it light.
+warm|LIA said this warmly, reassuring and personal. Sound close.
+curious|LIA said this with real interest, leaning in. Sound intrigued.
+assured|LIA said this with confidence: it is settled. No hedging.
+factual|LIA said this plainly: here is the information. Stay even.
+careful|LIA said this carefully, weighing it. Keep the nuance.
+questioning|LIA ended this by asking something back. Leave the question open.
+surprised|LIA said this surprised: an unexpected finding. Let it show.
+concerned|LIA said this concerned: something is wrong and it matters. Sound serious, not alarmed.
+apologetic|LIA said this owning a failure or a limit. Sound sorry, not servile.
+weary|LIA said this after long or repeated work. A touch of tiredness, still kind.

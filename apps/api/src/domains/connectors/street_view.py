@@ -17,6 +17,7 @@ import structlog
 from src.core.config import settings
 from src.core.constants import STREET_VIEW_METADATA_URL
 from src.domains.connectors.clients.google_api_tracker import track_google_api_call
+from src.domains.connectors.media_attribution import with_attribution
 
 logger = structlog.get_logger(__name__)
 
@@ -62,4 +63,6 @@ async def street_view_thumbnail_url(lat: float, lon: float) -> str | None:
     track_google_api_call("street_view", "/streetview/metadata", cached=False)
     if metadata.get("status") != "OK":
         return None
-    return f"/api/v1/connectors/street-view?location={lat},{lon}"
+    # The image itself is billed when the browser fetches it; the proxy counts
+    # it then, on this turn (the URL carries the signed run id).
+    return with_attribution(f"/api/v1/connectors/street-view?location={lat},{lon}")

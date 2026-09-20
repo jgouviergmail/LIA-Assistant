@@ -84,7 +84,10 @@ def provider(monkeypatch: pytest.MonkeyPatch) -> Any:
 
         async def aembed_documents(self, texts: list[str]) -> list[list[float]]:
             self.calls.append(list(texts))
-            return [[float(index), 0.0] for index, _ in enumerate(texts)]
+            # The width the instance asks for: a cache of another width is refused
+            # (a 384-wide cache against 1536-wide queries scored every tool 0).
+            width = int(settings.memory_embedding_dimensions)
+            return [[float(index)] + [0.0] * (width - 1) for index, _ in enumerate(texts)]
 
     stub = _Stub()
     import src.infrastructure.llm.memory_embeddings as memory_embeddings_module

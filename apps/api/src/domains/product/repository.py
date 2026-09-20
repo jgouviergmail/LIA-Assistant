@@ -195,13 +195,8 @@ class ProductRepository:
         Returns:
             Number of outcomes backfilled.
         """
-        total_expr = (
-            MessageTokenSummary.total_cost_eur
-            + MessageTokenSummary.google_api_cost_eur
-            + MessageTokenSummary.image_generation_cost_eur
-        )
         cost_subq = (
-            select(total_expr)
+            select(MessageTokenSummary.billed_cost_sql())
             .where(MessageTokenSummary.run_id == ProductOutcome.run_id)
             .scalar_subquery()
         )

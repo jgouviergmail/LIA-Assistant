@@ -132,6 +132,10 @@ interface LLMPricingData extends ReasoningSamplingPayload {
   input_unit_price: string;
   cached_input_unit_price: string | null;
   output_unit_price: string;
+  /** The audio pair of a speech-to-speech model (ADR-300): both or neither,
+   *  token-billed only; omitted = no audio rate. */
+  audio_input_unit_price?: string;
+  audio_output_unit_price?: string;
   /** Optional UTC windowed tariff; omitted = flat pricing. */
   time_slots?: TimeSlotPricePayload[];
 }
@@ -149,7 +153,15 @@ export interface LLMPricingUpdateData extends ReasoningSamplingPayload {
   pricing_unit?: 'per_1m_tokens' | 'per_audio_minute' | 'per_audio_hour';
   input_unit_price?: string;
   cached_input_unit_price?: string | null;
+  /** An emptied cached price cannot travel as null (the backend drops explicit
+   *  nulls from its change-set): the clearing is a shape of its own. */
+  clear_cached_input_price?: boolean;
   output_unit_price?: string;
+  /** The audio pair (ADR-300): omitted = inherit the current row's; the
+   *  merged pair must be whole. `clear_audio_prices` drops both. */
+  audio_input_unit_price?: string;
+  audio_output_unit_price?: string;
+  clear_audio_prices?: boolean;
   /** UTC windowed tariff: omitted = inherit the current row's slots onto the
    *  new temporal version; `[]` = clear (the backend drops explicit nulls, so
    *  the empty list IS the clearing sentinel); non-empty = replace. */

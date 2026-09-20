@@ -11,6 +11,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from src.core.constants import CHAT_MESSAGE_MAX_LENGTH
 from src.domains.agents.capability_directives import DirectiveCapability
 
 
@@ -144,7 +145,7 @@ class ChatRequest(BaseModel):
 
     message: str = Field(
         min_length=1,
-        max_length=10000,
+        max_length=CHAT_MESSAGE_MAX_LENGTH,
         description="User message content",
     )
     user_id: uuid.UUID = Field(description="User UUID")
@@ -198,6 +199,21 @@ class ChatRequest(BaseModel):
             "planner guarantees it is part of the plan and drops the steps it "
             "already answers; every other step is kept. Absent = unchanged "
             "prose path."
+        ),
+    )
+    live_session_id: str | None = Field(
+        default=None,
+        pattern=r"^[0-9a-f]{32}$",
+        description=(
+            "Live mode (ADR-299): the session this request was spoken in. Stamped on "
+            "the archived user row so the session's end can add up its turns."
+        ),
+    )
+    spoken_text: str | None = Field(
+        default=None,
+        max_length=CHAT_MESSAGE_MAX_LENGTH,
+        description=(
+            "Live mode: the person's words as transcribed, kept beside the delegated request."
         ),
     )
 

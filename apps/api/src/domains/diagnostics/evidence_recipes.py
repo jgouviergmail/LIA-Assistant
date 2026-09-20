@@ -171,6 +171,11 @@ EVIDENCE_RECIPES: dict[str, EvidenceRecipe] = {
             "LLMCallsWithoutUsage", prom_queries=("llm_errors_by_kind",), logs=_LLM_LOGS
         ),
         EvidenceRecipe(
+            "GoogleApiCallsUnaccounted",
+            prom_queries=("google_api_unaccounted_by_api",),
+            logs=LogRecipe(events=("google_api_call_unaccounted",)),
+        ),
+        EvidenceRecipe(
             "circuit_breakers",
             prom_queries=("circuit_breakers_open", "llm_errors_by_kind"),
             logs=LogRecipe(events=("circuit_breaker_opened", "circuit_breaker_rejected_request")),

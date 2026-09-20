@@ -18,6 +18,7 @@ from fastapi import Request
 
 import src.domains.agents.telephony.live_tools as lmod
 import src.domains.agents.telephony.live_tools_router as rmod
+import src.domains.agents.telephony.voice_lookup as admission
 from src.core.config import settings
 from src.core.exceptions import ForbiddenError, ResourceNotFoundError
 from src.domains.agents.telephony.live_tools import LiveToolSpec, result_lines
@@ -97,7 +98,8 @@ def _wired(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
     monkeypatch.setattr(rmod, "consume_live_tool_budget", _budget)
     monkeypatch.setattr(rmod, "get_redis_cache", _redis)
     monkeypatch.setattr(rmod, "available_live_tools", _available)
-    monkeypatch.setattr(rmod, "run_live_tool", _run)
+    # The run is the shared admission's (ADR-301): the runner is bound there.
+    monkeypatch.setattr(admission, "run_live_tool", _run)
     return state
 
 
@@ -123,7 +125,9 @@ async def test_a_valid_callback_runs_the_tool_and_answers_its_text(_wired: dict)
     assert name == "get_events_tool"
     assert args == {"query": "dentist", "max_results": 5}  # the call id never reaches the tool
     assert kwargs["user_id"] == call.user_id and kwargs["language"] == "fr"
-    assert kwargs["call_id"] == call.id
+    # The lookup is filed on the phone's host: its surface, its run id, its call.
+    assert kwargs["host"].surface == "phone_call"
+    assert kwargs["host"].key == str(call.id)
     # The budget is the call's own: its counter dies with LIA's own notion of a
     # live call (the duration cap is the portal's, LIA does not know it).
     assert _wired["budget_args"] == (
@@ -227,3 +231,155 @@ async def test_a_call_whose_user_vanished_reads_as_not_found(_wired: dict) -> No
         await rmod.live_tool_callback(
             "get_events_tool", _request({"call_id": str(uuid4())}), db=_DB(None)
         )
+
+
+# ---------------------------------------------------------------------------
+# The Live mode's delegation call-back (ADR-301): the row's mode is the switch
+# ---------------------------------------------------------------------------
+
+
+def _delegation_request(body: dict[str, Any] | str, *, token: str = "tok") -> Request:
+    request = _request(body, token=token)
+    request.scope["path"] = "/telephony/tools/send_to_lia"
+    return request
+
+
+@pytest.fixture
+def _delegation(_wired: dict, monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
+    from src.infrastructure.scheduler.out_of_turn_run import RunContext
+    from src.infrastructure.scheduler.voice_delegation import DelegationOutcome, DelegationResult
+
+    call = _wired["auth"].call
+    call.call_mode = "delegated"
+    state: dict[str, Any] = {
+        "result": DelegationResult(DelegationOutcome.ANSWERED, "C'est noté.", note="warm note"),
+        "context": RunContext(
+            user=object(),
+            language="fr",
+            timezone="Europe/Paris",
+            display_name="Alex",
+            display_mode="cards",
+        ),
+    }
+
+    async def _context(_db, _user_id):  # noqa: ANN001
+        return state["context"]
+
+    class _Conversations:
+        async def get_or_create_conversation(self, _user_id, _db, *, language):  # noqa: ANN001
+            return SimpleNamespace(id=uuid4())
+
+    async def _delegate(request, *, context):  # noqa: ANN001
+        state["delegated"] = (request, context)
+        return state["result"]
+
+    monkeypatch.setattr(rmod, "resolve_run_context", _context)
+    monkeypatch.setattr(rmod, "ConversationService", _Conversations)
+    monkeypatch.setattr(rmod, "delegate", _delegate)
+    monkeypatch.setattr(settings, "telephony_delegation_timeout_seconds", 90, raising=False)
+    return state
+
+
+@pytest.mark.unit
+async def test_a_delegation_reaches_the_bridge_and_answers_with_its_note(
+    _wired: dict, _delegation: dict
+) -> None:
+    call = _wired["auth"].call
+    body = {"call_id": str(call.id), "request": "Rappelle-moi la banque demain"}
+    out = await rmod.delegation_callback(_delegation_request(body), db=_DB(_user()))
+    assert out == {"result": "C'est noté.", "tone": "warm note"}
+    request, context = _delegation["delegated"]
+    assert request.request == "Rappelle-moi la banque demain"
+    assert request.session.key == f"phone_call_{call.id.hex}"
+    assert request.session.mode == "delegated"
+    assert request.session.user_id == call.user_id
+    # The bridge answers the inner margin BEFORE the vendor's own timeout.
+    assert request.wait_seconds == 87.0
+    assert request.request_id  # minted here: the vendor names none
+    assert context is _delegation["context"]
+
+
+@pytest.mark.unit
+async def test_a_result_without_a_note_carries_no_tone_field(
+    _wired: dict, _delegation: dict
+) -> None:
+    from src.infrastructure.scheduler.voice_delegation import DelegationOutcome, DelegationResult
+
+    _delegation["result"] = DelegationResult(DelegationOutcome.TIMED_OUT, "still working")
+    call = _wired["auth"].call
+    out = await rmod.delegation_callback(
+        _delegation_request({"call_id": str(call.id), "request": "x"}), db=_DB(_user())
+    )
+    assert out == {"result": "still working"}
+
+
+@pytest.mark.unit
+async def test_a_direct_call_reads_as_not_found_on_the_delegation_route(
+    _wired: dict, _delegation: dict
+) -> None:
+    """A stale attach must not let a DIRECT call's agent delegate."""
+    call = _wired["auth"].call
+    call.call_mode = "direct"
+    with pytest.raises(ResourceNotFoundError):
+        await rmod.delegation_callback(
+            _delegation_request({"call_id": str(call.id), "request": "x"}), db=_DB(_user())
+        )
+    assert "delegated" not in _delegation
+
+
+@pytest.mark.unit
+async def test_a_request_off_the_message_bound_reads_as_not_found(
+    _wired: dict, _delegation: dict
+) -> None:
+    from src.core.constants import CHAT_MESSAGE_MAX_LENGTH
+
+    call = _wired["auth"].call
+    too_long = "x" * (CHAT_MESSAGE_MAX_LENGTH + 1)
+    with pytest.raises(ResourceNotFoundError):
+        await rmod.delegation_callback(
+            _delegation_request({"call_id": str(call.id), "request": too_long}), db=_DB(_user())
+        )
+    with pytest.raises(ResourceNotFoundError):
+        await rmod.delegation_callback(
+            _delegation_request({"call_id": str(call.id), "request": 42}), db=_DB(_user())
+        )
+    assert "delegated" not in _delegation
+
+
+@pytest.mark.unit
+async def test_a_wrong_secret_on_the_delegation_route_is_forbidden(
+    _wired: dict, _delegation: dict
+) -> None:
+    _wired["auth"] = LiveToolAuth(LiveToolAuthOutcome.BAD_SECRET)
+    with pytest.raises(ForbiddenError):
+        await rmod.delegation_callback(
+            _delegation_request({"call_id": str(uuid4()), "request": "x"}), db=_DB(_user())
+        )
+
+
+@pytest.mark.unit
+async def test_the_delegation_route_needs_no_live_tools_flag(
+    _wired: dict, _delegation: dict, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The mode on the row is the switch, not the lookups' flag."""
+    monkeypatch.setattr(settings, "telephony_live_tools_enabled", False)
+    call = _wired["auth"].call
+    out = await rmod.delegation_callback(
+        _delegation_request({"call_id": str(call.id), "request": "x"}), db=_DB(_user())
+    )
+    assert out["result"] == "C'est noté."
+
+
+@pytest.mark.unit
+async def test_a_call_that_spent_its_budget_hears_a_sentence_on_the_delegation_route(
+    _wired: dict, _delegation: dict
+) -> None:
+    from src.domains.voice_sessions.mandate import bridge_lines
+
+    _wired["budget"] = False
+    call = _wired["auth"].call
+    out = await rmod.delegation_callback(
+        _delegation_request({"call_id": str(call.id), "request": "x"}), db=_DB(_user())
+    )
+    assert out == {"result": bridge_lines()["budget_exhausted"]}
+    assert "delegated" not in _delegation

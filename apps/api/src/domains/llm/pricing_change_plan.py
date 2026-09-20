@@ -40,6 +40,8 @@ PRICING_FIELDS: frozenset[str] = frozenset(
         "input_unit_price",
         "cached_input_unit_price",
         "output_unit_price",
+        "audio_input_unit_price",
+        "audio_output_unit_price",
     }
 )
 

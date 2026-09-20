@@ -19,6 +19,7 @@ Three properties are load-bearing:
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from dataclasses import replace
 from typing import Any
@@ -205,6 +206,15 @@ class TestTheMapCoversWhatTheProductShips:
     def test_a_switch_capability_never_invents_a_tally(self) -> None:
         """ADR-185: a count is exact or it does not exist."""
         probes = _switches(_user())
+        # The live node is the one switch resolved by a read (ADR-299): it joins
+        # the set here so the contract covers EVERY declared switch key.
+        from unittest.mock import AsyncMock, patch
+        from uuid import uuid4
+
+        from src.domains.capabilities import service as svc
+
+        with patch.object(svc, "_has_live_connector", AsyncMock(return_value=True)):
+            probes["live"] = asyncio.run(svc._live_probe(uuid4(), frozenset()))
 
         assert {key: probes[key].detail for key in SWITCH_NODE_KEYS} == dict.fromkeys(
             SWITCH_NODE_KEYS, None

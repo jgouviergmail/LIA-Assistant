@@ -80,6 +80,7 @@ import { WorkboardSettings } from '@/components/settings/WorkboardSettings';
 import { TimezoneSelector } from './TimezoneSelector';
 import UserConnectorsSection from './UserConnectorsSection';
 import { UserDebugSettings } from './UserDebugSettings';
+import { LiveModeSettings } from './LiveModeSettings';
 import { VoiceModeSettings } from './VoiceModeSettings';
 
 export interface SettingsSectionEntry {
@@ -116,6 +117,7 @@ export const SETTINGS_SECTION_REGISTRY: Readonly<
 
   // ---- Preferences / Voice & Media
   'voice-mode': { render: lng => <VoiceModeSettings lng={lng} /> },
+  'live-mode': { feature: 'live-mode', render: lng => <LiveModeSettings lng={lng} /> },
   'image-generation': {
     feature: 'image-generation',
     render: lng => <ImageGenerationSettings lng={lng} />,

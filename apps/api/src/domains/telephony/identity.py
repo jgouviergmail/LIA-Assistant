@@ -31,13 +31,16 @@ import structlog
 from src.core.exceptions import raise_user_not_found
 from src.core.security.utils import decrypt_data, encrypt_data
 from src.domains.shared.phone_domains import is_phone_domain, unknown_phone_domains
+from src.domains.telephony.callback import live_unavailable_reason
 from src.domains.telephony.errors import (
+    raise_phone_call_mode_unknown,
     raise_phone_domain_unknown,
     raise_phone_number_invalid,
     raise_phone_number_missing,
 )
 from src.domains.telephony.phone_numbers import to_e164
 from src.domains.users.repository import UserRepository
+from src.domains.voice_sessions.session import VoiceSessionMode, as_voice_session_mode
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -58,6 +61,15 @@ class PhoneIdentity:
         disabled_domains: The phone domains the person switched OFF for their
             own calls (lot 8); everything else the phone offers stays on, a
             domain added later included.
+        call_mode: How the person CHOSE their own calls to run (ADR-301):
+            ``delegated`` (Live) or ``direct`` (Live direct).
+        live_available: Whether this instance can run a Live call at all —
+            the vendor must be able to call this API back.
+        live_unavailable_reason: Why not, when it cannot (a stable code the
+            settings page translates); None when it can.
+        call_mode_effective: What a call placed now would actually run: the
+            choice, or ``direct`` when Live is unavailable — stated here so
+            the page never shows a mode the dial path will not honour.
     """
 
     phone_number: str | None
@@ -65,6 +77,14 @@ class PhoneIdentity:
     verified_at: datetime | None
     rich_context_enabled: bool
     disabled_domains: tuple[str, ...] = ()
+    call_mode: VoiceSessionMode = "delegated"
+    live_available: bool = True
+    live_unavailable_reason: str | None = None
+
+    @property
+    def call_mode_effective(self) -> VoiceSessionMode:
+        """The mode a call placed now runs."""
+        return self.call_mode if self.live_available else "direct"
 
 
 class TelephonyIdentityService:
@@ -105,6 +125,7 @@ class TelephonyIdentityService:
     def _identity_of(cls, user: Any) -> PhoneIdentity:
         number = cls._stored_number(user)
         verified_at = user.phone_number_verified_at if number else None
+        reason = live_unavailable_reason()
         return PhoneIdentity(
             phone_number=number,
             verified=verified_at is not None,
@@ -113,6 +134,9 @@ class TelephonyIdentityService:
             disabled_domains=tuple(
                 d for d in (user.phone_disabled_domains or []) if is_phone_domain(str(d))
             ),
+            call_mode=as_voice_session_mode(str(user.phone_call_mode or "delegated")),
+            live_available=reason is None,
+            live_unavailable_reason=reason,
         )
 
     async def get_identity(self, user_id: UUID) -> PhoneIdentity:
@@ -221,6 +245,36 @@ class TelephonyIdentityService:
         await self.users.update(user, {"phone_rich_context_enabled": enabled})
         await self.db.commit()
         logger.info("phone_rich_context_set", user_id=str(user_id), enabled=enabled)
+        return self._identity_of(user)
+
+    async def set_call_mode(
+        self, user_id: UUID, mode: str, *, language: str = "en"
+    ) -> PhoneIdentity:
+        """Choose how the person's own calls run (ADR-301).
+
+        The choice is stored whatever the instance can run today: a callback
+        that becomes public later honours it without another click. The
+        EFFECTIVE mode is derived on every read.
+
+        Args:
+            user_id: Whose.
+            mode: ``delegated`` (Live) or ``direct`` (Live direct).
+            language: The caller's language, for a translated refusal.
+
+        Returns:
+            The identity after the write.
+
+        Raises:
+            ValidationError: On a mode off the vocabulary.
+        """
+        try:
+            stored = as_voice_session_mode(mode)
+        except ValueError:
+            raise_phone_call_mode_unknown(language)
+        user = await self._user(user_id)
+        await self.users.update(user, {"phone_call_mode": stored})
+        await self.db.commit()
+        logger.info("phone_call_mode_set", user_id=str(user_id), mode=stored)
         return self._identity_of(user)
 
     async def set_disabled_domains(

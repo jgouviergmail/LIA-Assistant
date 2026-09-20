@@ -3,9 +3,11 @@
 # `key|template` per line; blank lines and #-comments are ignored. str.format
 # templates: `live_tool_domains` is the comma-separated list of the domains the
 # attached lookup tools may read, in words; `personality` the instruction the
-# person configured for LIA's personality (lot 9), neutralised.
+# person configured for LIA's personality (lot 9), neutralised; `no_objective`
+# stands in when the call has no stated purpose.
 
 no_context|No context was shared for this call: rely on what the person tells you.
+no_objective|A catch-up call.
 personality|<personality_profile>{personality}</personality_profile>
 no_personality|<personality_profile>LIA has no particular personality configured for this account: warm, plain and efficient.</personality_profile>
 no_live_tools|   - You have no live lookup on this call: what you know is in `<what_you_know>`.

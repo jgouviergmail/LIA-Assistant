@@ -203,3 +203,13 @@ def test_self_diagnostics_defaults_to_disabled() -> None:
     env = derive_environment(_public(Exposure.LAN), generate_secrets())
     assert env["DIAGNOSTICS_ENABLED"] == "false"
     assert env["ALERTMANAGER_LIA_WEBHOOK_URL"] == ""
+
+
+def test_live_mode_follows_the_wizard_answer_and_defaults_to_disabled() -> None:
+    # ADR-299: the flag is the whole provisioning — the person's own key opens
+    # the sessions, so the installer writes nothing else for it.
+    env = derive_environment(_public(Exposure.LAN), generate_secrets())
+    assert env["LIVE_ENABLED"] == "false"
+    public = replace(_public(Exposure.LAN), live_mode=True)
+    env = derive_environment(public, generate_secrets())
+    assert env["LIVE_ENABLED"] == "true"

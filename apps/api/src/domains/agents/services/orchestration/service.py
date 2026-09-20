@@ -228,9 +228,8 @@ class OrchestrationService:
         """
         from datetime import UTC, datetime, timedelta
 
-        from langchain_core.messages import AIMessage
-
         from src.core.config import settings
+        from src.domains.agents.services.orchestration.out_of_graph import out_of_graph_message
         from src.domains.conversations.repository import ConversationRepository
         from src.infrastructure.database import get_db_context
 
@@ -270,21 +269,7 @@ class OrchestrationService:
                 # New UUIDs auto-generated → add_messages_with_truncate won't deduplicate
                 injected_count = 0
                 for msg in proactive_msgs:
-                    metadata_type = ""
-                    if msg.message_metadata and isinstance(msg.message_metadata, dict):
-                        metadata_type = msg.message_metadata.get("type", "proactive")
-
-                    ai_message = AIMessage(
-                        content=msg.content,
-                        additional_kwargs={
-                            "proactive_notification": True,
-                            "proactive_type": metadata_type,
-                            "original_created_at": (
-                                msg.created_at.isoformat() if msg.created_at else None
-                            ),
-                        },
-                    )
-                    state["messages"].append(ai_message)
+                    state["messages"].append(out_of_graph_message(msg))
                     injected_count += 1
 
             logger.info(

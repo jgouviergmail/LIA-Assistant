@@ -70,6 +70,7 @@ import type { MoodLabel } from '@/types/psyche';
 import { prefersReducedMotion } from '@/lib/utils/motion';
 import { useEyesSignalsStore } from '@/stores/eyesSignalsStore';
 import { usePsycheStore } from '@/stores/psycheStore';
+import { effectiveVoiceState, useLiveStore } from '@/stores/liveStore';
 import { useVoiceModeStore } from '@/stores/voiceModeStore';
 import type { ChatState, StreamPhase } from '@/types/chat-state';
 
@@ -509,7 +510,8 @@ export function useEyesBehavior({
     const now = Date.now();
     const signals = useEyesSignalsStore.getState();
     const psyche = usePsycheStore.getState();
-    const voice = useVoiceModeStore.getState();
+    // ADR-299: a live session's voice state wins while it holds the microphone.
+    const voiceState = effectiveVoiceState(useVoiceModeStore.getState().state);
     const errorExpired =
       erroredAtRef.current !== null && now - erroredAtRef.current >= ERROR_HOLD_MS;
     const next = deriveExpression({
@@ -517,7 +519,7 @@ export function useEyesBehavior({
       streamPhase,
       lastStepKind: signals.lastStepKind,
       hitlAwaiting,
-      voiceState: voice.state,
+      voiceState,
       reaction: signals.liveReaction(now),
       notificationPing: signals.isNotificationLive(now),
       userTyping: signals.isTypingLive(now),
@@ -556,7 +558,7 @@ export function useEyesBehavior({
     // owns the face): a cross-family mood shift plays its rise/fall beat; a
     // typing signal that expires without a send plays the "you were
     // saying?" wonder.
-    const idleStage = chatStatus === 'idle' && !hitlAwaiting && voice.state !== 'speaking';
+    const idleStage = chatStatus === 'idle' && !hitlAwaiting && voiceState !== 'speaking';
     const typingNow = signals.isTypingLive(now);
     runNarrativeBeats(
       { idleStage, mood, typingNow },
@@ -573,7 +575,7 @@ export function useEyesBehavior({
     evaluateRef.current = evaluate;
   }, [evaluate]);
 
-  // Re-derive on every input change: props (via evaluate identity), the three
+  // Re-derive on every input change: props (via evaluate identity), the four
   // live stores, and the heartbeat that ages the time-based signals. The
   // initial derivation is SCHEDULED (0 ms) rather than called synchronously —
   // a sync setState in an effect trips the shrink-only react-hooks ratchet.
@@ -584,6 +586,7 @@ export function useEyesBehavior({
       useEyesSignalsStore.subscribe(evaluate),
       usePsycheStore.subscribe(evaluate),
       useVoiceModeStore.subscribe(evaluate),
+      useLiveStore.subscribe(evaluate),
     ];
     return () => {
       clearTimeout(initialId);

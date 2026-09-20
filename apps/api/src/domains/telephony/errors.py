@@ -59,6 +59,21 @@ def raise_phone_number_invalid(language: str) -> NoReturn:
     )
 
 
+def raise_phone_call_mode_unknown(language: str) -> NoReturn:
+    """Raise 400 when a call mode is off the vocabulary (ADR-301).
+
+    Args:
+        language: The caller's language, for the translated sentence.
+
+    Raises:
+        ValidationError: 400 Bad Request.
+    """
+    raise ValidationError(
+        detail=APIMessages.phone_call_mode_unknown(normalize_language(language)),
+        field="call_mode",
+    )
+
+
 def raise_phone_domain_unknown(language: str) -> NoReturn:
     """Raise 400 when a domain switch names something the phone does not offer.
 

@@ -199,3 +199,126 @@ which is what ADR-270's own registry was built to make possible.
 - `tests/unit/domains/usage_limits/test_enforcement_shapes.py` — the two shapes
   agree on the verdict, and the three background surfaces really do skip the
   model rather than merely call the gate.
+
+---
+
+## Amendment 2026-09-20 — the rule is not the model's alone
+
+**Amends:** ADR-290 (the phone's live lookups), ADR-300 wave 4 (the direct
+session's lookups), ADR-263 (the register is fed around the whole run),
+ADR-185 (a count is exact or does not exist).
+
+The owner's rule, stated in full on 2026-09-19: *whatever the modality or
+the path, a euro the platform pays for a person is traced, displayed,
+attributed and counted for that person, because it is re-billed — an
+absolute principle with no holes.* This ADR had applied it to model tokens.
+`cost_bearers` names four other instance-paid families, and one of them —
+Google Maps Platform — had holes in every direction the audit looked.
+
+### What was measured
+
+- **The persistence gate counted the model's records alone.** Both doors of
+  `TrackingContext` — `__aexit__` and `commit()` — decided on
+  `len(_node_records)`; `commit()` had learnt TTS one incident later,
+  `__aexit__` never did, and Google API and image generation were in neither.
+  A phone-call or live-session lookup on Places or Routes runs under its own
+  tracker with no model call (`agents/telephony/live_tools.py`), so the
+  tracker held one Google record and wrote nothing: no `google_api_usage_logs`
+  row, no summary row, no `user_statistics` increment, no instance ledger.
+  Reproduced on the real class: 0,029 € of Places held in memory, 0 persisted,
+  by both doors.
+- **The counter failed open.** `track_google_api_call` « did nothing » without
+  an ambient tracker — by design, said its docstring. Dev held 3 020 Google
+  usage rows and **not one outside a chat turn**, while the heartbeat computed
+  departure advice on Routes, the briefing read Google Weather, a meeting
+  reverse-geocoded its place and the image proxies served billed maps. One
+  forced refresh of the briefing's weather card, measured on dev once the
+  tracker was there: **8 billed calls** (air quality 0,0044 €, pollen
+  0,0087 €, six weather calls), 0,0139 €, previously unrecorded every time.
+- **Counts that were claims.** The route map and the place photo were
+  pre-counted when the tool built the URL — a fetch that may never happen,
+  re-fetched past the browser cache without a count, the carousel's other
+  photos never counted; the location map was never counted at all; and
+  `routes_tools._resolve_destination` made a raw Places Text Search — the
+  dearest call of the family — that nothing counted.
+- **The direct recorder was half a ledger.** `GoogleApiUsageService.record_api_call`
+  (the profile's geocoding) wrote the usage log and the user statistics but
+  neither the run's summary row nor the instance's daily ledger — a second
+  implementation of the statistics increment, and one the ceiling could not see.
+- **Displayed wrong.** The phone bill (`GET /telephony/calls`) and the live
+  closing card read `total_cost_eur` — the model column alone — where the chat
+  meter consolidates every family.
+
+### Decision
+
+1. **One persistence predicate, every door.** `TrackingContext.pending_families()`
+   counts the model's records, billable Google calls, generated images, paid
+   TTS and the unfiled message count; `__aexit__` and `commit()` read it and
+   nothing else. A guard enumerates every `_<family>_records` bucket the
+   constructor creates and refuses one the predicate does not read — the list
+   is the guard, so a sixth family cannot be found one incident later.
+2. **The counter fails CLOSED.** A billed Google call with no ambient tracker
+   is counted (`google_api_calls_unaccounted_total{api_name}`) and named in the
+   logs; the alert `GoogleApiCallsUnaccounted` holds it at zero, the pendant of
+   `LLMCallsWithoutUsage`. A cache hit is not counted: Google billed nothing.
+3. **Every out-of-turn surface opens its own accounting, around the WHOLE
+   act** — the doctrine ADR-263 wrote for the consultation register — through
+   ONE door, `infrastructure/proactive/tracking.out_of_turn_spend` (in
+   infrastructure because the briefing, which the chat already reads, cannot
+   import the chat's tracker without closing a cycle): the
+   proactive runner (heartbeat, interests) beside its `treatment_recorder`,
+   the briefing's `build_cards` beside its `consultation_collector`, the
+   meeting's enrichment under the run id the minutes already file under, the
+   profile's geocoding on its own session (Google bills a search that finds
+   nothing, and the request that then answers 400 rolls its session back).
+   An embedding made during such a run now lands on the run too, where it
+   used to reach no ledger at all.
+4. **A billed image is counted where Google bills it, on the turn that asked.**
+   The four image proxies go through ONE helper (`serve_billed_image`) that
+   counts on the 200 under a `TrackingContext` of its own; the URL the tool
+   built carries the turn's run id SIGNED with the instance secret over
+   (run id, account) — a bare run id in a URL would let any signed-in caller
+   file a fetch under another account's run and, before that turn's summary
+   row exists, create the row under the wrong `user_id`. An unsigned or
+   foreign id falls back to a fresh `media_<hex>` run: exact, attributed to
+   the caller, merely not joined to a message. The pre-counts are gone.
+5. **The road is declared, never inferred** — `domains/google_api/spend_roads.py`,
+   the sibling of `LLM_SPEND_ROADS`: every module importing a paid Google
+   entry names `TURN`, `ACCOUNTED` or `CALLER` (or says why it makes no paid
+   call), the guard walks the import graph, refuses an omission and a stale
+   entry, and checks that an `ACCOUNTED` module and every `CALLER`'s accountant
+   actually open an accounting door as an AST call.
+6. **One figure for what a run cost.** `MessageTokenSummary.billed_cost_eur`
+   (and `billed_cost_sql` for aggregates) replaces four hand-written sums with
+   three different subsets; the phone bill and the live card now show the
+   Maps Platform euros they were counting as requests.
+
+### What this does NOT solve
+
+- The other instance-paid families were checked, not changed: TTS and STT
+  already record through the tracker or `record_remote_stt`, image generation
+  only through a tool. Their persistence shared the predicate of point 1 and
+  is repaired by it.
+- A proxied image re-fetched inside the browser's 24-hour cache costs nothing
+  and is counted nothing — correct by construction, and the only reason the
+  pre-count could ever have looked exact.
+
+### Verification
+
+- `tests/unit/domains/chat/test_tracking_context_exit.py` — each non-model
+  family alone, through each door; the bucket guard.
+- `tests/unit/domains/connectors/clients/test_google_api_tracker.py` — counted
+  and named without a tracker, filed with one, a cache hit neither.
+- `tests/unit/domains/google_api/test_google_spend_road_completeness.py` —
+  the import graph, the doors, the accountants.
+- `tests/unit/domains/connectors/test_media_attribution.py`,
+  `test_media_proxy_billing.py` — the signature binds one account; the 200
+  counts, the refusal does not; persisted before the bytes return.
+- `tests/unit/domains/meetings/test_enrichment_accounting.py`,
+  `tests/unit/domains/users/test_geocoding_accounting.py`,
+  `tests/unit/domains/live/test_summary_usage.py`.
+- Measured on Docker dev against the real database (2026-09-20): a
+  phone-call lookup filed 0,034904 € of Places under `phone_call_<hex>` in
+  all four ledgers (usage log, summary row, `user_statistics` 273 → 274
+  requests, instance ledger 0,520804 → 0,555708 €); a forced briefing weather
+  refresh filed its eight calls under `briefing_cards_<hex>`.

@@ -86,6 +86,9 @@ RENDERED_BY: dict[str, tuple[str, ...]] = {
     # Both are the ``prompt_name`` of a ``ReactSubAgentRunner``, which formats.
     "skill_react_agent_prompt": ("domains/agents/tools/react_runner.py",),
     "subagent_react_prompt": ("domains/agents/tools/react_runner.py",),
+    # Loaded by the phone's mandates; its ``personality`` line is rendered by the
+    # ONE helper every voice mandate shares (ADR-301, ``personality_block``).
+    "telephony_self_call_lines": ("domains/voice_sessions/mandate.py",),
 }
 
 #: Files whose ``{{x}}`` is NOT a ``str.format`` escape but a third party's own

@@ -279,6 +279,10 @@ if getattr(settings, "meetings_enabled", False):
     from src.domains.meetings.router import router as meetings_router
 
     api_router.include_router(meetings_router)  # Meeting recording & minutes (ADR-258)
+if getattr(settings, "live_enabled", False):
+    from src.domains.live.router import router as live_router
+
+    api_router.include_router(live_router)  # Live voice mode (ADR-299)
 # Google push webhooks (lot H): mounted when either phase is on — the Pub/Sub
 # endpoint (phase 2) must exist even if phase 1 channels stay disabled.
 if getattr(settings, "push_channels_enabled", False) or getattr(
@@ -426,6 +430,8 @@ async def get_client_config() -> dict:
             "python_sandbox_egress_enabled": getattr(
                 settings, "python_sandbox_egress_enabled", False
             ),
+            # Live voice mode (ADR-299): gates the chat button and the settings section.
+            "live_enabled": getattr(settings, "live_enabled", False),
         },
         # Every capability of the registry with its EFFECTIVE state (ceiling
         # AND operator switch): what a visitor will find on this instance.

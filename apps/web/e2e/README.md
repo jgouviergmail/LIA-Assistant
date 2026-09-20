@@ -94,14 +94,15 @@ to public-pages-only). Serve the traced `server.js` instead — the exact layout
 design, copy them in):
 
 ```bash
-docker exec -u node -e NODE_ENV=production -e NEXT_DIST_DIR=.next-e2e lia-web-dev \
-  sh -c "cd /monorepo/apps/web && pnpm build"
+docker exec -u node -e NODE_ENV=production -e NEXT_DIST_DIR=.next-e2e -e NEXT_PUBLIC_API_URL= \
+  lia-web-dev sh -c "cd /monorepo/apps/web && pnpm build"
 docker exec -u node lia-web-dev sh -c "cd /monorepo/apps/web \
   && rm -rf .next-e2e/standalone/apps/web/.next-e2e/static .next-e2e/standalone/apps/web/public \
   && cp -r .next-e2e/static .next-e2e/standalone/apps/web/.next-e2e/static \
   && cp -r public .next-e2e/standalone/apps/web/public"
 docker exec -d -u node -e NODE_ENV=production lia-web-dev sh -c \
-  "cd /monorepo/apps/web && PORT=3100 HOSTNAME=0.0.0.0 node .next-e2e/standalone/apps/web/server.js"
+  "cd /monorepo/apps/web && PORT=3100 HOSTNAME=0.0.0.0 node .next-e2e/standalone/apps/web/server.js \
+  > /tmp/e2e-standalone.log 2>&1 & echo \$! > /tmp/e2e-standalone.pid; wait"
 
 docker run --rm --network container:lia-web-dev -e E2E_BASE_URL=http://127.0.0.1:3100 \
   -v "//d/Developpement/LIA/apps/web/e2e:/e2e" -w /e2e \
@@ -113,11 +114,20 @@ docker run --rm --network container:lia-web-dev -e E2E_BASE_URL=http://127.0.0.1
 (`HOSTNAME=0.0.0.0`), and `localhost` may resolve to `::1` first (connection
 refused — the recurring IPv6-first trap on this codebase).
 
+`NEXT_PUBLIC_API_URL=` (blank) at build time, as `task test:e2e` sets it: a
+`NEXT_PUBLIC_*` value is baked into the bundle, and the dev container exports
+an absolute API host — measured 2026-09-20, ten chunks carried it, so browser
+traffic would leave the origin the suite intercepts on.
+
 Stop the production server afterwards with
-`docker exec lia-web-dev sh -c "pkill -f 'standalone/apps/web/server.js'"` (or
-restart the container). CI does the equivalent via `E2E_MANAGED_SERVER=1`
-(same build → copy → `node server.js` sequence, wired in
-`playwright.config.ts`).
+`docker exec lia-web-dev sh -c 'kill "$(cat /tmp/e2e-standalone.pid)"'` (or
+restart the container). Not `pkill -f 'server.js'`: Next renames its process to
+`next-server (v…)`, so the pattern matches nothing, the old server keeps the
+port and the next start dies on `EADDRINUSE` while every spec times out on a
+shell stuck at « Chargement… » (measured 2026-09-20 — the served HTML named the
+NEW build's chunks, which the OLD server answered with 404). CI does the
+equivalent via `E2E_MANAGED_SERVER=1` (same build → copy → `node server.js`
+sequence, wired in `playwright.config.ts`).
 
 ### `next dev` stability (why local runs use ONE worker)
 

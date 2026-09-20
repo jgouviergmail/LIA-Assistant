@@ -135,9 +135,12 @@ class ProgressiveSentenceStreamer:
                 callers should forward ``settings.voice_sentence_delimiters``
                 so the regex follows the admin-configurable knob.
             on_chars_synthesized: Optional callback invoked synchronously
-                with the integer character count of every sentence
-                dispatched. Wires in the TTS cost tracker without
-                threading the tracker through this module.
+                with the integer character count of every sentence the
+                provider actually SERVED — never at dispatch, so a refused
+                sentence spends nothing (measured 2026-09-20: four streams
+                refused on every sentence each recorded a TTS cost). Wires
+                in the TTS cost tracker without threading the tracker
+                through this module.
         """
         self._synth = synth
         self._max_sentences = max(1, int(max_sentences))
@@ -292,12 +295,6 @@ class ProgressiveSentenceStreamer:
         """Spawn a TTS task for the given sentence."""
         idx = self._dispatched
         self._dispatched += 1
-        if self._on_chars_synthesized is not None:
-            try:
-                self._on_chars_synthesized(len(sentence))
-            except Exception:
-                # Tracking callback failures must never break the stream.
-                logger.warning("tts_chars_callback_failed", phrase_index=idx)
         task = asyncio.create_task(self._synth_and_queue(sentence, idx))
         self._tasks.append(task)
         task.add_done_callback(self._maybe_close_queue)
@@ -310,6 +307,7 @@ class ProgressiveSentenceStreamer:
         chunk: VoiceAudioChunk | None = None
         try:
             audio_b64 = await self._synth(sentence)
+            self._count_served(sentence, idx)
             duration_ms = len(sentence) * VOICE_TTS_MS_PER_CHAR_HEURISTIC
             mime = AUDIO_MIME_TYPES.get(self._audio_format, DEFAULT_AUDIO_MIME_TYPE)
             chunk = VoiceAudioChunk(
@@ -333,6 +331,16 @@ class ProgressiveSentenceStreamer:
             chunk = None  # mark as failed so the slot is skipped in-order
 
         await self._stage_and_drain(idx, chunk)
+
+    def _count_served(self, sentence: str, idx: int) -> None:
+        """Charge a sentence's characters once the provider returned its audio."""
+        if self._on_chars_synthesized is None:
+            return
+        try:
+            self._on_chars_synthesized(len(sentence))
+        except Exception:
+            # Tracking callback failures must never break the stream.
+            logger.warning("tts_chars_callback_failed", phrase_index=idx)
 
     async def _stage_and_drain(self, idx: int, chunk: VoiceAudioChunk | None) -> None:
         """Park the chunk by phrase_index, then push every contiguous chunk

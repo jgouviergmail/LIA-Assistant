@@ -232,6 +232,65 @@ class TestWrites:
         row = next(r for r in after.models if r["model_name"] == "imp-clear")
         assert row["cached_input_unit_price"] is None
 
+    async def test_emptying_both_audio_cells_clears_the_pair(
+        self, async_session: AsyncSession
+    ) -> None:
+        """The pair is one declaration (ADR-300): two emptied cells mean NULL, NULL."""
+        await create_llm_pricing_async(
+            async_session,
+            model_name="imp-audio-clear",
+            input_price=Decimal("1"),
+            output_price=Decimal("2"),
+            audio_input_price=Decimal("3"),
+            audio_output_price=Decimal("12"),
+        )
+        payload = await _export(async_session)
+
+        plan, _ = await _apply(
+            async_session,
+            payload,
+            [
+                _row_for(
+                    payload,
+                    "imp-audio-clear",
+                    audio_input_unit_price=None,
+                    audio_output_unit_price=None,
+                )
+            ],
+        )
+        await async_session.flush()
+
+        after = await _export(async_session)
+        row = next(r for r in after.models if r["model_name"] == "imp-audio-clear")
+        assert row["audio_input_unit_price"] is None
+        assert row["audio_output_unit_price"] is None
+
+    async def test_an_audio_rate_edit_supersedes_the_tariff(
+        self, async_session: AsyncSession
+    ) -> None:
+        await create_llm_pricing_async(
+            async_session,
+            model_name="imp-audio-bump",
+            input_price=Decimal("1"),
+            output_price=Decimal("2"),
+            audio_input_price=Decimal("3"),
+            audio_output_price=Decimal("12"),
+        )
+        payload = await _export(async_session)
+
+        await _apply(
+            async_session,
+            payload,
+            [_row_for(payload, "imp-audio-bump", audio_output_unit_price=Decimal("10"))],
+        )
+        await async_session.flush()
+
+        assert await _active_pricing_count(async_session, "imp-audio-bump") == 2
+        after = await _export(async_session)
+        row = next(r for r in after.models if r["model_name"] == "imp-audio-bump")
+        assert row["audio_output_unit_price"] == Decimal("10")
+        assert row["audio_input_unit_price"] == Decimal("3")
+
 
 @pytest.mark.unit
 class TestAllOrNothing:

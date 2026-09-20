@@ -102,13 +102,17 @@ services:
     networks:
       - lia-network
 
-  # SSL Certificate Generator (runs once to create shared certs)
+  # SSL Certificate Generator (runs at every start; the certificate is KEPT
+  # while it is valid past SSL_RENEW_BEFORE_DAYS, covers SSL_DOMAIN and matches
+  # its key — a renewal is what breaks a browser's trust, so it happens only
+  # when it must; see infrastructure/ssl/generate-certs.sh)
   # SSL_DOMAIN is read from .env (e.g., 192.168.1.100.nip.io for LAN access)
   ssl-init:
     image: alpine:latest
     container_name: lia-ssl-init
     environment:
       - SSL_DOMAIN=${SSL_DOMAIN:-localhost}
+      - SSL_RENEW_BEFORE_DAYS=${SSL_RENEW_BEFORE_DAYS:-30}
     volumes:
       - ssl_certs:/certs
       - ./infrastructure/ssl/generate-certs.sh:/generate-certs.sh:ro

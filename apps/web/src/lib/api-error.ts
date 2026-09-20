@@ -14,7 +14,8 @@
  * `detail` has three shapes on the wire:
  * - a plain string — the common case (`ResourceNotFoundError`, `ConflictError`…);
  * - `{"errors": [{"field": ..., "message": ...}]}` — `ConnectorValidationError`;
- * - a list of `{"loc": ..., "msg": ...}` — Pydantic/`StructuredValidationError`.
+ * - a list of `{"loc": ..., "msg": ...}` — Pydantic/`StructuredValidationError`;
+ * - `{"code": ..., "message": ...}` — a coded refusal (live mode, ADR-299).
  *
  * @module api-error
  */
@@ -79,6 +80,11 @@ export function readErrorDetail(data: unknown): string | undefined {
   }
   if (isRecord(detail) && Array.isArray(detail.errors)) {
     return joinEntries(detail.errors);
+  }
+  // A coded refusal (`{code, message}`) carries its translated sentence beside
+  // the code the caller may prefer to translate itself (`getApiErrorCode`).
+  if (isRecord(detail) && typeof detail.message === 'string') {
+    return detail.message.trim() || undefined;
   }
 
   return undefined;

@@ -16,6 +16,7 @@ the rhythm profile would learn from LIA's own automations — a feedback loop.
 from __future__ import annotations
 
 import uuid
+from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
 import structlog
@@ -24,6 +25,43 @@ if TYPE_CHECKING:
     from src.domains.conversations.service import ConversationService
 
 logger = structlog.get_logger(__name__)
+
+
+def turn_attachment_meta(
+    state: Mapping[str, Any], attachment_ids: list[uuid.UUID] | None
+) -> dict[str, Any]:
+    """The attachment block of the user row: what this turn attached, projected.
+
+    Extracted from ``AgentService.stream_chat_response`` verbatim (file-size
+    ratchet). Empty when nothing was attached or uploads are off.
+
+    Args:
+        state: The graph state, whose ``metadata.current_turn_attachments`` the
+            attachments step filled.
+        attachment_ids: The ids the request named.
+
+    Returns:
+        ``{"attachments": [...]}`` or ``{}``.
+    """
+    from src.core.config import settings
+
+    if not attachment_ids or not getattr(settings, "attachments_enabled", False):
+        return {}
+    turn_attachments = state.get("metadata", {}).get("current_turn_attachments", [])
+    if not turn_attachments:
+        return {}
+    return {
+        "attachments": [
+            {
+                "id": a["id"],
+                "filename": a["original_filename"],
+                "mime_type": a["mime_type"],
+                "size": a.get("file_size", 0),
+                "content_type": a["content_type"],
+            }
+            for a in turn_attachments
+        ]
+    }
 
 
 async def archive_user_message_first(
@@ -36,6 +74,8 @@ async def archive_user_message_first(
     attachment_meta: dict[str, Any],
     stt_kwargs: dict[str, Any],
     is_automated_source: bool = False,
+    live_session_id: str | None = None,
+    spoken_text: str | None = None,
 ) -> uuid.UUID | None:
     """Persist the user message BEFORE graph execution (archive-first).
 
@@ -57,6 +97,9 @@ async def archive_user_message_first(
             metadata so batch consumers (habit rhythm profile) can exclude
             synthetic user messages. Never written when False: absence is
             the human default, mirroring the source-policy NULL semantics.
+        live_session_id: Live mode (ADR-299): the session the turn was spoken
+            in, stamped on the row so the session's end can add up its turns.
+        spoken_text: The person's transcribed words, kept beside the request.
 
     Returns:
         The archived row id, or None when archiving failed (best-effort:
@@ -75,6 +118,9 @@ async def archive_user_message_first(
     # would leave the synthetic question in the chat, which is the half a
     # reader would find hardest to explain.
     metadata = with_origin_stamp(metadata)
+    from src.domains.agents.api.archive_metadata import with_live_stamp
+
+    metadata = with_live_stamp(metadata, live_session_id, spoken_text)
     try:
         async with get_db_context() as archive_db:
             row = await conv_service.archive_message(

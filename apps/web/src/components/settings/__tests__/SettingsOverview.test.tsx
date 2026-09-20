@@ -35,6 +35,7 @@ const AVAILABLE: SettingsSearchAvailability = {
   habitsEnabled: true,
   peersEnabled: true,
   sandboxEgressEnabled: true,
+  liveEnabled: true,
   debugUserAccess: true,
 };
 

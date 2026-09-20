@@ -35,6 +35,7 @@ export function useSettingsAvailability(): SettingsSearchAvailability {
       habitsEnabled: !!config?.features?.habits_enabled,
       peersEnabled: !!config?.features?.peers_enabled,
       sandboxEgressEnabled: !!config?.features?.python_sandbox_egress_enabled,
+      liveEnabled: !!config?.features?.live_enabled,
       debugUserAccess: userAccessAvailable,
     }),
     [
@@ -43,6 +44,7 @@ export function useSettingsAvailability(): SettingsSearchAvailability {
       config?.features?.habits_enabled,
       config?.features?.peers_enabled,
       config?.features?.python_sandbox_egress_enabled,
+      config?.features?.live_enabled,
       userAccessAvailable,
     ]
   );

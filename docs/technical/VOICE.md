@@ -538,6 +538,13 @@ cycle_tts_cost_eur     NUMERIC(12,6) NOT NULL DEFAULT 0
 The TTS cost is included in `cycle_cost_eur` / `total_cost_eur` so the
 dashboard "Cost" tile and `user_usage_limits` checks naturally cover it.
 
+**Only what the provider SERVED is charged.** The characters of a sentence
+are counted when its audio comes back, never when the sentence is dispatched
+(`ProgressiveSentenceStreamer._count_served`, the legacy loop's own rule):
+measured on Docker dev 2026-09-20, four streams refused on every sentence
+(`invalid_api_key`, zero audio chunks) had each recorded a `tts_call` and
+stamped the message with a cost — absence of delivery was billed.
+
 UI: a discreet badge `🔊 N chars` is rendered before the grand total on
 the assistant bubble (mirror of the STT `🎤 X.Xs` badge on the user
 bubble). Hidden for Edge synth and historical messages (where the column

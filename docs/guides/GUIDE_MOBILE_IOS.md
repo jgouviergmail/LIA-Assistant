@@ -401,6 +401,8 @@ across locales).
 | Page never loads | Server URL wrong, unreachable, or plain HTTP blocked by ATS | Validate at entry; require HTTPS |
 | Authenticated calls fail, web works in Safari | API on a different registrable domain → ITP | Move the API under the same site |
 | `getUserMedia` undefined | Missing usage description | Declare the Info.plist keys |
+| Outbound WebSocket to the live provider under the production `connect-src` (ADR-299) | **to measure** — `task mobile:probe:*` now reports `external_websocket`: `open` or `error` (the provider refuses a handshake without a credential, which is fine); `blocked:*` would mean the policy or the engine refused the socket before it left the page |
+| A WebRTC offer with a data channel (the GPT-Live wire, ADR-300) and an AudioWorklet module from a `blob:` URL (the live PCM player) under the production CSP | `task mobile:probe:*` reports `webrtc_offer` (`offer` expected) and `audio_worklet_blob` (`loaded` expected) — **not measured yet on iOS** (the probe needs macOS) |
 | `scheme App not found` on a runner | No shared scheme in the generated project | `-target App`, or share the scheme |
 | Google sign-in shows `disallowed_useragent` | OAuth attempted inside the WebView | `SFSafariViewController` + Universal Link + session handoff |
 | No offline page | No Service Worker without app-bound domains | Native offline screen — the accepted trade-off |

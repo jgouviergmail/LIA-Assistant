@@ -23,6 +23,7 @@
 
 import {
   Activity,
+  AudioLines,
   Bell,
   Blocks,
   BookOpen,
@@ -103,6 +104,7 @@ export const SETTINGS_SECTION_ICONS: Readonly<Record<SettingsSectionToken, Lucid
   'security-devices': MonitorSmartphone,
   'security-export': DownloadCloud,
   'voice-mode': Mic,
+  'live-mode': AudioLines,
   'image-generation': ImageIcon,
   'generated-assets': FolderOpen,
   connectors: Plug,

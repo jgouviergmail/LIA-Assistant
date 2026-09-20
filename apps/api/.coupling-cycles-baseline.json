@@ -1,6 +1,6 @@
 {
   "_comment": "Runtime domain import-cycle ratchet baseline (audit F009). Shrink-only: measure_coupling.py --check-cycles fails on any NEW cycle. Regenerate with --update-cycles ONLY after breaking a cycle.",
-  "count": 25,
+  "count": 24,
   "cycles": [
     "agents<->connectors",
     "agents<->conversations",
@@ -17,7 +17,6 @@
     "chat<->users",
     "connectors<->users",
     "conversations<->users",
-    "google_api<->users",
     "image_generation<->llm_config",
     "interests<->users",
     "memories<->users",

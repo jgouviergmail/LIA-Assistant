@@ -22,7 +22,11 @@ from src.core.exceptions import (
     raise_push_token_not_found,
     raise_test_endpoint_disabled,
 )
-from src.core.session_dependencies import get_current_active_session, get_current_superuser_session
+from src.core.session_dependencies import (
+    get_current_active_session,
+    get_current_active_session_for_stream,
+    get_current_superuser_session,
+)
 from src.domains.notifications.broadcast_service import BroadcastService
 from src.domains.notifications.hub_counts import resolve_hub_counts
 from src.domains.notifications.schemas import (
@@ -264,7 +268,7 @@ async def delete_token_by_id(
     description="Server-Sent Events stream for real-time notifications.",
 )
 async def stream_notifications(
-    current_user: User = Depends(get_current_active_session),
+    current_user: User = Depends(get_current_active_session_for_stream),
 ) -> StreamingResponse:
     """
     SSE endpoint for real-time notifications.

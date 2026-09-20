@@ -55,7 +55,8 @@ flowchart TD
 | `verification.py` | `TelephonyVerificationService`: places a `VERIFICATION` call reading a `secrets`-drawn code aloud; code + attempt counter in Redis (`telephony_verify*`, `USER_RUNTIME`), constant-time compare, 429 lock past the attempt cap. |
 | `mandates.py` | One vendor agent, three mandates (`CallKind`): the baked third-party mandate, and the owner / verification overrides rendered server-side (`build_override`), boot-asserted (ADR-085). |
 | `self_call_context.py` | The context block an owner call carries — memories, agenda, reminders, open loops, recent exchanges — under `TELEPHONY_SELF_CONTEXT_MAX_TOKENS`, cuts stated, every read filed on the `phone_call` surface. |
-| `self_call_relay.py` / `owner_call.py` | Relay synthesis (chokepoint, `SelfCallRelay`: `owner_confirmed`, `relay_message`, `summary`) and the owner-call completion path (RELAYING outbox, fallback notification, `RelayOutcome`). |
+| `owner_call.py` + `infrastructure/scheduler/voice_relay.py` | The owner-call completion path by the mode the row RAN (ADR-301): a DIRECT call is synthesised (`synthesize_relay`, the chokepoint, `SelfCallRelay`: `owner_confirmed`, `relay_message`, `summary`) and relayed (RELAYING outbox, fallback notification, `RelayOutcome`); a LIVE call closes with no return to deliver and the voice session's own books (`voice_session_closing`). |
+| `delegation_tool.py` + `callback.py` | The Live mode's ONE vendor tool (`send_to_lia`, asynchronous, the browser's own description and schema), provisioned by fingerprint; where the vendor calls back (`TELEPHONY_CALLBACK_BASE_URL`, else `API_URL`) and whether it can (`is_public_host` — a private host makes Live unavailable). |
 | `infrastructure/scheduler/phone_relay_runner.py` | Runs the relayed turn through `stream_instruction(spoken_by_person=True)` with a VISIBLE `phone_call` origin; retries a busy thread, stands aside for a pending question, settles the outbox. Lives outside `telephony` so the domain never imports `agents`. |
 | `live_tools.py` (telephony) + `agents/telephony/live_tools.py` + `live_tools_router.py` | Live read-only lookups during an owner call (flagged): derived token, vendor tool bodies, fingerprinted provisioning, the session-less call-back. |
 | Tool | `agents/tools/telephony_self_tools.py::call_me` — `reversible` with a written reason: no card, and a routine may plan it. |
@@ -347,7 +348,14 @@ flowchart TD
   column arithmetic) is therefore the call's cumulated bill by construction:
   the relayed answer's bubble shows it, and `GET /telephony/calls` carries it
   as `usage` (tokens in/out/cache, euros, Maps requests) drawn on the calls
-  list. **It is the bill of what LIA pays, and nothing else — by decision,
+  list. **A lookup that spends on Google alone is filed too** (ADR-272
+  amendment, 2026-09-20): a Places or Routes lookup makes no model call, so
+  its tracker held one Google record and — until then — both persistence
+  doors of `TrackingContext`, which counted the model's records alone, wrote
+  nothing; `pending_families()` now counts every billable family, and the
+  `usage.cost_eur` shown is the summary row's billed total (model + Maps +
+  images), not the model column alone. Measured on dev: 0,034904 € of
+  Places under `phone_call_<hex>`, in all four ledgers. **It is the bill of what LIA pays, and nothing else — by decision,
   not omission** (owner rule 2026-09-16, `cost_bearers`): the voice agent's
   own LLM, the TTS, the ASR and the line run on the person's ElevenLabs key
   and are never counted nor shown in LIA. Measured on a 198 s owner call with
@@ -365,6 +373,88 @@ flowchart TD
   is what lot 8 fixed: no e-mail or memory lookup existed, and the agenda
   projection showed 1 event of 4. The flag stays off by default: an owner
   call under the derived tool set has not been measured end to end yet.
+
+## Live mode: the browser's live session, on the phone line (ADR-301)
+
+Réglages › Téléphonie · Mon identité offers « Live » (the default) or
+« Live direct » (`users.phone_call_mode`, the CHOICE; `phone_calls.call_mode`,
+the mode a call RAN, written at the dial and read at the closing). Under
+**Live** the voice on the phone holds no context and no lookup: every request
+about the person's data, an action, a search goes through one asynchronous
+webhook tool, `send_to_lia` — the same function the browser's live mode
+declares to its provider, the same description, the same schema — and the
+server-side bridge (`infrastructure/scheduler/voice_delegation.py`) runs it as
+the person's own chat turn: HITL (a question LIA asks IS the result, the
+next request resumes the run that asked), the registers, the quotas, the
+archive, the learning — exactly what a browser live session gets, with a
+trace in the conversation while the call goes on. **Live direct** is the
+call of ADR-290 (context, lookups, relayed at the end). Strict symmetry with
+the browser (owner decision D5): no read tool is offered to a Live voice.
+
+- **Availability is derived, never assumed**: the vendor must be able to
+  call this API back, so Live is offered only when the callback base URL's
+  host is public (`telephony/callback.py` — a wildcard DNS name such as
+  `192.168.1.20.nip.io` is judged on the address it embeds, since that is
+  what it resolves to: the dev instance's own `API_URL` read as public
+  until it was); `GET /telephony/identity`
+  publishes `live_available`, `live_unavailable_reason` (`callback_not_public`)
+  and `call_mode_effective` — what a call placed now RUNS — and the settings
+  list is disabled with the reason rather than offering a mode the dial will
+  not honour (ADR-184). `TELEPHONY_CALLBACK_BASE_URL` lets a development
+  machine name a tunnel; production names nothing (`API_URL` is public).
+  Under the list, the « rich context » switch is drawn for a DIRECT
+  effective mode alone (a Live call reads nothing itself), while the DOMAIN
+  switches are always drawn: `users.phone_disabled_domains` governs every
+  direct voice surface — the browser's direct live session reads it too
+  (ADR-300 wave 4) — so a person whose calls run Live must still be able to
+  tune it (review 2026-09-20).
+- **The dial** (`initiate_call(call_mode, delegation_tool_id)`): the Live
+  mandate (`telephony_self_live_system_prompt.txt` — the direct frame around
+  the voice sessions' shared delegation block, rendered for an ASYNC
+  delegation) is sent as the per-call override, the delegation tool is
+  attached to the agent (and detached when the call ends, like the lookups);
+  a tool the vendor refused to provision degrades the call to DIRECT and says
+  so (`telephony_live_call_degraded_to_direct`) — and the call is then
+  handed what a direct call needs, the lookups and the context block, because
+  the tool's `_initiate_owner_call` settles the mode BEFORE building for it
+  (review 2026-09-20: it used to degrade a call that had skipped both).
+- **A call nobody answered has no mode** (`owner_call._close_unanswered_call`):
+  no answer, a voicemail or a failed line closes the row the same way
+  whatever the person chose — no model, no session books, the fallback push
+  « nobody answered » / « the line failed » — decided before the mode
+  (review 2026-09-20: a Live call closed with `notification_status` NULL and
+  told the person nothing).
+- **The call-back** `POST /telephony/tools/send_to_lia` (before the generic
+  route; no flag — the row's mode is the switch): the lookups' authorisation
+  (an active OWNER call, the derived token), `refused_mode` on a direct row,
+  the request bounded by `CHAT_MESSAGE_MAX_LENGTH`, the call's own budget
+  (the lookups' counter), the bridge's wait = `TELEPHONY_DELEGATION_TIMEOUT_SECONDS`
+  minus the inner margin (measured lot 0: past the vendor's timeout the
+  voice hears an error and the late answer is lost), the answer
+  `{"result", "tone"?}` — the browser's function response, verbatim. The
+  newest request wins (a Redis marker, `voice_delegation:newest`, polled by
+  the running bridge, proven on real Redis with two tasks); a wait past the
+  bound leaves the turn running in the thread and the voice says so.
+- **The closing** (`owner_call._close_live_owner_call`): the row is
+  completed with NO return to deliver (`notification_status` NULL), the
+  agent gives the tool back, and `close_voice_session` archives the
+  voice-only exchanges from the vendor's transcript (an exchange that holds a
+  delegation is the graph's, WHOLE — measured on the vendor's real engine:
+  the async call is an empty agent entry with `tool_calls`, its
+  acknowledgement another, then a second pair and the restitution), draws the
+  card with the EXACT figures, files the decision and learns from the
+  voice-only rows — the browser's own closing.
+- **The bill**: each delegated turn under its own run id, the session's own
+  under `phone_call_<hex>`; `GET /telephony/calls` sums them
+  (`session_run_ids_by_key`, two batched reads for the page) and names the
+  mode; the card wears « Live » / « Live direct ».
+- **Proofs without a phone**: `task telephony:simulate:live` (the vendor
+  played in HTTP against the dev API: real turns, a HITL question and its
+  answer, the signed webhook, the books) and `task telephony:probe:live --
+  --callback <public URL>` (the vendor's REAL engine on the production
+  mandate and tool, a text-only conversation, the call-back through a tunnel,
+  the closing on the vendor's own transcript). Both live in
+  `apps/api/scripts/telephony/`.
 
 ## Configuration
 
@@ -414,6 +504,13 @@ Phone as a channel (ADR-290):
 items reach the budget reduced to what a voice can say),
 `TELEPHONY_LIVE_TOOL_MAX_CALLS_PER_CALL`. Which DOMAINS a call may read is
 the person's own setting, not the deployment's (`users.phone_disabled_domains`).
+Live mode (ADR-301): `TELEPHONY_CALLBACK_BASE_URL` (empty = `API_URL`; a
+private host makes Live unavailable), `TELEPHONY_DELEGATION_TIMEOUT_SECONDS`
+(the vendor's timeout on the async delegation, the bridge answers under it),
+and the bridge's own `VOICE_DELEGATION_RUN_TIMEOUT_SECONDS` /
+`VOICE_DELEGATION_LEASE_WAIT_SECONDS` (`LiveSettings`, shared with the
+browser's result budget `LIVE_DELEGATION_RESULT_MAX_TOKENS`). How the person's
+own calls RUN is theirs too (`users.phone_call_mode`, Live by default).
 Defaults in `core/constants.py`; every one present in the four application
 `.env` files.
 

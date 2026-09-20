@@ -6,7 +6,7 @@
 
 **Version**: 5.0
 **Date**: 2026-09-18
-**Application**: LIA v1.46.0
+**Application**: LIA v1.47.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -55,7 +55,8 @@
 40. [A debrief per relationship: what ten sections do not say](#40-a-debrief-per-relationship-what-ten-sections-do-not-say)
 41. [The workboard: one row, two sides, and an assistant that asks](#41-the-workboard-one-row-two-sides-and-an-assistant-that-asks)
 42. [The anatomy of a process: what it loads is declared, measured and bounded](#42-the-anatomy-of-a-process-what-it-loads-is-declared-measured-and-bounded)
-43. [Conclusion](#43-conclusion)
+43. [The live mode: two intelligences, one seam — and one policy per mode](#43-the-live-mode-two-intelligences-one-seam--and-one-policy-per-mode)
+44. [Conclusion](#44-conclusion)
 ---
 
 ## 1. Context and founding choices
@@ -69,8 +70,8 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | ARM64 self-hosting | Multi-arch Docker, semantic embeddings (multilingual), Playwright chromium cross-platform |
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
-| Full transparency | 568 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 297 ADRs, ~30,096 pytest-collected tests across 1,786 files, native observability, 6-level HITL |
+| Full transparency | 581 Prometheus metrics, embedded debug panel, token-by-token tracking |
+| Production reliability | 300 ADRs, ~30,704 pytest-collected tests across 1,842 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -88,12 +89,12 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | 30,096 collected by pytest across 1,786 test files + 8,504 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | 30,704 collected by pytest across 1,842 test files + 8,801 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | pytest fixtures | 969, 46 of them shared through conftest |
 | Documentation documents | 647 |
-| ADRs (Architecture Decision Records) | 297 |
+| ADRs (Architecture Decision Records) | 300 |
 | Prometheus metrics | 553 definitions |
-| Grafana dashboards | 29 |
+| Grafana dashboards | 30 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
 
 ---
@@ -790,6 +791,8 @@ LIA can place an outbound phone call on the user's behalf, hold a goal-directed 
 
 **The phone as a channel (ADR-290).** The confirmation card protects a third party who never asked for anything; when LIA calls *the person*, the one who would confirm is the one who picks up — provided the number is proven theirs. The identity is therefore a number declared in the settings, shown whole, then verified by a call in which LIA reads a code the person types back (bounded attempts, a short-lived code bound to the number, a constant-time comparison, the same hourly cap as every paid call); never a name match, and the third-party tool refuses that number. The **same** vendor agent serves three mandates — the third-party one baked in, the owner's and the verification one sent as a per-call override rendered on the server — so nothing of the person's context is ever baked into an agent that also phones strangers; and what the agent *sounds like* (its model, language, voice, audio format, duration cap) is the vendor portal's, never a setting, because the vendor merges a PATCH with what it stores and a pinned model collided with the portal's reasoning effort on every sync. `call_me` carries no card by construction, which is also what lets a routine plan it. The call takes the chat's own context under a token budget (memories, agenda, reminders, open loops, recent exchanges — a switch turns it off) and the personality configured for the assistant, every read filed in the consultation register. Behind a second flag, the agent **reads LIA live** during the call, and acts on nothing: the tool set is a rule over the catalogue rather than a list — every tool that only reads, in a domain the phone offers, whose required parameters a voice can speak (55 tools over 22 domains, plus a native memory recall) — attached to the agent for the owner's call only, since the vendor refuses tool ids inside a per-call override, and each result is reduced to what a voice can say before the item-by-item paging (an identifier, a link, a nested structure never reach the voice; four weekend events used to fit where one raw one did). Each domain has a switch of the person's own, read from their row at every call-back. When the call ends, what was said comes back as **the person's own message**: the transcript is synthesised, then replayed through the out-of-turn engine as a turn *spoken by the person* — memory, journal and psyche extractions run as in the chat, the message wears a phone badge, a draft waits for confirmation in the chat. The relay is claimed before the turn and settled by conditional update, a crash mid-relay is swept back to a notification that says why, and ten relay verdicts are counted and drawn on the calls list — « nobody picked up » and « the line failed » told apart from « someone else answered ». Every euro of a call lands under one run id — the live lookups, the synthesis, the relayed turn — so the per-run summary the chat meter already reads is the call's bill, on the relayed answer and on the calls list; what runs on the person's own vendor key is billed there and never counted here.
 
+**One policy per mode, whichever the line (ADR-301).** The phone relayed the conversation at its *end*; the browser's Live handed every request to the chat *during* — two truths for one word. A voice session now has a mode, and the policy follows it alone: in **Live** (the phone's default, chosen in Settings › Telephony · My identity) the voice holds neither context nor tool and hands every request to LIA through one function — the very one the browser's Live declares to its provider — which the server turns into a chat turn of the person while they speak: LIA's questions (a question IS the result, the next request resumes the turn that asked), the confirmations, the registers, the quotas and the trace in the conversation come with it; in **Live direct** the voice reads for the person, acts on nothing, and their words are relayed at the end as a message from them — on the line as in the browser, whose direct session is no longer « nothing recorded ». One closing keeps both lines' books: the voice-only exchanges archived, the card with exact figures, the decision, the learning — or the synthesis, the relayed turn and the card rewritten when it settles, its cost re-read. Live is offered only where the phone provider can call the instance back; otherwise the settings say so and the call runs direct. Everything was measured on the provider's real engine, without a phone: the voice announces the call and keeps the conversation going, a late answer would be lost past the provider's timeout — so the bridge answers before it —, and an exchange holding a delegation belongs to the graph whole.
+
 ### 13.6. Reading an attachment: its text when it has one, the vision slot otherwise
 
 Listing a message's attachments is a metadata read; opening one is a download, and the three clients expose it behind ONE method of the e-mail protocol — the same name, the same selection rule, the same errors — because provider asymmetry is where connector bugs come from. The selection is one shared helper: by handle, else by name, an ambiguous name refused with its candidates. It has to be, because a Gmail attachment handle is not stable: measured on a real mailbox, it changes between two reads of the same message, so the handle a listing served may already be gone when the tool re-reads it. A stale handle is therefore not a lie: the name decides when given, a single part is unambiguous, and any other case answers with the CURRENT handles for the model to retry.
@@ -1017,15 +1020,15 @@ Provenance is therefore a property of the **data**: the registry's 24 types are 
 
 | Technology | Role |
 |------------|------|
-| Prometheus | 568 custom metrics (RED pattern) |
-| Grafana | 29 production-ready dashboards |
+| Prometheus | 581 custom metrics (RED pattern) |
+| Grafana | 30 production-ready dashboards |
 | Loki | Aggregated structured JSON logs |
 | Tempo | Cross-service distributed traces (OTLP gRPC) |
 | Langfuse | LLM-specific tracing (prompt versions, token usage) |
 | Alertmanager | 14-alert vital core delivered by email (linked runbooks, per-environment thresholds) + webhook to LIA: every alert becomes an in-product incident (ADR-247) |
 | structlog | Structured logging with PII filtering |
 
-**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 568 defined; the 44 that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. The price of not having had this: a heartbeat source failing open dropped the health signals on 46.5 % of ticks for a week, with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
+**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 581 defined; the 44 that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. The price of not having had this: a heartbeat source failing open dropped the health signals on 46.5 % of ticks for a week, with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
 
 ### 20.2. Embedded Debug Panel
 
@@ -1425,7 +1428,7 @@ One CSS rule governs the design system's spacing: vertical margins on an `inline
 
 ## 24. Architecture Decision Records (ADR)
 
-297 ADRs in MADR format document the major architectural decisions. Some representative examples:
+300 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1507,6 +1510,8 @@ Psyche context is injected into **all** user-facing generation points: main resp
 The Mehrabian mapping rested **all 14** catalogue personalities at D > 0 (spread +0.063 to +0.349). Damping is a homothety and cannot fix that, so the five mood centroids requiring negative dominance stayed unreachable at rest. Two knobs ship **inert** — a translation applied after damping, and a gate on the sustained-quality joy pulse — precisely so activation is a measured decision rather than an intuition.
 
 The measurement was taken on production in August 2026 (769 snapshots, 3 users, 90 days), and the diagnosis held more strongly than the simulation had predicted: negative-dominance share **0.0 %**, live catalogue mean +0.234, and the joy pulse crowning joy the dominant emotion on **31 %** of turns (45.5 % over the last 30) regardless of the appraisal actually reported. Both knobs are now code defaults: at 0.20 the catalogue straddles zero — 7/14 rest below it, with the personality ordering exactly preserved and P/A untouched — and the reported appraisal owns the emotion channel again. What the same measurement **refuted** is recorded too: arousal is locked as well, but by the appraisal stream never reporting low-arousal emotions, not by resting-point geometry — so this change does not fix it, and must not be read as if it did.
+
+The ceiling holds only if the ledger is complete, and the rule is not the model's alone: **every euro the platform pays for a person is traced, displayed, attributed and counted for that person, whatever the modality or the path** (ADR-272, amendment). Google Maps Platform had holes in every direction. The tracker's two persistence doors decided on the model's records alone, so a Places or Routes lookup during a phone call or a direct live session — no model call — reached none of the four ledgers; `pending_families()` is now the one predicate, and a guard refuses a record bucket it does not read. The Google call counter used to do nothing without an ambient tracker while the heartbeat, the briefing (eight billed weather calls per refresh), the meetings and the image proxies paid: it now fails closed into `google_api_calls_unaccounted_total`, held at zero by an alert. Every out-of-turn surface opens its own accounting around the whole act through one door, the road each module takes is declared in a registry the sibling of `LLM_SPEND_ROADS` and checked over the import graph, a billed image is counted where Google bills it — at the proxy, on the 200, joined to its turn by a run id signed over (run id, account) — and one column, `billed_cost_eur`, replaces four hand-written sums with three different subsets.
 
 ---
 
@@ -1738,12 +1743,24 @@ What a singleton loads is multiplied by the worker count. Speech transcription k
 
 The connection budget has a floor, not only a ceiling. Audit F004 bounded the burst — what the pools may open; every persistent connection is also an idle Postgres backend holding seven megabytes, beside `shared_buffers`. `ConnectionBudget.persistent_total` names that floor, and a guard reads the compose file (memory limit, `shared_buffers`) together with the two shipped `.env` profiles — the full one and the self-hoster's minimal one, absent keys resolving to the code's defaults as at boot: the floor must stay under half the limit, so the database keeps the other half for its cache. Shipped profile: five persistent connections and fifteen overflow per worker, a two-gibibyte limit. What the lot leaves open is written down: the multi-day growth of a worker without transcription — measurable now — and the retention of LangGraph checkpoints.
 
-## 43. Conclusion
+## 43. The live mode: two intelligences, one seam — and one policy per mode
+
+A speech-to-speech session runs on a live model the person connects with **their own key** — a connector category of its own, `live`, additive: several keys may be active, the sessions open on the one chosen, and choosing a model *is* choosing its provider. Nothing the provider bills is counted, stored or shown by the platform. The API mints a single-use credential and renders the setup; the browser replays it verbatim and opens the connection itself, so **the audio never transits the API**. Four facts were measured on the real provider before the design was frozen, and each became a rule: a credential's constraint does not lock the system instruction; a used single-use credential cannot reconnect (every reconnection mints a fresh one for the same record); the provider silently accepts an unknown voice name (the voice is validated against a vendored, dated list); a raw browser WebSocket is accepted by one method only.
+
+The design is **one seam between two intelligences** (ADR-299). The voice model owns the conversation — listening, speaking, interrupting, filling a wait — and delegates every request for data or action to the chat engine through one declared `NON_BLOCKING` function, `send_to_lia`. The browser turns that call into an ordinary `POST /chat/stream` under the person's own cookie: the delegated turn runs in the graph (HITL, registers, quotas, archive, learning), draws itself in the thread stamped with the session, and the bridge hands the voice a bounded, flattened answer — or LIA's pending question, which *is* the answer. The voice never holds a tool, a credential or a row of its own. A session is one decision row; each delegated turn is its own run; the closing card sums the runs' own summary rows. A second provider joined without a line of the bridge moving (ADR-300): a provider **declares its wire** — `connection` (`token`: the browser opens the socket with the provider's credential; `offer`: the API mints its own nonce and exchanges the browser's SDP on the person's key) and `delegation_wire` (`tool`; or `native`, where the provider emits an id and an offset, no text, and the request is composed in the browser from the transcript) — and the seam never branches on its name. The third, ElevenLabs Agents, put the person's *agent* where a model stands: everything but the prompt and LIA's tools stays on its portal, its tools are attached to the agent by fingerprint before the mint, and its billing is declared `vendor` — the platform prices nothing, the meter shows the clock alone, and the vendor's own bill is read once at the end, after the close handshake it settles on.
+
+A **direct session** is the phone's line in the browser: the voice holds LIA's read-only tools itself — the phone's derived set minus the person's own switches — behind one tool door under a per-session budget, and never delegates. The owner's premise was measured on a real session: fifty-five declarations weigh ninety percent of the setup and the first turn bills nine times the delegated one — a direct session buys latency, never economy. The provider's usage reports are folded in the browser and priced by the tariff the start publishes, drawn under the last caption; a cost needing an undeclared rate is unavailable, never partial; a live model is offered only when the tariff table declares it. Two measured traps live in the player: Gemini's affective dialog closes the socket at the first thing the model must answer, and Chrome 152 repeats the first render block of a scheduled chunk — the PCM player is one AudioWorklet reading a queue, never one source node per chunk.
+
+The same two modes then reached the phone (ADR-301). The owner call relayed the conversation at its *end* while the browser delegated every request *during* — two truths for one word. A voice session now has a **mode** and a **carrier**, and the policy follows the mode alone: `delegated` (« Live »), every request a chat turn of the person as it is said; `direct` (« Live direct »), the voice reads, acts on nothing, and the words are relayed at the end as the person's own turn. **One closing** serves both lines, called by the browser's end route and the phone's post-call webhook; what the lines shared moved out of both into `domains/voice_sessions/`, and the phone's Live mode is the browser's delegation server-side — an asynchronous vendor tool with the browser's own name and schema, a bridge that mirrors the TypeScript one rule for rule (the newest request wins through a Redis marker the running bridge polls; a question LIA asked is the result and the next request resumes the run that asked). Measured on the vendor's real engine without a phone: the voice announces the call and keeps talking, a late answer past the vendor's bound is lost, so the bridge answers before it. The effective mode is derived and published — Live exists only where the callback host is public — and a runner holds no database session across the turn: 8.9 s of `idle in transaction` before, none after.
+
+---
+
+## 44. Conclusion
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 297 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~30,096 tests across 1,786 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 300 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~30,704 tests across 1,842 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 297 ADRs, and the changelog (v1.0 to v1.46.0). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (490+ documents), 300 ADRs, and the changelog (v1.0 to v1.47.0). All metrics, versions, and patterns cited are verifiable in the codebase.*

@@ -1,0 +1,19 @@
+# One-line scaffolds of the relay synthesis CONTEXT block (ADR-301; ADR-284:
+# prose lives in a file). `key|template`, str.format templates, read by
+# infrastructure/scheduler/voice_relay.py around the DATA of one session
+# (the transcript, the collected flags, the vendor's recap). `session_phone` /
+# `session_browser` name the line that carried the session — the prompt's
+# rule on who was speaking reads it: an authenticated session in the app is
+# the account holder's by construction, a phone call is confirmed on the
+# transcript. The remaining lines stand in for a value the session did not
+# carry.
+
+session_phone|SESSION: a phone call LIA placed to the account holder on their verified number.
+session_browser|SESSION: a live voice session in the app, on the account holder's own authenticated session (the line is authenticated: the person IS the account holder).
+objective_default|(a catch-up session)
+owner_unknown|(unknown)
+requests_none|(none)
+vendor_summary_none|(none provided)
+transcript_heading|TRANSCRIPT
+transcript_heading_cut|TRANSCRIPT (cut: the end of the session is not shown)
+transcript_none|(no transcript)

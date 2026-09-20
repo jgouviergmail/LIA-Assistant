@@ -108,6 +108,30 @@ il se multiplie.**
 - Un `docker cp` vers `/tmp` d'un conteneur (tmpfs) écrit SOUS le montage :
   une sonde se passe par `docker exec -i … python -` (stdin).
 
+## Amendement 2026-09-20 — une connexion tenue pendant une réponse qui dure
+
+Le plancher de connexions (F004, ci-dessus) comptait les pools ; il ne
+voyait pas ce qu'une REQUÊTE tient. Mesuré sur dev (`pg_stat_activity`,
+`state = 'idle in transaction'`, revue ADR-301) :
+
+- **un stream SSE par onglet ouvert pinçait un backend PostgreSQL en `idle in
+  transaction` pour la vie de l'onglet** (deux backends, 14 min à la lecture,
+  rouverts une seconde après chaque redémarrage du worker) : la dépendance
+  `yield` `get_db` vit jusqu'à la fin de la réponse, et le SELECT d'auth de
+  `get_current_session` ouvre la transaction. Corrigé par une porte propre aux
+  routes qui streament (`get_current_active_session_for_stream`, ADR-045 : une
+  session ouverte et fermée dans la dépendance, même authentification, ligne
+  détachée seulement lue), gardée sur `app.routes` ; mesuré après : un stream
+  ouvert ne pince rien, l'instance n'a plus aucun backend dans cet état ;
+- **un runner vocal tenait la session de son appelant pendant tout le tour
+  relayé** (8,9 s) : ADR-301, règle du runner workboard appliquée ;
+- **reste ouvert, mesuré** : le moteur de chat tient lui-même une session
+  pendant un tour (`SELECT user_mcp_servers…`, 8,5 s sur un tour court) — une
+  connexion par tour en cours, à instruire comme les deux précédents. Un
+  `commit()` rend la connexion au pool (mesuré `checked out` 1 → 0) : la
+  règle est « une session ne vit pas plus longtemps que les requêtes qu'elle
+  sert », jamais « autour » d'une attente.
+
 ## Références
 
 - Runbook : `docs/runbooks/alerts/ApiWorkerMemoryHigh.md`

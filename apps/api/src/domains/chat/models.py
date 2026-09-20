@@ -16,8 +16,10 @@ from sqlalchemy import (
     Numeric,
     String,
     UniqueConstraint,
+    func,
 )
 from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.sql import ColumnElement
 
 from src.core.field_names import FIELD_NODE_NAME
 from src.infrastructure.database.models import BaseModel
@@ -215,6 +217,32 @@ class MessageTokenSummary(BaseModel):
         UniqueConstraint("run_id", name="message_token_summary_run_id_key"),
         Index("ix_message_token_summary_user_created", "user_id", "created_at"),
     )
+
+    @property
+    def billed_cost_eur(self) -> Decimal:
+        """Every euro the platform paid under this run, in one figure.
+
+        The model's tokens, the Maps Platform calls and the generated images
+        are three columns; what a person is shown — and re-billed — is their
+        sum. Four readers used to add them by hand with three different
+        subsets (the phone bill and the live closing card read the model
+        column alone, 2026-09-20). ``billed_cost_sql`` is the same sum for a
+        statement.
+        """
+        return (
+            Decimal(self.total_cost_eur or 0)
+            + Decimal(self.google_api_cost_eur or 0)
+            + Decimal(self.image_generation_cost_eur or 0)
+        )
+
+    @classmethod
+    def billed_cost_sql(cls) -> ColumnElement[Decimal]:
+        """The SQL form of :attr:`billed_cost_eur`, for aggregates."""
+        return (
+            cls.total_cost_eur
+            + func.coalesce(cls.google_api_cost_eur, 0)
+            + func.coalesce(cls.image_generation_cost_eur, 0)
+        )
 
 
 class UserStatistics(BaseModel):

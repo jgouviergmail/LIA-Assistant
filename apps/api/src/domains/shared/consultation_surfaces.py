@@ -232,6 +232,25 @@ CONSULTATION_SURFACES: Final[Mapping[str, ConsultationSurface]] = {
             **{domain: domain for domain in PHONE_DOMAINS},
         },
     ),
+    # A DIRECT live session (ADR-300 wave 4): the phone's own line in the
+    # browser. The voice model reads the phone's context block at the start
+    # and looks things up through the phone's derived read-only tools during
+    # the session — the same sections, the same domains, filed under this
+    # surface and the session's run id rather than a call's.
+    "live_session": ConsultationSurface(
+        key="live_session",
+        prefix="live_session:",
+        source="user",
+        domains={
+            "memories": "context",
+            "agenda": "event",
+            "reminders": "reminder",
+            "open_loops": "peer",
+            "recent_exchanges": "automation",
+            "tasks": "task",
+            **{domain: domain for domain in PHONE_DOMAINS},
+        },
+    ),
     # Geocoding the address the person is setting: their own action, their own
     # data, and a paid Maps call on the deployment's key.
     "profile": ConsultationSurface(

@@ -100,6 +100,67 @@
         r.csp_blocks_cross_origin = true;
       }
 
+      // --- Live mode (ADR-299): the page opens the provider's WebSocket ---
+      // The host is allowlisted in `connect-src` (`LIVE_PROVIDER_CONNECT_SRC`);
+      // without a credential the provider refuses the handshake, so the ONLY
+      // verdicts that matter are `blocked` (the policy or the engine refused
+      // the socket before it left) versus `open`/`error` (it left the page).
+      r.external_websocket = await new Promise(resolve => {
+        let ws;
+        const timer = setTimeout(() => { try { ws && ws.close(); } catch {} resolve('timeout'); }, 10000);
+        try {
+          ws = new WebSocket('wss://generativelanguage.googleapis.com/ws/probe');
+        } catch (e) {
+          clearTimeout(timer);
+          resolve('blocked:' + String(e && e.message));
+          return;
+        }
+        ws.onopen = () => { clearTimeout(timer); ws.close(); resolve('open'); };
+        ws.onerror = () => { clearTimeout(timer); resolve('error'); };
+        ws.onclose = ev => { clearTimeout(timer); resolve(ev.code === 1006 ? 'error' : 'closed:' + ev.code); };
+      });
+
+      // --- Live mode, the second wire (ADR-300): a WebRTC offer -----------
+      // GPT-Live is a WebRTC session: the page builds a peer connection, a
+      // data channel and an SDP offer BEFORE the API exchanges it on the
+      // person's key. No credential is needed to know whether the engine can
+      // produce the offer: `offer` (an SDP with a data channel came out),
+      // `unsupported` (no RTCPeerConnection in this WebView) or `error`.
+      r.webrtc_offer = await new Promise(resolve => {
+        if (typeof RTCPeerConnection !== 'function') { resolve('unsupported'); return; }
+        const timer = setTimeout(() => resolve('timeout'), 10000);
+        try {
+          const peer = new RTCPeerConnection();
+          peer.createDataChannel('oai-events');
+          peer.createOffer().then(offer => {
+            clearTimeout(timer);
+            peer.close();
+            resolve(offer && typeof offer.sdp === 'string' && offer.sdp.includes('m=application') ? 'offer' : 'no-channel');
+          }).catch(e => { clearTimeout(timer); resolve('error:' + String(e && e.message)); });
+        } catch (e) {
+          clearTimeout(timer);
+          resolve('error:' + String(e && e.message));
+        }
+      });
+
+      // --- Live mode: the PCM player is ONE AudioWorklet from a blob: URL ---
+      // (ADR-300, the « biiiip »): the module must load under `script-src
+      // blob:` in this engine. `loaded` or the engine's own refusal.
+      r.audio_worklet_blob = await new Promise(resolve => {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) { resolve('unsupported'); return; }
+        let context;
+        try { context = new Ctx(); } catch (e) { resolve('error:' + String(e && e.message)); return; }
+        if (!context.audioWorklet) { resolve('no-audioWorklet'); context.close(); return; }
+        const source = 'class P extends AudioWorkletProcessor { process() { return true; } } registerProcessor("lia-probe", P);';
+        const url = URL.createObjectURL(new Blob([source], { type: 'application/javascript' }));
+        const timer = setTimeout(() => { resolve('timeout'); context.close(); }, 10000);
+        context.audioWorklet.addModule(url)
+          .then(() => { clearTimeout(timer); resolve('loaded'); })
+          .catch(e => { clearTimeout(timer); resolve('error:' + String(e && e.message)); })
+          .finally(() => { URL.revokeObjectURL(url); context.close(); });
+      });
+
       // Cookie persistence across a cold app restart is measured by run.mjs,
       // which relaunches the app while the server withholds `Set-Cookie` on
       // every document after the first: `server_saw_cookies` above then tells

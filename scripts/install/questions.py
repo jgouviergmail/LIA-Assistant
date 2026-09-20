@@ -140,6 +140,12 @@ def build_questions() -> tuple[Question, ...]:
             default="no",
         ),
         Question(
+            key="live_mode",
+            kind=QuestionKind.BOOL,
+            message_id="question.live_mode",
+            default="no",
+        ),
+        Question(
             key="admin_password",
             kind=QuestionKind.SECRET,
             message_id="question.admin_password",

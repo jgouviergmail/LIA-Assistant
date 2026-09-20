@@ -87,9 +87,15 @@ class TestLiaMetricsResolveToProducers:
         # Importing the modules registers their metrics on the default REGISTRY.
         import prometheus_client
 
+        # Every module a catalogue query names a metric of — the list is what
+        # makes this test hold when the file runs ALONE (a sibling test used
+        # to import the sandbox module for it, so it passed in the suite and
+        # failed in isolation).
         import src.infrastructure.observability.metrics  # noqa: F401
         import src.infrastructure.observability.metrics_agents  # noqa: F401
         import src.infrastructure.observability.metrics_errors  # noqa: F401
+        import src.infrastructure.observability.metrics_react  # noqa: F401
+        import src.infrastructure.observability.metrics_usage_limits  # noqa: F401
         import src.infrastructure.observability.metrics_voice  # noqa: F401
         import src.infrastructure.observability.process_memory  # noqa: F401
         import src.infrastructure.resilience.circuit_breaker  # noqa: F401

@@ -3056,6 +3056,19 @@ class APIMessages:
     # =========================================================================
 
     @staticmethod
+    def phone_call_mode_unknown(language: SupportedLanguage = "fr") -> str:
+        """A call mode off the vocabulary — Live or Live direct (400, ADR-301)."""
+        messages = {
+            "fr": "Ce mode d'appel n'existe pas : Live ou Live direct.",
+            "en": "This call mode does not exist: Live or Live direct.",
+            "es": "Este modo de llamada no existe: Live o Live directo.",
+            "de": "Diesen Anrufmodus gibt es nicht: Live oder Live direkt.",
+            "it": "Questa modalità di chiamata non esiste: Live o Live diretto.",
+            "zh-CN": "此通话模式不存在：Live 或 Live 直连。",
+        }
+        return messages.get(language, messages["fr"])
+
+    @staticmethod
     def phone_domain_unknown(language: SupportedLanguage = "fr") -> str:
         """A phone domain switch names something the phone does not offer (400)."""
         messages = {

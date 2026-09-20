@@ -76,7 +76,12 @@ export type SettingsSectionGate =
   | { kind: 'always' }
   | {
       kind: 'instanceFlag';
-      flag: 'openLoopsEnabled' | 'peersEnabled' | 'habitsEnabled' | 'sandboxEgressEnabled';
+      flag:
+        | 'openLoopsEnabled'
+        | 'peersEnabled'
+        | 'habitsEnabled'
+        | 'sandboxEgressEnabled'
+        | 'liveEnabled';
     }
   | { kind: 'userDebugPanel' }
   | { kind: 'superuser' }
@@ -254,6 +259,15 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     keywordsKey: `${KEYWORDS_PREFIX}.voice-mode`,
     group: 'voice_media',
     gate: { kind: 'always' },
+  },
+  // ADR-299: the component reads `features.live_enabled` and renders nothing
+  // when the capability is off — the flag IS the gate.
+  'live-mode': {
+    titleKey: 'settings.live_mode.title',
+    descriptionKey: 'settings.live_mode.description',
+    keywordsKey: `${KEYWORDS_PREFIX}.live-mode`,
+    group: 'voice_media',
+    gate: { kind: 'instanceFlag', flag: 'liveEnabled' },
   },
   'image-generation': {
     titleKey: 'settings.image_generation.title',
@@ -608,6 +622,8 @@ export interface SettingsSearchAvailability {
   peersEnabled: boolean;
   /** `/config` → `features.python_sandbox_egress_enabled` (ADR-298). */
   sandboxEgressEnabled: boolean;
+  /** `/config` → `features.live_enabled` (live voice mode, ADR-299). */
+  liveEnabled: boolean;
   /** `useDebugPanelEnabled()` → `userAccessAvailable`. */
   debugUserAccess: boolean;
 }
