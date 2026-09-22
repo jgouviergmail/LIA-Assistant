@@ -1113,7 +1113,7 @@ jobs:
 
   lint-backend:
     name: Lint Backend
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -1148,7 +1148,7 @@ jobs:
 
   test-backend:
     name: Test Backend
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: pgvector/pgvector:pg16
@@ -1199,7 +1199,7 @@ jobs:
 
   build-api:
     name: Build API Image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [lint-backend, test-backend]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
@@ -1239,7 +1239,7 @@ jobs:
 
   build-web:
     name: Build Web Image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [lint-backend]  # Frontend has own lint job
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
@@ -1276,7 +1276,7 @@ jobs:
 
   deploy-production:
     name: Deploy to Production
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [build-api, build-web]
     if: github.ref == 'refs/heads/main'
     environment:

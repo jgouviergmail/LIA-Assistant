@@ -19,7 +19,7 @@ permissions:
 jobs:
   a11y-browser-matrix:
     name: E2E + a11y (Chromium, Firefox, WebKit)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     container:
       image: mcr.microsoft.com/playwright:v1.60.0-jammy
     steps:

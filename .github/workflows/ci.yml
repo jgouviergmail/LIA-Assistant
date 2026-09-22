@@ -23,7 +23,7 @@ concurrency:
 jobs:
   lint-backend:
     name: Lint Backend
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -57,7 +57,7 @@ jobs:
 
   lint-frontend:
     name: Lint Frontend
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -100,7 +100,7 @@ jobs:
     # a11y-matrix.yml (AC-002), and the manual NVDA/VoiceOver campaign is
     # docs/a11y/AT_CAMPAIGN.md. See apps/web/e2e/README.md.
     name: E2E + a11y smoke (Playwright)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     container:
       image: mcr.microsoft.com/playwright:v1.60.0-jammy
     steps:
@@ -164,7 +164,7 @@ jobs:
 
   test-backend:
     name: Test Backend
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: lint-backend
 
     services:
@@ -262,7 +262,7 @@ jobs:
 
   test-backend-integration:
     name: Test Backend Integration
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: lint-backend
 
     services:
@@ -351,7 +351,7 @@ jobs:
 
   migration-replay:
     name: Migration Replay (from scratch)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: lint-backend
     defaults:
       run:
@@ -427,7 +427,7 @@ jobs:
 
   test-frontend:
     name: Test Frontend
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: lint-frontend
 
     steps:
@@ -473,7 +473,7 @@ jobs:
 
   code-hygiene:
     name: Code Hygiene
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -543,7 +543,7 @@ jobs:
 
   docker-build:
     name: Docker Build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -593,7 +593,7 @@ jobs:
   # gates the self-host wizard's independent 3.10 bare-host floor (ADR-215).
   installer-py310:
     name: Installer Python 3.10 floor (ADR-215)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -613,7 +613,7 @@ jobs:
 
   observability:
     name: Observability Config
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -688,7 +688,7 @@ jobs:
 
   secret-scan:
     name: Secret Scan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0

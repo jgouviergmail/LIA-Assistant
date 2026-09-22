@@ -219,7 +219,7 @@ Ajouter job GitHub Actions pour tracking automatique :
 ```yaml
 benchmark-performance:
   name: Performance Benchmark
-  runs-on: ubuntu-latest
+  runs-on: ubuntu-24.04
   steps:
     - uses: actions/checkout@v4
 
@@ -607,7 +607,7 @@ on:
 
 jobs:
   load-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v3
 

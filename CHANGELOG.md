@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Nouvelle migration `oauth_grants` additive : les credentials existants restent valides et non liés jusqu'à une autorisation groupée réussie. Tests unitaires, intégration et parcours navigateur ajoutés pour l'identité, le renouvellement, la reconnexion et le compagnon.
 - Les nouvelles métriques d'outils et les tableaux de bord d'observabilité sont raccordés ; les URI de callback groupé sont documentées pour les installations qui activent Google ou Microsoft.
+- Les jobs GitHub Actions utilisent un runner Ubuntu 24.04 explicite afin de conserver un environnement de qualification stable pendant la transition de `ubuntu-latest`.
 
 ## [1.47.0] - 2026-09-20
 
