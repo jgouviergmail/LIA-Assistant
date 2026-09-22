@@ -86,6 +86,11 @@
  *   over the 471 of v1.29.0 (instance ceiling, administrable capabilities and
  *   demonstrator envelope, ADR-216/217/218; 466 at v1.27.7).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
+ *   Re-measured 2026-09-22 (v1.47.1): backend 30 855 collected over `tests/`
+ *   (sum of the per-file counts of `pytest --collect-only -q`, 1 852 files) +
+ *   frontend 8 911 passing (`task test:frontend:coverage`, 712 files) =
+ *   39 766 -> 39000. The frontend suite also reports skipped cases; only
+ *   passing tests contribute to this conservative displayed total.
  *   Re-measured 2026-09-18 (v1.46.0): backend 30 096 collected over `tests/`
  *   (sum of the per-file counts of `pytest --collect-only -q`, 1 786 files) +
  *   frontend 8 504 (`vitest list` on the HOST, 667 files) = 38 600 -> 38000.
@@ -331,11 +336,11 @@ export const LANDING_STATS = {
   tools: 115,
   providers: 7,
   voiceLanguages: 99,
-  metrics: 581,
+  metrics: 583,
   uiLanguages: 6,
   tests: 39000,
-  adrs: 300,
-  releases: 265,
+  adrs: 301,
+  releases: 266,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

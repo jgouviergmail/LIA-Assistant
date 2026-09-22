@@ -5,8 +5,8 @@
 > Documentazione di presentazione tecnica destinata ad architetti, ingegneri ed esperti tecnici.
 
 **Versione**: 5.0
-**Data**: 2026-09-18
-**Applicazione**: LIA v1.47.0
+**Data**: 2026-09-22
+**Applicazione**: LIA v1.47.1
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -70,8 +70,8 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 | Auto-hosting ARM64 | Docker multi-arch, embeddings semantici (multilingue), Playwright chromium cross-platform |
 | Sovranità dei dati | PostgreSQL locale (nessun SaaS DB), crittografia Fernet a riposo, sessioni Redis locali |
 | Multi-fornitore LLM | Factory pattern con 7 adattatori, configurazione per nodo, nessun accoppiamento forte a un provider |
-| Trasparenza totale | 581 metriche Prometheus, debug panel integrato, tracciamento token per token |
-| Affidabilità in produzione | 300 ADRs, ~30.704 test raccolti da pytest in 1.842 file, osservabilità nativa, HITL a 6 livelli |
+| Trasparenza totale | 583 metriche Prometheus, debug panel integrato, tracciamento token per token |
+| Affidabilità in produzione | 301 ADRs, ~30.855 test raccolti da pytest in 1.852 file, osservabilità nativa, HITL a 6 livelli |
 | Costi controllati | Smart Services (89% di risparmio token), embeddings semantici, prompt caching, filtraggio del catalogo |
 
 ### 1.2. Principi architetturali
@@ -89,10 +89,10 @@ Ogni decisione tecnica di LIA risponde a un vincolo concreto. Il progetto mira a
 
 | Metrica | Valore |
 |---------|--------|
-| Test | 30.704 raccolti da pytest su 1.842 file di test + 8.801 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
+| Test | 30.855 raccolti da pytest su 1.852 file di test + 8.906 test vitest sul frontend (soglie di copertura bloccate, ADR-116) |
 | Fixture pytest | 969, di cui 46 condivise tramite conftest |
 | Documenti di documentazione | 647 |
-| ADR (Architecture Decision Record) | 300 |
+| ADR (Architecture Decision Record) | 301 |
 | Metriche Prometheus | 553 definizioni |
 | Dashboard Grafana | 30 |
 | Lingue supportate (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -773,6 +773,8 @@ Per l'e-mail quel modello unificato è misurato, non presunto: i tre normalizer 
 
 `BaseOAuthClient` (template method con 3 hook), `BaseGoogleClient` (paginazione tramite pageToken), `BaseMicrosoftClient` (OData). Circuit breaker, rate limiting Redis distribuito, refresh token con double-check pattern e Redis locking contro il thundering herd.
 
+Per Google e Microsoft, il consenso è raggruppato per account del fornitore invece di ripetersi per ogni servizio. Un'unica concessione gestisce i permessi approvati e il rinnovo; Gmail, Calendar, Drive e gli equivalenti Microsoft restano capacità separate da attivare o scollegare. Il ritorno OAuth verifica identità ed emittente attesi, stato e PKCE, senza sostituire silenziosamente un altro account.
+
 ### 13.4. Due percorsi di autenticazione
 
 Non tutti i connettori richiedono un account. Un **connettore OAuth** conserva le credenziali personali dell'utente: Gmail, Calendario, Contatti, Drive. Un **servizio a chiave di piattaforma** non conserva alcun dato per utente — lo si attiva e basta, e la chiave appartiene all'installazione: Percorsi, Luoghi, Meteo, Ambiente. `ConnectorType.uses_global_api_key` porta questa distinzione, e la base degli strumenti sceglie il percorso delle credenziali in base al tipo **risolto**. Una stessa categoria funzionale può quindi mescolare i due: il meteo accetta un fornitore a chiave personale così come un servizio di piattaforma, senza che il chiamante sappia chi ha risposto.
@@ -912,7 +914,7 @@ Un documento che non ha potuto essere indicizzato **dice perché**: un codice ch
 
 ### 17.2. System RAG Spaces (ADR-058)
 
-FAQ integrata (250 Q/A, 24 sezioni) indicizzata da `docs/knowledge/`. Rilevamento `is_app_help_query` da QueryAnalyzer, Rule 0 override in RoutingDecider, App Identity Prompt (~200 token, lazy loading). L'obsolescenza è valutata su uno SHA-256 dei file sorgente **e** sul corpus memorizzato stesso (un chunk per voce analizzata, esattamente un documento): un'impronta corrispondente su un numero di righe errato è una riparazione, non un no-op. L'auto-indicizzazione gira in ogni worker uvicorn, quindi la riga dello spazio è rivendicata con `FOR UPDATE SKIP LOCKED` — un solo scrittore, gli altri saltano senza accodarsi — e ogni vettore è calcolato **prima** della prima istruzione distruttiva: un rifiuto del fornitore non cancella nulla e il corpus precedente continua a servire (ADR-162).
+FAQ integrata indicizzata da `docs/knowledge/`. Rilevamento `is_app_help_query` da QueryAnalyzer, Rule 0 override in RoutingDecider, App Identity Prompt (~200 token, lazy loading). L'obsolescenza è valutata su uno SHA-256 dei file sorgente **e** sul corpus memorizzato stesso (un chunk per voce analizzata, esattamente un documento): un'impronta corrispondente su un numero di righe errato è una riparazione, non un no-op. L'auto-indicizzazione gira in ogni worker uvicorn, quindi la riga dello spazio è rivendicata con `FOR UPDATE SKIP LOCKED` — un solo scrittore, gli altri saltano senza accodarsi — e ogni vettore è calcolato **prima** della prima istruzione distruttiva: un rifiuto del fornitore non cancella nulla e il corpus precedente continua a servire (ADR-162).
 
 ### 17.3. Sorgenti e-mail: ciò che l'utente designa (ADR-262)
 
@@ -1022,7 +1024,7 @@ La provenienza è dunque una proprietà del **dato**: i 24 tipi del registro son
 
 | Tecnologia | Ruolo |
 |------------|-------|
-| Prometheus | 581 metriche custom (RED pattern) |
+| Prometheus | 583 metriche custom (RED pattern) |
 | Grafana | 30 dashboard production-ready |
 | Loki | Log strutturati JSON aggregati |
 | Tempo | Trace distribuite cross-service (OTLP gRPC) |
@@ -1030,7 +1032,7 @@ La provenienza è dunque una proprietà del **dato**: i 24 tipi del registro son
 | Alertmanager | Nucleo di 14 alert vitali notificati via e-mail (runbook collegati, soglie per ambiente) + webhook verso LIA: ogni avviso diventa un incidente nel prodotto (ADR-247) |
 | structlog | Logging strutturato con filtraggio PII |
 
-**Una metrica che non raggiunge alcuna dashboard è una metrica su cui nessuno agisce.** La distanza fra ciò che il codice emette e ciò che un operatore può vedere è misurata, mai supposta: `scripts/audit/measure_metric_coverage.py` analizza ogni definizione di metrica (via AST e non con un'espressione regolare — una regex legge `ZoneInfo("UTC")` come una metrica `Info`) e confronta ogni nome con tutti i pannelli, le recording rule e le espressioni di alert. 581 definite; le 44 che non raggiungono nulla sono elencate esplicitamente in una baseline **che può solo restringersi**, così una metrica appena diventata cieca fa fallire la build e una metrica divenuta visibile deve lasciare l'elenco — altrimenti la prossima cieca ne occupa il posto in silenzio. Il prezzo di non averlo avuto: una sorgente di heartbeat caduta in modo aperto ha scartato i segnali di salute sul 46,5 % dei tick per una settimana, senza alcuna metrica che se ne accorgesse (ADR-148). Due trappole che la guardia chiude per costruzione — un contatore con label mai incrementato non espone **alcuna serie**, quindi un pannello che sorveglia un guasto raro ha bisogno di `or vector(0)`, altrimenti mostra «No data» dove l'operatore si aspetta uno zero verde; e la copertura è letta solo dalle **espressioni** di pannelli e regole, perché una metrica citata in un commento non è cablata.
+**Una metrica che non raggiunge alcuna dashboard è una metrica su cui nessuno agisce.** La distanza fra ciò che il codice emette e ciò che un operatore può vedere è misurata, mai supposta: `scripts/audit/measure_metric_coverage.py` analizza ogni definizione di metrica (via AST e non con un'espressione regolare — una regex legge `ZoneInfo("UTC")` come una metrica `Info`) e confronta ogni nome con tutti i pannelli, le recording rule e le espressioni di alert. 583 definite; le 44 che non raggiungono nulla sono elencate esplicitamente in una baseline **che può solo restringersi**, così una metrica appena diventata cieca fa fallire la build e una metrica divenuta visibile deve lasciare l'elenco — altrimenti la prossima cieca ne occupa il posto in silenzio. Il prezzo di non averlo avuto: una sorgente di heartbeat caduta in modo aperto ha scartato i segnali di salute sul 46,5 % dei tick per una settimana, senza alcuna metrica che se ne accorgesse (ADR-148). Due trappole che la guardia chiude per costruzione — un contatore con label mai incrementato non espone **alcuna serie**, quindi un pannello che sorveglia un guasto raro ha bisogno di `or vector(0)`, altrimenti mostra «No data» dove l'operatore si aspetta uno zero verde; e la copertura è letta solo dalle **espressioni** di pannelli e regole, perché una metrica citata in un commento non è cablata.
 
 ### 20.2. Debug Panel integrato
 
@@ -1144,7 +1146,7 @@ ESLint + TypeScript check           CodeQL (Python + JS)
 | Type checking | MyPy | strict mode |
 | Commit | Conventional Commits | `feat(scope):`, `fix(scope):` |
 | Test | pytest | `asyncio_mode = "auto"` |
-| Coverage | 62% minimo (ratchet, mai abbassato) | Applicato in CI |
+| Coverage | 73% minimo (ratchet, mai abbassato) | Applicato in CI |
 
 ### 22.3. Build delle dipendenze riproducibili
 
@@ -1436,7 +1438,7 @@ Una regola CSS governa le spaziature del design system: i margini verticali di u
 
 ## 24. Architettura delle decisioni (ADR)
 
-300 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
+301 ADRs in formato MADR documentano le decisioni architetturali principali. Alcuni esempi rappresentativi:
 
 | ADR | Decisione | Problema risolto | Impatto misurato |
 |-----|-----------|-----------------|-----------------|
@@ -1554,7 +1556,7 @@ La pagina Attività è un **read-model puro**: fetcher paralleli (una sessione p
 
 Il widget degli occhi della chat (ADR-240) poggia su un unico principio: **nessun segnale nuovo, nessun costo nuovo**. Un motore puro — tabelle di decisione con RNG e orologi iniettati — deriva una di venti espressioni da una catena di priorità (errore > domanda HITL > voce > interazione > reazione del turno > notifica > digitazione > inattività > umore × ora) alimentata esclusivamente dalla macchina esistente: la macchina a stati della chat, i passi di esecuzione SSE (riflessione vs. ricerca di strumenti), la scheda HITL, la macchina vocale e il motore psicologico. La reazione a ogni risposta legge l'autovalutazione emotiva che il modello allega già al proprio turno, con un ripiego euristico rigorosamente neutro rispetto alla lingua (punteggiatura, emoji, struttura — larghezza piena cinese inclusa). Il rendering è dichiarativo — un attributo di espressione, variabili CSS e un foglio di animazione dove le palpebre sono **morph geometrici puri** (compressione verticale ancorata, rotazione per occhio, modellazione dei raggi): nessun clipping da nessuna parte, ogni stato intermedio resta una curva liscia. La vita tra gli eventi — battiti di ciglia, saccadi dello sguardo, gesti ponderati per umore, microscene di fantasticheria, raro slapstick — vive in scheduler con timer propri, in pausa quando la scheda è nascosta o il widget ridotto, congelati sotto `prefers-reduced-motion`. I sei stili selezionabili condividono questo unico scheletro: un registro generico dove aggiungere uno sguardo costa un id, un foglio CSS con scope e sei voci di locale — la completezza è un test, non una convenzione.
 
-Il volto vive tra due risposte, e quella vita è un rig, non un foglio di stile (ADR-252, ADR-264). Un runtime TypeScript calcola ogni canale a ogni fotogramma — molle analitiche, loop additivi, nastri di chiavi — e pubblica il risultato come proprietà personalizzate `--rig-*` che il foglio si limita a leggere: un foglio di stile non ne dichiara mai una e non mette mai una transizione su un valore che cambia sessanta volte al secondo. Il sopracciglio ha un arco e resta discretamente presente a riposo; un solo respiro porta la massa, le sopracciglia e la larghezza della bocca sullo stesso periodo; lo sguardo solleva le sopracciglia e un battito di ciglia le abbassa, accoppiati nel rig come **contributi assoluti e non incrementi**, perché il percorso rapido di riposo riscrive solo i canali che un loop percorre — un incremento lì deriverebbe per tutta la sessione, cosa che un test inchioda confrontando ventimila piccoli passi con uno solo. Il parlato ha frasi (un inviluppo attraverso la chiusura, un'apertura limitata all'intervallo unitario) e sopracciglia che punteggiano su uno schema irregolare. La bocca ha una vita propria — mimiche relative a cadenza casuale, programmate dal rig — e dieci brevi scenette su un volto a riposo, interrotte da qualsiasi cambio di espressione con il volto esattamente dov'era, verificato contro un rig gemello. Il caso viene da un flusso seminato a parte, mai da `Math.random`, così i test del widget restano deterministici; la tenuta viva è un budget in pixel nei test — visibile a riposo, sotto i due pixel, esattamente zero su un volto concentrato. Lo stesso widget accoglie i visitatori nella pagina iniziale pubblica: nessun account, una posizione per superficie, l'aspetto a capsule imposto lì mentre la chat conserva lo stile dell'utente — e le anteprime del selettore di stile spengono quella vita, perché un'anteprima confronta sagome.
+Il volto vive tra due risposte, e quella vita è un rig, non un foglio di stile (ADR-252, ADR-264). Un runtime TypeScript calcola ogni canale a ogni fotogramma — molle analitiche, loop additivi, nastri di chiavi — e pubblica il risultato come proprietà personalizzate `--rig-*` che il foglio si limita a leggere: un foglio di stile non ne dichiara mai una e non mette mai una transizione su un valore che cambia sessanta volte al secondo. Il sopracciglio ha un arco e resta discretamente presente a riposo; un solo respiro porta la massa, le sopracciglia e la larghezza della bocca sullo stesso periodo; lo sguardo solleva le sopracciglia e un battito di ciglia le abbassa, accoppiati nel rig come **contributi assoluti e non incrementi**, perché il percorso rapido di riposo riscrive solo i canali che un loop percorre — un incremento lì deriverebbe per tutta la sessione, cosa che un test inchioda confrontando ventimila piccoli passi con uno solo. Il parlato ha frasi (un inviluppo attraverso la chiusura, un'apertura limitata all'intervallo unitario) e sopracciglia che punteggiano su uno schema irregolare. La bocca ha una vita propria — mimiche relative a cadenza casuale, programmate dal rig — e dieci brevi scenette su un volto a riposo, interrotte da qualsiasi cambio di espressione con il volto esattamente dov'era, verificato contro un rig gemello. Il caso viene da un flusso seminato a parte, mai da `Math.random`, così i test del widget restano deterministici; la tenuta viva è un budget in pixel nei test — visibile a riposo, sotto i due pixel, esattamente zero su un volto concentrato. Lo stesso widget accoglie i visitatori nella pagina iniziale pubblica: nessun account, una posizione per superficie, l'aspetto Smiley imposto lì mentre la chat conserva lo stile dell'utente — e le anteprime del selettore di stile spengono quella vita, perché un'anteprima confronta sagome.
 
 Il rig è stato poi ripreso canale per canale contro una misura di ciò che la pagina rendeva davvero (ADR-294). Il sopracciglio è posato sull'occhio e pesa: ha massa, si aggrotta e **guida** ogni espressione invece di seguirla. Il parlato non è più un ciclo ma una frase generata — sillabe, pause, accenti — che nulla ripete; i tempi forti delle espressioni sono deformati a ogni estrazione, così che due battiti di ciglia, due sorrisi, due sguardi non sono mai identici. Le scenette aspettano un vero tempo di riposo su un orologio che la pagina conserva attraverso le navigazioni, perché un orologio azzerato a ogni montaggio non lasciava mai arrivare la scena. Tutto questo si legge in sessantuno canali pubblicati, misurati fotogramma per fotogramma.
 
@@ -1734,8 +1736,8 @@ Le stesse due modalità hanno poi raggiunto il telefono (ADR-301). La chiamata d
 
 LIA è un esercizio di ingegneria del software che cerca di risolvere un problema concreto: costruire un assistente IA multi-agente di qualità produttiva, trasparente, sicuro ed estensibile, capace di funzionare su un Raspberry Pi.
 
-I 300 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~30.704 test in 1.842 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
+I 301 ADRs documentano non solo le decisioni prese, ma anche le alternative scartate e i compromessi accettati. I ~30.855 test in 1.852 file, la CI/CD completa e il MyPy strict non sono metriche di vanità — sono i meccanismi che permettono di far evolvere un sistema di questa complessità senza regressioni.
 
 L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, routing semantico, HITL sistematico, proattività LLM-driven, diari introspettivi — crea un sistema in cui ogni componente rafforza gli altri. Il HITL alimenta il pattern learning, che riduce i costi, che permettono più funzionalità, che generano più dati per la memoria, che migliora le risposte. È un circolo virtuoso per design, non per caso.
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (490+ documenti), dei 300 ADRs e del changelog (da v1.0 a v1.47.0). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (680+ documenti), dei 301 ADRs e del changelog (da v1.0 a v1.47.1). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

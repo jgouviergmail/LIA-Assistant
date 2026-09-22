@@ -603,6 +603,161 @@
         }
       },
       "description": "Total completion tokens consumed by sub-agent executions."
+    },
+    {
+      "id": 33,
+      "title": "Skills — detection and the script runner",
+      "type": "row",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 36
+      },
+      "panels": []
+    },
+    {
+      "id": 34,
+      "title": "Skill runner: no tool called (24h)",
+      "type": "stat",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 0,
+        "y": 37
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(skill_runner_outcomes_total{outcome=\"no_tool_call\"}[24h])) or vector(0)",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "green"
+              },
+              {
+                "value": 1,
+                "color": "red"
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "auto",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "description": "Script-skill runs in the response node whose sub-agent called NO tool and answered in prose about a widget that does not exist (production 2026-09-20: misled by an earlier text game in the history, the result dropped in silence). Expected 0: the runner is handed the activated skill and the history only for a dialogue skill. The instructions fall back to the passive injection; the log `skill_runner_no_tool_call` names the skill."
+    },
+    {
+      "id": 35,
+      "title": "Skill runner errors (24h)",
+      "type": "stat",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 6,
+        "y": 37
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(skill_runner_outcomes_total{outcome=\"error\"}[24h])) or vector(0)",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "green"
+              },
+              {
+                "value": 1,
+                "color": "red"
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "auto",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "description": "The runner raised (`skill_react_agent_error`); the instructions fell back to the passive injection."
+    },
+    {
+      "id": 36,
+      "title": "Skill detection: retained vs suppressed (1h)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 37
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(skill_detection_retained_total[1h]))",
+          "legendFormat": "retained",
+          "refId": "A"
+        },
+        {
+          "expr": "sum by (reason) (increase(skill_detection_suppressed_total[1h]))",
+          "legendFormat": "suppressed · {{reason}}",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "Skill names the analyzer filled and the router kept, against those a filter discarded (`mcp_domain`: filled against an MCP primary domain — measured 2026-09-20 on 3 of 4 tic-tac-toe turns, because the prompt forced a domain on a skill that touches none; the prompt now leaves it null. `unknown_skill`, `sentinel_name`: a name that is not a skill). A steady suppressed rate on one reason names a prompt to read."
     }
   ]
 }

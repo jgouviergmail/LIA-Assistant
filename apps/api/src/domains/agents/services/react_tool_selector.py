@@ -11,6 +11,15 @@ K = 0, every available tool is bound in registration order and only the cap
 trims it. A blind positional truncation here used to drop the SAME families
 on every turn whatever the question, the user's own MCP tools among them.
 
+A BINDING UNIT is bound whole or not at all (2026-09-20). Tools declaring the
+same ``binding_unit`` on their manifest are one affordance — a skill is
+activated, its script run, its resources read — and each alone is a dead end:
+measured on dev, the ranking placed ``activate_skill_tool`` and dropped
+``run_skill_script``, so the loop activated the skill, could not run its
+script and answered in prose (the production motif on both skills). A unit
+ranks as its best member, takes ONE coverage seat, rides the semantic tail
+whole, and the cap drops it whole rather than cutting inside it.
+
 Filtering chain (same as pipeline):
 1. Global registry tools
 2. Minus admin-disabled MCP servers (per user)
@@ -80,6 +89,7 @@ class _Row(NamedTuple):
     name: str
     family: str
     door: bool
+    unit: str | None = None
 
 
 #: Token cost of a bound tool's schema, by tool name — static per process, so
@@ -171,13 +181,16 @@ class ReactToolSelector:
         skipped: list[str] = []
         for manifest in available_manifests:
             family = str(getattr(manifest, "agent", "") or "")
+            unit = getattr(manifest, "binding_unit", None) or None
             resolved = self._manifest_tools(manifest)
             if resolved is None:
                 skipped.append(manifest.name)
                 continue
             for item in resolved:
                 wrapper = ReactToolWrapper(original_tool=item.instance, hitl_required=item.hitl)
-                rows.append(_Row(wrapper, family in priority_agents, item.name, family, item.door))
+                rows.append(
+                    _Row(wrapper, family in priority_agents, item.name, family, item.door, unit)
+                )
                 hitl_map[item.name] = item.hitl
 
         # Cap at max_tools. Measured on the RESOLVED tool count, not the manifest
@@ -192,7 +205,7 @@ class ReactToolSelector:
         react_tools_resolved.observe(resolved_count)
         top_k = settings.react_tool_semantic_top_k
         relevance_on = bool(ranking) and top_k > 0
-        wrapped_tools, tiers, kept_names, dropped_by_relevance = self._compose(
+        wrapped_tools, tiers, units, kept_names, dropped_by_relevance = self._compose(
             rows, ranking if relevance_on else None, top_k
         )
         if relevance_on:
@@ -209,7 +222,7 @@ class ReactToolSelector:
                 "react_tool_selector_relevance_dropped", dropped_tools=dropped_by_relevance
             )
         wrapped_tools, hitl_map = self._apply_cap(
-            wrapped_tools, tiers, hitl_map, max_tools, priority_agents, resolved_count
+            wrapped_tools, tiers, units, hitl_map, max_tools, priority_agents, resolved_count
         )
 
         if skipped:
@@ -282,6 +295,7 @@ class ReactToolSelector:
     def _apply_cap(
         wrapped_tools: list[ReactToolWrapper],
         tiers: list[int],
+        units: list[str | None],
         hitl_map: dict[str, bool],
         max_tools: int,
         priority_agents: set[str],
@@ -292,11 +306,14 @@ class ReactToolSelector:
         The detected domains' tools first, then one coverage per family, then
         the rest — so the truncation sacrifices generic tools instead of the
         very tools the query needs, and never a whole family. Order is
-        untouched when the count fits the cap.
+        untouched when the count fits the cap. A cut that falls inside a
+        binding unit drops the unit whole: a partial affordance is worth less
+        than the seats it holds, and the cap is a bound, never a target.
 
         Args:
             wrapped_tools: The bound tools, in binding order.
             tiers: A tier per tool (0 priority, 1 coverage, 2 the rest).
+            units: The binding unit of each tool, None for a tool on its own.
             hitl_map: Tool name → HITL required.
             max_tools: The cap.
             priority_agents: The detected domains' agents (for the log).
@@ -308,12 +325,11 @@ class ReactToolSelector:
         if len(wrapped_tools) <= max_tools:
             return wrapped_tools, hitl_map
         react_tool_selector_capped_total.inc()
-        ordered = [
-            w for w, _tier in sorted(zip(wrapped_tools, tiers, strict=True), key=lambda i: i[1])
-        ]
-        dropped = [t.name for t in ordered[max_tools:]]
-        kept = ordered[:max_tools]
-        kept_names = {t.name for t in kept}
+        ordered = sorted(zip(wrapped_tools, tiers, units, strict=True), key=lambda i: i[1])
+        kept = ReactToolSelector._whole_units(ordered[:max_tools], ordered[max_tools:])
+        kept_tools = [w for w, _tier, _unit in kept]
+        kept_names = {t.name for t in kept_tools}
+        dropped = [w.name for w, _tier, _unit in ordered if w.name not in kept_names]
         logger.warning(
             "react_tool_selector_capped",
             resolved_count=resolved_count,
@@ -321,14 +337,31 @@ class ReactToolSelector:
             priority_agents=sorted(priority_agents),
             dropped_tools=dropped,
         )
-        return kept, {k: v for k, v in hitl_map.items() if k in kept_names}
+        return kept_tools, {k: v for k, v in hitl_map.items() if k in kept_names}
+
+    @staticmethod
+    def _whole_units(
+        kept: list[tuple[ReactToolWrapper, int, str | None]],
+        cut: list[tuple[ReactToolWrapper, int, str | None]],
+    ) -> list[tuple[ReactToolWrapper, int, str | None]]:
+        """``kept`` without a binding unit the cut split — the unit goes whole.
+
+        The members of a unit are adjacent in the order (same tier, same rank,
+        registered together), so popping from the end removes it whole.
+        """
+        cut_unit = kept[-1][2] if kept else None
+        if cut_unit is None or all(unit != cut_unit for _w, _t, unit in cut):
+            return kept
+        while kept and kept[-1][2] == cut_unit:
+            kept.pop()
+        return kept
 
     @staticmethod
     def _compose(
         rows: list[_Row],
         ranking: Sequence[str] | None,
         top_k: int,
-    ) -> tuple[list[ReactToolWrapper], list[int], set[str], list[str]]:
+    ) -> tuple[list[ReactToolWrapper], list[int], list[str | None], set[str], list[str]]:
         """Order the resolved tools: priority, family coverage, semantic top-K, the rest.
 
         Priority tools (the detected domains' agents) come first, in
@@ -342,6 +375,8 @@ class ReactToolSelector:
         ``top_k`` of it; what remains
         is dropped by relevance. Without a ranking nothing is dropped and the
         registration order stands: the tiers alone decide who survives the cap.
+        A binding unit ranks as its best member and holds one seat, so it
+        lands whole in whichever tier reaches it.
 
         Args:
             rows: The resolved tools, in registration order.
@@ -349,9 +384,10 @@ class ReactToolSelector:
             top_k: How many of the ranking to bind.
 
         Returns:
-            ``(kept, tiers, kept_manifest_names, dropped_names)`` — a tier per
-            kept tool (0 priority, 1 coverage, 2 the rest) so the cap's stable
-            sort keeps this order whatever the binding order.
+            ``(kept, tiers, units, kept_manifest_names, dropped_names)`` — a
+            tier per kept tool (0 priority, 1 coverage, 2 the rest) so the
+            cap's stable sort keeps this order whatever the binding order, and
+            the binding unit of each so the cap never cuts inside one.
         """
         rank = ReactToolSelector._ranker(rows, ranking)
         priority, coverage = ReactToolSelector._tiered(rows, rank)
@@ -361,13 +397,15 @@ class ReactToolSelector:
             return (
                 [row.tool for row in rows],
                 [tier_of.get(id(row.tool), 2) for row in rows],
+                [row.unit for row in rows],
                 {row.name for row in rows},
                 [],
             )
         tail, dropped = ReactToolSelector._semantic_tail(rows, set(tier_of), rank, top_k)
         kept = priority + coverage + tail
         tiers = [0] * len(priority) + [1] * len(coverage) + [2] * len(tail)
-        return [row.tool for row in kept], tiers, {row.name for row in kept}, dropped
+        units = [row.unit for row in kept]
+        return [row.tool for row in kept], tiers, units, {row.name for row in kept}, dropped
 
     @staticmethod
     def _ranker(rows: list[_Row], ranking: Sequence[str] | None) -> Callable[[_Row], int]:
@@ -375,19 +413,26 @@ class ReactToolSelector:
 
         A delegation door has no vector of its own: it ranks as the best tool
         behind it, so it sits beside its family in every order — the coverage
-        sort and the cap's — rather than last among the unscored.
+        sort and the cap's — rather than last among the unscored. A binding
+        unit's members all rank as the unit's best member, for the same reason:
+        one affordance, one place in every order.
         """
         rank_of = {name: index for index, name in enumerate(ranking or ())}
         beyond = len(rows) + len(rank_of)
         family_best: dict[str, int] = {}
+        unit_best: dict[str, int] = {}
         for row in rows:
             if not row.door:
                 own = rank_of.get(row.name, beyond)
                 family_best[row.family] = min(own, family_best.get(row.family, beyond))
+                if row.unit is not None:
+                    unit_best[row.unit] = min(own, unit_best.get(row.unit, beyond))
 
         def rank(row: _Row) -> int:
             if row.door:
                 return family_best.get(row.family, beyond)
+            if row.unit is not None:
+                return unit_best.get(row.unit, beyond)
             return rank_of.get(row.name, beyond)
 
         return rank
@@ -397,8 +442,9 @@ class ReactToolSelector:
         """The priority rows (registration order) and the family coverage (by rank).
 
         Coverage keeps, per family outside the detected domains, its
-        ``CATALOGUE_DOMAIN_COVERAGE_TOP_N`` best-ranked tools and, beside them,
-        its delegation door when the family is an expanded user MCP server.
+        ``CATALOGUE_DOMAIN_COVERAGE_TOP_N`` best-ranked seats and, beside them,
+        its delegation door when the family is an expanded user MCP server. A
+        binding unit is ONE seat: its members sit together or not at all.
         """
         priority = [row for row in rows if row.priority]
         by_family: dict[str, list[_Row]] = {}
@@ -408,10 +454,30 @@ class ReactToolSelector:
         coverage: list[_Row] = []
         for members in by_family.values():
             doors = [row for row in members if row.door]
-            seats = sorted((row for row in members if not row.door), key=rank)
-            coverage.extend(doors + seats[:CATALOGUE_DOMAIN_COVERAGE_TOP_N])
+            seats = ReactToolSelector._seats(members, rank)
+            coverage.extend(doors)
+            for seat in seats[:CATALOGUE_DOMAIN_COVERAGE_TOP_N]:
+                coverage.extend(seat)
         coverage.sort(key=rank)
         return priority, coverage
+
+    @staticmethod
+    def _seats(members: list[_Row], rank: Callable[[_Row], int]) -> list[list[_Row]]:
+        """The seats a family competes with, by rank: a unit's members on one seat."""
+        seats: list[list[_Row]] = []
+        seat_of_unit: dict[str, list[_Row]] = {}
+        for row in members:
+            if row.door:
+                continue
+            if row.unit is None:
+                seats.append([row])
+                continue
+            seat = seat_of_unit.get(row.unit)
+            if seat is None:
+                seat = seat_of_unit[row.unit] = []
+                seats.append(seat)
+            seat.append(row)
+        return sorted(seats, key=lambda seat: rank(seat[0]))
 
     @staticmethod
     def _semantic_tail(

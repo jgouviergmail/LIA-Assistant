@@ -245,17 +245,14 @@ export const POSES: Record<EyeExpression, PartialChannelValues> = {
     mouth(0.1, 0.75, 0, 0.3)
   ),
 
-  /** Half-lidded from above; the engine aims the gaze up. */
+  /** An asymmetrical held thought: one brow asks, the other concentrates. */
   thinking: merge(
-    both('sy', 0.6),
-    both('oy', 60),
-    { browYL: -0.08, browYR: 0, browRotL: -5, browRotR: 8 },
-    // One brow wonders, the other presses in toward the nose: the thought.
-    { browArcL: 0.5, browArcR: 0.05, browXL: 0, browXR: -0.03 },
-    pupils(0.9),
-    // ...and the lips purse off to one side.
-    mouth(-0.15, 0.7, 0, 0.35),
-    { mouthX: 0.035 }
+    pair('sy', 0.9, 0.72),
+    both('oy', 52),
+    { browYL: -0.085, browYR: 0.015, browRotL: -12, browRotR: 6 },
+    { browArcL: 0.6, browArcR: 0.14, tilt: -3.5, mouthX: 0.065 },
+    pupils(0.85),
+    mouth(0.03, 0.55, 0, 0.3)
   ),
 
   /** A light squint. The looking itself is a SACCADE pattern (see
@@ -344,11 +341,12 @@ export const POSES: Record<EyeExpression, PartialChannelValues> = {
 
 export const STYLE_GEOMETRY: Record<EyeStyleId, PartialChannelValues> = {
   cozmo: {},
+  smiley: radii(0.3, 0.3, 0.3, 0.3),
   capsules: radii(0.5, 0.5, 0.5, 0.5),
   billes: radii(0.58, 0.58, 0.58, 0.58),
   amande: merge(radii(0.55, 0.42, 0.55, 0.42), pair('baseRot', -12, 12)),
   traits: radii(0.21, 0.21, 0.21, 0.21),
-  anneaux: radii(0.53, 0.53, 0.53, 0.53),
+  anneaux: merge(radii(0.53, 0.53, 0.53, 0.53), both('strokeRound', 1), both('strokeWeight', 16)),
 };
 
 // =============================================================================
@@ -394,22 +392,28 @@ export const STYLE_POSE_OVERRIDES: Partial<Record<EyeStyleId, StyleOverrides>> =
   /** Strokes are DRAWN by the stylesheet (arch, bar, ring): the pose must not
    * squash them, or the drawing gets crushed on top of its own shape. */
   traits: {
-    joy: UNSQUASHED,
-    wink: merge(UNSQUASHED, { blinkR: 1 }),
-    sad: merge(UNSQUASHED, both('ty', 0.08), both('rot', 0)),
+    joy: merge(UNSQUASHED, both('strokeArc', 1), both('strokeWeight', 16)),
+    wink: merge(UNSQUASHED, {
+      strokeArcL: 1,
+      strokeHorizontalR: 1,
+      strokeWeightL: 16,
+      strokeWeightR: 16,
+      blinkR: 1,
+    }),
+    sad: merge(UNSQUASHED, both('strokeArc', -1), both('strokeWeight', 16), both('rot', 0)),
+    surprise: merge(UNSQUASHED, both('strokeRound', 1), both('strokeWeight', 16)),
     anger: merge(both('sy', 1), both('oy', 50), pair('rot', 24, -24)),
-    // The stroke states its own closure: the sheet already collapses the bar
-    // to a dash for these two, so the lids must stand down or the squash they
-    // fold into compounds with it and the eye disappears (measured in a
-    // browser: 1.2 px at the medium size).
-    sleepy: merge(both('sy', 1), both('oy', 50), NO_LIDS),
-    sleep: merge(both('sy', 1), both('oy', 50), NO_LIDS),
+    sleepy: merge(UNSQUASHED, NO_LIDS, both('strokeHorizontal', 1), both('strokeWeight', 16)),
+    sleep: merge(UNSQUASHED, NO_LIDS, both('strokeHorizontal', 1), both('strokeWeight', 16)),
   },
-  /** Rings keep their circle: joy is an arch drawn by the border, not a
-   * flattened disc. */
   anneaux: {
-    joy: merge(UNSQUASHED, both('ty', -0.06)),
-    wink: merge(UNSQUASHED, both('ty', -0.06), { blinkR: 1 }),
+    joy: merge(UNSQUASHED, both('strokeRound', 0), both('strokeArc', 1), both('ty', -0.06)),
+    wink: merge(UNSQUASHED, both('strokeRound', 0), {
+      strokeArcL: 1,
+      strokeHorizontalR: 1,
+      blinkR: 1,
+    }),
+    sleep: merge(UNSQUASHED, NO_LIDS, both('strokeRound', 0), both('strokeHorizontal', 1)),
   },
 };
 
@@ -429,6 +433,7 @@ export const STYLE_POSE_OVERRIDES: Partial<Record<EyeStyleId, StyleOverrides>> =
  */
 export const STYLE_LID_MODE: Record<EyeStyleId, 'clip' | 'squash'> = {
   cozmo: 'clip',
+  smiley: 'clip',
   capsules: 'clip',
   billes: 'clip',
   amande: 'clip',
@@ -585,7 +590,13 @@ function breathLoops(periodMs: number, scale: number): LoopSpec[] {
       phase: 0.23,
       waveform: 'sine',
     },
-    { channel: 'massY', amplitude: -0.015, periodMs, phase: 0, waveform: 'sine' },
+    {
+      channel: 'massY',
+      amplitude: -0.015,
+      periodMs,
+      phase: 0,
+      waveform: 'sine',
+    },
     {
       channel: 'massY',
       amplitude: -0.015 * BREATH_SECOND_WEIGHT,
@@ -596,7 +607,13 @@ function breathLoops(periodMs: number, scale: number): LoopSpec[] {
     // The face breathes with the mass: a phase just under a full turn is a
     // short delay behind it (the sine is periodic), and the right brow trails
     // the left as everything on the right does.
-    { channel: 'browYL', amplitude: brow, periodMs, phase: BREATH_BROW_LAG, waveform: 'sine' },
+    {
+      channel: 'browYL',
+      amplitude: brow,
+      periodMs,
+      phase: BREATH_BROW_LAG,
+      waveform: 'sine',
+    },
     {
       channel: 'browYR',
       amplitude: brow * RIGHT_AMPLITUDE_JITTER,
@@ -620,7 +637,11 @@ function eyeLoop(
   amplitude: number,
   periodMs: number,
   phase: number,
-  options: { rightPeriodMs?: number; rightDelayMs?: number; waveform?: LoopSpec['waveform'] } = {}
+  options: {
+    rightPeriodMs?: number;
+    rightDelayMs?: number;
+    waveform?: LoopSpec['waveform'];
+  } = {}
 ): LoopSpec[] {
   const rightPeriod = options.rightPeriodMs ?? periodMs;
   const waveform = options.waveform ?? 'sine';
@@ -651,30 +672,66 @@ function eyeLoop(
  * else that idles.
  */
 const DRIFT_LOOPS: readonly LoopSpec[] = [
-  { channel: 'gazeX', amplitude: 0.022, periodMs: 5300, phase: 0, waveform: 'sine' },
-  { channel: 'gazeX', amplitude: 0.014, periodMs: 8700, phase: 0.37, waveform: 'sine' },
-  { channel: 'gazeY', amplitude: 0.018, periodMs: 6100, phase: 0.61, waveform: 'sine' },
-  { channel: 'gazeY', amplitude: 0.011, periodMs: 9700, phase: 0.13, waveform: 'sine' },
-  { channel: 'rotL', amplitude: 0.12, periodMs: 7300, phase: 0.2, waveform: 'sine' },
-  { channel: 'rotR', amplitude: 0.14, periodMs: 8100, phase: 0.66, waveform: 'sine' },
+  {
+    channel: 'gazeX',
+    amplitude: 0.022,
+    periodMs: 5300,
+    phase: 0,
+    waveform: 'sine',
+  },
+  {
+    channel: 'gazeX',
+    amplitude: 0.014,
+    periodMs: 8700,
+    phase: 0.37,
+    waveform: 'sine',
+  },
+  {
+    channel: 'gazeY',
+    amplitude: 0.018,
+    periodMs: 6100,
+    phase: 0.61,
+    waveform: 'sine',
+  },
+  {
+    channel: 'gazeY',
+    amplitude: 0.011,
+    periodMs: 9700,
+    phase: 0.13,
+    waveform: 'sine',
+  },
+  {
+    channel: 'rotL',
+    amplitude: 0.12,
+    periodMs: 7300,
+    phase: 0.2,
+    waveform: 'sine',
+  },
+  {
+    channel: 'rotR',
+    amplitude: 0.14,
+    periodMs: 8100,
+    phase: 0.66,
+    waveform: 'sine',
+  },
   // A resting MOUTH is never quite still either — the corners wander on
   // their own long clocks (its width breathes with the mass, above). Sized
   // to cross the pixel: 0.03 of curve was 0.23 px at the medium size, which
   // is a still image with a number attached.
-  { channel: 'mouthCurve', amplitude: 0.06, periodMs: 7900, phase: 0.44, waveform: 'sine' },
-  { channel: 'mouthSkew', amplitude: 0.09, periodMs: 11300, phase: 0.18, waveform: 'sine' },
-];
-
-/**
- * Chewing on a thought. A held `thinking` is the one resting pose where the
- * mouth WORKS: the corners shift and the width pulls, quicker than the drift
- * and slower than speech, on two clocks that never line up.
- */
-const CHEW_LOOPS: readonly LoopSpec[] = [
-  { channel: 'mouthSkew', amplitude: 0.07, periodMs: 2300, phase: 0.3, waveform: 'sine' },
-  { channel: 'mouthW', amplitude: 0.025, periodMs: 3100, phase: 0.7, waveform: 'sine' },
-  // ...and the pursed lips wander from one side to the other.
-  { channel: 'mouthX', amplitude: 0.018, periodMs: 2700, phase: 0.5, waveform: 'sine' },
+  {
+    channel: 'mouthCurve',
+    amplitude: 0.06,
+    periodMs: 7900,
+    phase: 0.44,
+    waveform: 'sine',
+  },
+  {
+    channel: 'mouthSkew',
+    amplitude: 0.09,
+    periodMs: 11300,
+    phase: 0.18,
+    waveform: 'sine',
+  },
 ];
 
 /** The sleeper's breath period — the eyes' own slow swell. */
@@ -699,12 +756,24 @@ export function resolveLoops(expression: EyeExpression, family: IdleMoodFamily):
       // is generated, syllable by syllable, as the state's pattern
       // (`rig/speech.ts`) — sines only ever got louder and quieter.
       return [
-        ...eyeLoop('ty', 0.014, 900, 0.5, { rightPeriodMs: 980, rightDelayMs: 120 }),
-        ...eyeLoop('sy', 0.015, 900, 0, { rightPeriodMs: 980, rightDelayMs: 120 }),
+        ...eyeLoop('ty', 0.014, 900, 0.5, {
+          rightPeriodMs: 980,
+          rightDelayMs: 120,
+        }),
+        ...eyeLoop('sy', 0.015, 900, 0, {
+          rightPeriodMs: 980,
+          rightDelayMs: 120,
+        }),
       ];
     case 'fear':
       return [
-        { channel: 'massX', amplitude: 0.016, periodMs: 130, phase: 0, waveform: 'triangle' },
+        {
+          channel: 'massX',
+          amplitude: 0.016,
+          periodMs: 130,
+          phase: 0,
+          waveform: 'triangle',
+        },
       ];
     case 'sleepy':
       return breathLoops(SLEEPY_BREATH_MS, BREATH_BY_FAMILY.drowsy.scale);
@@ -724,7 +793,7 @@ export function resolveLoops(expression: EyeExpression, family: IdleMoodFamily):
       ];
     case 'thinking': {
       const breath = BREATH_BY_FAMILY[family];
-      return [...breathLoops(breath.periodMs, breath.scale), ...DRIFT_LOOPS, ...CHEW_LOOPS];
+      return breathLoops(Math.max(4000, breath.periodMs), breath.scale * 0.55);
     }
     default: {
       if (!BREATHING.has(expression)) return [];

@@ -31,10 +31,10 @@ export interface FaceMetrics {
 /** Mirrors the Cozmo tokens of the sheet (`--mouth-span`, `--mouth-ink`,
  * `--eye-h`). */
 const MOUTH_SPAN_EM = 0.92;
-const MOUTH_INK_EM = 0.1;
+
 const EYE_H_EM = 1.05;
-const BROW_THICKNESS_EM = 0.13;
-const BROW_ARCH_EM = 0.14;
+const BROW_THICKNESS_EM = (0.3 * 10) / 36;
+const BROW_ARCH_EM = (0.3 * 18) / 36;
 
 /**
  * Where the visible top edge of one eye sits below the top of its box, as a
@@ -51,18 +51,28 @@ function curve(arc: number): number {
 }
 
 export function faceMetrics(values: Readonly<ChannelValues>, px: number): FaceMetrics {
-  const lean = values.mouthSkew * values.mouthFlip;
+  const lean = values.mouthSkew;
+  const upper = 32 + values.mouthCurve * 16 - values.mouthArc ** 2 * 9;
+  const depth = 6 + values.mouthArc ** 2 * 32;
+  const opening = values.mouthOpen * (80 - upper - depth);
   return {
-    mouthHeight: (MOUTH_INK_EM + values.mouthArc * 0.26 + values.mouthOpen * 0.5) * px,
+    mouthHeight: (((depth + opening) * 0.75 * 0.68) / 80) * px,
     mouthWidth: MOUTH_SPAN_EM * values.mouthW * px,
-    mouthTilt: lean * 14,
+    mouthTilt:
+      (Math.atan2((14 * lean * 0.68) / 80, MOUTH_SPAN_EM * values.mouthW * 0.9) * 180) / Math.PI,
     browY: {
       left: (visibleTopFraction(values, 'L') * EYE_H_EM + values.browYL) * px,
       right: (visibleTopFraction(values, 'R') * EYE_H_EM + values.browYR) * px,
     },
     browHeight: {
-      left: (BROW_THICKNESS_EM * values.browSL + curve(values.browArcL) * BROW_ARCH_EM) * px,
-      right: (BROW_THICKNESS_EM * values.browSR + curve(values.browArcR) * BROW_ARCH_EM) * px,
+      left:
+        (BROW_THICKNESS_EM * Math.max(0.94, Math.min(1.06, values.browSL)) +
+          curve(values.browArcL) * BROW_ARCH_EM) *
+        px,
+      right:
+        (BROW_THICKNESS_EM * Math.max(0.94, Math.min(1.06, values.browSR)) +
+          curve(values.browArcR) * BROW_ARCH_EM) *
+        px,
     },
   };
 }

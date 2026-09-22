@@ -336,6 +336,8 @@ async def test_char_skill_react_fast_path_uses_runner_answer():
     state["query_intelligence"] = {"detected_skill_name": "my_skill"}
 
     skill_data = {
+        "name": "my_skill",
+        "instructions": "Run the bundled script and answer with its result.",
         "scripts": ["run.py"],
         "references": [],
         "source_path": "/skills/my_skill/SKILL.md",
@@ -348,6 +350,8 @@ async def test_char_skill_react_fast_path_uses_runner_answer():
     )
     runner_instance = Mock()
     runner_instance.run = AsyncMock(return_value=fake_run_result)
+    registry = Mock()
+    registry.get_store.return_value = None
 
     with ExitStack() as stack:
         mocks = _patch_collaborators(stack)
@@ -365,7 +369,13 @@ async def test_char_skill_react_fast_path_uses_runner_answer():
         stack.enter_context(
             patch("src.domains.skills.cache.SkillsCache.get_by_name", Mock(return_value=skill_data))
         )
-        stack.enter_context(patch("src.domains.skills.tools.skills_tools", []))
+        stack.enter_context(patch("src.domains.skills.tools.skills_runner_tools", []))
+        stack.enter_context(
+            patch(
+                "src.domains.agents.registry.agent_registry.get_global_registry",
+                Mock(return_value=registry),
+            )
+        )
         stack.enter_context(
             patch(
                 "src.domains.agents.tools.react_runner.ReactSubAgentRunner",

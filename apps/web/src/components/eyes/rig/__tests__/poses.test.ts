@@ -321,19 +321,11 @@ describe('resolveLoops', () => {
     );
   });
 
-  it('CHEWS on a thought: the corners and the width work while thinking', () => {
+  it('lets a thought breathe without a chewing oscillator', () => {
     const thinking = resolveLoops('thinking', 'calm');
-    const skew = thinking.filter(loop => loop.channel === 'mouthSkew');
-    const width = thinking.filter(loop => loop.channel === 'mouthW');
-    // The resting drift on the corners plus a quicker, visible chew.
-    expect(skew.length).toBeGreaterThanOrEqual(2);
-    expect(Math.min(...skew.map(loop => loop.periodMs))).toBeLessThan(3000);
-    // The width works too: one more component than the breath alone gives a
-    // resting face, and a visible one.
-    const restingWidth = resolveLoops('neutral', 'calm').filter(loop => loop.channel === 'mouthW');
-    expect(width.length).toBe(restingWidth.length + 1);
-    expect(Math.max(...width.map(loop => Math.abs(loop.amplitude)))).toBeGreaterThanOrEqual(0.02);
-    // ...and it still breathes.
+    const mouth = thinking.filter(loop => loop.channel.startsWith('mouth'));
+    expect(mouth.every(loop => Math.abs(loop.amplitude) < 0.02)).toBe(true);
+    expect(mouth.every(loop => loop.periodMs > 3000)).toBe(true);
     expect(thinking.some(loop => loop.channel === 'mass')).toBe(true);
   });
 

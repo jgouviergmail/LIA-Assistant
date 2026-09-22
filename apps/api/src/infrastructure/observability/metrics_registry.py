@@ -133,6 +133,19 @@ peer_domain_correction_total = Counter(
     ["primary_domain"],
 )
 
+skill_runner_outcomes_total = Counter(
+    "skill_runner_outcomes_total",
+    (
+        "Script-skill runner outcomes in the response node. A runner that "
+        "called no tool (`no_tool_call`) answered in prose for a skill whose "
+        "point is its script — production 2026-09-20: misled by an earlier "
+        "text game in the history, and its result was dropped in silence. "
+        "The instructions then fall back to the passive injection; `error` "
+        "is the runner raising."
+    ),
+    ["outcome"],  # tools_called | no_tool_call | error
+)
+
 skill_url_imports_total = Counter(
     "skill_url_imports_total",
     (

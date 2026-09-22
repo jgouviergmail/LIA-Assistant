@@ -852,13 +852,9 @@ class TestRescueStructuredFromText:
     """
 
     def _rescue(self, raw_message: Any):
-        from src.infrastructure.llm.structured_output import (
-            _rescue_structured_from_text,
-        )
+        from src.infrastructure.llm.tool_call_rescue import rescue_from_text
 
-        return _rescue_structured_from_text(
-            raw_message, SimpleDecision, "deepseek", "SimpleDecision"
-        )
+        return rescue_from_text(raw_message, SimpleDecision, "deepseek", "SimpleDecision")
 
     def test_rescues_plain_json_text(self):
         raw = AIMessage(content='{"reasoning": "from text", "action": "search", "confidence": 0.7}')

@@ -22,7 +22,7 @@ import { join } from 'node:path';
 import { POSES, exaggeratePose, resolveLoops, resolvePose } from '@/components/eyes/rig/poses';
 import { FAMILY_DYNAMICS } from '@/components/eyes/rig/dynamics';
 import { AMPLITUDE_MAX } from '@/components/eyes/tone';
-import { browStretchFor, createEyeRig, type EyeRig } from '@/components/eyes/rig/runtime';
+import { createEyeRig, type EyeRig } from '@/components/eyes/rig/runtime';
 import { ARRIVAL_SCRIPTS, resolvePatterns } from '@/components/eyes/rig/scripts';
 import { CHANNELS, type ChannelKey } from '@/components/eyes/rig/channels';
 import { EYE_EXPRESSIONS, type EyeExpression } from '@/components/eyes/expression-engine';
@@ -65,14 +65,20 @@ const curveOf = (expression: EyeExpression) => resolvePose(expression, 'cozmo').
 describe('the mouth', () => {
   it('lifts the corners for what is pleasant', () => {
     (['joy', 'excited', 'tender', 'wink', 'attentive', 'sleep'] as const).forEach(expression => {
-      expect({ expression, up: curveOf(expression) > 0 }).toEqual({ expression, up: true });
+      expect({ expression, up: curveOf(expression) > 0 }).toEqual({
+        expression,
+        up: true,
+      });
     });
   });
 
   it('drops them for what is not', () => {
-    (['sad', 'anger', 'worried', 'fear', 'thinking', 'focused', 'bored', 'tired'] as const).forEach(
+    (['sad', 'anger', 'worried', 'fear', 'focused', 'bored', 'tired'] as const).forEach(
       expression => {
-        expect({ expression, down: curveOf(expression) < 0 }).toEqual({ expression, down: true });
+        expect({ expression, down: curveOf(expression) < 0 }).toEqual({
+          expression,
+          down: true,
+        });
       }
     );
   });
@@ -108,37 +114,26 @@ describe('the derived arc', () => {
       initial: { expression: 'joy', styleId: 'cozmo', family: 'calm' },
     });
     expect(smiling.values().mouthArc).toBeGreaterThan(0);
-    expect(smiling.values().mouthFlip).toBe(1);
+    expect(smiling.values().mouthCurve).toBeGreaterThan(0);
 
     const frowning = createEyeRig({
       initial: { expression: 'sad', styleId: 'cozmo', family: 'calm' },
     });
     expect(frowning.values().mouthArc).toBeGreaterThan(0);
-    expect(frowning.values().mouthFlip).toBe(-1);
+    expect(frowning.values().mouthCurve).toBeLessThan(0);
   });
 
   it('never emits a negative depth, on any expression', () => {
     EYE_EXPRESSIONS.forEach(expression => {
-      const rig = createEyeRig({ initial: { expression, styleId: 'cozmo', family: 'calm' } });
+      const rig = createEyeRig({
+        initial: { expression, styleId: 'cozmo', family: 'calm' },
+      });
       trace(rig, 'mouthArc', 40);
       expect({ expression, negative: rig.values().mouthArc < 0 }).toEqual({
         expression,
         negative: false,
       });
     });
-  });
-
-  it('HOLDS its direction through the flat crossing', () => {
-    // Travelling from a frown to a smile, the curve passes through zero. If
-    // the direction were recomputed there it would flicker on noise — the same
-    // treatment the stretch axis already gets.
-    const rig = createEyeRig({ initial: { expression: 'sad', styleId: 'cozmo', family: 'calm' } });
-    rig.setPose({ expression: 'joy', styleId: 'cozmo', family: 'calm' });
-    const flips = trace(rig, 'mouthFlip', 60);
-    // Exactly one change of direction across the whole crossing.
-    const changes = flips.filter((value, index) => index > 0 && value !== flips[index - 1]);
-    expect(changes).toHaveLength(1);
-    expect(rig.values().mouthFlip).toBe(1);
   });
 });
 
@@ -155,7 +150,10 @@ describe('speaking', () => {
     // opening, the shape and the brows are keyed syllable by syllable in
     // `rig/speech.ts`; what is left to loop is the eyes' bob.
     resolveLoops('speaking', 'calm').forEach(loop =>
-      expect({ channel: loop.channel, eyes: /^(ty|sy)[LR]$/.test(loop.channel) }).toEqual({
+      expect({
+        channel: loop.channel,
+        eyes: /^(ty|sy)[LR]$/.test(loop.channel),
+      }).toEqual({
         channel: loop.channel,
         eyes: true,
       })
@@ -209,8 +207,11 @@ describe('drawing', () => {
   it('follows the HEAD but never the gaze — eyes move inside a face', () => {
     const block = CSS.slice(CSS.indexOf('.lia-mouth {'));
     const rule = block.slice(0, block.indexOf('\n}'));
-    expect(rule).toContain('--rig-tilt');
-    expect(rule).toContain('--rig-mass');
+    const head = CSS.slice(CSS.indexOf('.lia-head {'));
+    const headRule = head.slice(0, head.indexOf('\n}'));
+    expect(headRule).toContain('--rig-tilt');
+    expect(headRule).toContain('--rig-mass');
+    expect(rule).toContain('--rig-head-yaw');
     expect(rule).not.toContain('--rig-gaze');
   });
 
@@ -220,20 +221,6 @@ describe('drawing', () => {
 });
 
 describe('the speech bubble', () => {
-  /** The brow's thickness and the extra height a full arch adds, both from
-   * its `height: calc(...)` — the arch grows the box UPWARDS, so it reaches
-   * as high as a raise does. */
-  function browHeightsEm(): { thickness: number; arch: number } {
-    const block = CSS.slice(CSS.indexOf('.lia-eye-brow {'));
-    const match = block
-      .slice(0, block.indexOf('}'))
-      .match(
-        /height:\s*calc\(([\d.]+)em \* var\(--brow-s\) \+ var\(--brow-curve\) \* ([\d.]+)em\)/
-      );
-    if (!match) throw new Error('no brow height');
-    return { thickness: Number(match[1]), arch: Number(match[2]) };
-  }
-
   /** The eye box height the brow's `top:` is a fraction of (`--eye-h`). */
   const EYE_H_EM = 1.05;
 
@@ -244,20 +231,18 @@ describe('the speech bubble', () => {
    * authored, which is not what a `surprised` answer at full intensity draws. */
   function browReachEm(): number {
     const base = browBaseOffset();
-    const { thickness, arch } = browHeightsEm();
+    const height = cssLength('.lia-eye-brow {', 'height');
     const padding = cssLength('.lia-eyes-gaze {', 'padding');
     const loudest = AMPLITUDE_MAX * FAMILY_DYNAMICS.lively.amplitude;
     const neutral = resolvePose('neutral', 'cozmo');
     const reach = EYE_EXPRESSIONS.map(e => {
       const pose = exaggeratePose(neutral, resolvePose(e, 'cozmo'), loudest);
       const raise = Math.abs(Math.min(0, pose.browYL));
-      const curve = Math.min(1, Math.max(0, pose.browArcL));
       // The brow is anchored to the visible top of the shape: a widened eye
       // (sy above 1) lifts that edge above the box, and the brow with it.
       const anchor =
         ((pose.oyL / 100) * (1 - pose.syL) + (pose.lidTopL / 100) * pose.syL) * EYE_H_EM;
-      const weight = browStretchFor(pose.browYL, pose.browArcL);
-      return raise + curve * arch + thickness * weight - anchor;
+      return raise + height - anchor;
     });
     return base + Math.max(...reach) - padding;
   }
@@ -303,7 +288,7 @@ describe('the corners', () => {
   });
 
   it('are most crooked exactly where a straight mouth would be wrong', () => {
-    // A wink, a question, a thought and boredom are all read from the corner
+    // A wink, a question, consideration and boredom are all read from the corner
     // of the mouth before anything else on the face.
     const strongest = [...EYE_EXPRESSIONS]
       .sort((left, right) => Math.abs(skewOf(right)) - Math.abs(skewOf(left)))
@@ -315,17 +300,6 @@ describe('the corners', () => {
     expect(skewOf('surprise')).toBe(0);
     expect(skewOf('speaking')).toBe(0);
     expect(skewOf('neutral')).toBe(0);
-  });
-
-  it('keep the SAME side through the flat crossing, in the drawing', () => {
-    // The shape is mirrored for a frown, so a bare rotation would swap the
-    // raised corner exactly where the mouth is a flat bar and the tilt is the
-    // only thing visible. The lean is derived ONCE and every consumer reads
-    // that one value.
-    expect(CSS).toContain(
-      '--mouth-lean: calc(var(--rig-mouth-skew, 0) * var(--rig-mouth-flip, 1))'
-    );
-    expect(CSS).toContain('rotate: calc(var(--mouth-lean) * 14deg)');
   });
 });
 
@@ -379,7 +353,7 @@ describe('the mouth is a solid shape, not a stroke', () => {
   it('is FILLED in the ink, the way the eyes themselves are', () => {
     // A hairline under two filled, glowing eyes is a line drawing wearing a
     // screen face. Every feature in this language is a filled silhouette.
-    expect(BLOCK).toContain('background: var(--eyes-color)');
+    expect(BLOCK).toContain('fill: var(--mouth-color, var(--eyes-color))');
     // A stroke, not a radius: the shape is filled, so the only `border-*` it
     // may carry is geometry.
     expect(BLOCK).not.toContain('border-bottom:');
@@ -394,81 +368,6 @@ describe('the mouth is a solid shape, not a stroke', () => {
     expect(CSS).not.toContain('.lia-mouth-tongue');
   });
 
-  it('FLATTENS its top edge as the curve deepens — that is what makes it a grin', () => {
-    // At rest the same shape is a fully rounded little bar; at full curve it
-    // is a flat-topped, round-bottomed slab, which IS a cartoon smile.
-    expect(BLOCK).toContain('(1 - var(--rig-mouth-arc, 0)) * 38%');
-  });
-
-  it('grows with BOTH the curve and the opening, so one shape covers three moods', () => {
-    expect(BLOCK).toContain('var(--rig-mouth-arc, 0) * 0.26em');
-    expect(BLOCK).toContain('var(--rig-mouth-open, 0) * 0.5em');
-  });
-
-  it('publishes the arc UNITLESS, because CSS cannot divide a length by a length', () => {
-    // The stylesheet needs the depth as a height AND as a radius ratio. In em
-    // it could be the first and never the second.
-    expect(CHANNELS.mouthArc.unit).toBe('num');
-    const rig = createEyeRig({ initial: { expression: 'joy', styleId: 'cozmo', family: 'calm' } });
-    expect(rig.values().mouthArc).toBeLessThanOrEqual(1);
-  });
-
-  it('is turned over for a frown rather than drawn a second time', () => {
-    expect(BLOCK).toContain('var(--rig-mouth-flip, 1);');
-  });
-
-  it('keeps a FROWN under the eyes instead of growing it into the face', () => {
-    // Mirroring about the top edge sends the shape upwards. Measured in a
-    // browser before this line existed: every flipped mouth (anger, sad)
-    // overlapped the eyes by 3.2 to 7.7 px at sm/md/lg, while every unflipped
-    // one cleared them by 5.5 to 13.8. Pushing the shape down by its own
-    // height when — and only when — it is flipped puts both directions in the
-    // same band, and the same measurement then reads 4.3 to 13.8 px, positive
-    // throughout.
-    expect(BLOCK).toContain(
-      'translate: 0 calc((1 - var(--rig-mouth-flip, 1)) * 0.5 * var(--mouth-h))'
-    );
-  });
-
-  it('is never a HALF-DISC: three measured departures from the compass', () => {
-    // "Une bouche trop symetrique comme un demi cercle plein, ce n'est pas
-    // esthetique ni expressif" — owner, 2026-09-01. Measured in a browser on a
-    // real `joy` after the fix: bottom corners 55.07% against 44.93%, top
-    // corners 16.94% (never flat), width/height 2.71 (a half-disc is 2.0).
-    //
-    // 1. The top edge keeps a floor of curvature however deep the smile goes.
-    expect(BLOCK).toContain('calc(12% + (1 - var(--rig-mouth-arc, 0)) * 38%)');
-    // 2. The two bottom corners are DIFFERENT, leaning with the mouth.
-    expect(BLOCK).toContain('calc(50% + var(--mouth-lean) * 26%)');
-    expect(BLOCK).toContain('calc(50% - var(--mouth-lean) * 26%)');
-    // 3. It SPREADS as it curves: a big smile is wide and shallow, not a bowl.
-    expect(BLOCK).toContain('calc(1 + var(--rig-mouth-arc, 0) * 0.13)');
-  });
-
-  it('is SYMMETRIC at the flat crossing, so the mirror is invisible there', () => {
-    // The shape is turned over when the curve changes sign. With a fixed 100%
-    // vertical radius on the bottom corners, CSS normalises the pair to
-    // 33%/67% at arc 0 — computed, not guessed — and the flip visibly swaps
-    // the rounder end of a 3 px bar. Tying the bottom radius to the arc gives
-    // 50%/50% at the crossing and the same 9%/91% at a full grin.
-    expect(BLOCK).toContain(
-      'border-bottom-left-radius: calc(50% + var(--mouth-lean) * 26%)\n    calc(50% + var(--rig-mouth-arc, 0) * 50%)'
-    );
-    expect(BLOCK).toContain(
-      'border-bottom-right-radius: calc(50% - var(--mouth-lean) * 26%)\n    calc(50% + var(--rig-mouth-arc, 0) * 50%)'
-    );
-  });
-
-  it('derives the lean ONCE, so the tilt and the asymmetry can never disagree', () => {
-    // Three consumers, one expression. Written out three times, the corner that
-    // rides higher and the corner that is rounder would part company exactly at
-    // the flat crossing — where they are the only thing left to see.
-    expect(BLOCK).toContain(
-      '--mouth-lean: calc(var(--rig-mouth-skew, 0) * var(--rig-mouth-flip, 1))'
-    );
-    expect(BLOCK).toContain('rotate: calc(var(--mouth-lean) * 14deg)');
-  });
-
   it('gives every SMILING expression a visible lean', () => {
     // A perfectly symmetric smile is the thing being corrected. 0.04 was
     // arithmetically an asymmetry and visually a compass.
@@ -479,6 +378,9 @@ describe('the mouth is a solid shape, not a stroke', () => {
 
   it('lets the jaw drop with the opening', () => {
     const block = CSS.slice(CSS.indexOf('.lia-mouth {'));
-    expect(block.slice(0, block.indexOf('\n}'))).toContain('var(--rig-mouth-open, 0) * 0.06em');
+    const coefficient = block.slice(0, block.indexOf('\n}')).match(/mouth-open, 0\) \* ([\d.]+)em/);
+    expect(coefficient).not.toBeNull();
+    expect(Number(coefficient?.[1])).toBeGreaterThan(0);
+    expect(Number(coefficient?.[1])).toBeLessThanOrEqual(0.04);
   });
 });

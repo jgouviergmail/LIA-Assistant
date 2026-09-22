@@ -11,6 +11,7 @@
  * status moves through the machine (`apply`), never by assignment.
  */
 
+import type { ActivityRecord, Activity } from '@/components/eyes/activity';
 import { create } from 'zustand';
 
 import { LIVE_CAPTIONS_MAX } from '@/lib/constants';
@@ -39,6 +40,8 @@ export interface LiveCaption {
 }
 
 export interface LiveStore {
+  lastActivity: ActivityRecord | null;
+  recordActivity: (event: Activity) => void;
   status: LiveStatus;
   voiceState: VoiceModeState;
   sessionId: string | null;
@@ -108,6 +111,7 @@ export interface LiveStore {
 }
 
 const INITIAL = {
+  lastActivity: null as ActivityRecord | null,
   status: 'idle' as LiveStatus,
   voiceState: 'idle' as VoiceModeState,
   sessionId: null,
@@ -142,6 +146,7 @@ export const useLiveStore = create<LiveStore>((set, get) => ({
     set({ pendingStart: null });
     return mode;
   },
+  recordActivity: event => set({ lastActivity: { event, at: Date.now() } }),
   begin: (sessionId, mode = 'delegated') => set({ ...INITIAL, sessionId, mode, status: 'minting' }),
   apply: event => set(state => ({ status: transition(state.status, event) })),
   setVoiceState: voiceState => set({ voiceState }),
@@ -172,6 +177,7 @@ export const useLiveStore = create<LiveStore>((set, get) => ({
   markLive: at => set(state => (state.liveSince === null ? { liveSince: at } : state)),
   finish: (outcome, error = null, detail = null) =>
     set({
+      lastActivity: null,
       status: 'ended',
       voiceState: 'idle',
       outcome,

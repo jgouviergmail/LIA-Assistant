@@ -13,6 +13,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from '@testing-library/react';
 
 import type { RigOptions } from '@/components/eyes/rig/runtime';
+import { activeFrameSubscribers } from '../rig/scheduler';
+import * as visibility from '../rig/visibility';
 
 const seen = vi.hoisted(() => ({ options: [] as RigOptions[], played: [] as Tape[][] }));
 
@@ -44,6 +46,31 @@ beforeEach(() => {
 });
 
 describe('useEyesRig — the sketch clock', () => {
+  it('unsubscribes an offscreen face and resumes only when it becomes visible', () => {
+    let notify: ((visible: boolean) => void) | undefined;
+    const subscription = vi
+      .spyOn(visibility, 'observeRigVisibility')
+      .mockImplementation((_, changed) => {
+        notify = changed;
+        return () => {};
+      });
+    const face = render(<ExpressiveEyes expression="thinking" gaze={null} size="md" />);
+    try {
+      expect(notify).toBeDefined();
+      expect(activeFrameSubscribers()).toBe(1);
+      notify?.(false);
+      expect(activeFrameSubscribers()).toBe(0);
+      face.rerender(<ExpressiveEyes expression="joy" gaze={null} size="md" />);
+      expect(activeFrameSubscribers()).toBe(0);
+      notify?.(true);
+      expect(activeFrameSubscribers()).toBe(1);
+      face.unmount();
+      expect(activeFrameSubscribers()).toBe(0);
+    } finally {
+      face.unmount();
+      subscription.mockRestore();
+    }
+  });
   it('hands every LIVING face the same clock across mounts, and a preview none', () => {
     const first = render(<ExpressiveEyes expression="neutral" gaze={null} size="md" />);
     first.unmount();

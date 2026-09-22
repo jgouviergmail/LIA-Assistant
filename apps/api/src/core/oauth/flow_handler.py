@@ -22,7 +22,7 @@ from urllib.parse import urlencode
 
 import httpx
 import structlog
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, ValidationError
 
 from src.core.config import settings
 from src.core.field_names import FIELD_TIMESTAMP
@@ -375,7 +375,6 @@ class OAuthFlowHandler:
                 return response.json()  # type: ignore[no-any-return]
 
             except httpx.HTTPStatusError as e:
-                error_detail = e.response.text if e.response else str(e)
                 with suppress(Exception):
                     from src.infrastructure.observability.metrics_oauth import (
                         oauth_provider_errors_total,
@@ -388,7 +387,6 @@ class OAuthFlowHandler:
                     "oauth_token_exchange_failed",
                     provider=provider_name,
                     status_code=e.response.status_code if e.response else None,
-                    error_detail=error_detail,
                 )
                 raise OAuthTokenExchangeError(
                     f"Token exchange failed with status {e.response.status_code if e.response else 'unknown'}",
@@ -441,12 +439,17 @@ class OAuthFlowHandler:
                 "oauth_invalid_token_response",
                 provider=self.provider.provider_name,
                 missing_field=str(e),
-                token_data=token_data,
             )
             raise OAuthProviderError(
                 f"Invalid token response from provider: missing {e}",
-                provider_response=token_data,
-            ) from e
+            ) from None
+        except ValidationError:
+            logger.error(
+                "oauth_invalid_token_response",
+                provider=self.provider.provider_name,
+                reason="invalid_field_type",
+            )
+            raise OAuthProviderError("Invalid token response from provider") from None
 
     async def revoke_token(
         self,

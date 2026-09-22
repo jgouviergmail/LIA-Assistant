@@ -18,10 +18,12 @@ Created: 2026-02-28
 
 from __future__ import annotations
 
+import asyncio
 import json
 import time
 from collections.abc import AsyncGenerator, Callable, Coroutine, Generator
 from contextlib import suppress
+from secrets import token_urlsafe
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -42,6 +44,22 @@ if TYPE_CHECKING:
     from src.domains.user_mcp.models import UserMCPServer
 
 logger = structlog.get_logger(__name__)
+
+_UNLOCK_OWNED_REFRESH = (
+    "if redis.call('get', KEYS[1]) == ARGV[1] "
+    "then return redis.call('del', KEYS[1]) else return 0 end"
+)
+
+
+class MCPRefreshTransientError(RuntimeError):
+    """Refresh failed without proof that user credentials were revoked."""
+
+
+class MCPRefreshCompletedByPeer(Exception):
+    """Another worker persisted the rotation while this request waited."""
+
+    def __init__(self, credentials: dict[str, Any]) -> None:
+        self.credentials = credentials
 
 
 class MCPNoAuth(httpx2.Auth):
@@ -120,9 +138,11 @@ class MCPOAuth2Auth(httpx2.Auth):
                 "mcp_oauth_token_expired_refreshing",
                 server_id=str(self.server_id),
             )
-            new_creds = await self._refresh_tokens(creds)
+            try:
+                new_creds = await self._refresh_tokens(creds)
+            except MCPRefreshCompletedByPeer as completed:
+                new_creds = completed.credentials
             if new_creds:
-                await self._update_creds_fn(new_creds)
                 request.headers["Authorization"] = f"Bearer {new_creds['access_token']}"
                 yield request
             else:
@@ -139,40 +159,16 @@ class MCPOAuth2Auth(httpx2.Auth):
         from invalidating tokens (same pattern as OAuthLock for Google).
         """
         lock_key = f"mcp_oauth_refresh_lock:{self.server_id}"
-        lock_acquired = False
-        # Redis unavailable — proceed without lock (best-effort)
-        with suppress(Exception):
-            from src.infrastructure.cache.redis import get_redis_session
-
-            redis = await get_redis_session()
-            lock_acquired = bool(
-                await redis.set(lock_key, "1", ex=MCP_OAUTH_REFRESH_LOCK_TTL_SECONDS, nx=True)
-            )
-            if not lock_acquired:
-                # Another request is already refreshing — re-read fresh creds
-                logger.info(
-                    "mcp_oauth_refresh_lock_contention",
-                    server_id=str(self.server_id),
-                )
-                return await self._get_creds_fn()
+        lock_owner = token_urlsafe(24)
+        lock_acquired, redis_available = await self._acquire_refresh_lock(lock_key, lock_owner)
+        if redis_available and not lock_acquired:
+            await self._wait_for_peer_refresh(creds)
 
         try:
             # Client identity: prefer the FRESH creds over the constructor
             # snapshot — a cached auth object must not replay a stale (or
             # missing) client_id after a re-registration updated the store.
-            client_id = creds.get("client_id") or self._client_id
-            client_secret = creds.get("client_secret") or self._client_secret
-
-            data = {
-                "grant_type": "refresh_token",
-                "refresh_token": creds["refresh_token"],
-            }
-            if client_id:
-                data["client_id"] = client_id
-            if client_secret:
-                data["client_secret"] = client_secret
-            if self._resource:
-                data["resource"] = self._resource
+            data = self._refresh_form(creds)
 
             async with httpx.AsyncClient(follow_redirects=False) as client:
                 resp = await client.post(
@@ -182,6 +178,7 @@ class MCPOAuth2Auth(httpx2.Auth):
                 )
 
             if resp.status_code != 200:
+                oauth_error = safe_oauth_error_code(resp)
                 logger.error(
                     "mcp_oauth_refresh_http_error",
                     server_id=str(self.server_id),
@@ -190,9 +187,13 @@ class MCPOAuth2Auth(httpx2.Auth):
                     # Its absence cost a full misdiagnosis on 2026-09-02 (a
                     # 400 caused by our own missing client_id was read as a
                     # server-side token expiry).
-                    oauth_error=safe_oauth_error_code(resp),
+                    oauth_error=oauth_error,
                 )
-                return None
+                if oauth_error in {"invalid_grant", "interaction_required"}:
+                    return None
+                raise MCPRefreshTransientError(
+                    "MCP OAuth refresh failed without revoked credentials"
+                )
 
             token_data = resp.json()
             expires_in = int(token_data.get("expires_in", 3600))
@@ -201,7 +202,7 @@ class MCPOAuth2Auth(httpx2.Auth):
             # client_id/client_secret/issuer, so every SECOND refresh posted
             # without client_id and died on 400 invalid_request (measured on
             # Era, 2026-09-02).
-            return {
+            new_credentials = {
                 **creds,
                 "access_token": token_data["access_token"],
                 "refresh_token": token_data.get("refresh_token", creds["refresh_token"]),
@@ -209,18 +210,73 @@ class MCPOAuth2Auth(httpx2.Auth):
                 "token_type": token_data.get("token_type", "Bearer"),
                 "scope": token_data.get("scope", creds.get("scope", "")),
             }
-        except Exception:
+            # Persist while still owning the distributed lock. Releasing it
+            # before the DB write let another worker replay the old refresh
+            # token and overwrite a successful rotation.
+            await self._update_creds_fn(new_credentials)
+            return new_credentials
+        except MCPRefreshTransientError, MCPRefreshCompletedByPeer:
+            raise
+        except Exception as error:
             logger.exception(
                 "mcp_oauth_refresh_exception",
                 server_id=str(self.server_id),
             )
-            return None
+            raise MCPRefreshTransientError("MCP OAuth refresh could not complete") from error
         finally:
             if lock_acquired:
-                # Lock will expire via TTL
+                # Never remove a newer worker's lock after ours expired.
                 with suppress(Exception):
+                    from src.infrastructure.cache.redis import get_redis_session
+
                     redis = await get_redis_session()
-                    await redis.delete(lock_key)
+                    await redis.eval(_UNLOCK_OWNED_REFRESH, 1, lock_key, lock_owner)
+
+    @staticmethod
+    async def _acquire_refresh_lock(lock_key: str, owner: str) -> tuple[bool, bool]:
+        """Return (acquired, Redis available); an outage leaves refresh possible."""
+        try:
+            from src.infrastructure.cache.redis import get_redis_session
+
+            redis = await get_redis_session()
+            acquired = await redis.set(
+                lock_key,
+                owner,
+                ex=max(
+                    MCP_OAUTH_REFRESH_LOCK_TTL_SECONDS,
+                    settings.mcp_oauth_http_timeout_seconds + 30,
+                ),
+                nx=True,
+            )
+            return bool(acquired), True
+        except Exception:
+            return False, False
+
+    async def _wait_for_peer_refresh(self, creds: dict) -> None:
+        """Never replay a refresh token while another request rotates it."""
+        logger.info("mcp_oauth_refresh_lock_contention", server_id=str(self.server_id))
+        for _ in range(5):
+            await asyncio.sleep(0.1)
+            fresh = await self._get_creds_fn()
+            if fresh and fresh.get("access_token") != creds.get("access_token"):
+                raise MCPRefreshCompletedByPeer(fresh)
+        raise MCPRefreshTransientError("MCP OAuth refresh is already in progress")
+
+    def _refresh_form(self, creds: dict) -> dict[str, str]:
+        """Use fresh stored registration fields, including rotated client identity."""
+        data: dict[str, str] = {
+            "grant_type": "refresh_token",
+            "refresh_token": creds["refresh_token"],
+        }
+        client_id = creds.get("client_id") or self._client_id
+        client_secret = creds.get("client_secret") or self._client_secret
+        if client_id:
+            data["client_id"] = client_id
+        if client_secret:
+            data["client_secret"] = client_secret
+        if self._resource:
+            data["resource"] = self._resource
+        return data
 
 
 async def load_user_mcp_creds(server_id: UUID, display_name: str) -> dict[str, Any] | None:

@@ -147,3 +147,27 @@ domains and the loop explored the person's other records.
 - Not done, and said: no change to the router's domain detection, which
   remains the pipeline's real exposure on open questions; no re-ranking
   between iterations (the set is fixed at setup, as the state stores names).
+
+## Amendment 2026-09-20 — a binding unit is bound whole or not at all
+
+Replayed on dev with `task react:selection:measure` on the two skill requests
+of the day (« je veux jouer au tic-tac-toe », « montre moi où je suis »): three
+turns of three had called a skill tool the policy would not have bound —
+`run_skill_script` for the map, `read_skill_resource` for the game — while
+`activate_skill_tool` was bound through its family's coverage seat. That is
+the production motif on both skills the same day: the loop activates the
+skill, cannot run its script, and answers in prose. The four skills tools are
+ONE affordance (a skill is activated, its script run, its resources read, a
+library imported); each alone is a dead end, which is the rule ADR-249 states
+for a tool a planner sees and cannot run.
+
+No tool name enters the selector. The manifests declare it —
+`ToolManifest.binding_unit`, the four skills manifests carrying
+`SKILLS_BINDING_UNIT` and a guard refusing a fifth without it — and the
+composition reads it: a unit ranks as its best member (the delegation door's
+own rule), takes ONE coverage seat of its family, rides the semantic tail
+whole, and the cap drops it whole rather than cutting inside it (the members
+are adjacent in every order, so the cut walks back to the unit's first). A
+unit no member of which is reached is dropped whole. Replayed: 0 of the 3
+turns with an unbound skill tool (was 3), 62 tools bound instead of 60,
++427 schema tokens. Without a ranking nothing changes — every tool is bound.

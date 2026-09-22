@@ -8,7 +8,7 @@ import uuid
 from contextlib import suppress
 from typing import Any
 
-from sqlalchemy import Enum, ForeignKey, Text, UniqueConstraint
+from sqlalchemy import Enum, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -456,6 +456,26 @@ def get_connector_authorize_path(connector_type: ConnectorType) -> str | None:
     return CONNECTOR_AUTHORIZE_PATHS.get(connector_type)
 
 
+class OAuthGrant(BaseModel):
+    """One encrypted provider grant owned by one LIA user and provider account."""
+
+    __tablename__ = "oauth_grants"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id", "provider", "client_id", "subject", name="uq_oauth_grants_account"
+        ),
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    provider: Mapped[str] = mapped_column(String(20), nullable=False)
+    client_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    subject: Mapped[str] = mapped_column(String(255), nullable=False)
+    email: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    scopes: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    credentials_encrypted: Mapped[str] = mapped_column(Text, nullable=False)
+    connectors: Mapped[list[Connector]] = relationship(back_populates="oauth_grant")
+
+
 class Connector(BaseModel):
     """
     Connector model for user external service connections.
@@ -486,6 +506,12 @@ class Connector(BaseModel):
 
     # Encrypted credentials (access_token, refresh_token, etc.)
     credentials_encrypted: Mapped[str] = mapped_column(Text, nullable=False)
+
+    # Null for legacy per-service credentials and non-OAuth connectors.
+    oauth_grant_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("oauth_grants.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    oauth_grant: Mapped[OAuthGrant | None] = relationship(back_populates="connectors")
 
     # Additional connector-specific metadata (attribute name is connector_metadata, DB column is 'metadata')
     # CONVENTION: never mutate JSONB columns in place (update()/[]=) — SQLAlchemy

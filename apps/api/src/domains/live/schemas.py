@@ -18,6 +18,7 @@ from src.core.constants import (
     LIVE_SESSION_BUDGET_EUR_MAX,
     LIVE_TOOL_CALL_MAX_ARGUMENTS,
 )
+from src.domains.agents.expressivity.activity import Activity
 from src.domains.live.model_settings import LiveModelSettings
 from src.domains.live.preferences import LivePreferences
 from src.domains.voice_sessions.session import VoiceSessionMode
@@ -477,6 +478,8 @@ class LiveToolCallRequest(BaseModel):
 
 class LiveToolCallResponse(BaseModel):
     """What the voice reads back: a sentence, whether the lookup ran or was refused."""
+
+    activity: Activity | None = None
 
     text: str = Field(..., description="The projected result, or the refusal the voice says.")
     ok: bool = Field(..., description="False when the lookup was refused or failed.")

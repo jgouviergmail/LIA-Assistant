@@ -60,6 +60,55 @@ function writeSectionParam(token: SettingsSectionToken | null): void {
   window.history.replaceState({}, '', url.toString());
 }
 
+function showBulkReconnectOutcome(
+  params: { get(name: string): string | null },
+  t: ReturnType<typeof useTranslation>['t']
+): boolean {
+  const provider = params.get('oauth_bulk_provider');
+  const mode = params.get('oauth_bulk_mode') ?? 'reconnect';
+  const activatedText = params.get('oauth_bulk_activated');
+  const deniedText = params.get('oauth_bulk_denied');
+  if (
+    (provider !== 'google' && provider !== 'microsoft') ||
+    (mode !== 'connect' && mode !== 'reconnect') ||
+    activatedText === null || !/^\d{1,3}$/.test(activatedText) ||
+    deniedText === null || !/^\d{1,3}$/.test(deniedText)
+  ) return false;
+
+  const activated = Number(activatedText);
+  const denied = Number(deniedText);
+  const messageFamily = mode === 'connect' ? 'bulk_connect' : 'bulk_reconnect';
+  if (activated === 0) {
+    toast.error(t(`settings.connectors.${messageFamily}.denied`));
+  } else if (denied > 0) {
+    toast.success(t(`settings.connectors.${messageFamily}.partial`, { activated, denied }));
+  } else {
+    toast.success(t(`settings.connectors.${messageFamily}.success`, { count: activated }));
+  }
+  const url = new URL(window.location.href);
+  url.searchParams.delete('oauth_bulk_provider');
+  url.searchParams.delete('oauth_bulk_activated');
+  url.searchParams.delete('oauth_bulk_denied');
+  url.searchParams.delete('oauth_bulk_mode');
+  window.history.replaceState({}, '', url.toString());
+  return true;
+}
+
+function showConnectorOAuthError(
+  error: string,
+  t: ReturnType<typeof useTranslation>['t']
+): void {
+  const key = error === 'account_mismatch'
+    ? 'settings.connectors.bulk_reconnect.account_mismatch'
+    : `settings.connectors.oauth_errors.${[
+        'invalid_state', 'connector_disabled', 'code_exchange_failed',
+      ].includes(error) ? error : 'default'}`;
+  toast.error(t(key));
+  const url = new URL(window.location.href);
+  url.searchParams.delete('connector_error');
+  window.history.replaceState({}, '', url.toString());
+}
+
 export default function SettingsPage({ params }: SettingsPageProps) {
   const { user } = useAuth();
   const searchParams = useSearchParams();
@@ -129,8 +178,17 @@ export default function SettingsPage({ params }: SettingsPageProps) {
     const connectorAdded = searchParams.get('connector_added');
     const connectorType = searchParams.get('connector_type');
     const error = searchParams.get('error');
-
-    if (connectorAdded === 'true' && connectorType && !oauthToastShownRef.current) {
+    const connectorError = searchParams.get('connector_error');
+    if (!oauthToastShownRef.current && showBulkReconnectOutcome(searchParams, t)) {
+      oauthToastShownRef.current = true;
+      setActive('connectors');
+      writeSectionParam('connectors');
+    } else if (connectorError && !oauthToastShownRef.current) {
+      oauthToastShownRef.current = true;
+      showConnectorOAuthError(connectorError, t);
+      setActive('connectors');
+      writeSectionParam('connectors');
+    } else if (connectorAdded === 'true' && connectorType && !oauthToastShownRef.current) {
       // Mark toast as shown to prevent duplicates
       oauthToastShownRef.current = true;
 

@@ -233,3 +233,142 @@ the left, and of the double take with the head following the gaze.
 ADR-264 (the organs this amends), ADR-252 (the rig, the boundary rule, the
 tape mechanism every part of this rides), ADR-253 (the tone accents, which
 now flip too), ADR-240 (the widget and the landing mount).
+
+## Amendment — contextual direction and continuous contours (2026-09-21)
+
+The owner's follow-up supersedes the masked-swap and CSS comic-motion choices
+above. A solid mouth is retained, but its outline now interpolates through a
+fixed SVG topology. The signed curve no longer flips the whole mouth at zero.
+Brows have independent cubic contours. The `traits` and `anneaux` eyes also
+morph between line, arch and ring instead of selecting a different CSS recipe.
+`rig/apply.ts` remains the only DOM writer and suppresses unchanged attributes.
+The stylesheet retains material, layout and the decorative emote.
+
+All skins, including the amber `smiley`, share the same direction:
+
+1. Psyche's pleasure, arousal, dominance, curiosity and engagement modulate the
+   resting pose and spontaneous choices. Disabled Psyche uses neutral values.
+2. Actual activity directs attention. Thinking is a held consideration with
+   small gaze changes and breathing; it has no chewing or spontaneous mimic.
+   Reading, organizing, communicating, calculating, creating and exploring
+   have different attention patterns. Unknown capabilities remain generic.
+3. The completed answer's register is held, then eased back toward temperament.
+   Its duration lives in `expression-engine.ts` and `eyesSignalsStore.ts`.
+   Text alone never animates speech; TTS and Live use actual playback state.
+
+Scenes own their channels, except for a spontaneous blink. An activity start
+interrupts a scene even when the expression name stays unchanged. The response
+hold and release exclude spontaneous scenes. An interruption retains spring
+position and velocity. The resting clock survives navigation; its diagnostic
+counters distinguish started, completed and interrupted scenes. There is no
+product replay button. The first wait uses its shorter band only once.
+
+### Evidence at the execution boundary
+
+`apps/api/src/domains/agents/expressivity/activity.py` defines the versioned
+`Activity` contract. The effect gate observes the original coroutine **after**
+admission and deduplication, including confirmed draft executors. It never
+observes plans, requested calls or results merely served from the ledger.
+Nested operations retain one owner; parallel invocations have separate IDs.
+Native voice lookups use the same observer and the direct Live HTTP response
+carries its terminal evidence. Before that response, the direct voice UI can
+show processing but cannot claim a specific tool family has executed.
+
+An event contains only version, run/invocation IDs, family, intent, phase and
+outcome. It contains no arguments, tool content, secrets or exception text.
+Explicit failure, cancellation, waiting and opaque results never imply success.
+Draft preparation is distinct from an accomplished action, even when preparing
+the draft succeeded. An emitter failure cannot repeat or prevent execution.
+Category resolution uses the existing manifest conventions; no second tool
+registry or capability list is introduced.
+
+The frontend validates the wire contract, binds it to the active answer/run,
+ignores replay and stale events, bounds retained invocations and expires a
+missing terminal without fabricating an outcome. Its bounded activity summary
+and the existing tone annotation are archived in message JSONB. No schema
+migration is needed. Loading a historical message does not replay its gestures.
+React batching of a short answer and its `done` event cannot lose the reaction.
+Conversely, a slow synthesis cannot age out its activity before the answer:
+completion recalls the same terminal evidence once, and duplicate `done`
+events cannot restart its release.
+
+### Cost, lifecycle and verification
+
+No LLM call, prompt instruction, model choice, token allowance or quota path
+is added. The existing tone annotation is reused; absent tone uses the existing
+local content classifier. These signals never write Psyche or learned memory.
+Rendering pauses in hidden tabs, honors dynamic reduced motion, cleans up
+subscriptions/timers and preserves the existing persisted style preferences.
+Viewport observation also removes offscreen faces from the shared frame clock:
+mobile settings previews resume when visible, without advancing hidden scenes.
+The decorative face remains hidden from assistive technology; the widget's
+translated controls retain keyboard operation and mobile positioning.
+
+Behavioral coverage includes actual SVG continuity, quiet thinking, all styles,
+independent brows, family direction at different frame rates, long seeded idle
+simulation, interruption, response release, malformed/replayed events, actual
+audio, refused capabilities, nested/parallel operations and emitter failure.
+PostgreSQL integration exercises idempotency and JSONB commit/rollback. The
+hermetic `e2e/smoke/chat-avatar.spec.ts` exercises draft/success/failure/unknown
+outcomes, reload, mobile bounds, reduced motion, keyboard controls and axe.
+It also observes a spontaneous scene starting and finishing in the actual
+widget, across the Chromium, Firefox and WebKit configurations.
+The real-component visual laboratory is separate from product UI.
+
+### Volume, proportions and ambient context
+
+The head now has its own critically damped yaw/pitch springs. The eyes lead;
+the head follows the actual gaze channels, including authored thought and
+activity patterns. A shared perspective parent carries eyes, brows, jaw and
+props at distinct depths. Each skin retains its material and silhouette.
+The smiley's lit sphere counter-rotates to keep a round outline; its facial
+plane stays in front throughout the turn envelope. A real-browser projection
+test catches the far-eye occlusion that a shallow facial plane produced.
+The mouth's compact anchor and restrained jaw travel are checked against the
+painted SVG contour and eye bounds, rather than just CSS declarations.
+The smiley has a tighter upper clearance bound than the taller eye styles.
+Resting temperament deliberately exaggerates signed mouth curvature, eye
+compression and brow asymmetry so that mood reads at widget size. Actual work
+and response poses attenuate that layer. Thinking holds a raised brow, unequal
+eye openings, a short off-centre mouth and a gentle inclination; it never uses
+repetitive jaw movement. Retargeting preserves the springs' position and velocity.
+
+`GET /briefing/companion-context` is authenticated and reads only the account's
+weather section from the existing briefing cache. It never initiates a weather
+fetch, connector call, model call or location request. Hidden, missing, failed,
+future-dated, malformed and expired sections produce no weather. The projection
+contains temperature, condition code, wind and the original snapshot validity;
+it omits location, descriptive text and forecasts. Expiry follows the source
+section TTL; polling does not refresh that timestamp.
+
+The chat widget owns one abortable, visibility-aware request lifecycle. The
+environment store is ephemeral and clears on unmount. The rig combines fresh
+weather with the account's civil clock, caches the local minute, and releases
+stale weather even when reduced motion has stopped continuous frames. These
+clock bands approximate dawn/morning/noon/afternoon/evening/night; they are not
+astronomical sunrise or sunset. A cold briefing cache therefore gives time-of-day
+lighting but no invented weather, until fresh cached weather becomes available.
+The host's idle attitude reads the same account hour; it cannot doze on the
+device's midnight while the face is lit for the account's morning. Browser
+scenarios pin their clock and exercise night separately, so a test run crossing
+midnight cannot silently select a different acting state.
+
+One weather intention wins: observed precipitation/fog, then strong wind, then
+temperature. Thresholds and the exact strict temperature boundaries requested
+by the owner live in `components/eyes/environment.ts`. Rain has an umbrella and
+drops; a storm has a cloud, slanted rain and a steady pale bolt. Cold uses a
+scarf, freezing uses frost and a breath puff, and snow has drifting flakes.
+Warm weather uses a fan; strong heat uses a temple droplet. Mist, a windblown
+leaf and a night crescent complete the motifs. Every condition has a distinct
+channel. Particle phase and sway come from the shared rig clock, with a fixed
+phase that cannot accelerate during a spring crossfade. Weather
+props yield to active work and the answer's hold/release, while ambient light
+remains. No strobe, lightning flash, snowfall canvas or confetti is introduced.
+Reduced motion keeps a static contextual pose.
+
+`e2e/smoke/chat-avatar-environment.spec.ts` verifies the actual head projection
+and compact mouth across skins, plus weather/answer priority, expiry and the
+account timezone. Browser tests also verify distinct visible weather motifs,
+actual motion and a live switch to reduced motion. HTTP tests cover account isolation, hidden preferences,
+malformed cache entries, Redis failure and unauthenticated access. No new
+dependency, database schema, prompt, token allowance or provider quota is needed.

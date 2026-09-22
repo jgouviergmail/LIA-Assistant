@@ -38,6 +38,7 @@ from src.domains.agents.effects.schemas import ClaimRequest, EffectSourceName
 from src.domains.agents.effects.scope import EffectScope, current_scope
 from src.domains.agents.effects.source import resolve_source
 from src.domains.agents.effects.treatments import record_treatment
+from src.domains.agents.expressivity.activity import observe_activity
 from src.infrastructure.observability.metrics_effects import (
     effect_already_performed_total,
     effect_claims_total,
@@ -435,7 +436,7 @@ async def _pass_through(
     """
     started = time.perf_counter()
     try:
-        result = await coroutine(*args, **kwargs)
+        result = await observe_activity(tool_name, policy, lambda: coroutine(*args, **kwargs))
     except Exception:
         record_treatment(tool_name, policy, succeeded=False, duration_ms=_elapsed_ms(started))
         raise
@@ -697,13 +698,19 @@ def gated(
             refusal = await _unrecorded_or_refused(
                 tool_name, str(policy), request, bool(decision.unscoped)
             )
-            return refusal if refusal is not None else await coroutine(*args, **kwargs)
+            return (
+                refusal
+                if refusal is not None
+                else await observe_activity(tool_name, policy, lambda: coroutine(*args, **kwargs))
+            )
 
         if ticket.claim_token is None:
             return _serve_lost_claim(tool_name, ticket)
 
         return await _perform_and_close(
-            ticket, lambda: coroutine(*args, **kwargs), policy=str(policy)
+            ticket,
+            lambda: observe_activity(tool_name, policy, lambda: coroutine(*args, **kwargs)),
+            policy=str(policy),
         )
 
     # ``functools.wraps`` sets ``__wrapped__``, which ``inspect`` follows: the
@@ -804,7 +811,9 @@ def gated_executor(draft_type: str, executor: ExecutorFnT) -> ExecutorFnT:
                 run_id=request.run_id if request is not None else None,
                 detail=f"{draft_reason}:draft",
             )
-            served: dict[str, Any] = await executor(draft_content, user_id, deps)
+            served: dict[str, Any] = await observe_activity(
+                f"draft:{draft_type}", "confirm", lambda: executor(draft_content, user_id, deps)
+            )
             return served
 
         if ticket.claim_token is None:
@@ -826,7 +835,11 @@ def gated_executor(draft_type: str, executor: ExecutorFnT) -> ExecutorFnT:
             return recorded
 
         performed: dict[str, Any] = await _perform_and_close(
-            ticket, lambda: executor(draft_content, user_id, deps), policy="draft"
+            ticket,
+            lambda: observe_activity(
+                f"draft:{draft_type}", "confirm", lambda: executor(draft_content, user_id, deps)
+            ),
+            policy="draft",
         )
         return performed
 

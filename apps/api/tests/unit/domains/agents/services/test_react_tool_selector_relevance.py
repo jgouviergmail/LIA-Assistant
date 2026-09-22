@@ -237,3 +237,101 @@ class TestExpandedServer:
         assert _DOOR in bound and f"{_SERVER}_b" in bound and f"{_SERVER}_a" in bound
         assert "web_a" not in bound  # unranked coverage of another family went first
         assert set(hitl_map) == set(bound)
+
+
+# ---------------------------------------------------------------------------
+# A binding unit is bound whole or not at all (2026-09-20)
+# ---------------------------------------------------------------------------
+#
+# Replayed on dev (`task react:selection:measure`): for « montre moi où je suis »
+# the ranking placed activate_skill_tool and dropped run_skill_script — the loop
+# activated the skill and could not run its script, and answered in prose (the
+# production motif on both skills, 2026-09-20). A skill's tools are ONE
+# affordance: each alone is a dead end (ADR-249's rule on a tool nobody can
+# run). The manifests declare it (`binding_unit`), the selector reads it.
+
+_UNIT = [
+    ("skill_activate", "query_agent"),
+    ("skill_run", "query_agent"),
+    ("skill_read", "query_agent"),
+]
+
+
+@pytest.fixture
+def unit_harness(harness: _Harness) -> _Harness:
+    """The catalogue plus a family holding a three-tool unit and one loose tool."""
+    for name, agent in [*_UNIT, ("query_state", "query_agent")]:
+        harness.manifests.append(
+            SimpleNamespace(
+                name=name,
+                agent=agent,
+                permissions=SimpleNamespace(hitl_required=False),
+                binding_unit="skills" if name != "query_state" else None,
+            )
+        )
+        harness.ctx.tool_instances[name] = _Tool(name=name)
+    return harness
+
+
+class TestBindingUnit:
+    def test_one_ranked_member_binds_the_whole_unit_on_one_coverage_seat(
+        self, unit_harness: _Harness
+    ) -> None:
+        # Only the activation ranks; the run and the read are unranked. The
+        # unit takes its best member's rank and ONE seat, so the loose tool of
+        # the same family keeps the family's second seat.
+        ranking = ["skill_activate", *RANKING, "query_state"]
+        bound, hitl_map = unit_harness.select(domains=["event"], ranking=ranking)
+        assert {"skill_activate", "skill_run", "skill_read"} <= set(bound)
+        assert "query_state" in bound
+        assert set(hitl_map) == set(bound)
+
+    def test_a_unit_no_member_of_which_is_reached_is_dropped_whole(
+        self, unit_harness: _Harness, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The loose tool outranks the unit and the family has one seat: the
+        # unit is not half bound behind it.
+        monkeypatch.setattr(
+            "src.domains.agents.services.react_tool_selector.CATALOGUE_DOMAIN_COVERAGE_TOP_N", 1
+        )
+        monkeypatch.setattr(settings, "react_tool_semantic_top_k", 2)
+        ranking = ["query_state", "web_c", "skill_activate", *RANKING]
+        bound, _ = unit_harness.select(domains=["event"], ranking=ranking)
+        assert "query_state" in bound
+        assert not {"skill_activate", "skill_run", "skill_read"} & set(bound)
+
+    def test_the_unit_rides_the_semantic_tail_whole(
+        self, unit_harness: _Harness, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Two seats go to the loose tool and… the unit (one seat); with a
+        # third family member the tail is where a unit member lands, whole.
+        monkeypatch.setattr(
+            "src.domains.agents.services.react_tool_selector.CATALOGUE_DOMAIN_COVERAGE_TOP_N", 1
+        )
+        monkeypatch.setattr(settings, "react_tool_semantic_top_k", 3)
+        ranking = ["query_state", "web_c", "skill_run", *RANKING]
+        bound, _ = unit_harness.select(domains=["event"], ranking=ranking)
+        assert {"skill_activate", "skill_run", "skill_read"} <= set(bound)
+
+    def test_the_cap_never_cuts_inside_a_unit(
+        self, unit_harness: _Harness, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The cap falls on the unit's second member: the whole unit goes, the
+        # cap holds, and nothing else moves.
+        ranking = ["skill_activate", *RANKING, "query_state"]
+        bound_free, _ = unit_harness.select(domains=["event"], ranking=ranking)
+        first_member = min(
+            bound_free.index(n) for n in ("skill_activate", "skill_run", "skill_read")
+        )
+        monkeypatch.setattr(settings, "react_agent_max_tools", first_member + 2)
+        bound, hitl_map = unit_harness.select(domains=["event"], ranking=ranking)
+        assert len(bound) == first_member
+        assert not {"skill_activate", "skill_run", "skill_read"} & set(bound)
+        assert bound == bound_free[:first_member]
+        assert set(hitl_map) == set(bound)
+
+    def test_without_a_ranking_the_unit_is_bound_like_everything_else(
+        self, unit_harness: _Harness
+    ) -> None:
+        bound, _ = unit_harness.select(domains=["event"], ranking=None)
+        assert {"skill_activate", "skill_run", "skill_read"} <= set(bound)

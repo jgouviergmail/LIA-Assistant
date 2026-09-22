@@ -1,30 +1,9 @@
 /**
- * Expressive eyes — the DRAWING half of the system.
- *
- * The animation rig (`components/eyes/rig/`) owns everything that MOVES and
- * publishes it as `--rig-*` custom properties on the eyes root, every frame.
- * This stylesheet owns everything that is DRAWN: silhouette geometry, skin,
- * matter, and the per-style identity of the six looks.
- *
- * THE BOUNDARY RULE — a stylesheet READS `--rig-*`, it never DECLARES one,
- * and it never puts a `transition` on a property the rig writes (transform,
- * clip-path, border-radius): a transition chasing a value that changes sixty
- * times a second lags behind it and fights the springs. Both halves of the
- * rule are enforced by `__tests__/eyes-css-boundary.test.ts`, which also
- * checks that every `var(--rig-*, fallback)` fallback still equals the
- * channel's declared rest value — the fallbacks are what render the neutral
- * pose before the first frame, and drift there would be invisible.
- *
- * Two DOM vocabularies:
- *  - `data-expression` / `data-style` / `data-family` / `data-gesture` — the
- *    STATE the host declares. This sheet selects on it to decide what is
- *    drawn (a stroke arch for joy, a filled ring for sleep).
- *  - `--rig-*` — the MOTION. Consumed, never authored.
- *
- * What is still animated HERE, deliberately: the floating emote (its own
- * element, no rig channel), the four slapstick beats (they ride the
- * INDEPENDENT `translate`/`scale`/`rotate` properties, so they compose with
- * the rig's transforms instead of replacing them) and the press feedback.
+ * Material and layout for the companion skins. The rig owns all facial motion.
+ * CSS reads --rig-* and never declares or transitions a rig-owned property.
+ * Filled mouth, brows and drawn eyes are projected by rig/apply.ts as SVG paths.
+ * data-style selects material; data-expression is diagnostic, never a shape swap.
+ * Only the decorative emote and press feedback retain independent CSS motion.
  */
 
 /* =============================================================================
@@ -57,12 +36,39 @@
   --mouth-span: 0.92em;
   --mouth-ink: 0.1em;
   --mouth-gap: 0.09em;
+  --face-lower-space: 0.54em;
+  --face-eye-depth: 0.22em;
+  --face-mouth-depth: 0.16em;
   /* Slapstick travel: eye width + gap, so every style swaps correctly. */
   --swap-x: calc(var(--eye-w, 1.3em) + var(--eye-gap, 0.45em));
 
   position: relative;
   display: inline-flex;
   line-height: 0;
+  perspective: 12em;
+  perspective-origin: 50% 42%;
+}
+
+/* A common head carries every organ. Eyes lead the slower, weighted turn. */
+.lia-head {
+  position: relative;
+  display: inline-flex;
+  padding: 0.28em 0 var(--face-lower-space);
+  transform-style: preserve-3d;
+  transform-origin: 50% 48%;
+  transform: translate3d(var(--rig-mass-x, 0em), var(--rig-mass-y, 0em), 0)
+    rotate(var(--rig-tilt, 0deg)) rotateX(calc(var(--rig-head-pitch, 0) * -10deg))
+    rotateY(calc(var(--rig-head-yaw, 0) * 16deg)) scale(var(--rig-mass, 1));
+}
+
+.lia-head-shadow {
+  position: absolute;
+  pointer-events: none;
+  inset: auto 19% -0.03em;
+  height: 0.16em;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgb(0 0 0 / 0.17), transparent 70%);
+  transform: translateX(calc(var(--rig-head-yaw, 0) * 0.07em)) scale(var(--rig-mass, 1));
 }
 
 /* Size presets: everything is em-based, so font-size is the whole scale. */
@@ -142,11 +148,11 @@
   display: inline-flex;
   gap: var(--eye-gap, 0.45em);
   padding: 0.18em;
-  transform: translate(
-      calc(var(--rig-gaze-x, 0) * 0.14em + var(--rig-mass-x, 0em)),
-      calc(var(--rig-gaze-y, 0) * 0.12em + var(--rig-mass-y, 0em))
+  transform: translate3d(
+      calc(var(--rig-gaze-x, 0) * 0.09em + var(--rig-head-yaw, 0) * 0.12em),
+      calc(var(--rig-gaze-y, 0) * 0.07em + var(--rig-head-pitch, 0) * 0.07em),
+      var(--face-eye-depth)
     )
-    rotate(var(--rig-tilt, 0deg)) scale(var(--rig-mass, 1))
     /* Velocity squash & stretch, at CONSTANT VOLUME: the pair stretches along
        its direction of travel and thins across it by exactly the inverse.
        Rotating into the travel axis, scaling, and rotating back is what makes
@@ -233,22 +239,12 @@
   transform-origin: 50% var(--oy);
 }
 
-/* THE MOUTH — one signed curve, drawn.
-
-   The rig hands over a DEPTH (`--rig-mouth-arc`) and a DIRECTION
-   (`--rig-mouth-flip`), because a stylesheet can express neither an
-   absolute value nor a sign. A box of zero height still paints its bottom
-   border, so a flat mouth is a straight line and the arc grows out of it
-   continuously — which is what lets a smile travel to a frown through a
-   line instead of cutting between two drawings.
-
-   It follows the HEAD (mass, tilt, shiver) but never the GAZE: eyes move
-   inside a face, a mouth does not. The pivot sits where the face's centre
-   is, not where the mouth is, so a tilt swings it rather than spinning it
-   on the spot. */
+/* The mouth follows the head. Its signed contour is projected by the rig writer. */
 .lia-mouth {
   position: absolute;
-  top: 100%;
+  /* Follow the full eye height: tall skins need the same visible breathing
+     room as short ones, not a mouth that creeps into the lower eye contour. */
+  top: calc(0.38em + var(--eye-h, 1.05em));
   left: 50%;
   width: calc(var(--mouth-span) * var(--rig-mouth-w, 0.72));
   height: 0;
@@ -256,12 +252,12 @@
      down is a hole appearing in a face. The slide sends the whole mouth to
      one side — a word out of one corner, lips pursed toward a thought. */
   translate: calc(-50% + var(--rig-mouth-x, 0em))
-    calc(
-      var(--mouth-gap) + var(--rig-mouth-y, 0em) + var(--rig-mass-y, 0em) +
-        var(--rig-mouth-open, 0) * 0.06em
-    );
-  transform: translateX(var(--rig-mass-x, 0em)) rotate(var(--rig-tilt, 0deg))
-    scale(var(--rig-mass, 1));
+    calc(var(--mouth-gap) + var(--rig-mouth-y, 0em) + var(--rig-mouth-open, 0) * 0.035em);
+  transform: translate3d(
+    calc(var(--rig-head-yaw, 0) * 0.12em),
+    calc(var(--rig-head-pitch, 0) * 0.07em),
+    var(--face-mouth-depth)
+  );
   transform-origin: 50% -0.9em;
   /* Drawn in full, always: a mouth that faded in and out for every scene
      read as an interface element switching on (measured 2026-09-17). */
@@ -269,70 +265,14 @@
   pointer-events: none;
 }
 
-/* The mouth is a SOLID SHAPE, not a stroke.
-
-   A hairline under two filled, glowing eyes is a line drawing wearing a screen
-   face: the reference language for this character (Cozmo, Eilik and the whole
-   family of screen robots) draws every feature as a filled silhouette. One
-   element carries the entire vocabulary:
-
-     - HEIGHT grows with the curve and with the opening, so a resting bar, a
-       deep grin and a gasp are one shape at three sizes;
-     - the TOP EDGE flattens as the curve deepens — a flat-topped, round-
-       bottomed slab IS a cartoon smile, while at rest the same shape is a
-       fully rounded little bar;
-     - `scale: 1 -1` turns the whole thing over for a frown, so the two are one
-       drawing and the spring travels between them.
-
-   This is why `--rig-mouth-arc` is unitless: it has to be a height AND a radius
-   ratio, and CSS cannot divide a length by a length. */
 .lia-mouth-shape {
   position: absolute;
-  inset: 0 0 auto 0;
-  --mouth-h: calc(
-    var(--mouth-ink) + var(--rig-mouth-arc, 0) * 0.26em + var(--rig-mouth-open, 0) * 0.5em
-  );
-  /* The corner tilt, already turned the right way up. Used three times below —
-     the rotation, the two bottom radii — and it must be the SAME expression
-     every time or the asymmetry would fight the tilt at the flat crossing. */
-  --mouth-lean: calc(var(--rig-mouth-skew, 0) * var(--rig-mouth-flip, 1));
-  height: var(--mouth-h);
-  /* Mirroring about the TOP edge sends a frown growing upwards, into the face:
-     measured at 3 to 8 px of overlap with the eyes at every size. Pushing the
-     shape down by its own height when — and only when — it is flipped puts
-     both directions in the same band under the eyes. */
-  translate: 0 calc((1 - var(--rig-mouth-flip, 1)) * 0.5 * var(--mouth-h));
-  background: var(--eyes-color);
-
-  /* A perfect half-disc is a geometric shape, not a mouth. Three departures
-     from it, and each one is the difference between drawn and generated:
-
-     - the TOP EDGE keeps a floor of curvature (12%) however deep the smile
-       goes, so the flat side is never mathematically flat;
-     - the two BOTTOM corners are DIFFERENT, leaning with the same tilt as the
-       mouth itself — one corner rounder than the other is what a hand does and
-       a compass cannot;
-     - the shape SPREADS as it curves (the horizontal scale below), so a big
-       smile is wide and shallow rather than tall and round. Height alone gives
-       a bowl. */
-  border-top-left-radius: calc(12% + (1 - var(--rig-mouth-arc, 0)) * 38%)
-    calc(10% + (1 - var(--rig-mouth-arc, 0)) * 40%);
-  border-top-right-radius: calc(12% + (1 - var(--rig-mouth-arc, 0)) * 38%)
-    calc(10% + (1 - var(--rig-mouth-arc, 0)) * 40%);
-  /* The vertical radius follows the arc, so the pair normalises to 50/50 at
-     the flat crossing (a fixed 100% gave 33/67 there, and the mirror swapped
-     the rounder end of a 3 px bar in plain view) and to the same 9/91 at a
-     full grin. */
-  border-bottom-left-radius: calc(50% + var(--mouth-lean) * 26%)
-    calc(50% + var(--rig-mouth-arc, 0) * 50%);
-  border-bottom-right-radius: calc(50% - var(--mouth-lean) * 26%)
-    calc(50% + var(--rig-mouth-arc, 0) * 50%);
-
-  scale: calc(1 + var(--rig-mouth-arc, 0) * 0.13) var(--rig-mouth-flip, 1);
-  /* The CORNERS: one lifts, the other drops. Leaning rather than rotating
-     would keep the mouth level; both together is what a smile does. */
-  rotate: calc(var(--mouth-lean) * 14deg);
-  transform-origin: 50% 0;
+  left: 0;
+  top: -0.06em;
+  width: 100%;
+  height: 0.68em;
+  overflow: visible;
+  fill: var(--mouth-color, var(--eyes-color));
 }
 
 /* CATCH-LIGHTS — two of them, at two depths, and that is the whole trick.
@@ -346,7 +286,9 @@
   content: '';
   position: absolute;
   border-radius: 50%;
-  opacity: var(--gloss);
+  opacity: calc(
+    var(--gloss) * (1 + var(--rig-light-warm, 0) * 0.12 - var(--rig-light-cool, 0) * 0.15)
+  );
   pointer-events: none;
 }
 /* The broad one: soft, high, and the most mobile of the two. */
@@ -390,43 +332,27 @@
    pushes it up. `--brow-x` slides it sideways: the two brows knit at the
    nose for a scowl and spread for a startle.
 
-   It is a CURVED BAND, drawn the way the mouth is: one element, a border
-   and no fill. The rig's `browArc` is a unitless curvature — at 0 the box is
-   exactly its own thickness and the border fills it (a rounded bar); as the
-   arc grows the box rises, the top corners round into a semi-ellipse and
-   the top border becomes an arch, while thin side borders keep its legs from
-   tapering to nothing. Bounded here because the rig may push an arc past 1
-   (exaggeration) or under 0 (anticipation), and a radius can be neither.
-   `--brow-s` is its WEIGHT, derived by the rig from its own motion: raised,
-   the band thins and lengthens; pressed, it thickens and shortens — at
-   constant ink, so a thin brow is a long one. */
+   The contour is projected from the rig's arch and articulated endpoints.
+   Its box stays stable; changing curvature never rescales the ink. */
 .lia-eye-brow {
-  --brow-curve: min(1, max(0, var(--brow-arc)));
-  --brow-ink: calc(0.13em * var(--brow-s));
   position: absolute;
   top: calc(var(--oy) * (1 - var(--sy)) + var(--lid-top) * var(--sy));
   left: 50%;
-  box-sizing: border-box;
-  width: calc(var(--eye-w, 1.3em) * 0.72 / var(--brow-s));
-  height: calc(0.13em * var(--brow-s) + var(--brow-curve) * 0.14em);
-  background: transparent;
-  border: 0 solid var(--eyes-color);
-  border-top-width: calc(0.13em * var(--brow-s));
-  border-left-width: calc(var(--brow-curve) * 0.06em);
-  border-right-width: calc(var(--brow-curve) * 0.06em);
-  border-radius: calc(var(--brow-ink) / 2 + var(--brow-curve) * (50% - var(--brow-ink) / 2))
-    calc(var(--brow-ink) / 2 + var(--brow-curve) * (50% - var(--brow-ink) / 2))
-    calc((1 - var(--brow-curve)) * var(--brow-ink) / 2)
-    calc((1 - var(--brow-curve)) * var(--brow-ink) / 2) / calc(50% + var(--brow-curve) * 50%)
-    calc(50% + var(--brow-curve) * 50%) calc(50% - var(--brow-curve) * 50%)
-    calc(50% - var(--brow-curve) * 50%);
+  width: calc(var(--eye-w, 1.3em) * 0.72);
+  height: 0.3em;
   translate: calc(-50% + var(--brow-x)) calc(-100% - 0.06em + var(--brow-y));
-  rotate: var(--brow-rot);
   opacity: var(--has-brow);
-  /* A raised brow reaches ABOVE the widget box, into the band the
-     toolbar occupies. Decorative overlays never take a pointer: the
-     drag surface and the toolbar buttons keep the whole area. */
   pointer-events: none;
+}
+
+.lia-eye-brow svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  fill: none;
+  stroke: var(--brow-color, var(--eyes-color));
+  stroke-width: calc(10px * clamp(0.94, var(--brow-s), 1.06));
+  stroke-linecap: round;
 }
 
 /* The PUPIL — inside the shape, so the lids cover it like everything else.
@@ -469,7 +395,7 @@
    the middle of its expression.
 
    Every length below is in the emote's OWN em (font-size: 0.6em), so
-   `margin-bottom: 1.5em` is 0.9em of the widget — above what the highest
+   `margin-bottom: 1.65em` is 0.9em of the widget — above what the highest
    brow reaches at its most exaggerated, arch, weight and the lift of a
    widened eye included (the guard computes it from this sheet and the pose
    table). The tail is a rotated square: two of its borders draw the point,
@@ -480,7 +406,7 @@
   position: absolute;
   bottom: 100%;
   left: 50%;
-  margin-bottom: 1.5em;
+  margin-bottom: 1.65em;
   translate: -50% 0;
   display: flex;
   align-items: center;
@@ -683,144 +609,6 @@
 }
 
 /* =============================================================================
-   Slapstick beats — rare comedy on the whole eyes. All motion rides the
-   independent translate/scale/rotate properties, so it composes with (never
-   fights) the rig's transforms underneath.
-   ============================================================================= */
-
-/* The eyes trade places in a circus arc (left over the top, right under),
-   hold a beat, then trade back the opposite way. */
-@keyframes lia-silly-swap-left {
-  0%,
-  100% {
-    translate: 0 0;
-  }
-  25% {
-    translate: calc(var(--swap-x) / 2) -0.6em;
-  }
-  42%,
-  58% {
-    translate: var(--swap-x) 0;
-  }
-  75% {
-    translate: calc(var(--swap-x) / 2) 0.6em;
-  }
-}
-@keyframes lia-silly-swap-right {
-  0%,
-  100% {
-    translate: 0 0;
-  }
-  25% {
-    translate: calc(var(--swap-x) / -2) 0.6em;
-  }
-  42%,
-  58% {
-    translate: calc(var(--swap-x) * -1) 0;
-  }
-  75% {
-    translate: calc(var(--swap-x) / -2) -0.6em;
-  }
-}
-[data-gesture='swap'] .lia-eye--left {
-  animation: lia-silly-swap-left 1700ms cubic-bezier(0.45, 0, 0.45, 1) both;
-}
-[data-gesture='swap'] .lia-eye--right {
-  animation: lia-silly-swap-right 1700ms cubic-bezier(0.45, 0, 0.45, 1) both;
-}
-
-/* Drift apart… rush together… CLACK (squash at impact), rebound, settle. */
-@keyframes lia-silly-bump-left {
-  0%,
-  100% {
-    translate: 0 0;
-    scale: 1 1;
-  }
-  30% {
-    translate: -0.3em 0;
-  }
-  52% {
-    translate: 0.14em 0;
-    scale: 0.82 1.12;
-  }
-  70% {
-    translate: -0.08em 0;
-    scale: 1.05 0.97;
-  }
-}
-@keyframes lia-silly-bump-right {
-  0%,
-  100% {
-    translate: 0 0;
-    scale: 1 1;
-  }
-  30% {
-    translate: 0.3em 0;
-  }
-  52% {
-    translate: -0.14em 0;
-    scale: 0.82 1.12;
-  }
-  70% {
-    translate: 0.08em 0;
-    scale: 1.05 0.97;
-  }
-}
-[data-gesture='bump'] .lia-eye--left {
-  animation: lia-silly-bump-left 1450ms cubic-bezier(0.4, 0, 0.5, 1) both;
-}
-[data-gesture='bump'] .lia-eye--right {
-  animation: lia-silly-bump-right 1450ms cubic-bezier(0.4, 0, 0.5, 1) both;
-}
-
-/* Quick 360° pirouette with a mid-spin dip, the right eye trailing. */
-@keyframes lia-silly-spin {
-  0% {
-    rotate: 0deg;
-    scale: 1;
-  }
-  50% {
-    scale: 0.9;
-  }
-  100% {
-    rotate: 1turn;
-    scale: 1;
-  }
-}
-[data-gesture='spin'] .lia-eye--left {
-  animation: lia-silly-spin 950ms cubic-bezier(0.5, 0, 0.35, 1) both;
-}
-[data-gesture='spin'] .lia-eye--right {
-  animation: lia-silly-spin 950ms cubic-bezier(0.5, 0, 0.35, 1) 140ms both;
-}
-
-/* Jello shudder — big wobble decaying to rest. */
-@keyframes lia-silly-jelly {
-  0%,
-  100% {
-    scale: 1 1;
-  }
-  18% {
-    scale: 1.18 0.82;
-  }
-  38% {
-    scale: 0.86 1.14;
-  }
-  58% {
-    scale: 1.1 0.9;
-  }
-  78% {
-    scale: 0.96 1.04;
-  }
-}
-[data-gesture='jelly'] .lia-eye {
-  animation: lia-silly-jelly 1150ms cubic-bezier(0.4, 0, 0.5, 1) both;
-}
-[data-gesture='jelly'] .lia-eye--right {
-  animation-delay: 80ms;
-}
-
-/* =============================================================================
    STYLE SHEETS — one block per registry id, and ONLY what is drawn.
    Silhouette radii, base tilts and every pose the styles re-shape live in
    `rig/poses.ts` (`STYLE_GEOMETRY` / `STYLE_POSE_OVERRIDES`); what remains
@@ -874,6 +662,8 @@
   --gloss: 0.5;
   --mouth-span: 0.86em;
   --mouth-ink: 0.09em;
+  /* The slanted eye corners extend below the nominal height. */
+  --mouth-gap: 0.17em;
 }
 [data-style='amande'] .lia-eye {
   filter: none;
@@ -901,50 +691,6 @@
 [data-style='traits'] .lia-eye {
   filter: none;
 }
-[data-style='traits'][data-expression='joy'] .lia-eye,
-[data-style='traits'][data-expression='wink'] .lia-eye--left {
-  --eye-w: 0.95em;
-  --eye-h: 0.5em;
-}
-[data-style='traits'][data-expression='joy'] .lia-eye-shape,
-[data-style='traits'][data-expression='wink'] .lia-eye--left .lia-eye-shape {
-  background: transparent;
-  border: 0 solid var(--eyes-color);
-  border-top-width: 0.3em;
-  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
-  box-sizing: border-box;
-}
-[data-style='traits'][data-expression='sad'] .lia-eye {
-  --eye-w: 0.95em;
-  --eye-h: 0.5em;
-}
-[data-style='traits'][data-expression='sad'] .lia-eye-shape {
-  background: transparent;
-  border: 0 solid var(--eyes-color);
-  border-bottom-width: 0.3em;
-  border-radius: 0 0 50% 50% / 0 0 100% 100%;
-  box-sizing: border-box;
-}
-[data-style='traits'][data-expression='surprise'] .lia-eye {
-  --eye-w: 0.85em;
-  --eye-h: 0.85em;
-}
-[data-style='traits'][data-expression='surprise'] .lia-eye-shape {
-  background: transparent;
-  border: 0.24em solid var(--eyes-color);
-  border-radius: 50%;
-  box-sizing: border-box;
-}
-[data-style='traits'][data-expression='anger'] .lia-eye {
-  --eye-h: 0.8em;
-}
-[data-style='traits'][data-expression='sleepy'] .lia-eye,
-[data-style='traits'][data-expression='sleep'] .lia-eye,
-[data-style='traits'][data-expression='wink'] .lia-eye--right {
-  --eye-w: 0.95em;
-  --eye-h: 0.28em;
-}
-
 /* --- anneaux: outlined rings with a live pupil that follows the gaze.
    A ring has no fill to leave a closed band from, so this style blinks by
    SQUASHING rather than clipping: a clipped ring reads as dashed fragments,
@@ -964,34 +710,35 @@
 [data-style='anneaux'] .lia-eye {
   filter: none;
 }
+/* The stroke contours share the spring rig; no expression swaps CSS geometry. */
+.lia-eye-contour {
+  display: none;
+}
+[data-style='traits'] .lia-eye-shape,
 [data-style='anneaux'] .lia-eye-shape {
   background: transparent;
-  border: 0.17em solid var(--eyes-color);
-  box-sizing: border-box;
-}
-[data-style='anneaux'][data-expression='joy'] .lia-eye,
-[data-style='anneaux'][data-expression='wink'] .lia-eye--left {
-  --eye-h: 0.6em;
-}
-[data-style='anneaux'][data-expression='joy'] .lia-eye-shape,
-[data-style='anneaux'][data-expression='wink'] .lia-eye--left .lia-eye-shape {
-  border-bottom-color: transparent;
-  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
-}
-/* An arch has no inside to hold a pupil (dilation is a rig channel now, so
-   only PRESENCE is decided here). */
-[data-style='anneaux'][data-expression='joy'] .lia-eye-pupil,
-[data-style='anneaux'][data-expression='wink'] .lia-eye--left .lia-eye-pupil {
-  display: none;
-}
-[data-style='anneaux'][data-expression='sleep'] .lia-eye-shape,
-[data-style='anneaux'][data-expression='wink'] .lia-eye--right .lia-eye-shape {
-  background: var(--eyes-color);
   border: none;
+  overflow: visible;
 }
-[data-style='anneaux'][data-expression='sleep'] .lia-eye-pupil,
-[data-style='anneaux'][data-expression='wink'] .lia-eye--right .lia-eye-pupil {
-  display: none;
+[data-style='traits'] .lia-eye-contour,
+[data-style='anneaux'] .lia-eye-contour {
+  display: block;
+  position: absolute;
+  width: 1em;
+  height: 1em;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  overflow: visible;
+  fill: none;
+  stroke: var(--eyes-color);
+  stroke-linecap: round;
+}
+[data-style='anneaux'] .lia-eye--left .lia-eye-pupil {
+  opacity: clamp(0, var(--rig-stroke-round-l, 0), 1);
+}
+[data-style='anneaux'] .lia-eye--right .lia-eye-pupil {
+  opacity: clamp(0, var(--rig-stroke-round-r, 0), 1);
 }
 
 /* Ring and stick styles blink by SQUASHING: an oval ring flattening into a
@@ -1001,6 +748,217 @@
 [data-style='traits'] .lia-eye-blink {
   clip-path: none;
   transform: scaleY(calc(1 - var(--blink-close) * 0.92)) scaleX(calc(1 + var(--blink-close) * 0.05));
+}
+
+/* A face around the SAME rig: no second animation engine or state vocabulary. */
+[data-style='smiley'] {
+  padding: 0;
+  --eyes-color: #352a20;
+  --brow-color: #6c4825;
+  --mouth-color: #51321e;
+  --eyes-glow-size: 0em;
+  --eye-w: 0.45em;
+  --eye-h: 0.65em;
+  --eye-gap: 0.38em;
+  --mouth-span: 1.05em;
+  --has-pupil: 0;
+  --matter: 0.2;
+  --gloss: 0.25;
+  /* Keep both eyes in front of the sphere at the full yaw/pitch envelope.
+     A shallow plane lets the counter-rotated body cut the far eye in half. */
+  --face-eye-depth: 0.48em;
+  --face-mouth-depth: 0.36em;
+  width: 2.6em;
+  height: 2.6em;
+}
+
+.lia-avatar-body {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse at calc(28% - var(--rig-head-yaw, 0) * 7%) calc(22% - var(--rig-head-pitch, 0) * 5%),
+    #fff6c5 0%,
+    #ffe38c 27%,
+    #fac650 49%,
+    #eda333 72%,
+    #c47120 90%,
+    #a44f19 100%
+  );
+  box-shadow:
+    inset 0.025em 0.025em 0.035em #fff9d6,
+    inset -0.055em -0.065em 0.16em #ac621a55;
+  /* A sphere keeps its round silhouette; its face travels on the curved front. */
+  transform: rotateY(calc(var(--rig-head-yaw, 0) * -16deg))
+    rotateX(calc(var(--rig-head-pitch, 0) * 10deg));
+  pointer-events: none;
+}
+
+.lia-avatar-body::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(ellipse at 30% 17%, rgb(255 255 255 / 0.55), transparent 27%),
+    radial-gradient(ellipse at 74% 83%, rgb(255 221 123 / 0.45), transparent 36%);
+}
+
+.lia-avatar-body::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    130deg,
+    rgb(255 151 72 / calc(var(--rig-light-warm, 0) * 0.12)),
+    rgb(57 85 135 / calc(var(--rig-light-cool, 0) * 0.2))
+  );
+}
+
+/* Props are transparent to input and never cover the eyes or the mouth. Their
+   spring weights crossfade; no keyframe competes with the shared face clock. */
+.lia-weather {
+  position: absolute;
+  pointer-events: none;
+  color: #558994;
+  transform: translateZ(0.28em) rotate(calc(var(--rig-ambient-sway, 0) * 3deg));
+}
+.lia-weather svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.lia-weather--rain {
+  width: 1.4em;
+  height: 1.4em;
+  left: -0.15em;
+  top: -0.4em;
+  opacity: var(--rig-weather-rain, 0);
+  transform-origin: 70% 100%;
+}
+.lia-weather--cold {
+  width: 2.05em;
+  height: 0.63em;
+  bottom: -0.07em;
+  left: calc(50% - 1.025em);
+  opacity: var(--rig-weather-cold, 0);
+  transform-origin: 50% 5%;
+}
+.lia-weather--storm {
+  width: 1.05em;
+  height: 0.9em;
+  left: -0.2em;
+  top: -0.48em;
+  opacity: var(--rig-weather-storm, 0);
+  transform: translate3d(calc(var(--rig-ambient-sway, 0) * 0.06em), 0, 0.3em)
+    rotate(calc(var(--rig-ambient-sway, 0) * 7deg));
+}
+.lia-weather--freezing {
+  width: 2.5em;
+  height: 1.17em;
+  left: calc(50% - 1.25em);
+  top: -0.24em;
+  opacity: var(--rig-weather-freezing, 0);
+}
+.lia-weather--snow {
+  width: 2.5em;
+  height: 1.67em;
+  left: calc(50% - 1.25em);
+  top: -0.35em;
+  opacity: var(--rig-weather-snow, 0);
+}
+.lia-weather--hot {
+  width: 0.58em;
+  height: 0.67em;
+  left: -0.2em;
+  bottom: 0;
+  opacity: var(--rig-weather-hot, 0);
+}
+.lia-weather-fall {
+  opacity: var(--rig-ambient-pulse, 1);
+  transform: translateY(calc(var(--rig-ambient-fall, 0.5) * 16px));
+}
+.lia-weather-fall--slant {
+  transform: translate(
+    calc(var(--rig-ambient-fall, 0.5) * -8px),
+    calc(var(--rig-ambient-fall, 0.5) * 18px)
+  );
+}
+.lia-weather-fall--snow {
+  transform: translate(
+    calc(var(--rig-ambient-sway, 0) * 5px),
+    calc(var(--rig-ambient-fall, 0.5) * 26px)
+  );
+}
+.lia-weather-breath {
+  opacity: calc(var(--rig-ambient-pulse, 1) * 0.45);
+  transform: translateX(calc(var(--rig-ambient-fall, 0.5) * 8px));
+}
+.lia-weather-fan {
+  transform-origin: 32px 65px;
+  transform: rotate(calc(var(--rig-ambient-sway, 0) * 24deg));
+}
+.lia-weather-sweat {
+  transform: translateY(calc(var(--rig-ambient-pulse, 1) * 4px));
+  opacity: calc(0.65 + var(--rig-ambient-pulse, 1) * 0.35);
+}
+.lia-weather--heat {
+  width: 0.22em;
+  height: 0.35em;
+  right: 0.1em;
+  top: 0.5em;
+  opacity: var(--rig-weather-heat, 0);
+}
+.lia-weather--fog {
+  width: 2.6em;
+  height: 0.6em;
+  bottom: -0.03em;
+  left: calc(50% - 1.3em);
+  opacity: calc(var(--rig-weather-fog, 0) * 0.24);
+  color: #bfd0d7;
+  transform: translate3d(calc(var(--rig-ambient-sway, 0) * 0.1em), 0, 0.3em);
+}
+.lia-weather--wind {
+  width: 0.55em;
+  height: 0.72em;
+  left: -0.17em;
+  bottom: 0.1em;
+  opacity: var(--rig-weather-wind, 0);
+  transform: translate3d(calc(var(--rig-ambient-sway, 0) * 0.12em), 0, 0.3em)
+    rotate(calc(var(--rig-ambient-sway, 0) * 14deg));
+}
+.lia-weather--night {
+  width: 0.42em;
+  height: 0.42em;
+  right: -0.24em;
+  top: -0.24em;
+  opacity: var(--rig-weather-night, 0);
+}
+
+[data-style='smiley'] .lia-head {
+  padding: 0;
+  width: 100%;
+  height: 100%;
+}
+
+[data-style='smiley'] .lia-eye {
+  filter: drop-shadow(0 0.025em 0.015em rgb(106 56 12 / 0.2));
+}
+
+[data-style='smiley'] .lia-mouth-shape {
+  filter: drop-shadow(0 0.015em 0 rgb(255 241 180 / 0.7));
+}
+
+[data-style='smiley'] .lia-eyes-gaze {
+  position: absolute;
+  top: 0.65em;
+  left: 0.48em;
+}
+
+[data-style='smiley'] .lia-mouth {
+  top: 1.4em;
 }
 
 /* =============================================================================

@@ -33,6 +33,10 @@ apps/api/src/domains/connectors/
 ├── schemas.py                         # ConnectorCredentials (shared OAuth credentials)
 ├── service.py                         # OAuth flow methods per Microsoft connector
 ├── router.py                          # OAuth authorize/callback routes per connector
+├── oauth_bulk.py                      # Grouped service and scope selection
+├── oauth_bulk_service.py              # Shared consent and atomic grant activation
+├── oauth_bulk_router.py               # Grouped authorize/callback routes
+├── oauth_grant_runtime.py              # Shared token refresh for linked connectors
 ├── clients/
 │   ├── base_microsoft_client.py       # BaseMicrosoftClient(BaseOAuthClient): OData pagination, error parsing
 │   ├── microsoft_outlook_client.py    # MicrosoftOutlookClient: email search/read/send/reply/forward/trash
@@ -64,7 +68,7 @@ apps/api/src/core/oauth/providers/
 Inherits from `BaseOAuthClient` (Template Method pattern). Provides shared functionality for all 4 Microsoft clients:
 
 - **Rate limiting**: Redis sliding window (`client_rate_limit_microsoft_per_second`, default 4/s)
-- **Token management**: Automatic refresh via `BaseOAuthClient._refresh_access_token()`
+- **Token management**: `BaseOAuthClient._refresh_access_token()` delegates to the connector service. Linked connectors refresh their common grant once; legacy connectors retain their individual token path
 - **HTTP client**: Connection pooling via `httpx.AsyncClient` (inherited)
 - **Circuit breaker**: Via `get_circuit_breaker(f"microsoft_{connector_type}")` (inherited)
 - **Retry**: Exponential backoff with 3 attempts (inherited), honors `Retry-After` header
@@ -105,7 +109,7 @@ MicrosoftOAuthProvider.for_tasks(settings)      # Tasks.Read, Tasks.ReadWrite
 
 ### API Routes
 
-Each connector has its own authorize/callback pair under `/api/v1/connectors/`:
+Each connector retains its individual authorize/callback pair under `/api/v1/connectors/`:
 
 | Route | ConnectorType |
 |-------|---------------|
@@ -113,6 +117,17 @@ Each connector has its own authorize/callback pair under `/api/v1/connectors/`:
 | `/microsoft-calendar/authorize` → `/microsoft-calendar/callback` | `MICROSOFT_CALENDAR` |
 | `/microsoft-contacts/authorize` → `/microsoft-contacts/callback` | `MICROSOFT_CONTACTS` |
 | `/microsoft-tasks/authorize` → `/microsoft-tasks/callback` | `MICROSOFT_TASKS` |
+
+For **Connect all** and **Reconnect my Microsoft services**, the application also
+offers one authorization request for the eligible services of one selected
+Microsoft account. Both grouped actions return to
+`/api/v1/connectors/oauth-bulk/microsoft/callback`. The server derives the
+requested scopes and verifies the signed Microsoft account and granted scopes
+before linking services to one `oauth_grants` row. Different accounts require
+separate authorizations; disabling a service remains individual. The callback
+must be registered as a **Web** redirect URI in the matching Microsoft Entra
+app registration. See [the OAuth guide](OAUTH.md) and
+[ADR-302](../architecture/ADR-302-OAuth-Grant-Par-Compte-Et-Consentement-Groupe.md).
 
 ---
 

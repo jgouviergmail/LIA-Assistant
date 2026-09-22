@@ -46,6 +46,7 @@ import type { ChannelKey } from '@/components/eyes/rig/channels';
 import type { SpringConfig } from '@/components/eyes/rig/spring';
 import type { Tape } from '@/components/eyes/rig/tape';
 import type { EyeExpression } from '@/components/eyes/expression-engine';
+import { finiteUnit, type ActingContext } from './direction';
 
 /** The resting expressions whose face lives (the breathing set). */
 export const MOUTH_LIFE_EXPRESSIONS: ReadonlySet<EyeExpression> = new Set([
@@ -55,7 +56,6 @@ export const MOUTH_LIFE_EXPRESSIONS: ReadonlySet<EyeExpression> = new Set([
   'joy',
   'bored',
   'tired',
-  'thinking',
 ]);
 
 /**
@@ -370,8 +370,28 @@ export interface MouthLifeDraw {
 
 /** Pick a mimic from the weights — the first random number decides — never
  * the one just played: the same gasp twice in a row is a loop, not a life. */
-export function pickMimic(random: () => number, previous: MouthMimic | null = null): MouthMimic {
-  const weights = MOUTH_MIMIC_WEIGHTS.filter(([mimic]) => mimic !== previous);
+function mimicAffinity(mimic: MouthMimic, context?: ActingContext): number {
+  if (!context) return 1;
+  const pleasure = finiteUnit(context.pleasure);
+  const energy = finiteUnit(context.arousal);
+  if (mimic === 'grin' || mimic === 'giggle') return 1 + pleasure * 0.8;
+  if (mimic === 'sulk') return 1 - pleasure * 0.8;
+  if (mimic === 'wiggle' || mimic === 'smack') return 0.4 + Math.max(0, energy) * 0.6;
+  if (mimic === 'hmm') return 0.5 + finiteUnit(context.curiosity, 0);
+  return 1;
+}
+
+export function pickMimic(
+  random: () => number,
+  previous: MouthMimic | null = null,
+  context?: ActingContext
+): MouthMimic {
+  const weights = MOUTH_MIMIC_WEIGHTS.filter(([mimic]) => mimic !== previous).map(
+    ([mimic, weight]): readonly [MouthMimic, number] => [
+      mimic,
+      weight * mimicAffinity(mimic, context),
+    ]
+  );
   const total = weights.reduce((sum, [, weight]) => sum + weight, 0);
   let cursor = random() * total;
   for (const [mimic, weight] of weights) {
@@ -390,12 +410,16 @@ export function pickMimic(random: () => number, previous: MouthMimic | null = nu
  */
 export function drawMouthMimic(
   random: () => number,
-  previous: MouthMimic | null = null
+  previous: MouthMimic | null = null,
+  context?: ActingContext
 ): MouthLifeDraw {
-  const mimic = pickMimic(random, previous);
+  const mimic = pickMimic(random, previous, context);
   const side: 1 | -1 = random() < 0.5 ? 1 : -1;
   const scale = MOUTH_LIFE_SCALE_MIN + random() * MOUTH_LIFE_SCALE_SPAN;
-  return { mimic, tapes: warpTapes(scaleMimic(mimicTapes(mimic, side), scale), random) };
+  return {
+    mimic,
+    tapes: warpTapes(scaleMimic(mimicTapes(mimic, side), scale), random),
+  };
 }
 
 /**

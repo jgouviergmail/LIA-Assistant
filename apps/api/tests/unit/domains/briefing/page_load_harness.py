@@ -283,6 +283,15 @@ class Rig:
                     AsyncMock(return_value=self.redis),
                 )
             )
+            # The extracted cross-worker claim must use the same cache as
+            # its publisher. Leaving it real makes this unit rig depend on
+            # ambient Redis credentials and silently lose coalescing offline.
+            stack.enter_context(
+                patch(
+                    "src.infrastructure.utils.shared_flight.get_redis_cache",
+                    AsyncMock(return_value=self.redis),
+                )
+            )
             for name in SECTION_NAMES:
                 stack.enter_context(
                     patch(f"src.domains.briefing.service.fetch_{name}", self._fetcher(name))

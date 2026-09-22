@@ -12,6 +12,7 @@ from uuid import UUID
 
 import httpx
 import structlog
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from tenacity import (
     retry,
@@ -42,7 +43,13 @@ from src.domains.connectors.models import (
     ConnectorGlobalConfig,
     ConnectorStatus,
     ConnectorType,
+    OAuthGrant,
     get_conflicting_connector_types,
+)
+from src.domains.connectors.oauth_grant_lifecycle import delete_shared_connector
+from src.domains.connectors.oauth_grant_runtime import (
+    OAuthGrantRuntime,
+    invalidate_oauth_connector_cache,
 )
 from src.domains.connectors.repository import ConnectorRepository
 from src.domains.connectors.schemas import (
@@ -61,6 +68,7 @@ from src.domains.connectors.schemas import (
     HueBridgeCredentials,
     HueConnectionMode,
 )
+from src.domains.users.models import User
 from src.infrastructure.cache.redis import SessionService, get_redis_session
 from src.infrastructure.email import get_email_service
 from src.infrastructure.resilience import get_circuit_breaker
@@ -327,6 +335,11 @@ class ConnectorService:
                 connector_type=connector.connector_type.value,
             )
 
+        if connector.oauth_grant_id:
+            await OAuthGrantRuntime(self.db).credentials_for(connector, force=True)
+            await self.db.refresh(connector)
+            return ConnectorResponse.model_validate(connector)
+
         # Decrypt credentials, refresh, then re-encrypt
         from src.core.security import decrypt_data, encrypt_data
         from src.domains.connectors.schemas import ConnectorCredentials
@@ -366,12 +379,13 @@ class ConnectorService:
         check_resource_ownership_by_user_id(connector, user_id, "connector")
         assert connector is not None  # check_resource_ownership_by_user_id raises if None
 
-        # Optionally revoke OAuth token at provider (for Gmail, etc.)
-        await self._revoke_oauth_token(connector)
-
-        # Delete from database
-        await self.repository.delete(connector)
-        await self.db.commit()
+        if connector.oauth_grant_id:
+            await delete_shared_connector(self.db, self.repository, connector)
+        else:
+            # Legacy per-service credentials retain their established behavior.
+            await self._revoke_oauth_token(connector)
+            await self.repository.delete(connector)
+            await self.db.commit()
 
         logger.info(
             "connector_deleted",
@@ -534,12 +548,19 @@ class ConnectorService:
         )
 
         # Create or update connector
+        # Same lock order as grouped callback: owner → grant → connector.
+        # A refresh holds grant → connector; reversing that order here can
+        # deadlock when someone reconnects while the scheduler rotates tokens.
+        await self.db.scalar(select(User.id).where(User.id == user_id).with_for_update())
         existing_connector = await self.repository.get_by_user_and_type(user_id, connector_type)
 
         update_data: dict[str, Any] = {
             FIELD_STATUS: ConnectorStatus.ACTIVE,
             "scopes": scopes,
             "credentials_encrypted": encrypted_credentials,
+            # This callback is service-specific. Its new token must never be
+            # shadowed by a grant previously shared with other services.
+            "oauth_grant_id": None,
         }
 
         # Merge metadata if provided
@@ -551,7 +572,24 @@ class ConnectorService:
 
         if existing_connector:
             # Update existing connector
+            previous_grant_id = existing_connector.oauth_grant_id
+            previous_grant = (
+                await self.db.scalar(
+                    select(OAuthGrant).where(OAuthGrant.id == previous_grant_id).with_for_update()
+                )
+                if previous_grant_id
+                else None
+            )
             connector = await self.repository.update(existing_connector, update_data)
+            if previous_grant_id:
+                sibling = await self.db.scalar(
+                    select(Connector.id).where(
+                        Connector.oauth_grant_id == previous_grant_id,
+                        Connector.id != connector.id,
+                    )
+                )
+                if sibling is None and previous_grant:
+                    await self.db.delete(previous_grant)
         else:
             # Create new connector
             connector_data = {
@@ -685,29 +723,13 @@ class ConnectorService:
             )
             return None
 
+        if connector.oauth_grant_id:
+            return await OAuthGrantRuntime(self.db).credentials_for(connector)
+
         # Decrypt credentials
         try:
             decrypted_json = decrypt_data(connector.credentials_encrypted)
             credentials = ConnectorCredentials.model_validate_json(decrypted_json)
-
-            # Check if token is expired or expiring soon (within safety margin)
-            # Use same margin as base_google_client to prevent race conditions
-            if credentials.expires_at:
-                from src.core.constants import OAUTH_TOKEN_REFRESH_MARGIN_SECONDS
-
-                refresh_threshold = datetime.now(UTC) + timedelta(
-                    seconds=OAUTH_TOKEN_REFRESH_MARGIN_SECONDS
-                )
-                if credentials.expires_at < refresh_threshold:
-                    credentials = await self._refresh_oauth_token(connector, credentials)
-
-            return credentials
-
-        except ConnectorTokenExpiredError:
-            # Not a decryption failure: the refresh (line above) was rejected
-            # by the provider. Preserve the typed error so agent-side handlers
-            # can surface the actionable "reconnect" notice (Lot 3 P3).
-            raise
         except Exception as e:
             logger.error(
                 "connector_credentials_decryption_failed",
@@ -718,6 +740,19 @@ class ConnectorService:
                 "Failed to decrypt connector credentials",
                 connector_id=str(connector.id),
             )
+
+        # Provider failures belong outside the decryption handler: a temporary
+        # outage must retain its own error contract and keep the row ACTIVE.
+        if credentials.expires_at:
+            from src.core.constants import OAUTH_TOKEN_REFRESH_MARGIN_SECONDS
+
+            refresh_threshold = datetime.now(UTC) + timedelta(
+                seconds=OAUTH_TOKEN_REFRESH_MARGIN_SECONDS
+            )
+            if credentials.expires_at < refresh_threshold:
+                credentials = await self._refresh_oauth_token(connector, credentials)
+
+        return credentials
 
     # =========================================================================
     # APPLE iCLOUD METHODS
@@ -1309,6 +1344,9 @@ class ConnectorService:
         Raises:
             HTTPException: If refresh fails after retries
         """
+        if connector.oauth_grant_id:
+            return await OAuthGrantRuntime(self.db).credentials_for(connector)
+
         if not credentials.refresh_token:
             logger.error(
                 "oauth_refresh_missing_refresh_token",
@@ -1347,8 +1385,13 @@ class ConnectorService:
         )
         async def _refresh_token_with_retry() -> httpx.Response:
             """Refresh OAuth token with retry logic for network resilience."""
-            async with httpx.AsyncClient(follow_redirects=False) as client:
-                return await client.post(token_url, data=refresh_data)
+            async with httpx.AsyncClient(
+                timeout=settings.http_timeout_oauth, follow_redirects=False
+            ) as client:
+                response = await client.post(token_url, data=refresh_data)
+                if response.status_code == 429 or response.status_code >= 500:
+                    response.raise_for_status()
+                return response
 
         try:
             logger.debug(
@@ -1366,23 +1409,18 @@ class ConnectorService:
                 error=str(e),
                 error_type=type(e).__name__,
             )
-            await self.repository.update(connector, {FIELD_STATUS: ConnectorStatus.ERROR})
-            await self.db.commit()
             raise_invalid_input(
                 APIMessages.oauth_token_refresh_failed(),
                 connector_id=str(connector.id),
             )
 
         if token_response.status_code != 200:
-            # Parse error response for better diagnostics
-            error_body = token_response.text
+            # Only a definitive provider rejection requires user reconnection.
             try:
                 error_json = token_response.json()
-                error_code = error_json.get("error", "unknown")
-                error_description = error_json.get("error_description", error_body)
-            except Exception:
-                error_code = "parse_error"
-                error_description = error_body
+                error_code = error_json.get("error") if isinstance(error_json, dict) else None
+            except ValueError:
+                error_code = None
 
             logger.error(
                 "oauth_token_refresh_rejected",
@@ -1390,141 +1428,68 @@ class ConnectorService:
                 connector_type=connector.connector_type.value,
                 user_id=str(connector.user_id),
                 status_code=token_response.status_code,
-                error_code=error_code,
-                error_description=error_description[:200] if error_description else None,
+                error_code=(
+                    error_code
+                    if error_code in {"invalid_grant", "interaction_required", "invalid_client"}
+                    else None
+                ),
+            )
+            if error_code in {"invalid_grant", "interaction_required"}:
+                await self.repository.update(connector, {FIELD_STATUS: ConnectorStatus.ERROR})
+                await self.db.commit()
+                await invalidate_oauth_connector_cache(connector.user_id)
+                raise ConnectorTokenExpiredError(
+                    APIMessages.refresh_token_revoked(),
+                    connector_type=connector.connector_type.value,
+                    connector_id=str(connector.id),
+                    response_status_code=token_response.status_code,
+                )
+            raise_invalid_input(
+                APIMessages.oauth_token_refresh_failed(), connector_id=str(connector.id)
             )
 
-            # Mark connector as error status
-            await self.repository.update(connector, {FIELD_STATUS: ConnectorStatus.ERROR})
-            await self.db.commit()
-
-            # Provide user-friendly message based on error type
-            if error_code == "invalid_grant":
-                user_message = APIMessages.refresh_token_revoked()
-            else:
-                user_message = APIMessages.oauth_token_refresh_failed()
-
-            # Typed subclass of ValidationError: same HTTP 400 contract for all
-            # existing callers, but lets agent-side handlers surface an
-            # actionable "reconnect" notice in the chat (Lot 3 P3, ADR-134).
-            raise ConnectorTokenExpiredError(
-                user_message,
-                connector_type=connector.connector_type.value,
-                connector_id=str(connector.id),
-                response_status_code=token_response.status_code,
+        try:
+            token_data = token_response.json()
+        except ValueError:
+            raise_invalid_input(
+                APIMessages.oauth_token_refresh_failed(), connector_id=str(connector.id)
             )
-
-        token_data = token_response.json()
-
-        # Update credentials
-        new_access_token = token_data.get("access_token")
-
-        # Use Google standard token lifetime (3599s) as default
-        from src.core.constants import OAUTH_TOKEN_DEFAULT_LIFETIME_SECONDS
-
-        expires_in = token_data.get("expires_in", OAUTH_TOKEN_DEFAULT_LIFETIME_SECONDS)
-        expires_at = datetime.now(UTC) + timedelta(seconds=expires_in)
-
-        # IMPORTANT: Update refresh_token if Google returns a new one
-        # Google may return a new refresh_token in some cases (e.g., token rotation)
-        # Always prefer the new token if provided, otherwise keep the existing one
+        if not isinstance(token_data, dict):
+            raise_invalid_input(
+                APIMessages.oauth_token_refresh_failed(), connector_id=str(connector.id)
+            )
+        new_credentials = OAuthGrantRuntime._parse_success(token_data, credentials)
         new_refresh_token = token_data.get("refresh_token")
         if new_refresh_token and new_refresh_token != credentials.refresh_token:
-            logger.info(
-                "oauth_refresh_token_rotated",
-                connector_id=str(connector.id),
-                old_token_prefix=(
-                    credentials.refresh_token[:10] + "..." if credentials.refresh_token else None
-                ),
-                new_token_prefix=new_refresh_token[:10] + "...",
-            )
-        refresh_token_to_use = new_refresh_token or credentials.refresh_token
-
-        new_credentials = ConnectorCredentials(
-            access_token=new_access_token,
-            refresh_token=refresh_token_to_use,
-            token_type="Bearer",
-            expires_at=expires_at,
-        )
+            logger.info("oauth_refresh_token_rotated", connector_id=str(connector.id))
 
         # Encrypt and store new credentials
         encrypted_credentials = encrypt_data(new_credentials.model_dump_json())
         await self.repository.update_credentials(connector, encrypted_credentials)
         await self.db.commit()
+        await invalidate_oauth_connector_cache(connector.user_id)
 
         logger.info(
             "oauth_token_refreshed",
             connector_id=str(connector.id),
-            expires_in_seconds=expires_in,
+            expires_in_seconds=token_data.get("expires_in", 3599),
             refresh_token_updated=bool(new_refresh_token),
         )
 
         return new_credentials
 
     async def _revoke_oauth_token(self, connector: Connector) -> None:
-        """Revoke OAuth token at provider (best effort). Skips non-OAuth connectors.
-
-        Provider-isolated: counts only same-family connectors to decide revocation.
-        - Microsoft has NO revocation endpoint → always skip.
-        - Google: only revoke when this is the LAST active Google connector
-          (all Google connectors share the same client_id / grant).
-        """
+        """A service-scoped unlink only drops local access, never provider-wide consent."""
         if not connector.connector_type.is_oauth:
-            return  # Apple/API-key connectors don't have OAuth tokens
-
-        # Microsoft has no revocation endpoint
-        if connector.connector_type.is_microsoft:
-            logger.info(
-                "microsoft_token_revoke_skipped",
-                connector_id=str(connector.id),
-                connector_type=connector.connector_type.value,
-                reason="no_revocation_endpoint",
-            )
             return
-
-        # Google: count only other Google OAuth connectors (not Microsoft)
-        other_active_same_provider = 0
-        for ct in ConnectorType.get_google_types():
-            if ct == connector.connector_type:
-                continue
-            other = await self.repository.get_by_user_and_type(connector.user_id, ct)
-            if other and other.status == ConnectorStatus.ACTIVE:
-                other_active_same_provider += 1
-
-        if other_active_same_provider > 0:
-            logger.info(
-                "oauth_token_revoke_skipped",
-                connector_id=str(connector.id),
-                connector_type=connector.connector_type.value,
-                remaining_same_provider=other_active_same_provider,
-                reason="other_google_connectors_still_active",
-            )
-            return  # Don't revoke — would invalidate other connectors' tokens
-
-        try:
-            # Last Google connector — safe to revoke the grant at Google
-            decrypted_json = decrypt_data(connector.credentials_encrypted)
-            credentials = ConnectorCredentials.model_validate_json(decrypted_json)
-
-            async with httpx.AsyncClient(follow_redirects=False) as client:
-                await client.post(
-                    "https://oauth2.googleapis.com/revoke",
-                    params={"token": credentials.access_token},
-                )
-
-            logger.info(
-                "oauth_token_revoked",
-                connector_id=str(connector.id),
-                reason="last_google_connector",
-            )
-
-        except Exception as e:
-            logger.warning(
-                "oauth_token_revoke_failed",
-                connector_id=str(connector.id),
-                error=str(e),
-            )
-            # Continue anyway - local deletion is more important
+        # Google revocation invalidates all project scopes granted by this
+        # external account. A unit action cannot safely make that call.
+        logger.info(
+            "oauth_token_revoke_skipped",
+            connector_id=str(connector.id),
+            connector_type=connector.connector_type.value,
+            reason="service_scoped_unlink",
+        )
 
     # ========== GOOGLE CONTACTS CONNECTOR ==========
 

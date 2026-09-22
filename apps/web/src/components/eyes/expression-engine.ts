@@ -13,6 +13,7 @@
  *   > notification ping > user typing > inactivity stages > idle (mood x hour)
  */
 
+import type { ActivityFamily } from './activity';
 import type { MoodLabel } from '@/types/psyche';
 import type { VoiceModeState } from '@/stores/voiceModeStore';
 
@@ -76,6 +77,7 @@ export type InactivityStage = 0 | 1 | 2 | 3;
 
 /** Live signals the widget gathers each evaluation. */
 export interface ExpressionInputs {
+  activity?: ActivityFamily | null;
   chatStatus: 'idle' | 'sending' | 'streaming' | 'error' | 'compacting';
   streamPhase: 'progress' | 'answer';
   /** Kind of the latest execution step, only meaningful during 'progress'. */
@@ -133,7 +135,7 @@ export const TYPING_ACTIVE_MS = 1800;
 // =============================================================================
 
 const GAZE_INPUT: Gaze = { x: 0, y: 1 };
-const GAZE_THINKING: Gaze = { x: -0.6, y: -1 };
+const GAZE_THINKING: Gaze = { x: -0.25, y: -0.3 };
 const GAZE_TOAST: Gaze = { x: 1, y: -1 };
 
 // =============================================================================
@@ -142,14 +144,25 @@ const GAZE_TOAST: Gaze = { x: 1, y: -1 };
 
 /** Expression while the pipeline streams, split by phase and step kind. */
 function streamingExpression(inputs: ExpressionInputs): ExpressionFrame {
+  if (inputs.activity) return { expression: ACTIVITY_EXPRESSIONS[inputs.activity], gaze: null };
   if (inputs.streamPhase === 'progress') {
     if (inputs.lastStepKind === 'tool') {
       return { expression: 'searching', gaze: null };
     }
     return { expression: 'thinking', gaze: GAZE_THINKING };
   }
-  return { expression: 'speaking', gaze: null };
+  return { expression: 'attentive', gaze: null };
 }
+
+const ACTIVITY_EXPRESSIONS: Record<ActivityFamily, EyeExpression> = {
+  reading: 'searching',
+  organizing: 'focused',
+  communicating: 'attentive',
+  calculating: 'thinking',
+  creating: 'focused',
+  exploring: 'searching',
+  generic: 'thinking',
+};
 
 /** Idle base: psyche mood first, hour-of-day bias when mood is absent/neutral. */
 function idleExpression(inputs: ExpressionInputs): ExpressionFrame {
@@ -239,7 +252,7 @@ const MOOD_IDLE_EXPRESSIONS: Record<MoodLabel, EyeExpression> = {
   curious: 'attentive',
   energized: 'attentive',
   playful: 'attentive',
-  reflective: 'thinking',
+  reflective: 'attentive',
   agitated: 'neutral',
   melancholic: 'neutral',
   neutral: 'neutral',
@@ -341,7 +354,6 @@ export function contentHeuristicExpression(source: {
   hasArtifacts: boolean;
 }): EyeExpression | null {
   if (source.isError) return 'worried';
-  if (source.hasArtifacts) return 'joy';
 
   const text = withoutCodeFences(source.content);
   if (JOY_EMOJI.test(text)) return 'joy';
@@ -838,7 +850,11 @@ export const URGENT_ARRIVALS: ReadonlySet<EyeExpression> = new Set([
 ]);
 
 /** Family rank used to read a mood change as rising or falling energy. */
-const FAMILY_ENERGY: Record<IdleMoodFamily, number> = { drowsy: 0, calm: 1, lively: 2 };
+const FAMILY_ENERGY: Record<IdleMoodFamily, number> = {
+  drowsy: 0,
+  calm: 1,
+  lively: 2,
+};
 
 /** Rising mood: a spark — double-take up, settle. */
 export const MOOD_SHIFT_RISE_PERFORMANCE: readonly PerformanceStep[] = [
@@ -892,7 +908,10 @@ export const READING_RETURN_MS = 180;
  * carriage return to line start). */
 export function readingGazeAt(step: number): { gaze: Gaze; ms: number } {
   const index = ((step % READING_LINE.length) + READING_LINE.length) % READING_LINE.length;
-  return { gaze: READING_LINE[index], ms: index === 0 ? READING_RETURN_MS : READING_MOVE_MS };
+  return {
+    gaze: READING_LINE[index],
+    ms: index === 0 ? READING_RETURN_MS : READING_MOVE_MS,
+  };
 }
 
 // =============================================================================

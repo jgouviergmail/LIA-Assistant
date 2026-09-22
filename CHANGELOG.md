@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.47.1] - 2026-09-22
+
+**Un compte, un consentement ; un compagnon qui suit ce que LIA fait réellement.**
+
+### Added
+
+- Google et Microsoft peuvent désormais relier ou reconnecter plusieurs services en un seul parcours de consentement, sur un compte fournisseur dont l'identité est vérifiée. Les autorisations sont conservées par compte et par application OAuth ; déconnecter un service ne coupe pas les autres. Le parcours individuel reste disponible, et les connexions existantes ne sont pas migrées sans choix explicite ([ADR-302](docs/architecture/ADR-302-OAuth-Grant-Par-Compte-Et-Consentement-Groupe.md)).
+- Le compagnon expressif relie les activités effectivement exécutées, la tonalité de la réponse, l'heure locale et des données météo déjà mises en cache à son animation. Il conserve des poses statiques lorsque la réduction des mouvements est demandée, sans nouvel appel de modèle ou de fournisseur ([ADR-294](docs/architecture/ADR-294-A-Face-That-Never-Plays-The-Same-Twice.md)).
+
+### Changed
+
+- La sélection des outils et des skills traite plus précisément leurs déclarations et leurs représentations sémantiques ; les résultats de skills rejoignent le contexte de réponse sans être confondus avec une action accomplie. Les états vocaux et visuels restent alignés sur le déroulement réel du tour.
+- La page d'accueil peut fournir au compagnon un contexte léger provenant du briefing existant ; ce contexte est éphémère et ne déclenche ni nouvelle consultation météo ni appel LLM.
+
+### Fixed
+
+- Les autorisations OAuth groupées ont une reprise, un renouvellement et une déconnexion cohérents entre services ; l'état du parcours est à usage unique, PKCE S256 est conservé et le jeton d'identité est vérifié avant d'associer un compte.
+- Les chemins d'outils MCP, Live et ReAct ne doivent plus présenter une réponse structurée ou un appel d'outil abandonné comme une action exécutée ; les réponses et historiques restent interprétables après les sorties anticipées.
+- Plusieurs défauts de synchronisation et d'affichage du compagnon ont été corrigés, notamment le respect des préférences de mouvement et le nettoyage du contexte éphémère.
+
+### Tests and operations
+
+- Nouvelle migration `oauth_grants` additive : les credentials existants restent valides et non liés jusqu'à une autorisation groupée réussie. Tests unitaires, intégration et parcours navigateur ajoutés pour l'identité, le renouvellement, la reconnexion et le compagnon.
+- Les nouvelles métriques d'outils et les tableaux de bord d'observabilité sont raccordés ; les URI de callback groupé sont documentées pour les installations qui activent Google ou Microsoft.
+
 ## [1.47.0] - 2026-09-20
 
 **Le mode Live : parler avec LIA en temps réel, sur sa propre clé, deux intelligences et une seule couture** ([ADR-299](docs/architecture/ADR-299-Live-Voice-Mode-Two-Intelligences-One-Seam.md), amendant ADR-070, ADR-245, ADR-258, ADR-263, ADR-272, ADR-280 et ADR-290). Une session vocale duplex, parole à parole, s'ouvre depuis l'icône vocale de l'en-tête sur un connecteur d'une NOUVELLE catégorie, `live`, que la personne active avec sa propre clé (Gemini Live, GPT-Live, ElevenLabs Agents) — rien de ce que le fournisseur facture n'est compté, stocké ni montré par la plateforme. **Le modèle vocal tient la conversation et DÉLÈGUE chaque demande de donnée ou d'action au moteur du chat** par UNE fonction `NON_BLOCKING`, `send_to_lia`, que le navigateur transforme en un `POST /chat/stream` ordinaire avec le cookie de la personne : le tour délégué tourne dans le graphe (HITL, registres, quotas, archive, apprentissage), se dessine dans le fil estampillé `live_session_id` + `spoken_text`, et le pont rend à la voix une réponse aplatie et bornée — ou la question en attente de LIA, qui EST la réponse ; la voix ne tient jamais un outil, une clé ni une ligne à elle. **Quatre faits MESURÉS avant de figer le design** (`task live:probe`) sont chacun une règle du code : la contrainte d'une clé éphémère ne verrouille PAS l'instruction système (l'API rend le `setup`, le navigateur le rejoue tel quel) ; une clé à usage unique consommée ne peut PAS se reconnecter (chaque reconnexion en frappe une fraîche pour le MÊME record, sur la poignée de reprise) ; le fournisseur ACCEPTE en silence un nom de voix inconnu (la voix est validée contre la liste vendored, datée, sourcée — jamais par lui) ; un WebSocket brut n'est accepté que par la méthode `BidiGenerateContentConstrained` avec le jeton en `access_token`. Une session par compte (revendication à jeton d'owner `live:session`, USER_RUNTIME ; `live:active` GLOBAL plafonne l'instance ; une limite de frappe), le record survit au plafond de `LIVE_SESSION_RECORD_GRACE_SECONDS` pour qu'une session allée au bout ferme ses livres. Un échange purement vocal est archivé à `turnComplete` en deux lignes visibles `live_turn` (injectées au tour écrit suivant comme les lignes proactives, `out_of_graph.py`) ; la session se clôt sur UNE carte `live_session_summary` dont la dépense est la SOMME des lignes `message_token_summary` des runs délégués — celle de LIA, dans le vocabulaire du compteur du chat ; une session est UNE ligne de décision, chaque tour délégué son propre run. Le niveau de réflexion n'est offert que sur l'échelle ADR-245 du modèle et refusé hors d'elle à l'écriture. Web : `LiveSessionController` (une classe sans React) derrière le fin `useLiveSession`, `useLiveHoldsMicrophone` étend la règle du propriétaire unique d'ADR-258 à la boucle du mot d'activation, `effectiveVoiceState` nourrit les yeux sans nouvelle entrée, la CSP n'autorise qu'UN hôte exact par fournisseur WebSocket.

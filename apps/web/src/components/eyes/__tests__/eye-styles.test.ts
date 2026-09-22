@@ -30,6 +30,7 @@ describe('eye-style registry', () => {
   });
 
   it('validates ids strictly', () => {
+    expect(isValidEyeStyle('smiley')).toBe(true);
     expect(isValidEyeStyle(DEFAULT_EYE_STYLE)).toBe(true);
     expect(isValidEyeStyle('not-a-style')).toBe(false);
     expect(isValidEyeStyle(undefined)).toBe(false);
@@ -45,10 +46,10 @@ describe('eye-style registry', () => {
     }
   });
 
-  it('every non-default style ships its scoped CSS recipe block', () => {
+  it('every style except the Cozmo base sheet ships its scoped CSS recipe block', () => {
     const eyesCss = readEyesCss();
     for (const id of EYE_STYLE_IDS) {
-      if (id === DEFAULT_EYE_STYLE) continue; // the default IS the base sheet
+      if (id === 'cozmo') continue; // Cozmo owns the base sheet, independent of the user default
       expect(eyesCss, `missing CSS block for style '${id}'`).toContain(`[data-style='${id}']`);
     }
   });
@@ -79,10 +80,16 @@ describe('eye-style registry', () => {
   });
 
   it('every style ships its localized name and description (en + fr)', () => {
-    const en = (enTranslations as { eyes: { styles: Record<string, Record<string, string>> } }).eyes
-      .styles;
-    const fr = (frTranslations as { eyes: { styles: Record<string, Record<string, string>> } }).eyes
-      .styles;
+    const en = (
+      enTranslations as {
+        eyes: { styles: Record<string, Record<string, string>> };
+      }
+    ).eyes.styles;
+    const fr = (
+      frTranslations as {
+        eyes: { styles: Record<string, Record<string, string>> };
+      }
+    ).eyes.styles;
     for (const id of EYE_STYLE_IDS) {
       expect(en[id]?.name, `en name for '${id}'`).toBeTruthy();
       expect(en[id]?.description, `en description for '${id}'`).toBeTruthy();

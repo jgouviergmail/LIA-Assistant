@@ -23,6 +23,7 @@ apps/api/src/domains/briefing/
 ├── constants.py         TTLs, internal limits, error codes, prompt names
 ├── exceptions.py        ConnectorNotConfiguredError, ConnectorAccessError
 ├── schemas.py           Pydantic v2 models (CardStatus, *Data, BriefingResponse)
+├── companion.py         Minimal, fresh weather projection for the expressive avatar
 ├── formatters.py        Pure functions: raw API/DB → UI strings
 ├── fetchers.py          One async fetcher per source (testable in isolation)
 ├── llm.py               generate_greeting() + generate_synthesis() + token tracking
@@ -37,6 +38,18 @@ apps/api/src/domains/briefing/
 > (`BRIEFING_*_DEFAULT`) — not in the domain `constants.py` — so `src/core/config`
 > can import them without triggering a config↔domain circular import. Read them at
 > runtime through `settings.briefing_*`, never the constants directly.
+
+### Passive companion context
+
+`GET /api/v1/briefing/companion-context` returns the authenticated account's
+timezone and an optional current-weather snapshot. `BriefingService.read_cached_weather`
+reads only that account/language cache key, respects hidden weather preferences,
+and never invokes a fetcher or an LLM. `companion.project_weather` excludes failed,
+future, expired or malformed observations and strips location/description/forecast
+fields. The existing weather section TTL owns expiry. Cache absence or Redis
+failure returns `weather: null`; visiting the chat cannot incur a weather-provider
+request. The avatar's ephemeral frontend lifecycle and animation priorities are
+documented in [ADR-294](../architecture/ADR-294-A-Face-That-Never-Plays-The-Same-Twice.md).
 
 | Env var | Default | Bounds | Effect |
 |---------|---------|--------|--------|

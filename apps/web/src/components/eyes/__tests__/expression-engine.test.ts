@@ -124,7 +124,11 @@ describe('deriveExpression — priority chain', () => {
 
   it('voice recording shows attentive (beats chat interaction)', () => {
     const frame = deriveExpression(
-      inputs({ voiceState: 'recording', chatStatus: 'streaming', streamPhase: 'progress' })
+      inputs({
+        voiceState: 'recording',
+        chatStatus: 'streaming',
+        streamPhase: 'progress',
+      })
     );
     expect(frame.expression).toBe('attentive');
   });
@@ -154,31 +158,48 @@ describe('deriveExpression — priority chain', () => {
 
   it('streaming progress + tool step shows searching', () => {
     const frame = deriveExpression(
-      inputs({ chatStatus: 'streaming', streamPhase: 'progress', lastStepKind: 'tool' })
+      inputs({
+        chatStatus: 'streaming',
+        streamPhase: 'progress',
+        lastStepKind: 'tool',
+      })
     );
     expect(frame.expression).toBe('searching');
   });
 
   it('streaming progress + reasoning (or unknown) step shows thinking with gaze up', () => {
     const reasoning = deriveExpression(
-      inputs({ chatStatus: 'streaming', streamPhase: 'progress', lastStepKind: 'reasoning' })
+      inputs({
+        chatStatus: 'streaming',
+        streamPhase: 'progress',
+        lastStepKind: 'reasoning',
+      })
     );
     expect(reasoning.expression).toBe('thinking');
-    expect(reasoning.gaze).toEqual({ x: -0.6, y: -1 });
+    expect(reasoning.gaze).toEqual({ x: -0.25, y: -0.3 });
     const unknown = deriveExpression(
-      inputs({ chatStatus: 'streaming', streamPhase: 'progress', lastStepKind: null })
+      inputs({
+        chatStatus: 'streaming',
+        streamPhase: 'progress',
+        lastStepKind: null,
+      })
     );
     expect(unknown.expression).toBe('thinking');
   });
 
-  it('streaming answer shows speaking', () => {
+  it('text streaming stays attentive without miming speech', () => {
     const frame = deriveExpression(inputs({ chatStatus: 'streaming', streamPhase: 'answer' }));
-    expect(frame.expression).toBe('speaking');
+    expect(frame.expression).toBe('attentive');
   });
 
   it('a held reaction wins over notification, typing and idle', () => {
     const frame = deriveExpression(
-      inputs({ reaction: 'joy', notificationPing: true, userTyping: true, inactivityStage: 2 })
+      inputs({
+        reaction: 'joy',
+        notificationPing: true,
+        userTyping: true,
+        inactivityStage: 2,
+      })
     );
     expect(frame.expression).toBe('joy');
   });
@@ -203,7 +224,7 @@ describe('deriveExpression — priority chain', () => {
 
   it('idle with psyche mood falls through to the mood mapping (soft poses only)', () => {
     expect(deriveExpression(inputs({ moodLabel: 'playful' })).expression).toBe('attentive');
-    expect(deriveExpression(inputs({ moodLabel: 'reflective' })).expression).toBe('thinking');
+    expect(deriveExpression(inputs({ moodLabel: 'reflective' })).expression).toBe('attentive');
     expect(deriveExpression(inputs({ moodLabel: 'melancholic' })).expression).toBe('neutral');
   });
 
@@ -238,7 +259,7 @@ describe('moodToIdleExpression', () => {
     ['curious', 'attentive'],
     ['energized', 'attentive'],
     ['playful', 'attentive'],
-    ['reflective', 'thinking'],
+    ['reflective', 'attentive'],
     ['agitated', 'neutral'],
     ['melancholic', 'neutral'],
     ['neutral', 'neutral'],
@@ -387,7 +408,11 @@ describe('idle gesture scheduling', () => {
   });
 
   it('gesture picks are personality-consistent: no bounce when drowsy, no slow blink when lively', () => {
-    const seen = { lively: new Set<string>(), calm: new Set<string>(), drowsy: new Set<string>() };
+    const seen = {
+      lively: new Set<string>(),
+      calm: new Set<string>(),
+      drowsy: new Set<string>(),
+    };
     for (let r = 0; r < 1; r += 0.01) {
       seen.lively.add(pickIdleGesture(() => r, 'lively'));
       seen.calm.add(pickIdleGesture(() => r, 'calm'));
@@ -494,7 +519,11 @@ describe('idle gesture scheduling', () => {
         if (FACE_BEATS.has(pickIdleGesture(() => (index + 0.5) / draws, family))) face += 1;
       }
       // A lively face carries its brows on more of its beats than a calm one.
-      expect({ family, enough: face / draws >= 0.28, sane: face / draws <= 0.42 }).toEqual({
+      expect({
+        family,
+        enough: face / draws >= 0.28,
+        sane: face / draws <= 0.42,
+      }).toEqual({
         family,
         enough: true,
         sane: true,

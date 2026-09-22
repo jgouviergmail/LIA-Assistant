@@ -1071,60 +1071,29 @@ if "label:" not in query and "in:" not in query:
 
 #### OAuth Flow & Token Management
 
-```python
-# OAuth 2.1 avec PKCE flow
-# 1. User clicks "Connect Google"
-authorization_url = await oauth_handler.get_authorization_url(
-    scopes=[
-        "https://www.googleapis.com/auth/contacts.readonly",
-        "https://www.googleapis.com/auth/gmail.readonly",
-        "https://www.googleapis.com/auth/gmail.send"
-    ],
-    state_token="<random>",  # CSRF protection
-    code_verifier="<random>",  # PKCE verifier
-    code_challenge="<sha256(verifier)>",  # PKCE challenge
-)
-
-# 2. User approves on Google
-# 3. Google redirects to callback with code
-tokens = await oauth_handler.exchange_code_for_tokens(
-    code="<authorization_code>",
-    code_verifier="<saved_verifier>"
-)
-
-# 4. Store encrypted credentials in DB
-await connector_repository.create(
-    user_id=user.id,
-    connector_type=ConnectorType.GOOGLE_GMAIL,
-    credentials={
-        "access_token": encrypt(tokens.access_token),
-        "refresh_token": encrypt(tokens.refresh_token),
-        "expires_at": tokens.expires_at
-    }
-)
-
-# 5. Auto-refresh via BaseGoogleClient (transparent)
-# When access_token expired:
-if datetime.now(UTC) >= credentials.expires_at - timedelta(minutes=5):
-    # Acquire Redis lock (prevent concurrent refreshes)
-    async with redis_lock(f"oauth_refresh:{user_id}"):
-        new_tokens = await oauth_handler.refresh_access_token(
-            refresh_token=credentials.refresh_token
-        )
-        await connector_repository.update_credentials(...)
-```
+`OAuthFlowHandler` construit l'URL à partir du client fournisseur, conserve
+le state, le vérificateur PKCE et les métadonnées dans Redis, puis échange le
+code au callback. Pour Google et Microsoft, « Tout connecter » et « Reconnecter
+mes services » groupent les scopes admissibles d'un **seul compte vérifié** ;
+le callback contrôle l'ID token signé, son `at_hash` éventuel et les scopes
+réellement accordés avant une transition atomique. `oauth_grants` détient le
+credential chiffré par compte, tandis que chaque service conserve sa ligne
+`connectors`. Le refresh d'un grant est sérialisé par verrou PostgreSQL et
+dédupliqué dans le job proactif. Les connexions historiques sans grant gardent
+leur mécanisme unitaire jusqu'à une reconnexion explicite.
 
 **Security** :
 - ✅ PKCE obligatoire (S256)
 - ✅ State token single-use (CSRF protection)
 - ✅ Credentials encryption (Fernet)
-- ✅ Redis lock on refresh (prevent race conditions)
+- ✅ Verrou de ligne sur le grant partagé ; verrou historique sur les connexions unitaires
 - ✅ Scopes validation (prevent scope creep)
 
 **Voir** :
 - [ADR-010: Email Domain Renaming](./architecture/ADR-010-Email-Domain-Renaming.md) - Architecture multi-provider
 - [EMAIL_FORMATTER.md](./technical/EMAIL_FORMATTER.md) - Formatage emails
 - [OAUTH.md](./technical/OAUTH.md) - OAuth 2.1 flow complet
+- [ADR-302](./architecture/ADR-302-OAuth-Grant-Par-Compte-Et-Consentement-Groupe.md) - Un grant par compte vérifié
 
 ---
 
@@ -1862,41 +1831,11 @@ Pour les détails complets, voir [STATE_AND_CHECKPOINT.md](./technical/STATE_AND
 
 ### OAuth 2.1 avec PKCE
 
-```
-User clicks "Connect Google"
-         │
-         ▼
-┌─────────────────────────────────────────────────────┐
-│ 1. INITIATE FLOW                                    │
-│  - Generate state token (32 bytes hex)             │
-│  - Generate code_verifier (43-128 chars)           │
-│  - Compute code_challenge = SHA-256(verifier)      │
-│  - Store in Redis: state → {verifier, metadata}    │
-│  - Redirect to Google with challenge               │
-└────────────────────┬────────────────────────────────┘
-                     │
-                     ▼ Google Authorization
-┌─────────────────────────────────────────────────────┐
-│ 2. USER AUTHORIZES                                  │
-│  - User logs into Google                           │
-│  - Grants permissions                              │
-│  - Google validates code_challenge                 │
-│  - Redirects with: code + state                    │
-└────────────────────┬────────────────────────────────┘
-                     │
-                     ▼
-┌─────────────────────────────────────────────────────┐
-│ 3. HANDLE CALLBACK                                  │
-│  - Validate state (exists, not expired, matches)   │
-│  - Retrieve code_verifier from Redis               │
-│  - Exchange: POST /token {code, verifier}          │
-│  - Google validates: SHA-256(verifier) == challenge│
-│  - Returns: {access_token, refresh_token}          │
-│  - Encrypt with Fernet                             │
-│  - Store in DB                                     │
-│  - Delete state from Redis (single-use)            │
-└─────────────────────────────────────────────────────┘
-```
+Le `state` et PKCE S256 protègent le départ et le retour chez Google comme chez
+Microsoft. Le backend consomme le state une fois, vérifie l'identité et les
+droits du fournisseur, chiffre les tokens et écrit le grant et les connecteurs
+concernés. Le diagramme du parcours et les URI de callback par environnement
+sont maintenus dans [OAUTH.md](./technical/OAUTH.md).
 
 ### BFF Pattern (Backend for Frontend)
 
@@ -3556,63 +3495,20 @@ apps/api/src/infrastructure/scheduler/
 
 ### OAuth Health Check
 
-**Architecture Proactive Monitoring** : Surveillance périodique des connecteurs OAuth avec notifications FCM.
+Le job de refresh proactif renouvelle les tokens proches de l'expiration, une
+fois par grant partagé Google/Microsoft ou par connecteur historique. Un échec
+temporaire ne force pas le statut `ERROR`. Le job distinct
+`check_oauth_health_all_users` surveille **seulement** les connecteurs déjà en
+`ERROR`, déduplique les alertes avec un cooldown Redis, publie un événement SSE
+et envoie une notification FCM si la personne n'est pas connectée. Depuis les
+réglages, plusieurs services en erreur du même fournisseur et du même compte
+peuvent être réautorisés en un parcours (ADR-302). Les métriques de durée et
+d'échec du job sont `background_job_duration_seconds` et
+`background_job_errors_total` avec `job_name="oauth_health_check"` ; il
+n'existe pas de métrique `oauth_health_check_total`.
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                   OAUTH HEALTH CHECK FLOW                            │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                      │
-│  APScheduler (@every 5min)                                          │
-│       │                                                              │
-│       ▼                                                              │
-│  ┌──────────────────────────────────────────────────────────────┐   │
-│  │ For each connector with status != ERROR:                     │   │
-│  │   1. Attempt token refresh                                   │   │
-│  │   2. Validate access_token with lightweight API call         │   │
-│  │   3. Update connector.health_status                          │   │
-│  └──────────────────────────────────────────────────────────────┘   │
-│       │                                                              │
-│       ├─── SUCCESS ──→ connector.health_status = HEALTHY           │
-│       │                                                              │
-│       └─── FAILURE ──→ connector.health_status = ERROR             │
-│                            │                                         │
-│                            ▼                                         │
-│                    ┌──────────────────┐                             │
-│                    │ FCM Notification │                             │
-│                    │ "Reconnexion     │                             │
-│                    │  requise"        │                             │
-│                    └──────────────────┘                             │
-│                            │                                         │
-│                            ▼                                         │
-│                    Frontend Modal                                   │
-│                    "Reconnecter Google"                             │
-│                                                                      │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-**Configuration** :
-
-```bash
-OAUTH_HEALTH_CHECK_ENABLED=true
-OAUTH_HEALTH_CHECK_INTERVAL_MINUTES=5
-FCM_ENABLED=true                    # nom reel (pas FCM_NOTIFICATIONS_ENABLED)
-```
-
-**Métriques Prometheus** :
-
-```prometheus
-# ATTENTION (verifie 2026-07-20) : oauth_health_check_total et
-# oauth_health_check_duration_seconds N'EXISTENT PAS. Metriques OAuth reelles :
-# oauth_callback_total, oauth_callback_errors_total, oauth_callback_duration_seconds,
-# oauth_connector_activation_total, oauth_connector_activation_duration_seconds.
-oauth_health_check_total{connector_type="GOOGLE_GMAIL", status="healthy|error"}
-
-# Check duration
-oauth_health_check_duration_seconds{connector_type}
-```
-
-> Voir [OAUTH_HEALTH_CHECK.md](./technical/OAUTH_HEALTH_CHECK.md) pour la documentation complète.
+> Voir [OAUTH_HEALTH_CHECK.md](./technical/OAUTH_HEALTH_CHECK.md) et
+> [OAUTH.md](./technical/OAUTH.md) pour les détails.
 
 ### Hybrid Memory Search
 
@@ -3997,6 +3893,7 @@ Carnets de bord introspectifs donnant à l'assistant une personnalité vivante e
 | Psyché : dé-saturation + expression incarnée | [ADR-104](./architecture/ADR-104-Psyche-De-Saturation.md), [ADR-105](./architecture/ADR-105-Psyche-Embodied-Expression.md) | [PSYCHE_ENGINE.md](./technical/PSYCHE_ENGINE.md) |
 | Psyché : observabilité + recentrage dominance (leviers inertes, mesure avant activation) | [ADR-142](./architecture/ADR-142-Psyche-Observability-And-Dominance-Recentering.md) | [PSYCHE_ENGINE.md](./technical/PSYCHE_ENGINE.md) |
 | Remédiation code mort + adoption BaseAPIKeyClient | [ADR-107](./architecture/ADR-107-Dead-Code-Remediation-S7.md), [ADR-108](./architecture/ADR-108-BaseAPIKeyClient-Adoption.md) | [CONNECTORS_PATTERNS.md](./technical/CONNECTORS_PATTERNS.md) |
+| OAuth Google/Microsoft : un grant par compte signé et client, un consentement pour plusieurs services du même compte, refresh partagé et déconnexion unitaire | [ADR-302](./architecture/ADR-302-OAuth-Grant-Par-Compte-Et-Consentement-Groupe.md) (amende ADR-021) | [OAUTH.md](./technical/OAUTH.md), [DATABASE_SCHEMA.md](./technical/DATABASE_SCHEMA.md) |
 | Backups PostgreSQL (sidecar pg_dump, restauration testée) | [ADR-109](./architecture/ADR-109-PostgreSQL-Backup-Strategy.md), [ADR-110](./architecture/ADR-110-Backup-Encryption-Options.md) | [DATABASE_BACKUP_RESTORE.md](./runbooks/DATABASE_BACKUP_RESTORE.md) |
 | Pools de connexions checkpointer & store LangGraph | [ADR-111](./architecture/ADR-111-LangGraph-Postgres-Connection-Pooling.md) | [STATE_AND_CHECKPOINT.md](./technical/STATE_AND_CHECKPOINT.md) |
 | Lockfiles Python universels (uv, garde CI) | [ADR-112](./architecture/ADR-112-Python-Dependency-Locking.md) | [CI_CD.md](./technical/CI_CD.md) |

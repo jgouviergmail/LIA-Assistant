@@ -280,7 +280,7 @@ def test_tool_door_relays_the_service_with_the_person_s_facts(client: TestClient
             json={"name": "get_events_tool", "arguments": {"query": "tomorrow"}},
         )
     assert response.status_code == 200
-    assert response.json() == {"text": "Two events tomorrow.", "ok": True}
+    assert response.json() == {"text": "Two events tomorrow.", "ok": True, "activity": None}
     args, kwargs = service.return_value.run_tool.call_args
     assert args[1] == "a" * 32
     assert args[2].name == "get_events_tool" and args[2].arguments == {"query": "tomorrow"}

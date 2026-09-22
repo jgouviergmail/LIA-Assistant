@@ -128,6 +128,10 @@ from src.domains.connectors.media_proxy_router import (  # noqa: E402
 
 router.include_router(media_proxy_router)
 
+from src.domains.connectors.oauth_bulk_router import bulk_oauth_router  # noqa: E402
+
+router.include_router(bulk_oauth_router)
+
 
 # ========== GMAIL ATTACHMENT PROXY ==========
 # Authenticated proxy to download Gmail attachments via the Gmail API.

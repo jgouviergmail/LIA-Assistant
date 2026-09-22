@@ -629,6 +629,14 @@ class ToolManifest:
     # no-op.
     serves_domains: list[str] = field(default_factory=list)
 
+    # Tools that are ONE affordance and only usable together (ADR-293
+    # amendment, 2026-09-20): the ReAct selector binds a unit whole or not at
+    # all, on its best member's rank and one coverage seat. Measured on dev: the
+    # ranking placed `activate_skill_tool` and dropped `run_skill_script`, so
+    # the loop activated the skill, could not run its script, and answered in
+    # prose — a tool nobody can follow up is a dead end (ADR-249's rule).
+    binding_unit: str | None = None
+
     # Versioning
     version: str = "1.0.0"
     updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))

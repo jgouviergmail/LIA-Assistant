@@ -43,6 +43,32 @@ now carries the raw text (`raw_output`) for diagnosis instead of an opaque
 present and future, against the conflict — and against transient model
 misbehavior.
 
+**Amendment 2026-09-20 — a call the PARSER refused is not « no call ».** The
+rescue net read two shapes of a rejected tool call (a schema refusal, an answer
+in text) and missed a third: a call whose ARGUMENTS are not valid JSON.
+LangChain then files it under `invalid_tool_calls` with `tool_calls` empty, and
+the door read « no tool call, empty answer » — a wrong diagnosis of a complete
+answer (`finish_reason = tool_calls`, nothing truncated). Measured on
+`deepseek-flash`: `"primary_domain": mcp`, a bare word where a string belongs,
+on 11 then 14 of 24 query-analyzer replays on dev, and **4 of 26 query analyses
+lost in 48 h of production** — every one of them a whole turn degraded to a
+bare conversation, because the analyzer's fallback is `intent = conversation,
+confidence = 0` and nothing retries. The repair is mechanical and structural
+(ADR-184: what is mechanically repairable is repaired before validation):
+`tool_call_rescue.quote_bare_values` quotes a bare token in VALUE position
+outside any string, and nothing else moves — JSON's own literals, numbers, a
+colon inside a string and a token not followed by the end of its value are
+left alone. It runs AFTER ADR-275's truncation verdict and BEFORE the text
+rescue, logs `structured_output_invalid_call_repaired`, and when it cannot
+help the reason names the parser's verdict (« tool call arguments not valid
+JSON (…) ») and the exception carries the refused arguments as `raw_output`.
+Every native call now lands on ONE series,
+`llm_structured_output_outcomes_total{provider, schema, outcome}` (`parsed`,
+the three rescues, `truncated`, `rejected`), drawn on dashboard 05 — a rescue
+is a repair, not a success, and 15 % of lost analyses had no series to show
+them. Replayed through the door after the change: 24 of 24 analyses settled,
+14 repaired.
+
 ### 2. Prompt convention (root cause)
 
 Prompts consumed by native structured output MUST NOT instruct JSON-text

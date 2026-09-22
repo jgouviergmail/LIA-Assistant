@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version**: 6.0
-**Date**: 2026-09-18
-**Application**: LIA v1.47.0
+**Date**: 2026-09-22
+**Application**: LIA v1.47.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -51,7 +51,7 @@ Every user has their own settings space, organized in two tabs. A search field s
 
 **Personal preferences:**
 
-- **Personal connectors**: plug in your Google, Microsoft or Apple accounts in a few clicks via OAuth — email, calendar, contacts, tasks, Google Drive. Or connect Apple via IMAP/CalDAV/CardDAV. API keys for external services (weather, search)
+- **Personal connectors**: choose Google or Microsoft services in one verified-account authorization, then disconnect each independently; existing links keep working until you choose to reconnect. Apple uses IMAP/CalDAV/CardDAV. Email, calendar, contacts, tasks and Drive sit beside API-key services such as weather and search.
 - **Personality**: choose from available personalities (professor, friend, philosopher, coach, poet...) — each influences LIA's tone, style and emotional behavior
 - **Voice**: configure voice mode — wake word detection, sensitivity, silence threshold, automatic response playback
 - **Notifications**: manage push notifications and registered devices
@@ -193,7 +193,7 @@ Ingestion is authenticated by a **dedicated token** that you generate from the a
 
 An **"Assistant" toggle** (off by default, *opt-in*) lets you, if you wish, authorize the assistant to read these measurements and answer factual questions ("How many steps this week?", "My average heart rate today?", "Am I walking less than usual?"), enrich proactive notifications that combine health + weather + calendar, and attach a non-raw biometric context (deltas, trends) to its memories and internal journals. A single switch governs these four integrations. Never diagnostic — only factual figures, with a baseline that qualifies itself honestly ("based on only N days" while history is under 7 days).
 
-Three management actions give you full control: delete all heart-rate samples, delete all step samples, or wipe everything. No raw physiological value is ever kept in server logs — GDPR compliance is built in by design.
+Three management actions let you delete heart-rate samples, step samples or both. Raw physiological values are kept out of server logs — a concrete privacy safeguard, not a claim that every deployment is automatically GDPR-compliant.
 
 ### 3.10. Calling on your behalf
 
@@ -266,7 +266,7 @@ Imagine: a Raspberry Pi in your living room, and the whole family enjoying an in
 
 When you use ChatGPT, your conversations live on OpenAI's servers. With Gemini, at Google's. With Copilot, at Microsoft's.
 
-With LIA, **everything stays in your PostgreSQL**: conversations, memory, psychological profile, documents, preferences. You can export, back up, migrate or delete all your data at any time — including a one-click complete export from the settings: readable Markdown, structured JSON and your files, with secret material unexportable by construction. And every device connected to your account is visible and revocable in one click. GDPR is not a constraint — it's a natural consequence of the architecture. Sensitive data is encrypted, sessions are isolated, and automatic personally identifiable information (PII) filtering is built in. Your position follows the same doctrine: remembering the last position is an explicit choice, encrypted like everything else, never historized — each update overwrites the previous one — and erased the moment you switch the option off.
+With LIA, **your persistent account data lives in your PostgreSQL**: conversations, memory, profile, documents and preferences. You can export it, back it up or request deletion; secrets are intentionally excluded from the export, and connected devices can be revoked. A remote model or connector still receives the data needed for the request you choose to make; a local model can keep inference on your machine. Credentials are encrypted and sessions isolated. Remembering your last position is opt-in, keeps no history and is erased when you turn it off.
 
 The protection covers what comes **in**, too. Every day LIA reads text you did not write: an email body, an invitation description authored by its organiser, a web page, a place listing. Anyone can slip an instruction meant for the assistant inside them. Every piece of data now carries its provenance, and what comes from outside arrives labelled as **material to analyse, never as an order to follow** — with manipulation attempts spotted and named, across the six languages. Your content is never rewritten for that: an email stays what its author wrote. Rewriting would give the illusion of a guarantee that the next bypass would deny; naming what we see is more honest, and more useful.
 
@@ -378,7 +378,7 @@ The guarantee is structural rather than promised. An action is written down **be
 
 A last tab draws the period as charts, each carrying the exact total of the whole set beside its bars: what you see can be checked rather than believed. Everything exports in three formats — readable, spreadsheet, and the machine format an auditor would ask for — and **nothing in it is truncated**: whatever the volume, the file carries everything your filters name, with the exact count stated in the header and the moment it was taken. All of it leaves with your account archive and disappears with it. Where your administrator switches it on, the registers are sealed per account with fingerprints you can verify yourself.
 
-This is also what Article 12 of the European AI regulation expects of a system like this one. LIA answers it with five records in total: the three above, plus the parameters actually sent to each model, and the register's own gaps — because a register unable to say where it is incomplete asks to be trusted instead of letting itself be read.
+Article 12 of the EU AI Act sets record-keeping duties for high-risk systems; it does not automatically make this personal assistant a high-risk system. LIA still keeps five kinds of evidence: the three above, the parameters actually sent to each model and the register's own gaps — because a register should reveal where it is incomplete.
 
 ## 7. Emotional depth
 
@@ -409,6 +409,8 @@ This inner life has a face: the mood emoji animates on the current reply, the co
 That face tells the truth about the answer, not about the mood of the moment. LIA states the **register** of what she has just written, and the face plays that one: a technical explanation keeps a focused look, a failure reads as a failure. A trait colours a resting presence; it should never answer for a single moment.
 
 And between two answers, that face does not switch off. The brows sit on the eye and weigh — they knit and lead each expression instead of following it; one breath carries the whole face; the mouth speaks a generated phrase that nothing repeats and plays small mimics in phrases rather than on a cadence; two blinks, two smiles, two glances are never identical; and now and then, on a face truly at rest, a short sketch — a fly to follow, a sneeze, a yawn — waiting its turn on a clock the page keeps even while you navigate. None of it costs a model call: it is animation in the sense the studios mean it — a character you believe alive because it breathes when nobody is watching. That same face greets visitors on the home page, before any account.
+
+The companion also follows the work that actually happened, not the work merely prepared. Its head, eyes, brows and mouth move together; the account's local time and weather already cached for the briefing can gently colour its resting scene. No new model or weather request is made for that effect, and reduced-motion settings keep the context in a still pose.
 
 And this presence follows you: outside the chat, a floating companion keeps LIA at your side across the whole dashboard — at rest, at work, or carrying a notification.
 
@@ -495,11 +497,11 @@ LIA does not ask to be trusted on its word. The frameworks it follows are writte
 
 ### 9.1. What regulation requires
 
-**The GDPR is not a checkbox, it is a consequence of the architecture.** Your data lives in your database, on your server. You export your whole account in one click — readable Markdown, structured JSON and your files — you delete it just as simply, and secret material stays unexportable by construction. Sensitive data is encrypted, sessions are isolated, and personally identifiable information is filtered out before it reaches a model provider or a log.
+**Privacy is designed into the architecture, not certified by a slogan.** Your account data lives in the database of the LIA instance you use; if you self-host, you control that server. You can export it as readable Markdown, structured JSON and files, or request its deletion; secret material is deliberately not exported. Credentials are encrypted, sessions are isolated and personally identifiable information is filtered from logs. Whether a particular deployment meets every GDPR duty still depends on how it is operated and which providers it uses.
 
-**The European AI Act requires a system like this one to keep a record of what it does.** That is its article 12, and LIA answers it with five records: what it did, what it consulted, on which exchange, the parameters actually sent to each model, and the gaps in the record itself — because a register unable to say where it is incomplete asks to be trusted instead of letting itself be read. Everything exports, nothing in it is truncated, and everything disappears with your account.
+**LIA keeps records even where a law does not require this personal use case to do so.** Article 12 of the EU AI Act addresses high-risk systems; LIA's action, consultation, decision, model-parameter and integrity records are a deliberate transparency choice, not a claim of high-risk certification. They can be exported and are removed with the account, subject to the documented limits of what each record captures.
 
-**Accessibility is measured, not declared.** Level AA of the WCAG 2.2 rules is the reference, and the matching checks run on every release: contrast, full keyboard navigation, respect for motion preferences, a translated accessible name in the six languages. Colour never carries information on its own.
+**Accessibility is measured, not declared.** Level AA of WCAG 2.2 is the reference. Automated release checks cover contrast, keyboard journeys, motion preferences and translated accessible names across six languages; they complement, rather than replace, manual accessibility review. Colour is not intended to carry information on its own.
 
 ### 9.2. The open standards LIA speaks
 

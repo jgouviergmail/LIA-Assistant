@@ -23,6 +23,7 @@ import pytest_asyncio
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.exceptions import ConnectorTokenExpiredError
 from src.core.security import decrypt_data, encrypt_data
 from src.domains.connectors.models import (
     Connector,
@@ -597,10 +598,11 @@ class TestRefreshOAuthToken:
             token_type="Bearer",
         )
 
-        # Mock failed HTTP response
+        # Only a definitive invalid_grant changes the connector to ERROR.
         mock_response = MagicMock()
         mock_response.status_code = 400
         mock_response.text = "invalid_grant"
+        mock_response.json.return_value = {"error": "invalid_grant"}
 
         # First verify connector status before the error
         await async_session.refresh(sample_connector)
@@ -610,15 +612,9 @@ class TestRefreshOAuthToken:
                 return_value=mock_response
             )
 
-            # The service will raise an exception due to the bug in raise_invalid_input
-            # where status_code is passed in context dict, causing TypeError
-            # We test that it attempts to handle the error
-            try:
+            # The provider definitively rejected the refresh token.
+            with pytest.raises(ConnectorTokenExpiredError):
                 await service._refresh_oauth_token(sample_connector, credentials)
-                raise AssertionError("Should have raised an exception")
-            except HTTPException, TypeError:
-                # Either HTTPException (expected) or TypeError (due to the raise_invalid_input bug)
-                pass
 
             # Verify connector status was updated to ERROR
             await async_session.refresh(sample_connector)
@@ -634,8 +630,8 @@ class TestRefreshOAuthToken:
 class TestRevokeOAuthToken:
     """Test ConnectorService._revoke_oauth_token()"""
 
-    async def test_revoke_oauth_token_success(self, service, sample_connector):
-        """Test successful OAuth token revocation."""
+    async def test_service_unlink_does_not_call_provider(self, service, sample_connector):
+        """A service-scoped action leaves provider-wide consent untouched."""
         mock_response = MagicMock()
         mock_response.status_code = 200
 
@@ -644,21 +640,23 @@ class TestRevokeOAuthToken:
                 return_value=mock_response
             )
 
-            # Should not raise
             await service._revoke_oauth_token(sample_connector)
+            mock_client.return_value.__aenter__.return_value.post.assert_not_awaited()
 
-    async def test_revoke_oauth_token_handles_errors(self, service, sample_connector):
-        """Test revoke continues even if provider call fails."""
+    async def test_service_unlink_does_not_depend_on_provider(self, service, sample_connector):
+        """A provider outage cannot block local disconnection."""
         with patch("httpx.AsyncClient") as mock_client:
             mock_client.return_value.__aenter__.return_value.post = AsyncMock(
                 side_effect=httpx.HTTPError("Connection failed")
             )
 
-            # Should not raise - just logs warning
             await service._revoke_oauth_token(sample_connector)
+            mock_client.return_value.__aenter__.return_value.post.assert_not_awaited()
 
-    async def test_revoke_oauth_token_decryption_error(self, service, async_session, sample_user):
-        """Test revoke handles decryption errors gracefully."""
+    async def test_service_unlink_does_not_need_credential_decryption(
+        self, service, async_session, sample_user
+    ):
+        """A corrupt old token cannot block local disconnection."""
         # Create connector with invalid encrypted data
         connector = Connector(
             user_id=sample_user.id,
@@ -671,7 +669,6 @@ class TestRevokeOAuthToken:
         async_session.add(connector)
         await async_session.commit()
 
-        # Should not raise - just logs warning
         await service._revoke_oauth_token(connector)
 
 

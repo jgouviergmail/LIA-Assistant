@@ -1488,8 +1488,9 @@ class ConnectorTokenExpiredError(ValidationError):
     """OAuth refresh rejected by the provider — the user must reconnect.
 
     Raised by ``ConnectorService._refresh_oauth_token`` when the token
-    endpoint rejects the refresh (``invalid_grant`` = revoked or expired
-    refresh token, or any non-200). Subclasses ``ValidationError`` on purpose:
+    endpoint definitively rejects the refresh (``invalid_grant`` = revoked or
+    expired refresh token, or ``interaction_required``). Subclasses
+    ``ValidationError`` on purpose:
     the HTTP contract (400) and every existing ``except ValidationError``
     remain intact, while agent-side handlers can now catch this specific
     class to surface an actionable "reconnect" notice in the chat.

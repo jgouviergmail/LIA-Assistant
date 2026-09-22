@@ -10,7 +10,7 @@
  * idle gestures, mimics, sketches — plays on a resting expression. The
  * position dragged here is the landing's own (`EyesSurface`), so it never
  * lands on the chat's Delete button; size and visibility are shared, and the
- * look is FORCED to the capsules here (owner choice, 2026-09-05): the visitor
+ * look is FORCED to the smiley here: the visitor
  * has no preference yet, and the chat keeps the user's own.
  *
  * Loaded lazily: the landing is the first page a visitor sees, and the rig
@@ -29,7 +29,7 @@ export function LandingEyes() {
   return (
     <EyesWidget
       surface="landing"
-      styleId="capsules"
+      styleId="smiley"
       chatStatus="idle"
       streamPhase="answer"
       hitlAwaiting={false}

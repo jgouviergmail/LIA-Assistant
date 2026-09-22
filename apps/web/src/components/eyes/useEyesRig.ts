@@ -16,6 +16,12 @@
  */
 
 import { useEffect, useRef } from 'react';
+import { liveActingContext } from './rig/live-context';
+import { observeRigVisibility } from './rig/visibility';
+import { usePsycheStore } from '@/stores/psycheStore';
+import { useEyesSignalsStore } from '@/stores/eyesSignalsStore';
+import { useLiveStore } from '@/stores/liveStore';
+import { useCompanionEnvironmentStore } from '@/stores/companionEnvironmentStore';
 
 import {
   blinkTapes,
@@ -76,7 +82,10 @@ const sketchClock = createSketchClock();
  * target does not visibly bounce off it. */
 function gazeSpringFor(travelMs: number | undefined): SpringConfig | undefined {
   if (travelMs === undefined || travelMs <= 0) return undefined;
-  return { frequency: CRITICAL_SETTLE_FACTOR / (travelMs / 1000), damping: 0.95 };
+  return {
+    frequency: CRITICAL_SETTLE_FACTOR / (travelMs / 1000),
+    damping: 0.95,
+  };
 }
 
 export interface UseEyesRigOptions {
@@ -94,6 +103,7 @@ export interface UseEyesRigOptions {
   gesture?: IdleGesture | null;
   /** How forcefully the pose should land (1 = as authored). */
   emphasis?: number;
+  responseWeight?: number;
   /**
    * Whether the face lives on its own — mimics and sketches drawn from a
    * private entropy stream, gestures at a drawn size. On by default; the
@@ -121,6 +131,7 @@ export function useEyesRig(options: UseEyesRigOptions) {
     blinkMask = false,
     gesture = null,
     emphasis = 1,
+    responseWeight = 1,
     life = true,
   } = options;
 
@@ -136,7 +147,7 @@ export function useEyesRig(options: UseEyesRigOptions) {
     const element = elementRef.current;
     if (!element) return;
 
-    // The life's own stream, seeded once per mount (a salt keeps twelve
+    // The life's own stream, seeded once per mount (a salt keeps simultaneous
     // previews mounted in the same millisecond from miming in unison). It
     // never touches `Math.random`: the widget tests pin that one with exact
     // once-sequences, and a draw at construction would shift them all.
@@ -153,19 +164,63 @@ export function useEyesRig(options: UseEyesRigOptions) {
       lifeRandom: lifeRandomRef.current ?? undefined,
       sketchClock: lifeRandomRef.current ? sketchClock : undefined,
     });
+    let contextTimer: ReturnType<typeof setTimeout> | null = null;
+    let visible = !document.hidden;
+    const syncContext = () => {
+      if (!initialRef.current.life || !visible) return;
+      const context = liveActingContext(Date.now());
+      rig.setContext(context);
+      element.dataset.activity = context.activity ?? '';
+      element.dataset.recentActivity = context.recentFamily ?? '';
+      element.dataset.accomplished = String(context.accomplished);
+      if (contextTimer) clearTimeout(contextTimer);
+      contextTimer =
+        context.recentWeight > 0 || context.activity || context.responding
+          ? setTimeout(syncContext, 1000)
+          : useCompanionEnvironmentStore.getState().environment
+            ? setTimeout(syncContext, 60_000)
+            : null;
+      wakeRef.current?.();
+    };
+    syncContext();
+    const unsubscribePsyche = usePsycheStore.subscribe(syncContext);
+    const unsubscribeSignals = useEyesSignalsStore.subscribe(syncContext);
+    const unsubscribeLive = useLiveStore.subscribe(syncContext);
+    const unsubscribeEnvironment = useCompanionEnvironmentStore.subscribe(syncContext);
     const writer = createRigWriter(element);
     rigRef.current = rig;
     writer.write(rig.values());
 
     // One shared clock for every rig on the page (see `rig/scheduler.ts`):
-    // the widget and the twelve style previews step from a single frame.
+    // the widget and the visible style previews step from a single frame.
+    let contextElapsed = 0;
     const step: FrameSubscriber = delta => {
+      contextElapsed += delta;
+      if (contextElapsed >= 100) {
+        contextElapsed = 0;
+        syncContext();
+      }
       const awake = rig.step(delta);
       writer.write(rig.values());
+      const scene = rig.sketchClock().scene ?? '';
+      if (element.dataset.scene !== scene) element.dataset.scene = scene;
       if (!awake) return 'stop';
       return rig.isSettling() ? 'active' : 'idle';
     };
-    const wake = () => requestFrames(step);
+    const wake = () => {
+      if (visible) requestFrames(step);
+    };
+    const stopVisibility = observeRigVisibility(element, nextVisible => {
+      visible = nextVisible;
+      if (!visible) {
+        releaseFrames(step);
+        if (contextTimer) clearTimeout(contextTimer);
+        contextTimer = null;
+      } else {
+        syncContext();
+        wake();
+      }
+    });
     wakeRef.current = wake;
     wake();
 
@@ -181,6 +236,12 @@ export function useEyesRig(options: UseEyesRigOptions) {
 
     return () => {
       media?.removeEventListener('change', onMotionPreference);
+      stopVisibility();
+      unsubscribePsyche();
+      unsubscribeSignals();
+      unsubscribeLive();
+      unsubscribeEnvironment();
+      if (contextTimer) clearTimeout(contextTimer);
       releaseFrames(step);
       wakeRef.current = null;
       rigRef.current = null;
@@ -189,9 +250,15 @@ export function useEyesRig(options: UseEyesRigOptions) {
 
   // --- Pose: expression, style and mood family.
   useEffect(() => {
-    rigRef.current?.setPose({ expression, styleId, family, emphasis });
+    rigRef.current?.setPose({
+      expression,
+      styleId,
+      family,
+      emphasis,
+      responseWeight,
+    });
     wakeRef.current?.();
-  }, [expression, styleId, family, emphasis]);
+  }, [expression, styleId, family, emphasis, responseWeight]);
 
   // --- Gaze aim, with the host's travel-time intent turned into physics.
   // Depends on the COORDINATES, never on the object: the host rebuilds its

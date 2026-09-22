@@ -20,7 +20,6 @@ import { resolveLoops, resolvePose } from '@/components/eyes/rig/poses';
 import {
   CHANNEL_KEYS,
   isDerived,
-  restChannelValues,
   type ChannelKey,
   type ChannelValues,
 } from '@/components/eyes/rig/channels';
@@ -49,21 +48,25 @@ function posedOnly(values: Readonly<ChannelValues>): Partial<ChannelValues> {
 }
 
 function settledRig(): EyeRig {
-  return createEyeRig({ initial: { expression: 'neutral', styleId: 'cozmo', family: 'calm' } });
+  return createEyeRig({
+    initial: { expression: 'neutral', styleId: 'cozmo', family: 'calm' },
+  });
 }
 
 describe('createEyeRig', () => {
   it('boots already settled on its pose — no animation on first paint', () => {
-    const rig = createEyeRig({ initial: { expression: 'sad', styleId: 'cozmo', family: 'calm' } });
+    const rig = createEyeRig({
+      initial: { expression: 'sad', styleId: 'cozmo', family: 'calm' },
+    });
     expect(posedOnly(rig.values())).toEqual(posedOnly(resolvePose('sad', 'cozmo')));
   });
 
-  it('starts neutral by default, already breathing', () => {
-    // Every channel the idle loops do NOT ride sits exactly on its rest value.
+  it('starts on the Smiley neutral pose by default, already breathing', () => {
+    // Every channel the idle loops do NOT ride sits exactly on its pose value.
     // The ones they do ride are already off it on the very first frame, and
     // must be: the moving hold is what keeps a resting face from freezing.
     const values = createEyeRig().values();
-    const rest = restChannelValues();
+    const rest = resolvePose('neutral', 'smiley');
     // Budget per channel = the sum of the amplitudes riding it, in that
     // channel's own unit (a rotation drifts in degrees, a mass in units).
     const budget = new Map<ChannelKey, number>();
@@ -75,7 +78,10 @@ describe('createEyeRig', () => {
     });
     expect([...budget.keys()].some(key => values[key] !== rest[key])).toBe(true);
     budget.forEach((amplitude, key) => {
-      expect({ key, within: Math.abs(values[key] - rest[key]) <= amplitude + 1e-9 }).toEqual({
+      expect({
+        key,
+        within: Math.abs(values[key] - rest[key]) <= amplitude + 1e-9,
+      }).toEqual({
         key,
         within: true,
       });
@@ -99,7 +105,7 @@ describe('createEyeRig', () => {
     // would carry a resting mouth curve with a zero arc.
     const rig = createEyeRig();
     expect(rig.values().mouthArc).toBeGreaterThan(0);
-    expect(rig.values().mouthFlip).toBe(1);
+    expect(rig.values().mouthCurve).toBeGreaterThan(0);
   });
 });
 
@@ -143,11 +149,14 @@ describe('pose changes', () => {
     expect(Math.abs(rig.values().mass - 1)).toBeLessThan(0.02);
   });
 
-  it('snaps the scale anchor instead of sliding it (no false drift)', () => {
+  it('keeps the scale anchor continuous while changing expression', () => {
     const rig = settledRig();
+    const before = rig.values().oyL;
     rig.setPose({ expression: 'sad', styleId: 'cozmo', family: 'calm' });
     rig.step(FRAME_MS);
-    expect(rig.values().oyL).toBe(100);
+    expect(Math.abs(rig.values().oyL - before)).toBeLessThan(1);
+    trace(rig, 'oyL', 250);
+    expect(rig.values().oyL).toBeCloseTo(100, 1);
   });
 
   it('keeps the motion CONTINUOUS when an emotion interrupts another', () => {
@@ -162,7 +171,9 @@ describe('pose changes', () => {
   });
 
   it('re-resolves the pose when only the style changes', () => {
-    const rig = createEyeRig({ initial: { expression: 'joy', styleId: 'cozmo', family: 'calm' } });
+    const rig = createEyeRig({
+      initial: { expression: 'joy', styleId: 'cozmo', family: 'calm' },
+    });
     rig.setPose({ expression: 'joy', styleId: 'traits', family: 'calm' });
     trace(rig, 'syL', 200);
     expect(rig.values().syL).toBeCloseTo(1, 3);
@@ -235,7 +246,11 @@ describe('tapes', () => {
 
   it('lets the last tape on a channel win', () => {
     const rig = settledRig();
-    rig.play(BLINK, { channel: 'blinkL', keys: [{ atMs: 0, value: 0.3 }], durationMs: 200 });
+    rig.play(BLINK, {
+      channel: 'blinkL',
+      keys: [{ atMs: 0, value: 0.3 }],
+      durationMs: 200,
+    });
     rig.step(FRAME_MS);
     expect(rig.values().blinkL).toBeLessThan(0.3);
   });
@@ -276,7 +291,11 @@ describe('reduced motion', () => {
 
   it('refuses to play beats', () => {
     const rig = createEyeRig({ reducedMotion: true });
-    rig.play({ channel: 'blinkL', keys: [{ atMs: 0, value: 1 }], durationMs: 200 });
+    rig.play({
+      channel: 'blinkL',
+      keys: [{ atMs: 0, value: 1 }],
+      durationMs: 200,
+    });
     rig.step(FRAME_MS);
     expect(rig.values().blinkL).toBe(0);
   });
@@ -367,7 +386,9 @@ describe('the animator principles the springs alone do not give', () => {
 
   it('EXAGGERATES by mood: a lively scowl is bigger and quicker than a drowsy one', () => {
     const amplitudeFor = (family: 'lively' | 'drowsy') => {
-      const rig = createEyeRig({ initial: { expression: 'neutral', styleId: 'cozmo', family } });
+      const rig = createEyeRig({
+        initial: { expression: 'neutral', styleId: 'cozmo', family },
+      });
       rig.setPose({ expression: 'anger', styleId: 'cozmo', family });
       trace(rig, 'rotL', 200);
       return rig.values().rotL;
@@ -375,7 +396,9 @@ describe('the animator principles the springs alone do not give', () => {
     expect(amplitudeFor('lively')).toBeGreaterThan(amplitudeFor('drowsy'));
 
     const progressAfter = (family: 'lively' | 'drowsy') => {
-      const rig = createEyeRig({ initial: { expression: 'neutral', styleId: 'cozmo', family } });
+      const rig = createEyeRig({
+        initial: { expression: 'neutral', styleId: 'cozmo', family },
+      });
       rig.setPose({ expression: 'sad', styleId: 'cozmo', family });
       return trace(rig, 'syL', 14)[13];
     };
@@ -403,7 +426,10 @@ describe('the animator principles the springs alone do not give', () => {
 
 describe('squash & stretch calibration', () => {
   /** The spring the host builds for a travel time (mirrors `useEyesRig`). */
-  const springForTravel = (ms: number) => ({ frequency: 1.057 / (ms / 1000), damping: 0.95 });
+  const springForTravel = (ms: number) => ({
+    frequency: 1.057 / (ms / 1000),
+    damping: 0.95,
+  });
 
   function peakStretch(travelMs: number, amplitude: number): number {
     const rig = createEyeRig({
@@ -512,12 +538,16 @@ describe('secondary couplings — what the brows and the mouth do because of the
       [
         ['neutral', 'calm'],
         ['sleep', 'drowsy'],
-        ['thinking', 'calm'],
+        ['attentive', 'calm'],
       ] as const
     ).forEach(([expression, family]) => {
-      const stepped = createEyeRig({ initial: { expression, styleId: 'cozmo', family } });
+      const stepped = createEyeRig({
+        initial: { expression, styleId: 'cozmo', family },
+      });
       for (let frame = 0; frame < frames; frame += 1) stepped.step(FRAME_MS);
-      const jumped = createEyeRig({ initial: { expression, styleId: 'cozmo', family } });
+      const jumped = createEyeRig({
+        initial: { expression, styleId: 'cozmo', family },
+      });
       jumped.step(frames * FRAME_MS);
       CHANNEL_KEYS.forEach(key => {
         expect({ expression, key, value: stepped.values()[key] }).toEqual({
@@ -551,7 +581,12 @@ describe('secondary couplings — what the brows and the mouth do because of the
 describe('emphasis — how forcefully a pose lands', () => {
   function settledRot(emphasis: number): number {
     const rig = createEyeRig();
-    rig.setPose({ expression: 'anger', styleId: 'cozmo', family: 'calm', emphasis });
+    rig.setPose({
+      expression: 'anger',
+      styleId: 'cozmo',
+      family: 'calm',
+      emphasis,
+    });
     trace(rig, 'rotL', 220);
     return rig.values().rotL;
   }
@@ -573,7 +608,12 @@ describe('emphasis — how forcefully a pose lands', () => {
   it('also lands quicker, at half strength', () => {
     const progress = (emphasis: number) => {
       const rig = createEyeRig();
-      rig.setPose({ expression: 'anger', styleId: 'cozmo', family: 'calm', emphasis });
+      rig.setPose({
+        expression: 'anger',
+        styleId: 'cozmo',
+        family: 'calm',
+        emphasis,
+      });
       return trace(rig, 'lidTopL', 12)[11];
     };
     expect(progress(1.4)).toBeGreaterThan(progress(1));
@@ -581,10 +621,20 @@ describe('emphasis — how forcefully a pose lands', () => {
 
   it('re-lands the pose when only the emphasis changes', () => {
     const rig = createEyeRig();
-    rig.setPose({ expression: 'anger', styleId: 'cozmo', family: 'calm', emphasis: 1 });
+    rig.setPose({
+      expression: 'anger',
+      styleId: 'cozmo',
+      family: 'calm',
+      emphasis: 1,
+    });
     trace(rig, 'rotL', 220);
     const before = rig.values().rotL;
-    rig.setPose({ expression: 'anger', styleId: 'cozmo', family: 'calm', emphasis: 1.35 });
+    rig.setPose({
+      expression: 'anger',
+      styleId: 'cozmo',
+      family: 'calm',
+      emphasis: 1.35,
+    });
     trace(rig, 'rotL', 220);
     expect(rig.values().rotL).toBeGreaterThan(before);
   });

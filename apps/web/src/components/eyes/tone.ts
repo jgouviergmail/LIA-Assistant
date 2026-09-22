@@ -79,7 +79,11 @@ export function parseToneAnnotation(raw: unknown): ToneAnnotation | null {
   const accent =
     typeof value.accent === 'string' && ACCENT_SET.has(value.accent) ? value.accent : 'none';
 
-  return { register: register as ToneRegister, intensity, accent: accent as ToneAccent };
+  return {
+    register: register as ToneRegister,
+    intensity,
+    accent: accent as ToneAccent,
+  };
 }
 
 // =============================================================================
@@ -253,10 +257,9 @@ const HESITATION = /(\.\.\.|…)/;
 function registerFromShape(
   text: string,
   raw: string,
-  source: { isError: boolean; hasArtifacts: boolean }
+  source: { isError: boolean; hasArtifacts?: boolean }
 ): ToneRegister {
   if (source.isError) return 'concerned';
-  if (source.hasArtifacts) return 'celebratory';
   if (SAD_EMOJI.test(text)) return 'apologetic';
   if (SURPRISE_EMOJI.test(text)) return 'surprised';
 
@@ -299,7 +302,7 @@ const SHAPE_INTENSITY: Record<ToneRegister, number> = {
 export function inferToneFromContent(source: {
   content: string;
   isError: boolean;
-  hasArtifacts: boolean;
+  hasArtifacts?: boolean;
 }): ToneAnnotation {
   const raw = source.content ?? '';
   const text = withoutCodeFences(raw);
@@ -312,7 +315,7 @@ export function inferToneFromContent(source: {
   return {
     register,
     intensity: Math.min(1, Math.max(0, intensity)),
-    // The one accent a shape can honestly earn: something was actually made.
-    accent: source.hasArtifacts ? 'sparkle' : 'none',
+    // An attachment says nothing about whether its subject is happy.
+    accent: 'none',
   };
 }

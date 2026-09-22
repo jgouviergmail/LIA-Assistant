@@ -65,14 +65,14 @@ const GROUP_DAMPING_SCALE: Record<ChannelGroup, number> = {
   gaze: 1,
   pose: 1,
   // A little ring on a brow is liveliness; on a lid it would be a tremor.
-  brow: 0.9,
+  brow: 1.15,
   lid: 1.12,
   blink: 1,
   mass: 1.25,
   radius: 1.05,
   aura: 1.3,
   organ: 1.2,
-  mouth: 0.9,
+  mouth: 1.15,
   stretch: 1,
 };
 
@@ -189,7 +189,7 @@ export const DYNAMICS_FOR_EXPRESSION: Record<EyeExpression, DynamicsName> = {
   sad: 'slow',
   worried: 'base',
   question: 'base',
-  thinking: 'base',
+  thinking: 'slow',
   searching: 'base',
   focused: 'base',
   attentive: 'quick',

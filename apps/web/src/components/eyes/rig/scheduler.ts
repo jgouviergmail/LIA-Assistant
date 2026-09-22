@@ -1,10 +1,10 @@
 /**
  * One animation clock for the whole page.
  *
- * Several rigs can be alive at once — the chat widget plus the twelve live
+ * Several rigs can be alive at once — the chat widget plus the visible live
  * previews of the style picker — and giving each one its own
- * `requestAnimationFrame` loop would mean twelve callbacks, twelve deltas and
- * twelve slightly different timelines. They share one loop instead: a single
+ * `requestAnimationFrame` loop would mean separate callbacks, deltas and
+ * slightly different timelines. They share one loop instead: a single
  * frame request, one delta computed once, every subscriber stepped with it.
  *
  * The loop still stops itself. A subscriber returns whether it is still

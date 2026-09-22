@@ -24,15 +24,7 @@ import {
 } from '@/components/eyes/expression-engine';
 
 const ALL_GESTURES = Object.keys(GESTURE_DURATION_MS) as IdleGesture[];
-const CSS_OR_GAZE: IdleGesture[] = [
-  'saccade',
-  'glance',
-  'flicker',
-  'swap',
-  'bump',
-  'spin',
-  'jelly',
-];
+const CSS_OR_GAZE: IdleGesture[] = ['saccade', 'glance', 'flicker'];
 
 describe('blinkTapes', () => {
   it('shuts both eyes, the right one trailing', () => {
@@ -71,6 +63,10 @@ describe('tapesForGesture', () => {
   it('owns the lid and body beats', () => {
     expect(RIG_OWNED_GESTURES).toEqual(
       expect.arrayContaining([
+        'swap',
+        'bump',
+        'spin',
+        'jelly',
         'slow-blink',
         'half-blink',
         'squint',
@@ -251,7 +247,9 @@ describe('tapesForGesture', () => {
   });
 
   it('lifts a squashed eye RELATIVELY, never yanking it to a neutral height', () => {
-    const rig = createEyeRig({ initial: { expression: 'joy', styleId: 'cozmo', family: 'calm' } });
+    const rig = createEyeRig({
+      initial: { expression: 'joy', styleId: 'cozmo', family: 'calm' },
+    });
     const restingTy = rig.values().tyL;
     rig.play(...tapesForGesture('bounce'));
     rig.step(16);

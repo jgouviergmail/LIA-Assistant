@@ -103,6 +103,10 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         "POST /api/v1/auth/step-up/webauthn/verify",
         "POST /api/v1/auth/verify-email",
         "GET /api/v1/briefing/cards",
+        # ADR-294: passive, account-scoped cached weather and civil timezone.
+        # Requires the normal session (anonymous HTTP requests receive 401),
+        # reveals no location, and can never trigger a provider or LLM call.
+        "GET /api/v1/briefing/companion-context",
         "GET /api/v1/briefing/preferences",
         "PUT /api/v1/briefing/preferences",
         # Lot 4-A2 (ADR-237): the listen button reads the DISPLAYED synthesis

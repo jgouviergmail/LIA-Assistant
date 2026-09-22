@@ -78,6 +78,21 @@ def connector_success_return(
     )
 
 
+def bulk_connector_success_return(
+    *, is_native: bool, provider: str, activated: int, denied: int, mode: str = "reconnect"
+) -> RedirectResponse:
+    """Return a truthful per-service outcome after one provider journey."""
+    return _return_to(
+        is_native,
+        {
+            "oauth_bulk_provider": provider,
+            "oauth_bulk_activated": str(activated),
+            "oauth_bulk_denied": str(denied),
+            "oauth_bulk_mode": mode,
+        },
+    )
+
+
 def connector_error_return(*, is_native: bool, error_code: str) -> RedirectResponse:
     """
     Send the user back after a connector authorization failed.

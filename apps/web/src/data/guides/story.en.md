@@ -3,8 +3,8 @@
 > Field report — a complete system, from design to production.
 
 **Version**: 2.1
-**Date**: 2026-09-18
-**Application**: LIA v1.47.0
+**Date**: 2026-09-22
+**Application**: LIA v1.47.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | Indicator | Value |
 | --- | --- |
 | Code written by an AI — directed, framed, controlled | **≈ 100%** |
-| Lines of code (excluding tests) — 49 functional domains | **660,000** |
+| Source lines (excluding tests) — 51 functional domains | **720,000+** |
 | Automated tests, run on every commit and release | **39,000+** |
-| Documented architecture decisions (ADR) | **300** |
-| Versions shipped at a steady pace | **265** |
+| Documented architecture decisions (ADR) | **301** |
+| Versions shipped at a steady pace | **266** |
 | Languages, parity checked automatically | **6** |
 | Technical audit across 24 areas | **8.3/10** |
 
@@ -50,7 +50,7 @@ An AI that codes produces volume; it only produces quality under constraint. Fou
 
 ## 4. The trade-offs
 
-Three structural decisions, among the 300 documented:
+Three structural decisions, among the 301 documented:
 
 **Sovereignty & reversibility — no irreversible vendor dependency.** AI models (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, local models via Ollama) sit behind a single abstraction: any usage can switch provider through configuration, with cost comparison. The same principle applies to business services: Google, Apple and Microsoft are interchangeable per functional category. Hosting is fully controlled; personal data is encrypted and stays on the infrastructure.
 

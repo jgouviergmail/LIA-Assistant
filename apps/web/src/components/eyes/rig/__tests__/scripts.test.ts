@@ -276,16 +276,27 @@ describe('arrival choreography', () => {
     expect(Math.min(...lift)).toBeLessThan(-0.004);
   });
 
-  it('a QUESTION tips its head, and a THOUGHT leans the other way', () => {
+  it('a QUESTION tips its head while a THOUGHT settles into a held inclination', () => {
     const asking = createEyeRig();
-    asking.setPose({ expression: 'question', styleId: 'cozmo', family: 'calm' });
+    asking.setPose({
+      expression: 'question',
+      styleId: 'cozmo',
+      family: 'calm',
+    });
     trace(asking, 'tilt', 20);
     expect(asking.values().tilt).toBeGreaterThan(1);
 
     const thinking = createEyeRig();
-    thinking.setPose({ expression: 'thinking', styleId: 'cozmo', family: 'calm' });
-    trace(thinking, 'tilt', 30);
-    expect(thinking.values().tilt).toBeLessThan(-0.5);
+    thinking.setPose({
+      expression: 'thinking',
+      styleId: 'cozmo',
+      family: 'calm',
+    });
+    const arrival = trace(thinking, 'tilt', 240);
+    expect(Math.max(...frameDeltas(arrival))).toBeLessThan(0.12);
+    expect(thinking.values().tilt).toBeLessThan(-2);
+    const held = trace(thinking, 'tilt', 600);
+    expect(Math.max(...held) - Math.min(...held)).toBeLessThan(0.01);
   });
 
   it('returns the head to level once the entrance is over', () => {

@@ -15,6 +15,11 @@ import { renderWithProviders, screen, within } from '@/__tests__/test-utils';
 
 import SettingsPage from '../page';
 
+const { toast } = vi.hoisted(() => ({
+  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() },
+}));
+vi.mock('sonner', () => ({ toast }));
+
 // The portrait shortcut is unit-tested on its own; here it would only fetch
 // `/journals/portrait` into the void and pollute stderr.
 vi.mock('@/hooks/useJournalPortrait', () => ({
@@ -154,5 +159,39 @@ describe('Settings page — master-detail shell', () => {
     expect(
       within(nav).getByRole('button', { name: /settings\.admin\.users\.title/ })
     ).toBeInTheDocument();
+  });
+
+  it('reports partial grouped consent and opens connectors without replaying the toast', async () => {
+    navState.params = new URLSearchParams(
+      'oauth_bulk_provider=google&oauth_bulk_activated=1&oauth_bulk_denied=2'
+    );
+    window.history.replaceState({}, '', `/en/dashboard/settings?${navState.params}`);
+    renderPage();
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith(
+      'settings.connectors.bulk_reconnect.partial'
+    ));
+    expect(window.location.search).toBe('?section=connectors');
+  });
+
+  it('reports a grouped first connection as connected services', async () => {
+    navState.params = new URLSearchParams(
+      'oauth_bulk_provider=microsoft&oauth_bulk_mode=connect&oauth_bulk_activated=3&oauth_bulk_denied=1'
+    );
+    window.history.replaceState({}, '', `/en/dashboard/settings?${navState.params}`);
+    renderPage();
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith(
+      'settings.connectors.bulk_connect.partial'
+    ));
+    expect(window.location.search).toBe('?section=connectors');
+  });
+
+  it('explains a known-account mismatch and keeps the connector pane selected', async () => {
+    navState.params = new URLSearchParams('connector_error=account_mismatch');
+    window.history.replaceState({}, '', `/en/dashboard/settings?${navState.params}`);
+    renderPage();
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith(
+      'settings.connectors.bulk_reconnect.account_mismatch'
+    ));
+    expect(window.location.search).toBe('?section=connectors');
   });
 });

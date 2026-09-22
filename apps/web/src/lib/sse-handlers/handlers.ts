@@ -12,6 +12,7 @@ import { normalizeHitlPayload } from '@/lib/hitl-payload';
 import { generateUUID } from '@/lib/utils';
 import { parseToneAnnotation } from '@/components/eyes/tone';
 import { usePsycheStore } from '@/stores/psycheStore';
+import { parseActivity } from '@/components/eyes/activity';
 import { useEyesSignalsStore } from '@/stores/eyesSignalsStore';
 import type { PsycheStateSummary } from '@/types/psyche';
 import {
@@ -45,7 +46,9 @@ const MAX_VISIBLE_STEPS = 10;
  * Used only for the initial router_decision step to add a touch of personality.
  */
 function getRandomAnalyzingMessage(t: SSEHandlerContext['t']): string {
-  const messages = t('hitl.progress.analyzingMessages', { returnObjects: true });
+  const messages = t('hitl.progress.analyzingMessages', {
+    returnObjects: true,
+  });
   if (Array.isArray(messages) && messages.length > 0) {
     const randomIndex = Math.floor(Math.random() * messages.length);
     return messages[randomIndex];
@@ -69,7 +72,9 @@ export function getProgressMessage(
       return t('hitl.validating_access');
     case 'execution_step':
       if (metadata?.emoji && metadata?.i18n_key) {
-        const stepText = t(`execution.steps.${metadata.i18n_key}`, { defaultValue: '' });
+        const stepText = t(`execution.steps.${metadata.i18n_key}`, {
+          defaultValue: '',
+        });
         if (stepText) {
           return `*${metadata.emoji} ${stepText}*`;
         }
@@ -169,7 +174,9 @@ function buildTraceStep(
 
   let label: string | undefined;
   if (metadata.i18n_key) {
-    const translated = t(`execution.steps.${metadata.i18n_key}`, { defaultValue: '' });
+    const translated = t(`execution.steps.${metadata.i18n_key}`, {
+      defaultValue: '',
+    });
     if (translated) label = translated;
   }
   if (!label && metadata.detail) {
@@ -358,7 +365,9 @@ export function handleRouterDecision(chunk: ChatStreamChunk, context: SSEHandler
   context.traceStepsRef.current = [
     {
       emoji: '🧭',
-      label: t('execution.steps.router_decision', { defaultValue: 'Analyzing…' }),
+      label: t('execution.steps.router_decision', {
+        defaultValue: 'Analyzing…',
+      }),
       category: 'system',
     },
   ];
@@ -481,7 +490,12 @@ function handleCompactionStep(chunk: ChatStreamChunk, context: SSEHandlerContext
  */
 function handleConnectorNoticeStep(chunk: ChatStreamChunk, context: SSEHandlerContext): boolean {
   const metadata = chunk.metadata as
-    | { step_type?: string; connector_type?: string; action?: string; tool_name?: string }
+    | {
+        step_type?: string;
+        connector_type?: string;
+        action?: string;
+        tool_name?: string;
+      }
     | undefined;
   if (metadata?.step_type !== 'tool_error') return false;
 
@@ -496,7 +510,9 @@ function handleConnectorNoticeStep(chunk: ChatStreamChunk, context: SSEHandlerCo
 
   context.dispatch({
     type: 'CONNECTOR_NOTICE_ADD',
-    payload: { notice: { connectorType, action, toolName: toolName ?? 'unknown' } },
+    payload: {
+      notice: { connectorType, action, toolName: toolName ?? 'unknown' },
+    },
   });
   return true;
 }
@@ -510,9 +526,19 @@ function handleConnectorNoticeStep(chunk: ChatStreamChunk, context: SSEHandlerCo
 function recordEyesStepSignal(metadata: ProgressMessageMetadata | undefined): void {
   if (metadata?.step_type === 'reasoning') {
     useEyesSignalsStore.getState().recordStep('reasoning');
-  } else if (metadata?.tool_name || metadata?.category === 'tool') {
-    useEyesSignalsStore.getState().recordStep('tool');
   }
+}
+
+/** Execution evidence is separate from planned progress and never enters the transcript. */
+function recordCompanionActivity(chunk: ChatStreamChunk, context: SSEHandlerContext): boolean {
+  const metadata = chunk.metadata;
+  if (!metadata || !('step_type' in metadata) || metadata.step_type !== 'activity') return false;
+  const activity = parseActivity('activity' in metadata ? metadata.activity : null);
+  if (activity)
+    useEyesSignalsStore
+      .getState()
+      .recordActivity(activity, context.assistantMessageId, context.isReplay);
+  return true;
 }
 
 export function handleExecutionStep(chunk: ChatStreamChunk, context: SSEHandlerContext): void {
@@ -549,7 +575,9 @@ export function handleExecutionStep(chunk: ChatStreamChunk, context: SSEHandlerC
 
   const metadata = chunk.metadata as ProgressMessageMetadata | undefined;
 
-  recordEyesStepSignal(metadata);
+  if (recordCompanionActivity(chunk, context)) return;
+
+  if (!context.isReplay) recordEyesStepSignal(metadata);
 
   // --- Live reasoning sub-type (💭): accumulate the model's chain-of-thought ---
   // These events stream continuously during a thinking node; they are appended
@@ -719,7 +747,11 @@ export function handleDone(chunk: ChatStreamChunk, context: SSEHandlerContext): 
   // answer. Parked BEFORE STREAM_DONE for the same reason the trace is: the
   // dispatch below flips the status to idle, and that transition is what makes
   // the avatar react.
-  useEyesSignalsStore.getState().setTone(parseToneAnnotation(metadata?.expressivity));
+  if (!context.isReplay && !metadata?.cancelled) {
+    useEyesSignalsStore
+      .getState()
+      .completeTurn(assistantMessageId, parseToneAnnotation(metadata?.expressivity));
+  }
 
   // Execution trace (Lot 2 P2-V1): attach the flip-surviving backstage record
   // to the completed message BEFORE STREAM_DONE flips status to idle. Skipped
@@ -856,7 +888,10 @@ export function handleHitlQuestionToken(chunk: ChatStreamChunk, context: SSEHand
   // For first token, replace placeholder entirely
   // For subsequent tokens, just append
   if (isFirstToken) {
-    dispatch({ type: 'STREAM_REPLACE', payload: { content: token, phase: 'answer' } });
+    dispatch({
+      type: 'STREAM_REPLACE',
+      payload: { content: token, phase: 'answer' },
+    });
   } else {
     dispatch({ type: 'STREAM_TOKEN', payload: { token } });
   }
@@ -989,7 +1024,10 @@ export function handleHitlInterruptLegacy(
   const legacyMessageId = `hitl_${generateUUID()}`;
   // phase 'answer': the HITL question is content, not execution steps — the
   // interrupt-metadata handler may have left the stream in the progress phase.
-  dispatch({ type: 'STREAM_START', payload: { messageId: legacyMessageId, phase: 'answer' } });
+  dispatch({
+    type: 'STREAM_START',
+    payload: { messageId: legacyMessageId, phase: 'answer' },
+  });
   dispatch({ type: 'STREAM_TOKEN', payload: { token: legacyQuestion } });
   dispatch({ type: 'STREAM_DONE', payload: { messageId: legacyMessageId } });
 }

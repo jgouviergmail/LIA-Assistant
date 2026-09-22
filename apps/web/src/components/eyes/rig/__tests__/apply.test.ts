@@ -14,6 +14,28 @@ function host(): HTMLElement {
 }
 
 describe('createRigWriter', () => {
+  it('projects continuous SVG contours and does not rewrite an unchanged eye when the mouth moves', () => {
+    const element = host();
+    element.dataset.style = 'anneaux';
+    element.innerHTML =
+      '<svg><path data-rig-mouth=""/><path data-rig-brow="L"/><path data-rig-brow="R"/><path data-rig-stroke="L"/><path data-rig-ring="L"/><path data-rig-stroke="R"/><path data-rig-ring="R"/></svg>';
+    const eye = element.querySelector('[data-rig-stroke="L"]')!;
+    const mouth = element.querySelector('[data-rig-mouth]')!;
+    const writer = createRigWriter(element);
+    const values = { ...restChannelValues(), strokeRoundL: 1, strokeRoundR: 1 };
+    writer.write(values);
+    const before = mouth.getAttribute('d');
+    const writes = vi.spyOn(eye, 'setAttribute');
+    writer.write({ ...values, mouthCurve: 0.7 });
+    expect(mouth.getAttribute('d')).not.toBe(before);
+    expect(writes).not.toHaveBeenCalled();
+    writer.write({ ...values, strokeArcL: 1, strokeWeightL: 12 });
+    expect(writes).toHaveBeenCalledWith('stroke-width', '12');
+    expect(element.querySelector('[data-rig-ring="L"]')?.getAttribute('opacity')).toBe('0');
+    writer.reset();
+    writer.write(values);
+    expect(element.querySelector('[data-rig-ring="L"]')?.getAttribute('opacity')).toBe('1');
+  });
   it('writes every channel onto the element as a `--rig-*` property', () => {
     const element = host();
     createRigWriter(element).write(restChannelValues());

@@ -10,7 +10,11 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 
-import { useEyesSignalsStore, NOTIFICATION_SIGNAL_TTL_MS } from '@/stores/eyesSignalsStore';
+import {
+  useEyesSignalsStore,
+  NOTIFICATION_SIGNAL_TTL_MS,
+  REACTION_RELEASE_MS,
+} from '@/stores/eyesSignalsStore';
 import { useEyesWidgetStore, EYES_SIZES } from '@/stores/eyesWidgetStore';
 import { EYES_WIDGET_PREFS_KEY } from '@/lib/constants';
 import { REACTION_HOLD_MS, TYPING_ACTIVE_MS } from '@/components/eyes/expression-engine';
@@ -58,12 +62,19 @@ describe('eyesSignalsStore', () => {
     expect(useEyesSignalsStore.getState().isTypingLive(2000 + TYPING_ACTIVE_MS)).toBe(false);
   });
 
-  it('a reaction is held for its window then reads as expired', () => {
+  it('holds a reaction, progressively releases it, then expires', () => {
     useEyesSignalsStore.getState().setReaction('excited', 1, 'none', 1000);
     expect(useEyesSignalsStore.getState().liveReaction(1000 + REACTION_HOLD_MS - 1)).toBe(
       'excited'
     );
-    expect(useEyesSignalsStore.getState().liveReaction(1000 + REACTION_HOLD_MS)).toBeNull();
+    const store = useEyesSignalsStore.getState();
+    expect(store.liveReaction(1000 + REACTION_HOLD_MS)).toBe('excited');
+    expect(store.liveReactionWeight(1000 + REACTION_HOLD_MS)).toBe(1);
+    expect(store.liveReactionWeight(1000 + REACTION_HOLD_MS + REACTION_RELEASE_MS / 2)).toBeCloseTo(
+      0.5
+    );
+    expect(store.liveReaction(1000 + REACTION_HOLD_MS + REACTION_RELEASE_MS)).toBeNull();
+    expect(store.liveReactionWeight(1000 + REACTION_HOLD_MS + REACTION_RELEASE_MS)).toBe(0);
   });
 
   it('setReaction(null) clears the held reaction', () => {
@@ -77,7 +88,9 @@ describe('eyesSignalsStore', () => {
     expect(useEyesSignalsStore.getState().liveEmphasis(1000 + REACTION_HOLD_MS - 1)).toBe(1.3);
     // Once the reaction is over the face goes back to its authored amplitude —
     // an emphasis that outlived its answer would colour unrelated expressions.
-    expect(useEyesSignalsStore.getState().liveEmphasis(1000 + REACTION_HOLD_MS)).toBe(1);
+    expect(
+      useEyesSignalsStore.getState().liveEmphasis(1000 + REACTION_HOLD_MS + REACTION_RELEASE_MS)
+    ).toBe(1);
   });
 
   it('reads as unemphatic when there is no reaction at all', () => {
@@ -118,6 +131,7 @@ describe('eyesWidgetStore', () => {
     const s = useEyesWidgetStore.getState();
     expect(s.visible).toBe(true);
     expect(s.size).toBe('auto');
+    expect(s.style).toBe('smiley');
     expect(s.position).toBeNull();
   });
 
@@ -173,12 +187,14 @@ describe('eyesWidgetStore', () => {
     const s = useEyesWidgetStore.getState();
     s.setVisible(false);
     s.setSize('lg');
+    s.setStyle('cozmo');
     s.setPosition({ xPct: 10, yPct: 10 });
     s.setLandingPosition({ xPct: 90, yPct: 90 });
     useEyesWidgetStore.getState().reset();
     const after = useEyesWidgetStore.getState();
     expect(after.visible).toBe(true);
     expect(after.size).toBe('auto');
+    expect(after.style).toBe('smiley');
     expect(after.position).toBeNull();
     expect(after.landingPosition).toBeNull();
   });
@@ -201,6 +217,15 @@ describe('eyesWidgetStore', () => {
     expect(useEyesWidgetStore.getState().size).toBe('md');
   });
 
+  it('preserves a previously selected Cozmo style when preferences are rehydrated', async () => {
+    localStorage.setItem(
+      EYES_WIDGET_PREFS_KEY,
+      JSON.stringify({ state: { visible: true, size: 'md', style: 'cozmo', position: null } })
+    );
+    await useEyesWidgetStore.persist.rehydrate();
+    expect(useEyesWidgetStore.getState().style).toBe('cozmo');
+  });
+
   it('rehydrating a stale persisted style falls back to the default', async () => {
     localStorage.setItem(
       EYES_WIDGET_PREFS_KEY,
@@ -209,13 +234,13 @@ describe('eyesWidgetStore', () => {
       })
     );
     await useEyesWidgetStore.persist.rehydrate();
-    expect(useEyesWidgetStore.getState().style).toBe('cozmo');
+    expect(useEyesWidgetStore.getState().style).toBe('smiley');
   });
 
   it('rehydrating with nothing persisted keeps the defaults (merge undefined branch)', async () => {
     localStorage.removeItem(EYES_WIDGET_PREFS_KEY);
     await useEyesWidgetStore.persist.rehydrate();
-    expect(useEyesWidgetStore.getState().style).toBe('cozmo');
+    expect(useEyesWidgetStore.getState().style).toBe('smiley');
     expect(useEyesWidgetStore.getState().size).toBe('auto');
   });
 });

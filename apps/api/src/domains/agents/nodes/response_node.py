@@ -108,6 +108,10 @@ from src.domains.agents.models import MessagesState
 from src.domains.agents.nodes.post_response_extractions import (
     _schedule_post_response_extractions,
 )
+from src.domains.agents.nodes.response_skill_runner import (
+    settle_skill_runner,
+    skill_runner_task,
+)
 from src.domains.agents.orchestration.correlation_detector import detect_correlations
 from src.domains.agents.prompts import (
     escape_braces,
@@ -1447,8 +1451,16 @@ async def _activate_response_skills(
             from src.domains.agents.tools.react_tool_wrapper import (
                 ReactToolWrapper,
             )
-            from src.domains.skills.tools import skills_tools
+            from src.domains.skills.tools import skills_runner_tools
+            from src.infrastructure.observability.metrics_registry import (
+                skill_runner_outcomes_total,
+            )
 
+            # The activation is Python's, not the model's: the runner used to
+            # spend its first round trip calling activate_skill_tool, and a
+            # runner that never got past it answered in prose (production
+            # 2026-09-20). The instructions travel in the task.
+            _instructions = activate_skill(_activated_skill_name, user_id=skill_user_id) or ""
             try:
                 runner = ReactSubAgentRunner(
                     llm_type="mcp_react_agent",
@@ -1483,22 +1495,13 @@ async def _activate_response_skills(
                             f"</collected_data>\n"
                             f"Use this data to generate your response."
                         )
-                # S5: forward the windowed history so a fresh runner sub-agent
-                # can resume a multi-turn skill dialogue (clarify → answer →
-                # generate). Harmless for one-shot skills (extra context only).
-                _history_block = ""
-                if conversation_history and conversation_history.strip():
-                    _history_block = (
-                        f"\n\n<conversation_history>\n{conversation_history}\n"
-                        "</conversation_history>\n"
-                        "If the skill runs a multi-step dialogue, use this history "
-                        "to resume it (e.g. treat the latest user message as the "
-                        "answer to a question you asked earlier)."
-                    )
-                _task = (
-                    f"Activate skill '{_activated_skill_name}' and follow "
-                    f"its instructions to respond to: {last_user_message}"
-                    f"{_history_block}{_agent_data}"
+                _skill_data = _get_skill_data(_activated_skill_name, skill_user_id) or {}
+                _task = skill_runner_task(
+                    _activated_skill_name,
+                    _instructions,
+                    last_user_message,
+                    history=conversation_history if _skill_data.get("dialogue") else "",
+                    agent_data=_agent_data,
                 )
                 _catalog_for_prompt = (
                     f"<available_skills><skill><name>"
@@ -1530,7 +1533,9 @@ async def _activate_response_skills(
                 # Wrap skills_tools so ReactSubAgentRunner can collect
                 # registry_updates (frames/images) via _accumulated_registry.
                 # Without wrapping, rich skill outputs never reach the frontend.
-                _wrapped_skills_tools = [ReactToolWrapper(original_tool=t) for t in skills_tools]
+                _wrapped_skills_tools = [
+                    ReactToolWrapper(original_tool=t) for t in skills_runner_tools
+                ]
 
                 _runner_result = await runner.run(
                     task=_task,
@@ -1546,31 +1551,12 @@ async def _activate_response_skills(
                     display_name="Skill Activation",
                 )
 
-                if _runner_result.iteration_count > 0 and _runner_result.final_message:
-                    skill_react_response = _runner_result.final_message
-                    # Normalize onto the ONE shape `react_result` carries
-                    # everywhere else — the ``react_agent_result`` state
-                    # contract (MessagesState: dict | None). The runner returns
-                    # a `ReactSubAgentResult` dataclass; assigning it raw made
-                    # two incompatible shapes travel under one `Any`-typed name,
-                    # and `_build_response_system_prompt` — which reads
-                    # `react_result.get("final_message")` — crashed with
-                    # AttributeError on run ``117ce96f`` (2026-07-21), taking
-                    # the whole turn down to a 98-character fallback.
-                    react_result = {
-                        "final_message": _runner_result.final_message,
-                        "iteration_count": _runner_result.iteration_count,
-                        "mode": "react",
-                    }
-                    logger.info(
-                        "skill_react_agent_activated",
-                        run_id=run_id,
-                        skill_name=_activated_skill_name,
-                        iterations=_runner_result.iteration_count,
-                        response_length=len(skill_react_response),
-                        duration_ms=_runner_result.duration_ms,
-                    )
-
+                _answer, _react, _registry = settle_skill_runner(
+                    _runner_result, run_id, _activated_skill_name, _instructions, skill_sections
+                )
+                if _answer is not None:
+                    skill_react_response, react_result = _answer, _react
+                if _registry:
                     # Propagate registry items accumulated by the wrappers:
                     # current_turn_registry (local) feeds the rendering and
                     # SSE below; the cross-turn persistence goes through the
@@ -1578,17 +1564,8 @@ async def _activate_response_skills(
                     # reducer — returning only the NEW items is equivalent to
                     # the historical in-place update, but persisted by
                     # contract instead of by shared-reference side effect).
-                    if _runner_result.accumulated_registry:
-                        if current_turn_registry is None:
-                            current_turn_registry = {}
-                        current_turn_registry.update(_runner_result.accumulated_registry)
-                        skill_registry_updates = _runner_result.accumulated_registry
-                        logger.info(
-                            "skill_react_registry_propagated",
-                            run_id=run_id,
-                            skill_name=_activated_skill_name,
-                            registry_items=len(_runner_result.accumulated_registry),
-                        )
+                    current_turn_registry = {**(current_turn_registry or {}), **_registry}
+                    skill_registry_updates = _registry
             except Exception as exc:
                 logger.warning(
                     "skill_react_agent_error",
@@ -1596,10 +1573,10 @@ async def _activate_response_skills(
                     error=str(exc),
                     error_type=type(exc).__name__,
                 )
+                skill_runner_outcomes_total.labels(outcome="error").inc()
                 # Graceful degradation: fall back to passive L2 injection
-                skill_content = activate_skill(_activated_skill_name, user_id=skill_user_id)
-                if skill_content:
-                    skill_sections.append(skill_content)
+                if _instructions:
+                    skill_sections.append(_instructions)
 
         if skill_sections:
             skills_context = "\n\n".join(skill_sections)

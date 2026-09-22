@@ -5,7 +5,7 @@
 
 **Version**: 4.0
 **Last Updated**: 2026-08-22
-**Compatibility**: LIA v1.47.0
+**Compatibility**: LIA v1.47.1
 
 ## Table of Contents
 
@@ -29,7 +29,7 @@
 
 ## Project Overview
 
-**LIA** is a multi-agent conversational AI assistant built with **FastAPI**, **Next.js** and **LangGraph**. It orchestrates 19+ specialized agents and 76 tools across Google, Microsoft and Apple services (contacts, emails, calendar, files, tasks), plus Places, Routes, Weather, Wikipedia, Perplexity, Brave Search, web fetch, browser control, Philips Hue, image generation and per-user MCP servers.
+**LIA** is a multi-agent conversational AI assistant built with **FastAPI**, **Next.js** and **LangGraph**. It orchestrates 20+ specialized agents and 115 exposed tools across Google, Microsoft and Apple services (contacts, emails, calendar, files, tasks), plus Places, Routes, Weather, Wikipedia, Perplexity, Brave Search, web fetch, browser control, Philips Hue, image generation and per-user MCP servers.
 
 Two user-toggleable execution modes (switchable in the chat header):
 
@@ -42,8 +42,8 @@ Both modes converge on the same streaming response (SSE) and the same HITL (Huma
 
 | | |
 |---|---|
-| Specialized agents | 19+ |
-| Tools | 76 |
+| Specialized agents | 20+ |
+| Tools | 115 |
 | LLM providers (text) | 7 — OpenAI, Anthropic, DeepSeek, Google Gemini, Qwen, Perplexity, Ollama |
 | Voice providers | ElevenLabs (STT/TTS), Edge TTS (free), OpenAI TTS + local Whisper STT |
 | Configurable LLM slots | 54 (admin UI, hot-reloaded) |
@@ -722,6 +722,7 @@ LIA integrates with Google, Microsoft, Apple, Firebase and Philips Hue. Follow t
    https://localhost:8000/api/v1/connectors/google-contacts/callback
    https://localhost:8000/api/v1/connectors/google-drive/callback
    https://localhost:8000/api/v1/connectors/google-tasks/callback
+   https://localhost:8000/api/v1/connectors/oauth-bulk/google/callback
    ```
 
 4. Copy the credentials into `.env` (root — used by both backend and frontend):
@@ -741,7 +742,7 @@ LIA integrates with Google, Microsoft, Apple, Firebase and Philips Hue. Follow t
 
 #### 1.6 Connect in the Application
 
-Settings > **Connectors** > **Connect** on the desired Google services.
+Settings > **Connectors** > **Connect** on an individual Google service, or select several services and authorize the verified Google account once. Each service can later be disconnected separately. The grouped route requires the extra callback URI above; existing connections are not changed automatically.
 
 ### 2. Microsoft Azure (Optional)
 
@@ -749,13 +750,14 @@ Settings > **Connectors** > **Connect** on the desired Google services.
 
 1. [Azure Portal](https://portal.azure.com/) > **Microsoft Entra ID** > **App registrations** > **New registration**
    - Supported account types: **Accounts in any organizational directory and personal Microsoft accounts** (`tenant=common`)
-2. **Authentication** > **Web** > add the 4 redirect URIs:
+2. **Authentication** > **Web** > add the 5 redirect URIs:
 
    ```
    https://localhost:8000/api/v1/connectors/microsoft-outlook/callback
    https://localhost:8000/api/v1/connectors/microsoft-calendar/callback
    https://localhost:8000/api/v1/connectors/microsoft-contacts/callback
    https://localhost:8000/api/v1/connectors/microsoft-tasks/callback
+   https://localhost:8000/api/v1/connectors/oauth-bulk/microsoft/callback
    ```
 
    Leave implicit grant unchecked (LIA uses authorization code flow with PKCE).
@@ -769,7 +771,7 @@ Settings > **Connectors** > **Connect** on the desired Google services.
    MICROSOFT_TENANT_ID=common
    ```
 
-6. Connect in Settings > Connectors
+6. Connect in Settings > Connectors. You can choose one Microsoft service, or select several and authorize the verified Microsoft account in one consent. Services remain independently disconnectable; existing connections are not migrated automatically.
 
 > **Mutual exclusivity**: only one provider per functional category (email, calendar, contacts, tasks) can be active. Activating Microsoft deactivates Google/Apple for that category (deactivated connectors are set INACTIVE, not deleted).
 

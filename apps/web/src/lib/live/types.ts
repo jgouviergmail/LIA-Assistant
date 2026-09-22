@@ -388,9 +388,11 @@ export interface LiveFunctionCall {
 
 /** `POST /live/sessions/{id}/tools` — one lookup a DIRECT session asked the API for. */
 export interface LiveToolCallResponse {
+  /** Optional execution evidence; ok alone is only admission. */
+  activity?: unknown;
   /** The projected result, or the refusal the voice says. */
   text: string;
-  /** False when the lookup was refused or failed. */
+  /** Admission only; actual execution outcome is carried by activity. */
   ok: boolean;
 }
 

@@ -87,12 +87,17 @@ from src.infrastructure.llm.structured_output_errors import (  # noqa: F401  (re
     StructuredOutputTruncatedError,
 )
 from src.infrastructure.llm.tool_call_rescue import (
+    invalid_call_arguments,
     rejection_reason,
+    rescue_from_text,
+    rescue_invalid_tool_call,
     rescue_tool_call,
-    validate_with_defaulted_nulls,
 )
 from src.infrastructure.llm.usage_guard import enforce_usage_limit
 from src.infrastructure.observability.logging import get_logger
+from src.infrastructure.observability.metrics_errors import (
+    llm_structured_output_outcomes_total,
+)
 from src.infrastructure.observability.metrics_langgraph import (
     llm_reasoning_stream_double_call_total,
 )
@@ -560,58 +565,11 @@ async def _structured_via_auto_tool[T: BaseModel](
     return None
 
 
-def _rescue_structured_from_text[T: BaseModel](
-    raw_message: Any,
-    schema: type[T],
-    provider: str,
-    schema_name: str,
-) -> T | None:
-    """Salvage a structured output from a model that answered in text.
-
-    Some models resolve the conflict between a forced tool call and prompt
-    instructions by answering with raw JSON text instead of calling the tool
-    (observed on deepseek-v4-flash with legacy "Output JSON only" prompts —
-    audit D5). When ``with_structured_output(include_raw=True)`` yields no
-    parsed object, this helper tries to recover the payload from the raw
-    ``AIMessage`` content before the caller gives up.
-
-    Args:
-        raw_message: The raw ``AIMessage`` returned by the model (``None``
-            tolerated — returns ``None``).
-        schema: Target Pydantic schema.
-        provider: Provider name (logging only).
-        schema_name: Schema name (logging only).
-
-    Returns:
-        A validated schema instance, or ``None`` when no JSON object could
-        be extracted and validated from the text content.
-    """
-    text = coerce_content_to_text(getattr(raw_message, "content", None) or "").strip()
-    if not text:
-        return None
-
-    # Shared extraction (ADR-220): fences, prose on either side, truncation
-    # and trailing commas are handled in ONE place — json_recovery carries the
-    # corpus the old find("{")/rfind("}") delimiter failed on.
-    from src.infrastructure.llm.json_recovery import extract_json_payload
-
-    payload_text = extract_json_payload(text)
-    if payload_text is None:
-        return None
-
-    try:
-        instance, _defaulted = validate_with_defaulted_nulls(schema, json.loads(payload_text))
-    except json.JSONDecodeError, ValidationError:
-        return None
-
-    logger.warning(
-        "structured_output_rescued_from_text",
-        provider=provider,
-        schema=schema_name,
-        msg="Model answered in raw JSON text instead of calling the forced tool — "
-        "payload salvaged; check the prompt for legacy 'output JSON' instructions",
-    )
-    return instance
+def _count_outcome(provider: str, schema_name: str, outcome: str) -> None:
+    """One series for how the native door settled a call — a rescue is not a success."""
+    llm_structured_output_outcomes_total.labels(
+        provider=provider, schema=schema_name, outcome=outcome
+    ).inc()
 
 
 async def _get_native_structured_output[T: BaseModel](
@@ -767,12 +725,14 @@ async def _get_native_structured_output[T: BaseModel](
             # a second bill, so the verdict is consulted only once no complete
             # answer exists.
             if isinstance(parsed, schema):
+                _count_outcome(provider, schema_name, "parsed")
                 return parsed
             raw_message = bundle.get("raw") if isinstance(bundle, dict) else None
             # Now the verdict, BEFORE the rescues below: they close an open
             # structure mechanically, which turns a cut answer into a shorter,
             # valid-looking object announced as complete (ADR-275).
             if is_output_truncated(raw_message):
+                _count_outcome(provider, schema_name, "truncated")
                 raise_truncated(raw_message, provider, schema_name)
             parsing_error = bundle.get("parsing_error") if isinstance(bundle, dict) else None
             # A tool call rejected for its nulls is a complete answer spelled
@@ -786,11 +746,31 @@ async def _get_native_structured_output[T: BaseModel](
                     schema=schema_name,
                     defaulted=dropped,
                 )
+                _count_outcome(provider, schema_name, "nulls_defaulted")
                 return defaulted
-            rescued = _rescue_structured_from_text(raw_message, schema, provider, schema_name)
+            # A call the PARSER refused is not « no call »: the arguments are
+            # there, complete, with a bare word where a string belongs
+            # (2026-09-20). Quoted, they validate like any other call.
+            repaired, quoted = rescue_invalid_tool_call(raw_message, schema)
+            if repaired is not None:
+                logger.warning(
+                    "structured_output_invalid_call_repaired",
+                    provider=provider,
+                    schema=schema_name,
+                    quoted=quoted,
+                )
+                _count_outcome(provider, schema_name, "invalid_call_repaired")
+                return repaired
+            rescued = rescue_from_text(raw_message, schema, provider, schema_name)
             if rescued is not None:
+                _count_outcome(provider, schema_name, "text_rescued")
                 return rescued
-            raw_text = coerce_content_to_text(getattr(raw_message, "content", None) or "")
+            # What the model actually wrote travels on the exception for the
+            # diagnosis: the text when it answered in text, the refused
+            # arguments when it called the tool and the parser said no.
+            raw_text = coerce_content_to_text(
+                getattr(raw_message, "content", None) or ""
+            ) or invalid_call_arguments(raw_message)
             reason = rejection_reason(raw_message, parsing_error)
             logger.warning(
                 "structured_output_tool_call_rejected",
@@ -798,6 +778,7 @@ async def _get_native_structured_output[T: BaseModel](
                 schema=schema_name,
                 reason=reason,
             )
+            _count_outcome(provider, schema_name, "rejected")
             raise StructuredOutputError(
                 f"Native structured output returned no parsable payload for {schema_name} "
                 f"({reason})",
@@ -822,6 +803,8 @@ async def _get_native_structured_output[T: BaseModel](
             if result is None:
                 _mark_reasoning_stream_broken(provider, model_id, "native_structured", schema_name)
                 result = await _buffered_invoke()
+            else:
+                _count_outcome(provider, schema_name, "parsed")
         else:
             result = await _buffered_invoke()
 

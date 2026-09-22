@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, Final
 import structlog
 
 from src.core.config import settings
+from src.domains.agents.expressivity.activity import capture_activity
 from src.domains.agents.telephony.live_tools import VoiceToolHost
 from src.domains.agents.telephony.voice_lookup import LookupRefusal, serve_voice_lookup
 from src.domains.live.direct_mandate import direct_tool_specs, refusal_line
@@ -73,24 +74,27 @@ async def run_session_tool(
             ttl_seconds=record.remaining_life_seconds(datetime.now(UTC)),
         )
 
-    verdict = await serve_voice_lookup(
-        payload.name,
-        payload.arguments,
-        offered=await direct_tool_specs(frozenset(user.phone_disabled_domains or ())),
-        consume_budget=_consume_budget,
-        user_id=user.id,
-        language=language,
-        timezone=timezone,
-        display_name=display_name,
-        host=VoiceToolHost.live_session(record.session_id, record.run_id),
-    )
+    with capture_activity(record.run_id) as activity:
+        verdict = await serve_voice_lookup(
+            payload.name,
+            payload.arguments,
+            offered=await direct_tool_specs(frozenset(user.phone_disabled_domains or ())),
+            consume_budget=_consume_budget,
+            user_id=user.id,
+            language=language,
+            timezone=timezone,
+            display_name=display_name,
+            host=VoiceToolHost.live_session(record.session_id, record.run_id),
+        )
     if verdict.refusal is not None:
         live_tool_calls_total.labels(provider=record.provider, outcome=verdict.refusal.value).inc()
         if verdict.refusal is LookupRefusal.NOT_OFFERED:
             logger.info("live_tool_refused", session_id=record.session_id, tool=payload.name[:64])
         return LiveToolCallResponse(text=refusal_line(_REFUSAL_LINE[verdict.refusal]), ok=False)
     live_tool_calls_total.labels(provider=record.provider, outcome="ok").inc()
-    return LiveToolCallResponse(text=verdict.text, ok=True)
+    return LiveToolCallResponse(
+        text=verdict.text, ok=True, activity=activity[-1] if activity else None
+    )
 
 
 __all__ = ["run_session_tool"]

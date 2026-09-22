@@ -84,6 +84,9 @@ describe('SkillAppWidget', () => {
       expect(frame).toHaveAttribute('src', MAP_ITEM.payload.frame_url);
       // The attribute is what makes the embed work under require-corp.
       expect(frame!.hasAttribute('credentialless')).toBe(true);
+      // Standalone React treats this as an unknown string attribute. Its value
+      // must be non-empty so Next's boolean-attribute renderer also keeps it.
+      expect(frame!.getAttribute('credentialless')).toBe('true');
       expect(screen.queryByText('skill_apps.frame_unsupported')).toBeNull();
     });
 

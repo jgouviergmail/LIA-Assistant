@@ -49,7 +49,8 @@ from src.infrastructure.mcp.security import validate_http_endpoint
 logger = structlog.get_logger(__name__)
 
 
-# RFC 6749 §5.2 + RFC 8628 §3.5 error codes. An MCP authorization server is a
+# RFC 6749 §5.2, RFC 8628 §3.5, and the documented Microsoft
+# interaction_required extension. An MCP authorization server is a
 # third party: its response body is arbitrary text we do not control, so it must
 # never reach the logs (SEC-030) — a provider can echo a code, a token, PII or a
 # CRLF-injected line, and no generic PII filter can reliably sanitise opaque
@@ -60,6 +61,7 @@ _OAUTH_ERROR_CODES: frozenset[str] = frozenset(
         "invalid_request",
         "invalid_client",
         "invalid_grant",
+        "interaction_required",
         "unauthorized_client",
         "unsupported_grant_type",
         "invalid_scope",
@@ -92,7 +94,7 @@ def _derive_application_type(callback_base_url: str) -> str:
 
 
 def safe_oauth_error_code_value(code: str | None) -> str | None:
-    """Return ``code`` only when it is an RFC-defined OAuth error code.
+    """Return ``code`` only when it is an allowlisted OAuth error code.
 
     Shared allowlist gate (SEC-030): callback/redirect handlers must never
     log or reflect provider-controlled free text — only a known code survives.
@@ -113,7 +115,7 @@ def safe_oauth_error_code(response: httpx.Response) -> str | None:
         response: Token/authorization endpoint response.
 
     Returns:
-        The RFC-defined error code when the body is JSON and carries one from
+        The allowlisted error code when the body is JSON and carries one from
         :data:`_OAUTH_ERROR_CODES`; ``None`` otherwise. Never returns
         provider-controlled free text.
     """

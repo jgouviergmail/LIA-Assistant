@@ -34,8 +34,16 @@ import {
   type Dynamics,
   type DynamicsName,
 } from '@/components/eyes/rig/dynamics';
+import {
+  contextualPose,
+  NEUTRAL_CONTEXT,
+  thoughtPattern,
+  activityPattern,
+  type ActingContext,
+} from './direction';
 import { loopValue, type LoopSpec } from '@/components/eyes/rig/loops';
 import { exaggeratePose, resolveLoops, resolvePose } from '@/components/eyes/rig/poses';
+import { ambientMotion } from './ambient';
 import {
   isSpringAtRest,
   REST_EPSILON,
@@ -74,6 +82,10 @@ import { clampGazeAxis } from '@/components/eyes/expression-engine';
 import type { EyeExpression, Gaze, IdleMoodFamily } from '@/components/eyes/expression-engine';
 
 /** What the host tells the rig about the character's current state. */
+const CONTOUR_SPRING = { frequency: 1.2, damping: 1 };
+const HEAD_SPRING = { frequency: 1.35, damping: 1 };
+const AMBIENT_SPRING = { frequency: 0.85, damping: 1 };
+
 export interface RigPose {
   readonly expression: EyeExpression;
   readonly styleId: EyeStyleId;
@@ -84,11 +96,17 @@ export interface RigPose {
    * picks a different one, and it never comes from the psyche.
    */
   readonly emphasis?: number;
+  readonly responseWeight?: number;
 }
 
 /** Anticipation settings. Ratio and lead are the animator's dial; `minDelta`
  * keeps a twitch from being dressed up as intent. */
-const ANTICIPATION = { ratio: 0.16, leadMs: 95, minDelta: 0.09, maxOffset: 0.22 } as const;
+const ANTICIPATION = {
+  ratio: 0.16,
+  leadMs: 95,
+  minDelta: 0.09,
+  maxOffset: 0.22,
+} as const;
 
 /** Anticipation applies to the WILLED motion of the face — its pose, its
  * brows and its mass. Lids and radii follow the move; anticipating them too
@@ -96,7 +114,12 @@ const ANTICIPATION = { ratio: 0.16, leadMs: 95, minDelta: 0.09, maxOffset: 0.22 
 const ANTICIPATED_GROUPS: ReadonlySet<string> = new Set(['pose', 'brow', 'mass']);
 
 /** Rotations travel in degrees, so they need their own, wider, thresholds. */
-const ANTICIPATION_DEG = { ratio: 0.16, leadMs: 95, minDelta: 2.5, maxOffset: 4 } as const;
+const ANTICIPATION_DEG = {
+  ratio: 0.16,
+  leadMs: 95,
+  minDelta: 2.5,
+  maxOffset: 4,
+} as const;
 
 /**
  * Arc gain — an eye does not travel in a straight line.
@@ -131,12 +154,8 @@ const STRETCH_EPSILON = 0.005;
 /** Visual travel per unit of gaze, matching the stylesheet own factors: the
  * deformation must follow the direction the eyes actually MOVE on screen,
  * not the direction in the abstract gaze space. */
-const GAZE_EM_PER_UNIT_X = 0.14;
-const GAZE_EM_PER_UNIT_Y = 0.12;
-
-/** Below this curvature the direction is meaningless and the previous one is
- * held — the same treatment as the stretch axis, for the same reason. */
-const MOUTH_FLIP_EPSILON = 0.02;
+const GAZE_EM_PER_UNIT_X = 0.09;
+const GAZE_EM_PER_UNIT_Y = 0.07;
 
 /**
  * Secondary couplings — what the brows do BECAUSE of the rest of the face.
@@ -236,6 +255,7 @@ interface ActiveTape {
 export interface EyeRig {
   /** Land a new expression (or restyle the current one). */
   setPose(pose: RigPose): void;
+  setContext(context: ActingContext): void;
   /** Aim the gaze, or hand it back to centre with `null`. The optional
    * spring carries the host's travel intent: a saccade JUMPS, a return
    * glides. Omitted, the expression's own gaze dynamics apply. */
@@ -325,12 +345,14 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
   const pose: RigPose = { ...DEFAULT_POSE, ...options.initial };
   const random = options.random;
   const lifeRandom = options.lifeRandom;
+  let context: ActingContext = { ...NEUTRAL_CONTEXT };
   /** What the state's PATTERNS are generated from — the life stream when the
    * rig has one, else a seeded stream of the rig's own, so a rig built
    * without entropy still speaks, and always the same way. */
   const patternRandom = lifeRandom ?? createLifeRandom(PATTERN_SEED);
   let reducedMotion = options.reducedMotion ?? false;
   let arrivalPace = 1;
+  let responseWeight = pose.responseWeight ?? 1;
 
   /** The pose an expression lands on, exaggerated by the mood family AND
    * by how emphatically the answer that caused it was written. */
@@ -340,11 +362,17 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
     nextFamily: IdleMoodFamily,
     nextEmphasis: number
   ): ChannelValues {
-    return exaggeratePose(
+    const target = exaggeratePose(
       resolvePose('neutral', nextStyle),
       resolvePose(nextExpression, nextStyle),
       FAMILY_DYNAMICS[nextFamily].amplitude * nextEmphasis
     );
+    if (responseWeight < 1) {
+      const rest = resolvePose('neutral', nextStyle);
+      for (const key of CHANNEL_KEYS)
+        target[key] = rest[key] + (target[key] - rest[key]) * Math.max(0, responseWeight);
+    }
+    return contextualPose(target, nextExpression, context);
   }
 
   let emphasis = pose.emphasis ?? 1;
@@ -399,11 +427,6 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
    * so it can never be read stale. */
   let lastSettling = true;
 
-  /** Last mouth direction, held through the flat crossing for the same reason
-   * the stretch axis is: a mouth resting near zero would otherwise flicker
-   * between a smile and a frown on numerical noise. */
-  let mouthFlip = 1;
-
   /** Per channel, the spring in force and the blend out of the previous one
    * (see `SPRING_BLEND_MS`). Filled lazily: a channel that never moves
    * never gets an entry. */
@@ -434,10 +457,10 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
    * read as two characters. */
   function tickMouthLife(): void {
     if (!lifeRandom || reducedMotion || clockMs < mouthLifeAtMs) return;
-    if (clockMs < sketchUntilMs) return;
+    if (context.activity || context.responding || clockMs < sketchUntilMs) return;
     mouthLifeAtMs = clockMs + drawMouthLifeDelayMs(lifeRandom);
     if (!MOUTH_LIFE_EXPRESSIONS.has(expression)) return;
-    const draw = drawMouthMimic(lifeRandom, lastMimic);
+    const draw = drawMouthMimic(lifeRandom, lastMimic, context);
     lastMimic = draw.mimic;
     mouthBusyUntilMs = clockMs + Math.max(...draw.tapes.map(tapeDurationMs));
     for (const tape of draw.tapes) tapes.push({ tape, elapsedMs: 0 });
@@ -447,7 +470,8 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
   /** Start a scene: the tapes, the curtain time, and the face's own life
    * stood aside until a breath after the end. */
   function playSketch(list: readonly Tape[]): void {
-    if (reducedMotion || list.length === 0) return;
+    if (reducedMotion || context.activity || context.responding || list.length === 0) return;
+    tapes = tapes.filter(active => CHANNELS[active.tape.channel].group === 'blink');
     sketch = list.map(tape => ({ tape, elapsedMs: 0 }));
     sketchUntilMs = clockMs + sketchDurationMs(list);
     mouthLifeAtMs = Math.max(mouthLifeAtMs, sketchUntilMs + SKETCH_MOUTH_GRACE_MS);
@@ -462,14 +486,20 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
    */
   function tickSketchLife(dtMs: number): void {
     if (!lifeRandom || reducedMotion) return;
-    if (!SKETCH_EXPRESSIONS.has(expression) || sketch.length > 0) return;
+    if (
+      context.activity ||
+      context.responding ||
+      !SKETCH_EXPRESSIONS.has(expression) ||
+      sketch.length > 0
+    )
+      return;
     sketchClock.restedMs += dtMs;
     if (sketchClock.restedMs < sketchClock.dueMs) return;
     const name = pickSketch(lifeRandom, sketchClock.recent);
-    recordSketch(sketchClock, name);
-    armSketchClock(sketchClock, lifeRandom);
     // Warped: the same scene twice is never the same performance.
     playSketch(warpTapes(sketchTapes(name), lifeRandom));
+    recordSketch(sketchClock, name);
+    armSketchClock(sketchClock, lifeRandom);
   }
 
   // Derive the computed channels once, before anyone can read them: the
@@ -487,12 +517,20 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
    * third (it was, on the constructor). */
   function startPatterns(next: EyeExpression, elapsedMs = 0): ActiveTape[] {
     if (reducedMotion) return [];
-    return resolvePatterns(next, patternRandom).map(tape => ({ tape, elapsedMs }));
+    const pattern =
+      context.activity && ['thinking', 'searching', 'focused', 'attentive'].includes(next)
+        ? activityPattern(context.activity, patternRandom)
+        : next === 'thinking'
+          ? thoughtPattern(patternRandom)
+          : resolvePatterns(next, patternRandom);
+    return pattern.map(tape => ({ tape, elapsedMs }));
   }
 
   /** Where a channel is heading right now: a playing tape wins, then the gaze
    * aim for the two gaze channels, then the pose. */
   function baseTargetFor(key: ChannelKey): number {
+    if (key === 'headYaw') return clampGazeAxis(springs.gazeX.value);
+    if (key === 'headPitch') return clampGazeAxis(springs.gazeY.value);
     if (key === 'gazeX' || key === 'hlX') return gaze?.x ?? 0;
     if (key === 'gazeY' || key === 'hlY') return gaze?.y ?? 0;
     return poseTargets[key];
@@ -539,7 +577,10 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
     if (factor === 1) return preset;
     const scaled: Record<string, SpringConfig> = {};
     for (const [group, config] of Object.entries(preset)) {
-      scaled[group] = { frequency: config.frequency * factor, damping: config.damping };
+      scaled[group] = {
+        frequency: config.frequency * factor,
+        damping: config.damping,
+      };
     }
     return scaled as Dynamics;
   }
@@ -566,6 +607,10 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
   /** The spring a channel is driven by right now: a playing beat's own, or
    * the pose's — blended across a hand-over between the two. */
   function springFor(key: ChannelKey): SpringConfig {
+    if (key.startsWith('weather') || key.startsWith('light')) return AMBIENT_SPRING;
+    if (key === 'headYaw' || key === 'headPitch') return HEAD_SPRING;
+    // Even a reflex morphs its drawn contour instead of snapping the topology.
+    if (key.startsWith('stroke')) return CONTOUR_SPRING;
     const beatSpring =
       tapeSpringIn(tapes, key) ?? tapeSpringIn(sketch, key) ?? tapeSpringIn(patterns, key);
     const group = CHANNELS[key].group;
@@ -591,7 +636,12 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
   function blendedSpring(key: ChannelKey, next: SpringConfig, fromBeat: boolean): SpringConfig {
     const blend = springBlends[key];
     if (!blend) {
-      springBlends[key] = { spring: next, fromBeat, blendFrom: null, blendAtMs: clockMs };
+      springBlends[key] = {
+        spring: next,
+        fromBeat,
+        blendFrom: null,
+        blendAtMs: clockMs,
+      };
       return next;
     }
     if (blend.spring !== next) {
@@ -599,7 +649,10 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
       // fraction of itself. Anything else takes the new spring outright.
       const handedBack = blend.fromBeat && !fromBeat;
       blend.blendFrom = handedBack
-        ? { frequency: next.frequency * SPRING_BLEND_FROM, damping: next.damping }
+        ? {
+            frequency: next.frequency * SPRING_BLEND_FROM,
+            damping: next.damping,
+          }
         : null;
       blend.blendAtMs = clockMs;
       blend.spring = next;
@@ -664,6 +717,7 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
    * against one big one.
    */
   function writeDerived(): void {
+    Object.assign(output, ambientMotion(output, clockMs, reducedMotion));
     const vx = springs.gazeX.velocity;
     const vy = springs.gazeY.velocity;
 
@@ -687,8 +741,6 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
     // and lets the spring travel continuously between them.
     const curve = output.mouthCurve;
     output.mouthArc = Math.min(1, Math.abs(curve));
-    if (Math.abs(curve) > MOUTH_FLIP_EPSILON) mouthFlip = curve > 0 ? 1 : -1;
-    output.mouthFlip = mouthFlip;
 
     // The opening is bounded to what the mouth can draw: the speech envelope
     // deliberately drives the flap THROUGH the closure to make a pause, and a
@@ -764,7 +816,11 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
     if (sketch.length > 0) {
       for (const active of sketch) active.elapsedMs += dtMs;
       sketch = sketch.filter(active => active.elapsedMs <= tapeDurationMs(active.tape));
-      if (sketch.length === 0) sketchUntilMs = 0;
+      if (sketch.length === 0) {
+        sketchUntilMs = 0;
+        if (sketchClock.scene) sketchClock.completed += 1;
+        sketchClock.scene = null;
+      }
     }
     let leftoverMs = -1;
     for (const active of patterns) {
@@ -802,10 +858,17 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
     }
   }
 
-  function settle(): void {
-    tapes = [];
+  function interruptPerformance(): void {
+    tapes = tapes.filter(active => CHANNELS[active.tape.channel].group === 'blink');
+    if (sketch.length && sketchClock.scene) sketchClock.interrupted += 1;
+    sketchClock.scene = null;
     sketch = [];
     sketchUntilMs = 0;
+  }
+
+  function settle(): void {
+    interruptPerformance();
+    tapes = [];
     patterns = [];
     for (const key of CHANNEL_KEYS) {
       springs[key] = { value: targetFor(key), velocity: 0 };
@@ -828,7 +891,11 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
       const current = springs[key].value;
       if (Math.abs(nextTargets[key] - current) < REST_EPSILON) continue;
       tapes.push({
-        tape: { channel: key, keys: [{ atMs: 0, value: current }], durationMs: leadMs },
+        tape: {
+          channel: key,
+          keys: [{ atMs: 0, value: current }],
+          durationMs: leadMs,
+        },
         elapsedMs: 0,
       });
     }
@@ -869,11 +936,7 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
     // A REFLEX pre-empts everything. A startle landing on top of a
     // half-played idle flourish reads as two characters arguing; the beats
     // are dropped so the reflex owns the face outright.
-    if (DYNAMICS_FOR_EXPRESSION[next.expression] === 'reflex') tapes = [];
-    // A sketch never plays over a new state: the curtain falls with the
-    // change, and the channels ease home on the arrival's own dynamics.
-    sketch = [];
-    sketchUntilMs = 0;
+    interruptPerformance();
     expression = next.expression;
     // The mouth's life starts over with the state: a mimic must never land
     // on top of an entrance, and a face that just changed has said enough.
@@ -908,6 +971,22 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
   }
 
   return {
+    setContext(next: ActingContext) {
+      if (
+        Object.keys(NEUTRAL_CONTEXT).every(
+          key => next[key as keyof ActingContext] === context[key as keyof ActingContext]
+        )
+      )
+        return;
+      const changedActivity = next.activity !== context.activity;
+      const takesAttention =
+        (changedActivity && next.activity) || (next.responding && !context.responding);
+      context = next;
+      if (takesAttention) interruptPerformance();
+      poseTargets = computeTargets(expression, styleId, family, emphasis);
+      if (changedActivity) patterns = startPatterns(expression);
+      lastSettling = true;
+    },
     setPose(next: RigPose) {
       const nextEmphasis = next.emphasis ?? 1;
       const changedExpression = next.expression !== expression;
@@ -915,10 +994,12 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
         !changedExpression &&
         next.styleId === styleId &&
         next.family === family &&
-        nextEmphasis === emphasis;
+        nextEmphasis === emphasis &&
+        (next.responseWeight ?? 1) === responseWeight;
       if (unchanged) return;
 
       emphasis = nextEmphasis;
+      responseWeight = next.responseWeight ?? 1;
       lastSettling = true;
       const nextTargets = computeTargets(next.expression, next.styleId, next.family, emphasis);
       if (changedExpression) beginArrival(next, nextTargets);
@@ -938,7 +1019,11 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
 
     play(...next: readonly Tape[]) {
       if (reducedMotion) return;
-      for (const tape of next) tapes.push({ tape, elapsedMs: 0 });
+      for (const tape of next) {
+        if ((sketch.length || context.activity) && CHANNELS[tape.channel].group !== 'blink')
+          continue;
+        tapes.push({ tape, elapsedMs: 0 });
+      }
       lastSettling = next.length > 0;
     },
 
@@ -958,6 +1043,10 @@ export function createEyeRig(options: RigOptions = {}): EyeRig {
     sketchClock: () => sketchClock,
 
     step(dtMs: number): boolean {
+      if (reducedMotion) {
+        settle();
+        return false;
+      }
       if (dtMs > 0) {
         // The face's lives are checked before the path is chosen: a mimic
         // or a sketch that starts is a beat, and a beat takes the full path.

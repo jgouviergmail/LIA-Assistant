@@ -57,7 +57,7 @@ Le schéma suit l'architecture Domain-Driven Design avec **13 domaines** (11 ave
 ```
 📁 domains/
 ├── auth/           → users (1 table)
-├── connectors/     → connectors, connector_global_config (2 tables)
+├── connectors/     → connectors, oauth_grants, connector_global_config (3 tables)
 ├── conversations/  → conversations, conversation_messages, conversation_audit_log (3 tables)
 ├── chat/           → token_usage_logs, message_token_summary, user_statistics (3 tables)
 ├── llm/            → llm_models, llm_model_pricing, currency_exchange_rates (3 tables) [llm_models added in v1.19.0]
@@ -430,6 +430,7 @@ CREATE TABLE connectors (
 
     -- Foreign Keys
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    oauth_grant_id UUID NULL REFERENCES oauth_grants(id) ON DELETE SET NULL,
 
     -- Connector Configuration
     connector_type VARCHAR(50) NOT NULL,  -- ENUM: google_gmail, google_contacts, etc.
@@ -454,7 +455,24 @@ CREATE TABLE connectors (
 CREATE INDEX ix_connectors_user_id ON connectors(user_id);
 CREATE INDEX ix_connectors_connector_type ON connectors(connector_type);
 CREATE INDEX ix_connectors_status ON connectors(status);
+CREATE INDEX ix_connectors_oauth_grant_id ON connectors(oauth_grant_id);
 ```
+
+### 2a. oauth_grants
+
+One encrypted Google or Microsoft authorization per LIA user, OAuth client,
+and verified provider subject. The unique `(user_id, provider, client_id,
+subject)` key distinguishes multiple external accounts even when their display
+email changes. `connectors.oauth_grant_id` links logical services to that
+authorization. Legacy service credentials keep a null link until the person
+explicitly reconnects them together; no migration assumes two old credentials
+belong to one provider account. The grant owns refresh token rotation, while
+linked connector rows retain synchronized encrypted snapshots for compatibility.
+The last linked service removes its grant; disconnecting one service leaves
+other links usable. A provider rejection marks linked active services in error;
+a temporary network failure preserves their state. The account boundary and
+shared consent decision are recorded in
+[ADR-302](../architecture/ADR-302-OAuth-Grant-Par-Compte-Et-Consentement-Groupe.md).
 
 **Modèle SQLAlchemy:**
 
@@ -2452,7 +2470,7 @@ class UserMCPServer(BaseModel):
 **Design Notes:**
 - **Pas de relation ORM vers User** — `user_id` FK suffit; evite les import-order dependencies
 - **Partial index** `ix_user_mcp_servers_user_enabled` — hot path: seuls les serveurs enabled + active sont charges dans le pipeline chat
-- **JSONB `tool_embeddings_cache`** — embeddings OpenAI pre-calcules au moment de l'enregistrement, evite le recalcul a chaque requete
+- **JSONB `tool_embeddings_cache`** — embeddings pré-calculés au moment de l'enregistrement, évite le recalcul à chaque requête ; depuis 2026-09-20 une ENVELOPPE `{embedding_model, tools}` : un cache écrit par un autre modèle (ou de l'ancienne forme plate) est périmé, recalculé et re-persisté au tour suivant (`services/tool_embeddings_envelope.py`) — des vecteurs 384-d notaient 0 chaque outil face à des requêtes 1 536-d, en silence
 
 **Documentation:** [docs/technical/MCP_INTEGRATION.md](./MCP_INTEGRATION.md)
 

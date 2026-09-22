@@ -26,6 +26,7 @@ import { join } from 'node:path';
 import { CHANNELS, CHANNEL_KEYS, formatChannel } from '@/components/eyes/rig/channels';
 import { STYLE_LID_MODE } from '@/components/eyes/rig/poses';
 import { EYE_STYLE_IDS } from '@/components/eyes/eye-styles';
+import { SVG_CHANNELS } from '../face-geometry';
 
 const CSS = readFileSync(join(process.cwd(), 'src/styles/eyes.css'), 'utf8');
 
@@ -71,7 +72,10 @@ describe('eyes.css × rig boundary', () => {
       [...CODE.matchAll(/var\(\s*(--rig-[a-z0-9-]+)/g)].map(match => match[1])
     );
     const orphans = CHANNEL_KEYS.filter(
-      key => !CHANNELS[key].internal && !referenced.has(CHANNELS[key].cssVar)
+      key =>
+        !CHANNELS[key].internal &&
+        !referenced.has(CHANNELS[key].cssVar) &&
+        !SVG_CHANNELS.includes(key)
     );
     expect(orphans).toEqual([]);
   });
@@ -84,7 +88,10 @@ describe('eyes.css × rig boundary', () => {
     const internal = CHANNEL_KEYS.filter(key => CHANNELS[key].internal);
     expect(internal.length).toBeGreaterThan(0);
     internal.forEach(key => {
-      expect({ key, read: runtime.includes(`.${key}`) }).toEqual({ key, read: true });
+      expect({ key, read: runtime.includes(`.${key}`) }).toEqual({
+        key,
+        read: true,
+      });
     });
   });
 

@@ -3,8 +3,8 @@
 > Resoconto di esperienza — un sistema completo, dalla progettazione alla produzione.
 
 **Versione**: 2.1
-**Data**: 2026-09-18
-**Applicazione**: LIA v1.47.0
+**Data**: 2026-09-22
+**Applicazione**: LIA v1.47.1
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ La quasi totalità del codice è stata scritta da un'IA, sotto direzione umana: 
 | Indicatore | Valore |
 | --- | --- |
 | Codice scritto da un'IA — diretta, inquadrata, controllata | **≈ 100 %** |
-| Righe di codice (esclusi i test) — 49 domini funzionali | **660.000** |
+| Righe di codice sorgente (esclusi i test) — 51 domini funzionali | **720.000+** |
 | Test automatizzati, eseguiti a ogni commit e rilascio | **39.000+** |
-| Decisioni di architettura documentate (ADR) | **300** |
-| Versioni rilasciate a ritmo regolare | **265** |
+| Decisioni di architettura documentate (ADR) | **301** |
+| Versioni rilasciate a ritmo regolare | **266** |
 | Lingue, parità verificata automaticamente | **6** |
 | Audit tecnico su 24 perimetri | **8,3/10** |
 
@@ -50,7 +50,7 @@ Un'IA che programma produce volume; produce qualità solo sotto vincolo. Quattro
 
 ## 4. Gli arbitraggi
 
-Tre decisioni strutturanti, tra le 300 documentate:
+Tre decisioni strutturanti, tra le 301 documentate:
 
 **Sovranità e reversibilità — nessuna dipendenza irreversibile dal fornitore.** I modelli IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modelli locali via Ollama) stanno dietro un'astrazione unica: ogni utilizzo può cambiare fornitore per configurazione, con confronto dei costi. Stesso principio sul lato business: Google, Apple e Microsoft sono intercambiabili per categoria funzionale. L'hosting è interamente controllato; i dati personali sono cifrati e restano sull'infrastruttura.
 

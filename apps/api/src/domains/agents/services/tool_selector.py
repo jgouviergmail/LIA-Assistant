@@ -305,9 +305,9 @@ class SemanticToolSelector:
         # one width compared with queries at the other scored every tool 0 in
         # silence (measured on dev 2026-09-19: 163 dimension-mismatch warnings per
         # turn, the ranking blind, no error).
-        self._embedding_model_name = (
-            f"{app_settings.memory_embedding_model}:{app_settings.memory_embedding_dimensions}"
-        )
+        from src.domains.agents.services.tool_embeddings_envelope import embedding_model_key
+
+        self._embedding_model_name = embedding_model_key()
         self._embedding_dimensions = int(app_settings.memory_embedding_dimensions)
 
         # Collect ALL texts for batch embedding (descriptions + keywords)

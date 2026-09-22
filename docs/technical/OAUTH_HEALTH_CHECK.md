@@ -1,6 +1,6 @@
 # OAuth Health Check System
 
-> **Version** : 1.0 | **Date** : 2026-01-28 | **Status** : Implemented
+> **Mis à jour** : 2026-09-21 | **Status** : Implemented
 
 ---
 
@@ -24,9 +24,22 @@ Le systeme OAuth Health Check surveille proactivement l'etat des connecteurs OAu
 - `expires_at` dans le passe est **NORMAL** - le refresh on-demand obtient un nouveau token
 - Seul `status=ERROR` indique un vrai probleme (refresh_token revoque ou expire)
 
+Pour des services Google ou Microsoft déjà liés au même `oauth_grant_id`, le
+refresh est effectué une seule fois par grant. Un refus définitif marque les
+services liés en erreur ; un incident réseau temporaire conserve leur statut.
+Les alertes restent par service, tandis que l'action
+**Reconnecter mes services Google/Microsoft** peut réunir ceux d'un même compte
+en un consentement. Les comptes distincts exigent des parcours distincts.
+Voir [OAUTH.md](OAUTH.md#connexion-et-reconnexion-groupées) et
+[ADR-302](../architecture/ADR-302-OAuth-Grant-Par-Compte-Et-Consentement-Groupe.md).
+
 ---
 
 ## Architecture
+
+Le job publie toujours l'alerte sur le canal Redis, puis tente un push FCM
+seulement en l'absence de connexion SSE. Le schéma ci-dessous représente ces
+deux issues ; le canal Redis reste commun aux deux.
 
 ```
                          ┌──────────────────────────────────────┐
@@ -82,7 +95,7 @@ async def check_oauth_health_all_users() -> dict[str, int]:
     """
 ```
 
-**Execution** : Enregistre dans APScheduler via `main.py`
+**Execution** : Enregistré dans APScheduler par `infrastructure/startup/schedulers.py`.
 
 ### Configuration
 
@@ -158,9 +171,10 @@ interface UseConnectorHealthResult {
 
 **Fichier** : `apps/web/src/components/connectors/ConnectorHealthAlert.tsx`
 
-- Affiche une modal pour les connecteurs critiques (`status=ERROR`)
+- Affiche une modal pour les connecteurs critiques (`status=ERROR`) et une bannière persistante tant que l'erreur subsiste
 - Integre dans le layout dashboard
-- Gere le flow de reconnexion OAuth
+- Signale la reconnexion requise et renvoie vers les réglages, où la
+  reconnexion peut être groupée par fournisseur et par compte
 
 ### Composant ErrorConnectorCard
 
@@ -181,6 +195,12 @@ interface UseConnectorHealthResult {
 
 ## Flow de Reconnexion
 
+La modal et la bannière de santé proposent encore une action **unitaire** pour
+chaque service. Dans les réglages, « Reconnecter mes services Google/Microsoft »
+regroupe les services en erreur **d'un même compte** ; « Tout connecter » autorise
+les services absents admissibles en un parcours par fournisseur et par compte.
+Voir [OAUTH.md](OAUTH.md#connexion-et-reconnexion-groupées).
+
 ```mermaid
 sequenceDiagram
     participant User
@@ -189,7 +209,7 @@ sequenceDiagram
     participant Google
 
     Note over User,Frontend: Connecteur en erreur detecte
-    Frontend->>User: Affiche modal "Reconnexion requise"
+    Frontend->>User: Affiche modal et bannière "Reconnexion requise"
     User->>Frontend: Click "Reconnecter"
     Frontend->>Frontend: sessionStorage.set('reconnect_pending', true)
     Frontend->>Backend: GET /connectors/{type}/authorize
@@ -199,7 +219,7 @@ sequenceDiagram
     User->>Google: Autoriser
     Google->>Backend: Callback avec code
     Backend->>Backend: Exchange code, encrypt tokens, update status=ACTIVE
-    Backend->>Frontend: Redirect settings?connector_added=true
+    Backend->>Frontend: Redirection vers les réglages avec le résultat OAuth
     Frontend->>Frontend: sessionStorage.get('reconnect_pending')
     Frontend->>Frontend: Refetch /connectors/health
     Frontend->>User: Toast "Gmail connecte" + Modal ferme
@@ -214,7 +234,7 @@ sequenceDiagram
 ```python
 # Cooldown key - empeche re-notification pendant 24h
 notified_key = f"oauth:health:notified:{user_id}:{connector_id}"
-await redis.setex(notified_key, cooldown_seconds, "1")
+await redis.set(notified_key, "1", ex=cooldown_seconds)
 ```
 
 ### Frontend (localStorage)
@@ -325,7 +345,10 @@ async def check_connector_health(
 
 - S'execute toutes les 15 minutes
 - Rafraichit les tokens 30 minutes avant expiration
-- Si le refresh echoue 3 fois → `status=ERROR` → OAuth Health Check prend le relais
+- Pour un grant partagé, un refus définitif (`invalid_grant` ou
+  `interaction_required`) marque les services actifs liés en erreur ; les pannes
+  transitoires ne déclenchent pas de reconnexion. Le job déduplique les services
+  d'un même grant dans chaque passage
 
 ### On-Demand Token Refresh
 
@@ -333,7 +356,8 @@ async def check_connector_health(
 
 - Verifie `expires_at` avant chaque appel API
 - Rafraichit si necessaire (avec Redis lock pour eviter race conditions)
-- Si echoue → marque `status=ERROR`
+- Les services liés utilisent le runtime du grant ; son refus définitif marque
+  les services actifs liés en erreur, tandis qu'une panne temporaire garde leur statut
 
 ---
 
@@ -363,8 +387,9 @@ async def check_connector_health(
 
 | Document | Description |
 |----------|-------------|
-| `ADR-021-OAuth-Token-Lifecycle-Management.md` | Architecture OAuth complete |
-| `docs/technical/OAUTH.md` | Flow OAuth 2.1 avec PKCE |
+| [ADR-021](../architecture/ADR-021-OAuth-Token-Lifecycle-Management.md) | Cycle OAuth initial, amendé pour les grants partagés |
+| [ADR-302](../architecture/ADR-302-OAuth-Grant-Par-Compte-Et-Consentement-Groupe.md) | Grant par compte et reconnexion groupée |
+| [OAUTH.md](OAUTH.md) | Flux OAuth Google/Microsoft avec PKCE et grants |
 | `docs/guides/GUIDE_BACKGROUND_JOBS_APSCHEDULER.md` | Guide jobs planifies |
 | `docs/guides/GUIDE_FCM_PUSH_NOTIFICATIONS.md` | Guide notifications push |
 

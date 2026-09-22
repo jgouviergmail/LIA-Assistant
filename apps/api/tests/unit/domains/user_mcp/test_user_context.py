@@ -210,10 +210,12 @@ class TestSetupUserMCPTools:
         server.hitl_required = None
         server.domain_description = None
         server.iterative_mode = False
-        # Embeddings stored by raw MCP tool name
-        server.tool_embeddings_cache = {
-            "hub_search": {"description": [0.1, 0.2], "keywords": [[0.3, 0.4]]},
-        }
+        # Embeddings stored by raw MCP tool name, in the envelope this model wrote
+        from src.domains.agents.services.tool_embeddings_envelope import wrap_server_cache
+
+        server.tool_embeddings_cache = wrap_server_cache(
+            {"hub_search": {"description": [0.1, 0.2], "keywords": [[0.3, 0.4]]}}
+        )
 
         mock_repo = AsyncMock()
         mock_repo.get_enabled_active_for_user = AsyncMock(return_value=[server])
@@ -245,8 +247,145 @@ class TestSetupUserMCPTools:
                 # Embeddings should be re-keyed from "hub_search" to adapter_name
                 assert adapter_name in ctx.tool_embeddings
                 assert ctx.tool_embeddings[adapter_name]["description"] == [0.1, 0.2]
+                mock_repo.update.assert_not_awaited()
             finally:
                 cleanup_user_mcp_tools(token)
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("stored", "reason"),
+        [
+            ({"hub_search": {"description": [0.1, 0.2], "keywords": []}}, "legacy_shape"),
+            (
+                {
+                    "embedding_model": "models/old-embedder:384",
+                    "tools": {"hub_search": {"description": [0.1, 0.2], "keywords": []}},
+                },
+                "model_changed",
+            ),
+        ],
+    )
+    @patch("src.infrastructure.mcp.user_context.settings")
+    @patch("src.domains.user_mcp.repository.UserMCPServerRepository")
+    @patch("src.infrastructure.mcp.user_context.get_user_mcp_pool")
+    @patch("src.infrastructure.mcp.user_context.build_auth_for_server")
+    @patch("src.infrastructure.mcp.user_context._build_user_tool_manifest")
+    @patch("src.domains.agents.services.tool_selector.compute_tool_embeddings")
+    async def test_a_stale_cache_is_recomputed_and_persisted_on_the_turn(
+        self,
+        mock_compute,
+        mock_manifest,
+        mock_build_auth,
+        mock_get_pool,
+        mock_repo_cls,
+        mock_settings,
+        stored,
+        reason,
+    ) -> None:
+        """A cache of another model (or of the legacy shape) is never handed to
+        the ranking — measured 2026-09-20, 384-d rows scored 0 against 1 536-d
+        queries in silence — it is recomputed from the tools just fetched and
+        persisted in the envelope, so the row heals on the person's next turn."""
+        from src.domains.agents.services.tool_embeddings_envelope import embedding_model_key
+
+        mock_settings.mcp_user_enabled = True
+        mock_settings.mcp_hitl_required = True
+        server = MagicMock()
+        server.id = uuid4()
+        server.name = "TestServer"
+        server.url = "https://example.com"
+        server.timeout_seconds = 30
+        server.hitl_required = None
+        server.domain_description = None
+        server.iterative_mode = False
+        server.tool_embeddings_cache = stored
+        mock_repo = AsyncMock()
+        mock_repo.get_enabled_active_for_user = AsyncMock(return_value=[server])
+        mock_repo_cls.return_value = mock_repo
+        entry = MagicMock()
+        entry.tools = [{"name": "hub_search", "description": "Search", "input_schema": {}}]
+        mock_pool = AsyncMock()
+        mock_pool.get_or_connect = AsyncMock(return_value=entry)
+        mock_get_pool.return_value = mock_pool
+        mock_build_auth.return_value = MagicMock()
+        fresh = {"hub_search": {"description": [0.5] * 4, "keywords": []}}
+        mock_compute.return_value = fresh
+        adapter_mock = MagicMock()
+        adapter_name = f"mcp_user_{str(server.id)[:8]}_hub_search"
+        adapter_mock.name = adapter_name
+        mock_manifest.return_value = MagicMock()
+
+        from src.infrastructure.mcp.user_tool_adapter import UserMCPToolAdapter
+
+        with patch.object(UserMCPToolAdapter, "from_discovered_tool", return_value=adapter_mock):
+            token = await setup_user_mcp_tools(uuid4(), AsyncMock())
+            try:
+                ctx = user_mcp_tools_ctx.get()
+                assert ctx is not None
+                assert ctx.tool_embeddings[adapter_name]["description"] == [0.5] * 4
+            finally:
+                cleanup_user_mcp_tools(token)
+        mock_compute.assert_awaited_once_with(tool_metadata=entry.tools, server_name="TestServer")
+        mock_repo.update.assert_awaited_once_with(
+            server,
+            {"tool_embeddings_cache": {"embedding_model": embedding_model_key(), "tools": fresh}},
+        )
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    @patch("src.infrastructure.mcp.user_context.settings")
+    @patch("src.domains.user_mcp.repository.UserMCPServerRepository")
+    @patch("src.infrastructure.mcp.user_context.get_user_mcp_pool")
+    @patch("src.infrastructure.mcp.user_context.build_auth_for_server")
+    @patch("src.infrastructure.mcp.user_context._build_user_tool_manifest")
+    @patch("src.domains.agents.services.tool_selector.compute_tool_embeddings")
+    async def test_a_refresh_that_fails_leaves_the_tools_unranked_and_the_turn_alive(
+        self,
+        mock_compute,
+        mock_manifest,
+        mock_build_auth,
+        mock_get_pool,
+        mock_repo_cls,
+        mock_settings,
+    ) -> None:
+        mock_settings.mcp_user_enabled = True
+        mock_settings.mcp_hitl_required = True
+        server = MagicMock()
+        server.id = uuid4()
+        server.name = "TestServer"
+        server.url = "https://example.com"
+        server.timeout_seconds = 30
+        server.hitl_required = None
+        server.domain_description = None
+        server.iterative_mode = False
+        server.tool_embeddings_cache = {"hub_search": {"description": [0.1, 0.2], "keywords": []}}
+        mock_repo = AsyncMock()
+        mock_repo.get_enabled_active_for_user = AsyncMock(return_value=[server])
+        mock_repo_cls.return_value = mock_repo
+        entry = MagicMock()
+        entry.tools = [{"name": "hub_search", "description": "Search", "input_schema": {}}]
+        mock_pool = AsyncMock()
+        mock_pool.get_or_connect = AsyncMock(return_value=entry)
+        mock_get_pool.return_value = mock_pool
+        mock_build_auth.return_value = MagicMock()
+        mock_compute.side_effect = RuntimeError("429 RESOURCE_EXHAUSTED")
+        adapter_mock = MagicMock()
+        adapter_mock.name = f"mcp_user_{str(server.id)[:8]}_hub_search"
+        mock_manifest.return_value = MagicMock()
+
+        from src.infrastructure.mcp.user_tool_adapter import UserMCPToolAdapter
+
+        with patch.object(UserMCPToolAdapter, "from_discovered_tool", return_value=adapter_mock):
+            token = await setup_user_mcp_tools(uuid4(), AsyncMock())
+            try:
+                ctx = user_mcp_tools_ctx.get()
+                assert ctx is not None
+                assert adapter_mock.name in ctx.tool_instances
+                assert ctx.tool_embeddings == {}
+            finally:
+                cleanup_user_mcp_tools(token)
+        mock_repo.update.assert_not_awaited()
 
     @pytest.mark.unit
     @pytest.mark.asyncio

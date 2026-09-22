@@ -225,10 +225,10 @@ describe('the fallback: a register inferred from the answer itself', () => {
     );
   });
 
-  it('celebrates something actually delivered', () => {
+  it('does not infer the emotional subject from an attachment', () => {
     const tone = infer('Voici ton document.', { hasArtifacts: true });
-    expect(tone.register).toBe('celebratory');
-    expect(tone.accent).toBe('sparkle');
+    expect(tone.register).toBe('factual');
+    expect(tone.accent).toBe('none');
   });
 
   it('answers a trailing question with the questioning face', () => {

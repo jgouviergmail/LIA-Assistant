@@ -34,6 +34,7 @@ import {
 import { useEyesAnchor, type AnchorPosition } from '@/components/eyes/useEyesAnchor';
 import { useEyesDrag, type EyesDrag } from '@/components/eyes/useEyesDrag';
 import { useEyesParallax } from '@/components/eyes/useEyesParallax';
+import { useCompanionEnvironment } from './useCompanionEnvironment';
 import {
   useEyesWidgetStore,
   type EyesSurface,
@@ -68,10 +69,14 @@ const FALLBACK_ANCHOR_CLASSES: Record<EyesSurface, string> = {
   landing: 'bottom-6 right-6',
 };
 
-/** 'auto' resolves responsively: discreet on phones, present on desktop. */
-function resolveEyesSize(setting: EyesSizeSetting, isDesktop: boolean): EyesSize {
+/** 'auto' stays small on the public landing; the chat scales with the viewport. */
+function resolveEyesSize(
+  setting: EyesSizeSetting,
+  isDesktop: boolean,
+  surface: EyesSurface
+): EyesSize {
   if (setting !== 'auto') return setting;
-  return isDesktop ? 'lg' : 'sm';
+  return surface === 'chat' && isDesktop ? 'lg' : 'sm';
 }
 
 /** Gaze priority: engine-directed > live cursor parallax > idle wander.
@@ -130,6 +135,7 @@ function eyesDisplayProps(
     emoteLeaving: behavior.emote?.leaving ?? false,
     accessory: behavior.accessory,
     emphasis: behavior.emphasis,
+    responseWeight: behavior.responseWeight,
   };
 }
 
@@ -217,7 +223,7 @@ export type EyesWidgetProps = EyesBehaviorProps & {
    * the face, its life and its preferences are the same everywhere. */
   surface?: EyesSurface;
   /** Force a look for this mount, ignoring the persisted preference — the
-   * landing shows the capsules to every visitor; the chat keeps the user's
+   * landing shows the smiley to every visitor; the chat keeps the user's
    * own choice. */
   styleId?: EyeStyleId;
 };
@@ -252,11 +258,13 @@ export const EyesWidget = memo(function EyesWidget(props: EyesWidgetProps) {
     () => true,
     () => false
   );
+  const active = mounted && visible;
+  useCompanionEnvironment(surface === 'chat' && active);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const drag = useEyesDrag(rootRef, surface);
   const isDesktop = useMediaQuery('(min-width: 1024px)');
-  const resolvedSize = resolveEyesSize(size, isDesktop);
+  const resolvedSize = resolveEyesSize(size, isDesktop, surface);
 
   // Default docked spot: centered between the header's left cluster and the
   // delete button. Only measured while no custom position is stored — and
@@ -267,7 +275,7 @@ export const EyesWidget = memo(function EyesWidget(props: EyesWidgetProps) {
   // Desktop cursor parallax — gated, expiring (see useEyesParallax).
   const gazeFree =
     behavior.frame.gaze === null && PARALLAX_EXPRESSIONS.has(behavior.frame.expression);
-  const parallax = useEyesParallax(rootRef, mounted && visible && gazeFree);
+  const parallax = useEyesParallax(rootRef, active && gazeFree);
 
   // Two quick drags can still satisfy the browser's dblclick heuristics —
   // a wink right after dropping the widget reads as a glitch, not a wink.
@@ -301,6 +309,9 @@ export const EyesWidget = memo(function EyesWidget(props: EyesWidgetProps) {
   }
 
   const resolved = resolveGaze(behavior, gazeFree ? parallax : null);
+  // The positioning resolver is also the authority on whether a fallback is
+  // needed; duplicating its three cases in the JSX can disagree with it.
+  const placement = widgetStyle(drag.dragPos, position, anchorPos);
 
   return (
     <div
@@ -315,14 +326,14 @@ export const EyesWidget = memo(function EyesWidget(props: EyesWidgetProps) {
       onKeyDown={drag.onKeyDown}
       onClick={onSurfaceClick}
       onDoubleClick={onDoubleClick}
-      style={widgetStyle(drag.dragPos, position, anchorPos)}
+      style={placement}
       className={cn(
         'lia-eyes-widget group fixed z-30 select-none touch-none rounded-2xl p-1.5',
         'cursor-grab active:cursor-grabbing',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60',
         // No stored position and the composer anchor not measured yet →
         // CSS fallback corner above the input area.
-        !drag.dragPos && !position && !anchorPos && FALLBACK_ANCHOR_CLASSES[surface]
+        !placement && FALLBACK_ANCHOR_CLASSES[surface]
       )}
     >
       <ExpressiveEyes

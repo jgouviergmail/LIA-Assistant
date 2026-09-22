@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { render } from '@testing-library/react';
+import { act, render } from '@testing-library/react';
 
 import { useEyesChatWiring } from '../useEyesChatWiring';
 import { useEyesSignalsStore } from '@/stores/eyesSignalsStore';
@@ -43,6 +43,45 @@ afterEach(() => {
 });
 
 describe('useEyesChatWiring', () => {
+  it('releases running activity immediately when the stream fails without done', () => {
+    const { rerender } = render(<Probe status="idle" messages={[]} />);
+    rerender(<Probe status="sending" messages={[]} />);
+    act(() => {
+      useEyesSignalsStore.getState().recordActivity(
+        {
+          version: 1,
+          run_id: 'r',
+          invocation_id: 'i',
+          family: 'reading',
+          intent: 'read',
+          phase: 'started',
+          outcome: null,
+        },
+        'answer',
+        false
+      );
+    });
+    expect(useEyesSignalsStore.getState().liveActivity(Date.now())).not.toBeNull();
+    rerender(<Probe status="error" messages={[]} />);
+    expect(useEyesSignalsStore.getState().liveActivity(Date.now())).toBeNull();
+    expect(useEyesSignalsStore.getState().turnOpen).toBe(false);
+    expect(useEyesSignalsStore.getState().reaction).toBeNull();
+  });
+  it('reacts once when a short answer and done arrive in the same React batch', () => {
+    const { rerender } = render(<Probe status="idle" messages={[]} />);
+    useEyesSignalsStore.getState().beginTurn('batched');
+    act(() => {
+      useEyesSignalsStore
+        .getState()
+        .completeTurn('batched', { register: 'warm', intensity: 0.5, accent: 'none' });
+    });
+    const messages = [assistantMessage({ id: 'batched' })];
+    rerender(<Probe status="idle" messages={messages} />);
+    expect(useEyesSignalsStore.getState().reaction?.expression).toBe('tender');
+    const at = useEyesSignalsStore.getState().reaction?.at;
+    rerender(<Probe status="idle" messages={[...messages]} />);
+    expect(useEyesSignalsStore.getState().reaction?.at).toBe(at);
+  });
   it('idle → sending starts a new turn (clears step kind and reaction)', () => {
     useEyesSignalsStore.getState().recordStep('tool');
     useEyesSignalsStore.getState().setReaction('joy', 1, 'none', Date.now());
@@ -58,6 +97,9 @@ describe('useEyesChatWiring', () => {
       .setTone({ register: 'celebratory', intensity: 0.9, accent: 'sparkle' });
     const message = assistantMessage({ content: 'Termine.' });
     const { rerender } = render(<Probe status="streaming" messages={[message]} />);
+    act(() => {
+      useEyesSignalsStore.getState().completeTurn(message.id);
+    });
     rerender(<Probe status="idle" messages={[message]} />);
     const reaction = useEyesSignalsStore.getState().reaction;
     expect(reaction?.expression).toBe('excited');
@@ -81,6 +123,9 @@ describe('useEyesChatWiring', () => {
       },
     });
     const { rerender } = render(<Probe status="streaming" messages={[message]} />);
+    act(() => {
+      useEyesSignalsStore.getState().completeTurn(message.id);
+    });
     rerender(<Probe status="idle" messages={[message]} />);
     // The answer's SHAPE decides instead, and a plain informative one is
     // `factual` — the resting face, played with intent. What matters is that
@@ -94,6 +139,9 @@ describe('useEyesChatWiring', () => {
     // most of the time. A plain answer is `factual`, played small.
     const message = assistantMessage({ content: 'Le rendez-vous est a 14h.' });
     const { rerender } = render(<Probe status="streaming" messages={[message]} />);
+    act(() => {
+      useEyesSignalsStore.getState().completeTurn(message.id);
+    });
     rerender(<Probe status="idle" messages={[message]} />);
     const reaction = useEyesSignalsStore.getState().reaction;
     expect(reaction?.expression).toBe('neutral');
@@ -101,30 +149,75 @@ describe('useEyesChatWiring', () => {
   });
 
   it('falls back to the content heuristic when the snapshot is missing', () => {
-    const message = assistantMessage({ content: 'Souhaitez-vous que je continue ?' });
+    const message = assistantMessage({
+      content: 'Souhaitez-vous que je continue ?',
+    });
     const { rerender } = render(<Probe status="streaming" messages={[message]} />);
+    act(() => {
+      useEyesSignalsStore.getState().completeTurn(message.id);
+    });
     rerender(<Probe status="idle" messages={[message]} />);
     expect(useEyesSignalsStore.getState().reaction?.expression).toBe('question');
   });
 
   it('plays a technical delivery as ASSURED, never as a celebration', () => {
     // The complaint that started this: every answer ended on the same smile.
-    const message = assistantMessage({ content: 'Voici :\n```sh\ntask lint\n```' });
+    const message = assistantMessage({
+      content: 'Voici :\n```sh\ntask lint\n```',
+    });
     const { rerender } = render(<Probe status="streaming" messages={[message]} />);
+    act(() => {
+      useEyesSignalsStore.getState().completeTurn(message.id);
+    });
     rerender(<Probe status="idle" messages={[message]} />);
     expect(useEyesSignalsStore.getState().reaction?.expression).toBe('focused');
   });
 
-  it('a generated artifact is a small event, and it sparkles', () => {
+  it('a generated artifact alone does not imply a celebration', () => {
     const message = assistantMessage({
       content: 'Voici le document.',
       generatedDocuments: [{ url: '/d/1', filename: 'doc.pdf', doc_type: 'pdf', size_bytes: 1024 }],
     });
     const { rerender } = render(<Probe status="streaming" messages={[message]} />);
+    act(() => {
+      useEyesSignalsStore.getState().completeTurn(message.id);
+    });
     rerender(<Probe status="idle" messages={[message]} />);
     const reaction = useEyesSignalsStore.getState().reaction;
-    expect(reaction?.expression).toBe('excited');
-    expect(reaction?.accent).toBe('sparkle');
+    expect(reaction?.expression).toBe('neutral');
+    expect(reaction?.accent).toBe('none');
+  });
+
+  it('never performs an interrupted answer', () => {
+    const message = assistantMessage({ metadata: { interrupted: true } });
+    const { rerender } = render(<Probe status="streaming" messages={[message]} />);
+    act(() => {
+      useEyesSignalsStore.getState().completeTurn(message.id);
+    });
+    rerender(<Probe status="idle" messages={[message]} />);
+    expect(useEyesSignalsStore.getState().reaction).toBeNull();
+  });
+
+  it('does not reuse an old answer when sending finishes without a new answer', () => {
+    const messages = [assistantMessage({ content: 'Bravo !' })];
+    const { rerender } = render(<Probe status="idle" messages={messages} />);
+    rerender(<Probe status="sending" messages={messages} />);
+    rerender(<Probe status="idle" messages={messages} />);
+    expect(useEyesSignalsStore.getState().reaction).toBeNull();
+  });
+
+  it('an error takes precedence over a celebratory annotation', () => {
+    useEyesSignalsStore
+      .getState()
+      .setTone({ register: 'celebratory', intensity: 1, accent: 'sparkle' });
+    const message = assistantMessage({ metadata: { type: 'error' } });
+    const { rerender } = render(<Probe status="streaming" messages={[message]} />);
+    act(() => {
+      useEyesSignalsStore.getState().completeTurn(message.id);
+    });
+    rerender(<Probe status="idle" messages={[message]} />);
+    expect(useEyesSignalsStore.getState().reaction?.expression).toBe('worried');
+    expect(useEyesSignalsStore.getState().reaction?.accent).not.toBe('sparkle');
   });
 
   it('history hydration (idle → idle with new messages) never reacts', () => {

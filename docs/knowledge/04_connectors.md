@@ -107,10 +107,15 @@ Microsoft 365 services use **OAuth 2.0** (secure connection via Microsoft Identi
 **Steps:**
 1. Go to **Settings > Connectors**
 2. In the **Microsoft 365** section, click **Connect All** or select an individual service
-3. A Microsoft login window opens
-4. Sign in with your Microsoft account
-5. Accept the requested permissions
-6. You're redirected back to LIA — the connector is active!
+3. For **Connect All**, choose an existing connected account or another account if prompted
+4. A Microsoft login window opens; sign in with the account you chose
+5. Accept the combined permissions once
+6. You're redirected back to LIA — every newly authorized service is connected to that same account
+
+**Connect All** skips services that are already configured, disabled by an administrator,
+or blocked by an active service from another provider. A configured service in error
+uses the separate reconnection action. Services already connected to other accounts
+remain on those accounts. You can still disconnect one service at a time.
 
 **🔐 Permissions:**
 LIA only requests necessary permissions via the Microsoft Graph API. For example, for Outlook: reading and sending emails, but not permanent deletion.
@@ -119,7 +124,8 @@ LIA only requests necessary permissions via the Microsoft Graph API. For example
 Activating a Microsoft service automatically deactivates its Google or Apple equivalent for the same category (and vice versa).
 
 **💡 Tip:**
-You can revoke access at any time from LIA settings or from account.microsoft.com.
+You can remove a service from LIA settings. To revoke the app's provider-wide
+authorization, use your Microsoft account security settings.
 
 ## What Microsoft 365 services can I connect?
 LIA integrates with **4 Microsoft 365 services**:
@@ -155,18 +161,23 @@ Google services use **OAuth 2.0** (secure connection):
 
 **Steps:**
 1. Go to **Settings > Connectors**
-2. Find the desired service (Gmail, Calendar, etc.)
-3. Click **Connect**
-4. A Google window opens
-5. Select your Google account
-6. Accept the requested permissions
-7. You're redirected to LIA - the connector is active!
+2. Click **Connect All** to add every available Google service, or choose one service and click **Connect**
+3. For **Connect All**, choose an existing connected account or another account if prompted
+4. A Google window opens; select the account you chose
+5. Accept the combined permissions once
+6. You're redirected to LIA — each newly authorized service is connected to that same account
+
+**Connect All** skips services that are already configured, disabled by an administrator,
+or blocked by an active service from another provider. A configured service in error
+uses the separate reconnection action. Services already connected to other accounts
+remain on those accounts. You can still disconnect one service at a time.
 
 **🔐 Permissions:**
 LIA only requests necessary permissions. For example, for Gmail: reading and sending emails, but not permanent deletion.
 
 **💡 Tip:**
-You can revoke access at any time from LIA settings or from your Google account.
+You can remove a service from LIA settings. To revoke the app's provider-wide
+authorization, use your Google account permissions.
 
 ## How do I connect external services (API key)?
 Some services require a **personal API key**:
@@ -225,7 +236,7 @@ Philips Hue uses a **hybrid authentication** (local press-link or remote OAuth2)
 Your Hue application key (local mode) or OAuth tokens (remote mode) are encrypted and stored securely. Local mode uses `verify=False` for the bridge's self-signed certificate — scoped exclusively to Hue connections.
 
 ## How do I disconnect a service?
-To revoke LIA's access to a service:
+To remove LIA's local access to one service:
 
 **Disconnection from LIA:**
 1. Go to **Settings > Connectors**
@@ -241,13 +252,15 @@ To revoke LIA's access to a service:
 **🔐 Double security (Google):**
 For Google services, you can also revoke access from:
 • myaccount.google.com/permissions
-• This disconnects LIA immediately
+• This removes the project's authorization across its Google services for that
+  account, so use it when you intend to disconnect the whole application.
 
 ## Why is a connector showing an error?
 Several reasons can explain a connector error:
 
 **🔄 Expired token:**
-Solution: Click **Reconnect** to refresh the authorization.
+Access tokens are renewed automatically. If the provider has revoked or expired
+the refresh token, click **Reconnect** to authorize again.
 
 **🚫 Permissions revoked:**
 If you revoked access from Google, reconnect.
@@ -259,10 +272,33 @@ For API key services, verify your key is correct and active.
 Some services have usage limits. Wait or upgrade to a higher plan.
 
 **🌐 Network issue:**
-Check your internet connection and try again.
+Try again later. A temporary provider outage or rate limit keeps the connector
+active and does not require a new authorization.
 
 **💡 General solution:**
-Disconnect then reconnect the service. This solves most problems.
+If a retry still fails and the service is marked in error, reconnect it from
+Settings. Disconnect only when you want to remove that service.
+
+**Several Google or Microsoft services in error:**
+Open **Settings → Connectors** and use **Reconnect my Google services** or
+**Reconnect my Microsoft services**. Services already linked to the same verified
+provider account can be authorized together in one OAuth journey. If the
+services belong to different known accounts, choose one account's services at
+a time. For older connections whose account has not yet been verified, choose
+the services explicitly and check the provider account shown during consent.
+The result reports services whose permissions were granted and those still in
+error. Disconnecting one service does not disconnect other services linked to
+the same account.
+
+MCP servers can each use a different OAuth authorization server. Their
+refreshes are retried without changing their connection status on temporary
+failures; a single Google or Microsoft consent cannot authorize unrelated MCP
+servers.
+
+Google OAuth applications in **Testing** mode may issue refresh tokens that
+expire after seven days for scopes beyond basic profile information. Repeated
+background refreshes do not remove that provider policy; publishing the OAuth
+application is required for durable authorization.
 
 ## Can I configure preferences per connector?
 Yes! Some connectors have **customizable preferences**:
@@ -413,3 +449,12 @@ Three cases where one is not activated: the administrator switched it off for
 the instance, the instance has no platform Google key, or page browsing is
 disabled. You can switch any of them off in **Settings > Connectors**. Existing
 accounts are not touched: what you chose stays as it is.
+
+## Can I connect several Google or Microsoft services with one authorization?
+Yes. In **Settings > Connectors**, select the Google or Microsoft services to
+connect or reconnect together, then sign in once to the provider account. LIA
+verifies that account's identity before sharing its authorization among the
+selected services. Disconnecting one service does not disconnect the others.
+Existing connections continue to work until you choose the grouped path. The
+instance administrator must register the grouped callback URI with the provider
+before this path is available.

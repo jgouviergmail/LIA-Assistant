@@ -22,6 +22,7 @@ from sqlalchemy import select
 
 from src.domains.agents.effects.models import AgentEffect, EffectStatus
 from src.domains.agents.effects.scope import EffectScope, effect_scope
+from src.domains.agents.expressivity.activity import capture_activity
 from src.domains.agents.tools import tool_registry
 from src.domains.users.models import User
 
@@ -92,6 +93,7 @@ def _as_user(user: User) -> Any:
             thread_id="thread-e2e",
             execution_mode="react",
             is_automated_source=False,
+            side_channel_queue=None,
         ),
     )
 
@@ -139,13 +141,23 @@ class TestAnEffectBecomesARow:
         """The founding defect, pinned end to end."""
         scope = EffectScope(run_id="run-e2e", idempotency_key="call-replay", source="user")
 
-        with _as_user(user), _policy("reversible"), effect_scope(scope):
+        with (
+            _as_user(user),
+            _policy("reversible"),
+            effect_scope(scope),
+            capture_activity("run-e2e") as events,
+        ):
             first = await gated_tool.coroutine(room="Salon")
+            first_event = events[-1]
             second = await gated_tool.coroutine(room="Salon")
 
         assert len(CALLS) == 1, "the light must not be switched twice"
         assert first["success"] is True
         assert second == first, "the replay is served from the ledger"
+        assert events == [first_event], "serving a receipt is not a new execution"
+        assert first_event.phase == "finished"
+        assert first_event.intent == "act"
+        assert first_event.outcome == "succeeded"
         assert len(await _rows(maker, gated_tool.name)) == 1
 
     async def test_a_read_leaves_no_trace(

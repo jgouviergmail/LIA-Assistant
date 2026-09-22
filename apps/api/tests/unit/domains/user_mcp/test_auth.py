@@ -330,14 +330,16 @@ class TestRefreshTokens:
             400, {"error": "invalid_request", "error_description": "vendor text"}
         )
         post_patch, _ = self._patch_post(resp)
+        from src.infrastructure.mcp.auth import MCPRefreshTransientError
+
         with (
             post_patch,
             self._patch_no_redis(),
             patch("src.infrastructure.mcp.auth.logger") as mock_logger,
+            pytest.raises(MCPRefreshTransientError),
         ):
-            result = await auth._refresh_tokens(creds)
+            await auth._refresh_tokens(creds)
 
-        assert result is None
         assert mock_logger.error.call_args.kwargs["oauth_error"] == "invalid_request"
 
     async def test_http_error_unknown_code_is_not_logged(self) -> None:
@@ -346,15 +348,130 @@ class TestRefreshTokens:
         creds = {"access_token": "a", "refresh_token": "r", "client_id": "c"}
         resp = self._http_response(400, {"error": "weird_vendor_thing"})
         post_patch, _ = self._patch_post(resp)
+        from src.infrastructure.mcp.auth import MCPRefreshTransientError
+
         with (
             post_patch,
             self._patch_no_redis(),
             patch("src.infrastructure.mcp.auth.logger") as mock_logger,
+            pytest.raises(MCPRefreshTransientError),
         ):
-            result = await auth._refresh_tokens(creds)
+            await auth._refresh_tokens(creds)
 
-        assert result is None
         assert mock_logger.error.call_args.kwargs["oauth_error"] is None
+
+    async def test_invalid_client_does_not_require_user_reauthorization(self) -> None:
+        from src.infrastructure.mcp.auth import MCPRefreshTransientError
+
+        auth = self._auth()
+        auth._get_creds_fn = AsyncMock(
+            return_value={"access_token": "old", "refresh_token": "valid", "client_id": "bad"}
+        )
+        resp = self._http_response(400, {"error": "invalid_client"})
+        post_patch, _ = self._patch_post(resp)
+        flow = auth.async_auth_flow(httpx.Request("GET", "https://mcp.example.com/sse"))
+        outgoing = await flow.__anext__()
+
+        with post_patch, self._patch_no_redis(), pytest.raises(MCPRefreshTransientError):
+            await flow.asend(httpx.Response(401, request=outgoing))
+
+        auth._mark_auth_required_fn.assert_not_awaited()
+
+    async def test_temporary_provider_failure_does_not_require_user_reauthorization(self) -> None:
+        from src.infrastructure.mcp.auth import MCPRefreshTransientError
+
+        auth = self._auth()
+        creds = {"access_token": "old", "refresh_token": "refresh", "client_id": "client-123"}
+        auth._get_creds_fn = AsyncMock(return_value=creds)
+        resp = self._http_response(503, {"error": "temporarily_unavailable"})
+        post_patch, _ = self._patch_post(resp)
+        flow = auth.async_auth_flow(httpx.Request("GET", "https://mcp.example.com/sse"))
+        outgoing = await flow.__anext__()
+
+        with post_patch, self._patch_no_redis(), pytest.raises(MCPRefreshTransientError):
+            await flow.asend(httpx.Response(401, request=outgoing))
+
+        auth._mark_auth_required_fn.assert_not_awaited()
+        auth._update_creds_fn.assert_not_awaited()
+
+    @pytest.mark.parametrize("oauth_error", ["invalid_grant", "interaction_required"])
+    async def test_invalid_grant_still_requires_user_reauthorization(
+        self, oauth_error: str
+    ) -> None:
+        auth = self._auth()
+        auth._get_creds_fn = AsyncMock(
+            return_value={
+                "access_token": "old",
+                "refresh_token": "revoked",
+                "client_id": "client-123",
+            }
+        )
+        resp = self._http_response(400, {"error": oauth_error})
+        post_patch, _ = self._patch_post(resp)
+        flow = auth.async_auth_flow(httpx.Request("GET", "https://mcp.example.com/sse"))
+        outgoing = await flow.__anext__()
+
+        with post_patch, self._patch_no_redis(), pytest.raises(StopAsyncIteration):
+            await flow.asend(httpx.Response(401, request=outgoing))
+
+        auth._mark_auth_required_fn.assert_awaited_once()
+
+    async def test_parallel_refresh_reuses_peers_rotation_without_writing_stale_state(self) -> None:
+        auth = self._auth()
+        old = {"access_token": "old", "refresh_token": "old-refresh", "client_id": "client"}
+        fresh = {"access_token": "fresh", "refresh_token": "fresh-refresh", "client_id": "client"}
+        auth._get_creds_fn = AsyncMock(side_effect=[old, old, fresh])
+        redis = MagicMock()
+        redis.set = AsyncMock(return_value=False)
+        flow = auth.async_auth_flow(httpx.Request("GET", "https://mcp.example.com/sse"))
+        outgoing = await flow.__anext__()
+
+        with (
+            patch(
+                "src.infrastructure.cache.redis.get_redis_session", AsyncMock(return_value=redis)
+            ),
+            patch("src.infrastructure.mcp.auth.asyncio.sleep", AsyncMock()),
+        ):
+            retry = await flow.asend(httpx.Response(401, request=outgoing))
+
+        assert retry.headers["Authorization"] == "Bearer fresh"
+        auth._update_creds_fn.assert_not_awaited()
+        auth._mark_auth_required_fn.assert_not_awaited()
+
+    async def test_rotated_token_is_persisted_before_distributed_lock_is_released(self) -> None:
+        auth = self._auth()
+        creds = {"access_token": "old", "refresh_token": "old-refresh", "client_id": "client"}
+        resp = self._http_response(
+            200,
+            {
+                "access_token": "fresh",
+                "refresh_token": "fresh-refresh",
+                "expires_in": 60,
+            },
+        )
+        post_patch, _ = self._patch_post(resp)
+        order: list[str] = []
+        redis = MagicMock()
+        redis.set = AsyncMock(return_value=True)
+
+        async def unlock(*args: object) -> None:
+            order.append("unlock")
+
+        async def persist(new_creds: dict) -> None:
+            assert new_creds["refresh_token"] == "fresh-refresh"
+            order.append("persist")
+
+        redis.eval = AsyncMock(side_effect=unlock)
+        auth._update_creds_fn = persist
+        with (
+            post_patch,
+            patch(
+                "src.infrastructure.cache.redis.get_redis_session", AsyncMock(return_value=redis)
+            ),
+        ):
+            await auth._refresh_tokens(creds)
+
+        assert order == ["persist", "unlock"]
 
 
 class TestBuildAuthForServer:

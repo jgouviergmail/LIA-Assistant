@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version**: 6.0
-**Datum**: 2026-09-18
-**Anwendung**: LIA v1.47.0
+**Datum**: 2026-09-22
+**Anwendung**: LIA v1.47.1
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -51,7 +51,7 @@ Jeder Benutzer verfügt über seinen eigenen Einstellungsbereich, der in zwei Re
 
 **Persönliche Einstellungen:**
 
-- **Persönliche Konnektoren**: Verbinde deine Google-, Microsoft- oder Apple-Konten in wenigen Klicks via OAuth — E-Mail, Kalender, Kontakte, Aufgaben, Google Drive. Oder verbinde Apple via IMAP/CalDAV/CardDAV. API-Schlüssel für externe Dienste (Wetter, Suche)
+- **Persönliche Konnektoren**: Wähle Google- oder Microsoft-Dienste mit einer Freigabe für ein geprüftes Konto und trenne sie später einzeln; bestehende Verbindungen bleiben bis zu deiner erneuten Freigabe bestehen. Apple nutzt IMAP/CalDAV/CardDAV. E-Mail, Kalender, Kontakte, Aufgaben und Drive ergänzen Dienste mit API-Schlüssel wie Wetter und Suche.
 - **Persönlichkeit**: Wähle aus den verfügbaren Persönlichkeiten (Professor, Freund, Philosoph, Coach, Poet ...) — jede beeinflusst Ton, Stil und emotionales Verhalten von LIA
 - **Stimme**: Konfiguriere den Sprachmodus — Aktivierungswort, Empfindlichkeit, Stille-Schwellenwert, automatische Wiedergabe von Antworten
 - **Benachrichtigungen**: Verwalte Push-Benachrichtigungen und registrierte Geräte
@@ -193,7 +193,7 @@ Die Übertragung wird durch ein **dediziertes Token** authentifiziert, das du in
 
 Ein **„Assistent“-Schalter** (standardmäßig aus, *Opt-in*) erlaubt dir, dem Assistenten zu gestatten, diese Messungen zu lesen und sachliche Fragen zu beantworten („Wie viele Schritte diese Woche?“, „Meine durchschnittliche Herzfrequenz heute?“, „Laufe ich weniger als üblich?“), proaktive Benachrichtigungen anzureichern, die Gesundheit + Wetter + Kalender kombinieren, sowie einen nicht-rohen biometrischen Kontext (Deltas, Trends) an seine Memories und internen Journale anzuheften. Ein einziger Schalter steuert diese vier Integrationen. Nie Diagnose — nur sachliche Zahlen, wobei sich die Baseline ehrlich qualifiziert („basierend auf nur N Tagen“, solange die Historie unter 7 Tagen liegt).
 
-Drei Verwaltungsaktionen geben dir die volle Kontrolle: alle Herzfrequenz-Messungen löschen, alle Schrittmessungen löschen oder alles entfernen. Kein physiologischer Rohwert wird jemals in den Server-Logs festgehalten — DSGVO-Konformität ist von Grund auf integriert.
+Drei Verwaltungsaktionen löschen Herzfrequenzwerte, Schrittwerte oder beides. Rohe physiologische Werte bleiben aus den Serverprotokollen heraus — eine konkrete Datenschutzmaßnahme, keine Zusage automatischer DSGVO-Konformität für jede Installation.
 
 ### 3.10. In deinem Namen anrufen
 
@@ -266,7 +266,7 @@ Stelle dich vor: ein Raspberry Pi im Wohnzimmer, und die ganze Familie profitier
 
 Wenn du ChatGPT nutzt, leben deine Gespräche auf den Servern von OpenAI. Mit Gemini bei Google. Mit Copilot bei Microsoft.
 
-Mit LIA **bleibt alles in deinem PostgreSQL**: Gespräche, Gedächtnis, psychologisches Profil, Dokumente, Einstellungen. Du kannst jederzeit alle deine Daten exportieren, sichern, migrieren oder löschen — auch per Ein-Klick-Komplettexport aus den Einstellungen: lesbares Markdown, strukturiertes JSON und deine Dateien, mit konstruktionsbedingt nicht exportierbarem Geheimmaterial. Und jedes mit deinem Konto verbundene Gerät ist sichtbar und mit einem Klick widerrufbar. Die DSGVO ist keine Einschränkung — sie ist eine natürliche Konsequenz der Architektur. Sensible Daten werden verschlüsselt, Sitzungen isoliert, und die automatische Filterung personenbezogener Daten (PII) ist integriert. Deine Position folgt derselben Doktrin: das Speichern der letzten Position ist eine ausdrückliche Entscheidung, verschlüsselt wie alles andere, nie historisiert — jede Aktualisierung überschreibt die vorherige — und gelöscht, sobald du die Option abschaltest.
+Mit LIA **liegen die dauerhaften Kontodaten in deinem PostgreSQL**: Gespräche, Gedächtnis, Profil, Dokumente und Einstellungen. Du kannst sie exportieren, sichern oder ihre Löschung verlangen; Geheimnisse sind bewusst vom Export ausgenommen, verbundene Geräte widerrufbar. Ein entferntes Modell oder ein Konnektor erhält dennoch die für deine gewählte Anfrage nötigen Daten; ein lokales Modell kann die Verarbeitung bei dir halten. Zugangsdaten sind verschlüsselt und Sitzungen isoliert. Die letzte Position wird nur nach deiner Entscheidung ohne Verlauf gespeichert und beim Abschalten gelöscht.
 
 Der Schutz gilt auch für das, was **hereinkommt**. LIA liest täglich Texte, die du nicht geschrieben hast: den Text einer E-Mail, die von ihrem Organisator verfasste Beschreibung einer Einladung, eine Webseite, einen Ortseintrag. Jeder kann darin eine Anweisung an die Assistentin unterbringen. Jede Information trägt nun ihre Herkunft, und was von außen kommt, trifft als **zu analysierendes Material ein, nie als zu befolgender Befehl** — mit Manipulationsversuchen, die in den sechs Sprachen erkannt und benannt werden. Dein Inhalt wird dafür nie umgeschrieben: Eine E-Mail bleibt das, was ihr Autor geschrieben hat. Umschreiben würde die Illusion einer Garantie erzeugen, die die nächste Umgehung widerlegt; zu benennen, was man sieht, ist ehrlicher und nützlicher.
 
@@ -378,7 +378,7 @@ Die Garantie ist strukturell statt versprochen. Eine Aktion wird **vor** ihrer A
 
 Ein letzter Reiter zeichnet den Zeitraum als Diagramme, jedes mit dem exakten Gesamtwert neben seinen Balken: Was du siehst, lässt sich prüfen statt glauben. Alles ist in drei Formaten exportierbar — lesbar, Tabellenkalkulation und das Maschinenformat, das eine Prüferin verlangen würde — und **nichts darin wird abgeschnitten**: Unabhängig vom Umfang trägt die Datei alles, was deine Filter benennen, mit der exakten Anzahl im Kopf und dem Zeitpunkt ihrer Erstellung. Alles geht mit dem Archiv deines Kontos und verschwindet mit ihm. Wo deine Administration es einschaltet, sind die Register je Konto mit Prüfsummen versiegelt, die du selbst nachrechnen kannst.
 
-Genau das erwartet auch Artikel 12 der europäischen KI-Verordnung von einem System wie diesem. LIA antwortet darauf mit fünf Aufzeichnungen: den dreien oben, den tatsächlich an jedes Modell gesendeten Parametern und den Lücken des Registers selbst — denn ein Register, das nicht sagen kann, wo es unvollständig ist, verlangt Vertrauen, statt sich lesen zu lassen.
+Artikel 12 der EU-KI-Verordnung schreibt Aufzeichnungen für Hochrisikosysteme vor; er stuft diesen persönlichen Assistenten nicht automatisch so ein. LIA bewahrt dennoch fünf Arten von Nachweisen auf: die drei oben, die tatsächlich an jedes Modell gesendeten Parameter und die Lücken des Registers selbst — damit sichtbar bleibt, wo es unvollständig ist.
 
 ## 7. Emotionale Tiefe
 
@@ -409,6 +409,8 @@ Dieses Innenleben hat ein Gesicht: Das Stimmungs-Emoji animiert sich auf der akt
 Dieses Gesicht sagt die Wahrheit über die Antwort, nicht über die Stimmung des Augenblicks. LIA nennt selbst das **Register** dessen, was sie gerade geschrieben hat, und das Gesicht spielt genau dieses: Eine technische Erklärung behält einen konzentrierten Ausdruck, ein Fehlschlag liest sich als Fehlschlag. Ein Zug färbt eine ruhende Präsenz; er darf nie für einen Augenblick einstehen.
 
 Und zwischen zwei Antworten schaltet dieses Gesicht nicht ab. Die Brauen sitzen auf dem Auge und haben Gewicht — sie ziehen sich zusammen und führen jeden Ausdruck, statt ihm zu folgen; ein einziger Atem trägt das ganze Gesicht; der Mund spricht eine erzeugte Phrase, die nichts wiederholt, und spielt kleine Mimiken in Phrasen statt im Takt; zwei Blinzler, zwei Lächeln, zwei Blicke sind nie identisch; und ab und zu, auf einem wirklich ruhenden Gesicht, eine kurze Szene — eine Fliege zum Verfolgen, ein Niesen, ein Gähnen —, die auf einer Uhr wartet, die die Seite behält, selbst wenn du navigierst. Nichts davon kostet einen Modellaufruf: Es ist Animation in dem Sinn, wie die Studios sie verstehen — eine Figur, die man für lebendig hält, weil sie atmet, wenn niemand hinsieht. Dasselbe Gesicht begrüßt Besucher auf der Startseite, vor jedem Konto.
+
+Der Begleiter folgt auch der tatsächlich geleisteten Arbeit, nicht einer bloß vorbereiteten Aktion. Kopf, Augen, Brauen und Mund bewegen sich gemeinsam; Ortszeit des Kontos und bereits für das Briefing gespeichertes Wetter können seine ruhige Szene dezent prägen. Dafür braucht es weder einen neuen Modell- noch einen Wetteraufruf, und bei reduzierter Bewegung bleibt der Kontext in einer stillen Pose.
 
 Und diese Präsenz folgt dir: Außerhalb des Chats hält ein schwebender Begleiter LIA im gesamten Dashboard an deiner Seite — ruhend, arbeitend oder mit einer Benachrichtigung.
 
@@ -495,11 +497,11 @@ LIA verlangt nicht, dass man ihr aufs Wort glaubt. Die Rahmenwerke, denen sie fo
 
 ### 9.1. Was die Regulierung verlangt
 
-**Die DSGVO ist kein Häkchen, sie ist eine Folge der Architektur.** Deine Daten liegen in deiner Datenbank, auf deinem Server. Du exportierst dein ganzes Konto mit einem Klick — lesbares Markdown, strukturiertes JSON und deine Dateien —, du löschst es ebenso einfach, und geheimes Material bleibt konstruktionsbedingt nicht exportierbar. Sensible Daten sind verschlüsselt, Sitzungen isoliert, und personenbezogene Daten werden herausgefiltert, bevor sie einen Modellanbieter oder ein Protokoll erreichen.
+**Datenschutz ist eine Entwurfsentscheidung, kein Zertifikat durch Behauptung.** Deine Kontodaten liegen in der Datenbank der LIA-Instanz, die du nutzt; bei Selbsthosting kontrollierst du diesen Server. Du kannst sie exportieren oder ihre Löschung verlangen; Geheimnisse werden bewusst nicht exportiert. Zugangsdaten sind verschlüsselt, Sitzungen isoliert und personenbezogene Daten werden aus Protokollen gefiltert. Ob ein konkreter Betrieb alle Pflichten der DSGVO erfüllt, hängt auch von seiner Konfiguration und den gewählten Anbietern ab.
 
-**Die europäische KI-Verordnung verlangt von einem System wie diesem, festzuhalten, was es tut.** Das ist ihr Artikel 12, und LIA antwortet darauf mit fünf Aufzeichnungen: was sie getan hat, was sie gelesen hat, zu welchem Austausch, die tatsächlich an jedes Modell gesendeten Parameter — und die Lücken der Aufzeichnung selbst, denn ein Register, das nicht sagen kann, wo es unvollständig ist, verlangt Vertrauen, statt sich lesen zu lassen. Alles lässt sich exportieren, nichts darin wird abgeschnitten, und alles verschwindet mit deinem Konto.
+**LIA führt Aufzeichnungen auch dort, wo das Gesetz sie für diesen persönlichen Anwendungsfall nicht verlangt.** Artikel 12 der EU-KI-Verordnung gilt für Hochrisikosysteme. Aktions-, Lese-, Entscheidungs-, Modellparameter- und Integritätsregister sind eine bewusste Transparenzentscheidung, keine Zertifizierung. Sie sind exportierbar und werden mit dem Konto entfernt, innerhalb der dokumentierten Grenzen ihres Inhalts.
 
-**Barrierefreiheit wird gemessen, nicht behauptet.** Stufe AA der WCAG-2.2-Regeln ist die Referenz, und die zugehörigen Prüfungen laufen bei jeder Auslieferung: Kontrast, vollständige Tastaturbedienung, Beachtung der Bewegungseinstellungen, ein übersetzter zugänglicher Name in den sechs Sprachen. Farbe trägt eine Information nie allein.
+**Barrierefreiheit wird gemessen, nicht behauptet.** Stufe AA der WCAG 2.2 ist die Referenz. Automatisierte Prüfungen jeder Auslieferung decken Kontrast, Tastaturabläufe, Bewegungseinstellungen und übersetzte zugängliche Namen in sechs Sprachen ab; sie ergänzen die manuelle Prüfung, ersetzen sie aber nicht. Farbe soll Informationen nicht allein tragen.
 
 ### 9.2. Die offenen Standards, die LIA spricht
 

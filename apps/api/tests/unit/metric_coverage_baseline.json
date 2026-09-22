@@ -38,8 +38,6 @@
     "react_tool_executions_before_interrupt_total",
     "semantic_validation_for_each_demand_dropped_total",
     "session_revocations_total",
-    "skill_detection_retained_total",
-    "skill_detection_suppressed_total",
     "skill_url_imports_total",
     "tool_embeddings_cache_total",
     "totp_verifications_total",

@@ -1,2 +1,10 @@
 packages:
   - 'apps/*'
+
+# Reviewed for v1.47.1: these transitive postinstall scripts are not required
+# by the frozen frontend build or tests. Keep them blocked explicitly so a
+# clean install does not produce an unreviewed-build warning.
+ignoredBuiltDependencies:
+  - '@firebase/util'
+  - protobufjs
+  - unrs-resolver

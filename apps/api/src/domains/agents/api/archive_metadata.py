@@ -47,6 +47,7 @@ from src.core.field_names import (
 )
 from src.domains.agents.api.run_origin import with_origin_stamp
 from src.domains.agents.data_registry.message_widgets import with_persisted_widgets
+from src.domains.agents.expressivity.activity_summary import ActivitySnapshot
 from src.domains.agents.services.streaming.followup_metadata import (
     with_followup_suggestions,
     with_initiative_motivation,
@@ -108,6 +109,17 @@ def with_performed_effects(
     return {**message_metadata, FIELD_PERFORMED_EFFECTS: effects}
 
 
+def with_companion_metadata(
+    metadata: dict[str, Any], expressivity: object, activity: ActivitySnapshot | None
+) -> dict[str, Any]:
+    """Archive passive evidence; loading it never replays a performance."""
+    return {
+        **metadata,
+        **({"expressivity": expressivity} if expressivity is not None else {}),
+        **({"companion_activity": activity} if activity is not None else {}),
+    }
+
+
 def build_assistant_metadata(
     message_metadata: dict[str, Any],
     *,
@@ -118,6 +130,8 @@ def build_assistant_metadata(
     followup_suggestions: Any,
     initiative_motivation: Any,
     effects: list[dict[str, Any]] | None,
+    expressivity: object = None,
+    activity: ActivitySnapshot | None = None,
 ) -> dict[str, Any]:
     """Apply every metadata enricher, in the order the archive path used.
 
@@ -141,6 +155,7 @@ def build_assistant_metadata(
     metadata = with_followup_suggestions(metadata, followup_suggestions)
     metadata = with_initiative_motivation(metadata, initiative_motivation)
     metadata = with_performed_effects(metadata, effects)
+    metadata = with_companion_metadata(metadata, expressivity, activity)
     # ADR-276: an out-of-turn run archives its rows exactly like any turn — the
     # decision register points at them — and it is the READ that keeps them out
     # of the chat. Branch-free like every enricher beside it: the stamp decides

@@ -111,6 +111,19 @@ if (typeof window !== 'undefined') {
   });
 }
 
+// jsdom has no 2D renderer. Its getContext() implementation writes a
+// "Not implemented" message to stderr even when production code correctly
+// handles the missing context. Return the browser API's ordinary `null`
+// failure value by default; canvas-specific suites replace this with their
+// own context double and still test actual draw calls.
+if (typeof HTMLCanvasElement !== 'undefined') {
+  Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
+    configurable: true,
+    writable: true,
+    value: () => null,
+  });
+}
+
 // `scrollIntoView` does not exist in jsdom — it has no layout to scroll. The
 // same gap as ResizeObserver below, so it is filled the same way: once, here,
 // rather than in every suite that renders a component which follows its own

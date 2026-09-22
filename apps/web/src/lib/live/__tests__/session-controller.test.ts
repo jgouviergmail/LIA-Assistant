@@ -958,7 +958,19 @@ describe('LiveSessionController', () => {
           tools.push(body);
           const name = (body as { name: string }).name;
           if (name === 'send_email_tool') return { text: 'refused', ok: false };
-          return { text: 'Two events tomorrow.', ok: true };
+          return {
+            text: 'Two events tomorrow.',
+            ok: true,
+            activity: {
+              version: 1,
+              run_id: 'live',
+              invocation_id: 'lookup',
+              family: 'reading',
+              intent: 'read',
+              phase: 'finished',
+              outcome: 'succeeded',
+            },
+          };
         }
         if (url.endsWith('/turns')) {
           turns.push(body);
@@ -1001,6 +1013,11 @@ describe('LiveSessionController', () => {
     });
     expect(useLiveStore.getState().delegating).toBe(false);
     expect(h.chat.sendMessage).not.toHaveBeenCalled();
+    expect(useLiveStore.getState().lastActivity?.event).toMatchObject({
+      family: 'reading',
+      intent: 'read',
+      outcome: 'succeeded',
+    });
 
     // A refusal is a sentence the voice says, handed back the same way.
     await h.transport.events.onDelegation?.([

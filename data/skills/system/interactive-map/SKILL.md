@@ -2,7 +2,8 @@
 name: interactive-map
 description: >
   Shows an interactive Google Maps view for a given location (city, landmark,
-  address). Use when the user asks to show, display, or find a place on a map.
+  address) or for the user's own current position. Use when the user asks to
+  show, display, or find a place on a map, or to show where they are.
 category: utilities
 priority: 50
 outputs: [text, frame]
@@ -19,7 +20,10 @@ When the user asks to show a place on a map:
 
 1. Extract the `location` from the user's query (place name, landmark, address,
    or coordinates). Examples: "Paris", "Eiffel Tower", "1 Infinite Loop,
-   Cupertino", "48.8584,2.2945".
+   Cupertino", "48.8584,2.2945". When the user asks where THEY are ("where am
+   I", "show me where I am"), the location is the UserLocation coordinates
+   from your context — never a placeholder; if UserLocation is unknown, ask
+   the user to share their position instead of guessing.
 2. Call `run_skill_script` with:
    - `skill_name`: `interactive-map`
    - `script`: `render_map.py`
@@ -41,6 +45,7 @@ The script returns a `SkillScriptOutput` JSON with:
 - "Where is the Eiffel Tower?" → `location = "Eiffel Tower"`
 - "Display the Louvre on the map" → `location = "Louvre Museum"`
 - "Montre-moi la Tour Eiffel sur la carte" → `location = "Tour Eiffel"`
+- "Show me where I am" → `location = "<UserLocation coordinates>"`
 
 ## Ressources disponibles
 

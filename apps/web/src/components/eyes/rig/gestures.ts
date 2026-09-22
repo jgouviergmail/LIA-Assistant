@@ -8,10 +8,9 @@
  * joy's dome rather than cancelling it, and a bounce lifts an eye from
  * wherever the expression put it (hence `relative`).
  *
- * Two gesture families deliberately stay in CSS: the gaze wander (it is a
- * gaze target, not a beat) and the four slapstick beats, which ride the
- * INDEPENDENT `translate` / `scale` / `rotate` properties and therefore
- * compose with the rig's transforms without touching them.
+ * Gaze wander supplies a target to the same rig. Comic gestures also use
+ * tapes, so interruptions preserve position and velocity instead of removing
+ * a CSS animation halfway through its transform.
  */
 
 import {
@@ -194,12 +193,98 @@ function browsFollow(
   return bothSides(base, keys, durationMs, spring);
 }
 
+/** Small comic beats use the same interruptible channels as the rest of the face. */
+function comicTapes(gesture: 'swap' | 'bump' | 'spin' | 'jelly'): Tape[] {
+  const duration = GESTURE_DURATION_MS[gesture];
+  const soft = { frequency: 2.2, damping: 0.95 };
+  const end = duration - 180;
+  if (gesture === 'jelly')
+    return [
+      ...bothSides(
+        'sy',
+        [
+          [100, -0.08],
+          [duration * 0.5, 0.04],
+          [end - 40, 0],
+        ],
+        duration - 40,
+        soft
+      ),
+      relative(
+        'mouthW',
+        [
+          [160, 0.04],
+          [end, 0],
+        ],
+        duration,
+        soft
+      ),
+    ];
+  if (gesture === 'spin')
+    return [
+      relative(
+        'tilt',
+        [
+          [100, -5],
+          [duration * 0.5, 5],
+          [end, 0],
+        ],
+        duration,
+        soft
+      ),
+      relative(
+        'browArcL',
+        [
+          [160, 0.12],
+          [end, 0],
+        ],
+        duration,
+        soft
+      ),
+    ];
+  const travel = gesture === 'swap' ? 0.18 : -0.09;
+  return [
+    relative(
+      'txL',
+      [
+        [120, travel],
+        [end, 0],
+      ],
+      duration,
+      soft
+    ),
+    relative(
+      'txR',
+      [
+        [160, -travel],
+        [end, 0],
+      ],
+      duration,
+      soft
+    ),
+    relative(
+      'mouthSkew',
+      [
+        [260, 0.08],
+        [end, 0],
+      ],
+      duration,
+      soft
+    ),
+  ];
+}
+
 export function tapesForGesture(gesture: IdleGesture, scale = 1): Tape[] {
   return scaleGestureTapes(gestureTapes(gesture), scale);
 }
 
 function gestureTapes(gesture: IdleGesture): Tape[] {
   switch (gesture) {
+    case 'swap':
+    case 'bump':
+    case 'spin':
+    case 'jelly':
+      return comicTapes(gesture);
     case 'slow-blink':
       // A sigh is an exhale: the mouth narrows with the lids and lets go as
       // they reopen. Without it the eyes sigh and the mouth sits it out.

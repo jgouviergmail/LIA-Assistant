@@ -144,7 +144,7 @@ plan_template:
 
 The `QueryAnalyzer` sees the skills catalogue (`{available_skills}`) in its prompt and sets `skill_name` in the analysis output. This works for both planner and response routes — the `response_node` reads `detected_skill_name` from state.
 
-**MCP-domain guard** (`services/analysis/skill_suppression.py`): the LLM fills `skill_name` and `domains` in one output with no coherence guarantee, and the routing decider gives the skill absolute priority. When the **primary** domain is an MCP domain (`mcp_*`), the detection is suppressed at the chokepoint — before routing AND before storage on `QueryIntelligence` — so a diagram request reaches `mcp_excalidraw_task` instead of being hijacked by a semantically-poor skill match. The ADR-118 dialogue exemption is preserved (a conversational answer mid-dialogue keeps its `dialogue: true` skill); every suppression is logged and counted (`skill_detection_suppressed_total{reason}`).
+**MCP-domain guard** (`services/analysis/skill_suppression.py`): the LLM fills `skill_name` and `domains` in one output with no coherence guarantee, and the routing decider gives the skill absolute priority. When the **primary** domain is an MCP domain (`mcp_*`), the detection is suppressed at the chokepoint — before routing AND before storage on `QueryIntelligence` — so a diagram request reaches `mcp_excalidraw_task` instead of being hijacked by a semantically-poor skill match. The ADR-118 dialogue exemption is preserved (a conversational answer mid-dialogue keeps its `dialogue: true` skill); every suppression is logged and counted (`skill_detection_suppressed_total{reason}`, drawn on dashboard 19 since 2026-09-20). The guard's collateral was measured that day: the analyzer prompt told the model to ALWAYS fill a functional domain beside a skill, so a board game borrowed the drawing MCP and lost its skill on 3 of 4 turns; the prompt now leaves `primary_domain` null for a skill that touches no functional domain (replayed: 12 of 12 null), and `domains = []` retains the skill.
 
 ### 2. Planner Pre-activation (Complementary)
 
@@ -154,7 +154,7 @@ The LLM planner also sees the L1 catalogue and can include `"skill_name": "<name
 
 Both routes converge in the `response_node` which activates the skill based on its nature:
 
-- **Scripts present** → `ReactSubAgentRunner` (same pattern as MCP/browser agents) with 4 skill tools (`activate_skill_tool`, `read_skill_resource`, `run_skill_script`, `import_user_skill`). Runs in isolation (no streaming impact). If plan_executor collected data, it is injected in the task. Uses `llm_type="mcp_react_agent"` and `skill_react_agent_prompt`, whose `<Context>` carries `UserLocation` — the position resolved through the `resolve_location()` chokepoint (browser geolocation first, then home address, `"unknown"` otherwise) by `services/skill_location_context.py` — so location-dependent skills receive coordinates instead of improvising. The prompt makes a successful `run_skill_script` FINAL (retry only after an explicit error, once) and the final message VERBATIM.
+- **Scripts present** → `ReactSubAgentRunner` (same pattern as MCP/browser agents), handed the skill ALREADY ACTIVATED: the node calls `activate_skill` itself and the instructions travel in the task (`<skill_instructions>`), so the runner binds `skills_runner_tools` (`run_skill_script`, `read_skill_resource`, `import_user_skill`) and no activation tool — before 2026-09-20 its first round trip was the activation, and a runner that never got past it answered in prose. A runner that calls NO tool is said (`skill_runner_no_tool_call`) and counted (`skill_runner_outcomes_total{outcome}`, dashboard 19), and the instructions fall back to the passive injection instead of vanishing with the dropped result (production 2026-09-20, 18:00: the tic-tac-toe runner, misled by an earlier text game in the history, produced 315 characters of prose the node discarded in silence). Runs in isolation (no streaming impact). If plan_executor collected data, it is injected in the task. Uses `llm_type="mcp_react_agent"` and `skill_react_agent_prompt`, whose `<Context>` carries `UserLocation` — the position resolved through the `resolve_location()` chokepoint (browser geolocation first, then home address, `"unknown"` otherwise) by `services/skill_location_context.py` — so location-dependent skills receive coordinates instead of improvising. The prompt makes a successful `run_skill_script` FINAL (retry only after an explicit error, once) and the final message VERBATIM.
 - **Resources only (no scripts)** → L2 instructions + all reference files loaded in Python and injected in the prompt. No extra LLM call.
 - **Neither** → L2 passive injection only.
 
@@ -226,6 +226,15 @@ router, which grants it absolute priority:
 
 Kept detections are counted by `skill_detection_retained_total{skill_name,
 primary_domain}`, the counterpart of `skill_detection_suppressed_total{reason}`.
+
+### 9. A skill's description is what the analyzer reads (2026-09-20)
+
+The analyzer detects a skill by its SKILL.md description alone. `interactive-map`
+described « a given location (city, landmark, address) » and « show me where I
+am » reached the skill on 1 of 8 replays; naming the user's own position in
+the description took it to 8 of 8, with the `place` domain kept. A skill that
+serves a request its description does not name is a skill the analyzer cannot
+see — the runner's `UserLocation` context existed for exactly that request.
 
 ## Backend Files
 
@@ -429,9 +438,12 @@ chat override — which normally clears a detected `skill_name` on confidently
 conversational turns to prevent history contamination — preserves the
 detection for dialogue skills, because the user's conversational reply IS
 part of the skill's flow. Combined with the conversation history forwarded to
-the skill ReAct runner (`<conversation_history>` block in the runner task),
-the dialogue resumes where it left off instead of restarting. One-shot skills
-(qr-code, dice-roller…) keep the anti-contamination behavior.
+the skill ReAct runner (`<conversation_history>` block in the runner task —
+for a `dialogue` skill ONLY: on a one-shot script skill the same block carried
+an earlier text game, the model took the request for a reply within it and ran
+no script, production 2026-09-20), the dialogue resumes where it left off
+instead of restarting. One-shot skills (qr-code, dice-roller…) keep the
+anti-contamination behavior and never see the history.
 
 ## Script Execution Security
 

@@ -1,5 +1,6 @@
 'use client';
 
+import { useEyesSignalsStore } from '@/stores/eyesSignalsStore';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useMeetingIsCapturing } from '@/stores/meetingRecorderStore';
@@ -52,18 +53,21 @@ export function useVoicePlayback() {
   const configureQueueCallbacks = useCallback((queue: AudioQueue) => {
     queue.setOnPlaybackComplete(() => {
       setIsPlaying(false);
+      useEyesSignalsStore.getState().setAudioPlaying(false);
     });
 
     queue.setOnError(err => {
       logger.error('voice_playback_audio_error', err, { component: 'useVoicePlayback' });
       setError(err);
       setIsPlaying(false);
+      useEyesSignalsStore.getState().setAudioPlaying(false);
     });
 
     // Track state changes for iOS suspension handling
     queue.setOnStateChange((state: AudioQueueState) => {
       logger.debug('voice_playback_state_changed', { state, component: 'useVoicePlayback' });
       setIsPlaying(state === 'playing');
+      useEyesSignalsStore.getState().setAudioPlaying(state === 'playing');
       setIsSuspended(state === 'suspended');
       if (state === 'error') {
         setError(new Error('AudioContext error'));
@@ -85,6 +89,7 @@ export function useVoicePlayback() {
 
     // Cleanup on unmount or when disabled
     return () => {
+      useEyesSignalsStore.getState().setAudioPlaying(false);
       if (audioQueueRef.current) {
         audioQueueRef.current.dispose();
         audioQueueRef.current = null;
@@ -124,6 +129,7 @@ export function useVoicePlayback() {
     if (audioQueueRef.current) {
       audioQueueRef.current.stop();
       setIsPlaying(false);
+      useEyesSignalsStore.getState().setAudioPlaying(false);
     }
   }, []);
 

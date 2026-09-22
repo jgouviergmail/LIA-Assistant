@@ -506,6 +506,24 @@ class TestPrivateHelpers:
             assert call_data["code"] == code
             assert call_data["grant_type"] == "authorization_code"
 
+    async def test_exchange_http_error_does_not_log_provider_body(self, oauth_handler):
+        """Provider error text can contain secrets and must not reach telemetry."""
+        response = httpx.Response(
+            400,
+            json={"error": "invalid_grant", "error_description": "sensitive-auth-code"},
+            request=httpx.Request("POST", "https://oauth.example.com/token"),
+        )
+        with (
+            patch("httpx.AsyncClient") as mock_client_class,
+            patch("src.core.oauth.flow_handler.logger") as mock_logger,
+        ):
+            mock_client = mock_client_class.return_value.__aenter__.return_value
+            mock_client.post = AsyncMock(return_value=response)
+            with pytest.raises(OAuthTokenExchangeError):
+                await oauth_handler._exchange_code_for_tokens("code", "verifier")
+
+        assert "sensitive-auth-code" not in str(mock_logger.error.call_args)
+
     async def test_parse_token_validates_required_fields(self, oauth_handler):
         """Test _parse_token_response validates required fields."""
         # Arrange - Valid token data
@@ -529,6 +547,21 @@ class TestPrivateHelpers:
         # Act & Assert
         with pytest.raises(OAuthProviderError, match="missing"):
             oauth_handler._parse_token_response(token_data)
+
+    async def test_malformed_token_response_never_exposes_provider_secrets(self, oauth_handler):
+        """A missing access token cannot put valid sibling tokens into logs or errors."""
+        payload = {
+            "refresh_token": "sensitive-refresh-token",
+            "id_token": "sensitive-id-token",
+        }
+        with patch("src.core.oauth.flow_handler.logger") as mock_logger:
+            with pytest.raises(OAuthProviderError) as raised:
+                oauth_handler._parse_token_response(payload)
+
+        assert raised.value.provider_response is None
+        assert "sensitive-refresh-token" not in str(raised.value)
+        assert "sensitive-refresh-token" not in str(mock_logger.error.call_args)
+        assert "sensitive-id-token" not in str(mock_logger.error.call_args)
 
 
 @pytest.mark.unit

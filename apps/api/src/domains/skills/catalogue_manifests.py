@@ -1,4 +1,9 @@
-"""Catalogue manifests for Skills tools (agentskills.io standard)."""
+"""Catalogue manifests for Skills tools (agentskills.io standard).
+
+The four tools are ONE affordance — a skill is activated, its script run, its
+resources read, a library imported — so every manifest declares the same
+``binding_unit`` and the ReAct selector binds them whole or not at all.
+"""
 
 from src.domains.agents.registry.catalogue import (
     REASON_INTERNAL_CONTEXT,
@@ -10,6 +15,9 @@ from src.domains.agents.registry.catalogue import (
     PermissionProfile,
     ToolManifest,
 )
+
+#: The binding unit every skills tool declares (read by the ReAct selector).
+SKILLS_BINDING_UNIT = "skills"
 
 # ============================================================================
 # ACTIVATE SKILL TOOL — Load skill instructions (L2 activation)
@@ -23,6 +31,7 @@ activate_skill_catalogue_manifest = ToolManifest(
     # the read-only initiative phase must never activate a skill on its own.
     tool_category="system",
     agent="query_agent",
+    binding_unit=SKILLS_BINDING_UNIT,
     description=(
         "**Tool: activate_skill_tool** - Load a skill's full instructions.\n"
         "**Use for**: Loading specialized instructions from available_skills catalogue.\n"
@@ -78,6 +87,7 @@ read_skill_resource_catalogue_manifest = ToolManifest(
     # ADR-256: reads a bundled resource.
     tool_category="readonly",
     agent="query_agent",
+    binding_unit=SKILLS_BINDING_UNIT,
     description=(
         "**Tool: read_skill_resource** - Read a bundled resource from a skill.\n"
         "**Use for**: Loading templates, examples, references, or assets "
@@ -132,6 +142,7 @@ import_user_skill_catalogue_manifest = ToolManifest(
     mutation_policy="reversible",
     mutation_policy_reason=REASON_OWN_LIBRARY,
     agent="query_agent",
+    binding_unit=SKILLS_BINDING_UNIT,
     description=(
         "**Tool: import_user_skill** - Import a generated skill into the user's "
         "imported skills.\n"
@@ -190,6 +201,7 @@ run_skill_script_catalogue_manifest = ToolManifest(
     mutation_policy="sandboxed",
     mutation_policy_reason=REASON_SANDBOXED_CONTAINER,
     agent="query_agent",
+    binding_unit=SKILLS_BINDING_UNIT,
     description=(
         "**Tool: run_skill_script** - Execute a Python script from a skill.\n"
         "**Use for**: Running scripts in a skill's scripts/ directory.\n"

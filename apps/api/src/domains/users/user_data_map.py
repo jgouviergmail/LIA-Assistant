@@ -379,6 +379,11 @@ TABLE_RULES: dict[str, TableRule] = {
         reason="Rows carry Fernet-encrypted OAuth credentials/app passwords; "
         "connector configuration has no portability value without them.",
     ),
+    "oauth_grants": TableRule(
+        data_class=TableDataClass.USER_PURGED,
+        export=ExportPolicy.EXCLUDED,
+        reason="Shared encrypted provider tokens and account identifiers are purged, never exported.",
+    ),
     "user_mcp_servers": TableRule(
         data_class=TableDataClass.USER_PURGED,
         export=ExportPolicy.EXCLUDED,

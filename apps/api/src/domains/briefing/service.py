@@ -814,6 +814,12 @@ class BriefingService:
         """
         return section_cache_key(user_id=self.user.id, language=self.language, section=name)
 
+    async def read_cached_weather(self) -> CardSection | None:
+        """Borrow weather for the companion; a miss NEVER starts a source fetch."""
+        if SECTION_WEATHER in self._hidden_sections:
+            return None
+        return await self._read_cache(self._cache_key(SECTION_WEATHER))
+
     async def read_cached_cards(self) -> CardsBundle:
         """Read every card section from Redis cache — NEVER fetching.
 

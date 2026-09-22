@@ -9,7 +9,7 @@ from ipaddress import IPv4Address, ip_address
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic_core.core_schema import ValidationInfo
 
 from src.domains.connectors.models import ConnectorStatus, ConnectorType
@@ -41,6 +41,9 @@ class ConnectorResponse(BaseModel):
     connector_type: ConnectorType = Field(..., description="Connector type")
     status: ConnectorStatus = Field(..., description="Connector status")
     scopes: list[str] = Field(..., description="Granted OAuth scopes")
+    oauth_grant_id: UUID | None = Field(
+        None, description="Shared OAuth account identifier for grouping reconnectable services"
+    )
     metadata: dict[str, Any] | None = Field(
         None,
         description="Connector-specific metadata (email, calendar_id, etc.)",
@@ -67,6 +70,20 @@ class ConnectorOAuthInitiate(BaseModel):
 
     authorization_url: str = Field(..., description="OAuth authorization URL")
     state: str = Field(..., description="CSRF state token")
+
+
+class BulkReconnectRequest(BaseModel):
+    """Previously configured services the person explicitly chose to reconnect."""
+
+    connector_types: list[ConnectorType] = Field(min_length=1, max_length=5)
+
+
+class BulkConnectAllRequest(BaseModel):
+    """Optional existing provider account chosen for new services."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    grant_id: UUID | None = None
 
 
 class ConnectorUpdate(BaseModel):

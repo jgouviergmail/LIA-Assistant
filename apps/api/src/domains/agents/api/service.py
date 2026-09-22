@@ -55,6 +55,7 @@ from src.domains.agents.effects.decisions import (
 )
 from src.domains.agents.effects.treatment_recorder import treatment_recorder
 from src.domains.agents.effects.turn_summary import performed_effects
+from src.domains.agents.expressivity.activity_summary import ActivitySummary
 from src.domains.agents.expressivity.turn import attach_tone_to_done
 from src.domains.agents.services.orchestration.approval_decision import (
     HitlDecisionStaleError,
@@ -963,6 +964,8 @@ class AgentService(
                     # directly to the frontend (bypasses LLM, not persisted).
                     # Created unconditionally — tools decide individually whether to emit.
                     side_channel_queue: asyncio.Queue = asyncio.Queue()
+                    activity_summary = ActivitySummary()
+                    delivery_metadata: dict[str, Any] = {}
 
                     # === StreamingService handles everything: SSE formatting + HITL ===
                     try:
@@ -1003,6 +1006,7 @@ class AgentService(
                             sse_chunk,
                             content_fragment,
                         ) in self._interleave_side_channel(sse_stream, side_channel_queue):
+                            activity_summary.observe(sse_chunk.metadata)
                             # Track response content for archiving
                             # ✅ CRITICAL FIX: content_replacement should REPLACE, not append
                             # When photos are injected via post-processing, StreamingService emits
@@ -1302,6 +1306,7 @@ class AgentService(
                             # because this one is frozen at its size, and each
                             # enricher returns a NEW dict so a turn's metadata
                             # can never leak into another's.
+                            attach_tone_to_done(delivery_metadata, run_id)
                             assistant_metadata = build_assistant_metadata(
                                 assistant_metadata,
                                 widgets=streaming_service.persistable_widgets,
@@ -1311,6 +1316,8 @@ class AgentService(
                                 followup_suggestions=followup_suggestions,
                                 initiative_motivation=initiative_motivation,
                                 effects=turn_effects,
+                                expressivity=delivery_metadata.get("expressivity"),
+                                activity=activity_summary.snapshot(),
                             )
 
                             archived_msg = await conv_service.archive_message(
@@ -1660,7 +1667,9 @@ class AgentService(
                                 error=str(psyche_err),
                             )
 
+                    done_metadata.update(delivery_metadata)
                     attach_tone_to_done(done_metadata, run_id)
+                    done_metadata["companion_activity"] = activity_summary.snapshot()
 
                     yield ChatStreamChunk(
                         type="done",

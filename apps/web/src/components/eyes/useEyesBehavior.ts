@@ -17,7 +17,7 @@
  * (jsdom never fires it) — the blink flag is dropped on its own timeout.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
 import {
   BLINK_DURATION_MS,
@@ -28,7 +28,6 @@ import {
   GESTURE_DURATION_MS,
   GLANCE_MOVE_MS,
   IDLE_LIFE_EXPRESSIONS,
-  MASK_APPLY_DELAY_MS,
   MIN_EXPRESSION_HOLD_MS,
   PRE_GAZE_BLINK_LEAD_MS,
   READING_STEP_MS,
@@ -36,7 +35,6 @@ import {
   SACCADE_MOVE_MS,
   URGENT_ARRIVALS,
   WINK_DURATION_MS,
-  WONDER_PERFORMANCE,
   deriveExpression,
   accessoryForExpression,
   emoteForExpression,
@@ -46,10 +44,8 @@ import {
   inactivityStageFor,
   isDoubleBlink,
   isSillyTime,
-  moodShiftPerformance,
   nextBlinkDelayMs,
   nextIdleGestureDelayMs,
-  pickIdleFlicker,
   pickIdleGesture,
   pickSillyGesture,
   readingGazeAt,
@@ -66,13 +62,20 @@ import {
   type PerformanceStep,
 } from '@/components/eyes/expression-engine';
 import { accentGesture, accentSparkles, type ToneAccent } from '@/components/eyes/tone';
-import type { MoodLabel } from '@/types/psyche';
 import { prefersReducedMotion } from '@/lib/utils/motion';
 import { useEyesSignalsStore } from '@/stores/eyesSignalsStore';
 import { usePsycheStore } from '@/stores/psycheStore';
-import { effectiveVoiceState, useLiveStore } from '@/stores/liveStore';
+import { useCompanionEnvironmentStore } from '@/stores/companionEnvironmentStore';
+import { readCompanionSignals } from './behavior-context';
+import { useLiveStore } from '@/stores/liveStore';
 import { useVoiceModeStore } from '@/stores/voiceModeStore';
 import type { ChatState, StreamPhase } from '@/types/chat-state';
+
+function subscribeMotion(listener: () => void): () => void {
+  const query = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+  query?.addEventListener('change', listener);
+  return () => query?.removeEventListener('change', listener);
+}
 
 const HEARTBEAT_MS = 1000;
 const ACTIVITY_EVENTS: ReadonlyArray<keyof WindowEventMap> = [
@@ -81,13 +84,6 @@ const ACTIVITY_EVENTS: ReadonlyArray<keyof WindowEventMap> = [
   'wheel',
   'touchstart',
 ];
-
-/**
- * Expression arrivals NOT masked by a transition blink: reflexes (surprise,
- * fear), the wink overlay, and sleep (whose slow lid-fall IS the morph).
- * Everything else gets the animator's classic: blink while the face changes.
- */
-const UNMASKED_ARRIVALS: ReadonlySet<string> = new Set(['surprise', 'fear', 'wink', 'sleep']);
 
 export interface EyesBehaviorProps {
   chatStatus: ChatState['status'];
@@ -119,8 +115,7 @@ export interface EmoteState {
 export interface EyesBehavior {
   frame: ExpressionFrame;
   blinking: boolean;
-  /** The running blink is a MASK — the host is swapping the face under it,
-   * so the rig holds the lids shut past the swap. */
+  /** Compatibility with explicit rig performances; natural transitions never mask. */
   blinkMask: boolean;
   /** Idle mood family pacing breathing and blink cadence. */
   family: IdleMoodFamily;
@@ -135,6 +130,7 @@ export interface EyesBehavior {
   /** How forcefully the last answer was written, while its reaction is
    * held; 1 the rest of the time. Scales the pose, never picks it. */
   emphasis: number;
+  responseWeight: number;
   /** One-shot wink (no-op under reduced motion). */
   wink: () => void;
 }
@@ -158,33 +154,6 @@ function trackSleepClock(
   } else if (expression !== 'sleepy') {
     sleepSinceRef.current = null;
   }
-}
-
-/**
- * Narrative beats on signal EDGES (module-level: keeps `evaluate` under the
- * CC ratchet): a cross-family mood shift plays its rise/fall beat, a typing
- * signal that expires without a send plays the "you were saying?" wonder.
- * Also advances the edge-tracking refs — call exactly once per evaluation.
- */
-function runNarrativeBeats(
-  current: { idleStage: boolean; mood: MoodLabel | null; typingNow: boolean },
-  refs: {
-    prevMoodRef: React.MutableRefObject<MoodLabel | null>;
-    typingWasRef: React.MutableRefObject<boolean>;
-  },
-  playPerformance: (steps: readonly PerformanceStep[]) => void
-): void {
-  const { idleStage, mood, typingNow } = current;
-  const prevMood = refs.prevMoodRef.current;
-  if (idleStage && prevMood && mood && prevMood !== mood) {
-    const beat = moodShiftPerformance(prevMood, mood);
-    if (beat) playPerformance(beat);
-  }
-  if (idleStage && refs.typingWasRef.current && !typingNow) {
-    playPerformance(WONDER_PERFORMANCE);
-  }
-  refs.prevMoodRef.current = mood;
-  refs.typingWasRef.current = typingNow;
 }
 
 /**
@@ -307,9 +276,12 @@ export function useEyesBehavior({
   hitlAwaiting,
   enabled,
 }: UseEyesBehaviorOptions): EyesBehavior {
-  const [frame, setFrame] = useState<ExpressionFrame>({ expression: 'neutral', gaze: null });
+  const motionReduced = useSyncExternalStore(subscribeMotion, prefersReducedMotion, () => false);
+  const [frame, setFrame] = useState<ExpressionFrame>({
+    expression: 'neutral',
+    gaze: null,
+  });
   const [blinking, setBlinking] = useState(false);
-  const [blinkMask, setBlinkMask] = useState(false);
   const [family, setFamily] = useState<IdleMoodFamily>('calm');
   const [winking, setWinking] = useState(false);
   const [gesture, setGesture] = useState<IdleGesture | null>(null);
@@ -322,6 +294,7 @@ export function useEyesBehavior({
   const [emote, setEmote] = useState<EmoteState | null>(null);
   const [accessory, setAccessory] = useState<EyeAccessory | null>(null);
   const [emphasis, setEmphasis] = useState(1);
+  const [responseWeight, setResponseWeight] = useState(1);
   // The one-shot beat the last answer earned. Held apart from the idle
   // gesture because the two have different owners and different lifetimes:
   // an idle gesture is cleared the moment a directed expression arrives,
@@ -355,17 +328,15 @@ export function useEyesBehavior({
   const erroredAtRef = useRef<number | null>(null);
   const winkTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Single blink-off timer shared by ALL blink sources (spontaneous chain,
-  // pre-gaze blink, transition mask): the last pulse wins. Independent off
+  // pre-gaze blink): the last pulse wins. Independent off
   // timers could clear `is-blinking` mid-cycle of a concurrent pulse — the
   // lid animation would cut and snap open without a transition.
   const blinkPulseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pulseBlink = useCallback((mask = false) => {
+  const pulseBlink = useCallback(() => {
     setBlinking(true);
-    setBlinkMask(mask);
     if (blinkPulseTimerRef.current) clearTimeout(blinkPulseTimerRef.current);
     blinkPulseTimerRef.current = setTimeout(() => {
       setBlinking(false);
-      setBlinkMask(false);
     }, BLINK_DURATION_MS);
   }, []);
   useEffect(() => {
@@ -373,20 +344,15 @@ export function useEyesBehavior({
       if (blinkPulseTimerRef.current) clearTimeout(blinkPulseTimerRef.current);
     };
   }, []);
-  // Transition grammar state: minimum-hold clock, masked-swap timer, and the
-  // previous mood/typing signals whose EDGES trigger narrative beats.
+  // Minimum holds and wake-up clocks persist independently of the current pose.
   const familyRef = useRef<IdleMoodFamily>('calm');
   const heldSinceRef = useRef(0);
-  const pendingFrameTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const holdRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const prevMoodRef = useRef<MoodLabel | null>(null);
-  const typingWasRef = useRef(false);
   const sleepSinceRef = useRef<number | null>(null);
   const hiddenAtRef = useRef<number | null>(null);
   const returnPerkTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     return () => {
-      if (pendingFrameTimerRef.current) clearTimeout(pendingFrameTimerRef.current);
       if (holdRetryTimerRef.current) clearTimeout(holdRetryTimerRef.current);
       if (returnPerkTimerRef.current) clearTimeout(returnPerkTimerRef.current);
     };
@@ -444,99 +410,72 @@ export function useEyesBehavior({
 
   /**
    * Land a derived frame with the transition grammar: a non-urgent expression
-   * holds MIN_EXPRESSION_HOLD_MS before being replaced (anti-zapping), and a
-   * masked change swaps the face at the TOP of the lid sweep (three-beat:
-   * blink, swap out of sight, reveal) instead of morphing in plain view.
+   * holds MIN_EXPRESSION_HOLD_MS before being replaced (anti-zapping).
+   * The rig then blends each organ continuously from its current velocity.
    */
-  const applyFrame = useCallback(
-    (next: ExpressionFrame, now: number) => {
-      const changed = next.expression !== frameRef.current.expression;
-      if (changed) {
-        const heldFor = now - heldSinceRef.current;
-        if (heldFor < MIN_EXPRESSION_HOLD_MS && !URGENT_ARRIVALS.has(next.expression)) {
-          if (holdRetryTimerRef.current) clearTimeout(holdRetryTimerRef.current);
-          holdRetryTimerRef.current = setTimeout(
-            () => evaluateRef.current(),
-            MIN_EXPRESSION_HOLD_MS - heldFor
-          );
-          return;
-        }
-        heldSinceRef.current = now;
-      }
-      const land = () => {
-        setFrame(prev => (sameFrame(prev, next) ? prev : next));
-        applyEmoteTransition(
-          emoteForExpression(next.expression),
-          emoteGlyphRef,
-          emoteTimerRef,
-          setEmote
+  const applyFrame = useCallback((next: ExpressionFrame, now: number) => {
+    const changed = next.expression !== frameRef.current.expression;
+    if (changed) {
+      const heldFor = now - heldSinceRef.current;
+      if (heldFor < MIN_EXPRESSION_HOLD_MS && !URGENT_ARRIVALS.has(next.expression)) {
+        if (holdRetryTimerRef.current) clearTimeout(holdRetryTimerRef.current);
+        holdRetryTimerRef.current = setTimeout(
+          () => evaluateRef.current(),
+          MIN_EXPRESSION_HOLD_MS - heldFor
         );
-        if (changed) {
-          applyAccessory(
-            next.expression,
-            pendingAccentRef.current,
-            accessoryTimerRef,
-            setAccessory
-          );
-          pendingAccentRef.current = 'none';
-        }
-        // Leaving the wandering family cancels the idle life immediately — a
-        // directed expression must never carry a stale wander target or
-        // gesture. 'speaking' keeps its reading-gaze loop but never plays
-        // one-shot gestures (see the idle-life loop).
-        if (!IDLE_LIFE_EXPRESSIONS.has(next.expression) && next.expression !== 'speaking') {
-          setIdleGaze(prev => (prev === null ? prev : null));
-          setGesture(prev => (prev === null ? prev : null));
-        }
-      };
-      if (pendingFrameTimerRef.current) {
-        clearTimeout(pendingFrameTimerRef.current);
-        pendingFrameTimerRef.current = null;
-      }
-      if (changed && !UNMASKED_ARRIVALS.has(next.expression) && !prefersReducedMotion()) {
-        pulseBlink(true);
-        pendingFrameTimerRef.current = setTimeout(() => {
-          pendingFrameTimerRef.current = null;
-          land();
-        }, MASK_APPLY_DELAY_MS);
         return;
       }
-      land();
-    },
-    [pulseBlink]
-  );
+      heldSinceRef.current = now;
+    }
+    const land = () => {
+      setFrame(prev => (sameFrame(prev, next) ? prev : next));
+      applyEmoteTransition(
+        emoteForExpression(next.expression),
+        emoteGlyphRef,
+        emoteTimerRef,
+        setEmote
+      );
+      if (changed) {
+        applyAccessory(next.expression, pendingAccentRef.current, accessoryTimerRef, setAccessory);
+        pendingAccentRef.current = 'none';
+      }
+      // Leaving the wandering family cancels the idle life immediately — a
+      // directed expression must never carry a stale wander target or
+      // gesture. 'speaking' keeps its reading-gaze loop but never plays
+      // one-shot gestures (see the idle-life loop).
+      if (!IDLE_LIFE_EXPRESSIONS.has(next.expression) && next.expression !== 'speaking') {
+        setIdleGaze(prev => (prev === null ? prev : null));
+        setGesture(prev => (prev === null ? prev : null));
+      }
+    };
+    land();
+  }, []);
 
   const evaluate = useCallback(() => {
     const now = Date.now();
     const signals = useEyesSignalsStore.getState();
-    const psyche = usePsycheStore.getState();
-    // ADR-299: a live session's voice state wins while it holds the microphone.
-    const voiceState = effectiveVoiceState(useVoiceModeStore.getState().state);
+    const live = readCompanionSignals(now);
     const errorExpired =
       erroredAtRef.current !== null && now - erroredAtRef.current >= ERROR_HOLD_MS;
     const next = deriveExpression({
       chatStatus: chatStatus === 'error' && errorExpired ? 'idle' : chatStatus,
       streamPhase,
-      lastStepKind: signals.lastStepKind,
+      ...live,
       hitlAwaiting,
-      voiceState,
-      reaction: signals.liveReaction(now),
-      notificationPing: signals.isNotificationLive(now),
-      userTyping: signals.isTypingLive(now),
-      moodLabel: psyche.enabled ? psyche.moodLabel : null,
-      hourOfDay: new Date().getHours(),
       inactivityStage: inactivityStageFor(now - (lastActivityRef.current ?? now)),
     });
     // Mood family: the personality channel (breathing pace, blink cadence,
     // gesture weights) — tracked as state for CSS and a ref for the timers.
-    const mood = psyche.enabled ? psyche.moodLabel : null;
-    const nextFamily = resolveIdleFamily(mood, next.expression);
+    const nextFamily = resolveIdleFamily(live.moodLabel, next.expression);
     familyRef.current = nextFamily;
     setFamily(prev => (prev === nextFamily ? prev : nextFamily));
     // How forcefully the last answer was written. It rides alongside the mood
     // family — same shape, same guard against re-rendering on an unchanged
     // value — and scales the pose without ever choosing it.
     const nextEmphasis = signals.liveEmphasis(now);
+    setResponseWeight(
+      signals.liveReaction(now) === next.expression ? signals.liveReactionWeight(now) : 1
+    );
     setEmphasis(prev => (prev === nextEmphasis ? prev : nextEmphasis));
     // The accent fires ONCE per REACTION — keyed on the reaction's own
     // timestamp, not on the accent value. Keyed on the value, two consecutive
@@ -558,24 +497,33 @@ export function useEyesBehavior({
     // owns the face): a cross-family mood shift plays its rise/fall beat; a
     // typing signal that expires without a send plays the "you were
     // saying?" wonder.
-    const idleStage = chatStatus === 'idle' && !hitlAwaiting && voiceState !== 'speaking';
-    const typingNow = signals.isTypingLive(now);
-    runNarrativeBeats(
-      { idleStage, mood, typingNow },
-      { prevMoodRef, typingWasRef },
-      playPerformance
-    );
+    const idleStage = chatStatus === 'idle' && !hitlAwaiting && live.voiceState !== 'speaking';
     // An interactive state — or a live notification ping — cuts any playing
     // performance short: the beats are idle storytelling, never allowed to
     // sit on top of a live exchange or to hide the notification glance.
     if (!idleStage || signals.isNotificationLive(now)) cancelPerformance();
     applyFrame(next, now);
-  }, [chatStatus, streamPhase, hitlAwaiting, playPerformance, cancelPerformance, applyFrame]);
+  }, [chatStatus, streamPhase, hitlAwaiting, cancelPerformance, applyFrame]);
   useEffect(() => {
     evaluateRef.current = evaluate;
   }, [evaluate]);
 
-  // Re-derive on every input change: props (via evaluate identity), the four
+  useEffect(() => {
+    const query = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    const onChange = () => {
+      if (!query?.matches) return;
+      cancelPerformance();
+      setGesture(null);
+      setAccentBeat(null);
+      setIdleGaze(null);
+      setBlinking(false);
+      setWinking(false);
+    };
+    query?.addEventListener('change', onChange);
+    return () => query?.removeEventListener('change', onChange);
+  }, [cancelPerformance]);
+
+  // Re-derive on every input change: props (via evaluate identity), the live
   // live stores, and the heartbeat that ages the time-based signals. The
   // initial derivation is SCHEDULED (0 ms) rather than called synchronously —
   // a sync setState in an effect trips the shrink-only react-hooks ratchet.
@@ -587,6 +535,7 @@ export function useEyesBehavior({
       usePsycheStore.subscribe(evaluate),
       useVoiceModeStore.subscribe(evaluate),
       useLiveStore.subscribe(evaluate),
+      useCompanionEnvironmentStore.subscribe(evaluate),
     ];
     return () => {
       clearTimeout(initialId);
@@ -630,7 +579,7 @@ export function useEyesBehavior({
   // are tracked (fired ones remove themselves), so a day-long session never
   // accumulates dead handles, and unmount clears exactly what is live.
   useEffect(() => {
-    if (!enabled || prefersReducedMotion()) return;
+    if (!enabled || motionReduced) return;
     let cancelled = false;
     const pending = new Set<ReturnType<typeof setTimeout>>();
     const after = (ms: number, fn: () => void) => {
@@ -660,14 +609,14 @@ export function useEyesBehavior({
       cancelled = true;
       pending.forEach(clearTimeout);
     };
-  }, [enabled, pulseBlink]);
+  }, [enabled, motionReduced, pulseBlink]);
 
   // Idle life: the random gesture loop that keeps the eyes alive between
   // events — gaze wander (saccades/glances with hold-and-return) and one-shot
   // gestures, weighted by the current mood family. Same pending-timer
   // discipline as the blink chain.
   useEffect(() => {
-    if (!enabled || prefersReducedMotion()) return;
+    if (!enabled || motionReduced) return;
     let cancelled = false;
     const pending = new Set<ReturnType<typeof setTimeout>>();
     const after = (ms: number, fn: () => void) => {
@@ -690,7 +639,10 @@ export function useEyesBehavior({
     const playGazeWander = (kind: 'saccade' | 'glance') => {
       const start = () => {
         const target = idleGazeTarget(Math.random, kind);
-        setIdleGaze({ gaze: target, ms: kind === 'saccade' ? SACCADE_MOVE_MS : GLANCE_MOVE_MS });
+        setIdleGaze({
+          gaze: target,
+          ms: kind === 'saccade' ? SACCADE_MOVE_MS : GLANCE_MOVE_MS,
+        });
         const holdMs = gazeHoldMs(Math.random, kind);
         const home: IdleGazeMove = { gaze: { x: 0, y: 0 }, ms: GAZE_RETURN_MS };
         // Composite beat: a glance sometimes sweeps to the OTHER side before
@@ -719,9 +671,12 @@ export function useEyesBehavior({
       after(nextIdleGestureDelayMs(Math.random), () => {
         if (cancelled) return;
         const current = frameRef.current;
+        const signals = useEyesSignalsStore.getState();
+        const busy = signals.liveActivity(Date.now()) || signals.liveReaction(Date.now());
         // 'speaking' lives in its own reading loop (below), not here.
         const alive =
           !document.hidden &&
+          !busy &&
           !winkingRef.current &&
           current.gaze === null &&
           IDLE_LIFE_EXPRESSIONS.has(current.expression);
@@ -744,7 +699,7 @@ export function useEyesBehavior({
               playGazeWander(picked);
             } else if (picked === 'flicker') {
               // Mini mood scene — rides the performance channel.
-              playPerformance(pickIdleFlicker(Math.random));
+              // Whole-face idle scenes belong to the rig; keep this beat quiet.
             } else {
               setGesture(picked);
               after(GESTURE_DURATION_MS[picked], () => setGesture(null));
@@ -759,14 +714,14 @@ export function useEyesBehavior({
       cancelled = true;
       pending.forEach(clearTimeout);
     };
-  }, [enabled, playPerformance, pulseBlink]);
+  }, [enabled, motionReduced, pulseBlink]);
 
   // Reading loop: while the answer streams ('speaking'), the gaze walks a
   // reading line in small left-to-right steps with a quick carriage return —
   // the eyes "write" their answer. Replaces random saccades for this state;
   // when speaking ends the last beat sends the gaze home.
   useEffect(() => {
-    if (!enabled || prefersReducedMotion()) return;
+    if (!enabled || motionReduced) return;
     let cancelled = false;
     let step = 1;
     let timer: ReturnType<typeof setTimeout> | null = null;
@@ -799,7 +754,7 @@ export function useEyesBehavior({
         setIdleGaze(prev => (prev === null ? prev : { gaze: { x: 0, y: 0 }, ms: GAZE_RETURN_MS }));
       }
     };
-  }, [enabled]);
+  }, [enabled, motionReduced]);
 
   // Coming back to the tab after a real absence earns a small welcome perk —
   // awake families only (a drowsy character does not jump to attention).
@@ -849,7 +804,7 @@ export function useEyesBehavior({
     // Overlay priority: the wink beats a performance beats the derived frame.
     frame: winking ? { expression: 'wink', gaze: null } : (performedFrame ?? frame),
     blinking,
-    blinkMask,
+    blinkMask: false,
     family,
     // An accent outranks the idle gesture: it belongs to the answer that just
     // landed, and the idle life is what happens when nothing has.
@@ -858,6 +813,7 @@ export function useEyesBehavior({
     emote,
     accessory,
     emphasis,
+    responseWeight,
     wink,
   };
 }

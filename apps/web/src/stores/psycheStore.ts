@@ -28,6 +28,8 @@ interface PsycheStoreState {
   moodDominance: number;
   activeEmotion: string | null;
   emotionIntensity: number;
+  driveCuriosity: number;
+  driveEngagement: number;
   relationshipStage: RelationshipStage;
   lastUpdated: string | null;
 
@@ -56,6 +58,8 @@ const INITIAL_STATE = {
   moodDominance: 0,
   activeEmotion: null,
   emotionIntensity: 0,
+  driveCuriosity: 0.5,
+  driveEngagement: 0.5,
   relationshipStage: 'ORIENTATION' as RelationshipStage,
   lastUpdated: null,
   fullState: null as PsycheState | null,
@@ -67,7 +71,9 @@ export const usePsycheStore = create<PsycheStoreState>(set => ({
   ...INITIAL_STATE,
 
   updateFromSSE: (summary: PsycheStateSummary) =>
-    set({
+    set(previous => ({
+      driveCuriosity: summary.drive_curiosity ?? previous.driveCuriosity,
+      driveEngagement: summary.drive_engagement ?? previous.driveEngagement,
       moodLabel: summary.mood_label,
       moodColor: summary.mood_color,
       moodPleasure: summary.mood_pleasure,
@@ -77,7 +83,7 @@ export const usePsycheStore = create<PsycheStoreState>(set => ({
       emotionIntensity: summary.emotion_intensity,
       relationshipStage: summary.relationship_stage,
       lastUpdated: new Date().toISOString(),
-    }),
+    })),
 
   updateFromFullState: (state: PsycheState) => {
     // Sort a COPY to avoid mutating React Query cached data (BUG-4 fix)
@@ -94,6 +100,8 @@ export const usePsycheStore = create<PsycheStoreState>(set => ({
       relationshipStage: state.relationship_stage,
       lastUpdated: state.updated_at,
       fullState: state,
+      driveCuriosity: state.drive_curiosity,
+      driveEngagement: state.drive_engagement,
     });
   },
 

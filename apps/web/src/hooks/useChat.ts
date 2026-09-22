@@ -1,3 +1,4 @@
+import { useEyesSignalsStore } from '@/stores/eyesSignalsStore';
 import { useReducer, useCallback, useEffect, useRef, Dispatch } from 'react';
 import {
   Message,
@@ -376,6 +377,7 @@ export const useChat = ({
       stopPlayback();
 
       const assistantMessageId = generateUUID();
+      useEyesSignalsStore.getState().beginTurn(assistantMessageId);
       let progressMessageId: string | null = null;
       let normalStreamInitialized = false;
       let replayDone = false;
@@ -586,6 +588,7 @@ export const useChat = ({
 
       // Generate message ID for assistant response
       const assistantMessageId = generateUUID();
+      useEyesSignalsStore.getState().beginTurn(assistantMessageId);
 
       // Don't create message immediately - wait for first content
       // Message will be created when hitl_interrupt_metadata or first token arrives

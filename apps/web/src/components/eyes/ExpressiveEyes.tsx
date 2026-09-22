@@ -30,7 +30,12 @@ import type {
 } from '@/components/eyes/expression-engine';
 import { DEFAULT_EYE_STYLE, type EyeStyleId } from '@/components/eyes/eye-styles';
 import { useEyesRig } from '@/components/eyes/useEyesRig';
+import { browPath, mouthPath } from '@/components/eyes/rig/face-geometry';
+import { strokeContours } from '@/components/eyes/rig/stroke-geometry';
+import { resolvePose } from '@/components/eyes/rig/poses';
+import { restChannelValues } from '@/components/eyes/rig/channels';
 import type { EyesSize } from '@/stores/eyesWidgetStore';
+import { AmbientAccessories } from './AmbientAccessories';
 
 export interface ExpressiveEyesProps {
   expression: EyeExpression;
@@ -57,6 +62,7 @@ export interface ExpressiveEyesProps {
   idleFamily?: IdleMoodFamily;
   /** How forcefully the pose lands, from how the answer was written. */
   emphasis?: number;
+  responseWeight?: number;
   /** Whether the face lives on its own (mimics, sketches). Default true;
    * a preview turns it off to stay comparable. */
   life?: boolean;
@@ -73,12 +79,34 @@ export interface ExpressiveEyesProps {
  *       .lia-eye-shape the pose, the silhouette, and the sustained lids
  *         .lia-eye-pupil dilation and its own deeper gaze parallax
  */
-function Eye({ side }: { side: 'left' | 'right' }) {
+const REST_FACE = restChannelValues();
+
+function Eye({ side, styleId }: { side: 'left' | 'right'; styleId: EyeStyleId }) {
+  const rigSide = side === 'left' ? 'L' : 'R';
+  const stroke = strokeContours(resolvePose('neutral', styleId), rigSide);
   return (
     <span className={`lia-eye lia-eye--${side}`}>
-      <span className="lia-eye-brow" />
+      <span className="lia-eye-brow">
+        <svg viewBox="0 0 100 36" preserveAspectRatio="none" focusable="false">
+          <path data-rig-brow={rigSide} d={browPath(REST_FACE, rigSide)} />
+        </svg>
+      </span>
       <span className="lia-eye-blink">
         <span className="lia-eye-shape">
+          <svg
+            className="lia-eye-contour"
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            focusable="false"
+          >
+            <path data-rig-stroke={rigSide} d={stroke.upper} strokeWidth={stroke.width} />
+            <path
+              data-rig-ring={rigSide}
+              d={stroke.lower}
+              strokeWidth={stroke.width}
+              opacity={stroke.lowerOpacity}
+            />
+          </svg>
           <span className="lia-eye-pupil" />
         </span>
       </span>
@@ -105,6 +133,7 @@ function EyesEmote({ emote, leaving }: { emote: string | null; leaving: boolean 
  * nothing left to decide.
  */
 function resolved(props: ExpressiveEyesProps) {
+  const gaze = props.gaze ?? { x: 0, y: 0 };
   return {
     blinking: props.blinking ?? false,
     blinkMask: props.blinkMask ?? false,
@@ -115,9 +144,10 @@ function resolved(props: ExpressiveEyesProps) {
     styleId: props.styleId ?? DEFAULT_EYE_STYLE,
     idleFamily: props.idleFamily ?? 'calm',
     emphasis: props.emphasis ?? 1,
+    responseWeight: props.responseWeight ?? 1,
     life: props.life ?? true,
-    gazeX: clampGazeAxis(props.gaze?.x ?? 0),
-    gazeY: clampGazeAxis(props.gaze?.y ?? 0),
+    gazeX: clampGazeAxis(gaze.x),
+    gazeY: clampGazeAxis(gaze.y),
   };
 }
 
@@ -134,6 +164,7 @@ export function ExpressiveEyes(props: ExpressiveEyesProps) {
     blinkMask: view.blinkMask,
     gesture: view.gesture,
     emphasis: view.emphasis,
+    responseWeight: view.responseWeight,
     life: view.life,
   });
 
@@ -153,17 +184,28 @@ export function ExpressiveEyes(props: ExpressiveEyesProps) {
       data-life={view.life ? undefined : 'off'}
       className={cn('lia-eyes', `lia-eyes--${size}`, className)}
     >
+      <span className="lia-head-shadow" />
       <EyesEmote emote={view.emote} leaving={view.emoteLeaving} />
-      {view.accessory ? <span className="lia-accessory" data-accessory={view.accessory} /> : null}
-      <span className="lia-eyes-gaze">
-        <Eye side="left" />
-        <Eye side="right" />
-      </span>
-      {/* The mouth is a sibling of the pair, not a child: it follows the HEAD
-          (mass, tilt, shiver) but never the gaze — eyes move inside a face, a
-          mouth does not. */}
-      <span className="lia-mouth">
-        <span className="lia-mouth-shape" />
+      <span className="lia-head">
+        {view.life ? <AmbientAccessories /> : null}
+        {view.styleId === 'smiley' ? <span className="lia-avatar-body" /> : null}
+        {view.accessory ? <span className="lia-accessory" data-accessory={view.accessory} /> : null}
+        <span className="lia-eyes-gaze">
+          <Eye side="left" styleId={view.styleId} />
+          <Eye side="right" styleId={view.styleId} />
+        </span>
+        {/* The jaw and eyes share the head's orientation, with distinct depths.
+          Only the eyes perform the faster saccade inside that moving head. */}
+        <span className="lia-mouth">
+          <svg
+            className="lia-mouth-shape"
+            viewBox="0 0 100 80"
+            preserveAspectRatio="none"
+            focusable="false"
+          >
+            <path data-rig-mouth="" d={mouthPath(REST_FACE)} />
+          </svg>
+        </span>
       </span>
     </span>
   );

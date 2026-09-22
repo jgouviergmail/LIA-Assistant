@@ -11,7 +11,7 @@
  *
  * Per-eye channels are declared once and mirrored into an `L`/`R` pair, so an
  * asymmetry is always a pose decision and never a table typo. Rest values are
- * the neutral pose of the DEFAULT style (`cozmo`); every other style restates
+ * the neutral pose of the CSS base style (`cozmo`); every other style restates
  * its own neutral through the style geometry table, never through CSS.
  */
 
@@ -68,8 +68,7 @@ export interface ChannelDef {
   readonly derived?: boolean;
   /** Internal channels are sprung like any other but are NOT drawn: the rig
    * reads them to compute something else. `mouthCurve` is the case — the
-   * stylesheet consumes the arc and the flip derived FROM it, never the signed
-   * curve itself. The boundary guard still holds them to account: an internal
+   * SVG writer consumes the signed curve and its continuous arc directly. The boundary guard still holds them to account: an internal
    * channel nothing reads is as dead as an unconsumed one. */
   readonly internal?: boolean;
 }
@@ -85,6 +84,24 @@ const GLOBAL_SPECS = {
   /** Normalized gaze, [-1, 1]. The stylesheet turns it into em travel. */
   gazeX: { rest: 0, unit: 'num', group: 'gaze', precision: 3, snap: false },
   gazeY: { rest: 0, unit: 'num', group: 'gaze', precision: 3, snap: false },
+  /** The head follows the eyes on its own slower spring; normalized turns. */
+  headYaw: { rest: 0, unit: 'num', group: 'aura', precision: 3, snap: false },
+  headPitch: { rest: 0, unit: 'num', group: 'aura', precision: 3, snap: false },
+  weatherRain: { rest: 0, unit: 'num', group: 'aura', precision: 3, snap: false },
+  weatherStorm: { rest: 0, unit: 'num', group: 'aura', precision: 3, snap: false },
+  weatherCold: { rest: 0, unit: 'num', group: 'aura', precision: 3, snap: false },
+  weatherFreezing: { rest: 0, unit: 'num', group: 'aura', precision: 3, snap: false },
+  weatherSnow: { rest: 0, unit: 'num', group: 'aura', precision: 3, snap: false },
+  weatherHot: { rest: 0, unit: 'num', group: 'aura', precision: 3, snap: false },
+  weatherHeat: { rest: 0, unit: 'num', group: 'aura', precision: 3, snap: false },
+  weatherFog: { rest: 0, unit: 'num', group: 'aura', precision: 3, snap: false },
+  weatherWind: { rest: 0, unit: 'num', group: 'aura', precision: 3, snap: false },
+  weatherNight: { rest: 0, unit: 'num', group: 'aura', precision: 3, snap: false },
+  lightWarm: { rest: 0, unit: 'num', group: 'aura', precision: 3, snap: false },
+  lightCool: { rest: 0, unit: 'num', group: 'aura', precision: 3, snap: false },
+  ambientSway: { rest: 0, unit: 'num', group: 'aura', precision: 3, snap: false, derived: true },
+  ambientFall: { rest: 0.5, unit: 'num', group: 'aura', precision: 3, snap: false, derived: true },
+  ambientPulse: { rest: 1, unit: 'num', group: 'aura', precision: 3, snap: false, derived: true },
   /** Head tilt of the whole pair. */
   tilt: { rest: 0, unit: 'deg', group: 'mass', precision: 2, snap: false },
   /** Breathing / pop / perk scale of the whole pair. */
@@ -143,7 +160,13 @@ const GLOBAL_SPECS = {
   mouthX: { rest: 0, unit: 'em', group: 'pose', precision: 3, snap: false },
   /** How far the lips part. Its own group because it FOLLOWS the shape of
    * the mouth rather than leading it — and because speech rides it. */
-  mouthOpen: { rest: 0, unit: 'num', group: 'mouth', precision: 3, snap: false },
+  mouthOpen: {
+    rest: 0,
+    unit: 'num',
+    group: 'mouth',
+    precision: 3,
+    snap: false,
+  },
   /** Derived from `mouthCurve`: the DEPTH of the arc (always positive, in
    * em) and which way it bends. The stylesheet cannot take an absolute
    * value or a sign, so the rig hands it both — and it HOLDS the sign
@@ -154,22 +177,70 @@ const GLOBAL_SPECS = {
    * length could do neither: CSS cannot divide one length by another, so a
    * depth in em can never become the ratio that flattens the top edge of a
    * grin. */
-  mouthArc: { rest: 0, unit: 'num', group: 'mouth', precision: 3, snap: false, derived: true },
-  mouthFlip: { rest: 1, unit: 'num', group: 'mouth', precision: 0, snap: true, derived: true },
+  mouthArc: {
+    rest: 0,
+    unit: 'num',
+    group: 'mouth',
+    precision: 3,
+    snap: false,
+    derived: true,
+  },
   /** Velocity squash & stretch, at constant volume: `stretchK` is how much
    * the pair stretches ALONG its direction of travel, `stretchA` is that
    * direction. Derived from the gaze velocity every frame — an eye that
    * moves fast deforms, and one at rest does not. */
-  stretchK: { rest: 0, unit: 'num', group: 'stretch', precision: 3, snap: false, derived: true },
-  stretchA: { rest: 0, unit: 'deg', group: 'stretch', precision: 1, snap: false, derived: true },
+  stretchK: {
+    rest: 0,
+    unit: 'num',
+    group: 'stretch',
+    precision: 3,
+    snap: false,
+    derived: true,
+  },
+  stretchA: {
+    rest: 0,
+    unit: 'deg',
+    group: 'stretch',
+    precision: 1,
+    snap: false,
+    derived: true,
+  },
 } as const satisfies Record<string, ChannelSpec>;
 
 const EYE_SPECS = {
+  strokeArc: {
+    rest: 0,
+    unit: 'num',
+    group: 'radius',
+    precision: 3,
+    snap: false,
+  },
+  strokeRound: {
+    rest: 0,
+    unit: 'num',
+    group: 'radius',
+    precision: 3,
+    snap: false,
+  },
+  strokeHorizontal: {
+    rest: 0,
+    unit: 'num',
+    group: 'radius',
+    precision: 3,
+    snap: false,
+  },
+  strokeWeight: {
+    rest: 28,
+    unit: 'num',
+    group: 'radius',
+    precision: 2,
+    snap: false,
+  },
   /** Pose scale. */
   sx: { rest: 1, unit: 'num', group: 'pose', precision: 4, snap: false },
   sy: { rest: 1, unit: 'num', group: 'pose', precision: 4, snap: false },
   /** Scale anchor, in percent of the eye box (100% = the TOP lid comes down). */
-  oy: { rest: 50, unit: 'pct', group: 'pose', precision: 1, snap: true },
+  oy: { rest: 50, unit: 'pct', group: 'pose', precision: 1, snap: false },
   /** Per-eye rotation — in this design language, the slant IS the brow. */
   rot: { rest: 0, unit: 'deg', group: 'pose', precision: 2, snap: false },
   /** The STYLE's own base tilt (the almond lean), separate from the
@@ -204,12 +275,25 @@ const EYE_SPECS = {
    * the same reason `mouthArc` is: the stylesheet needs it as a height AND
    * as a radius ratio. A bar can only tilt; an arch can wonder, and the
    * difference between the two is most of what a brow says. */
-  browArc: { rest: 0.12, unit: 'num', group: 'brow', precision: 3, snap: false },
+  browArc: {
+    rest: 0.12,
+    unit: 'num',
+    group: 'brow',
+    precision: 3,
+    snap: false,
+  },
   /** Squash and stretch of the brow, DERIVED from its own motion every
    * frame: raised, it stretches thin and long; pressed down, it thickens
    * and shortens (`browStretchFor` in the runtime). Nothing declares it, so
    * no pose and no beat can forget the weight of a brow. */
-  browS: { rest: 1, unit: 'num', group: 'brow', precision: 3, snap: false, derived: true },
+  browS: {
+    rest: 1,
+    unit: 'num',
+    group: 'brow',
+    precision: 3,
+    snap: false,
+    derived: true,
+  },
   /** Pupil dilation. Its own group because it is SECONDARY action: the
    * pupil reacts to the emotion, a beat after the face does. */
   pupil: { rest: 1, unit: 'num', group: 'organ', precision: 3, snap: false },

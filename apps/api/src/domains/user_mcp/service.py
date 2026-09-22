@@ -435,6 +435,9 @@ class UserMCPServerService:
 
             # Compute E5 embeddings for semantic scoring (evolution F2.1)
             try:
+                from src.domains.agents.services.tool_embeddings_envelope import (
+                    wrap_server_cache,
+                )
                 from src.domains.agents.services.tool_selector import compute_tool_embeddings
 
                 tool_embeddings = await compute_tool_embeddings(
@@ -442,7 +445,9 @@ class UserMCPServerService:
                     server_name=server.name,
                 )
                 if tool_embeddings:
-                    update_data["tool_embeddings_cache"] = tool_embeddings
+                    # The model that wrote the vectors travels with them: a
+                    # cache of another width scored every tool 0 in silence.
+                    update_data["tool_embeddings_cache"] = wrap_server_cache(tool_embeddings)
             except Exception:
                 logger.warning(
                     "user_mcp_embedding_computation_failed",

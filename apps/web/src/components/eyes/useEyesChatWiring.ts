@@ -30,15 +30,15 @@ export interface EyesChatWiring {
 }
 
 /** Resolve and store the reaction for the message that just completed. */
-function reactToCompletedTurn(messages: Message[]): void {
+function reactToCompletedTurn(messages: Message[], previousAnswer: string | null): void {
   const lastAssistant = [...messages].reverse().find(m => m.role === 'assistant');
-  if (!lastAssistant) return;
+  if (!lastAssistant || lastAssistant.id === previousAnswer) return;
+  if (useEyesSignalsStore.getState().completedAnswerId !== lastAssistant.id) return;
+  if (lastAssistant.metadata?.interrupted || lastAssistant.metadata?.hitl_question) return;
+  if (!lastAssistant.content?.trim()) return;
   const source = {
     content: lastAssistant.content ?? '',
     isError: lastAssistant.metadata?.type === 'error',
-    hasArtifacts: Boolean(
-      lastAssistant.generatedImages?.length || lastAssistant.generatedDocuments?.length
-    ),
   };
   // ONE path, ONE vocabulary. The register the model declared is the better
   // signal — it knows what it chose — but it only arrives on a minority of
@@ -50,7 +50,9 @@ function reactToCompletedTurn(messages: Message[]): void {
   // The psyche is NOT consulted: it models a trait, and an argmax over a
   // near-constant vector is a constant — measured over fourteen consecutive
   // turns, it named the same emotion on thirteen.
-  const tone = useEyesSignalsStore.getState().pendingTone ?? inferToneFromContent(source);
+  const tone = source.isError
+    ? inferToneFromContent(source)
+    : (useEyesSignalsStore.getState().pendingTone ?? inferToneFromContent(source));
   useEyesSignalsStore
     .getState()
     .setReaction(REGISTER_EXPRESSIONS[tone.register], toneAmplitude(tone), tone.accent);
@@ -67,21 +69,42 @@ export function useEyesChatWiring(
     messagesRef.current = messages;
   }, [messages]);
   const prevStatusRef = useRef(chatStatus);
+  const previousAnswerRef = useRef<string | null>(null);
+  const reactedId = useRef<string | null>(null);
+  const completedId = useEyesSignalsStore(state => state.completedAnswerId);
+  useEffect(() => () => useEyesSignalsStore.getState().reset(), []);
 
   useEffect(() => {
     const prev = prevStatusRef.current;
     prevStatusRef.current = chatStatus;
     if (chatStatus === prev) return;
+    if (chatStatus === 'error') {
+      useEyesSignalsStore.getState().endTurn();
+      return;
+    }
     if (chatStatus === 'sending') {
+      previousAnswerRef.current =
+        messagesRef.current.findLast(m => m.role === 'assistant')?.id ?? null;
       useEyesSignalsStore.getState().beginTurn();
       return;
     }
     // Only a LIVE completion reacts — history hydration (SET_MESSAGES) never
     // transitions from an in-flight status, so reloads stay expressionless.
     if (chatStatus === 'idle' && (prev === 'streaming' || prev === 'sending')) {
-      reactToCompletedTurn(messagesRef.current);
+      if (!useEyesSignalsStore.getState().completedAnswerId)
+        useEyesSignalsStore.getState().endTurn();
     }
   }, [chatStatus]);
+
+  // Completion evidence survives React batching: even token + done in one
+  // network read must react once, with the delivered message's own tone.
+  useEffect(() => {
+    if (chatStatus !== 'idle' || !completedId || reactedId.current === completedId) return;
+    if (messages.findLast(message => message.role === 'assistant')?.id !== completedId) return;
+    reactToCompletedTurn(messages, previousAnswerRef.current);
+    reactedId.current = completedId;
+    useEyesSignalsStore.getState().endTurn();
+  }, [chatStatus, completedId, messages]);
 
   const onTyping = useCallback((message: string) => {
     if (message.length > 0) useEyesSignalsStore.getState().recordTyping();

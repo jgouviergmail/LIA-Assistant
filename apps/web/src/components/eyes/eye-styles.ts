@@ -18,12 +18,14 @@ export const EYE_STYLE_IDS = [
   'amande',
   'traits',
   'anneaux',
+  'smiley',
 ] as const;
 
 export type EyeStyleId = (typeof EYE_STYLE_IDS)[number];
 
-/** The base sheet IS this style — it needs no scoped CSS block. */
-export const DEFAULT_EYE_STYLE: EyeStyleId = 'cozmo';
+/** The initial look for visitors and new installations. The CSS base sheet
+ * remains Cozmo; Smiley has its own scoped recipe. */
+export const DEFAULT_EYE_STYLE: EyeStyleId = 'smiley';
 
 /** Strict runtime guard (persisted values, future deep links). */
 export function isValidEyeStyle(value: unknown): value is EyeStyleId {

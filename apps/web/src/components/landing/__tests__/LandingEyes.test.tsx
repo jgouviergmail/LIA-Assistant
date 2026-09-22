@@ -41,9 +41,9 @@ describe('LandingEyes', () => {
     expect(widget).toHaveAttribute('data-hitl', 'false');
   });
 
-  it('shows the CAPSULES to every visitor, whatever a chat user chose', () => {
+  it('shows the SMILEY to every visitor, whatever a chat user chose', () => {
     render(<LandingEyes />);
-    expect(screen.getByTestId('eyes-widget')).toHaveAttribute('data-style', 'capsules');
+    expect(screen.getByTestId('eyes-widget')).toHaveAttribute('data-style', 'smiley');
   });
 
   it('loads the widget client-only — it positions itself from the viewport', () => {

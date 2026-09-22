@@ -14,8 +14,8 @@
  * whole scene, on every channel the rig owns — the gaze (absolute: the
  * scene decides where the eyes look), the blinks, the eye shapes, the mass
  * and the head, the brows and the mouth. The rig plays them
- * together, one-shot beats (a spontaneous blink, a host gesture) still win
- * over them, and the scene is DROPPED the moment the expression changes: a
+ * together; a spontaneous blink can accompany them, while unrelated host
+ * gestures wait, and the scene is DROPPED the moment the expression changes: a
  * sketch never plays over a reaction, a search or a speech. Every relative
  * tape is handed back at its end and eases home on the expression's own
  * dynamics, and every absolute one returns to its rest before it ends, so
@@ -93,12 +93,23 @@ export interface SketchClock {
   dueMs: number;
   /** Scenes played on this clock — the first one waits less. */
   played: number;
+  completed: number;
+  interrupted: number;
+  scene: SketchName | null;
   /** The last few scenes, never drawn again right away. */
   recent: SketchName[];
 }
 
 export function createSketchClock(): SketchClock {
-  return { restedMs: 0, dueMs: 0, played: 0, recent: [] };
+  return {
+    restedMs: 0,
+    dueMs: 0,
+    played: 0,
+    completed: 0,
+    interrupted: 0,
+    scene: null,
+    recent: [],
+  };
 }
 
 /** Arm the clock for its next scene: the first waits less than the rest. */
@@ -110,6 +121,7 @@ export function armSketchClock(clock: SketchClock, random: () => number): void {
 /** Record a scene on the clock: played once more, remembered for a while. */
 export function recordSketch(clock: SketchClock, name: SketchName): void {
   clock.played += 1;
+  clock.scene = name;
   clock.recent = [...clock.recent, name].slice(-SKETCH_HISTORY);
 }
 

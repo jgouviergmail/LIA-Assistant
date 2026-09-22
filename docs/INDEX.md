@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 45 |
-| ADRs | 300 ADR files (ADR-301 latest — ADR-008 n'a pas de fichier séparé, d'où le numéro un cran au-dessus du décompte) |
+| ADRs | 301 ADR files (ADR-302 latest — ADR-008 n'a pas de fichier séparé, d'où le numéro un cran au-dessus du décompte) |
 | Fiches knowledge (RAG système) | 40 |
 
 ---
@@ -51,7 +51,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [PROVENANCE_AND_CAPABILITIES.md](./technical/PROVENANCE_AND_CAPABILITIES.md) | Provenance bornée des conclusions et carte des capacités (ADR-201, ADR-204) |
 | [DEMO_INSTANCE.md](./technical/DEMO_INSTANCE.md) | Démonstrateur libre : image standard isolée, plafond, capacités, purge nocturne, surface vérifiée (ADR-216→218) |
 | [DEBUG_PANEL.md](./technical/DEBUG_PANEL.md) | Panneau de debug : trace en ordre d'exécution, chronologie ancrée au run, waterfall LLM (ADR-209) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (300 ADR files) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (301 ADR files) |
 
 ### Pour les Product Managers
 
@@ -232,7 +232,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | Document | Description | Statut |
 |----------|-------------|--------|
-| [OAUTH.md](./technical/OAUTH.md) | OAuth 2.1, PKCE, Google provider | ✅ |
+| [OAUTH.md](./technical/OAUTH.md) | OAuth Google/Microsoft : PKCE, grants par compte, connexion et reconnexion groupées (ADR-302) | ✅ |
 | [AUTHENTICATION.md](./technical/AUTHENTICATION.md) | BFF Pattern, sessions Redis | ✅ |
 | [SECURITY.md](./technical/SECURITY.md) | Sécurité globale, encryption, compliance | ✅ |
 | [PII_LOGGING_SECURITY.md](./technical/PII_LOGGING_SECURITY.md) | PII filtering, GDPR | ✅ |

@@ -27,7 +27,17 @@ import type { Connector, ConnectorsResponse } from '../connectors/types';
 
 const { oauthStub, bulkStub, prefsStub } = vi.hoisted(() => ({
   oauthStub: { connect: vi.fn() },
-  bulkStub: { bulkConnecting: false, connectAllGoogle: vi.fn(), connectAllMicrosoft: vi.fn() },
+  bulkStub: {
+    bulkConnecting: false,
+    canConnectGoogle: true,
+    canConnectMicrosoft: true,
+    accountDialogProvider: null,
+    knownAccounts: [],
+    closeAccountDialog: vi.fn(),
+    confirmAccount: vi.fn(),
+    connectAllGoogle: vi.fn(),
+    connectAllMicrosoft: vi.fn(),
+  },
   prefsStub: { savedPrefs: {}, savingPreference: null, selectPreference: vi.fn() },
 }));
 // Keep every real card/constant from the barrel; stub only the side-effecting hooks.
@@ -52,6 +62,8 @@ vi.mock('sonner', () => ({ toast }));
 vi.mock('@/lib/logger', () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));
+const { navigateToAuthorizationUrl } = vi.hoisted(() => ({ navigateToAuthorizationUrl: vi.fn() }));
+vi.mock('@/lib/safe-navigation', () => ({ navigateToAuthorizationUrl }));
 
 import UserConnectorsSection from '../UserConnectorsSection';
 
@@ -189,5 +201,42 @@ describe('UserConnectorsSection — disconnect', () => {
       expect(toast.error).toHaveBeenCalledWith('settings.connectors.disconnect_error')
     );
     expect(setData).not.toHaveBeenCalled();
+  });
+});
+
+describe('UserConnectorsSection — shared OAuth reconnection', () => {
+  it('starts one Google authorization immediately when all expired services share one known account', async () => {
+    stub([
+      makeConnector({ id: 'mail', connector_type: 'google_gmail', status: 'error', oauth_grant_id: 'same' }),
+      makeConnector({ id: 'calendar', connector_type: 'google_calendar', status: 'error', oauth_grant_id: 'same' }),
+    ]);
+    post.mockResolvedValue({ authorization_url: 'https://accounts.google.com/oauth' });
+    const { user } = render();
+    await user.click(screen.getByRole('button', { name: /critical_title/ }));
+    await user.click(screen.getByRole('button', { name: 'settings.connectors.bulk_reconnect.google_action' }));
+    await waitFor(() => expect(post).toHaveBeenCalledOnce());
+    expect(post).toHaveBeenCalledWith('/connectors/oauth-bulk/google/authorize', {
+      connector_types: ['google_gmail', 'google_calendar'],
+    });
+    expect(navigateToAuthorizationUrl).toHaveBeenCalledWith(
+      'https://accounts.google.com/oauth', 'bulk-reconnect'
+    );
+  });
+
+  it('makes the user choose services before one Microsoft authorization when accounts differ', async () => {
+    stub([
+      makeConnector({ id: 'outlook', connector_type: 'microsoft_outlook', status: 'error', oauth_grant_id: 'first' }),
+      makeConnector({ id: 'calendar', connector_type: 'microsoft_calendar', status: 'error', oauth_grant_id: 'second' }),
+    ]);
+    post.mockResolvedValue({ authorization_url: 'https://login.microsoftonline.com/common/oauth' });
+    const { user } = render();
+    await user.click(screen.getByRole('button', { name: /critical_title/ }));
+    await user.click(screen.getByRole('button', { name: 'settings.connectors.bulk_reconnect.microsoft_action' }));
+    expect(post).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('checkbox', { name: /Outlook/ }));
+    await user.click(screen.getByRole('button', { name: 'settings.connectors.bulk_reconnect.confirm' }));
+    await waitFor(() => expect(post).toHaveBeenCalledWith(
+      '/connectors/oauth-bulk/microsoft/authorize', { connector_types: ['microsoft_outlook'] }
+    ));
   });
 });

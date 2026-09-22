@@ -31,6 +31,19 @@ describe('CosmicBackdrop', () => {
     vi.restoreAllMocks();
   });
 
+  it('renders quietly when the test DOM has no canvas context', () => {
+    const writes: string[] = [];
+    vi.spyOn(process.stderr, 'write').mockImplementation(chunk => {
+      writes.push(String(chunk));
+      return true;
+    });
+
+    render(<CosmicBackdrop />);
+
+    expect(screen.getByTestId('cosmic-backdrop')).toBeInTheDocument();
+    expect(writes.filter(write => write.includes("HTMLCanvasElement's getContext()"))).toEqual([]);
+  });
+
   it('renders all layers as a decorative subtree', () => {
     stubCanvasContext();
     render(<CosmicBackdrop />);

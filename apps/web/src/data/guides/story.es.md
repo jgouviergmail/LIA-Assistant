@@ -3,8 +3,8 @@
 > Informe de experiencia — un sistema completo, del diseño a la producción.
 
 **Versión**: 2.1
-**Fecha**: 2026-09-18
-**Aplicación**: LIA v1.47.0
+**Fecha**: 2026-09-22
+**Aplicación**: LIA v1.47.1
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -18,10 +18,10 @@ La casi totalidad del código fue escrita por una IA, bajo dirección humana: un
 | Indicador | Valor |
 | --- | --- |
 | Código escrito por una IA — dirigida, encuadrada, controlada | **≈ 100 %** |
-| Líneas de código (sin tests) — 49 dominios funcionales | **660.000** |
+| Líneas de código fuente (sin tests) — 51 dominios funcionales | **720.000+** |
 | Tests automatizados, ejecutados en cada commit y entrega | **39.000+** |
-| Decisiones de arquitectura documentadas (ADR) | **300** |
-| Versiones entregadas a ritmo regular | **265** |
+| Decisiones de arquitectura documentadas (ADR) | **301** |
+| Versiones entregadas a ritmo regular | **266** |
 | Idiomas, paridad verificada automáticamente | **6** |
 | Auditoría técnica sobre 24 perímetros | **8,3/10** |
 
@@ -50,7 +50,7 @@ Una IA que programa produce volumen; solo produce calidad bajo restricción. Cua
 
 ## 4. Los arbitrajes
 
-Tres decisiones estructurantes, entre las 300 documentadas:
+Tres decisiones estructurantes, entre las 301 documentadas:
 
 **Soberanía y reversibilidad — ninguna dependencia irreversible de proveedor.** Los modelos de IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modelos locales vía Ollama) están detrás de una abstracción única: cada uso puede cambiar de proveedor por configuración, con comparación de costes. Mismo principio del lado del negocio: Google, Apple y Microsoft son intercambiables por categoría funcional. El alojamiento está íntegramente controlado; los datos personales están cifrados y permanecen en la infraestructura.
 

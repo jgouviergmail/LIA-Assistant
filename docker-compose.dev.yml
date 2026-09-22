@@ -379,6 +379,10 @@ services:
       # on a full checkout in CI. Without this one read-only mount the guard
       # fails here with ENOENT rather than measuring anything (2026-09-05).
       - ./apps/api/src/domains/agents/expressivity:/monorepo/apps/api/src/domains/agents/expressivity:ro
+      # Other cross-language guards read their real backend sources too;
+      # temporary copies vanish when the dev container is recreated.
+      - ./apps/api/src/core/recurrence/spec.py:/monorepo/apps/api/src/core/recurrence/spec.py:ro
+      - ./apps/api/tests/unit/domains/voice_sessions/voice_projection_corpus.json:/monorepo/apps/api/tests/unit/domains/voice_sessions/voice_projection_corpus.json:ro
       # Shared SSL certificates from ssl-init (covers configured SSL_DOMAIN)
       - ssl_certs:/certs:ro
     # Enable HTTPS with ssl-init certificates (covers nip.io domain for LAN access)

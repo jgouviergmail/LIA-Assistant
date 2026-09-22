@@ -21,19 +21,19 @@ export function FeatureCatalog({
   featureKeys: readonly string[];
 }) {
   return (
-    <ul className="grid list-none grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <ul className="grid list-none grid-cols-1 gap-4 md:grid-cols-2">
       {featureKeys.map(key => {
         const Icon = FEATURE_ICONS[key];
         return (
           <li
             key={key}
-            className="rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/30"
+            className="rounded-xl border border-border bg-card p-5 transition-colors hover:border-primary/30"
           >
             <h4 className="flex items-center gap-2 text-sm font-semibold">
               {Icon && <Icon aria-hidden="true" className="h-4 w-4 shrink-0 text-primary" />}
               {t(`landing.features.${key}.title`)}
             </h4>
-            <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
               {t(`landing.features.${key}.description`)}
             </p>
           </li>

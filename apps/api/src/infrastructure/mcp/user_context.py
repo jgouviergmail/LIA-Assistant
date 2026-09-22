@@ -23,7 +23,7 @@ from __future__ import annotations
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from contextvars import Token
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import structlog
@@ -47,6 +47,7 @@ if TYPE_CHECKING:
 
     from src.domains.agents.registry.catalogue import ToolManifest
     from src.domains.user_mcp.models import UserMCPServer
+    from src.domains.user_mcp.repository import UserMCPServerRepository
 
 logger = structlog.get_logger(__name__)
 
@@ -54,6 +55,56 @@ logger = structlog.get_logger(__name__)
 # ============================================================================
 # Standalone setup / cleanup (for flat integration without nesting)
 # ============================================================================
+
+
+async def _usable_tool_embeddings(
+    server: UserMCPServer, tools: list[dict[str, Any]], repo: UserMCPServerRepository
+) -> dict[str, Any]:
+    """The server's persisted vectors when this model wrote them; else recomputed and saved.
+
+    Best-effort in both halves: a recompute that fails leaves the tools
+    unranked for the turn (they still bind through their family's coverage)
+    and never fails the request.
+
+    Args:
+        server: The ``UserMCPServer`` row.
+        tools: The tools the pool just discovered on the server.
+        repo: The repository the row came from, to persist the new envelope.
+
+    Returns:
+        Vectors by raw MCP tool name, possibly empty.
+    """
+    from src.domains.agents.services.tool_embeddings_envelope import (
+        read_server_cache,
+        wrap_server_cache,
+    )
+
+    vectors, stale = read_server_cache(getattr(server, "tool_embeddings_cache", None))
+    if stale is None or not tools:
+        return vectors
+    try:
+        from src.domains.agents.services.tool_selector import compute_tool_embeddings
+
+        recomputed = await compute_tool_embeddings(tool_metadata=tools, server_name=server.name)
+        if not recomputed:
+            return {}
+        await repo.update(server, {"tool_embeddings_cache": wrap_server_cache(recomputed)})
+        logger.info(
+            "user_mcp_tool_embeddings_refreshed",
+            server_id=str(server.id),
+            reason=stale,
+            tool_count=len(recomputed),
+        )
+        return recomputed
+    except Exception as exc:
+        logger.warning(
+            "user_mcp_tool_embeddings_refresh_failed",
+            server_id=str(server.id),
+            reason=stale,
+            error=str(exc),
+            error_type=type(exc).__name__,
+        )
+        return {}
 
 
 async def setup_user_mcp_tools(
@@ -132,8 +183,12 @@ async def setup_user_mcp_tools(
             if entry.reference_content:
                 ctx.server_reference_content[server.name] = entry.reference_content
 
-            # Pre-load embeddings cache for re-keying inside tool loop
-            embeddings_cache = getattr(server, "tool_embeddings_cache", None) or {}
+            # Pre-load embeddings cache for re-keying inside tool loop — the
+            # vectors of THIS model only; a stale cache is recomputed from the
+            # tools just fetched and persisted, so the row heals on the
+            # person's next turn (measured 2026-09-20: 384-dimension rows
+            # scored 0 against 1 536-dimension queries, in silence).
+            embeddings_cache = await _usable_tool_embeddings(server, entry.tools, repo)
 
             # ADR-062: Iterative mode — delegate to ReAct sub-agent
             is_iterative = react_enabled and getattr(server, "iterative_mode", False)

@@ -25,6 +25,9 @@
  * which refuses to start while a meeting records; this controller pauses
  * nothing.
  */
+import { parseActivity } from '@/components/eyes/activity';
+import { inferToneFromContent, REGISTER_EXPRESSIONS, toneAmplitude } from '@/components/eyes/tone';
+import { useEyesSignalsStore } from '@/stores/eyesSignalsStore';
 import { getApiErrorCode } from '@/lib/api-error';
 import { LIVE_GO_AWAY_MARGIN_MS, LIVE_IDLE_COUNTDOWN_MS } from '@/lib/constants';
 import type { Message } from '@/types/chat';
@@ -199,7 +202,9 @@ export class LiveSessionController {
       await player.warmup();
       this.config = await this.deps.api.get<LiveConfigResponse>('/live/config');
       this.store.getState().setExtensionMinutes(this.config.extension_minutes);
-      session = await this.deps.api.post<LiveSessionStart>('/live/sessions', { mode });
+      session = await this.deps.api.post<LiveSessionStart>('/live/sessions', {
+        mode,
+      });
       this.session = session;
       this.store.getState().begin(session.session_id, session.mode);
       this.store.getState().apply('minted');
@@ -629,6 +634,9 @@ export class LiveSessionController {
         `/live/sessions/${session.session_id}/tools`,
         { name, arguments: args }
       );
+      if (this.session?.session_id !== session.session_id || this.ending) return null;
+      const activity = parseActivity(answer.activity);
+      if (activity) this.store.getState().recordActivity(activity);
       return answer.text;
     } catch (error) {
       if (isGone(error) && !this.ending) {
@@ -653,6 +661,16 @@ export class LiveSessionController {
     if (!session || turn.delegated) return;
     const body = turnBody(turn, session.turn_text_max_chars);
     if (!body) return;
+    if (body.assistant_text) {
+      const tone = inferToneFromContent({
+        content: body.assistant_text,
+        isError: false,
+        hasArtifacts: false,
+      });
+      useEyesSignalsStore
+        .getState()
+        .setReaction(REGISTER_EXPRESSIONS[tone.register], toneAmplitude(tone), tone.accent);
+    }
     try {
       const ids = await this.deps.api.post<LiveTurnResponse>(
         `/live/sessions/${session.session_id}/turns`,

@@ -566,10 +566,10 @@ Each user MCP server gets its own domain (e.g., `mcp_huggingface_hub`, `mcp_gith
 
 #### Level 2 — Tool Selection (OpenAI Embeddings, SemanticToolSelector)
 
-At server registration (test_connection), OpenAI text-embedding-3-small embeddings are pre-computed for each discovered tool's description and keywords, then stored in `tool_embeddings_cache` (JSONB). At request time, these embeddings are loaded into `UserMCPToolsContext.tool_embeddings` and passed as `extra_embeddings` to `select_tools()`, enabling real semantic scoring alongside native tools.
+At server registration (test_connection), embeddings from the memory embedder (`MEMORY_EMBEDDING_MODEL` at `MEMORY_EMBEDDING_DIMENSIONS`) are pre-computed for each discovered tool's description and keywords, then stored in `tool_embeddings_cache` (JSONB). At request time, these embeddings are loaded into `UserMCPToolsContext.tool_embeddings` and passed as `extra_embeddings` to `select_tools()`, enabling real semantic scoring alongside native tools.
 
 - **Computation**: `compute_tool_embeddings()` in `tool_selector.py` (batch embed, same pattern as `initialize()`)
-- **Storage**: JSONB column keyed by raw MCP tool name (e.g., `"hub_search"`)
+- **Storage**: JSONB column holding an ENVELOPE — `{"embedding_model": "<model>:<dimensions>", "tools": {<raw MCP tool name>: {...}}}` (`services/tool_embeddings_envelope.py`). The model key is the one the native catalogue's disk cache is hashed on. **A cache of another model, or of the legacy flat shape, is stale and never handed to the ranking**: measured 2026-09-20, two dev servers and two production servers kept 384-dimension vectors from an earlier embedder against 1 536-dimension queries, `cosine_similarity` scored every one of their tools 0 in silence (163 warnings per turn, 20 tools invisible to ADR-293's ranking) and nothing refreshed them, since the only writer was the settings click. `user_context.py` now recomputes a stale cache from the tools the pool just fetched and persists the new envelope (`user_mcp_tool_embeddings_refreshed{reason}`), so the row heals on the person's next turn; a refresh that fails leaves the tools unranked for the turn (they still bind through their family's coverage) and never fails the request.
 - **Re-keying**: `user_context.py` re-keys from raw name to adapter name (e.g., `"mcp_user_37e4468e_hub_search"`) at request setup
 - **Scoring**: `select_tools(extra_embeddings=...)` falls back to extra_embeddings when tool not in singleton cache
 

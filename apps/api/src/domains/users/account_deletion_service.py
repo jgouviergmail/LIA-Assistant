@@ -265,6 +265,7 @@ def build_purge_statements(user_id: UUID) -> list[tuple[str, Delete]]:
         # material; live Google-side watches expire on their own TTL.
         by_user("webhook_channels"),
         by_user("connectors"),
+        by_user("oauth_grants"),
     ]
 
 
@@ -450,7 +451,7 @@ class AccountDeletionService:
     # =========================================================================
 
     async def _revoke_all_oauth_tokens(self, user_id: UUID) -> None:
-        """Revoke OAuth tokens grouped by provider family (best-effort).
+        """Revoke every Google account grant and unlinked legacy token (best-effort).
 
         For account deletion, all connectors are being removed so we force
         revocation regardless of the "other active connectors" check.
@@ -462,43 +463,54 @@ class AccountDeletionService:
             import httpx
 
             from src.core.security.utils import decrypt_data
+            from src.domains.connectors.models import OAuthGrant
             from src.domains.connectors.schemas import ConnectorCredentials
+
+            grants = list(
+                (
+                    await self.db.scalars(
+                        select(OAuthGrant).where(
+                            OAuthGrant.user_id == user_id,
+                            OAuthGrant.provider == "google",
+                        )
+                    )
+                ).all()
+            )
 
             result = await self.db.execute(
                 select(Connector).where(
                     Connector.user_id == user_id,
-                    Connector.connector_type.in_(ConnectorType.get_oauth_types()),
-                    Connector.credentials_encrypted.isnot(None),
+                    Connector.connector_type.in_(ConnectorType.get_google_types()),
+                    Connector.oauth_grant_id.is_(None),
                 )
             )
-            connectors = list(result.scalars().all())
-
-            if not connectors:
-                return
-
-            # Revoke Google OAuth grant once (all Google connectors share the same grant).
-            # Apple uses app-specific passwords (no revocation endpoint).
-            # Microsoft has no revocation endpoint.
-            google_connector = next((c for c in connectors if c.connector_type.is_google), None)
-            if google_connector:
+            legacy_connectors = list(result.scalars().all())
+            encrypted_tokens = [grant.credentials_encrypted for grant in grants] + [
+                connector.credentials_encrypted for connector in legacy_connectors
+            ]
+            revoked_tokens: set[str] = set()
+            for encrypted in encrypted_tokens:
                 try:
-                    decrypted_json = decrypt_data(google_connector.credentials_encrypted)
+                    decrypted_json = decrypt_data(encrypted)
                     credentials = ConnectorCredentials.model_validate_json(decrypted_json)
+                    token = credentials.refresh_token or credentials.access_token
+                    if token in revoked_tokens:
+                        continue
+                    revoked_tokens.add(token)
                     async with httpx.AsyncClient(follow_redirects=False) as client:
                         await client.post(
                             "https://oauth2.googleapis.com/revoke",
-                            params={"token": credentials.access_token},
+                            data={"token": token},
                         )
                     logger.info(
                         "account_deletion_google_oauth_revoked",
                         user_id=str(user_id),
-                        connector_id=str(google_connector.id),
                     )
                 except Exception as e:
                     logger.warning(
                         "account_deletion_google_oauth_revoke_failed",
                         user_id=str(user_id),
-                        error=str(e),
+                        error_type=type(e).__name__,
                     )
         except Exception as e:
             logger.warning(

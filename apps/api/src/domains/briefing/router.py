@@ -15,6 +15,7 @@ Each fetcher acquires its own session via ``get_db_context()`` to safely
 run in parallel (SQLAlchemy AsyncSession is not concurrent-safe).
 """
 
+from datetime import UTC, datetime
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Response
@@ -25,6 +26,7 @@ from src.core.config import settings
 from src.core.dependencies import get_db
 from src.core.exceptions import raise_internal_error, raise_invalid_input
 from src.core.session_dependencies import get_current_active_session
+from src.domains.briefing.companion import CompanionEnvironment, project_weather
 from src.domains.briefing.preferences import (
     BriefingPreferences,
     sanitize_briefing_preferences,
@@ -40,6 +42,19 @@ from src.domains.users.models import User
 from src.domains.voice.text_readout import synthesize_user_text
 
 router = APIRouter(prefix="/briefing", tags=["briefing"])
+
+
+@router.get("/companion-context", response_model=CompanionEnvironment)
+async def get_companion_context(
+    current_user: User = Depends(get_current_active_session),
+) -> CompanionEnvironment:
+    """Read only this account's fresh cached weather; no provider or LLM call."""
+    service = BriefingService(current_user)
+    section = await service.read_cached_weather()
+    return CompanionEnvironment(
+        timezone=str(service.user_tz), weather=project_weather(section, datetime.now(UTC))
+    )
+
 
 # Stable error code — the frontend refuses to offer refresh on hidden cards;
 # this guards direct API calls (UXR Lot 5, B4).

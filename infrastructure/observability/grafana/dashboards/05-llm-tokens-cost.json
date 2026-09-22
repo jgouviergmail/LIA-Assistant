@@ -2841,6 +2841,108 @@
         }
       },
       "description": "Which API the unaccounted calls hit — the pricing table names each (Places Text Search ≈ 0.03 €, Routes and Geocoding ≈ 0.004 €)."
+    },
+    {
+      "id": 134,
+      "title": "Structured output — how the door settled the calls",
+      "type": "row",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 148
+      },
+      "panels": []
+    },
+    {
+      "id": 135,
+      "title": "Structured answers not parsed first time (24h)",
+      "type": "stat",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 0,
+        "y": 149
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(llm_structured_output_outcomes_total{outcome!=\"parsed\"}[24h])) or vector(0)",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "green"
+              },
+              {
+                "value": 1,
+                "color": "orange"
+              },
+              {
+                "value": 20,
+                "color": "red"
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "auto",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "description": "Native structured-output calls the provider's own parse did NOT settle: rescued (nulls defaulted, a bare word quoted, JSON found in text — complete answers the parser refused, ADR-184) or refused (truncated, ADR-275; rejected, nothing usable). Measured 2026-09-20: DeepSeek wrote `\"primary_domain\": mcp` on 15 % of the query analyses in production and every one of them cost the whole turn, with nothing to show it. A rescue is a repair, not a success: a steady rate on one schema names a prompt or a provider to look at."
+    },
+    {
+      "id": 136,
+      "title": "Structured output outcomes by schema (1h)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 6,
+        "w": 18,
+        "x": 6,
+        "y": 149
+      },
+      "targets": [
+        {
+          "expr": "sum by (schema, outcome) (increase(llm_structured_output_outcomes_total{outcome!=\"parsed\"}[1h]))",
+          "legendFormat": "{{schema}} · {{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "Which schema and which outcome — `invalid_call_repaired` is the bare-word defect, `rejected` is a lost answer (the query analyzer falls back to a bare conversation, a document tool refuses). `parsed` is left out so the rare outcomes stay readable."
     }
   ],
   "time": {

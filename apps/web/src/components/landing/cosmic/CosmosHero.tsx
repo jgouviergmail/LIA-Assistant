@@ -56,9 +56,18 @@ export async function CosmosHero({ lng }: { lng: string }) {
   const showsGuidedDemo = getPublicShowroomVariant() === 'guided';
   const demoHref = buildLocalizedPath('/demo', lng as Language);
 
-  const formattedDate = new Date(LAST_UPDATED).toLocaleDateString(
+  // LAST_UPDATED is an editorial Paris wall-clock stamp, not a UTC instant.
+  // Pin the formatter to UTC so SSR and hydration render the same date and hour.
+  const formattedDate = new Date(`${LAST_UPDATED}Z`).toLocaleString(
     HERO_DATE_LOCALES[lng] || 'en-US',
-    { year: 'numeric', month: 'long', day: 'numeric' }
+    {
+      timeZone: 'UTC',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }
   );
 
   const trustItems = [

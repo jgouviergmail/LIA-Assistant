@@ -205,7 +205,10 @@ async def test_activate_skills_script_skill_runs_react_runner():
             Mock(return_value=skill_data),
         ),
         patch("src.domains.skills.cache.SkillsCache.get_by_name", Mock(return_value=skill_data)),
-        patch("src.domains.skills.tools.skills_tools", []),
+        patch("src.domains.skills.tools.skills_runner_tools", []),
+        patch(
+            "src.domains.skills.activation.activate_skill", Mock(return_value="<skill_content/>")
+        ),
         patch(
             "src.domains.agents.tools.react_runner.ReactSubAgentRunner",
             Mock(return_value=runner_instance),
@@ -267,7 +270,10 @@ async def test_activate_skills_detected_skill_survives_a_native_execution_plan()
             Mock(return_value=skill_data),
         ),
         patch("src.domains.skills.cache.SkillsCache.get_by_name", Mock(return_value=skill_data)),
-        patch("src.domains.skills.tools.skills_tools", []),
+        patch("src.domains.skills.tools.skills_runner_tools", []),
+        patch(
+            "src.domains.skills.activation.activate_skill", Mock(return_value="<skill_content/>")
+        ),
         patch(
             "src.domains.agents.tools.react_runner.ReactSubAgentRunner",
             Mock(return_value=runner_instance),
@@ -305,7 +311,10 @@ async def test_activate_skills_runner_error_falls_back_to_passive_l2():
             Mock(return_value=skill_data),
         ),
         patch("src.domains.skills.cache.SkillsCache.get_by_name", Mock(return_value=skill_data)),
-        patch("src.domains.skills.tools.skills_tools", []),
+        patch("src.domains.skills.tools.skills_runner_tools", []),
+        patch(
+            "src.domains.skills.activation.activate_skill", Mock(return_value="<skill_content/>")
+        ),
         patch(
             "src.domains.agents.tools.react_runner.ReactSubAgentRunner",
             Mock(return_value=runner_instance),

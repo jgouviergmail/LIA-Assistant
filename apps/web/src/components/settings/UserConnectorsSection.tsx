@@ -45,7 +45,6 @@ import {
   ConnectorIcon,
   ConnectedConnectorCard,
   ConnectorGroupTrigger,
-  ErrorConnectorCard,
   AvailableConnectorCard,
   useGoogleOAuth,
   useMicrosoftOAuth,
@@ -59,6 +58,10 @@ import { LiveConnectorGroup } from './connectors/LiveConnectorGroup';
 import { isLiveConnectorType } from '@/lib/live/providers';
 import { bumpRevision } from '@/stores/revisionStore';
 import { DisconnectConnectorConfirm } from './connectors/DisconnectConnectorConfirm';
+import { BulkReconnectDialog } from './connectors/BulkReconnectDialog';
+import { BulkConnectAccountDialog } from './connectors/BulkConnectAccountDialog';
+import { OAuthErrorGroup } from './connectors/OAuthErrorGroup';
+import { useBulkReconnect } from './connectors/hooks/useBulkReconnect';
 import { CONNECTOR_LABELS, type ConnectorType } from '@/constants/connectors';
 import type { BaseSettingsProps } from '@/types/settings';
 import { navigateToAuthorizationUrl } from '@/lib/safe-navigation';
@@ -178,11 +181,13 @@ export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
     onError: error => toast.error(error),
   });
 
-  const { bulkConnecting, connectAllGoogle, connectAllMicrosoft } = useBulkConnect({
+  const bulkConnect = useBulkConnect({
     connectors,
     loading,
     t,
   });
+  const { bulkConnecting, connectAllGoogle, connectAllMicrosoft } = bulkConnect;
+  const bulkReconnect = useBulkReconnect(t);
 
   const { savedPrefs, savingPreference, selectPreference } = useConnectorPreferences({
     connectors,
@@ -560,58 +565,26 @@ export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
           {/* ===================== ERROR SECTIONS ===================== */}
 
           {/* Error Google Connectors - Need Reconnection */}
-          {errorOAuthConnectors.length > 0 && (
-            <AccordionItem value="error-google" className="border rounded-lg px-3">
-              <AccordionTrigger className="text-sm font-medium gap-2 hover:no-underline py-3">
-                <ConnectorGroupTrigger
-                  state="error"
-                  label={t('settings.connectors.health.critical_title')}
-                  count={errorOAuthConnectors.length}
-                  t={t}
-                />
-              </AccordionTrigger>
-              <AccordionContent>
-                <div className="space-y-2">
-                  {errorOAuthConnectors.map(connector => (
-                    <ErrorConnectorCard
-                      key={connector.id}
-                      connector={connector}
-                      t={t}
-                      reconnecting={reconnectingConnector === connector.connector_type}
-                      onReconnect={handleReconnect}
-                    />
-                  ))}
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          )}
+          <OAuthErrorGroup
+            provider="google"
+            connectors={errorOAuthConnectors}
+            busy={bulkReconnect.busy}
+            reconnectingConnector={reconnectingConnector}
+            onBulkReconnect={eligible => bulkReconnect.start('google', eligible)}
+            onReconnect={handleReconnect}
+            t={t}
+          />
 
           {/* Error Microsoft Connectors - Need Reconnection */}
-          {errorMicrosoftConnectors.length > 0 && (
-            <AccordionItem value="error-microsoft" className="border rounded-lg px-3">
-              <AccordionTrigger className="text-sm font-medium gap-2 hover:no-underline py-3">
-                <ConnectorGroupTrigger
-                  state="error"
-                  label={t('settings.connectors.health.critical_title')}
-                  count={errorMicrosoftConnectors.length}
-                  t={t}
-                />
-              </AccordionTrigger>
-              <AccordionContent>
-                <div className="space-y-2">
-                  {errorMicrosoftConnectors.map(connector => (
-                    <ErrorConnectorCard
-                      key={connector.id}
-                      connector={connector}
-                      t={t}
-                      reconnecting={reconnectingConnector === connector.connector_type}
-                      onReconnect={handleReconnect}
-                    />
-                  ))}
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          )}
+          <OAuthErrorGroup
+            provider="microsoft"
+            connectors={errorMicrosoftConnectors}
+            busy={bulkReconnect.busy}
+            reconnectingConnector={reconnectingConnector}
+            onBulkReconnect={eligible => bulkReconnect.start('microsoft', eligible)}
+            onReconnect={handleReconnect}
+            t={t}
+          />
 
           {/* ===================== AVAILABLE SECTIONS ===================== */}
 
@@ -632,7 +605,7 @@ export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
                     variant="outline"
                     size="sm"
                     onClick={connectAllGoogle}
-                    disabled={bulkConnecting}
+                    disabled={!bulkConnect.canConnectGoogle}
                     className="gap-2"
                   >
                     {bulkConnecting ? (
@@ -775,7 +748,7 @@ export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
                     variant="outline"
                     size="sm"
                     onClick={connectAllMicrosoft}
-                    disabled={bulkConnecting}
+                    disabled={!bulkConnect.canConnectMicrosoft}
                     className="gap-2"
                   >
                     {bulkConnecting ? (
@@ -1102,6 +1075,38 @@ export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
           if (pendingDisconnect) void handleDisconnect(pendingDisconnect);
         }}
       />
+      <BulkConnectAccountDialog
+        open={bulkConnect.accountDialogProvider !== null}
+        provider={bulkConnect.accountDialogProvider}
+        accounts={bulkConnect.knownAccounts}
+        busy={bulkConnect.bulkConnecting}
+        onOpenChange={open => {
+          if (!open) bulkConnect.closeAccountDialog();
+        }}
+        onSubmit={grantId => { void bulkConnect.confirmAccount(grantId); }}
+        t={t}
+      />
+      {bulkReconnect.dialogProvider && (
+        <BulkReconnectDialog
+          open
+          onOpenChange={open => {
+            if (!open) bulkReconnect.setDialogProvider(null);
+          }}
+          provider={bulkReconnect.dialogProvider}
+          connectors={
+            bulkReconnect.dialogProvider === 'google'
+              ? errorOAuthConnectors.filter(row => row.connector_type !== 'gmail')
+              : errorMicrosoftConnectors
+          }
+          busy={bulkReconnect.busy}
+          onSubmit={types => {
+            if (bulkReconnect.dialogProvider) {
+              void bulkReconnect.submit(bulkReconnect.dialogProvider, types);
+            }
+          }}
+          t={t}
+        />
+      )}
     </div>
   );
 

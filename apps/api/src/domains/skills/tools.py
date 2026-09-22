@@ -707,3 +707,9 @@ async def import_user_skill(
 
 # Module-level list for tool_registry auto-discovery
 skills_tools = [activate_skill_tool, run_skill_script, read_skill_resource, import_user_skill]
+
+#: What the response node's skill runner binds once it has activated the skill
+#: itself: the activation is done in Python and its instructions travel in the
+#: task, so a runner asked to activate first spent one round trip on it — and
+#: sometimes never got to the script.
+skills_runner_tools = [run_skill_script, read_skill_resource, import_user_skill]

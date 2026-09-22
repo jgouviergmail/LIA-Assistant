@@ -19,8 +19,8 @@ from src.domains.agents.utils.execution_metadata import (
     should_emit_execution_step,
 )
 
-# Path to patch get_global_registry (it's imported inside the function)
-REGISTRY_PATCH_PATH = "src.domains.agents.registry.agent_registry.get_global_registry"
+# Patch the lookup's owner; metadata still exercises the real manifest resolver.
+REGISTRY_PATCH_PATH = "src.domains.agents.registry.manifest_resolution.get_global_registry"
 
 
 # ============================================================================

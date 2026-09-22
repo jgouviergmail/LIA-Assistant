@@ -54,9 +54,10 @@ export const GMAIL_TYPES = ['google_gmail', 'gmail'] as const;
  */
 export const MUTUAL_EXCLUSIVITY_MAP: Record<string, string[]> = {
   // Email
-  apple_email: ['google_gmail', 'microsoft_outlook'],
+  apple_email: ['google_gmail', 'gmail', 'microsoft_outlook'],
   google_gmail: ['apple_email', 'microsoft_outlook'],
-  microsoft_outlook: ['apple_email', 'google_gmail'],
+  gmail: ['apple_email', 'microsoft_outlook'],
+  microsoft_outlook: ['apple_email', 'google_gmail', 'gmail'],
   // Calendar
   apple_calendar: ['google_calendar', 'microsoft_calendar'],
   google_calendar: ['apple_calendar', 'microsoft_calendar'],
@@ -70,7 +71,7 @@ export const MUTUAL_EXCLUSIVITY_MAP: Record<string, string[]> = {
   microsoft_tasks: ['google_tasks'],
 };
 
-// LocalStorage keys for bulk connection queues
+// Legacy LocalStorage queues cleared by the one-request OAuth flow.
 export const BULK_CONNECT_QUEUE_KEY = 'google_bulk_connect_queue';
 export const MICROSOFT_BULK_CONNECT_QUEUE_KEY = 'microsoft_bulk_connect_queue';
 

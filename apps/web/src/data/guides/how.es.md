@@ -5,8 +5,8 @@
 > Documentación de presentación técnica destinada a arquitectos, ingenieros y expertos técnicos.
 
 **Versión**: 5.0
-**Fecha**: 2026-09-18
-**Aplicación**: LIA v1.47.0
+**Fecha**: 2026-09-22
+**Aplicación**: LIA v1.47.1
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -70,8 +70,8 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Auto-hospedaje ARM64 | Docker multi-arch, embeddings semánticos (multilingües), Playwright chromium cross-platform |
 | Soberanía de datos | PostgreSQL local (sin SaaS DB), cifrado Fernet en reposo, sesiones Redis locales |
 | Multi-proveedor LLM | Factory pattern con 7 adaptadores, configuración por nodo, sin acoplamiento fuerte a un provider |
-| Transparencia total | 581 métricas Prometheus, debug panel integrado, seguimiento token por token |
-| Fiabilidad en producción | 300 ADRs, ~30.704 tests recogidos por pytest en 1.842 archivos, observabilidad nativa, HITL de 6 niveles |
+| Transparencia total | 583 métricas Prometheus, debug panel integrado, seguimiento token por token |
+| Fiabilidad en producción | 301 ADRs, ~30.855 tests recogidos por pytest en 1.852 archivos, observabilidad nativa, HITL de 6 niveles |
 | Costes controlados | Smart Services (89 % de ahorro en tokens), embeddings semánticos, prompt caching, filtrado de catálogo |
 
 ### 1.2. Principios arquitecturales
@@ -89,10 +89,10 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 
 | Métrica | Valor |
 |----------|--------|
-| Tests | 30.704 recopilados por pytest en 1.842 archivos de prueba + 8.801 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
+| Tests | 30.855 recopilados por pytest en 1.852 archivos de prueba + 8.906 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
 | Fixtures pytest | 969, de las cuales 46 compartidas mediante conftest |
 | Documentos de documentación | 647 |
-| ADRs (Architecture Decision Records) | 300 |
+| ADRs (Architecture Decision Records) | 301 |
 | Métricas Prometheus | 553 definiciones |
 | Dashboards Grafana | 30 |
 | Idiomas soportados (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -773,6 +773,8 @@ Para el correo, ese modelo unificado se mide, no se supone: los tres normalizers
 
 `BaseOAuthClient` (template method con 3 hooks), `BaseGoogleClient` (paginación via pageToken), `BaseMicrosoftClient` (OData). Circuit breaker, rate limiting Redis distribuido, refresh token con double-check pattern y Redis locking contra el thundering herd.
 
+Para Google y Microsoft, el consentimiento se agrupa por cuenta del proveedor en lugar de repetirse por servicio. Una concesión gestiona los permisos aprobados y la renovación; Gmail, Calendar, Drive y sus equivalentes de Microsoft siguen siendo capacidades separadas que se pueden activar o desconectar. El retorno OAuth comprueba identidad y emisor esperados, estado y PKCE, sin sustituir silenciosamente otra cuenta.
+
 ### 13.4. Dos caminos de autenticación
 
 No todos los conectores piden una cuenta. Un **conector OAuth** guarda las credenciales personales del usuario: Gmail, Calendario, Contactos, Drive. Un **servicio con clave de plataforma** no guarda ningún dato por usuario — basta con activarlo, y la clave pertenece a la instalación: Rutas, Lugares, Meteorología, Entorno. `ConnectorType.uses_global_api_key` lleva esa distinción, y la base de herramientas elige el camino de credenciales según el tipo **resuelto**. Una misma categoría funcional puede así mezclar ambos: la meteorología acepta un proveedor con clave personal igual que un servicio de plataforma, sin que quien llama sepa cuál respondió.
@@ -912,7 +914,7 @@ Un documento que no pudo indexarse **dice por qué**: un código cerrado se guar
 
 ### 17.2. System RAG Spaces (ADR-058)
 
-FAQ integrada (250 Q/A, 24 secciones) indexada desde `docs/knowledge/`. Detección `is_app_help_query` por QueryAnalyzer, Rule 0 override en RoutingDecider, App Identity Prompt (~200 tokens, lazy loading). La obsolescencia se juzga con un SHA-256 de los archivos fuente **y** con el propio corpus almacenado (un fragmento por entrada analizada, exactamente un documento): una huella coincidente sobre un número de filas erróneo es una reparación, no un no-op. La auto-indexación se ejecuta en cada worker de uvicorn, así que la fila del espacio se reclama con `FOR UPDATE SKIP LOCKED` — un solo escritor, los demás pasan sin esperar — y cada vector se calcula **antes** de la primera instrucción destructiva: un rechazo del proveedor no borra nada y el corpus anterior sigue sirviendo (ADR-162).
+FAQ integrada indexada desde `docs/knowledge/`. Detección `is_app_help_query` por QueryAnalyzer, Rule 0 override en RoutingDecider, App Identity Prompt (~200 tokens, lazy loading). La obsolescencia se juzga con un SHA-256 de los archivos fuente **y** con el propio corpus almacenado (un fragmento por entrada analizada, exactamente un documento): una huella coincidente sobre un número de filas erróneo es una reparación, no un no-op. La auto-indexación se ejecuta en cada worker de uvicorn, así que la fila del espacio se reclama con `FOR UPDATE SKIP LOCKED` — un solo escritor, los demás pasan sin esperar — y cada vector se calcula **antes** de la primera instrucción destructiva: un rechazo del proveedor no borra nada y el corpus anterior sigue sirviendo (ADR-162).
 
 ### 17.3. Fuentes de correo: lo que designa la persona usuaria (ADR-262)
 
@@ -1022,7 +1024,7 @@ La procedencia es por tanto una propiedad del **dato**: los 24 tipos del registr
 
 | Tecnología | Rol |
 |-------------|------|
-| Prometheus | 581 métricas custom (RED pattern) |
+| Prometheus | 583 métricas custom (RED pattern) |
 | Grafana | 30 dashboards production-ready |
 | Loki | Logs estructurados JSON agregados |
 | Tempo | Trazas distribuidas cross-service (OTLP gRPC) |
@@ -1030,7 +1032,7 @@ La procedencia es por tanto una propiedad del **dato**: los 24 tipos del registr
 | Alertmanager | Núcleo de 14 alertas vitales notificadas por correo (runbooks enlazados, umbrales por entorno) + webhook hacia LIA: cada alerta se convierte en un incidente dentro del producto (ADR-247) |
 | structlog | Logging estructurado con PII filtering |
 
-**Una métrica que no llega a ningún panel es una métrica sobre la que nadie actúa.** La distancia entre lo que el código emite y lo que un operador puede ver se mide, nunca se supone: `scripts/audit/measure_metric_coverage.py` analiza cada definición de métrica (por AST y no por expresión regular — una regex lee `ZoneInfo("UTC")` como una métrica `Info`) y coteja cada nombre con todos los paneles, reglas de registro y expresiones de alerta. 581 definidas; las 44 que no llegan a nada figuran explícitamente en una base **que solo puede encogerse**, de modo que una métrica recién ciega hace fallar la compilación y una métrica que se vuelve visible debe salir de la lista — si no, la siguiente ciega ocupa su hueco en silencio. El precio de no haberlo tenido: una fuente de heartbeat que falló en abierto descartó las señales de salud en el 46,5 % de los ticks durante una semana, sin ninguna métrica que lo advirtiera (ADR-148). Dos trampas que la guarda cierra por construcción — un contador con etiquetas que nunca se incrementó no expone **ninguna serie**, así que un panel que vigila un fallo raro necesita `or vector(0)` o mostrará «No data» donde el operador espera un cero verde; y la cobertura se lee únicamente de las **expresiones** de paneles y reglas, porque una métrica citada en un comentario no está cableada.
+**Una métrica que no llega a ningún panel es una métrica sobre la que nadie actúa.** La distancia entre lo que el código emite y lo que un operador puede ver se mide, nunca se supone: `scripts/audit/measure_metric_coverage.py` analiza cada definición de métrica (por AST y no por expresión regular — una regex lee `ZoneInfo("UTC")` como una métrica `Info`) y coteja cada nombre con todos los paneles, reglas de registro y expresiones de alerta. 583 definidas; las 44 que no llegan a nada figuran explícitamente en una base **que solo puede encogerse**, de modo que una métrica recién ciega hace fallar la compilación y una métrica que se vuelve visible debe salir de la lista — si no, la siguiente ciega ocupa su hueco en silencio. El precio de no haberlo tenido: una fuente de heartbeat que falló en abierto descartó las señales de salud en el 46,5 % de los ticks durante una semana, sin ninguna métrica que lo advirtiera (ADR-148). Dos trampas que la guarda cierra por construcción — un contador con etiquetas que nunca se incrementó no expone **ninguna serie**, así que un panel que vigila un fallo raro necesita `or vector(0)` o mostrará «No data» donde el operador espera un cero verde; y la cobertura se lee únicamente de las **expresiones** de paneles y reglas, porque una métrica citada en un comentario no está cableada.
 
 ### 20.2. Debug Panel integrado
 
@@ -1434,7 +1436,7 @@ Una regla CSS gobierna los espaciados del design system: los márgenes verticale
 
 ## 24. Arquitectura de decisiones (ADR)
 
-300 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
+301 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
 
 | ADR | Decisión | Problema resuelto | Impacto medido |
 |-----|----------|----------------|---------------|
@@ -1552,7 +1554,7 @@ La página Actividad es un **read-model puro**: fetchers paralelos (una sesión 
 
 El widget de ojos del chat (ADR-240) descansa sobre un único principio: **ninguna señal nueva, ningún coste nuevo**. Un motor puro — tablas de decisión con RNG y relojes inyectados — deriva una de veinte expresiones de una cadena de prioridades (error > pregunta HITL > voz > interacción > reacción del turno > notificación > escritura > inactividad > ánimo × hora) alimentada exclusivamente por la maquinaria existente: la máquina de estados del chat, los pasos de ejecución SSE (reflexión vs. búsqueda de herramienta), la tarjeta HITL, la máquina vocal y el motor psicológico. La reacción a cada respuesta lee el autoinforme emocional que el modelo ya adjunta a su propio turno, con un repliegue heurístico estrictamente neutro en idioma (puntuación, emojis, estructura — ancho completo chino incluido). El renderizado es declarativo — un atributo de expresión, variables CSS y una hoja de animación donde los párpados son **morphs geométricos puros** (compresión vertical anclada, rotación por ojo, modelado de radios): sin clipping en ninguna parte, cada estado intermedio sigue siendo una curva suave. La vida entre eventos — parpadeos, sacadas de la mirada, gestos ponderados por ánimo, microescenas de ensoñación, raro slapstick — vive en planificadores de timers propios, en pausa con la pestaña oculta o el widget minimizado, congelados bajo `prefers-reduced-motion`. Los seis estilos seleccionables comparten este único esqueleto: un registro genérico donde añadir una mirada cuesta un id, una hoja CSS con ámbito y seis entradas de locale — la completitud es un test, no una convención.
 
-El rostro vive entre dos respuestas, y esa vida es un rig, no una hoja de estilos (ADR-252, ADR-264). Un runtime TypeScript calcula cada canal en cada fotograma — muelles analíticos, bucles aditivos, cintas de claves — y publica el resultado como propiedades personalizadas `--rig-*` que la hoja se limita a leer: una hoja de estilos nunca declara una y nunca pone una transición sobre un valor que cambia sesenta veces por segundo. La ceja tiene un arco y sigue discretamente presente en reposo; una sola respiración lleva la masa, las cejas y la anchura de la boca con el mismo periodo; la mirada levanta las cejas y un parpadeo las baja, acoplados en el rig como **contribuciones absolutas y no incrementos**, porque la vía rápida de reposo solo reescribe los canales que recorre un bucle — un incremento allí derivaría durante toda la sesión, lo que un test fija comparando veinte mil pasos pequeños con uno solo. El habla tiene frases (una envolvente a través del cierre, una apertura acotada en el intervalo unidad) y cejas que puntúan con un patrón irregular. La boca tiene vida propia — muecas relativas a cadencia aleatoria, programadas por el rig — y diez breves escenas sobre un rostro en reposo, cortadas por cualquier cambio de expresión con el rostro exactamente donde estaba, verificado contra un rig gemelo. El azar procede de un flujo sembrado aparte, nunca de `Math.random`, para que los tests del widget sigan siendo deterministas; la quietud viva es un presupuesto en píxeles en los tests — visible en reposo, por debajo de dos píxeles, exactamente cero sobre un rostro concentrado. El mismo widget recibe a los visitantes en la página de inicio pública: sin cuenta, una posición por superficie, el aspecto de cápsulas impuesto allí mientras el chat conserva el estilo del usuario — y las vistas previas del selector de estilo apagan esa vida, porque una vista previa compara siluetas.
+El rostro vive entre dos respuestas, y esa vida es un rig, no una hoja de estilos (ADR-252, ADR-264). Un runtime TypeScript calcula cada canal en cada fotograma — muelles analíticos, bucles aditivos, cintas de claves — y publica el resultado como propiedades personalizadas `--rig-*` que la hoja se limita a leer: una hoja de estilos nunca declara una y nunca pone una transición sobre un valor que cambia sesenta veces por segundo. La ceja tiene un arco y sigue discretamente presente en reposo; una sola respiración lleva la masa, las cejas y la anchura de la boca con el mismo periodo; la mirada levanta las cejas y un parpadeo las baja, acoplados en el rig como **contribuciones absolutas y no incrementos**, porque la vía rápida de reposo solo reescribe los canales que recorre un bucle — un incremento allí derivaría durante toda la sesión, lo que un test fija comparando veinte mil pasos pequeños con uno solo. El habla tiene frases (una envolvente a través del cierre, una apertura acotada en el intervalo unidad) y cejas que puntúan con un patrón irregular. La boca tiene vida propia — muecas relativas a cadencia aleatoria, programadas por el rig — y diez breves escenas sobre un rostro en reposo, cortadas por cualquier cambio de expresión con el rostro exactamente donde estaba, verificado contra un rig gemelo. El azar procede de un flujo sembrado aparte, nunca de `Math.random`, para que los tests del widget sigan siendo deterministas; la quietud viva es un presupuesto en píxeles en los tests — visible en reposo, por debajo de dos píxeles, exactamente cero sobre un rostro concentrado. El mismo widget recibe a los visitantes en la página de inicio pública: sin cuenta, una posición por superficie, el aspecto Smiley impuesto allí mientras el chat conserva el estilo del usuario — y las vistas previas del selector de estilo apagan esa vida, porque una vista previa compara siluetas.
 
 El rig se retomó después canal por canal contra una medición de lo que la página realmente renderizaba (ADR-294). La ceja se apoya en el ojo y pesa: tiene masa, se frunce y **conduce** cada expresión en lugar de seguirla. El habla ya no es un bucle sino una frase generada — sílabas, pausas, acentos — que nada repite; los tiempos fuertes de las expresiones se deforman en cada sorteo, de modo que dos parpadeos, dos sonrisas, dos miradas nunca son idénticos. Las escenas esperan un verdadero tiempo de reposo en un reloj que la página conserva a través de las navegaciones, porque un reloj puesto a cero en cada montaje nunca dejaba llegar la escena. Todo ello se lee en sesenta y un canales publicados, medidos fotograma a fotograma.
 
@@ -1732,8 +1734,8 @@ Los mismos dos modos llegaron después al teléfono (ADR-301). La llamada del ti
 
 LIA es un ejercicio de ingeniería de software que intenta resolver un problema concreto: construir un asistente IA multi-agente de calidad producción, transparente, seguro y extensible, capaz de funcionar en un Raspberry Pi.
 
-Los 300 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~30.704 tests en 1.842 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
+Los 301 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~30.855 tests en 1.852 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
 
 La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesiano, enrutamiento semántico, HITL sistemático, proactividad LLM-driven, diarios introspectivos — crea un sistema donde cada componente refuerza a los demás. El HITL alimenta el pattern learning, que reduce los costes, que permiten más funcionalidades, que generan más datos para la memoria, que mejora las respuestas. Es un círculo virtuoso por diseño, no por accidente.
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (490+ documentos), de los 300 ADRs y del changelog (v1.0 a v1.47.0). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (680+ documentos), de los 301 ADRs y del changelog (v1.0 a v1.47.1). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

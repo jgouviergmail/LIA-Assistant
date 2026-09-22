@@ -68,6 +68,13 @@ export default defineConfig({
       // computed over the WHOLE include set — glob-matched files are NOT
       // subtracted from the global pool here.
       thresholds: {
+        // Re-measured 2026-09-22 after contextual companion direction,
+        // volume and ambience: 81.17 / 76.33 / 78.65 / 81.97 across the full
+        // include set. Statements rises 78 -> 79; every axis keeps >= 2 points.
+        // Re-measured 2026-09-21 on the full current tree after grouped OAuth
+        // connection tests: statements 80.95 / branches 76.02 / functions
+        // 78.44 / lines 81.76. Keep at least two points of margin on each axis.
+        // Raised 78/73/75/78 -> 78/74/76/79.
         // Global floor — re-measured 2026-09-05 after the meeting job resilience
         // amendment (ADR-258: the processing panel's attempt/stale states, the
         // shared error label; ~5 new tests): statements 78.73 / branches 73.99 /
@@ -367,10 +374,10 @@ export default defineConfig({
         // tests): statements 80.04 / branches 75.39 / functions 77.29 /
         // lines 80.80. `statements` rises 77 -> 78 and `functions` 74 -> 75
         // (floor(measured - 2)); `branches` and `lines` do not cross a step.
-        statements: 78,
-        branches: 73,
-        functions: 75,
-        lines: 78,
+        statements: 79,
+        branches: 74,
+        functions: 76,
+        lines: 79,
         // Chat state machine — fully covered, keep it that way (2026-07).
         'src/reducers/**/*.ts': {
           statements: 100,
@@ -401,9 +408,11 @@ export default defineConfig({
         // there is invisible to every other gate. Re-measured 2026-09-17 after
         // ADR-294: 95.68 / 91.45 / 97.23 / 97.19 — `branches` rises 86 -> 89
         // (floor(measured - 2)); the other three axes hold their step.
+        // Re-measured 2026-09-22: 95.98 / 92.09 / 97.66 / 97.46. Branches
+        // rises 89 -> 90; the other axes cannot rise with two points of margin.
         'src/components/eyes/**/*.{ts,tsx}': {
           statements: 93,
-          branches: 89,
+          branches: 90,
           functions: 95,
           lines: 95,
         },

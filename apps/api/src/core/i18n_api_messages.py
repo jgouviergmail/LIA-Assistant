@@ -2144,14 +2144,14 @@ class APIMessages:
 
     @staticmethod
     def oauth_token_refresh_failed(language: SupportedLanguage = "fr") -> str:
-        """OAuth token refresh failed."""
+        """Temporary or unclassified OAuth refresh failure; retry without reconnecting."""
         messages = {
-            "fr": "Échec du renouvellement du token OAuth (erreur réseau). Veuillez réactiver le connecteur.",
-            "en": "OAuth token refresh failed (network error). Please reactivate the connector.",
-            "es": "Error al renovar el token OAuth (error de red). Por favor, reactive el conector.",
-            "de": "OAuth-Token-Aktualisierung fehlgeschlagen (Netzwerkfehler). Bitte aktivieren Sie den Connector erneut.",
-            "it": "Aggiornamento token OAuth fallito (errore di rete). Riattivare il connettore.",
-            "zh-CN": "OAuth 令牌刷新失败（网络错误）。请重新激活连接器。",
+            "fr": "Échec temporaire du renouvellement OAuth. Veuillez réessayer plus tard.",
+            "en": "OAuth token refresh failed temporarily. Please try again later.",
+            "es": "Error temporal al renovar el token OAuth. Vuelva a intentarlo más tarde.",
+            "de": "Die OAuth-Token-Aktualisierung ist vorübergehend fehlgeschlagen. Bitte versuchen Sie es später erneut.",
+            "it": "Aggiornamento temporaneamente non riuscito del token OAuth. Riprova più tardi.",
+            "zh-CN": "OAuth 令牌刷新暂时失败。请稍后重试。",
         }
         return messages.get(language, messages["en"])
 

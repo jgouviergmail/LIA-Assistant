@@ -19,6 +19,7 @@ from __future__ import annotations
 import time
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 import structlog
 
@@ -29,6 +30,7 @@ from src.core.config import settings
 from src.core.constants import SCHEDULER_JOB_TOKEN_REFRESH
 from src.core.security import decrypt_data
 from src.domains.connectors.models import Connector
+from src.domains.connectors.oauth_grant_runtime import OAuthGrantRuntime
 from src.domains.connectors.repository import ConnectorRepository
 from src.domains.connectors.schemas import ConnectorCredentials
 from src.domains.connectors.service import ConnectorService
@@ -105,7 +107,13 @@ async def refresh_expiring_tokens() -> None:
             )
 
             # Process each connector
+            seen_grants: set[UUID] = set()
             for connector in connectors:
+                if connector.oauth_grant_id:
+                    if connector.oauth_grant_id in seen_grants:
+                        skipped_count += 1
+                        continue
+                    seen_grants.add(connector.oauth_grant_id)
                 result = await _process_connector(connector, refresh_threshold, db)
                 if result == "refreshed":
                     refreshed_count += 1
@@ -187,9 +195,13 @@ async def _process_connector(
             expires_in_seconds=round(time_until_expiry),
         )
 
-        # Use ConnectorService for refresh (reuses existing logic with retry)
-        service = ConnectorService(db)
-        await service._refresh_oauth_token(connector, credentials)
+        if connector.oauth_grant_id:
+            # The scheduler's proactive margin is larger than the on-demand
+            # margin. Apply it under the grant lock to avoid a false success.
+            await OAuthGrantRuntime(db).credentials_for(connector, refresh_before=refresh_threshold)
+        else:
+            service = ConnectorService(db)
+            await service._refresh_oauth_token(connector, credentials)
 
         logger.info(
             "token_refresh_success",

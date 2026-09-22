@@ -222,9 +222,12 @@ function SkillFrameCard({ payload }: { payload: SkillAppRegistryPayload }) {
   // URLs: it is what makes the embed work on Chromium under
   // `COEP_MODE=require-corp`, and it is inert everywhere else (engines that do
   // not implement it ignore the attribute — which is precisely why the probe
-  // above exists). React doesn't type it yet — spread via a loose record.
+  // above exists). Use a non-empty string: Next's bundled React treats this as
+  // a boolean attribute and drops an empty string. Standalone React still
+  // accepts the string as an unknown attribute. Spread because React's public
+  // iframe props do not type it yet.
   const extraFrameAttrs: Record<string, string> = isTrustedExternalFrame
-    ? { credentialless: '' }
+    ? { credentialless: 'true' }
     : {};
 
   // A frame that never fired `load` is dead and will not recover on its own —

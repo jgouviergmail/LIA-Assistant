@@ -83,6 +83,20 @@ llm_content_filter_violations_total = Counter(
     # Tracks when LLM refuses to generate response due to content policy
 )
 
+llm_structured_output_outcomes_total = Counter(
+    "llm_structured_output_outcomes_total",
+    "Native structured-output calls by schema and how the door settled them",
+    ["provider", "schema", "outcome"],
+    # outcome: parsed (the provider's own parse), nulls_defaulted,
+    #          invalid_call_repaired, text_rescued (the three mechanical rescues
+    #          of a COMPLETE answer the parser refused, ADR-184), truncated (a
+    #          refusal, ADR-275), rejected (nothing usable came back).
+    # schema is the Pydantic class name — a closed set declared in code.
+    # A rise in `rejected` or in a rescue on one schema names a provider that
+    # stopped answering the shape: production lost 15 % of its query analyses
+    # to a bare word in a JSON value (2026-09-20) with nothing to show it.
+)
+
 # ============================================================================
 # EXTERNAL SERVICE ERROR METRICS
 # ============================================================================

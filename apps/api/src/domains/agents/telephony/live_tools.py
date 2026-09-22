@@ -70,6 +70,7 @@ from src.domains.agents.context.store import get_tool_context_store
 from src.domains.agents.dependencies import ToolDependencies
 from src.domains.agents.effects.treatment_labels import treatment_domain
 from src.domains.agents.effects.treatment_recorder import treatment_recorder
+from src.domains.agents.expressivity.activity import observe_read
 from src.domains.agents.registry.catalogue import (
     POLICY_EXEMPT_CATEGORIES,
     get_tool_category,
@@ -925,7 +926,8 @@ async def run_live_tool(
             if spec.native:
                 text = str(
                     await asyncio.wait_for(
-                        _NATIVE_RUNNERS[spec.name](user_id, validated), timeout=bound
+                        observe_read(spec.name, _NATIVE_RUNNERS[spec.name](user_id, validated)),
+                        timeout=bound,
                     )
                 )
                 succeeded = True

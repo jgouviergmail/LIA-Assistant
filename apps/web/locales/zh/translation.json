@@ -1286,6 +1286,33 @@
       "disconnect_error": "断开连接时出错",
       "connected_success": "{{name}} 已成功连接",
       "unknown_connector": "连接器",
+      "bulk_reconnect": {
+        "google_action": "重新连接我的 Google 服务",
+        "microsoft_action": "重新连接我的 Microsoft 服务",
+        "google_title": "重新连接 Google 服务",
+        "microsoft_title": "重新连接 Microsoft 服务",
+        "description": "选择要通过一次授权重新连接的服务。",
+        "account_warning": "所选服务将使用下一步选择的账号。不能合并不同的已知账号。继续前请核对尚未验证的账号。",
+        "unknown_account": "账号尚未验证",
+        "confirm": "继续连接所选服务",
+        "failed": "无法开始重新连接",
+        "success": "已重新连接 {{count}} 项服务",
+        "partial": "已重新连接 {{activated}} 项服务；{{denied}} 项仍需授权",
+        "denied": "未重新连接任何服务。请检查已授予的权限。",
+        "account_mismatch": "你选择了其他账号。请选择预期账号后重试。"
+      },
+      "bulk_connect": {
+        "google_title": "选择 Google 账号",
+        "microsoft_title": "选择 Microsoft 账号",
+        "description": "所有新连接的服务都将使用同一个账号。已连接到其他账号的服务不会改变。",
+        "account_label": "新服务使用的账号",
+        "other_account": "使用其他账号",
+        "unknown_account": "已验证账号",
+        "confirm": "使用此账号继续",
+        "success": "已连接 {{count}} 项服务",
+        "partial": "已连接 {{activated}} 项服务；{{denied}} 项仍需授权",
+        "denied": "未连接任何服务。请检查已授予的权限。"
+      },
       "oauth_errors": {
         "invalid_state": "连接时发生安全错误",
         "code_exchange_failed": "身份验证失败",
@@ -2516,7 +2543,7 @@
         "register_decisions": "决策（每个对话轮次）",
         "register_inference": "推理（每次调用）",
         "register_integrity": "完整性（每处缺口）",
-        "article12_title": "统一导出（第 12 条）",
+        "article12_title": "统一透明度导出",
         "article12_hint": "一个时段的全部五类记录汇成一个 JSON Lines 文件：一次对话、一次行动、一次查阅、一次模型调用、记录本身的一处缺口。已做假名化处理，内容完整——不作任何截断——文件头会给出每个来源的精确条数。",
         "article12_export": "全部导出",
         "charts_title": "图表"
@@ -3765,7 +3792,7 @@
         "security-export": "GDPR, 数据导出, 归档, 下载, 可携带性, 备份, 个人数据, 隐私",
         "voice-mode": "麦克风, 语音, 听写, STT, TTS, 唤醒词, 音频, 说话",
         "image-generation": "图像, 图片, 绘画, 插图, 生成, 艺术",
-        "connectors": "Google, Gmail, 日历, 联系人, Apple, Microsoft, Outlook, 集成, 账户, OAuth, 重新连接, 已断开, 服务, 位置, 定位, 地理位置, 家庭地址, 地址, 位置记忆, 天气, 空气质量, 花粉, 环境, 电子表格, 文档, 自动回复, 外出, 过滤器",
+        "connectors": "Google, Gmail, 日历, 联系人, Apple, Microsoft, Outlook, 集成, 账户, OAuth, 组合授权, 一次连接多个服务, 重新连接, 已断开, 服务, 位置, 定位, 地理位置, 家庭地址, 地址, 位置记忆, 天气, 空气质量, 花粉, 环境, 电子表格, 文档, 自动回复, 外出, 过滤器",
         "telephony-calls": "电话, 通话, 通话记录, 拨号",
         "telephony-identity": "电话, 号码, 身份, 验证, 验证码, 来电, 打给我, 通话模式, Live, 直接 Live, 上下文, 领域, 记忆, 邮件, 日历, 查询, 个性",
         "admin-mcp-servers": "MCP, 模型上下文协议, 应用服务器, 内置工具，连接，集成，服务器",
@@ -4706,6 +4733,10 @@
         "name": "线条",
         "description": "极简的线条与弧形——可爱风。"
       },
+      "smiley": {
+        "name": "笑脸",
+        "description": "一张温暖的面孔，随 LIA 的心情、注意力和情绪自然变化。"
+      },
       "anneaux": {
         "name": "圆环",
         "description": "带移动瞳孔的轮廓——最易读的目光。"
@@ -4791,7 +4822,7 @@
         },
         "connectors": {
           "title": "🔌 连接器与注册表",
-          "description": "所有服务共用一套模块化注册表——Google（Gmail、日历、联系人、任务、Drive、地点、路线）、Apple iCloud、Microsoft 365、OpenWeatherMap、维基百科、Perplexity、Brave。每个连接器一份清单，OAuth、密钥和凭据一视同仁——每类数据一套词汇：无论来自哪个提供商，邮件都以干净的文本到达，引用的历史已移除，需要读很多封时每封只摘要一次并缓存。维基百科、浏览器、地点、天气和空气质量不需要你提供密钥。"
+          "description": "连接 Gmail、日历、联系人、任务和 Drive，也可选择 Apple iCloud 与 Microsoft 365。天气、维基百科和网页搜索提供补充。Google 或 Microsoft 的选定服务可在已验证的同一账户上一次授权，之后仍能分别断开。LIA 以统一、易读的格式呈现结果。"
         },
         "streaming": {
           "title": "⚡ 流式传输与实时",
@@ -4995,7 +5026,7 @@
         },
         "expressiveEyes": {
           "title": "表情眼睛",
-          "description": "一张手绘的脸，由应用本已发出的信号驱动——聊天状态机、执行步骤、审批、语音、心理引擎。二十种表情，对每条回答的反应来自模型的自我评估；贴在眼睛上的眉毛有分量，会皱起并引领表情；嘴巴说着生成的、永不循环的话语；没有两次相同的表演；休息时间里的小场景；六种外观。不额外调用 LLM。"
+          "description": "LIA 的手绘伙伴会跟随真实对话与已完成的工作：倾听、思考、回应，然后在轮次间休息。眉毛、嘴巴和小场景在六种风格中自然变化。已有的时间与天气缓存带来细微氛围；开启减少动态效果时保持静止，不额外调用模型。"
         },
         "nativeApps": {
           "title": "📱 Android 与 iOS 原生应用",
@@ -5034,7 +5065,7 @@
       "versions": {
         "v1_46_0": {
           "title": "v1.46.0 — 🧰 沙箱变成工具箱：脚本只经一道门访问网络，并且先问你",
-          "date": "2026 年 9 月",
+          "date": "2026年9月",
           "count": "5",
           "items": {
             "i1": "<b>🌐 LIA 写的脚本可以访问网络</b> — 在 ReAct 模式下，当某一步需要没有任何工具覆盖的服务时——检查某个 API 是否响应、读取一个订阅源、调用你使用的某个接口——LIA 写的那几行 Python 现在可以访问它。绝不直连：经由一个专用代理、仅限 HTTPS、只到脚本声明的主机，别处都不去；不声明任何主机的脚本保持离线。它仍然只是补充——大多数问题从不需要它。",
@@ -5046,7 +5077,7 @@
         },
         "v1_45_2": {
           "title": "v1.45.2 — 📎 知识空间的文档可加入消息，邮件附件可被读取，Drive 文件夹是一棵树",
-          "date": "2026 年 9 月",
+          "date": "2026 年 9 月 22 日 · 06:48（巴黎时间）",
           "count": "5",
           "items": {
             "i1": "<b>📚 附加你知识空间中的文档</b> — 输入框的「+」现在在文件选择器旁列出你各空间中已索引的所有文档，<b>包括已暂停的空间</b>：按名称搜索、勾选，一份副本像上传文件一样加入消息——空间本身不受影响，重置对话只移除副本。支持十五种格式，不限于 PDF 和图片。",
@@ -5242,8 +5273,8 @@
           "date": "2026 年 9 月",
           "count": "3",
           "items": {
-            "i1": "<b>📄 一个文件，涵盖关于你的全部记录</b>——各登记簿的导出各自只覆盖一本日志。<i>登记簿</i>标签页下方新增的<b>统一提取</b>，把 LIA 保存的全部五项记录——你的对话轮次、操作、查阅、模型调用，以及登记簿自身的任何缺口——汇集为一个机器可读的文件，正如欧盟人工智能法案第 12 条所要求。它与管理员能生成的文件完全相同，只是仅限于你的账户：所调用的路由根本不接受账户参数，因此只可能返回你自己的。文件不含任何内容，每个标识符都以句柄代替——包括你自己的——因此可原样附于数据可携带请求、投诉或故障报告，无需事先删改。",
-            "i2": "<b>🏅 LIA 遵循的规范，写在首页上</b>——在安全板块下方，新增的标识条一一列出：GDPR、人工智能法案第 12 条、Model Context Protocol、Agent Plugins、agentskills.io、OWASP Top 10、WebAuthn、带 PKCE 的 OAuth 2.1、OpenTelemetry、Prometheus、Keep a Changelog、语义化版本，以及 WCAG 2.2 AA。开放标准的意义正在于：承诺可以对照他人所写的文本来核验。",
+            "i1": "<b>📄 一个文件，涵盖关于你的全部记录</b>——各登记簿的导出各自只覆盖一本日志。<i>登记簿</i>标签页下方新增的<b>统一提取</b>，把 LIA 保存的全部五项记录——你的对话轮次、操作、查阅、模型调用，以及登记簿自身的任何缺口——汇集为一个机器可读的文件，作为自愿的透明度记录。它与管理员能生成的文件完全相同，只是仅限于你的账户：所调用的路由根本不接受账户参数，因此只可能返回你自己的。文件不含任何内容，每个标识符都以句柄代替——包括你自己的——因此可原样附于数据可携带请求、投诉或故障报告，无需事先删改。",
+            "i2": "<b>🏅 LIA 遵循的规范，写在首页上</b>——在安全板块下方，新增的标识条一一列出：GDPR、人工智能法案的透明度原则、Model Context Protocol、Agent Plugins、agentskills.io、OWASP Top 10、WebAuthn、带 PKCE 的 OAuth 2.1、OpenTelemetry、Prometheus、Keep a Changelog、语义化版本，以及 WCAG 2.2 AA。开放标准的意义正在于：承诺可以对照他人所写的文本来核验。",
             "i3": "<b>✨「更多」页新增一张卡片，指南也不再复述版本</b>——这张卡片展示登记簿内部那个看不见的小决定：那一行在动作发生<i>之前</i>就已写下，且只有工具明确回报时才转为绿色。同时，故事与理念两份指南不再逐一叙述过往版本，而是直接说出这些版本确立了什么。"
           }
         },
@@ -7502,6 +7533,17 @@
           },
           "count": "4"
         },
+        "v1_47_1": {
+          "title": "v1.47.1 — 🔗 一次授权连接所选 Google 或 Microsoft 服务，伙伴也能回应真实进展",
+          "date": "2026 年 9 月 22 日 06:48（CEST）",
+          "count": "4",
+          "items": {
+            "i1": "<b>🔗 一次连接多项服务</b> — 选择要连接的 Google 或 Microsoft 服务，只需为该账户授权一次。重新连接也使用同一流程；LIA 会先核实账户身份。",
+            "i2": "<b>🎛️ 各项服务仍可单独管理</b> — 可分别断开邮件、日历、联系人或任务，不影响其他服务。现有连接会继续工作，直到你主动选择重新连接。",
+            "i3": "<b>🙂 更贴心的伙伴</b> — 表情反映实际执行的工作和最终回答的语气。本地时间与已有缓存的天气只带来轻微氛围；开启减少动态效果后保持静止。",
+            "i4": "<b>🛠️ 回答更可靠</b> — 工具与技能的选择更准确；准备中的操作不会显示成已完成。管理员可在可观测性仪表板查看新的工具指标。"
+          }
+        },
         "v1_47_0": {
           "title": "v1.47.0 — 🎧 Live 模式：用你自己的密钥与 LIA 实时对话——电话与浏览器共用一套按模式的规则",
           "date": "2026 年 9 月",
@@ -7814,7 +7856,7 @@
       "connectors": {
         "title": "连接器",
         "description": "集成和外部连接",
-        "count": "15",
+        "count": "16",
         "questions": {
           "q1": {
             "question": "什么是连接器？",
@@ -7875,6 +7917,10 @@
           "q15": {
             "question": "注册后哪些连接器会立即启用？",
             "answer": "那些不需要你提供任何东西的：<strong>维基百科</strong>、<strong>网页浏览</strong>、<strong>Google 地点</strong>、<strong>Google 天气</strong>和 <strong>Google 环境</strong>（空气质量与花粉）——无需绑定账户，无需粘贴密钥。新账户一开始就全部启用，让助手从第一次对话起就能查找地点或天气。<br><br>三种情况下某个连接器不会被启用：管理员在实例上关闭了它、实例没有平台 Google 密钥、或网页浏览已被禁用。你可以在<strong>设置 > 连接器</strong>中关闭任意一个。已有账户不受影响：你的选择保持原样。"
+          },
+          "q16": {
+            "question": "可以只授权一次就连接多项 Google 或 Microsoft 服务吗？",
+            "answer": "可以。在<strong>设置 > 连接器</strong>中选择要一起连接或重新连接的 Google 或 Microsoft 服务，再登录一次对应的服务商账户。LIA 会核实账户身份，之后才会在所选服务之间共享授权。<br><br>你可以单独断开一项服务而不影响其他服务。现有连接会继续正常工作，直到你主动选择新流程。管理员需要先在服务商处登记组合授权的回调地址。"
           }
         }
       },
@@ -9126,11 +9172,11 @@
       },
       "expressive_eyes": {
         "title": "回应语气的表情",
-        "desc": "十二种表情，含嘴部：LIA 会说明她刚写下内容的语气，表情随之呈现。其中只有两种在微笑。"
+        "desc": "表情会跟随 LIA 实际执行的工作和最终回答的语气，连思考时的停顿也能体现；准备中的操作不会被表现成已完成。"
       },
       "living_face": {
         "title": "两次回答之间依然鲜活的脸",
-        "desc": "贴在眼睛上的眉毛，有分量，会皱起并引领每个表情；说着生成的、永不循环的话语的嘴巴；两次眨眼从不相同。还有等待真正休息时间的小场景——由页面在导航之间保持的时钟计时。"
+        "desc": "眼睛、眉毛、头部和嘴巴协调运动，两次回答之间也有变化丰富的安静时刻。本地时间与已有缓存的天气带来轻微氛围；减少动态效果时保持静止姿态。"
       },
       "composed_page": {
         "title": "一页页面，而非加了标签的散文",
@@ -10450,7 +10496,7 @@
       "trust_agents": "AI代理",
       "trust_providers": "LLM提供商",
       "trust_voices": "语音语言",
-      "trust_gdpr": "符合GDPR",
+      "trust_gdpr": "GDPR 隐私原则",
       "badge_opensource": "开源项目",
       "cta_github": "GitHub",
       "cta_demo": "引导演示",
@@ -10558,7 +10604,7 @@
     "features": {
       "connected_services": {
         "title": "Google、Apple iCloud 与 Microsoft 365",
-        "description": "通过 Google、Apple iCloud 或 Microsoft 365 处理邮件、日程、联系人和任务——自由选择，每类一个服务商。联系人分组、空闲时段、创建日程时自动添加视频会议、读写 Drive 表格和文档。邮件以干净文本到达，去掉引用和签名，可成批摘要，分三个详细程度。一切用自然语言完成，无论你用哪家服务。"
+        "description": "通过 Google、Apple iCloud 或 Microsoft 365 处理邮件、日程、联系人和任务，每类服务任选一家。使用 Google 或 Microsoft 时，一次授权即可连接所选服务，账户身份会先经过核实，各项服务仍可单独断开。LIA 也能处理联系人分组、空闲时段和 Drive 文档；邮件以干净文本呈现，并可按三个详细程度概括。"
       },
       "smart_home": {
         "title": "智能家居（Philips Hue）",
@@ -10674,7 +10720,7 @@
       },
       "privacy": {
         "title": "数据受保护",
-        "description": "绝不与第三方共享你的数据。敏感信息加密、会话隔离、个人数据自动过滤、账户完整导出——可读的 Markdown、结构化 JSON 和你的文件。符合 GDPR。自动维护的登记簿记录 LIA 做了什么、查阅了什么、主动做了什么；其导出完整、绝不截断，并同时提供符合《人工智能法案》第 12 条的格式。"
+        "description": "敏感数据经过加密，会话相互隔离，账户数据可导出为可读格式。为了回答你，LIA 可能将必要的上下文发送给你选择的模型提供商；请查看其条款和实例设置。活动登记簿可供查阅和导出。"
       },
       "simplicity": {
         "title": "几下点击就上手",
@@ -10825,11 +10871,11 @@
     "security": {
       "title": "安全与隐私",
       "subtitle": "天生强大。隐私至上。",
-      "intro": "LIA从第一天起就采用隐私设计理念。与集中式云助手不同，你的凭据永远不会通过前端传输：后端前端架构完全隔离你的令牌。自动PII过滤防止个人身份数据到达LLM提供商。 你的账户本身也被锁定：通行密钥、第二因素以及敏感操作的身份确认，每个已连接设备均可查看并撤销。 而为你运行的一切都运行在密封盒中：技能代码在一次性容器中执行，未经你同意不会有任何操作触碰你的服务器。 而且，LIA 读到的东西并不等于它要执行的东西：由他人撰写的邮件、网页或邀请，抵达时都标注为待分析的素材，而绝非指令 —— 操纵企图会被指明，你的内容也绝不会被改写。",
+      "intro": "数据保护融入 LIA 的架构。浏览器不会获得连接器凭据：专用后端在服务器端会话中保存令牌。为回答问题，必要的上下文可能发送给你选择的模型提供商，并配有个人数据过滤和最小化控制。通行密钥、第二因素与敏感操作再确认保护账户；技能代码运行在隔离的一次性容器中。第三方文本始终是待分析的数据，不是指令。",
       "privacy_link": "阅读我们的隐私政策",
       "data_control": {
         "title": "数据控制",
-        "description": "你的数据始终私有：不与第三方共享、会话相互隔离、访问仅限必需。「我的设备」列出每个活动会话并可即时吊销。每日自动备份，且恢复流程经过实际演练。"
+        "description": "你的账户数据限定在自己的会话内，并可导出。已连接设备可查看和撤销；每日备份配有经过测试的恢复流程。模型及服务提供商可能收到你启用功能所需的最少上下文。"
       },
       "bff": {
         "title": "安全架构",
@@ -10840,11 +10886,11 @@
         "description": "凭据以 Fernet 加密、密码以 bcrypt 散列、OAuth 令牌由分布式 Redis 锁保护——且承载界面的容器不会收到平台的任何密钥。"
       },
       "gdpr": {
-        "title": "符合GDPR",
-        "description": "自动 PII 过滤、假名化、数据最小化。完整的账户导出——可读的 Markdown、结构化 JSON 以及你的文件——而机密材料在设计上就不可导出。三本登记簿记录 LIA 做了什么、查阅了什么，以及她独自着手做了什么，正如欧盟人工智能法案第 12 条所要求的——而且无论数据量多大，其中都没有任何截断。"
+        "title": "隐私与 GDPR",
+        "description": "个人数据过滤、假名化和数据最小化支持隐私设计。账户导出包含可读的 Markdown、结构化 JSON 和你的文件，但不包含秘密凭据。三本登记簿展示 LIA 执行、查阅和主动发起的事项：这是透明度措施，并不意味着欧盟人工智能法案第 12 条适用于 LIA 的每一种用途。"
       },
       "standards": {
-        "title": "遵循的规范与标准",
+        "title": "法规参考与开放标准",
         "note": "采用开放标准而非自研协议：LIA 所讲的，别的工具同样能讲——它所承诺的，也可对照他人所写的文本来核验。"
       }
     },
@@ -10859,7 +10905,7 @@
       },
       "llm_providers": {
         "title": "七家模型供应商，由您选择",
-        "description": "OpenAI、Anthropic、Google、DeepSeek、Mistral、xAI，以及任何本地 Ollama 模型：路由、规划、回答、视觉、索引等每种角色都可单独配置，让廉价模型处理机械步骤、强模型负责回答。每个模型究竟能做什么，取自持续维护的能力目录而非假设；您所要求的思考深度，会被翻译成各家供应商各自认得的表达。"
+        "description": "OpenAI、Anthropic、Google、DeepSeek、Qwen、Perplexity，以及任何本地 Ollama 模型：路由、规划、回答、视觉、索引等每种角色都可单独配置，让廉价模型处理机械步骤、强模型负责回答。每个模型究竟能做什么，取自持续维护的能力目录而非假设；您所要求的思考深度，会被翻译成各家供应商各自认得的表达。"
       },
       "bayesian": {
         "title": "越用越好的计划",
@@ -11089,7 +11135,7 @@
         "b3_t": "一个真正的停止按钮。",
         "b3_d": "她能在半句话处停下，已生成的文字保留。",
         "b4_t": "你的数据仍属于你。",
-        "b4_d": "加密、绝不共享、符合 GDPR——而且整套系统可自托管，小到一台树莓派。",
+        "b4_d": "加密、可导出且由你掌控——还可自行托管，甚至在树莓派上运行。",
         "how": "6 级审批 · 5 层配额执行 · Fernet 加密 · BFF 架构，任何令牌都不会到达浏览器。",
         "catalog_hint": "{{count}} 项能力详情 + 安全",
         "s_chip": "先经你同意",
@@ -11168,7 +11214,7 @@
       "p3_d": "你能读到的代码就是正在运行的代码。可自托管，小到一台树莓派。",
       "p3_link": "查看代码",
       "p4_t": "由 AI 编写，由人类主导",
-      "p4_d": "42 万行代码，约 100% 由 AI 生成——在框架、评审与对抗性审计之下。方法已公开发表。",
+      "p4_d": "超过 72 万行源代码——在 AI 辅助下开发，经人工审查，并依照公开方法审计。",
       "p4_link": "阅读实践分享",
       "honest": "免费公测，7×24 小时生产运行。",
       "cta": "知情地试用"
@@ -11504,7 +11550,7 @@
       "features": "功能",
       "features_desc": "语音、文档、个人日志、主动通知等更多功能。",
       "security": "安全与隐私",
-      "security_desc": "LIA如何通过加密、人工验证和GDPR合规保护你的数据。",
+      "security_desc": "了解 LIA 如何通过加密、人工确认和参照 GDPR 原则设计的隐私控制保护你的数据。",
       "technical": "技术",
       "technical_desc": "可观测性、提示工程、令牌优化和多语言架构。"
     },
@@ -11532,12 +11578,12 @@
       "google-workspace": {
         "title": "Google Workspace集成：Gmail、Calendar、Contacts、Drive、Tasks",
         "excerpt": "LIA通过OAuth 2.0连接你的Google Workspace，用自然语言管理邮件、日历、联系人、Drive和任务。",
-        "body": "<h2>16个Google API，一次对话</h2><p>LIA集成<strong>16个Google API</strong>，覆盖你的工作空间及更多：<strong>Gmail API</strong>、<strong>Calendar API</strong>、<strong>People API v1</strong>（联系人）、<strong>Drive API</strong>、<strong>Tasks API</strong>、<strong>Routes API</strong>和<strong>Places API</strong>。你可以通过单一自然语言界面管理所有服务。</p><h2>各服务完整操作</h2><p>每个服务提供完整的CRUD操作集：</p><ul><li><strong>Gmail</strong> — 搜索、阅读、发送、回复、转发、标签管理。Scope：<code>gmail.modify</code></li><li><strong>Calendar</strong> — 搜索、创建、修改、删除日程，管理参与者。Scope：<code>calendar.events</code></li><li><strong>Contacts</strong> — 通过People API v1搜索、创建、修改、删除。Scope：<code>contacts</code>。字段投影优化至列表模式下<strong>每个联系人110个Token</strong>以最小化LLM消耗</li><li><strong>Drive</strong> — 搜索、列表、下载、共享文件。Scope：<code>drive.readonly</code></li><li><strong>Tasks</strong> — 列表、创建、更新、完成、删除。Scope：<code>tasks</code></li></ul><h2>Routes和Places：全球API</h2><p>除了Workspace之外，LIA还集成了<strong>Google Routes API</strong>（计算路线：驾车、公共交通、骑行、步行）和<strong>Google Places API</strong>（搜索地点、商家和兴趣点）。这些API丰富了助手的上下文响应。Places 与天气、空气质量一样使用实例自己的密钥：无需绑定任何账户，新账户一开始就启用了该服务。</p><h2>ConnectorTool架构</h2><p>每个服务使用<code>ConnectorTool</code>基类，自动处理OAuth认证、Token刷新、API客户端缓存和错误管理。字段投影（<code>field masks</code>）按操作优化，以减少API响应大小和Token消耗。</p><h2>在助手眼中一封邮件是什么样的</h2><p>邮件以<strong>干净的文本</strong>到达助手：HTML 只转换一次，引用的历史和签名在客户端边界就被移除，提供商的原始树结构从不随行。在此基础上，工具按问题的需要提供<strong>三种详细程度</strong>：<em>metadata</em> 用于列举（发件人、主题、日期、预览），<em>full</em> 用于读一封邮件——长正文分段到达，在段落边界切分，绝不在句子中间——<em>summary</em> 用于对许多封进行推理。摘要是每封邮件一段简短的<strong>浓缩</strong>（要点、关键信息、待办、类别、重要性），由一个小模型只计算一次，缓存三十天，并计入这个人的用量；无法生成时，邮件会按原样读取而不是编造。没有其他说明时，最近的邮件指收件箱；有针对性的搜索也会检索归档，从最新的开始，并用一个不透明的分页令牌继续。</p><h2>附件不只是被列出，还会被读取</h2><p>列出一封邮件的附件是元数据读取；打开一个附件是下载，三个供应商都把它放在同一个方法之后——同样按标识符或名称选择，同样的错误——因为 Gmail 的附件标识符可能在同一封邮件的两次读取之间失效，过期的标识符必须按名称解析，而不是失败。文档（PDF、Word、表格、EPUB…）按<strong>文本</strong>读取，并像正文一样分段送达；图片，或没有文字层的扫描版 PDF，被渲染为数量受限的页面交给<strong>视觉模型</strong>，并在只看到前几页时被告知。大小上限在下载任何字节<em>之前</em>就按列表信息生效，拒绝会说明原因（太大、不支持、找不到、有歧义），视觉调用计入你的用量，返回的内容被包裹为陌生人发来的东西——数据，绝不是指令。</p><h2>OAuth 2.0安全</h2><p>访问令牌通过Fernet（AES-128 CBC + HMAC）加密存储在数据库中。刷新是透明的：如果Token在操作期间过期，LIA会自动更新。请求的OAuth scope严格遵循<strong>最小权限原则</strong>。</p><h2>授权早已允许的能力</h2><p>2026 年 8 月这一批几乎没有向用户索取新权限：它使用的是已授予范围本就涵盖、但 LIA 从未调用的能力。<strong>联系人分组</strong>（People API）让整个标签可寻址——“给家人分组发邮件”——成员数量取自 API 聚合结果，绝不来自被截断的页面。<strong>freeBusy</strong> 端点在计算空闲时段时只读取忙碌区间：比读取日程内容更少的数据，却给出更好的答案。<strong>history.list</strong> 用锚定在历史标识上的精确增量，取代了心跳的周期性重复查询。而 <strong>Sheets</strong> 与 <strong>Docs</strong> API 接受已授予的 Drive 令牌：读取表格，并在确认后写入，无需重新授权。</p><p>两项平台服务补全了这一体系，只需一个开关即可启用，因为它们使用实例密钥而非个人账号：<strong>Weather</strong>（面向不愿自行申请密钥的用户，作为 OpenWeatherMap 的替代）和 <strong>Environment</strong>（空气质量、花粉）。归一化在客户端边界完成，因此已经消费天气数据的十九处界面一行都没有改动。<strong>Web Risk</strong> 在打开前筛查网址，<strong>Street View</strong> 为没有照片的地点提供配图——先免费确认影像存在——而 <strong>watch</strong> 通道与 <strong>Pub/Sub</strong> 在运营者启用后，用通知取代轮询。</p>"
+        "body": "<h2>16个Google API，一次对话</h2><p>LIA集成<strong>16个Google API</strong>，覆盖你的工作空间及更多：<strong>Gmail API</strong>、<strong>Calendar API</strong>、<strong>People API v1</strong>（联系人）、<strong>Drive API</strong>、<strong>Tasks API</strong>、<strong>Routes API</strong>和<strong>Places API</strong>。你可以通过单一自然语言界面管理所有服务。</p><h2>各服务完整操作</h2><p>每个服务提供完整的CRUD操作集：</p><ul><li><strong>Gmail</strong> — 搜索、阅读、发送、回复、转发、标签管理。Scope：<code>gmail.modify</code></li><li><strong>Calendar</strong> — 搜索、创建、修改、删除日程，管理参与者。Scope：<code>calendar.events</code></li><li><strong>Contacts</strong> — 通过People API v1搜索、创建、修改、删除。Scope：<code>contacts</code>。字段投影优化至列表模式下<strong>每个联系人110个Token</strong>以最小化LLM消耗</li><li><strong>Drive</strong> — 搜索、列表、下载、共享文件。Scope：<code>drive.readonly</code></li><li><strong>Tasks</strong> — 列表、创建、更新、完成、删除。Scope：<code>tasks</code></li></ul><h2>Routes和Places：全球API</h2><p>除了Workspace之外，LIA还集成了<strong>Google Routes API</strong>（计算路线：驾车、公共交通、骑行、步行）和<strong>Google Places API</strong>（搜索地点、商家和兴趣点）。这些API丰富了助手的上下文响应。Places 与天气、空气质量一样使用实例自己的密钥：无需绑定任何账户，新账户一开始就启用了该服务。</p><h2>ConnectorTool架构</h2><p>每个服务使用<code>ConnectorTool</code>基类，自动处理OAuth认证、Token刷新、API客户端缓存和错误管理。字段投影（<code>field masks</code>）按操作优化，以减少API响应大小和Token消耗。</p><h2>在助手眼中一封邮件是什么样的</h2><p>邮件以<strong>干净的文本</strong>到达助手：HTML 只转换一次，引用的历史和签名在客户端边界就被移除，提供商的原始树结构从不随行。在此基础上，工具按问题的需要提供<strong>三种详细程度</strong>：<em>metadata</em> 用于列举（发件人、主题、日期、预览），<em>full</em> 用于读一封邮件——长正文分段到达，在段落边界切分，绝不在句子中间——<em>summary</em> 用于对许多封进行推理。摘要是每封邮件一段简短的<strong>浓缩</strong>（要点、关键信息、待办、类别、重要性），由一个小模型只计算一次，缓存三十天，并计入这个人的用量；无法生成时，邮件会按原样读取而不是编造。没有其他说明时，最近的邮件指收件箱；有针对性的搜索也会检索归档，从最新的开始，并用一个不透明的分页令牌继续。</p><h2>附件不只是被列出，还会被读取</h2><p>列出一封邮件的附件是元数据读取；打开一个附件是下载，三个供应商都把它放在同一个方法之后——同样按标识符或名称选择，同样的错误——因为 Gmail 的附件标识符可能在同一封邮件的两次读取之间失效，过期的标识符必须按名称解析，而不是失败。文档（PDF、Word、表格、EPUB…）按<strong>文本</strong>读取，并像正文一样分段送达；图片，或没有文字层的扫描版 PDF，被渲染为数量受限的页面交给<strong>视觉模型</strong>，并在只看到前几页时被告知。大小上限在下载任何字节<em>之前</em>就按列表信息生效，拒绝会说明原因（太大、不支持、找不到、有歧义），视觉调用计入你的用量，返回的内容被包裹为陌生人发来的东西——数据，绝不是指令。</p><h2>OAuth 2.0安全</h2><p>访问令牌通过Fernet（AES-128 CBC + HMAC）加密存储在数据库中。刷新是透明的：如果Token在操作期间过期，LIA会自动更新。请求的OAuth scope严格遵循<strong>最小权限原则</strong>。</p><h2>授权早已允许的能力</h2><p>2026 年 8 月这一批几乎没有向用户索取新权限：它使用的是已授予范围本就涵盖、但 LIA 从未调用的能力。<strong>联系人分组</strong>（People API）让整个标签可寻址——“给家人分组发邮件”——成员数量取自 API 聚合结果，绝不来自被截断的页面。<strong>freeBusy</strong> 端点在计算空闲时段时只读取忙碌区间：比读取日程内容更少的数据，却给出更好的答案。<strong>history.list</strong> 用锚定在历史标识上的精确增量，取代了心跳的周期性重复查询。而 <strong>Sheets</strong> 与 <strong>Docs</strong> API 接受已授予的 Drive 令牌：读取表格，并在确认后写入，无需重新授权。</p><p>两项平台服务补全了这一体系，只需一个开关即可启用，因为它们使用实例密钥而非个人账号：<strong>Weather</strong>（面向不愿自行申请密钥的用户，作为 OpenWeatherMap 的替代）和 <strong>Environment</strong>（空气质量、花粉）。归一化在客户端边界完成，因此已经消费天气数据的十九处界面一行都没有改动。<strong>Web Risk</strong> 在打开前筛查网址，<strong>Street View</strong> 为没有照片的地点提供配图——先免费确认影像存在——而 <strong>watch</strong> 通道与 <strong>Pub/Sub</strong> 在运营者启用后，用通知取代轮询。</p><h2>一次授权，服务由你掌控</h2><p>同一 Google 账户的服务现在可以集中授权。LIA 在回调时核验账户身份，每项服务仍可单独启用，并续期共享授权，无需为每个工具重复同意。</p>"
       },
       "apple-microsoft": {
         "title": "Apple iCloud和Microsoft 365：多平台连接器",
         "excerpt": "除Google外，LIA还支持Apple iCloud和Microsoft 365，提供完全的灵活性。",
-        "body": "<h2>一个助手，三个生态系统</h2><p>LIA不会将你锁定在单一生态系统中。除了Google Workspace之外，你还可以连接<strong>Apple iCloud</strong>和<strong>Microsoft 365</strong>，无论使用哪个供应商，都可以访问你的邮件、日历、联系人和任务。</p><h2>Apple iCloud</h2><p>Apple不为第三方应用提供OAuth。LIA因此使用从appleid.apple.com生成的<strong>App-Specific Passwords</strong>（应用专用密码）。该机制允许安全访问，无需暴露Apple账户的主密码：</p><ul><li><strong>Apple Mail</strong> — 通过IMAP/SMTP使用App-Specific Password认证读取和发送邮件</li><li><strong>Apple Calendar</strong> — 通过CalDAV协议管理日程</li><li><strong>Apple Contacts</strong> — 通过CardDAV协议搜索和管理联系人</li></ul><h2>Microsoft 365</h2><p>Microsoft集成使用<strong>OAuth 2.0 via Microsoft Entra ID</strong>（原Azure AD），采用Authorization Code + PKCE流程。调用通过统一的<strong>Microsoft Graph API</strong>进行：</p><ul><li><strong>Outlook</strong> — 邮件：通过Graph API <code>/me/messages</code>读取、发送、搜索</li><li><strong>Calendar</strong> — 日程：通过Graph API <code>/me/events</code>完整CRUD</li><li><strong>Contacts</strong> — 通讯录：通过Graph API <code>/me/contacts</code></li><li><strong>To Do</strong> — 任务管理：通过Graph API <code>/me/todo/lists</code></li></ul><h2>供应商抽象：resolve_active_connector()</h2><p>LIA的架构基于<strong>按功能类别的抽象</strong>。<code>resolve_active_connector()</code>函数动态确定每个类别（邮件、日历、联系人和任务）的活跃供应商（Google、Apple或Microsoft）。</p><h2>按领域互斥</h2><p>每个功能类别只能有一个活跃连接器。这种<strong>互斥性在数据库中强制执行</strong>：激活Microsoft邮件连接器会自动停用Google或Apple邮件连接器。这确保了每个领域有唯一的数据源。但你可以在不同类别之间混合使用供应商：例如Gmail用于邮件、Apple Calendar用于日程、Microsoft To Do用于任务。</p><h2>无论哪个提供商，邮件只有一套词汇</h2><p>IMAP、Microsoft Graph 和 Gmail API 对一封邮件的描述并不相同——而且很长一段时间里，其中两个在模仿第三个，伪造出一棵 Gmail 形状的树，助手随后还得从中读取。如今三个规范化器在客户端边界产出<strong>同一种中立的邮件</strong>：干净的文本正文，绝不是 HTML 或 base64，引用的历史和签名已移除，相同的字段用相同的名字。下游的一切——三种详细程度、每封邮件的摘要、聊天中的卡片、心跳，以及跟随邮箱的知识空间——读取的都是这一种形式，而且各提供商之间的一致性是在真实载荷上测量的，而不是假定的。从 iCloud 账户发出的回复也能正确归入会话：它带上了原始邮件所缺少的标识符。</p>"
+        "body": "<h2>一个助手，三个生态系统</h2><p>LIA不会将你锁定在单一生态系统中。除了Google Workspace之外，你还可以连接<strong>Apple iCloud</strong>和<strong>Microsoft 365</strong>，无论使用哪个供应商，都可以访问你的邮件、日历、联系人和任务。</p><h2>Apple iCloud</h2><p>Apple不为第三方应用提供OAuth。LIA因此使用从appleid.apple.com生成的<strong>App-Specific Passwords</strong>（应用专用密码）。该机制允许安全访问，无需暴露Apple账户的主密码：</p><ul><li><strong>Apple Mail</strong> — 通过IMAP/SMTP使用App-Specific Password认证读取和发送邮件</li><li><strong>Apple Calendar</strong> — 通过CalDAV协议管理日程</li><li><strong>Apple Contacts</strong> — 通过CardDAV协议搜索和管理联系人</li></ul><h2>Microsoft 365</h2><p>Microsoft集成使用<strong>OAuth 2.0 via Microsoft Entra ID</strong>（原Azure AD），采用Authorization Code + PKCE流程。调用通过统一的<strong>Microsoft Graph API</strong>进行：</p><ul><li><strong>Outlook</strong> — 邮件：通过Graph API <code>/me/messages</code>读取、发送、搜索</li><li><strong>Calendar</strong> — 日程：通过Graph API <code>/me/events</code>完整CRUD</li><li><strong>Contacts</strong> — 通讯录：通过Graph API <code>/me/contacts</code></li><li><strong>To Do</strong> — 任务管理：通过Graph API <code>/me/todo/lists</code></li></ul><h2>供应商抽象：resolve_active_connector()</h2><p>LIA的架构基于<strong>按功能类别的抽象</strong>。<code>resolve_active_connector()</code>函数动态确定每个类别（邮件、日历、联系人和任务）的活跃供应商（Google、Apple或Microsoft）。</p><h2>按领域互斥</h2><p>每个功能类别只能有一个活跃连接器。这种<strong>互斥性在数据库中强制执行</strong>：激活Microsoft邮件连接器会自动停用Google或Apple邮件连接器。这确保了每个领域有唯一的数据源。但你可以在不同类别之间混合使用供应商：例如Gmail用于邮件、Apple Calendar用于日程、Microsoft To Do用于任务。</p><h2>无论哪个提供商，邮件只有一套词汇</h2><p>IMAP、Microsoft Graph 和 Gmail API 对一封邮件的描述并不相同——而且很长一段时间里，其中两个在模仿第三个，伪造出一棵 Gmail 形状的树，助手随后还得从中读取。如今三个规范化器在客户端边界产出<strong>同一种中立的邮件</strong>：干净的文本正文，绝不是 HTML 或 base64，引用的历史和签名已移除，相同的字段用相同的名字。下游的一切——三种详细程度、每封邮件的摘要、聊天中的卡片、心跳，以及跟随邮箱的知识空间——读取的都是这一种形式，而且各提供商之间的一致性是在真实载荷上测量的，而不是假定的。从 iCloud 账户发出的回复也能正确归入会话：它带上了原始邮件所缺少的标识符。</p><h2>Microsoft 账户授权</h2><p>对于 Microsoft 365，一次同意可以覆盖同一账户中选定的服务；邮件、日历和其他功能仍可分别控制。OAuth 回调核验账户与签发方。Apple 连接继续使用自己的授权流程。</p>"
       },
       "mcp-protocol": {
         "title": "Model Context Protocol：无限扩展LIA",
@@ -11590,9 +11636,9 @@
         "body": "<h2>隐私设计</h2><p>LIA从一开始就以数据保护为基本原则来设计，而非事后补充。</p><h2>Fernet对称加密</h2><p>所有敏感数据通过<strong>Fernet</strong>（AES-128 CBC + HMAC-SHA256）使用<code>encrypt_data()</code>函数加密。覆盖范围包括OAuth令牌、连接器凭据、PII和MCP服务器凭据。OAuth凭据在写入数据库前加密，读取时即时解密。加密密钥与数据分开管理。</p><h2>最小化数据收集</h2><p>LIA仅收集运行所需的最少数据：</p><ul><li>个人资料信息（姓名、邮箱、偏好设置）</li><li>对话历史（加密）</li><li>服务连接令牌（加密）</li><li>匿名使用指标</li></ul><h2>删除与级联</h2><p>删除用户账户会触发完整的<strong>级联删除</strong>：连接器、对话、设置、会话、记忆和所有关联数据都将不可逆地删除。数据库中不会保留任何孤立数据。</p><h2>安全会话与Cookie</h2><p>会话Cookie配置了<code>HttpOnly</code>、<code>Secure</code>（生产环境）和<code>SameSite=lax</code>属性。默认会话持续时间为7天，选择\"记住我\"可延长至30天。一次性令牌在首次使用后通过Redis黑名单机制失效。</p><h2>外部内容防护</h2><p>从外部来源（邮件、网页、文档）获取的内容在注入提示前标记为<code>UNTRUSTED</code>，并进行可配置封装。web_fetch工具限制为每个用户在60秒窗口内最多10次调用，以防止滥用。</p><h2>日志中PII过滤</h2><p>日志系统应用<strong>OWASP日志备忘录</strong>建议，自动从应用日志中过滤个人数据。敏感数据不会出现在日志中。</p><h2>数据可移植性 (v1.9.1)</h2><p>LIA允许每个用户从设置 > 功能中<strong>导出个人消费数据</strong>为CSV格式。三种导出类型：LLM消费（每次调用的Token和成本）、Google API消费和汇总摘要。安全性：<code>user_id</code>在服务器端强制设置——不暴露任何参数（IDOR防护）。</p><h2>恢复经过验证的备份</h2><p>保护数据也意味着确保数据能扛住事故。生产数据库每晚自动备份，保留 7 天、4 周和 6 个月的历史，存放在权限受限的专用目录中。而且，只有恢复被证明可行，备份才算数：恢复流程经过真实测试——将最新转储恢复到一次性容器中，并与线上数据库比对（模式修订、行数）——这一演练随技术栈一同交付。</p><h2>一份完整的记录，而不是一份样本</h2><p>三本自动维护的登记簿分别说明 LIA 为你<strong>做</strong>了什么、为回答你而<strong>查阅</strong>了什么，以及她<strong>自行着手</strong>做了什么。它们不承载任何内容：一次查阅只保留能力本身——「你的日程」——绝不保留搜索内容，因为写下来就等于抄录了这本登记簿正是为其问责而存在的那份数据。</p><p>你从<strong>设置 &gt; 登记簿</strong>下载的记录是<strong>完整</strong>的。它此前带有行数上限：那是一种真实的保护，因为整份文档要在 Raspberry Pi 上于内存中拼装——但它被施加在了错误的变量上。稀缺的是内存；被限制的却是真相。服务端游标如今限制的是缓冲区：无论数据量多大，文件都承载你的筛选条件所指定的全部内容，文件头写明确切行数与生成时刻，并在你的浏览器接受时顺带压缩。</p>"
       },
       "observability": {
-        "title": "581个Prometheus指标、30个Grafana仪表板和Langfuse追踪",
-        "excerpt": "LIA提供企业级可观测性：553 指标、Grafana仪表板、通过Langfuse的LLM追踪，以及带处置指南的邮件告警。",
-        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 581个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中并带有PII过滤</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>23个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。23个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>30个Grafana仪表板</h2><p>LIA提供30个编号01至30的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony、briefing、product-value、meetings、effect-ledger、workboard 和 live。每个仪表板提供按用户、时间段和环境可过滤的视图。 第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 14 项关键告警组成的核心——API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成拥有8个专用指标来追踪每次LLM调用：消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p><h2>而自 v1.34 起：助手读取自身遥测</h2><p>以上一切原本只为人类而存在；助手自己什么都不读。ADR-247 闭合了这个环路：周期性自检把黄金指标与直接探针汇成带精确数值的健康快照；警报与严重判定按故障收敛为唯一事件，由预算受限、以运维手册为依据的 LLM 诊断；管理员拥有平台健康面板、主动通知和只读聊天工具。已知故障如今还会塑造回答——规划阶段即绕开降级能力，失败步骤用类型化错误码解释，绝不引用原始日志。此后，诊断不再只凭一个数字：按事件类型声明的配方规定要读取哪些细分指标和日志事件，证据包在诊断时收集并去除个人数据，无法访问的来源被声明为不可用而非当作沉默，模型读到的内容会展示在判定下方。</p><h2>统计结果，而非尝试</h2><p>v1.38.3 重新审视了一个计数器。统计抵达服务商的调用次数，是关于服务商的事实——可一旦这些调用会被重试，它就成了错误的分母：被重试救回的失败会抬高错误率，尽管什么都没丢失。如今第二个计数器按逻辑操作各记一行，重试折叠其中，回答运维人员唯一会据以行动的问题：调用方拿到结果了吗？第三个计数器则说明限流对每次尝试做了什么，因为「预算太小」与「Redis 宕机」在布尔值里毫无区别，却需要相反的处置。</p><p>最近的一课，关乎选择度量什么。自主循环有迭代次数和时长的计数器，却唯独没有度量真正增长的东西：每一步交付给模型的提示词。在生产代码上实测，第一次迭代是 2.3k tokens，第九十次是 112k——因为每个工具结果都留在模型会反复重读的对话里。现在有两个直方图记录交付体积及其占模型上下文窗口的比例，由状态归约器本就维护的那个带记忆化的计数器供数，因此这项度量在热路径上不产生额外开销。它们并未附带任何压缩策略，这是刻意的：一个对从未观测过的量采取行动的系统，优化的只是一个猜测。</p>"
+        "title": "583个Prometheus指标、30个Grafana仪表板和Langfuse追踪",
+        "excerpt": "LIA提供企业级可观测性：583 指标、Grafana仪表板、通过Langfuse的LLM追踪，以及带处置指南的邮件告警。",
+        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 583个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中并带有PII过滤</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>38个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。38个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>30个Grafana仪表板</h2><p>LIA提供30个编号01至30的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony、briefing、product-value、meetings、effect-ledger、workboard 和 live。每个仪表板提供按用户、时间段和环境可过滤的视图。 第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 14 项关键告警组成的核心——API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成拥有8个专用指标来追踪每次LLM调用：消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p><h2>而自 v1.34 起：助手读取自身遥测</h2><p>以上一切原本只为人类而存在；助手自己什么都不读。ADR-247 闭合了这个环路：周期性自检把黄金指标与直接探针汇成带精确数值的健康快照；警报与严重判定按故障收敛为唯一事件，由预算受限、以运维手册为依据的 LLM 诊断；管理员拥有平台健康面板、主动通知和只读聊天工具。已知故障如今还会塑造回答——规划阶段即绕开降级能力，失败步骤用类型化错误码解释，绝不引用原始日志。此后，诊断不再只凭一个数字：按事件类型声明的配方规定要读取哪些细分指标和日志事件，证据包在诊断时收集并去除个人数据，无法访问的来源被声明为不可用而非当作沉默，模型读到的内容会展示在判定下方。</p><h2>统计结果，而非尝试</h2><p>v1.38.3 重新审视了一个计数器。统计抵达服务商的调用次数，是关于服务商的事实——可一旦这些调用会被重试，它就成了错误的分母：被重试救回的失败会抬高错误率，尽管什么都没丢失。如今第二个计数器按逻辑操作各记一行，重试折叠其中，回答运维人员唯一会据以行动的问题：调用方拿到结果了吗？第三个计数器则说明限流对每次尝试做了什么，因为「预算太小」与「Redis 宕机」在布尔值里毫无区别，却需要相反的处置。</p><p>最近的一课，关乎选择度量什么。自主循环有迭代次数和时长的计数器，却唯独没有度量真正增长的东西：每一步交付给模型的提示词。在生产代码上实测，第一次迭代是 2.3k tokens，第九十次是 112k——因为每个工具结果都留在模型会反复重读的对话里。现在有两个直方图记录交付体积及其占模型上下文窗口的比例，由状态归约器本就维护的那个带记忆化的计数器供数，因此这项度量在热路径上不产生额外开销。它们并未附带任何压缩策略，这是刻意的：一个对从未观测过的量采取行动的系统，优化的只是一个猜测。</p>"
       },
       "prompt-engineering": {
         "title": "版本化提示系统：78个提示作为代码管理",
@@ -11645,9 +11691,9 @@
         "body": "<h2>为什么要重新校准？</h2><p>每个嵌入模型对语义的编码方式不同。当 LIA 迁移到 <strong>Gemini embedding-001</strong> 时，需要系统性的重新校准。</p><h2>8个阈值，5个子系统</h2><p>LIA 在5个子系统中使用相似度搜索：</p><ul><li><strong>记忆</strong> — 搜索（0.65）和相关性清理（0.72）</li><li><strong>日志</strong> — 上下文（0.63）和去重（0.87）</li><li><strong>兴趣</strong> — 去重（0.89）和内容匹配（0.90）</li><li><strong>RAG 空间</strong> — 文档检索（0.55）</li><li><strong>查询引擎</strong> — 查询相似度（0.93）</li></ul><h2>校准方法</h2><p>每个阈值都使用<strong>真实测试数据集</strong>进行校准，计算 <strong>Precision</strong>、<strong>Recall</strong> 和 <strong>F1-score</strong> 指标。</p><h2>具体结果</h2><p>改善显著：</p><ul><li>记忆：F1 = 0.519，平均每次查询1.8个结果</li><li>日志上下文：F1 = 0.638</li><li>日志去重：F1 = 0.889，Precision = 1.0</li><li>兴趣去重：Precision = 1.0</li></ul><h2>阈值应按其错误的代价来选择</h2><p>2026 年 7 月，兴趣去重阈值在 <strong>16 组真实生产样本</strong>上被重新测量 — 一边是观察到的重复项，另一边是合理并存的不同主题。两个候选值在<strong>错误数量上打成平手</strong>：0.83 与 0.89。因此计数毫无意义；真正区分它们的是错误的<em>性质</em>。在 0.83 时，两个错误是<strong>错误合并</strong> — <em>android</em> 在 0.857 处被 <em>ios</em> 吸收，两段城市历史在 0.890 处合并 — 这会不可逆地摧毁一个独立的兴趣。在 0.89 时，两个错误是<strong>漏合并</strong>：一个可见且可纠正的重复项。阈值保持在 0.89，其推理如今写在常量里，而不是留在某个人的记忆中。</p><p>第二个教训：两个群体是<strong>重叠</strong>的。没有任何阈值能完美分开它们，因为标签相似度存在固有上限。承认这一点，才让真正的修复在别处被找到 — 在于去重被允许看到什么。</p><h2>成本影响</h2><p>更好校准的阈值意味着<strong>更少浪费的 token</strong>。校准减少了噪声，同时提升响应质量和成本效率。</p><h2>轻量级向量</h2><p>所有嵌入使用 <strong>384维</strong>向量，在语义精度和存储/搜索性能之间取得最佳平衡。</p><h2>校准得当的向量，仍然得先抵达</h2><p>阈值决定一个向量意味着什么，却完全不涉及它是否真的被生成。在一小时的生产运行中，24 次向量化调用有 11 次被服务商拒绝——全都撞上按分钟计的配额，每一次都悄悄让某一轮对话失去记忆、日志上下文或索引。原因不是流量：稳定的每分钟四次调用毫无差错。原因在于间隔存在公约数的周期任务会永远对齐，于是其中六个落在同一秒启动。错峰启动应对这一点，短窗口限流覆盖规模增长，而有上限的重试——且总是超时放行，因为我们自己的调节绝不能成为回答失去记忆的理由——收拾余下的部分。</p>"
       },
       "llm-config-governance": {
-        "title": "LLM 治理：通过单一仪表板管理 24 个 AI 模型",
-        "excerpt": "LIA 如何让管理员实时配置、调整和监控 24 种不同的 LLM 类型，无需重启或重新部署。",
-        "body": "<h2>挑战：编排 24 个大脑</h2><p>LIA 不是使用单一的 LLM，而是<strong>超过 24 种不同类型</strong>，每种都针对其任务进行了优化。每种类型都有自己的参数：<code>provider</code>、<code>model</code>、<code>temperature</code>、<code>timeout</code>、<code>reasoning_effort</code>。</p><p>挑战：如何让管理员<strong>不触碰代码</strong>就能管理这一切？</p><h2>3 级解析链</h2><p>每个 LLM 配置通过 <strong>3 源优先级链</strong>解析：</p><ol><li><strong>DB 覆盖</strong> — 通过管理界面设置（最高优先级）</li><li><strong>环境变量</strong> — 部署配置</li><li><strong>LLM_DEFAULTS</strong> — 代码中的 24 个默认配置</li></ol><p><code>LLMConfigOverrideCache</code> 提供 O(1) 查找。管理界面的更改<strong>立即生效</strong>。</p><h2>单一入口</h2><p><code>get_llm_config_for_agent()</code> 是获取 LLM 配置的<strong>唯一路径</strong>。这是一个<strong>架构原则</strong>。</p><h2>实时管理界面</h2><p>从管理面板，你可以为每种 LLM 类型：</p><ul><li>更改<strong>提供商和模型</strong></li><li>调整<strong>温度</strong>、<strong>top_p</strong>、<strong>惩罚</strong></li><li>配置<strong>超时</strong>和<strong>最大 token 数</strong></li><li>启用或禁用<strong>推理模式</strong></li></ul><h2>精细化成本优化</h2><p>管理员按<strong>任务类型</strong>而非全局调整质量/成本比。 当提供商按 UTC 时段计费时（高峰/低谷时段，如 DeepSeek），价格目录会承载这些时段：每次调用按其确切时刻的费率计价，所记录的支出与真实账单一致。</p><h2>自适应推理模型</h2><p>LIA 提供 <strong>5 个 reasoning_effort 级别</strong>，可按类型配置。</p><h2>内置可观测性</h2><p>每次 LLM 调用都会记录其类型、提供商、实际模型、持续时间和 token。Prometheus 指标和 Langfuse 追踪允许<strong>比较不同配置的性能</strong>。</p><h2>整个实例能花多少</h2><p>上面所有内容约束的是一个模型、一次调用或一个账户。其中没有一样约束<strong>一套部署</strong>，而这并不是同一个问题：N 个账户乘以各自的配额，就是没有上界的支出。现在有一份按 UTC 日计的账本，用带列运算的原子 UPSERT 记录每次运行的成本，并且就写在那条已经持久化 token 汇总的事务里——因此并发运行不会在「读-改-写」的竞态中丢失支出，检查也永远不会看到残缺的视图。两个上界会叠加：部署给的和运维者选的，取较小者。管理员可以收紧环境所允许的额度，永远不能放宽，面板会把「实际生效的」摆在「填进去的」旁边。</p><p>这里的失败取向是刻意反转的。按用户的限制是<strong>开放失败</strong>——数据库打个嗝，最多多放过一条消息。未知的实例支出则是<strong>关闭失败</strong>，因为这一侧最坏的情况是整个预算。而拒绝会说实话：不是一条关于个人配额的消息，而是一个专门的代码，并带上当天翻篇的准确时刻。</p>"
+        "title": "LLM 治理：在一个面板配置 60 种 AI 任务角色",
+        "excerpt": "管理员可实时调整 60 个按任务划分的 LLM 配置项，每项可选择独立的供应商和模型，无需重新部署。",
+        "body": "<h2>挑战：协调 60 种 AI 任务角色</h2><p>LIA 不是使用单一的 LLM，而是<strong>60 种任务角色</strong>，每种都针对其任务进行了优化。每种类型都有自己的参数：<code>provider</code>、<code>model</code>、<code>temperature</code>、<code>timeout</code>、<code>reasoning_effort</code>。</p><p>挑战：如何让管理员<strong>不触碰代码</strong>就能管理这一切？</p><h2>3 级解析链</h2><p>每个 LLM 配置通过 <strong>3 源优先级链</strong>解析：</p><ol><li><strong>DB 覆盖</strong> — 通过管理界面设置（最高优先级）</li><li><strong>环境变量</strong> — 部署配置</li><li><strong>LLM_DEFAULTS</strong> — 代码中的 60 个默认配置</li></ol><p><code>LLMConfigOverrideCache</code> 提供 O(1) 查找。管理界面的更改<strong>立即生效</strong>。</p><h2>单一入口</h2><p><code>get_llm_config_for_agent()</code> 是获取 LLM 配置的<strong>唯一路径</strong>。这是一个<strong>架构原则</strong>。</p><h2>实时管理界面</h2><p>从管理面板，你可以为每种 LLM 类型：</p><ul><li>更改<strong>提供商和模型</strong></li><li>调整<strong>温度</strong>、<strong>top_p</strong>、<strong>惩罚</strong></li><li>配置<strong>超时</strong>和<strong>最大 token 数</strong></li><li>启用或禁用<strong>推理模式</strong></li></ul><h2>精细化成本优化</h2><p>管理员按<strong>任务类型</strong>而非全局调整质量/成本比。 当提供商按 UTC 时段计费时（高峰/低谷时段，如 DeepSeek），价格目录会承载这些时段：每次调用按其确切时刻的费率计价，所记录的支出与真实账单一致。</p><h2>自适应推理模型</h2><p>LIA 提供 <strong>模型支持的推理级别</strong>，可按类型配置。</p><h2>内置可观测性</h2><p>每次 LLM 调用都会记录其类型、提供商、实际模型、持续时间和 token。Prometheus 指标和 Langfuse 追踪允许<strong>比较不同配置的性能</strong>。</p><h2>整个实例能花多少</h2><p>上面所有内容约束的是一个模型、一次调用或一个账户。其中没有一样约束<strong>一套部署</strong>，而这并不是同一个问题：N 个账户乘以各自的配额，就是没有上界的支出。现在有一份按 UTC 日计的账本，用带列运算的原子 UPSERT 记录每次运行的成本，并且就写在那条已经持久化 token 汇总的事务里——因此并发运行不会在「读-改-写」的竞态中丢失支出，检查也永远不会看到残缺的视图。两个上界会叠加：部署给的和运维者选的，取较小者。管理员可以收紧环境所允许的额度，永远不能放宽，面板会把「实际生效的」摆在「填进去的」旁边。</p><p>这里的失败取向是刻意反转的。按用户的限制是<strong>开放失败</strong>——数据库打个嗝，最多多放过一条消息。未知的实例支出则是<strong>关闭失败</strong>，因为这一侧最坏的情况是整个预算。而拒绝会说实话：不是一条关于个人配额的消息，而是一个专门的代码，并带上当天翻篇的准确时刻。</p>"
       },
       "tabular-administration": {
         "title": "当工作簿成为表单：批量管理的正确做法",
@@ -13536,7 +13582,7 @@
     },
     "article12": {
       "title": "关于你的全部记录，汇为一个文件",
-      "description": "上方的导出各自只覆盖一个登记簿。这个文件把 LIA 保存的全部五项记录——你的对话轮次、操作、查阅、模型调用，以及登记簿自身的任何缺口——汇集为一个机器可读的文件，正如欧盟人工智能法案第 12 条所要求。",
+      "description": "上方的导出各自只覆盖一个登记簿。这个文件把 LIA 保存的全部五项记录——你的对话轮次、操作、查阅、模型调用，以及登记簿自身的任何缺口——汇集为一个机器可读的文件，方便你查看和分享活动记录。",
       "action": "统一提取",
       "hint": "JSON Lines 格式，每条记录一行。文件不含任何内容，且每个标识符都以句柄代替——包括你自己的——因此可以原样附于申请或投诉，无需事先修改。"
     },

@@ -1,314 +1,136 @@
-/**
- * useBulkConnect — "connect everything" for Google and Microsoft. The flow
- * spans page loads: the remaining connector types are parked in localStorage,
- * the browser is handed to the first consent screen, and on the way back the
- * mount effect resumes the queue.
- *
- * What is pinned here: the queue that survives the redirect, the entries that
- * get skipped (already-active connector, legacy `gmail` type, unknown type),
- * the completion notice when the queue drains, and the cleanup that must
- * happen when a request fails — a stale queue would restart an OAuth dance on
- * the next page load.
- */
-
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-
-import { renderHook, act, waitFor } from '@/__tests__/test-utils';
+/** One provider request connects all absent eligible services on one account. */
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, renderHook } from '@/__tests__/test-utils';
 import { makeConnector } from '@/__tests__/factories';
 import type { Connector } from '@/components/settings/connectors/types';
 
-const { get } = vi.hoisted(() => ({ get: vi.fn() }));
-vi.mock('@/lib/api-client', () => ({ default: { get } }));
-const { toast } = vi.hoisted(() => ({
-  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
-}));
+const { post } = vi.hoisted(() => ({ post: vi.fn() }));
+vi.mock('@/lib/api-client', () => ({ default: { post } }));
+const { toast } = vi.hoisted(() => ({ toast: { info: vi.fn(), error: vi.fn() } }));
 vi.mock('sonner', () => ({ toast }));
-vi.mock('@/lib/logger', () => ({
-  logger: { debug: vi.fn(), error: vi.fn(), warn: vi.fn(), info: vi.fn() },
-}));
+vi.mock('@/lib/logger', () => ({ logger: { error: vi.fn() } }));
+const { navigate } = vi.hoisted(() => ({ navigate: vi.fn() }));
+vi.mock('@/lib/safe-navigation', () => ({ navigateToAuthorizationUrl: navigate }));
 
-import { useBulkConnect } from '../useBulkConnect';
-import {
-  BULK_CONNECT_QUEUE_KEY,
-  MICROSOFT_BULK_CONNECT_QUEUE_KEY,
-} from '@/components/settings/connectors/constants';
+import { availableTypes, useBulkConnect } from '../useBulkConnect';
 
 const t = (key: string) => key;
-
-const GOOGLE_ORDER = [
-  'google_contacts',
-  'google_gmail',
-  'google_calendar',
-  'google_drive',
-  'google_tasks',
-];
-
-let originalLocation: Location;
-
-function setup(connectors: Connector[] = [], loading = false) {
-  return renderHook(() => useBulkConnect({ connectors, loading, t }));
-}
-
-/**
- * Lets the mount effect release the queue before the test acts. The hook
- * serializes the resume pass and a user-initiated run (see `runExclusively`),
- * so a click fired inside the resume window is deliberately a no-op — pinned
- * by "ignores a run started while the resume pass still owns the queue".
- */
-async function settled(hook: ReturnType<typeof setup>) {
-  await act(async () => {});
-  return hook;
-}
-
-function queue(key: string): string[] | null {
-  const raw = localStorage.getItem(key);
-  return raw ? (JSON.parse(raw) as string[]) : null;
+function setup(connectors: Connector[] = []) {
+  return renderHook(() => useBulkConnect({ connectors, loading: false, t }));
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
-  get.mockResolvedValue({ authorization_url: 'https://accounts.example/oauth' });
-  originalLocation = window.location;
-  Object.defineProperty(window, 'location', {
-    value: { href: '' },
-    writable: true,
-    configurable: true,
-  });
+  sessionStorage.clear();
+  post.mockResolvedValue({ authorization_url: 'https://accounts.example/oauth' });
 });
 
-afterEach(() => {
-  Object.defineProperty(window, 'location', { value: originalLocation, configurable: true });
-});
-
-describe('useBulkConnect — starting a Google run', () => {
-  it('parks the rest of the queue and starts the first consent screen', async () => {
-    const { result } = await settled(setup());
-
-    await act(async () => {
-      await result.current.connectAllGoogle();
-    });
-
-    expect(get).toHaveBeenCalledWith('/connectors/google-contacts/authorize');
-    expect(window.location.href).toBe('https://accounts.example/oauth');
-    // The legacy `gmail` type is never queued.
-    expect(queue(BULK_CONNECT_QUEUE_KEY)).toEqual(GOOGLE_ORDER.slice(1));
-  });
-
-  it('skips the connectors that are already active', async () => {
-    const { result } = await settled(
-      setup([makeConnector({ id: '1', connector_type: 'google_contacts', status: 'active' })])
-    );
-
-    await act(async () => {
-      await result.current.connectAllGoogle();
-    });
-
-    expect(get).toHaveBeenCalledWith('/connectors/gmail/authorize');
-    expect(queue(BULK_CONNECT_QUEUE_KEY)).toEqual(GOOGLE_ORDER.slice(2));
-  });
-
-  it('counts a legacy Gmail row as a connected mailbox', async () => {
-    const { result } = await settled(
-      setup([makeConnector({ id: '1', connector_type: 'gmail', status: 'active' })])
-    );
-
-    await act(async () => {
-      await result.current.connectAllGoogle();
-    });
-
-    expect(queue(BULK_CONNECT_QUEUE_KEY)).not.toContain('google_gmail');
-  });
-
-  it('ignores a connector that exists but is not active', async () => {
-    const { result } = await settled(
-      setup([makeConnector({ id: '1', connector_type: 'google_contacts', status: 'error' })])
-    );
-
-    await act(async () => {
-      await result.current.connectAllGoogle();
-    });
-
-    expect(get).toHaveBeenCalledWith('/connectors/google-contacts/authorize');
-  });
-
-  it('says so when everything is already connected, and starts nothing', async () => {
-    const { result } = await settled(
-      setup(
-        GOOGLE_ORDER.map((type, i) =>
-          makeConnector({ id: `c${i}`, connector_type: type, status: 'active' })
-        )
-      )
-    );
-
-    await act(async () => {
-      await result.current.connectAllGoogle();
-    });
-
-    expect(toast.info).toHaveBeenCalledWith('settings.connectors.google.all_already_connected');
-    expect(get).not.toHaveBeenCalled();
-    expect(queue(BULK_CONNECT_QUEUE_KEY)).toBeNull();
-  });
-
-  it('drops the queue when the authorization request fails', async () => {
-    get.mockRejectedValue(new Error('502'));
-    const { result } = await settled(setup());
-
-    await act(async () => {
-      await result.current.connectAllGoogle();
-    });
-
-    expect(toast.error).toHaveBeenCalledWith('settings.connectors.google.connect_all_error');
-    expect(queue(BULK_CONNECT_QUEUE_KEY)).toBeNull();
-    expect(result.current.bulkConnecting).toBe(false);
-    expect(window.location.href).toBe('');
-  });
-});
-
-describe('useBulkConnect — starting a Microsoft run', () => {
-  it('uses its own queue and endpoints', async () => {
-    const { result } = await settled(setup());
-
-    await act(async () => {
-      await result.current.connectAllMicrosoft();
-    });
-
-    expect(get).toHaveBeenCalledWith('/connectors/microsoft-outlook/authorize');
-    expect(queue(MICROSOFT_BULK_CONNECT_QUEUE_KEY)).toEqual([
-      'microsoft_calendar',
-      'microsoft_contacts',
-      'microsoft_tasks',
-    ]);
-    expect(queue(BULK_CONNECT_QUEUE_KEY)).toBeNull();
-  });
-});
-
-describe('useBulkConnect — resuming after the redirect', () => {
-  it('picks the next connector up on mount and pops it off the queue', async () => {
-    localStorage.setItem(
-      BULK_CONNECT_QUEUE_KEY,
-      JSON.stringify(['google_calendar', 'google_drive'])
-    );
-
-    setup();
-
-    await waitFor(() => expect(get).toHaveBeenCalledWith('/connectors/google-calendar/authorize'));
-    expect(queue(BULK_CONNECT_QUEUE_KEY)).toEqual(['google_drive']);
-    expect(window.location.href).toBe('https://accounts.example/oauth');
-  });
-
-  it('announces the end of the run once the last entry is already connected', async () => {
-    localStorage.setItem(BULK_CONNECT_QUEUE_KEY, JSON.stringify(['google_calendar']));
-
-    setup([makeConnector({ id: '1', connector_type: 'google_calendar', status: 'active' })]);
-
-    await waitFor(() =>
-      expect(toast.success).toHaveBeenCalledWith('settings.connectors.google.connect_all_complete')
-    );
-    expect(queue(BULK_CONNECT_QUEUE_KEY)).toBeNull();
-    expect(get).not.toHaveBeenCalled();
-  });
-
-  it('walks past an already-connected entry to the next real one', async () => {
-    localStorage.setItem(
-      BULK_CONNECT_QUEUE_KEY,
-      JSON.stringify(['google_calendar', 'google_drive'])
-    );
-
-    setup([makeConnector({ id: '1', connector_type: 'google_calendar', status: 'active' })]);
-
-    await waitFor(() => expect(get).toHaveBeenCalledWith('/connectors/google-drive/authorize'));
-  });
-
-  it('walks past an entry that no longer maps to any endpoint', async () => {
-    localStorage.setItem(BULK_CONNECT_QUEUE_KEY, JSON.stringify(['google_places', 'google_drive']));
-
-    setup();
-
-    await waitFor(() => expect(get).toHaveBeenCalledWith('/connectors/google-drive/authorize'));
-  });
-
-  it('clears an empty queue without announcing anything', async () => {
-    localStorage.setItem(BULK_CONNECT_QUEUE_KEY, JSON.stringify([]));
-
-    setup();
-
-    await waitFor(() => expect(queue(BULK_CONNECT_QUEUE_KEY)).toBeNull());
-    expect(toast.success).not.toHaveBeenCalled();
-    expect(get).not.toHaveBeenCalled();
-  });
-
-  it('does nothing at all without a parked queue', async () => {
-    setup();
-    await waitFor(() => expect(get).not.toHaveBeenCalled());
-    expect(toast.success).not.toHaveBeenCalled();
-  });
-
-  it('waits for the connector list before resuming', async () => {
-    localStorage.setItem(BULK_CONNECT_QUEUE_KEY, JSON.stringify(['google_calendar']));
-
-    setup([], true);
-
-    await waitFor(() => expect(get).not.toHaveBeenCalled());
-    expect(queue(BULK_CONNECT_QUEUE_KEY)).toEqual(['google_calendar']);
-  });
-
-  it('drops both queues when resuming blows up', async () => {
-    localStorage.setItem(BULK_CONNECT_QUEUE_KEY, JSON.stringify(['google_calendar']));
-    localStorage.setItem(MICROSOFT_BULK_CONNECT_QUEUE_KEY, JSON.stringify(['microsoft_tasks']));
-    get.mockRejectedValue(new Error('boom'));
-
-    setup();
-
-    await waitFor(() => expect(queue(BULK_CONNECT_QUEUE_KEY)).toBeNull());
-    expect(queue(MICROSOFT_BULK_CONNECT_QUEUE_KEY)).toBeNull();
-  });
-
-  it('survives a corrupted queue without wedging the page', async () => {
-    localStorage.setItem(BULK_CONNECT_QUEUE_KEY, 'not-json');
-
-    setup();
-
-    await waitFor(() => expect(queue(BULK_CONNECT_QUEUE_KEY)).toBeNull());
-    expect(get).not.toHaveBeenCalled();
-  });
-});
-
-describe('useBulkConnect — one owner of the queue at a time', () => {
-  it('ignores a run started while the resume pass still owns the queue', async () => {
-    localStorage.setItem(BULK_CONNECT_QUEUE_KEY, JSON.stringify(['google_calendar']));
-    let resolveGet!: (value: { authorization_url: string }) => void;
-    get.mockReturnValue(
-      new Promise<{ authorization_url: string }>(resolve => {
-        resolveGet = resolve;
-      })
-    );
-
+describe('useBulkConnect', () => {
+  it('starts exactly one Google authorization without persisting an OAuth queue', async () => {
     const { result } = setup();
-    // The resume pass is now awaiting its authorize call, holding the queue.
-    await waitFor(() => expect(get).toHaveBeenCalledTimes(1));
+    await act(async () => result.current.connectAllGoogle());
 
-    await act(async () => {
-      await result.current.connectAllMicrosoft();
-    });
-
-    // Overlapping would have parked a second queue and fired a second
-    // authorize request — the run is dropped instead.
-    expect(get).toHaveBeenCalledTimes(1);
-    expect(queue(MICROSOFT_BULK_CONNECT_QUEUE_KEY)).toBeNull();
-
-    await act(async () => {
-      resolveGet({ authorization_url: 'https://accounts.example/oauth' });
-    });
+    expect(post).toHaveBeenCalledExactlyOnceWith(
+      '/connectors/oauth-bulk/google/connect-all/authorize', {}
+    );
+    expect(navigate).toHaveBeenCalledExactlyOnceWith(
+      'https://accounts.example/oauth', 'bulk-connect'
+    );
+    expect(sessionStorage.getItem('oauth_connectors_reconnect_pending')).toBe('true');
+    expect(localStorage.length).toBe(0);
   });
 
-  it('accepts a run again once the resume pass has finished', async () => {
-    const { result } = await settled(setup());
+  it('starts exactly one Microsoft authorization', async () => {
+    const { result } = setup();
+    await act(async () => result.current.connectAllMicrosoft());
+    expect(post).toHaveBeenCalledExactlyOnceWith(
+      '/connectors/oauth-bulk/microsoft/connect-all/authorize', {}
+    );
+  });
 
-    await act(async () => {
-      await result.current.connectAllGoogle();
-    });
+  it('does not include a configured error service in Connect All', async () => {
+    const connectors = [
+      makeConnector({ id: '1', connector_type: 'google_gmail', status: 'error' }),
+      ...['google_contacts', 'google_calendar', 'google_drive', 'google_tasks'].map((type, i) =>
+        makeConnector({ id: `a${i}`, connector_type: type, status: 'active' })
+      ),
+    ];
+    const { result } = setup(connectors);
+    await act(async () => result.current.connectAllGoogle());
+    expect(post).not.toHaveBeenCalled();
+    expect(toast.info).toHaveBeenCalled();
+  });
 
-    expect(get).toHaveBeenCalledWith('/connectors/google-contacts/authorize');
+  it('does not start when every absent service is blocked by an active alternative', async () => {
+    const connectors = [
+      makeConnector({ id: 'outlook', connector_type: 'microsoft_outlook', status: 'active' }),
+      ...['google_contacts', 'google_calendar', 'google_drive', 'google_tasks'].map((type, i) =>
+        makeConnector({ id: `a${i}`, connector_type: type, status: 'active' })
+      ),
+    ];
+    const { result } = setup(connectors);
+    expect(result.current.canConnectGoogle).toBe(false);
+    await act(async () => result.current.connectAllGoogle());
+    expect(post).not.toHaveBeenCalled();
+    expect(toast.info).toHaveBeenCalled();
+  });
+
+  it('does not offer Outlook when legacy Gmail is active', () => {
+    const connectors = [makeConnector({ id: 'legacy', connector_type: 'gmail', status: 'active' })];
+    expect(availableTypes('microsoft', connectors)).not.toContain('microsoft_outlook');
+  });
+
+  it('requires a deliberate account choice when known grants exist', async () => {
+    const connectors = [
+      makeConnector({ id: 'a', connector_type: 'google_calendar', status: 'active',
+        oauth_grant_id: 'grant-a', metadata: { oauth_account_email: 'a@gmail.com' } }),
+      makeConnector({ id: 'b', connector_type: 'google_contacts', status: 'active',
+        oauth_grant_id: 'grant-b', metadata: { oauth_account_email: 'b@gmail.com' } }),
+    ];
+    const { result } = setup(connectors);
+    await act(async () => result.current.connectAllGoogle());
+    expect(post).not.toHaveBeenCalled();
+    expect(result.current.accountDialogProvider).toBe('google');
+    expect(result.current.knownAccounts).toEqual([
+      { grantId: 'grant-a', email: 'a@gmail.com' },
+      { grantId: 'grant-b', email: 'b@gmail.com' },
+    ]);
+    await act(async () => result.current.confirmAccount('grant-b'));
+    expect(post).toHaveBeenCalledExactlyOnceWith(
+      '/connectors/oauth-bulk/google/connect-all/authorize', { grant_id: 'grant-b' }
+    );
+  });
+
+  it('allows choosing another provider account without binding a known grant', async () => {
+    const { result } = setup([
+      makeConnector({ id: 'a', connector_type: 'google_calendar', status: 'active',
+        oauth_grant_id: 'grant-a' }),
+    ]);
+    await act(async () => result.current.connectAllGoogle());
+    await act(async () => result.current.confirmAccount(null));
+    expect(post).toHaveBeenCalledExactlyOnceWith(
+      '/connectors/oauth-bulk/google/connect-all/authorize', {}
+    );
+  });
+
+  it('recovers from a rejected authorization request', async () => {
+    post.mockRejectedValueOnce(new Error('temporary failure'));
+    const { result } = setup();
+    await act(async () => result.current.connectAllMicrosoft());
+    expect(result.current.bulkConnecting).toBe(false);
+    expect(toast.error).toHaveBeenCalledWith('settings.connectors.microsoft.connect_all_error');
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('ignores a second click while the first authorization is in flight', async () => {
+    let resolve!: (value: { authorization_url: string }) => void;
+    post.mockReturnValueOnce(new Promise(resolvePromise => { resolve = resolvePromise; }));
+    const { result } = setup();
+    let first!: Promise<void>;
+    act(() => { first = result.current.connectAllGoogle(); });
+    await act(async () => result.current.connectAllMicrosoft());
+    expect(post).toHaveBeenCalledTimes(1);
+    await act(async () => { resolve({ authorization_url: 'https://accounts.example/oauth' }); await first; });
   });
 });

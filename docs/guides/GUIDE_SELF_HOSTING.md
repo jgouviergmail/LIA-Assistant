@@ -277,6 +277,17 @@ log. The same applies to your admin password.
 
 ### 4.6 Optional capabilities
 
+**Google and Microsoft connectors** remain optional and are configured after
+the installer. If you enable either provider, register its ordinary login and
+per-service callback URIs **and** the grouped callback URI derived from your
+API origin and prefix: `/api/v1/connectors/oauth-bulk/google/callback` or
+`/api/v1/connectors/oauth-bulk/microsoft/callback`. This enables one consent
+for selected services on a verified provider account; it introduces no new
+mandatory environment setting, Compose service, seed or boot step. Existing
+connections continue working until a person chooses the grouped flow. The
+[platform setup guide](../GETTING_STARTED.md#external-platform-setup) lists
+the complete callback set.
+
 **Observability** (`observability = yes`) adds twelve containers — Prometheus,
 Grafana, Loki, Tempo, Alertmanager, the exporters and Portainer — all bound to
 loopback. Their declared memory ceilings total about 3 GiB (roughly 850 MiB

@@ -345,10 +345,7 @@ export const ARRIVAL_SCRIPTS: Partial<Record<EyeExpression, readonly Tape[]>> = 
   ],
 
   /** A thought leans the other way, and slower. */
-  thinking: [
-    absolute('tilt', [[0, -2.4]], 900, SWELL),
-    beat('mouthSkew', [[120, 0.12]], 800, SWELL),
-  ],
+  thinking: [beat('browYL', [[200, -0.015]], 950, { frequency: 1.4, damping: 1 })],
 
   /** Attention perks up. */
   attentive: [absolute('mass', [[0, 1.04]], 240)],

@@ -37,7 +37,10 @@ const ASYMMETRIC: ReadonlySet<EyeExpression> = new Set(['question', 'thinking', 
 
 /** How much each eye's INNER end is lowered (positive) or raised (negative).
  * The two eyes mirror, so the right eye's angle is negated. */
-function innerEndDrop(expression: EyeExpression): { left: number; right: number } {
+function innerEndDrop(expression: EyeExpression): {
+  left: number;
+  right: number;
+} {
   const pose = resolvePose(expression, 'cozmo');
   return { left: pose.browRotL, right: -pose.browRotR };
 }
@@ -100,8 +103,8 @@ describe('the brow', () => {
     // constant ink: a thin brow is a long one.
     const block = CSS.slice(CSS.indexOf('.lia-eye-brow {'));
     const rule = block.slice(0, block.indexOf('\n}'));
-    expect(rule).toMatch(/border-top-width:\s*calc\(0\.13em \* var\(--brow-s\)\)/);
-    expect(rule).toMatch(/width:\s*calc\(var\(--eye-w, 1\.3em\) \* 0\.72 \/ var\(--brow-s\)\)/);
+    expect(CSS).toContain('stroke-width: calc(10px * clamp(0.94, var(--brow-s), 1.06))');
+    expect(rule).toMatch(/width:\s*calc\(var\(--eye-w, 1\.3em\) \* 0\.72\)/);
   });
 
   it('sits ON the eye: anchored to the visible top edge of the shape, so a dome never leaves it floating', () => {
@@ -143,7 +146,10 @@ describe('the brow', () => {
     // A group of its own is what lets it lead on every preset without a
     // per-expression script, and it departs with the willed channels.
     (['browYL', 'browRotL', 'browArcL', 'browXL'] as const).forEach(key => {
-      expect({ key, group: CHANNELS[key].group }).toEqual({ key, group: 'brow' });
+      expect({ key, group: CHANNELS[key].group }).toEqual({
+        key,
+        group: 'brow',
+      });
     });
     expect(GROUP_FREQUENCY_SCALE.brow).toBeGreaterThan(GROUP_FREQUENCY_SCALE.pose);
     expect(GROUP_LEAD_MS.brow).toBe(0);
@@ -228,11 +234,17 @@ describe('the arch', () => {
   it('stays within what the stylesheet can draw, on every expression', () => {
     EYE_EXPRESSIONS.forEach(expression => {
       const pose = resolvePose(expression, 'cozmo');
-      expect({ expression, inRange: pose.browArcL >= 0 && pose.browArcL <= 1 }).toEqual({
+      expect({
+        expression,
+        inRange: pose.browArcL >= 0 && pose.browArcL <= 1,
+      }).toEqual({
         expression,
         inRange: true,
       });
-      expect({ expression, inRange: pose.browArcR >= 0 && pose.browArcR <= 1 }).toEqual({
+      expect({
+        expression,
+        inRange: pose.browArcR >= 0 && pose.browArcR <= 1,
+      }).toEqual({
         expression,
         inRange: true,
       });
@@ -247,13 +259,19 @@ describe('the arch', () => {
 
   it('flattens outright for the scowls: a pressed brow has no curve', () => {
     (['anger', 'focused', 'bored'] as const).forEach(expression => {
-      expect({ expression, arc: arcOf(expression) }).toEqual({ expression, arc: 0 });
+      expect({ expression, arc: arcOf(expression) }).toEqual({
+        expression,
+        arc: 0,
+      });
     });
   });
 
   it('curves gently for what is pleasant', () => {
     (['joy', 'excited', 'tender', 'attentive'] as const).forEach(expression => {
-      expect({ expression, curved: arcOf(expression) > CHANNELS.browArcL.rest }).toEqual({
+      expect({
+        expression,
+        curved: arcOf(expression) > CHANNELS.browArcL.rest,
+      }).toEqual({
         expression,
         curved: true,
       });
@@ -274,21 +292,18 @@ describe('the arch', () => {
     EYE_EXPRESSIONS.forEach(expression => {
       if (ASYMMETRIC.has(expression)) return;
       const pose = resolvePose(expression, 'cozmo');
-      expect({ expression, arcL: pose.browArcL }).toEqual({ expression, arcL: pose.browArcR });
+      expect({ expression, arcL: pose.browArcL }).toEqual({
+        expression,
+        arcL: pose.browArcR,
+      });
     });
   });
 
-  it('is DRAWN as a curved band the way the mouth is: one element, a border, no radius trick', () => {
-    const block = CSS.slice(CSS.indexOf('.lia-eye-brow {'));
-    const rule = block.slice(0, block.indexOf('\n}'));
-    // The curvature is bounded in the sheet: exaggeration may push an arc past
-    // 1 and anticipation may pull it under 0, and neither must reach a radius.
-    expect(rule).toMatch(/--brow-curve:\s*min\(1, max\(0, var\(--brow-arc\)\)\)/);
-    expect(rule).toContain('background: transparent');
-    // At arc 0 the box is exactly its own thickness: the resting pill.
-    expect(rule).toMatch(
-      /height:\s*calc\(0\.13em \* var\(--brow-s\) \+ var\(--brow-curve\) \* [\d.]+em\)/
-    );
+  it('draws a continuous SVG arch with bounded thickness and round ends', () => {
+    expect(CSS).toContain('stroke-linecap: round');
+    expect(CSS).toContain('fill: none');
+    expect(CSS).not.toContain('--brow-curve:');
+    // Shape continuity and independent sides are measured in face-geometry.test.ts.
   });
 });
 

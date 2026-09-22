@@ -21,7 +21,6 @@ import {
   ERROR_HOLD_MS,
   GAZE_RETURN_MS,
   GESTURE_DURATION_MS,
-  IDLE_FLICKERS,
   IDLE_GESTURE_MAX_DELAY_MS,
   IDLE_GESTURE_MIN_DELAY_MS,
   INACTIVITY_ASLEEP_MS,
@@ -35,8 +34,6 @@ import {
   SACCADE_MOVE_MS,
   WAKE_PERFORMANCE,
   RETURN_PERK_MIN_AWAY_MS,
-  WONDER_PERFORMANCE,
-  MOOD_SHIFT_RISE_PERFORMANCE,
   WINK_DURATION_MS,
 } from '../expression-engine';
 import { useEyesSignalsStore } from '@/stores/eyesSignalsStore';
@@ -178,10 +175,24 @@ describe('EyesWidget — chrome & preferences', () => {
     end.setAttribute('data-eyes-anchor-end', '');
     document.body.append(hiddenStart, start, end);
     vi.spyOn(start, 'getBoundingClientRect').mockReturnValue(
-      rect({ left: 300, right: 400, top: 100, bottom: 140, width: 100, height: 40 })
+      rect({
+        left: 300,
+        right: 400,
+        top: 100,
+        bottom: 140,
+        width: 100,
+        height: 40,
+      })
     );
     vi.spyOn(end, 'getBoundingClientRect').mockReturnValue(
-      rect({ left: 700, right: 820, top: 100, bottom: 140, width: 120, height: 40 })
+      rect({
+        left: 700,
+        right: 820,
+        top: 100,
+        bottom: 140,
+        width: 120,
+        height: 40,
+      })
     );
     try {
       renderWidget();
@@ -329,10 +340,13 @@ describe('EyesWidget — expression wiring', () => {
     expect(eyesRoot().dataset.expression).toBe('searching');
   });
 
-  it('streaming answer → speaking; HITL awaiting overrides it → question', () => {
-    const { rerender } = renderWidget({ chatStatus: 'streaming', streamPhase: 'answer' });
+  it('text streaming stays attentive; HITL overrides it with a question', () => {
+    const { rerender } = renderWidget({
+      chatStatus: 'streaming',
+      streamPhase: 'answer',
+    });
     settleMask();
-    expect(eyesRoot().dataset.expression).toBe('speaking');
+    expect(eyesRoot().dataset.expression).toBe('attentive');
     rerender(<EyesWidget chatStatus="streaming" streamPhase="answer" hitlAwaiting />);
     settleMask();
     expect(eyesRoot().dataset.expression).toBe('question');
@@ -461,9 +475,10 @@ describe('EyesWidget — idle life (deterministic via mocked RNG)', () => {
     expect(eyesRoot().dataset.gesture).toBeUndefined();
   });
 
-  it('speaking walks a reading line (the eyes write their answer, no gestures)', () => {
+  it('actual audio drives speech and a reading glance without idle gestures', () => {
+    useEyesSignalsStore.getState().setAudioPlaying(true);
     vi.spyOn(Math, 'random').mockReturnValue(0.9);
-    renderWidget({ chatStatus: 'streaming', streamPhase: 'answer' });
+    renderWidget({ chatStatus: 'idle' });
     settleMask();
     expect(eyesRoot().dataset.expression).toBe('speaking');
     // First reading beat: small left-to-right step, quick move, slightly up.
@@ -480,49 +495,25 @@ describe('EyesWidget — idle life (deterministic via mocked RNG)', () => {
     expect(eyesRoot().dataset.gazeX).toBe('0.2');
   });
 
-  it('a masked change is a three-beat: blink starts, face swaps at lid-top, lids clear', () => {
+  it('changes attention without forcing a masking blink', () => {
     const { rerender } = renderWidget({ chatStatus: 'idle' });
-    expect(eyesRoot().dataset.blinking === 'true').toBe(false);
     rerender(<EyesWidget chatStatus="sending" streamPhase="answer" hitlAwaiting={false} />);
     act(() => {
-      vi.advanceTimersByTime(1);
+      vi.advanceTimersByTime(MIN_EXPRESSION_HOLD_MS + 10);
     });
-    // Beat 1: the lid sweep starts immediately — the face has NOT changed yet
-    // (the morph happens out of sight, at the top of the blink), and the
-    // blink is declared a MASK: the rig holds the lids shut past the swap.
-    expect(eyesRoot().dataset.blinking === 'true').toBe(true);
-    expect(eyesRoot().dataset.blinkMask === 'true').toBe(true);
-    expect(eyesRoot().dataset.expression).toBe('neutral');
-    // Beat 2: at lid-top the new face lands.
-    settleMask();
     expect(eyesRoot().dataset.expression).toBe('attentive');
-    // Beat 3: the blink clears after its full cycle, and so does the mask.
-    act(() => {
-      vi.advanceTimersByTime(BLINK_DURATION_MS + 10);
-    });
-    expect(eyesRoot().dataset.blinking === 'true').toBe(false);
     expect(eyesRoot().dataset.blinkMask).toBeUndefined();
+    expect(eyesRoot().dataset.blinking).toBeUndefined();
   });
 
-  it('an idle mood flicker plays a mini scene then settles back (rng → daydream)', () => {
-    // Calm cumulative weights: 0.95 lands on 'flicker'; pick 0.95 → scene #3
-    // (the tender daydream), whose steps then run on the performance channel.
+  it('leaves the declared mood stable while the rig owns idle scenes', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.95);
     renderWidget();
-    expect(eyesRoot().dataset.expression).toBe('neutral');
     act(() => {
-      vi.advanceTimersByTime(
-        IDLE_GESTURE_MIN_DELAY_MS +
-          0.95 * (IDLE_GESTURE_MAX_DELAY_MS - IDLE_GESTURE_MIN_DELAY_MS) +
-          10
-      );
-    });
-    expect(eyesRoot().dataset.expression).toBe('tender');
-    const scene = IDLE_FLICKERS[IDLE_FLICKERS.length - 1];
-    act(() => {
-      vi.advanceTimersByTime(scene.reduce((sum, s) => sum + s.ms, 0) + 20);
+      vi.advanceTimersByTime(IDLE_GESTURE_MAX_DELAY_MS + 100);
     });
     expect(eyesRoot().dataset.expression).toBe('neutral');
+    expect(eyesRoot().dataset.blinkMask).toBeUndefined();
   });
 
   it('the idle life never plays over a directed expression (streaming)', () => {
@@ -600,7 +591,7 @@ describe('EyesWidget — emotes & slapstick', () => {
     // The return to idle is not urgent: minimum hold first, then the masked
     // swap — the "?" starts leaving when the idle face lands.
     act(() => {
-      vi.advanceTimersByTime(MIN_EXPRESSION_HOLD_MS + MASK_APPLY_DELAY_MS + 10);
+      vi.advanceTimersByTime(MIN_EXPRESSION_HOLD_MS - MASK_APPLY_DELAY_MS);
     });
     expect(document.querySelector('.lia-emote')?.classList.contains('is-leaving')).toBe(true);
     act(() => {
@@ -780,53 +771,33 @@ describe('EyesWidget — liveliness beats (2026-08-21 batch)', () => {
     expect(eyesRoot().dataset.family).toBe('lively');
   });
 
-  it('a cross-family mood shift plays its rise beat while idling', () => {
-    vi.spyOn(Math, 'random').mockReturnValue(0.5);
-    act(() => {
-      usePsycheStore.setState({ enabled: true, moodLabel: 'content' });
-    });
+  it('a mood shift updates temperament without inserting a fake joyful response', () => {
     renderWidget();
+    act(() => {
+      usePsycheStore.setState({ enabled: true, moodLabel: 'playful' });
+    });
     act(() => {
       vi.advanceTimersByTime(MIN_EXPRESSION_HOLD_MS + 10);
     });
-    act(() => {
-      usePsycheStore.setState({ moodLabel: 'playful' });
-    });
-    act(() => {
-      vi.advanceTimersByTime(10);
-    });
-    // First beat of MOOD_SHIFT_RISE_PERFORMANCE: an upward attentive spark.
+    expect(eyesRoot().dataset.family).toBe('lively');
     expect(eyesRoot().dataset.expression).toBe('attentive');
-    expect(eyesRoot().dataset.gazeY).toBe('-0.4');
-    act(() => {
-      vi.advanceTimersByTime(MOOD_SHIFT_RISE_PERFORMANCE[0].ms + 10);
-    });
-    expect(eyesRoot().dataset.expression).toBe('joy');
+    expect(eyesRoot().dataset.gazeY).toBe('0');
   });
 
-  it('typing that expires without a send plays the "you were saying?" wonder', () => {
-    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+  it('returns to rest after typing expires without inventing a question', () => {
     renderWidget();
     act(() => {
       useEyesSignalsStore.getState().recordTyping();
     });
     act(() => {
-      vi.advanceTimersByTime(MIN_EXPRESSION_HOLD_MS + MASK_APPLY_DELAY_MS + 10);
+      vi.advanceTimersByTime(MIN_EXPRESSION_HOLD_MS + 10);
     });
     expect(eyesRoot().dataset.expression).toBe('attentive');
-    // Let the typing signal expire with the chat still idle (the heartbeat
-    // notices on its next second): the eyes come up from the input and
-    // wonder — first the centered attentive beat, then the question.
     act(() => {
-      // Past the typing TTL AND the next heartbeat tick (the beat trigger).
-      vi.advanceTimersByTime(1500);
+      vi.advanceTimersByTime(2500);
     });
-    expect(eyesRoot().dataset.expression).toBe('attentive');
-    expect(eyesRoot().dataset.gazeY).toBe('0');
-    act(() => {
-      vi.advanceTimersByTime(WONDER_PERFORMANCE[0].ms);
-    });
-    expect(eyesRoot().dataset.expression).toBe('question');
+    expect(eyesRoot().dataset.expression).toBe('neutral');
+    expect(document.querySelector('.lia-emote')).toBeNull();
   });
 
   it('returning to the tab after a real absence earns a welcome perk', () => {
@@ -867,7 +838,8 @@ describe('EyesWidget — liveliness beats (2026-08-21 batch)', () => {
 
   it('a reading line torn down by minimizing STILL comes home (no gaze drift, ever)', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.9);
-    renderWidget({ chatStatus: 'streaming', streamPhase: 'answer' });
+    useEyesSignalsStore.getState().setAudioPlaying(true);
+    renderWidget({ chatStatus: 'idle' });
     settleMask();
     act(() => {
       vi.advanceTimersByTime(READING_STEP_MS + 10);
@@ -930,7 +902,7 @@ describe('EyesWidget — liveliness beats (2026-08-21 batch)', () => {
     act(() => {
       vi.advanceTimersByTime(1500);
     });
-    expect(eyesRoot().dataset.expression).toBe('attentive');
+    expect(eyesRoot().dataset.expression).toBe('neutral');
     // ...then a notification lands mid-beat: the surprised glance wins.
     act(() => {
       useEyesSignalsStore.getState().recordNotification();
@@ -944,15 +916,15 @@ describe('EyesWidget — liveliness beats (2026-08-21 batch)', () => {
   it('anti-zapping: a non-urgent burst keeps the first face its minimum beat', () => {
     renderWidget();
     act(() => {
-      useEyesSignalsStore.getState().setReaction('joy', Date.now());
+      useEyesSignalsStore.getState().setReaction('joy');
     });
     act(() => {
-      vi.advanceTimersByTime(MIN_EXPRESSION_HOLD_MS + MASK_APPLY_DELAY_MS + 10);
+      vi.advanceTimersByTime(10);
     });
     expect(eyesRoot().dataset.expression).toBe('joy');
     // A second, non-urgent frame right behind: it must WAIT the hold out.
     act(() => {
-      useEyesSignalsStore.getState().setReaction('sad', Date.now());
+      useEyesSignalsStore.getState().setReaction('sad');
     });
     act(() => {
       vi.advanceTimersByTime(50);
@@ -1016,6 +988,39 @@ describe('EyesWidget — cartoon accessories (RNG-pinned)', () => {
     renderWidget({ chatStatus: 'idle' });
     settleMask();
     expect(document.querySelector('.lia-accessory')).toBeNull();
+  });
+
+  it('cancels an in-flight wink when reduced motion changes without replaying it on return', () => {
+    let reduced = false;
+    const events = new EventTarget();
+    const media: MediaQueryList = {
+      get matches() {
+        return reduced;
+      },
+      media: '(prefers-reduced-motion: reduce)',
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: events.addEventListener.bind(events),
+      removeEventListener: events.removeEventListener.bind(events),
+      dispatchEvent: events.dispatchEvent.bind(events),
+    };
+    vi.spyOn(window, 'matchMedia').mockReturnValue(media);
+    const { unmount } = renderWidget();
+    fireEvent.doubleClick(screen.getByRole('group'));
+    expect(eyesRoot().dataset.expression).toBe('wink');
+    act(() => {
+      reduced = true;
+      media.dispatchEvent(new Event('change'));
+    });
+    expect(eyesRoot().dataset.expression).not.toBe('wink');
+    act(() => {
+      reduced = false;
+      media.dispatchEvent(new Event('change'));
+    });
+    expect(eyesRoot().dataset.expression).not.toBe('wink');
+    unmount();
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it('brings nothing on an unlucky roll — most arrivals stay plain', () => {

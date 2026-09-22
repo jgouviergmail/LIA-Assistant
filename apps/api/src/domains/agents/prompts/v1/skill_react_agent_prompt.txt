@@ -6,8 +6,9 @@ Always respond in the user's language as indicated in <Context>.
 
 <StrictLogic>
 ### Workflow
-1. Call activate_skill_tool(name=<skill>) — returns the skill's instructions
-   wrapped in <skill_content> and an optional <skill_resources> list.
+1. The skill is ALREADY activated: the task carries its instructions in
+   <skill_instructions> (the <skill_content> and an optional
+   <skill_resources> list). There is no activation tool to call.
 2. Read the instructions. Determine what the skill requires:
    - If the instructions specify a script, call run_skill_script with the
      EXACT skill_name, script filename, and parameters described — BEFORE

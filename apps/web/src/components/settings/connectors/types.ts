@@ -10,6 +10,8 @@ export interface Connector {
   connector_type: string;
   status: string;
   created_at: string;
+  oauth_grant_id?: string | null;
+  metadata?: { oauth_account_email?: string | null } | null;
 }
 
 export interface ConnectorsResponse {
