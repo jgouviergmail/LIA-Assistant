@@ -133,6 +133,31 @@ def test_the_database_has_no_durable_volume() -> None:
         )
 
 
+def test_only_catalogue_embeddings_survive_a_demo_restart() -> None:
+    """Cold boot may embed hundreds of tool texts, but visitor data stays ephemeral."""
+    import yaml
+
+    compose = yaml.safe_load(_body())
+    api = compose["services"]["demo-instance-api"]
+    cache_mount = "demo_instance_tool_cache:/app/data/tool_cache"
+    assert set(api["volumes"]) == {
+        "./infrastructure/database/seeds:/app/infrastructure/database/seeds:ro",
+        cache_mount,
+    }
+    assert "demo_instance_tool_cache" in compose["volumes"]
+    assert api["healthcheck"]["start_period"] == "12m"
+    assert "TOOL_EMBEDDINGS_CACHE_CLAIM_TIMEOUT_SECONDS=360" in api["environment"]
+
+
+def test_the_demo_web_uses_its_public_origin_for_metadata() -> None:
+    """The demonstrator is host-bound, unlike the reusable self-hosted web image."""
+    import yaml
+
+    web = yaml.safe_load(_body())["services"]["demo-instance-web"]
+    assert "NEXT_PUBLIC_APP_URL=${APP_URL_SERVER}" in web["build"]["args"]
+    assert "APP_URL_SERVER=${APP_URL_SERVER}" in web["environment"]
+
+
 @pytest.mark.parametrize("service", ["demo-instance-api", "demo-instance-web"])
 def test_the_application_runs_read_only_and_unprivileged(service: str) -> None:
     block = _service_blocks()[service]

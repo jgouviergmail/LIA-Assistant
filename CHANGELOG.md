@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Les autorisations OAuth groupées ont une reprise, un renouvellement et une déconnexion cohérents entre services ; l'état du parcours est à usage unique, PKCE S256 est conservé et le jeton d'identité est vérifié avant d'associer un compte.
 - Les chemins d'outils MCP, Live et ReAct ne doivent plus présenter une réponse structurée ou un appel d'outil abandonné comme une action exécutée ; les réponses et historiques restent interprétables après les sorties anticipées.
 - Plusieurs défauts de synchronisation et d'affichage du compagnon ont été corrigés, notamment le respect des préférences de mouvement et le nettoyage du contexte éphémère.
+- Le démonstrateur public conserve uniquement son cache non personnel de sélection d'outils entre redémarrages ; son premier amorçage dispose du temps nécessaire, et les métadonnées de ses pages utilisent son adresse publique réelle.
 
 ### Tests and operations
 

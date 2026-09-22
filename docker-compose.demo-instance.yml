@@ -123,6 +123,9 @@ services:
       # The three protections, stated here so a reader of the envelope sees
       # what makes it a demonstrator. Values live in the env file.
       - DEMO_MODE_ENABLED=true
+      # Through the demo egress proxy, a cold 833-text catalogue took 223 s.
+      # The global 40 s claim would let the other workers compute concurrently.
+      - TOOL_EMBEDDINGS_CACHE_CLAIM_TIMEOUT_SECONDS=360
       - HTTPS_PROXY=http://demo-instance-egress:3128
       - NO_PROXY=demo-instance-postgres,demo-instance-redis,demo-instance-otel,demo-instance-web
       # The standard image's entrypoint waits on PostgreSQL with `pg_isready`
@@ -177,6 +180,9 @@ services:
       # file google_api_pricing_seed.sql` (measured 2026-08-07), which rolls
       # the whole bundle back and leaves the catalogue partial.
       - ./infrastructure/database/seeds:/app/infrastructure/database/seeds:ro
+      # Public tool-catalogue embeddings only: no visitor data. The writable
+      # cache coordinates workers on cold boot and survives the nightly DB purge.
+      - demo_instance_tool_cache:/app/data/tool_cache
     read_only: true
     tmpfs:
       - /tmp
@@ -202,6 +208,9 @@ services:
       interval: 15s
       timeout: 5s
       retries: 5
+      # A first boot applies migrations/seeds and embeds the tool catalogue.
+      # Do not declare it unhealthy while that bounded initialization runs.
+      start_period: 12m
 
   demo-instance-web:
     # The standard web image, same-origin: the edge serves both, so the
@@ -211,9 +220,14 @@ services:
       dockerfile: apps/web/Dockerfile.prod
       args:
         - NEXT_PUBLIC_API_URL=
+        # This image is built for the public demonstrator's fixed hostname.
+        # Supply it at build time for prerendered metadata and at runtime for
+        # canonical URLs, sitemap and robots (the self-hosted image stays neutral).
+        - NEXT_PUBLIC_APP_URL=${APP_URL_SERVER}
     restart: unless-stopped
     environment:
       - NODE_ENV=production
+      - APP_URL_SERVER=${APP_URL_SERVER}
     read_only: true
     tmpfs:
       - /tmp
@@ -385,6 +399,7 @@ services:
 
 volumes:
   demo_instance_caddy_data:
+  demo_instance_tool_cache:
 
 networks:
   # Internal: the edge lives here and must not reach anything but its two

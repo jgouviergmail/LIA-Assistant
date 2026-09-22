@@ -1,14 +1,14 @@
 # Demo Instance — the free public demonstrator
 
-> **Status:** runs end to end in development, audited by simulation, not yet
-> deployed. Registration, verification email, streamed conversation, web
-> search, speech synthesis, spend ceiling and nightly purge were all exercised
-> against the real instance. A simulation-based security audit conducted on
-> 2026-08-07 — every finding obtained by running something, never by reading
+> **Status:** deployed as an isolated public demonstrator, with the production
+> deployment and verification tasks below. Registration, verification email,
+> streamed conversation, web search, speech synthesis, spend ceiling and
+> nightly purge were all exercised against the real instance. A simulation-based
+> security audit on 2026-08-07 — based on running the system, not only reading
 > code — found eight defects, five of them invisible to the green test suite;
 > the corrections are in and remeasured, and the guards that recalculate them
 > are described in [ADR-218](../architecture/ADR-218-Surface-Verifiee-Du-Demonstrateur.md).
-> Two arbitrations remain: dedicated provider keys, and which machine hosts it.
+> The operator supplies dedicated provider keys and the public host configuration.
 
 The demonstrator is the **standard LIA image** running in an isolated Compose
 envelope, not a stripped-down copy of the product. A visitor gets the real
@@ -108,6 +108,21 @@ task demo:prod:verify  # the same three protections, measured on the host
 task demo:prod:harden  # (re)install the container->host firewall rules
 task demo:prod:down
 ```
+
+The visitor database and Redis state are ephemeral. Only the non-personal
+tool-catalogue embedding cache has a named volume: the read-only API image
+needs a writable directory to coordinate workers and avoid embedding the
+catalogue again after every restart. The first boot can still take several
+minutes while migrations, seeds and embeddings complete: on the deployed host,
+the 833-text embedding took about four minutes through the egress proxy. The
+demo-specific six-minute worker claim prevents simultaneous cold calculations,
+and its healthcheck allows a twelve-minute startup period, including recovery
+from a failed first claimant. `task demo:prod:down` deletes the
+visitor database but retains this static cache; stale vectors are rejected
+by the catalogue content hash. The public web image is built with this
+demonstrator's `APP_URL_SERVER` so prerendered metadata, canonical links,
+sitemap and robots share its actual origin. The generic self-hosted web
+image remains hostname-neutral.
 
 ### Changed a seed? Ship it BEFORE you start
 
