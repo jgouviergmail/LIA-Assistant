@@ -1647,6 +1647,11 @@
       "title": "Un turno ReAct giudicato sul suo risultato",
       "summary": "Ciò che il ciclo parte a cercare finisce ottenuto o dichiarato mancante. Una mancanza dichiarata apre un passaggio di recupero limitato, e la risposta dice ciò che non si è potuto ottenere.",
       "src": "fb30c2c99de7"
+    },
+    "311": {
+      "title": "Il ritmo degli scambi appartiene alla persona",
+      "summary": "Ognuno sceglie tra scambi frequenti e occasionali. Frequenti: LIA tiene tutti i suoi strumenti e prepara ogni turno perché il successivo lo rilegga dalla cache, un primo messaggio più costoso e poi altri molto più economici. Occasionali: sceglie gli strumenti per pertinenza, con un costo stabile.",
+      "src": "6da70629f513"
     }
   }
 }

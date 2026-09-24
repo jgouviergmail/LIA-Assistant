@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic_core.core_schema import ValidationInfo
 
 from src.core.constants import IMAGE_GENERATION_OUTPUT_FORMAT_DEFAULT
+from src.core.exchange_rhythm import ExchangeRhythm
 from src.core.field_names import FIELD_IS_ACTIVE
 from src.domains.shared.schemas import (
     FontFamilyValidatorMixin,
@@ -86,7 +87,16 @@ class UserUpdate(
         description="Format generated and edited images are delivered in: 'png', 'jpeg', 'webp'",
     )
 
-    model_config = {"from_attributes": True}
+    # ADR-311: strict on write — the two rhythms, dumped as exact strings.
+    exchange_rhythm: ExchangeRhythm | None = Field(
+        None,
+        description=(
+            "Exchange rhythm: 'frequent' (every tool bound, the prompt shaped for the "
+            "next turn's cache) or 'occasional' (tools chosen by relevance)"
+        ),
+    )
+
+    model_config = {"from_attributes": True, "use_enum_values": True}
 
 
 class UserProfile(UserBase, LanguageValidatorMixin):

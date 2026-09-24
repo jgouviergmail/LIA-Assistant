@@ -1,7 +1,7 @@
 {
-  "version": "1.47.2",
+  "version": "1.47.3",
   "releaseDate": "2026-09-24",
-  "releases": 267,
+  "releases": 268,
   "milestones": [
     {
       "version": "1.0.0",
@@ -196,7 +196,7 @@
       "date": "2026-09-20"
     },
     {
-      "version": "1.47.2",
+      "version": "1.47.3",
       "date": "2026-09-24"
     }
   ],
@@ -511,6 +511,7 @@
     "307": "ADR-307-Keyless-Connectors-Belong-To-The-Instance.md",
     "308": "ADR-308-ReAct-Cross-Turn-Prompt-Cache.md",
     "309": "ADR-309-One-Prompt-Layout-For-Every-Cache-Mechanism.md",
-    "310": "ADR-310-ReAct-Turn-Judged-On-Its-Result.md"
+    "310": "ADR-310-ReAct-Turn-Judged-On-Its-Result.md",
+    "311": "ADR-311-Exchange-Rhythm-Is-The-Persons-Choice.md"
   }
 }

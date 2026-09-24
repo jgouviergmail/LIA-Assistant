@@ -166,6 +166,8 @@ class ReactToolSelector:
         self,
         intelligence: DetectedDomains | None,
         ranking: Sequence[str] | None = None,
+        *,
+        every_tool: bool = False,
     ) -> tuple[list[ReactToolWrapper], dict[str, bool]]:
         """Select the tools the ReAct agent binds this turn.
 
@@ -184,11 +186,19 @@ class ReactToolSelector:
         the detected domains' tools first, then one family coverage, then
         the rest.
 
+        For frequent exchanges (``every_tool``, ADR-308/ADR-311) every
+        available tool is bound in registration order, the same bytes on every
+        turn, unless the cap or the slot's window forbids it — then the turn
+        keeps the relevance selection and the fallback is counted.
+
         Args:
             intelligence: Query intelligence. Its detected domains give their
                 agents' tools priority: bound first, and first to SURVIVE the
                 max_tools cap.
             ranking: Manifest names, most relevant first, for the whole turn.
+            every_tool: The turn's rhythm is frequent — bind every tool. The
+                setup node reads it from the turn's state; the selector never
+                reads the instance setting.
 
         Returns:
             Tuple of (wrapped_tools, hitl_map).
@@ -229,11 +239,9 @@ class ReactToolSelector:
         react_tools_resolved.observe(resolved_count)
         # ADR-308: the same tools, in the same order, on every turn — or, when
         # they cannot all be bound, the relevance selection of a known-good turn.
-        every_tool = (
-            self._every_tool(rows, max_tools) if settings.react_cross_turn_cache_enabled else None
-        )
-        if every_tool is not None:
-            wrapped_tools = every_tool
+        bound_whole = self._every_tool(rows, max_tools) if every_tool else None
+        if bound_whole is not None:
+            wrapped_tools = bound_whole
         else:
             wrapped_tools, hitl_map = self._by_relevance(rows, hitl_map, ranking, priority_agents)
 
@@ -252,7 +260,7 @@ class ReactToolSelector:
             tool_count=len(wrapped_tools),
             hitl_count=sum(1 for v in hitl_map.values() if v),
             capped=resolved_count > max_tools,
-            every_tool=every_tool is not None,
+            every_tool=bound_whole is not None,
         )
 
         return wrapped_tools, hitl_map

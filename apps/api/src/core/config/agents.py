@@ -906,11 +906,12 @@ class AgentsSettings(BaseSettings):
     react_cross_turn_cache_enabled: bool = Field(
         default=REACT_CROSS_TURN_CACHE_ENABLED_DEFAULT,
         description=(
-            "Bind every available tool in registration order and place the turn's "
-            "context after the question, so a ReAct turn's prompt prefix (tools + static "
-            "prompt) is the previous turn's and the provider's prompt cache is read across "
-            "turns (ADR-308). Off: the relevance selection and the context in the system "
-            "prompt, unchanged."
+            "Default exchange rhythm of an account that never chose its own (ADR-311): "
+            "true = frequent exchanges (every available tool bound in registration order, "
+            "the turn's context after the question, the history dropped by blocks, so the "
+            "provider's prompt cache is read across turns — ADR-308, ADR-309), false = "
+            "occasional exchanges (the relevance selection). The person's choice in "
+            "Settings > Usage preferences always wins."
         ),
     )
     react_cross_turn_cache_max_window_fraction: float = Field(

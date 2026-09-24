@@ -21,6 +21,7 @@ from typing import Any
 
 from langgraph.store.base import BaseStore
 
+from src.core.exchange_rhythm import effective_exchange_rhythm
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.models import MessagesState
 
@@ -43,6 +44,7 @@ def build_runtime_context(
     user_voice_enabled: bool = False,
     user_display_mode: str | None = None,
     user_execution_mode: str | None = None,
+    user_exchange_rhythm: str | None = None,
     is_automated_source: bool = False,
 ) -> LiaRuntimeContext:
     """Build the context of one conversation run.
@@ -70,6 +72,8 @@ def build_runtime_context(
             node's HTML gate reads it beside the display mode).
         user_display_mode: Render mode; ``None`` keeps the context default.
         user_execution_mode: Pipeline or ReAct; ``None`` keeps the default.
+        user_exchange_rhythm: ``users.exchange_rhythm`` as stored; ``None`` (never
+            chosen) or an unreadable value follows the instance default (ADR-311).
         is_automated_source: True for runs the user did not type.
 
     Returns:
@@ -91,6 +95,7 @@ def build_runtime_context(
         psyche_enabled=user_psyche_enabled,
         voice_enabled=user_voice_enabled,
         is_automated_source=is_automated_source,
+        exchange_rhythm=effective_exchange_rhythm(user_exchange_rhythm),
         display_name=state.get("user_display_name"),
         deps=tool_deps,
         browser_context=browser_context,

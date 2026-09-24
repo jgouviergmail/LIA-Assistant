@@ -1318,6 +1318,10 @@
     "310": {
       "title": "Un tour ReAct jugé sur son résultat",
       "summary": "Ce que la boucle part chercher finit obtenu ou déclaré manquant. Un manque déclaré ouvre une passe de rattrapage bornée, et la réponse dit ce qui n'a pas pu être obtenu."
+    },
+    "311": {
+      "title": "Le rythme d'échanges appartient à la personne",
+      "summary": "Chacun choisit entre échanges fréquents et échanges ponctuels. Fréquents : LIA garde tous ses outils et prépare chaque tour pour que le suivant relise le précédent en cache, un premier message plus coûteux puis des suivants bien moins chers. Ponctuels : elle choisit les outils par pertinence, pour un coût stable."
     }
   }
 }

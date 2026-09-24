@@ -1,9 +1,9 @@
-"""The ReAct call node reads the cross-turn cache flag (ADR-308).
+"""The ReAct call node shapes each call by the turn's exchange rhythm (ADR-308, ADR-311).
 
-Off, a call sends exactly what it sent before; on, the turn's context follows the
-question. The selector reads the flag itself (``ReactToolSelector.select``), so
-the setup node binds every tool without a line of its own; nothing of the new
-layout is written to the checkpoint.
+For occasional exchanges a call sends exactly what it sent before ADR-308; for
+frequent exchanges the turn's context follows the question. The rhythm is read
+from the turn's state, which the router wrote at the turn's start, never from
+the instance setting; nothing of the layout is written to the checkpoint.
 """
 
 from __future__ import annotations
@@ -64,19 +64,22 @@ def sent(monkeypatch: pytest.MonkeyPatch) -> list[list[BaseMessage]]:
     return captured
 
 
-async def test_without_the_flag_a_call_sends_what_it_sent_before(
+async def test_occasional_exchanges_send_what_a_call_sent_before(
     state: dict[str, Any], sent: list[list[BaseMessage]], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(settings, "react_cross_turn_cache_enabled", False)
+    # The instance default says frequent: the turn's own rhythm decides.
+    monkeypatch.setattr(settings, "react_cross_turn_cache_enabled", True)
+    state["exchange_rhythm"] = "occasional"
     await rn.react_call_model_node(state, config={})
     assert sent[0][:2] == [SystemMessage(content=PROMPT), SystemMessage(content=MEMORY)]
     assert [m.id for m in sent[0][2:]] == ["h0", "a0", "h1", "a1", "t1"]
 
 
-async def test_with_the_flag_the_turn_s_context_follows_the_question(
+async def test_frequent_exchanges_place_the_turn_s_context_after_the_question(
     state: dict[str, Any], sent: list[list[BaseMessage]], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(settings, "react_cross_turn_cache_enabled", True)
+    monkeypatch.setattr(settings, "react_cross_turn_cache_enabled", False)
+    state["exchange_rhythm"] = "frequent"
     await rn.react_call_model_node(state, config={})
     messages = sent[0]
     assert "Date:" not in str(messages[0].content)
@@ -88,9 +91,9 @@ async def test_with_the_flag_the_turn_s_context_follows_the_question(
 
 
 async def test_the_layout_never_reaches_the_checkpoint(
-    state: dict[str, Any], sent: list[list[BaseMessage]], monkeypatch: pytest.MonkeyPatch
+    state: dict[str, Any], sent: list[list[BaseMessage]]
 ) -> None:
-    monkeypatch.setattr(settings, "react_cross_turn_cache_enabled", True)
+    state["exchange_rhythm"] = "frequent"
     result = await rn.react_call_model_node(state, config={})
     assert [m.id for m in result["messages"]] == ["out"]
     assert state["messages"][2].content == "Check my emails."

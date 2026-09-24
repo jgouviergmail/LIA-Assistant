@@ -37,6 +37,7 @@ from src.domains.agents.analysis.query_intelligence_helpers import (
     get_qi_attr,
     get_query_intelligence_from_state,
 )
+from src.domains.agents.constants import STATE_KEY_CURRENT_TURN_ID
 from src.domains.agents.effects.scope import effect_scope, react_call_scope
 from src.domains.agents.models import MessagesState, count_messages_tokens_cached
 from src.domains.agents.nodes import react_context
@@ -51,7 +52,11 @@ from src.domains.agents.nodes.react_prompt import (
     sandbox_available,
 )
 from src.domains.agents.nodes.react_recovery import recovery_report, with_recovery_directives
-from src.domains.agents.nodes.react_turn_layout import compose_turn_messages, react_slot_provider
+from src.domains.agents.nodes.react_turn_layout import (
+    compose_turn_messages,
+    frequent_exchanges,
+    react_slot_provider,
+)
 from src.domains.agents.nodes.router_tool_scoring import GLOBAL_RANKING_KEY
 from src.domains.agents.orchestration.step_timeouts import compute_step_timeout
 from src.domains.agents.services.connector_error_notice import (
@@ -255,11 +260,14 @@ async def react_setup_node(
         logger.warning("react_setup_disabled", reason="feature_flag_off")
         return {}
 
-    # Select and wrap tools — by relevance when the router ranked them (ADR-293).
+    # Select and wrap tools — by relevance when the router ranked them (ADR-293),
+    # every tool when the turn's rhythm is frequent (ADR-308, ADR-311).
     selector = ReactToolSelector()
     ranking = (state.get("tool_selection_result") or {}).get(GLOBAL_RANKING_KEY)
     wrapped_tools, hitl_map = (
-        selector.select(intelligence, ranking=ranking) if intelligence else ([], {})
+        selector.select(intelligence, ranking=ranking, every_tool=frequent_exchanges(state))
+        if intelligence
+        else ([], {})
     )
     tool_names = [t.name for t in wrapped_tools]
     schema_tokens = bound_tool_tokens(wrapped_tools)
@@ -427,13 +435,16 @@ async def react_call_model_node(
     # living in `messages` (ADR-169). Leading and contiguous means: one merged
     # system block for the provider, a prefix whose bytes do not change from one
     # turn to the next (so prompt caching can actually hit), and no second,
-    # non-consecutive system block for Anthropic to reject. With the cross-turn
-    # cache flag (ADR-308) the turn's context follows the question instead, in
-    # the shape its provider takes, so the static prompt alone leads.
-    cross_turn = settings.react_cross_turn_cache_enabled
+    # non-consecutive system block for Anthropic to reject. For frequent
+    # exchanges (ADR-308, ADR-311) the turn's context follows the question
+    # instead, in the shape its provider takes, so the static prompt alone
+    # leads, and the history drops by blocks.
+    cross_turn = frequent_exchanges(state)
     messages = compose_turn_messages(
         state.get("react_system_blocks") or [],
-        _window_messages_for_react(state["messages"]),
+        _window_messages_for_react(
+            state["messages"], turn_id=state.get(STATE_KEY_CURRENT_TURN_ID), blocks=cross_turn
+        ),
         context_after_question=cross_turn,
         provider=react_slot_provider() if cross_turn else None,
     )

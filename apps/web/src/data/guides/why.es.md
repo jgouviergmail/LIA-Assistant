@@ -4,7 +4,7 @@
 
 **Versión**: 6.1
 **Fecha**: 2026-09-24
-**Aplicación**: LIA v1.47.2
+**Aplicación**: LIA v1.47.3
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -60,6 +60,7 @@ Cada usuario dispone de su propio espacio de configuración, organizado en dos p
 - **Servidores MCP personales**: conecta tus propios servidores MCP para ampliar las capacidades de LIA
 - **Apariencia**: idioma, zona horaria, tema (5 paletas, modo claro, oscuro o negro absoluto), fuente (9 opciones), formato de visualización de respuestas (tarjetas HTML, HTML, Markdown)
 - **Mi dashboard**: oculta o reordena las 9 tarjetas del briefing — una tarjeta oculta ya ni siquiera se consulta
+- **Preferencias de uso**: elige tu ritmo de intercambios — frecuentes, y LIA tiene todas sus herramientas a mano para que cada turno del modo ReAct relea el anterior desde la caché del proveedor; puntuales, y elige las herramientas que necesita cada pregunta, con un coste estable
 - **Debug**: accede al panel de depuración para inspeccionar cada intercambio (si el administrador lo ha activado)
 
 **Funcionalidades avanzadas:**
@@ -287,7 +288,7 @@ LIA no solo funciona con hardware modesto — **optimiza activamente** su consum
 - **Filtrado de catálogo**: solo las herramientas relevantes para tu consulta se presentan al LLM, reduciendo drásticamente el número de tokens consumidos
 - **Aprendizaje de patrones**: los planes validados se memorizan y reutilizan sin volver a llamar al LLM
 - **Message Windowing**: cada componente ve únicamente el contexto estrictamente necesario
-- **Cache de prompts**: aprovechamiento de la caché nativa de los proveedores para limitar los costes recurrentes
+- **Cache de prompts**: aprovechamiento de la caché nativa de los proveedores para limitar los costes recurrentes — y en modo ReAct eres tú quien arbitra: los intercambios frecuentes mantienen cargadas todas las herramientas para que cada turno relea el anterior, los puntuales conservan el filtrado por pertinencia y un coste que no depende del intervalo entre dos mensajes
 - **Prompts sin peso muerto**: un contexto solo se envuelve si existe, de modo que un turno desnudo no lleva ninguna envoltura vacía, y una notificación de dos frases se pide sin razonamiento — en un modelo que razona por defecto, el razonamiento se factura dentro del presupuesto de la respuesta
 
 Combinadas, estas optimizaciones explican el factor de 4 a 8 entre el modo Pipeline y el modo agente autónomo, con el mismo servicio prestado.

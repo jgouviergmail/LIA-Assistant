@@ -40,6 +40,7 @@ from src.core.constants import (
     EXECUTION_MODE_PIPELINE,
     RESPONSE_DISPLAY_MODE_DEFAULT,
 )
+from src.core.exchange_rhythm import ExchangeRhythm, effective_exchange_rhythm
 
 # ``BaseStore`` and ``asyncio`` are imported at RUNTIME, not under TYPE_CHECKING:
 # every tool's parameter is annotated ``ToolRuntime[LiaRuntimeContext, Any]``, and
@@ -87,6 +88,9 @@ class LiaRuntimeContext:
             reply free of markup while a voice listens.
         display_mode: Render mode the user chose (cards / html / markdown).
         execution_mode: Pipeline or ReAct (ADR-070).
+        exchange_rhythm: What the ReAct loop shapes its prompt for — the person's
+            choice, else the instance default (ADR-311). The router publishes it
+            into the turn's state; the loop reads the state, never this field.
         is_automated_source: True for runs the user did not type (scheduled
             actions, heartbeat); post-response extractions are skipped for those.
         deps: Tool dependency container. A live object, passed by reference.
@@ -116,6 +120,7 @@ class LiaRuntimeContext:
 
     display_mode: str = RESPONSE_DISPLAY_MODE_DEFAULT
     execution_mode: str = EXECUTION_MODE_PIPELINE
+    exchange_rhythm: ExchangeRhythm = field(default_factory=lambda: effective_exchange_rhythm(None))
     timezone: str = DEFAULT_TIMEZONE
     language: str = field(default_factory=lambda: settings.default_language)
     display_name: str | None = None

@@ -14,7 +14,6 @@ from unittest.mock import MagicMock
 import pytest
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 
-from src.core.config import settings
 from src.domains.agents.nodes import react_nodes as rn
 
 pytestmark = pytest.mark.unit
@@ -45,7 +44,6 @@ def sent(monkeypatch: pytest.MonkeyPatch) -> list[list[BaseMessage]]:
     captured: list[list[BaseMessage]] = []
     monkeypatch.setattr(rn, "get_llm", lambda *_a, **_k: MagicMock())
     monkeypatch.setattr(rn, "_rebuild_wrapped_tools", lambda *_a, **_k: [])
-    monkeypatch.setattr(settings, "react_cross_turn_cache_enabled", False)
 
     async def fake_stream(
         _llm: Any, messages: list[BaseMessage], emit: Any, config: Any

@@ -1647,6 +1647,11 @@
       "title": "A ReAct turn judged on its result",
       "summary": "What the loop sets out to get ends up obtained or declared missing. A declared gap opens a bounded recovery pass, and the answer says what could not be obtained.",
       "src": "fb30c2c99de7"
+    },
+    "311": {
+      "title": "The exchange rhythm belongs to the person",
+      "summary": "Everyone chooses between frequent and occasional exchanges. Frequent: LIA keeps every tool and prepares each turn so the next one reads it back from the cache, a heavier first message then much cheaper ones. Occasional: it picks the tools by relevance, for a steady cost.",
+      "src": "6da70629f513"
     }
   }
 }

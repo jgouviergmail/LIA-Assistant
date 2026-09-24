@@ -50,7 +50,7 @@
     },
     "f.react": {
       "name": "Mode ReAct",
-      "role": "Boucle autonome raisonnement ↔ outils pour les demandes ouvertes : outils choisis par pertinence, budget qui s'étend tant que la boucle produit, et une passe de rattrapage bornée quand un fait manque.",
+      "role": "Boucle autonome raisonnement ↔ outils pour les demandes ouvertes : tous les outils ou ceux choisis par pertinence, selon le rythme d'échanges de la personne, budget qui s'étend tant que la boucle produit, et une passe de rattrapage bornée quand un fait manque.",
       "goal": "Explorer quand le chemin n'est pas connu d'avance, et finir sur un résultat obtenu ou un manque déclaré."
     },
     "f.hitl": {

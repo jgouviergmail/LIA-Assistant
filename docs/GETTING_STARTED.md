@@ -5,7 +5,7 @@
 
 **Version**: 4.0
 **Last Updated**: 2026-08-22
-**Compatibility**: LIA v1.47.2
+**Compatibility**: LIA v1.47.3
 
 ## Table of Contents
 
@@ -1009,8 +1009,9 @@ REACT_AGENT_MAX_ITERATIONS=90
 REACT_AGENT_TIMEOUT_SECONDS=300
 REACT_AGENT_HISTORY_WINDOW_TURNS=5
 REACT_RECOVERY_PASSES_MAX=1           # ADR-310: bounded recovery passes when an answer declares a gap (0 = off, at most 3)
-REACT_CROSS_TURN_CACHE_ENABLED=false  # ADR-308: bind every tool and put the turn's context after the question, so a
-                                      # provider's prompt cache is read across turns (pays off on models WITH a cache)
+REACT_CROSS_TURN_CACHE_ENABLED=false  # ADR-311: exchange rhythm of an account that never chose its own (Settings >
+                                      # Usage preferences). true = frequent: every tool, the context after the question
+                                      # and history blocks, so a provider's prompt cache is read across turns (ADR-308)
 
 BROWSER_REACT_MAX_ITERATIONS=50
 BROWSER_MAX_CONCURRENT_SESSIONS=1

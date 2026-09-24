@@ -1647,6 +1647,11 @@
       "title": "Ein ReAct-Durchgang, an seinem Ergebnis gemessen",
       "summary": "Was die Schleife zu holen aufbricht, ist am Ende beschafft oder als fehlend gemeldet. Eine gemeldete Lücke eröffnet eine begrenzte Nachholrunde, und die Antwort sagt, was nicht beschafft werden konnte.",
       "src": "fb30c2c99de7"
+    },
+    "311": {
+      "title": "Der Austauschrhythmus gehört der Person",
+      "summary": "Jede Person wählt zwischen häufigem und gelegentlichem Austausch. Häufig: LIA behält alle Werkzeuge und bereitet jede Runde so vor, dass die nächste die vorige aus dem Cache liest, mit einer aufwendigeren ersten Nachricht und danach deutlich günstigeren. Gelegentlich: LIA wählt die Werkzeuge nach Relevanz, bei stabilen Kosten.",
+      "src": "6da70629f513"
     }
   }
 }

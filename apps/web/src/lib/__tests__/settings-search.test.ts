@@ -112,7 +112,10 @@ describe('SETTINGS_SEARCH_META — describes the page it claims to describe', ()
     // 62 since the live mode section joined Preferences / Voice & Media
     // (ADR-299, 2026-09-18): the live connector's model, voice and thinking
     // level, and the four conversation reflexes.
-    expect(TOKENS).toHaveLength(62);
+    // 63 since the usage preferences joined Preferences / Personalization
+    // (ADR-311, 2026-09-24): the exchange rhythm the ReAct loop shapes its
+    // prompt for, frequent or occasional.
+    expect(TOKENS).toHaveLength(63);
   });
 
   it.each(Object.keys(LOCALES) as LocaleCode[])(

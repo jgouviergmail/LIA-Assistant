@@ -283,3 +283,31 @@ class TestRouterResetsTheDraftReview:
         update = await router_node_v3(state, _config())
 
         assert update[key] == expected
+
+
+class TestRouterPublishesTheExchangeRhythm:
+    """The rhythm is read ONCE per turn, by the router, and the loop reads the state (ADR-311).
+
+    A HITL resumption re-enters the interrupted node, never the router, so the
+    turn keeps the rhythm it started with even if the person changes it meanwhile:
+    the tools bound at setup and the layout of every later call cannot disagree.
+    """
+
+    @pytest.mark.parametrize("rhythm", ["frequent", "occasional"])
+    async def test_the_run_s_rhythm_lands_in_the_state(self, rhythm: str) -> None:
+        from src.core.exchange_rhythm import ExchangeRhythm
+        from tests.helpers.runtime_context import installed_runtime_context
+
+        state = _state(HumanMessage(content="cherche jean"))
+        state["exchange_rhythm"] = "stale value of the previous turn"
+
+        with installed_runtime_context(exchange_rhythm=ExchangeRhythm(rhythm)):
+            update = await router_node_v3(state, _config())
+
+        assert update["exchange_rhythm"] == rhythm
+
+    def test_it_is_a_declared_state_key(self) -> None:
+        """An undeclared key is silently dropped by LangGraph (CLAUDE.md, State Management)."""
+        from src.domains.agents.models import MessagesState
+
+        assert "exchange_rhythm" in MessagesState.__annotations__

@@ -43,6 +43,7 @@ import { AdminUsageLimitsSection } from './AdminUsageLimitsSection';
 import { AccountExportSettings } from './AccountExportSettings';
 import { BriefingGridSettings } from './BriefingGridSettings';
 import { CardsDisplaySettings } from './CardsDisplaySettings';
+import { UsagePreferencesSettings } from './UsagePreferencesSettings';
 import { ChannelSettings } from './ChannelSettings';
 import { ChatShortcutsSettings } from './ChatShortcutsSettings';
 import ConsumptionExportSection from './ConsumptionExportSection';
@@ -101,6 +102,7 @@ export const SETTINGS_SECTION_REGISTRY: Readonly<
   font: { render: lng => <FontSettings lng={lng} /> },
   'eyes-style': { render: lng => <EyesStyleSettings lng={lng} /> },
   'display-mode': { render: lng => <CardsDisplaySettings lng={lng} /> },
+  'usage-preferences': { render: lng => <UsagePreferencesSettings lng={lng} /> },
   haptics: { render: lng => <HapticsSettings lng={lng} /> },
   'briefing-grid': { render: lng => <BriefingGridSettings lng={lng} /> },
   'chat-shortcuts': { render: lng => <ChatShortcutsSettings lng={lng} /> },

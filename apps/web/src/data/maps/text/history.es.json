@@ -1647,6 +1647,11 @@
       "title": "Un turno ReAct juzgado por su resultado",
       "summary": "Lo que el bucle sale a buscar acaba obtenido o declarado como ausente. Una carencia declarada abre una pasada de recuperación acotada, y la respuesta dice lo que no se ha podido obtener.",
       "src": "fb30c2c99de7"
+    },
+    "311": {
+      "title": "El ritmo de intercambio pertenece a la persona",
+      "summary": "Cada persona elige entre intercambios frecuentes y puntuales. Frecuentes: LIA conserva todas sus herramientas y prepara cada turno para que el siguiente lo relea desde la caché, un primer mensaje más costoso y luego otros mucho más baratos. Puntuales: elige las herramientas por relevancia, con un coste estable.",
+      "src": "6da70629f513"
     }
   }
 }

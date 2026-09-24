@@ -5910,13 +5910,15 @@ REACT_MCP_EXPAND_ITERATIVE_ENABLED_DEFAULT: bool = True
 # readable field of any e-mail — eleven iterations, a wrong answer.
 REACT_TOOL_RESULT_MAX_TOKENS_DEFAULT: int = 25_000
 REACT_TOOL_RESULT_WINDOW_FRACTION_DEFAULT: float = 0.25
-# ADR-308: bind EVERY available tool in registration order and move the turn's
-# context after the question, so a turn's prefix (tools + static prompt) is the
-# previous turn's and the provider's prompt cache is read across turns. Off by
-# default: without it nothing changes (relevance selection, context in the
-# system prompt). Measured 2026-09-23 at production's gaps between turns: -18 %
-# (Claude), -34 % (GPT-5.6), -42 % (DeepSeek) per turn; +18 % on a model with no
-# prompt cache at all (qwen3.5/3.6 on the Frankfurt endpoint).
+# ADR-308, ADR-311: the default exchange rhythm of an account that never chose
+# its own. True = frequent exchanges: every available tool bound in registration
+# order, the turn's context after the question, the history dropped by blocks,
+# so a turn's prefix is the previous turn's and the provider's prompt cache is
+# read across turns. False (the default) = occasional exchanges: the relevance
+# selection, the context in the system prompt, nothing else changes. Measured
+# 2026-09-23 at production's gaps between turns: -18 % (Claude), -34 % (GPT-5.6),
+# -42 % (DeepSeek) per turn; +18 % on a model with no prompt cache at all
+# (qwen3.5/3.6 on the Frankfurt endpoint).
 REACT_CROSS_TURN_CACHE_ENABLED_DEFAULT: bool = False
 # Largest share of the ReAct slot's context window every tool's schemas may
 # take before a turn keeps the relevance selection instead (a 32K local window

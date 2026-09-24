@@ -4,7 +4,7 @@
 
 **Version**: 6.1
 **Datum**: 2026-09-24
-**Anwendung**: LIA v1.47.2
+**Anwendung**: LIA v1.47.3
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -60,6 +60,7 @@ Jeder Benutzer verfügt über seinen eigenen Einstellungsbereich, der in zwei Re
 - **Persönliche MCP-Server**: Verbinde deine eigenen MCP-Server, um die Fähigkeiten von LIA zu erweitern
 - **Darstellung**: Sprache, Zeitzone, Theme (5 Farbpaletten, Hell, Dunkel oder absolutes Schwarz), Schrift (9 Optionen), Anzeigeformat der Antworten (HTML-Karten, HTML, Markdown)
 - **Mein Dashboard**: Blende die 9 Briefing-Karten aus oder ordne sie neu — eine ausgeblendete Karte wird gar nicht mehr abgerufen
+- **Nutzungspräferenzen**: Wähle deinen Austauschrhythmus — häufig, und LIA hält alle Werkzeuge bereit, damit jeder Durchgang im ReAct-Modus den vorigen aus dem Cache des Anbieters liest; gelegentlich, und sie wählt die Werkzeuge, die jede Frage braucht, zu stabilen Kosten
 - **Debug**: Zugriff auf das Debug-Panel zur Inspektion jedes Austauschs (wenn vom Administrator aktiviert)
 
 **Erweiterte Funktionen:**
@@ -287,7 +288,7 @@ LIA läuft nicht nur auf bescheidener Hardware — sie **optimiert aktiv** ihren
 - **Katalog-Filterung**: Dem LLM werden nur die für deine Anfrage relevanten Tools präsentiert, was den Token-Verbrauch drastisch reduziert
 - **Pattern-Learning**: Validierte Pläne werden gespeichert und wiederverwendet, ohne erneut das LLM aufzurufen
 - **Message Windowing**: Jede Komponente sieht nur den unbedingt notwendigen Kontext
-- **Prompt-Cache**: Nutzung des nativen Caches der Anbieter zur Reduzierung wiederkehrender Kosten
+- **Prompt-Cache**: Nutzung des nativen Caches der Anbieter zur Reduzierung wiederkehrender Kosten — und im ReAct-Modus entscheidest du den Kompromiss: Häufiger Austausch hält alle Werkzeuge geladen, damit jeder Durchgang den vorigen erneut liest, gelegentlicher Austausch behält die Relevanzauswahl und Kosten, die nicht vom Abstand zwischen zwei Nachrichten abhängen
 - **Prompts ohne Ballast**: Ein Kontext wird nur eingerahmt, wenn er existiert, sodass ein nackter Zug keine leere Hülle trägt, und eine Benachrichtigung von zwei Sätzen wird ohne Nachdenken angefordert — bei einem Modell, das standardmäßig nachdenkt, wird das Nachdenken innerhalb des Antwortbudgets abgerechnet
 
 Zusammengenommen erklären diese Optimierungen den Faktor 4 bis 8 zwischen dem Pipeline-Modus und dem autonomen Agentenmodus — bei gleicher Leistung.

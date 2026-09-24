@@ -8,12 +8,13 @@ the static prompt; on DeepSeek, which renders the system BEFORE the tools, it
 even hides the tools from the cache (measured 2026-09-23: every tool bound and
 the context left in place cost 44 % more per turn).
 
-With ``REACT_CROSS_TURN_CACHE_ENABLED`` the leading system message is the static
-prompt alone, ending on its marker line -- where the Anthropic and OpenAI payload
-shapers cut their breakpoint and where the OpenAI cache key stops -- and the
-turn's data comes right after the question, before the loop's own messages, so
-every iteration of the turn re-sends the same prefix. Without it, the layout is
-the one ADR-169 set: the blocks lead, then the windowed history.
+For frequent exchanges (:func:`frequent_exchanges`, ADR-311) the leading system
+message is the static prompt alone, ending on its marker line -- where the
+Anthropic and OpenAI payload shapers cut their breakpoint and where the OpenAI
+cache key stops -- and the turn's data comes right after the question, before the
+loop's own messages, so every iteration of the turn re-sends the same prefix. For
+occasional exchanges, the layout is the one ADR-169 set: the blocks lead, then
+the windowed history.
 
 « After the question » has one shape per provider, DECLARED in
 :data:`CONTEXT_PLACEMENT` and checked at boot: a provider added to
@@ -23,7 +24,7 @@ the one ADR-169 set: the blocks lead, then the windowed history.
 from __future__ import annotations
 
 import contextlib
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from enum import StrEnum
 from typing import Any, get_args
 
@@ -32,6 +33,7 @@ from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 
 from src.core.config import settings
 from src.core.constants import DYNAMIC_CONTEXT_MARKER
+from src.core.exchange_rhythm import ExchangeRhythm
 from src.core.prompt_layout import split_at_marker
 from src.infrastructure.llm.providers.adapter import ProviderType
 
@@ -81,6 +83,24 @@ def assert_context_placement_completeness() -> None:
             "Every ProviderType must declare where the ReAct turn's context goes after the "
             "question -- see src/domains/agents/nodes/react_turn_layout.py."
         )
+
+
+def frequent_exchanges(state: Mapping[str, Any]) -> bool:
+    """Whether the turn is shaped for the next one (ADR-311).
+
+    The ONE reading of the turn's rhythm by the loop: the setup binds every
+    tool on it, and every call places the context after the question and drops
+    the history by blocks on it. The router wrote the value at the turn's
+    start; a state without one (a unit test, a checkpoint older than the
+    rhythm) is an occasional turn.
+
+    Args:
+        state: The turn's graph state.
+
+    Returns:
+        True for a frequent-exchanges turn.
+    """
+    return state.get("exchange_rhythm") == ExchangeRhythm.FREQUENT
 
 
 def react_slot_provider() -> str | None:
@@ -192,5 +212,6 @@ __all__ = [
     "ContextPlacement",
     "assert_context_placement_completeness",
     "compose_turn_messages",
+    "frequent_exchanges",
     "react_slot_provider",
 ]

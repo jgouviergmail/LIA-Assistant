@@ -158,6 +158,13 @@ export const SETTINGS_SEARCH_META: Readonly<Record<SettingsSectionToken, Setting
     group: 'personalization',
     gate: { kind: 'always' },
   },
+  'usage-preferences': {
+    titleKey: 'settings.usage_preferences.title',
+    descriptionKey: 'settings.usage_preferences.description',
+    keywordsKey: `${KEYWORDS_PREFIX}.usage-preferences`,
+    group: 'personalization',
+    gate: { kind: 'always' },
+  },
   haptics: {
     titleKey: 'settings.haptics.title',
     descriptionKey: 'settings.haptics.description',

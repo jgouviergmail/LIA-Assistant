@@ -1,8 +1,9 @@
-"""Under the cross-turn cache flag, the ReAct loop's history is dropped by blocks (ADR-309).
+"""For frequent exchanges, the ReAct loop's history is dropped by blocks (ADR-309, ADR-311).
 
 Sliding by one turn on every turn, the loop's history never gave a provider's
-prompt cache a prefix to read again. Under ``REACT_CROSS_TURN_CACHE_ENABLED`` the
-loop drops its oldest turns by blocks; without it, nothing changes.
+prompt cache a prefix to read again. When the turn's rhythm is frequent the call
+node asks for blocks and the loop drops its oldest turns by blocks; otherwise,
+nothing changes.
 
 The response node keeps sliding in every mode: its conversation follows the
 turn's own context (the query, the date, the agent results), so no provider can
@@ -36,9 +37,16 @@ def _windows(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "react_cross_turn_history_block_fraction", 0.5)
 
 
-def _loop_firsts() -> list[str]:
+def _loop_firsts(*, blocks: bool) -> list[str]:
+    # Turn ``total + 1`` follows ``total`` previous turns; the blocks read its counter.
     return [
-        str(window_messages_for_react([*_turns(total), HumanMessage(content="now")])[0].content)
+        str(
+            window_messages_for_react(
+                [*_turns(total), HumanMessage(content="now")],
+                turn_id=total + 1,
+                blocks=blocks,
+            )[0].content
+        )
         for total in range(6, 12)
     ]
 
@@ -65,23 +73,33 @@ async def _response_firsts(execution_mode: str) -> list[str]:
 
 @pytest.mark.usefixtures("_windows")
 class TestTheLoop:
-    def test_under_the_flag_its_history_is_dropped_by_blocks(
+    def test_with_blocks_its_history_is_dropped_by_blocks(self) -> None:
+        assert _loop_firsts(blocks=True) == ["q1", "q1", "q4", "q4", "q4", "q7"]
+
+    def test_without_blocks_it_slides(self) -> None:
+        assert _loop_firsts(blocks=False) == ["q2", "q3", "q4", "q5", "q6", "q7"]
+
+    def test_the_instance_setting_alone_asks_for_no_blocks(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setattr(settings, "react_cross_turn_cache_enabled", True)
+        thread = [*_turns(9), HumanMessage(content="now")]
 
-        assert _loop_firsts() == ["q1", "q1", "q4", "q4", "q4", "q7"]
+        assert window_messages_for_react(thread, turn_id=10) == window_messages_for_react(
+            thread, turn_id=10, blocks=False
+        )
 
-    def test_without_the_flag_it_slides(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(settings, "react_cross_turn_cache_enabled", False)
+    def test_without_blocks_the_counter_changes_nothing(self) -> None:
+        thread = [*_turns(9), HumanMessage(content="now")]
 
-        assert _loop_firsts() == ["q2", "q3", "q4", "q5", "q6", "q7"]
+        assert window_messages_for_react(thread, turn_id=10) == window_messages_for_react(thread)
+        assert window_messages_for_react(thread, turn_id=41) == window_messages_for_react(thread)
 
 
 @pytest.mark.usefixtures("_windows")
 class TestTheResponse:
     @pytest.mark.parametrize("execution_mode", ["react", "pipeline"])
-    async def test_it_slides_even_under_the_flag(
+    async def test_it_slides_whatever_the_rhythm(
         self, monkeypatch: pytest.MonkeyPatch, execution_mode: str
     ) -> None:
         monkeypatch.setattr(settings, "react_cross_turn_cache_enabled", True)

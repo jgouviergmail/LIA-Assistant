@@ -86,13 +86,15 @@ class _Harness:
         self.ctx.tool_manifests = self.manifests
 
     def select(
-        self, *, domains: list[str] | None, ranking: list[str] | None
+        self, *, domains: list[str] | None, ranking: list[str] | None, every_tool: bool = False
     ) -> tuple[list[str], dict[str, bool]]:
         man_token = request_tool_manifests_ctx.set(self.manifests)
         ctx_token = user_mcp_tools_ctx.set(self.ctx)
         try:
             intelligence = SimpleNamespace(domains=domains) if domains is not None else None
-            wrapped, hitl_map = ReactToolSelector().select(intelligence, ranking=ranking)
+            wrapped, hitl_map = ReactToolSelector().select(
+                intelligence, ranking=ranking, every_tool=every_tool
+            )
         finally:
             user_mcp_tools_ctx.reset(ctx_token)
             request_tool_manifests_ctx.reset(man_token)

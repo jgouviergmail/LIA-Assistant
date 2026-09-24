@@ -35,6 +35,7 @@ from src.core.constants import (
     PASSWORD_MAX_LENGTH,
     PASSWORD_MIN_LENGTH,
 )
+from src.core.exchange_rhythm import ExchangeRhythm, effective_exchange_rhythm
 from src.core.security import validate_password_strict
 from src.core.validators import validate_timezone
 from src.domains.shared.settings_shortcuts import sanitize_settings_shortcuts
@@ -294,6 +295,14 @@ class UserBase(BaseModel, TimezoneValidatorMixin, ThemeValidatorMixin, FontFamil
         default="pipeline",
         description="Execution mode: 'pipeline' (classic planner) or 'react' (ReAct agent loop)",
     )
+    exchange_rhythm: ExchangeRhythm = Field(
+        default_factory=lambda: effective_exchange_rhythm(None),
+        description=(
+            "Effective exchange rhythm (ADR-311): the person's choice, else the instance "
+            "default — 'frequent' (every tool bound, the prompt shaped for the next "
+            "turn's cache) or 'occasional' (tools chosen by relevance)."
+        ),
+    )
     voice_enabled: bool = Field(default=False, description="Voice comments (TTS) enabled")
     voice_mode_enabled: bool = Field(
         default=False, description="Voice mode (wake word + STT input) enabled"
@@ -434,6 +443,12 @@ class UserBase(BaseModel, TimezoneValidatorMixin, ThemeValidatorMixin, FontFamil
     def set_health_metrics_agents_enabled_default(cls, v: bool | None) -> bool:
         """Ensure health_metrics_agents_enabled defaults to False if None."""
         return v if v is not None else False
+
+    @field_validator("exchange_rhythm", mode="before")
+    @classmethod
+    def resolve_exchange_rhythm(cls, v: str | None) -> ExchangeRhythm:
+        """Publish the rhythm a turn runs with: never chosen follows the instance default."""
+        return effective_exchange_rhythm(v)
 
     @field_validator("response_display_mode", mode="before")
     @classmethod

@@ -6,7 +6,7 @@
 
 **Version**: 5.1
 **Date**: 2026-09-24
-**Application**: LIA v1.47.2
+**Application**: LIA v1.47.3
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -71,7 +71,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
 | Full transparency | 587 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 309 ADRs, ~31,980 pytest-collected tests across 1,931 files, native observability, 6-level HITL |
+| Production reliability | 310 ADRs, ~32,106 pytest-collected tests across 1,937 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -89,10 +89,10 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | 31,980 collected by pytest across 1,931 test files + 8,956 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| Tests | 32,106 collected by pytest across 1,937 test files + 9,071 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | pytest fixtures | 1,069, 48 of them shared through conftest |
 | Documentation documents | 694 |
-| ADRs (Architecture Decision Records) | 309 |
+| ADRs (Architecture Decision Records) | 310 |
 | Prometheus metrics | 587 definitions |
 | Grafana dashboards | 30 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -369,7 +369,7 @@ The tools the loop receives are **bound by relevance, never by registration orde
 
 A loop is **judged on its result** (ADR-310). It used to stop as soon as the model called no more tools, so persistence depended on how a configured model read one sentence. Every fact the loop set out to obtain — the person's request and each cross-check it started — now ends obtained or declared in an `<unresolved>` block that closes the draft, with the rungs tried: the corrected call, then another source named `(fallback)`, then the declaration. One predicate, `should_recover`, reads the declaration and calls the one that decides the stop (`react_exit_reason`) instead of copying it; it routes to `react_recovery`, a fifth node that calls no model: it removes the draft from the thread at the very moment of the pass, and each later call of the turn receives, transiently — never written to `messages` —, the draft and a directive placed right after it. Passes are bounded (`REACT_RECOVERY_PASSES_MAX`), counted by outcome, and a pass that would end with no usable answer hands the draft back rather than trade it for nothing. Upstream, a tool never replaces a value it cannot read: the weather refuses an unreadable date with the accepted format and today's date, under a contract published by one constant that both the manifest and the tool's schema read — the loop binds the schema, never the manifest.
 
-A tool failure is read **structurally** there (ADR-303): a `ToolMessage` body carries the tool's prose, so the only honest verdict is a marker the message carries itself — `status="error"`, measured to survive the checkpoint. One success predicate, `core/tool_outcome.explicit_success`, serves the loop, the consultation register and the metrics: a declared failure, like an empty result, no longer buys an iteration. And under `REACT_CROSS_TURN_CACHE_ENABLED` (ADR-308, off by default), the loop binds every tool in registration order and places the turn's context after the question — in the shape each provider accepts, declared and checked at startup —, so that one turn's prefix is the next one's: measured on 396 real turns, 18 to 42 % saved per turn depending on the cache mechanism, an extra cost on a model with no cache, and a fallback to the relevance selection, counted, when the catalogue exceeds the cap or the window.
+A tool failure is read **structurally** there (ADR-303): a `ToolMessage` body carries the tool's prose, so the only honest verdict is a marker the message carries itself — `status="error"`, measured to survive the checkpoint. One success predicate, `core/tool_outcome.explicit_success`, serves the loop, the consultation register and the metrics: a declared failure, like an empty result, no longer buys an iteration. And when a person chooses frequent exchanges in their settings (ADR-311; `REACT_CROSS_TURN_CACHE_ENABLED` only sets the default of an account that has not chosen, ADR-308), the loop binds every tool in registration order and places the turn's context after the question — in the shape each provider accepts, declared and checked at startup —, so that one turn's prefix is the next one's: measured on 396 real turns, 18 to 42 % saved per turn depending on the cache mechanism, an extra cost on a model with no cache, and a fallback to the relevance selection, counted, when the catalogue exceeds the cap or the window. The history then drops by blocks too, anchored on the turn counter, so that each turn extends the previous one: the three travel together because, measured, none of them pays alone, and occasional exchanges keep the relevance selection, whose cost does not depend on the gap between two turns.
 
 ### 5.4. Detached executions: generation survives the connection (ADR-117)
 
@@ -1460,7 +1460,7 @@ One CSS rule governs the design system's spacing: vertical margins on an `inline
 
 ## 24. Architecture Decision Records (ADR)
 
-309 ADRs in MADR format document the major architectural decisions. Some representative examples:
+310 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1791,8 +1791,8 @@ The same two modes then reached the phone (ADR-301). The owner call relayed the 
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 309 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~31,980 tests across 1,931 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 310 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~32,106 tests across 1,937 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (680+ documents), 309 ADRs, and the changelog (v1.0 to v1.47.2). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (680+ documents), 310 ADRs, and the changelog (v1.0 to v1.47.3). All metrics, versions, and patterns cited are verifiable in the codebase.*

@@ -27,6 +27,7 @@ from src.core.constants import (
     STATE_KEY_INITIATIVE_SKIPPED_REASON,
     STATE_KEY_INITIATIVE_SUGGESTION,
 )
+from src.core.exchange_rhythm import effective_exchange_rhythm
 from src.core.run_config import run_id_of
 from src.domains.agents.constants import (
     INTENTION_ACTION,
@@ -89,6 +90,24 @@ def _resolve_execution_mode() -> str:
     return context.execution_mode if context is not None else EXECUTION_MODE_PIPELINE
 
 
+def _resolve_exchange_rhythm() -> str:
+    """The run's exchange rhythm (ADR-311), from the typed context.
+
+    Read ONCE per turn, here: the ReAct loop reads the state the router writes,
+    and a HITL resumption re-enters the interrupted node rather than the router,
+    so a turn keeps the rhythm it started with — the tools bound at setup and the
+    layout of every later call cannot disagree. Outside a run, the instance
+    default applies.
+
+    Returns:
+        ``"frequent"`` or ``"occasional"``.
+    """
+    context = runtime_context_if_running()
+    if context is not None:
+        return context.exchange_rhythm.value
+    return effective_exchange_rhythm(None).value
+
+
 @trace_node("router_v3")
 # duration_metric only: success/error executions are counted manually inside the
 # node (agent_node_executions_total) — adding counter_metric here would double-count.
@@ -138,7 +157,7 @@ async def router_node_v3(
     logger.info(
         "router_v3_start",
         run_id=run_id,
-        query_preview=query[:50] if query else "",
+        query_chars=len(query),  # counts only: the person's words never reach INFO
     )
 
     # Latency lot R2 (2026-07): start the response-context prefetch (memory,
@@ -323,6 +342,8 @@ async def router_node_v3(
         "tool_selection_result": tool_scores_dict,
         # ADR-070: publish the run's execution mode into the state for routing
         "execution_mode": _resolve_execution_mode(),
+        # ADR-311: what the ReAct loop shapes its prompt for, fixed for the turn.
+        "exchange_rhythm": _resolve_exchange_rhythm(),
     }
 
     # Resolved context for response_node registry filtering.

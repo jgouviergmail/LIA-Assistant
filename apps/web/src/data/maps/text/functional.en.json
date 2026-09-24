@@ -61,9 +61,9 @@
     },
     "f.react": {
       "name": "ReAct mode",
-      "role": "An autonomous reasoning ↔ tools loop for open-ended requests: tools picked by relevance, a budget that extends as long as the loop keeps producing results, and a bounded recovery pass when a fact is missing.",
+      "role": "An autonomous reasoning ↔ tools loop for open-ended requests: every tool or those picked by relevance, as the person's exchange rhythm decides, a budget that extends as long as the loop keeps producing results, and a bounded recovery pass when a fact is missing.",
       "goal": "Explore when the path isn't known in advance, and end with a result obtained or a gap declared.",
-      "src": "42b810358c6b"
+      "src": "814e6c05d9ff"
     },
     "f.hitl": {
       "name": "Human approval",

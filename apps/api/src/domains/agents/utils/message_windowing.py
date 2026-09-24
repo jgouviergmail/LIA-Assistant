@@ -7,7 +7,8 @@ count sent to LLMs, improving response time without losing contextual accuracy.
 
 Key principle: Balance latency vs. context
 - Response node needs rich context (creative synthesis) → large window
-- ReAct history is windowed via get_windowed_messages() directly
+- ReAct history is windowed via get_windowed_messages() directly, or by blocks
+  anchored on the turn counter under the cross-turn cache flag (ADR-309)
 - Store persists ALL contexts → no loss of business context (contacts, entities, etc.)
 
 Note (ADR-094): per-node windowing helpers for router/planner/orchestrator were
@@ -47,11 +48,129 @@ def history_block_turns(window_size: int) -> int:
     return max(1, math.ceil(window_size * settings.react_cross_turn_history_block_fraction))
 
 
+def block_window_turns(window_size: int, block_size: int, turn_id: int | None) -> int:
+    """How many previous turns a block-windowed history keeps at turn ``turn_id``.
+
+    Between ``window_size`` and ``window_size + block_size - 1``, as a function of the
+    conversation's turn counter ALONE: it grows by one turn per turn and drops a whole
+    block at once, so the history's first turn only moves when a block goes. Nothing
+    here reads the thread's length, which the messages reducer shortens from the head
+    in the middle of a turn (ADR-309, amended 2026-09-24). The phase makes a thread
+    that still holds each of its ``turn_id - 1`` previous turns keep exactly what the
+    blocks kept before.
+
+    Args:
+        window_size: The history window, in turns.
+        block_size: How many turns go at once (``history_block_turns``).
+        turn_id: The conversation's turn counter (``current_turn_id``); None slides.
+
+    Returns:
+        The number of previous turns to keep.
+    """
+    if turn_id is None or block_size <= 1:
+        return window_size
+    return window_size + (turn_id - 1 - window_size) % block_size
+
+
+def _split_turns(
+    conversational: list[BaseMessage],
+) -> tuple[list[BaseMessage], list[list[BaseMessage]]]:
+    """Split conversational messages into turns, each opened by its HumanMessage.
+
+    Args:
+        conversational: Output of ``filter_conversational_messages``, in order.
+
+    Returns:
+        The messages before the first HumanMessage — an answer whose question the
+        reducer trimmed, or a message LIA sent first — and the turns, in order.
+    """
+    preamble: list[BaseMessage] = []
+    turns: list[list[BaseMessage]] = []
+    for message in conversational:
+        if isinstance(message, HumanMessage):
+            turns.append([message])
+        elif turns:
+            turns[-1].append(message)
+        else:
+            preamble.append(message)
+    return preamble, turns
+
+
+def get_block_windowed_messages(
+    messages: list[BaseMessage],
+    *,
+    window_size: int,
+    block_size: int,
+    turn_id: int | None,
+) -> list[BaseMessage]:
+    """SystemMessages + the last previous turns, dropped by blocks anchored on the turn counter.
+
+    The ReAct loop's history under ``REACT_CROSS_TURN_CACHE_ENABLED`` (ADR-309): every
+    call of a turn must resend the previous call's prompt, and each turn's history must
+    extend the previous turn's until a block goes, or no provider's prompt cache reads
+    it again. Two rules make that hold:
+
+    - **The count comes from the turn counter** (``block_window_turns``) and is taken
+      from the END: a head trim — the reducer's, on every tool result of a long turn —
+      that leaves the kept turns in place moves nothing. Aligned on the thread's length,
+      each trim moved the block boundary (measured in production on 2026-09-24: three
+      calls of one routine run re-billed after the tools).
+    - **A turn is kept whole, from its HumanMessage**, so the history never opens on an
+      answer whose question is gone.
+
+    When the reducer has trimmed into the block, the window proper (``window_size``
+    turns) is kept — a further trim cannot move it while it holds; while the thread
+    holds fewer turns than the block wants, it therefore slides by one turn per turn,
+    as before ADR-309. A history shorter than the window is kept whole, a message
+    LIA sent first included. SystemMessages are hoisted first, as before: a
+    compaction summary sits where compaction appended it, so the one head trim that
+    changes the view is the one that takes it.
+
+    Args:
+        messages: Previous turns' messages (the current turn excluded).
+        window_size: The history window, in turns (0 or less: SystemMessages only).
+        block_size: How many turns go at once (``history_block_turns``).
+        turn_id: The conversation's turn counter (``current_turn_id``); None slides.
+
+    Returns:
+        SystemMessages, then the kept turns' conversational messages, in order.
+    """
+    if not messages:
+        return []
+    system_messages = extract_system_messages(messages)
+    if window_size <= 0:
+        return system_messages
+
+    preamble, turns = _split_turns(filter_conversational_messages(messages))
+    wanted = block_window_turns(window_size, block_size, turn_id)
+    keep = wanted if len(turns) >= wanted else window_size
+    if len(turns) >= keep:
+        kept = [message for turn in turns[-keep:] for message in turn]
+    else:
+        kept = [*preamble, *(message for turn in turns for message in turn)]
+
+    result = [*system_messages, *kept]
+    # Counts only. ``turns_available < turns_wanted`` is the reducer trimming into
+    # the block: the loop then keeps the window proper (see above).
+    logger.info(
+        "message_windowing_complete",
+        input_messages=len(messages),
+        output_messages=len(result),
+        window_size=window_size,
+        block_size=block_size,
+        turn_id=turn_id,
+        turns_wanted=wanted,
+        turns_available=len(turns),
+        turns_kept=min(keep, len(turns)),
+        reduction_percent=int((1 - len(result) / len(messages)) * 100),
+    )
+    return result
+
+
 def get_windowed_messages(
     messages: list[BaseMessage],
     window_size: int | None = None,
     include_system: bool = True,
-    block_size: int | None = None,
 ) -> list[BaseMessage]:
     """
     Create a windowed view of messages - keeping system messages + recent N turns.
@@ -72,10 +191,6 @@ def get_windowed_messages(
                      Set to 0 or negative to return only system messages.
         include_system: Whether to include SystemMessages in output (default: True).
                         SystemMessages are always kept regardless of window size.
-        block_size: Drop the oldest turns by blocks of this many turns instead of one
-                    at a time (ADR-309): the window then holds between ``window_size``
-                    and ``window_size + block_size - 1`` turns, and its first message
-                    only moves when a whole block goes. None or 1 slides as before.
 
     Returns:
         Windowed message list: SystemMessages (if included) + last N turns.
@@ -133,16 +248,9 @@ def get_windowed_messages(
     # So we use a simpler heuristic: keep last (window_size * 2) conversational messages
     max_conversational_messages = window_size * 2
 
-    # Step 4: Keep last N conversational messages -- or, by blocks, everything from
-    # the last block boundary: a step function of the length, so the first kept
-    # message stays put between two drops and each history extends the previous.
+    # Step 4: Keep last N conversational messages
     if len(conversational) > max_conversational_messages:
-        if block_size and block_size > 1:
-            block_messages = block_size * 2
-            overflow = len(conversational) - max_conversational_messages
-            recent_conversational = conversational[block_messages * (overflow // block_messages) :]
-        else:
-            recent_conversational = conversational[-max_conversational_messages:]
+        recent_conversational = conversational[-max_conversational_messages:]
         logger.debug(
             "windowing_applied",
             original_count=len(messages),
@@ -231,7 +339,10 @@ def extract_last_user_message(messages: list[BaseMessage]) -> str | None:
 
 
 __all__ = [
+    "block_window_turns",
     "extract_last_user_message",
+    "get_block_windowed_messages",
     "get_response_windowed_messages",
     "get_windowed_messages",
+    "history_block_turns",
 ]

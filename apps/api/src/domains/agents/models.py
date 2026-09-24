@@ -559,6 +559,9 @@ class MessagesState(TypedDict):
 
     # ReAct Execution Mode (ADR-070)
     execution_mode: str | None  # "pipeline" | "react" (from user preference)
+    # ADR-311: "frequent" | "occasional" — what the ReAct loop shapes its prompt for,
+    # published by the router at the turn's start and read by the loop's nodes.
+    exchange_rhythm: str | None
     react_agent_result: dict[str, Any] | None  # Final metadata (iteration_count, mode)
     # react_iteration: reuses existing field from line 304 (Semantic Agent Phase 2)
     react_tool_names: list[str]  # Tool names selected for this ReAct session
@@ -764,6 +767,7 @@ def create_initial_state(
         initiative_followups=None,
         # ReAct Execution Mode (ADR-070)
         execution_mode=None,
+        exchange_rhythm=None,
         react_agent_result=None,
         react_tool_names=[],
         react_hitl_map={},

@@ -78,6 +78,7 @@ import {
   Sparkles,
   TerminalSquare,
   Type,
+  UserCog,
   Users,
   Vibrate,
 } from 'lucide-react';
@@ -94,6 +95,7 @@ export const SETTINGS_SECTION_ICONS: Readonly<Record<SettingsSectionToken, Lucid
   font: Type,
   'eyes-style': Eye,
   'display-mode': LayoutGrid,
+  'usage-preferences': UserCog,
   haptics: Vibrate,
   'briefing-grid': LayoutDashboard,
   'chat-shortcuts': TerminalSquare,

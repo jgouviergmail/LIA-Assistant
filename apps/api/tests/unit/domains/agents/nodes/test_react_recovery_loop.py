@@ -44,7 +44,6 @@ def model(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
     script: dict[str, Any] = {"replies": [], "sent": []}
     monkeypatch.setattr(rn, "get_llm", lambda *_a, **_k: MagicMock())
     monkeypatch.setattr(rn, "_rebuild_wrapped_tools", lambda *_a, **_k: [])
-    monkeypatch.setattr(settings, "react_cross_turn_cache_enabled", False)
     monkeypatch.setattr(settings, "react_recovery_passes_max", 1)
 
     async def fake_stream(

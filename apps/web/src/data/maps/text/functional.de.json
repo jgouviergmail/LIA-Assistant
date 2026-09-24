@@ -61,9 +61,9 @@
     },
     "f.react": {
       "name": "ReAct-Modus",
-      "role": "Eine autonome Schleife Nachdenken ↔ Werkzeuge für offene Anfragen: Werkzeuge nach Relevanz gewählt, ein Budget, das wächst, solange die Schleife Ergebnisse liefert, und ein begrenzter Nachholdurchgang, wenn ein Fakt fehlt.",
+      "role": "Eine autonome Schleife Nachdenken ↔ Werkzeuge für offene Anfragen: alle Werkzeuge oder die nach Relevanz gewählten, je nach Austauschrhythmus der Person, ein Budget, das wächst, solange die Schleife Ergebnisse liefert, und ein begrenzter Nachholdurchgang, wenn ein Fakt fehlt.",
       "goal": "Erkunden, wenn der Weg nicht im Voraus bekannt ist, und mit einem erzielten Ergebnis oder einer erklärten Lücke enden.",
-      "src": "42b810358c6b"
+      "src": "814e6c05d9ff"
     },
     "f.hitl": {
       "name": "Menschliche Freigabe",

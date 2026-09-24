@@ -202,7 +202,8 @@ def test_the_context_carries_every_value_the_chokepoint_builds() -> None:
     a key is added to the chokepoint without a field here, the migration would
     drop it — exactly the class of defect this work removes. The 17 keys of the
     bag, plus the preferences carried since (``voice_enabled``: the response
-    node's HTML gate reads it beside the display mode).
+    node's HTML gate reads it beside the display mode; ``exchange_rhythm``: the
+    router publishes it into the turn's state, ADR-311).
     """
     names = {f.name for f in dataclasses.fields(LiaRuntimeContext)}
     expected = {
@@ -216,6 +217,7 @@ def test_the_context_carries_every_value_the_chokepoint_builds() -> None:
         "voice_enabled",
         "display_mode",
         "execution_mode",
+        "exchange_rhythm",
         "is_automated_source",
         "deps",
         "browser_context",
@@ -257,3 +259,29 @@ def test_runtime_voice_enabled_reads_the_installed_context() -> None:
     with installed_runtime_context(voice_enabled=True):
         assert runtime_voice_enabled() is True
     assert runtime_voice_enabled() is False
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("instance_default", [True, False])
+def test_build_runtime_context_carries_the_effective_exchange_rhythm(
+    monkeypatch: pytest.MonkeyPatch, instance_default: bool
+) -> None:
+    """The person's choice reaches the run; an account that never chose gets the default."""
+    from src.core.config import settings
+    from src.core.exchange_rhythm import ExchangeRhythm, effective_exchange_rhythm
+    from src.domains.agents.context.runtime_context_builder import build_runtime_context
+
+    monkeypatch.setattr(settings, "react_cross_turn_cache_enabled", instance_default)
+    state = {"messages": []}
+    user_id, conversation_id = uuid.uuid4(), uuid.uuid4()
+
+    chosen = build_runtime_context(
+        state=state,
+        user_id=user_id,
+        conversation_id=conversation_id,
+        user_exchange_rhythm="occasional",
+    )
+    unset = build_runtime_context(state=state, user_id=user_id, conversation_id=conversation_id)
+
+    assert chosen.exchange_rhythm is ExchangeRhythm.OCCASIONAL
+    assert unset.exchange_rhythm is effective_exchange_rhythm(None)

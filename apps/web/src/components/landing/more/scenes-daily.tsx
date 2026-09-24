@@ -619,11 +619,65 @@ function LiveBandScene({ active, labels }: SceneProps) {
   );
 }
 
+type RhythmPhase = 'none' | 'first' | 'second' | 'third' | 'fourth';
+const RHYTHM_STEPS: readonly TimelineStep<RhythmPhase>[] = [
+  { at: 0, state: 'none' },
+  { at: 600, state: 'first' },
+  { at: 1400, state: 'second' },
+  { at: 1900, state: 'third' },
+  { at: 2400, state: 'fourth' },
+];
+const RHYTHM_ORDER: readonly RhythmPhase[] = ['none', 'first', 'second', 'third', 'fourth'];
+
+/** Cost bar of each message: frequent pays the first one, occasional stays level. */
+const RHYTHM_BARS = {
+  frequent: ['h-12', 'h-3', 'h-3', 'h-3'],
+  occasional: ['h-7', 'h-7', 'h-7', 'h-7'],
+} as const;
+
+/**
+ * The exchange rhythm (ADR-311): the same four messages under both choices.
+ * Frequent exchanges pay a heavier first message, then far lighter ones (what
+ * was already sent is billed at the provider's reduced rate); occasional
+ * exchanges cost about the same each time. The bars rise message by message,
+ * side by side, and the resting frame shows both series complete.
+ */
+function ExchangeRhythmScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(RHYTHM_STEPS, { active });
+  const sent = RHYTHM_ORDER.indexOf(phase);
+  return (
+    <div className={cn(STAGE, 'justify-center gap-2')}>
+      <div className="grid w-full max-w-[220px] grid-cols-2 gap-3">
+        {(['frequent', 'occasional'] as const).map(rhythm => (
+          <div key={rhythm} className="flex flex-col items-center gap-1.5">
+            <span className="truncate text-[10px] font-medium text-foreground/80">
+              {labels[rhythm]}
+            </span>
+            <div className="flex h-14 w-full items-end justify-center gap-1.5 border-b border-border">
+              {RHYTHM_BARS[rhythm].map((height, index) => (
+                <span
+                  key={index}
+                  className={cn(
+                    'w-3 rounded-t-sm bg-primary/70 transition-all duration-500 ease-out motion-reduce:transition-none',
+                    index < sent ? cn(height, 'opacity-100') : 'h-0 opacity-0'
+                  )}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      <span className="text-[9px] text-muted-foreground">{labels.cost}</span>
+    </div>
+  );
+}
+
 export const DAILY_SCENES: Readonly<Record<string, SceneComponent>> = {
   alerts_hub: AlertsHubScene,
   briefing_custom: BriefingCustomScene,
   card_actions: CardActionsScene,
   folded_settings: FoldedSettingsScene,
+  exchange_rhythm: ExchangeRhythmScene,
   week_grid: WeekGridScene,
   starter_checklist: StarterChecklistScene,
   empty_starters: EmptyStartersScene,

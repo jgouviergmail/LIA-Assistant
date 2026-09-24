@@ -4,7 +4,7 @@
 
 **Version** : 6.1
 **Date** : 2026-09-24
-**Application** : LIA v1.47.2
+**Application** : LIA v1.47.3
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -60,6 +60,7 @@ Chaque utilisateur dispose de son propre espace de paramétrage, organisé en de
 - **Serveurs MCP personnels** : connecte tes propres serveurs MCP pour étendre les capacités de LIA
 - **Apparence** : langue, fuseau horaire, thème (5 palettes, mode clair, sombre ou noir absolu), police (9 choix), format d'affichage des réponses (cartes HTML, HTML, Markdown)
 - **Mon dashboard** : masque ou réordonne les 9 cartes du briefing — une carte masquée n'est même plus récupérée
+- **Préférences d'usage** : choisis ton rythme d'échanges — fréquents, et LIA garde tous ses outils sous la main pour que chaque tour du mode ReAct relise le précédent dans le cache du fournisseur ; ponctuels, et elle choisit les outils utiles à chaque question, pour un coût stable
 - **Debug** : accède au panneau de debug pour inspecter chaque échange (si activé par l'administrateur)
 
 **Fonctionnalités avancées :**
@@ -287,7 +288,7 @@ LIA ne se contente pas de tourner sur du matériel modeste — elle **optimise a
 - **Filtrage de catalogue** : seuls les outils pertinents pour ta requête sont présentés au LLM, réduisant drastiquement le nombre de tokens consommés
 - **Apprentissage de patterns** : les plans validés sont mémorisés et réutilisés sans rappeler le LLM
 - **Message Windowing** : chaque composant ne voit que le contexte strictement nécessaire
-- **Cache de prompts** : exploitation du cache natif des fournisseurs pour limiter les coûts récurrents
+- **Cache de prompts** : exploitation du cache natif des fournisseurs pour limiter les coûts récurrents — et en mode ReAct, c'est toi qui arbitres : les échanges fréquents gardent tous les outils chargés pour que chaque tour relise le précédent, les échanges ponctuels gardent le filtrage par pertinence et un coût qui ne dépend pas de l'écart entre deux messages
 - **Des prompts sans poids mort** : un contexte n'est enveloppé que s'il existe, si bien qu'un tour nu ne porte aucune enveloppe vide, et une notification de deux phrases se demande sans réflexion — sur un modèle qui réfléchit par défaut, la réflexion se facture dans le budget de la réponse
 
 Combinées, ces optimisations expliquent l'écart de 4 à 8 entre le mode Pipeline et le mode agent autonome, à service rendu équivalent.

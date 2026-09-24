@@ -6,7 +6,7 @@
 
 **Versión**: 5.1
 **Fecha**: 2026-09-24
-**Aplicación**: LIA v1.47.2
+**Aplicación**: LIA v1.47.3
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -71,7 +71,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Soberanía de datos | PostgreSQL local (sin SaaS DB), cifrado Fernet en reposo, sesiones Redis locales |
 | Multi-proveedor LLM | Factory pattern con 7 adaptadores, configuración por nodo, sin acoplamiento fuerte a un provider |
 | Transparencia total | 587 métricas Prometheus, debug panel integrado, seguimiento token por token |
-| Fiabilidad en producción | 309 ADRs, ~31.980 tests recogidos por pytest en 1.931 archivos, observabilidad nativa, HITL de 6 niveles |
+| Fiabilidad en producción | 310 ADRs, ~32.106 tests recogidos por pytest en 1.937 archivos, observabilidad nativa, HITL de 6 niveles |
 | Costes controlados | Smart Services (89 % de ahorro en tokens), embeddings semánticos, prompt caching, filtrado de catálogo |
 
 ### 1.2. Principios arquitecturales
@@ -89,10 +89,10 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 
 | Métrica | Valor |
 |----------|--------|
-| Tests | 31.980 recopilados por pytest en 1.931 archivos de prueba + 8.956 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
+| Tests | 32.106 recopilados por pytest en 1.937 archivos de prueba + 9.071 tests vitest en el frontend (umbrales de cobertura bloqueados, ADR-116) |
 | Fixtures pytest | 1.069, de las cuales 48 compartidas mediante conftest |
 | Documentos de documentación | 694 |
-| ADRs (Architecture Decision Records) | 309 |
+| ADRs (Architecture Decision Records) | 310 |
 | Métricas Prometheus | 587 definiciones |
 | Dashboards Grafana | 30 |
 | Idiomas soportados (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -369,7 +369,7 @@ Las herramientas que recibe el bucle se **vinculan por relevancia, nunca por ord
 
 Un bucle se **juzga por su resultado** (ADR-310). Se detenía en cuanto el modelo dejaba de llamar herramientas, así que la perseverancia dependía de cómo un modelo configurado leía una frase. Todo dato que el bucle se propuso obtener — la petición de la persona y cada verificación cruzada que inició — termina ahora obtenido o declarado en un bloque `<unresolved>` que cierra el borrador, con los peldaños intentados: la llamada corregida, luego otra fuente nombrada `(fallback)`, luego la declaración. Un solo predicado, `should_recover`, lee la declaración y llama al que decide la parada (`react_exit_reason`) en lugar de copiarlo; dirige hacia `react_recovery`, un quinto nodo que no llama a ningún modelo: retira el borrador del hilo en el mismo momento de la pasada, y cada llamada posterior del turno recibe, de forma transitoria — nunca escrita en `messages` —, el borrador y una consigna colocados justo después de él. Las pasadas están acotadas (`REACT_RECOVERY_PASSES_MAX`), se cuentan por resultado, y una pasada que acabara sin respuesta utilizable devuelve el borrador en lugar de cambiarlo por nada. Antes, una herramienta nunca sustituye un valor que no sabe leer: el tiempo rechaza una fecha ilegible con el formato esperado y la fecha de hoy, bajo un contrato publicado por una única constante que leen el manifiesto y el esquema de la herramienta — el bucle vincula el esquema, nunca el manifiesto.
 
-Un fallo de herramienta se lee ahí de forma **estructural** (ADR-303): el cuerpo de un `ToolMessage` lleva la prosa de la herramienta, así que el único veredicto honesto es una marca que el propio mensaje lleva — `status="error"`, que se ha medido que sobrevive al checkpoint. Un único predicado de éxito, `core/tool_outcome.explicit_success`, sirve al bucle, al registro de consultas y a las métricas: un fallo declarado, como un resultado vacío, ya no compra ninguna iteración. Y con `REACT_CROSS_TURN_CACHE_ENABLED` (ADR-308, desactivado por defecto), el bucle vincula todas las herramientas en su orden de registro y coloca el contexto del turno después de la pregunta — en la forma que acepta cada proveedor, declarada y comprobada al arrancar —, para que el prefijo de un turno sea el del siguiente: medido en 396 turnos reales, de un 18 a un 42 % de ahorro por turno según el mecanismo de caché, un sobrecoste en un modelo sin caché y un repliegue contado a la selección por pertinencia cuando el catálogo supera el tope o la ventana.
+Un fallo de herramienta se lee ahí de forma **estructural** (ADR-303): el cuerpo de un `ToolMessage` lleva la prosa de la herramienta, así que el único veredicto honesto es una marca que el propio mensaje lleva — `status="error"`, que se ha medido que sobrevive al checkpoint. Un único predicado de éxito, `core/tool_outcome.explicit_success`, sirve al bucle, al registro de consultas y a las métricas: un fallo declarado, como un resultado vacío, ya no compra ninguna iteración. Y cuando una persona elige los intercambios frecuentes en sus ajustes (ADR-311; `REACT_CROSS_TURN_CACHE_ENABLED` solo fija el valor por defecto de una cuenta que no ha elegido, ADR-308), el bucle vincula todas las herramientas en su orden de registro y coloca el contexto del turno después de la pregunta — en la forma que acepta cada proveedor, declarada y comprobada al arrancar —, para que el prefijo de un turno sea el del siguiente: medido en 396 turnos reales, de un 18 a un 42 % de ahorro por turno según el mecanismo de caché, un sobrecoste en un modelo sin caché y un repliegue contado a la selección por pertinencia cuando el catálogo supera el tope o la ventana. El historial también cae entonces por bloques, anclados en el contador de turnos, para que cada turno prolongue el anterior: los tres van juntos porque, medido, ninguno compensa por sí solo, y los intercambios puntuales conservan la selección por pertinencia, cuyo coste no depende del intervalo entre dos turnos.
 
 ### 5.4. Ejecuciones desacopladas: la generación sobrevive a la conexión (ADR-117)
 
@@ -1466,7 +1466,7 @@ Una regla CSS gobierna los espaciados del design system: los márgenes verticale
 
 ## 24. Arquitectura de decisiones (ADR)
 
-309 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
+310 ADRs en formato MADR documentan las decisiones arquitecturales mayores. Algunos ejemplos representativos:
 
 | ADR | Decisión | Problema resuelto | Impacto medido |
 |-----|----------|----------------|---------------|
@@ -1764,8 +1764,8 @@ Los mismos dos modos llegaron después al teléfono (ADR-301). La llamada del ti
 
 LIA es un ejercicio de ingeniería de software que intenta resolver un problema concreto: construir un asistente IA multi-agente de calidad producción, transparente, seguro y extensible, capaz de funcionar en un Raspberry Pi.
 
-Los 309 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~31.980 tests en 1.931 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
+Los 310 ADRs documentan no solo las decisiones tomadas sino también las alternativas rechazadas y los compromisos aceptados. Los ~32.106 tests en 1.937 archivos, el CI/CD completo y el MyPy strict no son métricas de vanidad — son los mecanismos que permiten hacer evolucionar un sistema de esta complejidad sin regresión.
 
 La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesiano, enrutamiento semántico, HITL sistemático, proactividad LLM-driven, diarios introspectivos — crea un sistema donde cada componente refuerza a los demás. El HITL alimenta el pattern learning, que reduce los costes, que permiten más funcionalidades, que generan más datos para la memoria, que mejora las respuestas. Es un círculo virtuoso por diseño, no por accidente.
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (680+ documentos), de los 309 ADRs y del changelog (v1.0 a v1.47.2). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (680+ documentos), de los 310 ADRs y del changelog (v1.0 a v1.47.3). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

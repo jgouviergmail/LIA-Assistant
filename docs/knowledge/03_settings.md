@@ -675,3 +675,18 @@ Yes. **Settings > Personalization > Eyes style** offers several visual styles fo
 **🎚️ Previews stay calm:** each card keeps the breath and the resting hold but plays no mimic or sketch, so you compare silhouettes rather than moods. The public home page always shows the capsule look; your choice applies to the chat.
 
 **💾 Remembered on this device:** the choice is stored locally in your browser, alongside the widget's position, size and visibility.
+
+## Frequent or occasional exchanges: which should I pick?
+In **Settings › Preferences › Personalization › Usage preferences**, you tell LIA how you use it, and it prepares its requests to the AI model accordingly whenever it works in **ReAct mode** — scheduled actions and Workboard tickets included. The choice applies from your next message.
+
+**🔁 Frequent exchanges** — for regular back-and-forth. LIA keeps every tool at hand and lays out each request so the next one starts with what was already sent, which the provider bills at a reduced rate when the model reads it again. The first message costs a little more, the next ones much less.
+
+**🕰️ Occasional exchanges** — for spaced-out questions. LIA picks the tools each question needs, so every message costs about the same, however long ago the previous one was.
+
+**🎯 Why it is your choice:** the saving exists only while the provider still holds what was sent, and it holds it for a limited time. Messages close together read it back; messages hours apart would pay the heavier first message every time. Nobody knows your rhythm better than you.
+
+**Good to know:**
+• if the configured AI model cannot hold every tool, LIA picks them by relevance for that message
+• the saving relies on the prompt cache of your instance's AI provider: on a model without one, occasional exchanges remain the cheaper choice
+• until you choose, your instance's default applies
+• the Pipeline mode keeps its own planner and is not affected

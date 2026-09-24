@@ -78,16 +78,19 @@ def neutralize_widget_sentinels(history: list[BaseMessage]) -> list[BaseMessage]
 
 def window_messages_for_react(
     messages: list[BaseMessage],
+    turn_id: int | None = None,
+    blocks: bool = False,
 ) -> list[BaseMessage]:
     """Window messages for the ReAct LLM call to control token usage.
 
-    Reuses get_windowed_messages() from message_windowing.py for the history
-    of previous turns, and preserves the current ReAct loop integrally.
+    Reuses message_windowing.py for the history of previous turns, and preserves
+    the current ReAct loop integrally.
 
     Strategy:
     1. Split messages at the last HumanMessage (= current turn boundary)
-    2. Window the history (previous turns) via get_windowed_messages()
-       → keeps SystemMessages + last N conversational turns (no ToolMessages)
+    2. Window the history (previous turns): get_windowed_messages(), or with
+       ``blocks`` get_block_windowed_messages(), anchored on ``turn_id``
+       → keeps SystemMessages + recent conversational turns (no ToolMessages)
     3. Drop every history SystemMessage that is not a compaction summary
     4. Append ALL current turn messages (HumanMessage + ReAct loop: AIMessage
        with tool_calls + ToolMessages) — the agent needs its full reasoning chain
@@ -101,6 +104,12 @@ def window_messages_for_react(
 
     Args:
         messages: Full state messages (accumulated across turns + ReAct loop).
+        turn_id: The conversation's turn counter (``current_turn_id``). The
+            history's blocks are anchored on it, never on the thread's length,
+            which the reducer shortens from the head while the turn's tool
+            results arrive (ADR-309, amended 2026-09-24).
+        blocks: Drop the history by blocks — the turn's rhythm is frequent
+            (ADR-311). The call node decides; this function reads no setting.
 
     Returns:
         Windowed message list.
@@ -110,6 +119,7 @@ def window_messages_for_react(
 
     from src.core.constants import COMPACTION_SUMMARY_MARKER
     from src.domains.agents.utils.message_windowing import (
+        get_block_windowed_messages,
         get_windowed_messages,
         history_block_turns,
     )
@@ -129,16 +139,18 @@ def window_messages_for_react(
     current_turn = messages[last_human_idx:]
 
     # Window the history using existing infrastructure
-    # Under the cross-turn cache flag the history is dropped by blocks, so each
-    # turn's history extends the previous one and is read again (ADR-309).
+    # For frequent exchanges the history is dropped by blocks, so each turn's
+    # history extends the previous one and is read again (ADR-309, ADR-311).
     window = settings.react_agent_history_window_turns
-    windowed_history = get_windowed_messages(
-        history,
-        window_size=window,
-        block_size=(
-            history_block_turns(window) if settings.react_cross_turn_cache_enabled else None
-        ),
-    )
+    if blocks:
+        windowed_history = get_block_windowed_messages(
+            history,
+            window_size=window,
+            block_size=history_block_turns(window),
+            turn_id=turn_id,
+        )
+    else:
+        windowed_history = get_windowed_messages(history, window_size=window)
 
     # Legacy-checkpoint hygiene (see docstring): keep only the compaction
     # summary among history SystemMessages.

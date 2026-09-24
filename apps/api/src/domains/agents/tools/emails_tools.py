@@ -1346,9 +1346,7 @@ async def send_email_tool(
             effective_content_instruction = user_message
             logger.info(
                 "email_content_instruction_fallback_to_user_message",
-                user_message_preview=(
-                    user_message[:100] if len(user_message) > 100 else user_message
-                ),
+                user_message_chars=len(user_message),  # counts only (no PII at INFO)
                 will_generate_subject=not subject,
                 will_generate_body=not body,
             )

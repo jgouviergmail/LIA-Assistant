@@ -1,13 +1,15 @@
 # MESSAGE_WINDOWING_STRATEGY.md
 
 **Documentation Technique - LIA**
-**Version**: 1.1
-**Dernière mise à jour**: 2026-07-03
+**Version**: 1.2
+**Dernière mise à jour**: 2026-09-24
 **Statut**: ✅ Production-Ready
 
 > **⚠️ Mise à jour v1.21.3 ([ADR-094](../architecture/ADR-094-Remove-Dead-Per-Node-Windowing-Helpers.md)) — lire avant les sections « Stratégies par node ».**
 > Les helpers de windowing **par nœud** `get_router_windowed_messages`, `get_planner_windowed_messages` et `get_orchestrator_windowed_messages` (et leurs settings `router_/planner_/orchestrator_message_window_size`) ont été **supprimés** : ils n'avaient **aucun call site** en production (le router lit `state[STATE_KEY_MESSAGES]` directement ; le planner passe par `SmartPlannerService`). Le bornage des tokens est **déjà assuré** au niveau du state par le reducer `add_messages_with_truncate`.
 > **Ce qui reste vivant** : `get_windowed_messages(messages, window_size=…)` (le cœur, utilisé par le nœud **ReAct** avec `react_agent_history_window_turns`) et `get_response_windowed_messages` (nœud **response**, `response_message_window_size`). Les sections 3 et « Stratégies par node » ci-dessous décrivant Router/Planner/Orchestrator sont **historiques** — le windowing per-nœud délibéré (router/planner) est reporté au chantier latence, à réintroduire avec benchmarks de qualité de routage/planification.
+>
+> **Mise à jour v1.47.3 ([ADR-309](../architecture/ADR-309-One-Prompt-Layout-For-Every-Cache-Mechanism.md), amendement 2026-09-24 ; [ADR-311](../architecture/ADR-311-Exchange-Rhythm-Is-The-Persons-Choice.md))** — quand la personne a choisi les échanges fréquents, le nœud ReAct fenêtre avec `get_block_windowed_messages(messages, window_size, block_size, turn_id)` : l'historique tombe par blocs de tours ENTIERS (un tour commence à un `HumanMessage`), et le nombre de tours gardés, `block_window_turns(window_size, block_size, turn_id) = W + ((T − 1 − W) mod B)`, se calcule sur le compteur de tours de la conversation (`current_turn_id`), jamais sur la longueur de `messages` — que le reducer rogne par la tête à chaque résultat d'outil d'un long tour, ce qui déplaçait le premier message montré en plein tour et cassait le cache du fournisseur (mesuré en production le 2026-09-24). Moins de tours disponibles que voulus : la fenêtre propre ; historique court : gardé entier, préambule compris. `get_windowed_messages` a perdu son paramètre `block_size` et retrouvé son code d'avant ADR-309.
 
 ---
 

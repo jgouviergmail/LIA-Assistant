@@ -61,9 +61,9 @@
     },
     "f.react": {
       "name": "Modo ReAct",
-      "role": "Bucle autónomo razonamiento ↔ herramientas para las peticiones abiertas: herramientas elegidas por relevancia, un presupuesto que se amplía mientras el bucle sea productivo, y una pasada de recuperación acotada cuando falta un dato.",
+      "role": "Bucle autónomo razonamiento ↔ herramientas para las peticiones abiertas: todas las herramientas o las elegidas por relevancia, según el ritmo de intercambio de la persona, un presupuesto que se amplía mientras el bucle sea productivo, y una pasada de recuperación acotada cuando falta un dato.",
       "goal": "Explorar cuando el camino no se conoce de antemano, y terminar con un resultado obtenido o una carencia declarada.",
-      "src": "42b810358c6b"
+      "src": "814e6c05d9ff"
     },
     "f.hitl": {
       "name": "Validación humana",

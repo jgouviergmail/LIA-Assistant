@@ -93,6 +93,13 @@ export const SETTINGS_SECTIONS = {
     accordionValue: 'display-mode',
     declaredIn: 'components/settings/CardsDisplaySettings.tsx',
   },
+  // How LIA adapts to the way the person uses it (ADR-311): first setting, the
+  // exchange rhythm the ReAct loop shapes its prompt for.
+  'usage-preferences': {
+    tab: 'preferences',
+    accordionValue: 'usage-preferences',
+    declaredIn: 'components/settings/UsagePreferencesSettings.tsx',
+  },
   // Renders nothing where `navigator.vibrate` is absent (desktop, iOS Safari),
   // so a deep link can legitimately resolve to an absent section — same as the
   // other capability-gated entries here.

@@ -39,6 +39,7 @@ from src.core.constants import (
 )
 from src.domains.users.live_preferences_columns import LivePreferencesColumns
 from src.domains.users.phone_identity_columns import PhoneIdentityColumns
+from src.domains.users.turn_preferences_columns import TurnPreferencesColumns
 from src.infrastructure.database.models import BaseModel, UUIDMixin
 from src.infrastructure.database.session import Base
 
@@ -55,7 +56,7 @@ if TYPE_CHECKING:
     from src.domains.usage_limits.models import UserUsageLimit
 
 
-class User(LivePreferencesColumns, PhoneIdentityColumns, BaseModel):
+class User(LivePreferencesColumns, PhoneIdentityColumns, TurnPreferencesColumns, BaseModel):
     """
     User model for authentication and profile.
     """
@@ -197,14 +198,7 @@ class User(LivePreferencesColumns, PhoneIdentityColumns, BaseModel):
         ),
     )
 
-    # Execution mode preference (pipeline vs react)
-    execution_mode: Mapped[str] = mapped_column(
-        String(20),
-        default="pipeline",
-        nullable=False,
-        server_default="pipeline",
-        comment="Execution mode preference: 'pipeline' (classic planner) or 'react' (ReAct agent loop).",
-    )
+    # execution_mode and exchange_rhythm: TurnPreferencesColumns (turn_preferences_columns.py)
 
     # Voice comments (TTS) preference
     voice_enabled: Mapped[bool] = mapped_column(

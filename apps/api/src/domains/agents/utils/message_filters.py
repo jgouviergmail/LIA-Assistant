@@ -381,7 +381,8 @@ def remove_orphan_tool_messages(messages: list[BaseMessage]) -> list[BaseMessage
                 logger.warning(
                     "orphan_tool_message_removed",
                     tool_call_id=tool_call_id,
-                    message_content_preview=str(msg.content)[:100] if msg.content else None,
+                    # Counts only: a tool result carries mail, calendar and contact text.
+                    content_chars=len(str(msg.content)) if msg.content else 0,
                 )
                 continue  # Skip this message
 

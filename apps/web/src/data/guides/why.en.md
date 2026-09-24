@@ -4,7 +4,7 @@
 
 **Version**: 6.1
 **Date**: 2026-09-24
-**Application**: LIA v1.47.2
+**Application**: LIA v1.47.3
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -60,6 +60,7 @@ Every user has their own settings space, organized in two tabs. A search field s
 - **Personal MCP servers**: connect your own MCP servers to extend LIA's capabilities
 - **Appearance**: language, timezone, theme (5 palettes, light, dark or absolute black), font (9 choices), response display format (HTML cards, HTML, Markdown)
 - **My dashboard**: hide or reorder the 9 briefing cards — a hidden card is not even fetched anymore
+- **Usage preferences**: choose your exchange rhythm — frequent, and LIA keeps every tool at hand so each ReAct turn re-reads the previous one from the provider's cache; occasional, and it picks the tools each question needs, at a steady cost
 - **Debug**: access the debug panel to inspect each exchange (if enabled by administrator)
 
 **Advanced features:**
@@ -287,7 +288,7 @@ LIA doesn't just run on modest hardware — it **actively optimizes** its AI res
 - **Catalog filtering**: only the tools relevant to your query are presented to the LLM, drastically reducing token consumption
 - **Pattern learning**: validated plans are memorized and reused without calling the LLM again
 - **Message Windowing**: each component sees only the strictly necessary context
-- **Prompt caching**: leveraging native provider caching to limit recurring costs
+- **Prompt caching**: leveraging native provider caching to limit recurring costs — and in ReAct mode, you arbitrate the trade-off: frequent exchanges keep every tool loaded so each turn re-reads the previous one, occasional exchanges keep the relevance filter and a cost that does not depend on the gap between two messages
 - **Prompts with no dead weight**: a context is wrapped only when it exists, so a bare turn carries no empty envelope, and a two-sentence notification is asked for without reasoning — on a model that thinks by default, the thinking is billed inside the answer budget
 
 Combined, these optimizations account for the factor of 4 to 8 between Pipeline mode and the autonomous agent mode, for the same service rendered.

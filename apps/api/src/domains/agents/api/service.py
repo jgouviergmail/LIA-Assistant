@@ -934,6 +934,9 @@ class AgentService(
                                 ),
                                 user_display_mode=user_display_mode,  # User display mode (cards/html/markdown)
                                 user_execution_mode=user_execution_mode,  # Execution mode (pipeline/react)
+                                user_exchange_rhythm=(  # ADR-311: the stored choice, or None
+                                    user_obj.exchange_rhythm if user_obj else None
+                                ),
                                 is_automated_source=is_automated_source,  # True for scheduled actions (skips extraction)
                                 side_channel_queue=side_channel_queue,  # SSE side-channel
                             ),

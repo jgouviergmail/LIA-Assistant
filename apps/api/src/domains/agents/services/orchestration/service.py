@@ -575,7 +575,7 @@ class OrchestrationService:
                     "stale_hitl_detected_treating_as_new_request",
                     run_id=run_id,
                     conversation_id=str(conversation_id),
-                    user_message=user_message[:50],
+                    user_message_chars=len(user_message),
                     reason=decision_data.get("reason"),
                 )
 
@@ -607,7 +607,7 @@ class OrchestrationService:
                     "detected_interrupt_resumption",
                     run_id=run_id,
                     conversation_id=str(conversation_id),
-                    user_message=user_message,
+                    user_message_chars=len(user_message),
                     parsed_decision=decision_data.get(FIELD_DECISION),
                     has_modifications="modifications" in decision_data,
                 )
@@ -668,6 +668,7 @@ class OrchestrationService:
         user_voice_enabled: bool = False,  # User preference for spoken replies (HTML gate)
         user_display_mode: str = "cards",  # User display mode (cards/html/markdown)
         user_execution_mode: str = "pipeline",  # Execution mode (pipeline/react) — ADR-070
+        user_exchange_rhythm: str | None = None,  # users.exchange_rhythm as stored — ADR-311
         is_automated_source: bool = False,  # True for automated runs (scheduled actions)
         side_channel_queue: asyncio.Queue | None = None,  # SSE side-channel for tools
     ) -> AsyncGenerator[tuple[str, Any]]:
@@ -788,6 +789,7 @@ class OrchestrationService:
             user_voice_enabled=user_voice_enabled,
             user_display_mode=user_display_mode,
             user_execution_mode=user_execution_mode,
+            user_exchange_rhythm=user_exchange_rhythm,
             is_automated_source=is_automated_source,
         )
 
@@ -1077,9 +1079,7 @@ class OrchestrationService:
                     "hitl_resume_command_adding_user_message",
                     run_id=run_id,
                     decision=decision,
-                    user_message_preview=(
-                        user_message[:50] if len(user_message) > 50 else user_message
-                    ),
+                    user_message_chars=len(user_message),
                 )
                 return Command(
                     resume=resume_data,

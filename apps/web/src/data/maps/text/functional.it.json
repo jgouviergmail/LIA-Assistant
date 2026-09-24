@@ -61,9 +61,9 @@
     },
     "f.react": {
       "name": "Modalità ReAct",
-      "role": "Ciclo autonomo ragionamento ↔ strumenti per le richieste aperte: strumenti scelti per pertinenza, budget che si estende finché il ciclo produce, e un passaggio di recupero limitato quando manca un fatto.",
+      "role": "Ciclo autonomo ragionamento ↔ strumenti per le richieste aperte: tutti gli strumenti o quelli scelti per pertinenza, secondo il ritmo di scambi della persona, budget che si estende finché il ciclo produce, e un passaggio di recupero limitato quando manca un fatto.",
       "goal": "Esplorare quando la strada non è nota in anticipo, e chiudere con un risultato ottenuto o una mancanza dichiarata.",
-      "src": "42b810358c6b"
+      "src": "814e6c05d9ff"
     },
     "f.hitl": {
       "name": "Validazione umana",

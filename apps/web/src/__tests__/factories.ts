@@ -28,6 +28,7 @@ export function makeUser(over: Partial<User> = {}): User {
     is_superuser: false,
     memory_enabled: true,
     execution_mode: 'pipeline',
+    exchange_rhythm: 'occasional',
     voice_enabled: false,
     voice_mode_enabled: false,
     voice_stt_mode: 'local',

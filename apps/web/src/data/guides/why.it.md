@@ -4,7 +4,7 @@
 
 **Versione**: 6.1
 **Data**: 2026-09-24
-**Applicazione**: LIA v1.47.2
+**Applicazione**: LIA v1.47.3
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -60,6 +60,7 @@ Ogni utente ha il proprio spazio di configurazione, organizzato in due schede. U
 - **Server MCP personali**: connetti i tuoi server MCP per estendere le capacità di LIA
 - **Aspetto**: lingua, fuso orario, tema (5 palette, modalità chiara, scura o nero assoluto), font (9 scelte), formato di visualizzazione delle risposte (schede HTML, HTML, Markdown)
 - **La mia dashboard**: nascondi o riordina le 9 schede del briefing — una scheda nascosta non viene nemmeno più recuperata
+- **Preferenze d'uso**: scegli il tuo ritmo di scambi — frequenti, e LIA tiene a portata di mano tutti gli strumenti perché ogni turno in modalità ReAct rilegga il precedente dalla cache del fornitore; occasionali, e sceglie gli strumenti che servono a ogni domanda, a un costo stabile
 - **Debug**: accedi al pannello di debug per ispezionare ogni scambio (se abilitato dall'amministratore)
 
 **Funzionalità avanzate:**
@@ -287,7 +288,7 @@ LIA non si limita a girare su hardware modesto — **ottimizza attivamente** il 
 - **Filtraggio del catalogo**: solo gli strumenti pertinenti alla tua richiesta vengono presentati al LLM, riducendo drasticamente il numero di token consumati
 - **Apprendimento di pattern**: i piani validati vengono memorizzati e riutilizzati senza richiamare il LLM
 - **Message Windowing**: ogni componente vede solo il contesto strettamente necessario
-- **Cache dei prompt**: sfruttamento della cache nativa dei provider per limitare i costi ricorrenti
+- **Cache dei prompt**: sfruttamento della cache nativa dei provider per limitare i costi ricorrenti — e in modalità ReAct sei tu ad arbitrare: gli scambi frequenti tengono caricati tutti gli strumenti perché ogni turno rilegga il precedente, quelli occasionali mantengono il filtro per pertinenza e un costo che non dipende dall'intervallo tra due messaggi
 - **Prompt senza peso morto**: un contesto viene avvolto solo se esiste, così un turno nudo non porta alcun involucro vuoto, e una notifica di due frasi si chiede senza ragionamento — su un modello che ragiona per impostazione predefinita, il ragionamento si fattura dentro il budget della risposta
 
 Combinate, queste ottimizzazioni spiegano il fattore da 4 a 8 tra la modalità Pipeline e la modalità agente autonomo, a parità di servizio reso.

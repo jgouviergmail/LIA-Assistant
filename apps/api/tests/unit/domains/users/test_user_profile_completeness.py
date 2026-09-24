@@ -43,6 +43,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from src.core.exchange_rhythm import ExchangeRhythm, effective_exchange_rhythm
 from src.domains.shared.schemas import (
     VALID_COLOR_THEMES,
     VALID_FONT_FAMILIES,
@@ -75,6 +76,7 @@ DISTINCTIVE_VALUES: dict[str, Any] = {
     "picture_url": "https://example.com/avatar.png",
     "memory_enabled": False,
     "execution_mode": "react",
+    "exchange_rhythm": "",  # replaced below: the default follows the instance
     "voice_enabled": True,
     "voice_mode_enabled": True,
     "voice_stt_mode": "remote",
@@ -106,6 +108,10 @@ DISTINCTIVE_VALUES: dict[str, Any] = {
 # Read the allowed sets rather than hardcoding a member: a test that pins a
 # literal breaks the day the list is reordered, for no reason of its own.
 DISTINCTIVE_VALUES["font_family"] = next(f for f in VALID_FONT_FAMILIES if f != "system")
+# The rhythm's default is the instance setting: pick the OTHER one, whatever it is.
+DISTINCTIVE_VALUES["exchange_rhythm"] = next(
+    rhythm.value for rhythm in ExchangeRhythm if rhythm is not effective_exchange_rhythm(None)
+)
 assert DISTINCTIVE_VALUES["theme"] in VALID_THEMES
 assert DISTINCTIVE_VALUES["color_theme"] in VALID_COLOR_THEMES
 

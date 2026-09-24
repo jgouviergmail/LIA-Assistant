@@ -2264,6 +2264,13 @@
       "theme": "orchestration",
       "functional": ["f.react"],
       "technical": ["t.react", "t.response"]
+    },
+    {
+      "adr": 311,
+      "date": "2026-09-24",
+      "theme": "models",
+      "functional": ["f.react", "f.costs", "f.admin"],
+      "technical": ["t.react", "t.web"]
     }
   ]
 }

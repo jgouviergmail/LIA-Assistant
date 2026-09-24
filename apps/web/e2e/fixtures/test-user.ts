@@ -15,6 +15,8 @@ export interface TestUser {
   is_superuser: boolean;
   memory_enabled: boolean;
   execution_mode: string;
+  /** Effective exchange rhythm the API publishes (ADR-311). */
+  exchange_rhythm: 'frequent' | 'occasional';
   voice_enabled: boolean;
   voice_mode_enabled: boolean;
   voice_stt_mode: 'local' | 'remote';
@@ -38,6 +40,7 @@ export function makeTestUser(overrides: Partial<TestUser> = {}): TestUser {
     is_superuser: false,
     memory_enabled: true,
     execution_mode: 'pipeline',
+    exchange_rhythm: 'occasional',
     voice_enabled: false,
     voice_mode_enabled: false,
     voice_stt_mode: 'remote',

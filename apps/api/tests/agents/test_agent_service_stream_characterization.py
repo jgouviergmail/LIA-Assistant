@@ -324,6 +324,8 @@ class FakeUser:
         self.is_superuser = False
         self.debug_panel_enabled = False
         self.admin_mcp_disabled_servers: list[str] = []
+        # ADR-311: the stored rhythm, NULL for an account that never chose.
+        self.exchange_rhythm: str | None = None
 
 
 # ---------------------------------------------------------------------------

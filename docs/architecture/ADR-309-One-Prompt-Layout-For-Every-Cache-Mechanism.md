@@ -2,6 +2,7 @@
 
 **Status**: accepted — 2026-09-23 (owner rule: every provider and model is configurable, so no decision reasons on one of them; aim at the best AVERAGE over usages and model choices)
 **Revised**: 2026-09-24, after the owner's test turns — the response sends its conversation once and keeps its sections' order (4), the history blocks are the loop's alone (6), the journal extraction gains the boundary (2)
+**Amended**: 2026-09-24, after production's first morning under the flag — the loop's history blocks are counted by the turn counter, from the end, in whole turns (6, and the amendment below); and by [ADR-311](ADR-311-Exchange-Rhythm-Is-The-Persons-Choice.md): the blocks follow the person's exchange rhythm, with every tool and the context's place
 **Amends**: ADR-306 (the explicit request mode, a second payload adapter), ADR-308 (the loop's history dropped by blocks under the same flag), ADR-284 (the response's conversation sent once, its two scaffolds in a lines file), ADR-064 (the analyst persona's place in the extraction prompt), ADR-147 (the grounding block's own budget)
 
 ## Context
@@ -79,10 +80,12 @@ mechanism; a model without a cache pays exactly what it paid.**
    the marker, where the static-part hygiene guard wants per-turn content.
 6. **Under `REACT_CROSS_TURN_CACHE_ENABLED`, the ReAct loop's history is dropped
    by blocks** (`REACT_CROSS_TURN_HISTORY_BLOCK_FRACTION`, 0.5): it keeps between N
-   and N + block − 1 turns, so each turn's history extends the previous one. One
-   implementation: `get_windowed_messages(block_size=…)`. The response node keeps
-   sliding: its conversation follows the turn's own context, which no cache reads,
-   so blocks would only add tokens there.
+   and N + block − 1 turns, so each turn's history extends the previous one. How
+   many is a function of the conversation's turn counter alone, taken from the
+   end, and a turn is kept whole (`get_block_windowed_messages` — amended
+   2026-09-24, below). The response node keeps sliding: its conversation follows
+   the turn's own context, which no cache reads, so blocks would only add tokens
+   there.
 7. **Qwen's explicit cache is marked** (`providers/qwen_chat.py`,
    `ChatQwenCached`) on the DECLARED families without an implicit cache (3.5 and
    3.6, Plus and Flash): the static system prefix — tools included, DashScope
@@ -117,6 +120,92 @@ mechanism; a model without a cache pays exactly what it paid.**
   response whose conversation precedes the turn's context (ADR-308's move applied
   to the response node) would make its history readable again; not done — it
   changes where the model reads the turn's data, and needs its own measurement.
+
+## Amendment 2026-09-24 — the blocks moved in the middle of a turn
+
+**Measured in production, the first morning under the flag.** The loop calls of
+that morning's scheduled runs cost 0.275 €, against 0.17 to 0.19 € on the
+previous days at the same pace of runs. One routine run on the main thread made
+10 loop calls; its history went from 121 to 101, 97 and then 85
+messages as the messages reducer trimmed the thread's head, because the run's own
+tool results pushed the state over `MAX_TOKENS_HISTORY`. The block kept 10, then
+12, 10 and 15 conversational messages, and the three calls where it moved read
+back the prompt and the tools alone (77,312 tokens), then re-billed 112,381,
+94,403 and 152,869 tokens. The thread still held more history than the window
+shows on every call, so a sliding window would not have moved. The prompt tokens
+not read back between two calls of a turn went from 0 a day (20 to 23 September)
+to 425,000 on that thread and about 73,000 on two others: 0.089 € at the exact
+hourly tariff over the morning's runs, nearly the whole increase. No turn outgrew
+the state on its own that day
+(`turn_anchor_repinned`: 8 events in the week, all on 2026-09-17).
+
+**Cause.** The boundary was `2 × block × ⌊overflow / (2 × block)⌋` messages into
+the list, where the overflow is the list's LENGTH minus the window. The reducer
+shortens that list from its head, so every trim moved the boundary while the
+kept turns were still there. The same arithmetic counted two messages per turn,
+so the window could open on an answer whose question the reducer had trimmed.
+
+**Decision.** The loop keeps the last `K(T) = N + ((T − 1 − N) mod block)`
+previous turns, with `T` the conversation's turn counter (`current_turn_id`),
+counted from the END, and each turn is kept whole from its question
+(`get_block_windowed_messages`, `block_window_turns`). Within a turn `T` does not
+move, so a head trim that leaves the kept turns in place changes nothing. From
+one turn to the next, the count grows by one and drops a whole block at once.
+The phase makes a thread that still holds each of its `T − 1` previous turns keep
+exactly what it kept before; only trimmed or irregular threads see a difference.
+When the reducer has trimmed into the block, the loop keeps the window proper
+(N turns), which a further trim cannot move while it holds. A history shorter
+than the window is kept whole, so a conversation that LIA opened keeps its first
+message. Without the flag, `get_windowed_messages` is back to its code before this
+ADR, and nothing changes.
+
+**Proof.** The real node and the real reducer run call by call with a lowered
+state budget, so the head is trimmed on every tool result
+(`test_react_history_prefix_stability.py`):
+
+- Before the fix, the history's first message went from a question to an
+  answer without its question in the middle of a turn.
+- After the fix, every call resends the previous call's prompt whole.
+- The next turn reads it back through the question.
+
+A seeded property test covers 400 random threads and every head trim of each:
+threads with notifications, unanswered questions, tool traffic, and a compaction
+summary placed where compaction leaves it. Six mutations of the rule, applied by
+hand, are each caught: aligning on the length, no fallback, the preamble always
+kept or never kept, another phase, and the node not passing the counter. An
+independent cold review reproduced two of them on the real node and reducer.
+
+**What remains, stated.**
+
+- **While the reducer holds fewer turns than the block wants**, the loop keeps the
+  window proper. Within a turn that holds; from one turn to the next it slides by
+  one turn, as before this ADR, so such a thread gets no cross-turn saving, and
+  never fewer than N turns. The switch from the block to the window proper costs
+  one read, once. How often a thread sits there was not measured before this
+  amendment: under the flag, `message_windowing_complete` now states
+  `turns_wanted`, `turns_available` and `turns_kept`.
+- **A turn whose own tool results trim the history below the window** still moves
+  its first message on each trim, as the sliding window did before this ADR. No
+  turn outgrew the state on 2026-09-24.
+- **The compaction summary.** Compaction appends its summary after the messages it
+  preserved, and the reducer protects a SystemMessage at index 0 only. The loop
+  reads that summary first, so the one head trim that takes it moves the view's
+  first message: once per compaction, as before this amendment.
+- **A HumanMessage that enters the thread without a new turn** counts as a turn:
+  a live session's spoken words, or a pipeline HITL answer. The turn after it
+  starts one turn later, one read is lost, and then the blocks run on. ReAct's own
+  HITL resumes add no message.
+
+After deployment, the prompt tokens not read back between two calls of a turn
+should fall back to about zero.
+
+**Rejected.**
+
+- **Making the block one turn by configuration** (a fraction that rounds to 1):
+  the loop would read a fifth less history on average, and the owner refused to
+  trade what the loop reads for a mitigation.
+- **Storing the view, or its first message, in the state for the turn**: more
+  state and a new write path, for a case not observed.
 
 ## Rejected
 

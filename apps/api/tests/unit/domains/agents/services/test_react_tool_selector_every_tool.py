@@ -1,4 +1,4 @@
-"""With the cross-turn cache flag, the loop binds EVERY available tool, in one order (ADR-308).
+"""For frequent exchanges, the loop binds EVERY available tool, in one order (ADR-308, ADR-311).
 
 The relevance selection (ADR-293) binds the tools a question needs, so the list
 changes from one turn to the next -- and a provider caches a prompt by prefix,
@@ -11,8 +11,12 @@ question -- ``react_turn_layout``).
 Every tool cannot always be bound: above the operator's cap, or when the schemas
 would take more than the allowed share of the slot's context window. Then the
 turn keeps the relevance selection -- a known-good turn -- and the fallback is
-counted by reason, since a flag that silently does nothing is a flag nobody can
-trust.
+counted by reason, since a choice that silently does nothing is a choice nobody
+can trust.
+
+The selector reads the turn's rhythm as a parameter (``every_tool``), which the
+setup node takes from the turn's state; the instance setting only supplies the
+default of an account that never chose, upstream (``users.exchange_rhythm``).
 """
 
 from __future__ import annotations
@@ -49,20 +53,21 @@ def _fallbacks(reason: str) -> float:
 def harness(monkeypatch: pytest.MonkeyPatch) -> _Harness:
     monkeypatch.setattr(settings, "react_agent_max_tools", 100)
     monkeypatch.setattr(settings, "react_tool_semantic_top_k", 6)
-    monkeypatch.setattr(settings, "react_cross_turn_cache_enabled", True)
     monkeypatch.setattr(selector_module, "every_tool_token_budget", lambda: None)
     return _Harness()
 
 
 class TestEveryTool:
     def test_every_tool_in_registration_order_whatever_the_turn(self, harness: _Harness) -> None:
-        about_the_calendar, _ = harness.select(domains=["event"], ranking=RANKING)
-        about_the_mail, _ = harness.select(domains=["email"], ranking=list(reversed(RANKING)))
+        about_the_calendar, _ = harness.select(domains=["event"], ranking=RANKING, every_tool=True)
+        about_the_mail, _ = harness.select(
+            domains=["email"], ranking=list(reversed(RANKING)), every_tool=True
+        )
         assert about_the_calendar == EVERY_TOOL
         assert about_the_mail == EVERY_TOOL
 
     def test_the_approval_map_covers_every_bound_tool(self, harness: _Harness) -> None:
-        bound, hitl_map = harness.select(domains=["event"], ranking=RANKING)
+        bound, hitl_map = harness.select(domains=["event"], ranking=RANKING, every_tool=True)
         assert set(hitl_map) == set(bound)
 
     def test_an_expanded_server_is_bound_whole_with_its_door(
@@ -76,24 +81,30 @@ class TestEveryTool:
         )
         for name in (_DOOR, *_INDIVIDUAL):
             harness.ctx.tool_instances[name] = _Tool(name=name)
-        bound, _ = harness.select(domains=["event"], ranking=[f"{_SERVER}_c"])
+        bound, _ = harness.select(domains=["event"], ranking=[f"{_SERVER}_c"], every_tool=True)
         assert bound == [*EVERY_TOOL, *_INDIVIDUAL, _DOOR]
 
-    def test_without_the_flag_the_selection_is_by_relevance(
+    def test_occasional_exchanges_keep_the_selection_by_relevance(
         self, harness: _Harness, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setattr(settings, "react_cross_turn_cache_enabled", False)
-        bound, _ = harness.select(domains=["event"], ranking=RANKING)
+        # The instance default says « frequent »: the turn's own rhythm decides.
+        monkeypatch.setattr(settings, "react_cross_turn_cache_enabled", True)
+        bound, _ = harness.select(domains=["event"], ranking=RANKING, every_tool=False)
         assert bound != EVERY_TOOL
         assert bound[:3] == ["calendar_get", "calendar_search", "calendar_list"]
         assert "calendar_search" in bound and len(bound) < len(EVERY_TOOL)
 
+    def test_the_instance_setting_alone_binds_nothing_more(
+        self, harness: _Harness, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(settings, "react_cross_turn_cache_enabled", True)
+        bound, _ = harness.select(domains=["event"], ranking=RANKING)
+        assert bound != EVERY_TOOL
+
 
 class TestFallback:
     def _relevance(self, harness: _Harness, monkeypatch: pytest.MonkeyPatch) -> list[str]:
-        with monkeypatch.context() as scoped:
-            scoped.setattr(settings, "react_cross_turn_cache_enabled", False)
-            bound, _ = harness.select(domains=["event"], ranking=RANKING)
+        bound, _ = harness.select(domains=["event"], ranking=RANKING, every_tool=False)
         return bound
 
     def test_above_the_cap_the_turn_keeps_the_relevance_selection(
@@ -102,7 +113,7 @@ class TestFallback:
         monkeypatch.setattr(settings, "react_agent_max_tools", len(EVERY_TOOL) - 1)
         expected = self._relevance(harness, monkeypatch)
         before = _fallbacks("cap")
-        bound, _ = harness.select(domains=["event"], ranking=RANKING)
+        bound, _ = harness.select(domains=["event"], ranking=RANKING, every_tool=True)
         assert bound == expected
         assert _fallbacks("cap") == before + 1
 
@@ -112,7 +123,7 @@ class TestFallback:
         expected = self._relevance(harness, monkeypatch)
         monkeypatch.setattr(selector_module, "every_tool_token_budget", lambda: 1)
         before = _fallbacks("window")
-        bound, _ = harness.select(domains=["event"], ranking=RANKING)
+        bound, _ = harness.select(domains=["event"], ranking=RANKING, every_tool=True)
         assert bound == expected
         assert _fallbacks("window") == before + 1
 
@@ -120,7 +131,7 @@ class TestFallback:
         self, harness: _Harness, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setattr(settings, "react_agent_max_tools", len(EVERY_TOOL))
-        bound, _ = harness.select(domains=["event"], ranking=RANKING)
+        bound, _ = harness.select(domains=["event"], ranking=RANKING, every_tool=True)
         assert bound == EVERY_TOOL
 
 

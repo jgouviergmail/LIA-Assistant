@@ -9,6 +9,7 @@ import {
 } from '@/lib/client-storage-purge';
 import apiClient from './api-client';
 import { navigateToAuthorizationUrl } from '@/lib/safe-navigation';
+import type { ExchangeRhythm } from '@/lib/exchange-rhythm';
 
 export interface User {
   id: string;
@@ -22,6 +23,8 @@ export interface User {
   is_superuser: boolean;
   memory_enabled: boolean;
   execution_mode: string;
+  /** Effective exchange rhythm (ADR-311): the person's choice, else the instance default. */
+  exchange_rhythm?: ExchangeRhythm;
   voice_enabled: boolean;
   voice_mode_enabled: boolean;
   voice_stt_mode: 'local' | 'remote';
