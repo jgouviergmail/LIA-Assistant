@@ -39,7 +39,7 @@ graph LR
     C[Conversation History] --> B
     D[User Query] --> B
     B --> E[Format Results]
-    E --> F[LLM Call<br/>gpt-4.1-mini]
+    E --> F[LLM Call<br/>response slot]
     F --> G[Post-Processing<br/>Photos/Links]
     G --> H[AI Response<br/>Markdown]
 ```
@@ -87,12 +87,12 @@ graph TD
     E -->|Yes| F[Format Rejection Details<br/>Anti-Hallucination]
     E -->|No| G{Planner<br/>Error?}
     G -->|Yes| H[Include Error Details<br/>User-Friendly]
-    G -->|No| I[Message Windowing<br/>20 turns]
+    G -->|No| I[Message Windowing<br/>per-node window]
     F --> I
     H --> I
     I --> J[Filter Conversational<br/>Messages]
     J --> K[Build Prompt<br/>Response v3]
-    K --> L[LLM Call<br/>gpt-4.1-mini T=0.7]
+    K --> L[LLM Call<br/>response slot]
     L --> M[Post-Processing<br/>Photos Injection]
     M --> N{Photos<br/>Injected?}
     N -->|Yes| O[Set content_final_replacement]
@@ -860,8 +860,8 @@ graph LR
     A[Response Node] --> B[AI Response<br/>Markdown]
     B --> C{Voice<br/>Enabled?}
     C -->|Yes| D[VoiceCommentService]
-    D --> E[Generate Comment<br/>LLM gpt-4.1-nano]
-    E --> F[Google Cloud TTS<br/>Neural2 Voice]
+    D --> E[Generate Comment<br/>voice comment slot]
+    E --> F[TTS<br/>configured voice]
     F --> G[Audio Stream<br/>MP3/OGG_OPUS]
     C -->|No| H[Text Only]
 ```

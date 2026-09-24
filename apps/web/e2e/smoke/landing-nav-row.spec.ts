@@ -45,6 +45,8 @@ test.describe('landing header — the row fits where it first appears (880px)', 
 
     const header = page.getByRole('banner').or(page.locator('header')).first();
     await expect(header.getByRole('link', { name: 'Nouveautés' })).toBeHidden();
+    // The maps entry shares the release entry's fate below lg (same saturation).
+    await expect(header.getByRole('link', { name: 'Cartes' })).toBeHidden();
     // The band itself is on the page regardless of the header's width.
     await expect(page.locator('#changelog')).toHaveCount(1);
   });
@@ -65,6 +67,10 @@ test.describe('landing header — the release band, from lg up', () => {
     // shipped. Asserted as a RELATION rather than a fixed position — the logo
     // and the right-hand account actions are links too.
     expect(labels.indexOf('Nouveautés')).toBe(labels.indexOf('Présentation') + 1);
+    // "Cartes" opens the page links, between "Nouveautés" and "Story" (owner
+    // arbitration 2026-09-24).
+    expect(labels.indexOf('Cartes')).toBe(labels.indexOf('Nouveautés') + 1);
+    expect(labels.indexOf('Story')).toBe(labels.indexOf('Cartes') + 1);
 
     await header.getByRole('link', { name: 'Nouveautés' }).click();
     const band = page.locator('#changelog');

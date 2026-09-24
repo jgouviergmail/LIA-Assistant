@@ -119,6 +119,14 @@ refused — the recurring IPv6-first trap on this codebase).
 an absolute API host — measured 2026-09-20, ten chunks carried it, so browser
 traffic would leave the origin the suite intercepts on.
 
+If the build dies while generating static pages on `ENOMEM: not enough memory,
+write` — with memory and disk to spare — the Windows bind mount is giving way
+under Next's default parallelism (one worker per host core writing `.next-e2e`
+at once). Add `-e NEXT_BUILD_CPUS=4` to the build's `docker exec`: the knob
+`next.config.ts` already reads for emulated builds caps the workers and adds a
+retry margin (measured 2026-09-24: three failures in a row at 15 workers, then
+410/410 pages in 24 s at 4).
+
 Stop the production server afterwards with
 `docker exec lia-web-dev sh -c 'kill "$(cat /tmp/e2e-standalone.pid)"'` (or
 restart the container). Not `pkill -f 'server.js'`: Next renames its process to

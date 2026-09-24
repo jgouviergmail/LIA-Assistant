@@ -791,6 +791,14 @@ tasks:
         platforms: [windows]
       - cmd: apps/api/.venv/bin/python scripts/audit/agents_mirror.py
         platforms: [linux, darwin]
+      # The living maps (site /maps + docs/maps) are GENERATED from their data and
+      # must know every ADR, backend domain and infrastructure module in the six
+      # languages of the site: a new one, a missing or stale translation, fails
+      # here until the data says it and `task docs:maps` has re-rendered.
+      - cmd: apps/api/.venv/Scripts/python scripts/audit/doc_maps.py
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python scripts/audit/doc_maps.py
+        platforms: [linux, darwin]
 
   lint:docs:preview:
     desc: "Same audit, but as CI will see it AFTER `git add` (moved/new files included)"
@@ -810,6 +818,10 @@ tasks:
         platforms: [windows]
       - cmd: apps/api/.venv/bin/python scripts/audit/doc_facts.py --include-unstaged
         platforms: [linux, darwin]
+      - cmd: apps/api/.venv/Scripts/python scripts/audit/doc_maps.py --include-unstaged
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python scripts/audit/doc_maps.py --include-unstaged
+        platforms: [linux, darwin]
 
   docs:sync-agents:
     desc: Regenerate AGENTS.md from CLAUDE.md (single source, generated mirror)
@@ -828,6 +840,22 @@ tasks:
       - cmd: apps/api/.venv/Scripts/python scripts/audit/doc_facts.py --fix
         platforms: [windows]
       - cmd: apps/api/.venv/bin/python scripts/audit/doc_facts.py --fix
+        platforms: [linux, darwin]
+
+  docs:maps:
+    desc: Living maps — stamp new translations, regenerate facts.json and the French documents
+    env:
+      PYTHONUTF8: "1"
+    cmds:
+      # The data lives in apps/web/src/data/maps (structure + one text file per
+      # map and language); facts.json and the French documents of docs/maps are
+      # rendered from it, the counts read from the tree. A unit translated for
+      # the first time is stamped here; a STALE one needs `--restamp`.
+      # --refresh-icons vendors an icon the data names for the first time (it
+      # reads apps/web/node_modules then) and drops the ones nothing draws.
+      - cmd: apps/api/.venv/Scripts/python scripts/audit/doc_maps.py --write --refresh-icons
+        platforms: [windows]
+      - cmd: apps/api/.venv/bin/python scripts/audit/doc_maps.py --write --refresh-icons
         platforms: [linux, darwin]
 
   lint:mypy-debt:
@@ -1140,6 +1168,8 @@ tasks:
         platforms: [windows]
       - cmd: apps/api/.venv/bin/python scripts/release/bump_surfaces.py {{.CLI_ARGS}}
         platforms: [linux, darwin]
+      # The living maps stamp the version and draw the release milestones.
+      - task: docs:maps
     requires:
       vars: [CLI_ARGS]
 
@@ -1152,6 +1182,8 @@ tasks:
         platforms: [windows]
       - cmd: apps/api/.venv/bin/python scripts/release/bump_surfaces.py --counts-only
         platforms: [linux, darwin]
+      # A new CHANGELOG entry is a new milestone of the ADR history.
+      - task: docs:maps
 
   test:install:backend-contracts:
     desc: Focused backend contracts of the installer chain (Tasks 2/7/8/9 + CI parity)

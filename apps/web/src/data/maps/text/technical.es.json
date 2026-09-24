@@ -1,0 +1,499 @@
+{
+  "intro": {
+    "lede": "Las capas del sistema, de la pantalla a la base de datos, lo que hace cada bloque, con qué tecnologías, dónde vive en el repositorio y los caminos que sigue una petición.",
+    "src": "2ca976e771ef"
+  },
+  "layers": {
+    "l.clients": {
+      "name": "Clientes",
+      "summary": "Lo que la persona toca: la aplicación web, su modo sin conexión, las carcasas móviles y los canales de mensajería.",
+      "src": "4d8a8e055831"
+    },
+    "l.edge": {
+      "name": "Perímetro",
+      "summary": "Lo que se sitúa entre Internet y la aplicación: túnel, política de contenido, límite de tasa, sesiones.",
+      "src": "6bb80ca5d5b6"
+    },
+    "l.api": {
+      "name": "API y base de la aplicación",
+      "summary": "La API FastAPI dividida en dominios de negocio, su flujo SSE, su arranque ordenado y su configuración.",
+      "src": "783c4be0d675"
+    },
+    "l.agents": {
+      "name": "Orquestación de agentes",
+      "summary": "El grafo LangGraph: enrutamiento, planificación o bucle ReAct, validación humana, herramientas y respuesta.",
+      "src": "7d2fb1bdfda7"
+    },
+    "l.models": {
+      "name": "Modelos y costes",
+      "summary": "El acceso a los modelos de cada proveedor, el razonamiento, las salidas estructuradas, los embeddings y la contabilidad de cada llamada.",
+      "src": "3c4f7aa48475"
+    },
+    "l.integrations": {
+      "name": "Integraciones",
+      "summary": "Los clientes de los servicios externos, los protocolos abiertos, el entorno aislado y los canales de voz.",
+      "src": "bc77a1b131aa"
+    },
+    "l.background": {
+      "name": "Tareas en segundo plano",
+      "summary": "Lo que se ejecuta sin petición: programador de tareas de líder único, motor proactivo, tareas duraderas, autodiagnóstico.",
+      "src": "964e27f33040"
+    },
+    "l.data": {
+      "name": "Datos",
+      "summary": "Dónde vive el estado: PostgreSQL y pgvector, Redis, archivos, y los registros de lo que LIA ha hecho, leído y decidido.",
+      "src": "8837dd9d47f7"
+    },
+    "l.observability": {
+      "name": "Observabilidad",
+      "summary": "Medir, ver, alertar, revisar: métricas, dashboards, alertas, logs, trazas.",
+      "src": "61b7bf836724"
+    },
+    "l.delivery": {
+      "name": "Entrega",
+      "summary": "Cómo el código se convierte en un servicio: imágenes, integración continua y sus guardas, release cualificada, instalador, demostrador.",
+      "src": "3a37ddd8cb23"
+    }
+  },
+  "bricks": {
+    "t.web": {
+      "name": "Aplicación web",
+      "role": "La interfaz: chat en streaming, ajustes, paneles y páginas públicas renderizadas en el servidor; todo el tráfico hacia la API pasa por el mismo origen.",
+      "stack": ["Next.js 16", "React 19", "TypeScript", "Tailwind CSS 4", "Radix / shadcn"],
+      "src": "061f6ff0f8ac"
+    },
+    "t.pwa": {
+      "name": "PWA y modo sin conexión",
+      "role": "Instalable, una página sin conexión, las notificaciones web; la caché sigue la versión publicada.",
+      "stack": ["Service Worker", "Web Push", "Manifiesto PWA"],
+      "src": "026db61b5175"
+    },
+    "t.mobile": {
+      "name": "Carcasas móviles",
+      "role": "Una aplicación por tienda, cliente de un servidor autoalojado: la WebView carga el origen de tu servidor, y la parte nativa solo añade notificaciones, compartir e inicio de sesión fuera de la WebView.",
+      "stack": ["Capacitor", "Android", "iOS", "FCM", "Relé de despertar APNs"],
+      "src": "e1ed3ccde438"
+    },
+    "t.channels": {
+      "name": "Canales de mensajería",
+      "role": "Hablar con LIA desde Telegram y recibir sus mensajes; el webhook del bot lo fija únicamente el líder del programador de tareas.",
+      "stack": ["Telegram", "python-telegram-bot"],
+      "src": "82a0c6699dba"
+    },
+    "t.edge": {
+      "name": "Túnel, CSP y límite de tasa",
+      "role": "Exponer el servicio sin puerto de entrada, fijar lo que el navegador puede cargar, limitar la tasa de peticiones de cada llamante y leer la dirección del llamante en un único sitio.",
+      "stack": [
+        "Cloudflare Tunnel",
+        "Caddy (opcional)",
+        "Content-Security-Policy",
+        "Limitación de tasa con Redis"
+      ],
+      "src": "915d67eca531"
+    },
+    "t.bff": {
+      "name": "Sesiones y autenticación",
+      "role": "El navegador nunca ve un token: una sesión por cookie validada en el servidor, un doble factor, un consentimiento por proveedor verificado mediante una identidad firmada, y los correos de cuenta (verificación, activación, restablecimiento).",
+      "stack": [
+        "Cookie de sesión HTTP-only",
+        "TOTP",
+        "OAuth 2.1 / OIDC",
+        "PKCE",
+        "Correos de cuenta (SMTP)"
+      ],
+      "src": "0057b4c3da8b"
+    },
+    "t.fastapi": {
+      "name": "API FastAPI por dominios",
+      "role": "Los dominios de negocio en DDD — routers, servicios, repositorios —, excepciones centralizadas y un supervisor que no carga la aplicación.",
+      "stack": ["Python 3.14", "FastAPI", "Pydantic v2", "uvicorn multi-workers"],
+      "src": "4750209fb5fa"
+    },
+    "t.sse": {
+      "name": "Streaming SSE",
+      "role": "La respuesta llega palabra a palabra; pasos, borradores y coste viajan por el mismo flujo; una ruta que hace streaming no deja abierta ninguna sesión de base de datos.",
+      "stack": ["Server-Sent Events", "Keepalive"],
+      "src": "402cfc86770f"
+    },
+    "t.startup": {
+      "name": "Arranque ordenado",
+      "role": "Un módulo por subsistema y un único punto de orquestación; un registro incompleto se niega a arrancar en lugar de morir en silencio.",
+      "stack": ["Lifespan de FastAPI", "Asserts de completitud"],
+      "src": "c99d814f2036"
+    },
+    "t.config": {
+      "name": "Configuración e interruptores",
+      "role": "Ajustes compuestos por dominio, leídos del entorno; un interruptor por capacidad, leído en el momento del acto.",
+      "stack": ["Pydantic Settings", "Variables de entorno", "Interruptores de capacidad"],
+      "src": "140c6ec37c96"
+    },
+    "t.i18n": {
+      "name": "Seis idiomas",
+      "role": "Inglés, francés, alemán, español, italiano, chino — tanto en la interfaz como en el servidor, sin ninguna cadena fija en el código.",
+      "stack": ["react-i18next", "Catálogos del backend", "Paridad estricta de claves"],
+      "src": "6bd4d7c50d01"
+    },
+    "t.langgraph": {
+      "name": "Grafo LangGraph",
+      "role": "El motor de orquestación: un estado tipado, truncado por tokens y guardado en cada paso, que hace posibles las interrupciones de validación y su reanudación.",
+      "stack": ["LangGraph 1.x", "LangChain 1.x", "Estado tipado", "Checkpoints en PostgreSQL"],
+      "src": "17e9367c7b12"
+    },
+    "t.router": {
+      "name": "Enrutador",
+      "role": "Clasifica la petición y, a partir de un solo embedding, puntúa los dominios para el planificador y ordena todas las herramientas para ReAct.",
+      "stack": ["Análisis de consulta", "Embedding pivote", "Ranking de herramientas"],
+      "src": "ffaa35f0abde"
+    },
+    "t.planner": {
+      "name": "Planificador y ejecutor",
+      "role": "Un plan tipado, reparado mecánicamente y luego validado, ejecutado en paralelo; un veredicto de validación nunca se presenta como un fallo.",
+      "stack": ["ExecutionPlan (DSL tipado)", "Validador semántico", "Ejecución en paralelo"],
+      "src": "831194499292"
+    },
+    "t.react": {
+      "name": "Bucle ReAct",
+      "role": "Preparación, llamada al modelo, ejecución de herramientas, recuperación, finalización; un único predicado de parada; un turno que se detiene cierra por sí mismo sus llamadas abandonadas.",
+      "stack": ["Cinco nodos", "Presupuesto adaptativo", "Pasada de recuperación acotada"],
+      "src": "9ee225653a5b"
+    },
+    "t.response": {
+      "name": "Síntesis de la respuesta",
+      "role": "Ensambla la respuesta a partir de los resultados y los contextos declarados, cuenta los fallos tal como son y declara el registro que anima el rostro.",
+      "stack": ["Contextos declarados", "Directivas de honestidad", "Registro emocional"],
+      "src": "efc7fbacd058"
+    },
+    "t.hitl": {
+      "name": "Validación y borradores",
+      "role": "Clasifica cada acción sensible, presenta los borradores uno por uno y dibuja una misma tarjeta, visual en el chat o en texto en un ticket.",
+      "stack": ["Interrupciones de LangGraph", "Seis niveles", "Tarjetas por superficie"],
+      "src": "a48b9fd9efa1"
+    },
+    "t.toolsys": {
+      "name": "Herramientas y manifiestos",
+      "role": "Cada herramienta declara sus parámetros acotados, lo que le debe a la persona y su dominio; una puerta la inscribe en el registro de efectos antes de que actúe.",
+      "stack": ["LangChain @tool", "Manifiestos", "Política de mutación", "Puerta de autoridad"],
+      "src": "f60cbb2ae1a4"
+    },
+    "t.dataregistry": {
+      "name": "Registro de datos y contexto",
+      "role": "Los resultados de las herramientas se convierten en elementos referenciables: «el segundo» apunta a un objeto real, no a una frase.",
+      "stack": ["Salidas de herramientas normalizadas", "Tipos de contexto"],
+      "src": "615a093db0b5"
+    },
+    "t.promptsys": {
+      "name": "Prompts versionados",
+      "role": "Cada prompt es un archivo versionado; cada variable tiene un productor; lo estable va antes que lo variable para que la caché sirva.",
+      "stack": ["Archivos versionados", "Placeholders con productor", "Disposición para la caché"],
+      "src": "1e3a40c5e778"
+    },
+    "t.initiative": {
+      "name": "Nodo de iniciativa",
+      "role": "Tras una ejecución, decide si hay que encadenar una acción de seguimiento, con un catálogo limitado a lo que realmente sabe ejecutar.",
+      "stack": ["Catálogo acotado", "Elegibilidad por capacidad"],
+      "src": "0fe808d52ce3"
+    },
+    "t.llmfactory": {
+      "name": "Fábrica de modelos",
+      "role": "Un cliente nativo por proveedor; la misma frontera de caché traducida al mecanismo de cada uno; una sola costura entre una intención de razonamiento y un parámetro de API.",
+      "stack": ["OpenAI", "Anthropic", "Google", "DeepSeek", "Qwen", "Perplexity", "Ollama"],
+      "src": "ed98bd00f84a"
+    },
+    "t.reasoning": {
+      "name": "Razonamiento",
+      "role": "Una sola forma almacenada para «piensa más o menos», un perfil derivado por modelo, una coerción contabilizada y registrada.",
+      "stack": ["ReasoningIntent", "Perfiles derivados", "Escala ordinal"],
+      "src": "d4c3264b8e47"
+    },
+    "t.catalogue": {
+      "name": "Catálogo de modelos",
+      "role": "La verdad sobre lo que cada modelo sabe hacer y lo que cuesta, con la procedencia de cada capacidad; administrable mediante hoja de cálculo.",
+      "stack": [
+        "Registros públicos vendorizados",
+        "Procedencia de las capacidades",
+        "Importación / exportación tabular"
+      ],
+      "src": "cffd3acfe827"
+    },
+    "t.structured": {
+      "name": "Salidas estructuradas",
+      "role": "Obtener un objeto tipado de un modelo; una respuesta cortada por el límite de tokens es un rechazo, nunca un documento más corto anunciado como un éxito.",
+      "stack": ["Esquemas estrictos", "Detección de truncamiento"],
+      "src": "484a1da8781e"
+    },
+    "t.embeddings": {
+      "name": "Embeddings y búsqueda",
+      "role": "Vectorizar, encontrar por el sentido y por las palabras, fusionar bajo un umbral semántico; toda entrada enviada al proveedor es una cadena exacta.",
+      "stack": ["pgvector", "BM25", "Fusión híbrida"],
+      "src": "381aa9a80874"
+    },
+    "t.pricing": {
+      "name": "Contabilidad y límites",
+      "role": "Cada llamada de pago se limita antes (cuenta e instancia), se tarifica según su momento y luego se registra en el libro mayor correcto; cada módulo declara dónde se contabiliza su gasto.",
+      "stack": [
+        "Tarifas por franja horaria",
+        "Caché de precios",
+        "Límites de cuenta + instancia",
+        "Rutas de gasto declaradas"
+      ],
+      "src": "939e9074aad7"
+    },
+    "t.connclients": {
+      "name": "Clientes de conectores",
+      "role": "Un cliente por proveedor, una única puerta hacia el cliente activo de una categoría; nunca una transacción de base de datos abierta durante la llamada de red.",
+      "stack": ["Google", "Microsoft 365", "Apple iCloud", "Brave", "Perplexity", "Wikipedia"],
+      "src": "0be4cc18553b"
+    },
+    "t.mcp": {
+      "name": "Cliente MCP",
+      "role": "Un pool de clientes MCP por persona, esquemas de herramientas leídos al pie de la letra del estándar, herramientas protegidas igual que las nativas.",
+      "stack": ["Model Context Protocol", "Dos revisiones del protocolo", "OAuth por emisor"],
+      "src": "c11c5620d9c1"
+    },
+    "t.skills": {
+      "name": "Habilidades y plugins",
+      "role": "Instalar, activar y ejecutar habilidades portables; un plugin aporta habilidades y servidores MCP de un solo gesto.",
+      "stack": ["Agent Skills", "Agent Plugins"],
+      "src": "7dcbbe9d1959"
+    },
+    "t.sandbox": {
+      "name": "Entorno aislado y proxy de salida",
+      "role": "Ejecutar sin riesgo un script escrito por un modelo: red cortada salvo un proxy, claves sustituidas por el proxy, host desconocido sometido a tu decisión.",
+      "stack": ["Contenedor aislado", "Red interna", "Proxy de salida", "Tokens por ejecución"],
+      "src": "2ad3cce8e89b"
+    },
+    "t.browser": {
+      "name": "Navegador controlado",
+      "role": "Abrir una página, leerla y recorrerla, para los sitios que exigen un navegador de verdad; las capturas pasan a ser archivos de la persona.",
+      "stack": ["Playwright", "Chromium headless"],
+      "src": "0719ab621185"
+    },
+    "t.voiceinfra": {
+      "name": "Voz: transcripción y síntesis",
+      "role": "Transcribir y sintetizar la voz, con una caché de modelos acotada por proceso y una voz modulada por el estado de ánimo.",
+      "stack": ["Whisper (ONNX)", "Sherpa", "Síntesis de voz multiproveedor"],
+      "src": "3fb9ee21c6b9"
+    },
+    "t.live": {
+      "name": "Transportes Live",
+      "role": "Cada proveedor declara su modo de conexión y su forma de delegar; el navegador reproduce el audio mediante un único AudioWorklet; ninguna bifurcación según el nombre de un proveedor.",
+      "stack": [
+        "WebSocket",
+        "WebRTC",
+        "AudioWorklet",
+        "Gemini Live",
+        "GPT-Live",
+        "ElevenLabs Agents"
+      ],
+      "src": "b145ce9d3202"
+    },
+    "t.phone": {
+      "name": "Telefonía",
+      "role": "Llamar a la persona o a un tercero, prestar a la voz herramientas de solo lectura y transmitir la conversación al chat mediante un único cierre.",
+      "stack": ["Agente de voz de ElevenLabs", "Webhooks", "Número verificado"],
+      "src": "0fd8eabc3515"
+    },
+    "t.push": {
+      "name": "Notificaciones push",
+      "role": "Llegar a un navegador o a un teléfono; en iOS, un relé solo transporta un identificador opaco y una frase sin contenido.",
+      "stack": ["Firebase Cloud Messaging", "Relé de despertar iOS", "Web Push"],
+      "src": "aa10ca425769"
+    },
+    "t.scheduler": {
+      "name": "Programador de líder único",
+      "role": "Un solo proceso lanza las tareas; cada tarea periódica lleva un jitter para no arrancar en el mismo segundo; las recurrencias pasan por un único motor.",
+      "stack": ["APScheduler", "Elección de líder", "Jitter", "Motor de recurrencia"],
+      "src": "f72fdfd86abf"
+    },
+    "t.proactive": {
+      "name": "Motor proactivo",
+      "role": "Selecciona, verifica, genera y envía lo que LIA dice por iniciativa propia; cada envío se reclama antes de salir y se liquida a partir de su resultado.",
+      "stack": ["Elegibilidad completa", "Reclamación con token", "Notificación = acción"],
+      "src": "ea953db4c362"
+    },
+    "t.jobs": {
+      "name": "Tareas duraderas",
+      "role": "Reuniones, transmisiones de voz, proyecciones: cada trabajo largo es una fila reclamada, que se reanuda tras una parada y se liquida a partir de un resultado explícito.",
+      "stack": ["Filas reclamadas", "FOR UPDATE SKIP LOCKED", "Reanudación tras una parada"],
+      "src": "27460ffcbe48"
+    },
+    "t.selfdiag": {
+      "name": "Autodiagnóstico",
+      "role": "LIA lee su propia telemetría, reúne las pruebas de un incidente en el momento en que ocurre y guarda memoria de él.",
+      "stack": ["Lectura de Prometheus / Loki / Alertmanager", "Pruebas por receta"],
+      "src": "7cf9e87a4874"
+    },
+    "t.postgres": {
+      "name": "PostgreSQL y pgvector",
+      "role": "La fuente de verdad: cuentas, conversaciones, checkpoints del grafo, vectores; migraciones en una cadena única, sesiones que no viven más que sus consultas.",
+      "stack": ["PostgreSQL 16", "pgvector", "SQLAlchemy 2 async", "Alembic"],
+      "src": "e8a37d48c54b"
+    },
+    "t.redis": {
+      "name": "Redis",
+      "role": "Cachés, sesiones, cerrojos y reclamaciones; cada familia de claves declara su alcance, y una purga solo retira lo que su familia declara.",
+      "stack": ["Redis 7", "Familias de claves declaradas", "Cerrojos con token de propietario"],
+      "src": "f213796106f9"
+    },
+    "t.storage": {
+      "name": "Archivos",
+      "role": "Adjuntos y archivos producidos por LIA; cada archivo dice quién lo produjo, y un reinicio solo retira lo que debe.",
+      "stack": ["Almacenamiento local", "Origen declarado"],
+      "src": "deae950ea637"
+    },
+    "t.registers": {
+      "name": "Registros trazables",
+      "role": "Una fila por acción, por consulta y por turno; la instancia puede sellarlas en una cadena de hash por cuenta; exportables íntegras, nunca reparadas.",
+      "stack": ["Efectos", "Consultas", "Decisiones", "Cadena de hash por cuenta (activable)"],
+      "src": "469af2bd15d4"
+    },
+    "t.metrics": {
+      "name": "Métricas",
+      "role": "Cada métrica definida en el código la lee un panel, una regla o una alerta — una métrica que nadie ve está prohibida.",
+      "stack": ["Prometheus", "Reglas de registro", "Exporters"],
+      "src": "b61a7510e414"
+    },
+    "t.dashboards": {
+      "name": "Dashboards",
+      "role": "Dashboards por subsistema, con cada consulta resuelta hacia un productor real.",
+      "stack": ["Grafana"],
+      "src": "d54f63ec18be"
+    },
+    "t.alerts": {
+      "name": "Alertas",
+      "role": "Alertas que despiertan por un motivo, cada una con su runbook, validadas como una matriz de configuraciones.",
+      "stack": ["Alertmanager", "Umbrales por entorno", "Runbooks"],
+      "src": "cb76c097ebae"
+    },
+    "t.logs": {
+      "name": "Logs",
+      "role": "Logs estructurados sin datos personales en el nivel INFO, etiquetas de conjunto cerrado, leídos por Loki.",
+      "stack": ["structlog JSON", "Loki", "Promtail", "Filtro de PII"],
+      "src": "fa12e71a95d7"
+    },
+    "t.tracing": {
+      "name": "Trazas",
+      "role": "Seguir una petición a través de las capas, y cada llamada a un modelo con sus tokens.",
+      "stack": ["Tempo", "OpenTelemetry", "Langfuse (opcional)"],
+      "src": "7eb8e8c66818"
+    },
+    "t.docker": {
+      "name": "Imágenes y composición",
+      "role": "Imágenes de producción fijadas por versión y huella, construidas a partir de instalaciones congeladas.",
+      "stack": ["Docker", "Compose", "Imágenes fijadas por huella"],
+      "src": "42dbb6b83f68"
+    },
+    "t.cicd": {
+      "name": "Integración continua y guardas",
+      "role": "La CI orquesta, Taskfile implementa: cada paso es un comando que un desarrollador puede lanzar; los umbrales solo suben.",
+      "stack": ["GitHub Actions", "Task", "Ratchets de un solo sentido"],
+      "src": "03fa8d274e07"
+    },
+    "t.release": {
+      "name": "Release, despliegue e instalador",
+      "role": "Un tag construye un candidato, una instalación desechable lo cualifica y luego la release lo publica; el despliegue lee su veredicto en un archivo; un instalador guía el autoalojamiento.",
+      "stack": [
+        "Candidatos por huella",
+        "Cualificación desechable",
+        "Despliegue desacoplado",
+        "Instalador guiado"
+      ],
+      "src": "e0222692a381"
+    },
+    "t.demo": {
+      "name": "Demostrador",
+      "role": "Una instancia pública de demostración en la que cada protección se recalcula desde la fuente de verdad y se verifica en cada despliegue.",
+      "stack": ["Instancia aislada", "Protecciones recalculadas desde la fuente"],
+      "src": "949e4004a9a1"
+    }
+  },
+  "flows": {
+    "tflow.request": {
+      "name": "El recorrido de un mensaje de chat",
+      "summary": "Del teclado a la pantalla, pasando por el grafo: una petición, un flujo, ningún token expuesto.",
+      "steps": [
+        "El navegador envía el mensaje a la API de su propio origen.",
+        "El túnel lo encamina; se comprueba la tasa de peticiones del llamante.",
+        "La cookie de sesión se valida en el servidor.",
+        "La ruta del chat abre un flujo y arranca el grafo.",
+        "El estado de la conversación se recarga desde su checkpoint.",
+        "La petición se clasifica y las herramientas se puntúan.",
+        "Se escribe un plan, se valida y se ejecuta en paralelo.",
+        "Cada herramienta pasa la puerta de autoridad y se inscribe en el registro.",
+        "Se llama al proveedor, sin ninguna transacción de base de datos abierta.",
+        "La respuesta se sintetiza a partir de los resultados.",
+        "Llega palabra a palabra, con su coste, por el mismo flujo."
+      ],
+      "src": "05f34331d75c"
+    },
+    "tflow.llmcall": {
+      "name": "Una llamada al modelo, de principio a fin",
+      "summary": "Limitada antes, traducida para el proveedor, tarificada en su momento, trazada después.",
+      "steps": [
+        "Se ensambla el prompt: lo estable primero, una sola frontera de caché.",
+        "Se consultan los dos límites — cuenta e instancia — antes del gasto.",
+        "La intención de razonamiento se traduce para ese modelo concreto.",
+        "El cliente nativo del proveedor envía la petición.",
+        "Una salida cortada por el límite de tokens se convierte en un rechazo explícito.",
+        "El uso se lee una sola vez y se tarifica según la franja horaria de la llamada.",
+        "Los parámetros realmente enviados se incorporan al registro de la llamada.",
+        "Tokens, latencia y coste se convierten en métricas."
+      ],
+      "src": "dc0e605b46bc"
+    },
+    "tflow.background": {
+      "name": "Una tarea proactiva de fondo",
+      "summary": "Un solo líder, un jitter, una reclamación, un envío liquidado a partir de su resultado.",
+      "steps": [
+        "El líder lanza el barrido, desplazado por su jitter.",
+        "Se seleccionan las cuentas elegibles bajo todas las reglas.",
+        "Se leen las fuentes, cada una en una transacción corta.",
+        "El mensaje se redacta dentro de los límites de gasto.",
+        "El envío se reclama antes de salir.",
+        "La notificación sale hacia el navegador o el teléfono.",
+        "El efecto se liquida a partir del resultado real del envío."
+      ],
+      "src": "0b2fe48e5758"
+    },
+    "tflow.live": {
+      "name": "Una sesión Live",
+      "summary": "El navegador habla directamente con el proveedor; cada petición vuelve al grafo.",
+      "steps": [
+        "La persona abre una sesión Live.",
+        "La API emite un identificador de un solo uso y renderiza el mandato de la voz.",
+        "El navegador abre el transporte del proveedor (WebSocket o WebRTC).",
+        "Una petición delegada se convierte en un turno de chat normal.",
+        "El grafo la ejecuta con sus validaciones y sus registros.",
+        "La respuesta, acotada y aplanada, se devuelve a la voz.",
+        "Al final, un cierre único archiva, calcula el coste y transmite."
+      ],
+      "src": "0f169cd6c55b"
+    },
+    "tflow.delivery": {
+      "name": "Del commit a producción",
+      "summary": "Cada guarda se ejecuta antes del push; nada se publica sin cualificación.",
+      "steps": [
+        "El hook y la CI ejecutan los mismos comandos de Task: lint, ratchets, tests.",
+        "Con el tag, las imágenes candidatas se construyen y se etiquetan por huella.",
+        "Una instalación desechable cualifica al candidato.",
+        "La release verifica las pruebas y publica las etiquetas de versión.",
+        "Las imágenes fijadas se descargan en el servidor.",
+        "El despliegue desacoplado escribe su veredicto en un archivo que luego se relee.",
+        "El demostrador se vuelve a desplegar y se verifica."
+      ],
+      "src": "1ba0716fa683"
+    },
+    "tflow.observe": {
+      "name": "Ver, alertar, autodiagnosticarse",
+      "summary": "Cada señal tiene un lector; una alerta tiene un runbook; LIA lee sus propias pruebas.",
+      "steps": [
+        "Los procesos publican sus métricas, memoria incluida.",
+        "Los logs estructurados, sin datos personales, llegan a Loki.",
+        "Grafana muestra cada subsistema.",
+        "Una alerta sale con su runbook.",
+        "LIA reúne las pruebas del incidente y lo diagnostica."
+      ],
+      "src": "e31d7b94f863"
+    }
+  }
+}

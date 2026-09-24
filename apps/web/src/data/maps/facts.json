@@ -1,0 +1,516 @@
+{
+  "version": "1.47.2",
+  "releaseDate": "2026-09-24",
+  "releases": 267,
+  "milestones": [
+    {
+      "version": "1.0.0",
+      "date": "2026-03-13"
+    },
+    {
+      "version": "1.1.0",
+      "date": "2026-03-14"
+    },
+    {
+      "version": "1.2.0",
+      "date": "2026-03-14"
+    },
+    {
+      "version": "1.3.0",
+      "date": "2026-03-14"
+    },
+    {
+      "version": "1.4.0",
+      "date": "2026-03-14"
+    },
+    {
+      "version": "1.5.0",
+      "date": "2026-03-17"
+    },
+    {
+      "version": "1.6.0",
+      "date": "2026-03-19"
+    },
+    {
+      "version": "1.7.0",
+      "date": "2026-03-20"
+    },
+    {
+      "version": "1.8.0",
+      "date": "2026-03-21"
+    },
+    {
+      "version": "1.9.0",
+      "date": "2026-03-22"
+    },
+    {
+      "version": "1.10.0",
+      "date": "2026-03-23"
+    },
+    {
+      "version": "1.11.0",
+      "date": "2026-03-24"
+    },
+    {
+      "version": "1.12.0",
+      "date": "2026-03-26"
+    },
+    {
+      "version": "1.13.0",
+      "date": "2026-03-28"
+    },
+    {
+      "version": "1.14.0",
+      "date": "2026-04-02"
+    },
+    {
+      "version": "1.15.0",
+      "date": "2026-04-08"
+    },
+    {
+      "version": "1.16.0",
+      "date": "2026-04-09"
+    },
+    {
+      "version": "1.17.0",
+      "date": "2026-04-21"
+    },
+    {
+      "version": "1.18.0",
+      "date": "2026-04-23"
+    },
+    {
+      "version": "1.19.0",
+      "date": "2026-05-05"
+    },
+    {
+      "version": "1.20.0",
+      "date": "2026-05-06"
+    },
+    {
+      "version": "1.21.0",
+      "date": "2026-07-02"
+    },
+    {
+      "version": "1.22.0",
+      "date": "2026-07-09"
+    },
+    {
+      "version": "1.23.0",
+      "date": "2026-07-09"
+    },
+    {
+      "version": "1.24.0",
+      "date": "2026-07-13"
+    },
+    {
+      "version": "1.25.0",
+      "date": "2026-07-16"
+    },
+    {
+      "version": "1.26.0",
+      "date": "2026-07-29"
+    },
+    {
+      "version": "1.27.0",
+      "date": "2026-07-30"
+    },
+    {
+      "version": "1.28.0",
+      "date": "2026-08-05"
+    },
+    {
+      "version": "1.29.0",
+      "date": "2026-08-08"
+    },
+    {
+      "version": "1.30.0",
+      "date": "2026-08-16"
+    },
+    {
+      "version": "1.31.0",
+      "date": "2026-08-21"
+    },
+    {
+      "version": "1.33.0",
+      "date": "2026-08-26"
+    },
+    {
+      "version": "1.32.0",
+      "date": "2026-08-27"
+    },
+    {
+      "version": "1.34.0",
+      "date": "2026-08-28"
+    },
+    {
+      "version": "1.35.0",
+      "date": "2026-08-28"
+    },
+    {
+      "version": "1.36.0",
+      "date": "2026-08-29"
+    },
+    {
+      "version": "1.37.0",
+      "date": "2026-08-29"
+    },
+    {
+      "version": "1.38.0",
+      "date": "2026-08-29"
+    },
+    {
+      "version": "1.39.0",
+      "date": "2026-09-03"
+    },
+    {
+      "version": "1.40.0",
+      "date": "2026-09-03"
+    },
+    {
+      "version": "1.41.0",
+      "date": "2026-09-05"
+    },
+    {
+      "version": "1.42.0",
+      "date": "2026-09-05"
+    },
+    {
+      "version": "1.43.0",
+      "date": "2026-09-06"
+    },
+    {
+      "version": "1.44.0",
+      "date": "2026-09-10"
+    },
+    {
+      "version": "1.45.0",
+      "date": "2026-09-16"
+    },
+    {
+      "version": "1.46.0",
+      "date": "2026-09-18"
+    },
+    {
+      "version": "1.47.0",
+      "date": "2026-09-20"
+    },
+    {
+      "version": "1.47.2",
+      "date": "2026-09-24"
+    }
+  ],
+  "domains": 51,
+  "infra": 26,
+  "adrFiles": {
+    "1": "ADR-001-LangGraph-Orchestration.md",
+    "2": "ADR-002-BFF-Pattern-Authentication.md",
+    "3": "ADR-003-Multi-Domain-Dynamic-Filtering.md",
+    "4": "ADR-004-Analytical-Reasoning-Patterns.md",
+    "5": "ADR-005-Sequential-Fallback-Execution.md",
+    "6": "ADR-006-Prevent-Unbounded-List-Operations.md",
+    "7": "ADR-007-Service-Layer-Pattern-For-Node-Complexity.md",
+    "9": "ADR-009-Config-Module-Split.md",
+    "10": "ADR-010-Email-Domain-Renaming.md",
+    "11": "ADR-011-Utility-Tools-vs-Connector-Tools.md",
+    "12": "ADR-012-Data-Registry-StandardToolOutput-Pattern.md",
+    "13": "ADR-013-LangMem-Long-Term-Memory.md",
+    "14": "ADR-014-ExecutionPlan-Parallel-Executor.md",
+    "15": "ADR-015-ConnectorTool-Base-Class-Pattern.md",
+    "16": "ADR-016-ContextTypeRegistry-Pattern.md",
+    "17": "ADR-017-Rate-Limiting-Architecture.md",
+    "18": "ADR-018-SSE-Streaming-Pattern.md",
+    "19": "ADR-019-Agent-Manifest-Catalogue-System.md",
+    "20": "ADR-020-Observability-Stack.md",
+    "21": "ADR-021-OAuth-Token-Lifecycle-Management.md",
+    "22": "ADR-022-LangGraph-State-Checkpointing.md",
+    "23": "ADR-023-Error-Handling-Strategy.md",
+    "24": "ADR-024-i18n-Architecture.md",
+    "25": "ADR-025-Prompt-Engineering-Versioning.md",
+    "26": "ADR-026-LLM-Model-Selection-Strategy.md",
+    "27": "ADR-027-Structured-Logging.md",
+    "28": "ADR-028-Database-Schema-Design.md",
+    "29": "ADR-029-Redis-Multi-Purpose-Architecture.md",
+    "30": "ADR-030-Context-Resolution-Follow-up.md",
+    "31": "ADR-031-Testing-Strategy-LLM-Applications.md",
+    "32": "ADR-032-API-Design-Versioning.md",
+    "33": "ADR-033-Deployment-Architecture.md",
+    "34": "ADR-034-Security-Hardening.md",
+    "35": "ADR-035-Graceful-Degradation.md",
+    "36": "ADR-036-Personality-System-Architecture.md",
+    "37": "ADR-037-Semantic-Memory-Store.md",
+    "38": "ADR-038-Frontend-Architecture-NextJS.md",
+    "39": "ADR-039-Cost-Optimization-Token-Management.md",
+    "40": "ADR-040-Database-Migration-Strategy.md",
+    "41": "ADR-041-LangGraph-State-Schema-Evolution.md",
+    "42": "ADR-042-Conversation-Lifecycle-Management.md",
+    "43": "ADR-043-Subgraph-Architecture.md",
+    "44": "ADR-044-Draft-HITL-Approval-Flow.md",
+    "45": "ADR-045-Dependency-Injection-Pattern.md",
+    "46": "ADR-046-Background-Job-Scheduling.md",
+    "47": "ADR-047-Google-Workspace-Integration.md",
+    "48": "ADR-048-Semantic-Tool-Router.md",
+    "49": "ADR-049-Local-E5-Embeddings.md",
+    "50": "ADR-050-Voice-Domain-TTS-Architecture.md",
+    "51": "ADR-051-Reminder-Notification-System.md",
+    "52": "ADR-052-Union-Validation-Strategy-AgentResult.md",
+    "53": "ADR-053-Interest-Learning-System.md",
+    "54": "ADR-054-Voice-Input-Architecture.md",
+    "55": "ADR-055-RAG-Spaces-Architecture.md",
+    "56": "ADR-056-RAG-Drive-Sync.md",
+    "57": "ADR-057-Personal-Journals.md",
+    "58": "ADR-058-System-RAG-Spaces.md",
+    "59": "ADR-059-Browser-Control.md",
+    "60": "ADR-060-Usage-Limits.md",
+    "61": "ADR-061-Centralized-Component-Activation.md",
+    "62": "ADR-062-Agent-Initiative-Phase.md",
+    "63": "ADR-063-Cross-Worker-Cache-Invalidation.md",
+    "64": "ADR-064-Journal-Analyst-Persona.md",
+    "65": "ADR-065-Legacy-Domain-Agent-Nodes.md",
+    "66": "ADR-066-Memory-PostgreSQL-Migration.md",
+    "67": "ADR-067-Account-Lifecycle.md",
+    "68": "ADR-068-Psyche-Engine.md",
+    "69": "ADR-069-Gemini-Embedding-Migration.md",
+    "70": "ADR-070-ReAct-Execution-Mode.md",
+    "71": "ADR-071-Skill-Semantic-Identification.md",
+    "72": "ADR-072-TCM-Two-Keys-Simplification.md",
+    "73": "ADR-073-Last-Known-Location-Persistence.md",
+    "74": "ADR-074-Structured-Data-Contract.md",
+    "75": "ADR-075-Rich-Skill-Outputs.md",
+    "76": "ADR-076-Health-Metrics-Ingestion.md",
+    "77": "ADR-077-Today-Briefing-Domain.md",
+    "78": "ADR-078-LLM-Catalogue-DB-Source-Of-Truth.md",
+    "79": "ADR-079-Stratified-Journal-Consciousness.md",
+    "80": "ADR-080-Voice-STT-Remote-Pricing-Unit.md",
+    "81": "ADR-081-Voice-TTS-Catalogue-Driven.md",
+    "82": "ADR-082-Progressive-Sentence-Streaming.md",
+    "83": "ADR-083-Sub-Agent-Delegation-React.md",
+    "84": "ADR-084-Indexable-vs-Semantic-Criteria.md",
+    "85": "ADR-085-Draft-Display-Registry.md",
+    "86": "ADR-086-Conversation-History-Compaction-v2.md",
+    "87": "ADR-087-Native-ChatOpenAI-And-Per-Provider-Reasoning.md",
+    "88": "ADR-088-Journal-Restraint-And-Level-Routed-Injection.md",
+    "89": "ADR-089-Prometheus-Multiprocess-Metrics.md",
+    "90": "ADR-090-Semantic-Layer-Governance.md",
+    "91": "ADR-091-Response-Context-Prefetch.md",
+    "92": "ADR-092-Replay-Safe-HITL-Interrupts.md",
+    "93": "ADR-093-Security-Hardening-Proxy-XSS.md",
+    "94": "ADR-094-Remove-Dead-Per-Node-Windowing-Helpers.md",
+    "95": "ADR-095-Systemic-Guards-Wave2-Audit.md",
+    "96": "ADR-096-Performance-Boundary-Hardening-Wave3-Audit.md",
+    "97": "ADR-097-Concurrency-GDPR-Sandbox-Wave4-Audit.md",
+    "98": "ADR-098-CSP-Widget-Airlock.md",
+    "99": "ADR-099-Remove-Dead-Nginx-Config.md",
+    "100": "ADR-100-Structured-Output-Prompt-Conflict-Guard.md",
+    "101": "ADR-101-Calendar-Search-Hardening.md",
+    "102": "ADR-102-Domain-Vocabulary-Single-Source.md",
+    "103": "ADR-103-HITL-Backend-i18n.md",
+    "104": "ADR-104-Psyche-De-Saturation.md",
+    "105": "ADR-105-Psyche-Embodied-Expression.md",
+    "106": "ADR-106-HITL-Contract-Coherence.md",
+    "107": "ADR-107-Dead-Code-Remediation-S7.md",
+    "108": "ADR-108-BaseAPIKeyClient-Adoption.md",
+    "109": "ADR-109-PostgreSQL-Backup-Strategy.md",
+    "110": "ADR-110-Backup-Encryption-Options.md",
+    "111": "ADR-111-LangGraph-Postgres-Connection-Pooling.md",
+    "112": "ADR-112-Python-Dependency-Locking.md",
+    "113": "ADR-113-Backend-Test-Suite-Rehabilitation.md",
+    "114": "ADR-114-Connector-Client-Domain-Error-Contract.md",
+    "115": "ADR-115-Liveness-Readiness-Probes.md",
+    "116": "ADR-116-Frontend-Test-Foundation.md",
+    "117": "ADR-117-Background-Chat-Runs.md",
+    "118": "ADR-118-Chat-Driven-Skill-Import.md",
+    "119": "ADR-119-Alerting-Reactivation-Minimal-Core.md",
+    "120": "ADR-120-Semantic-Evidence-Expansion-And-Param-Guard.md",
+    "121": "ADR-121-Semantic-Annotation-Backfill.md",
+    "122": "ADR-122-AgentService-Stream-Decomposition-B2.md",
+    "123": "ADR-123-Lifespan-Startup-Decomposition.md",
+    "124": "ADR-124-Router-Service-Error-Contract.md",
+    "125": "ADR-125-Draft-Preview-Renderer-Extraction.md",
+    "126": "ADR-126-Auth-Users-Domain-Decoupling.md",
+    "127": "ADR-127-Agentic-Telephony.md",
+    "128": "ADR-128-Adaptive-Replanner-Advisory-Only.md",
+    "129": "ADR-129-RAG-Durable-Jobs.md",
+    "130": "ADR-130-Audit-V5-Remediation-Status.md",
+    "131": "ADR-131-Interest-Subject-Variety.md",
+    "132": "ADR-132-HITL-Approval-Cards.md",
+    "133": "ADR-133-Execution-Trace-Per-Message.md",
+    "134": "ADR-134-Actionable-Connector-Error-Notices.md",
+    "135": "ADR-135-Heartbeat-Interest-Quality.md",
+    "136": "ADR-136-COEP-Posture-And-Widget-Failure-States.md",
+    "137": "ADR-137-Host-Owned-Widget-Sentinels-And-Message-Persistence.md",
+    "138": "ADR-138-Response-Feedback.md",
+    "139": "ADR-139-Open-Loops-Commitments-Ledger.md",
+    "140": "ADR-140-Chat-Piloted-Automations.md",
+    "141": "ADR-141-Active-Knowledge-Layer.md",
+    "142": "ADR-142-Psyche-Observability-And-Dominance-Recentering.md",
+    "143": "ADR-143-Strong-Authentication-Passkeys.md",
+    "144": "ADR-144-Device-Sessions.md",
+    "145": "ADR-145-Account-Export.md",
+    "146": "ADR-146-Offline-PWA.md",
+    "147": "ADR-147-Recent-Entities-Grounding.md",
+    "148": "ADR-148-Health-Daily-Rollup.md",
+    "149": "ADR-149-Security-Remediation-Wave-1.md",
+    "150": "ADR-150-RAG-Generational-Continuity.md",
+    "151": "ADR-151-Thin-CI-Workflow.md",
+    "152": "ADR-152-Removal-Of-Orphan-Frontend-Hooks.md",
+    "153": "ADR-153-HITL-Action-Taxonomy.md",
+    "154": "ADR-154-TTS-Sentence-Boundaries.md",
+    "155": "ADR-155-No-Env-Skipped-Test-Suite.md",
+    "156": "ADR-156-Removal-Of-Nine-Orphan-Frontend-Modules.md",
+    "157": "ADR-157-Patched-Brace-Expansion.md",
+    "158": "ADR-158-Locale-Content-Truncation-Ratchet.md",
+    "159": "ADR-159-Journal-Theme-Reachability.md",
+    "160": "ADR-160-Skill-Detection-Hygiene-And-Native-Plan-Cumulation.md",
+    "161": "ADR-161-SSE-Stall-Watchdog.md",
+    "162": "ADR-162-System-Knowledge-Indexation-Single-Writer.md",
+    "163": "ADR-163-Tool-Embeddings-Cache-Claim.md",
+    "164": "ADR-164-Post-Response-Extraction-Coverage.md",
+    "165": "ADR-165-Skill-Editing-By-Regeneration.md",
+    "166": "ADR-166-Extraction-Admission-Doctrine.md",
+    "167": "ADR-167-Content-Trust-Registry.md",
+    "168": "ADR-168-Removal-Of-Dead-Hybrid-Memory-Search.md",
+    "169": "ADR-169-React-System-Blocks-Are-State.md",
+    "170": "ADR-170-React-Compute-Budget-And-Loop-Guard.md",
+    "171": "ADR-171-Sticky-Positioning-Repair.md",
+    "172": "ADR-172-Settings-Quick-Search.md",
+    "173": "ADR-173-Card-Intent-Autosend.md",
+    "174": "ADR-174-Call-Debrief-Persistence.md",
+    "175": "ADR-175-Routine-Condition-Triggers.md",
+    "176": "ADR-176-Personal-CRM-Relations.md",
+    "177": "ADR-177-Rich-HTML-Response-Components.md",
+    "178": "ADR-178-Product-Value-Dashboard.md",
+    "179": "ADR-179-Structured-Output-Chokepoint-And-Thinking-Budget-Floor.md",
+    "180": "ADR-180-Peer-Connections.md",
+    "181": "ADR-181-LIA-Cosmos-Public-Identity.md",
+    "182": "ADR-182-Peer-Routing-Awareness-And-Honest-Failure.md",
+    "183": "ADR-183-Catalogue-Closure.md",
+    "184": "ADR-184-Published-Bounds-And-Non-Prescriptive-Verdicts.md",
+    "185": "ADR-185-Exact-CRM-Counts-And-Readable-Relayed-Messages.md",
+    "186": "ADR-186-Relayed-Message-Retention.md",
+    "187": "ADR-187-Discovery-By-Address.md",
+    "188": "ADR-188-CRM-Provider-Sections.md",
+    "189": "ADR-189-Peer-Email-Visibility.md",
+    "190": "ADR-190-Overview-Scope-And-Full-Contact-Card.md",
+    "191": "ADR-191-Reachable-Capabilities-And-Invoked-Directives.md",
+    "192": "ADR-192-Chat-Deep-Links-Are-Real-Navigations.md",
+    "193": "ADR-193-Read-Capabilities-And-Merged-Identity.md",
+    "194": "ADR-194-Reference-Truth-Is-A-CI-Guard.md",
+    "195": "ADR-195-A-Diagnosis-Is-Not-A-Question.md",
+    "196": "ADR-196-Proactive-Notification-Identity.md",
+    "197": "ADR-197-Interrupt-Permission-Is-Not-Connection.md",
+    "198": "ADR-198-One-Run-Per-Local-Day.md",
+    "199": "ADR-199-Grounded-Suggestions-And-Results-First.md",
+    "200": "ADR-200-A-Panel-Shows-What-It-Produced.md",
+    "201": "ADR-201-Provenance-Is-A-Bounded-Reference.md",
+    "202": "ADR-202-Reading-Has-Its-Own-Place.md",
+    "203": "ADR-203-No-Option-Is-Accepted-On-Your-Behalf.md",
+    "204": "ADR-204-Explaining-Beats-Scoring.md",
+    "205": "ADR-205-A-Status-Names-A-Tone.md",
+    "206": "ADR-206-A-Primitive-Owns-Its-Contract.md",
+    "207": "ADR-207-An-Action-Has-An-Altitude.md",
+    "208": "ADR-208-Une-Rangee-Expose-Ses-Actions-D-Une-Seule-Facon.md",
+    "209": "ADR-209-Debug-Panel-Ordre-D-Execution-Et-Chronologie-Ancree.md",
+    "210": "ADR-210-Un-Intent-Consomme-Ne-Se-Rejoue-Pas.md",
+    "211": "ADR-211-Un-Deploiement-Ne-Derange-Pas-La-Pile-Qui-Sert.md",
+    "212": "ADR-212-Un-Label-Loki-Est-Un-Multiplicateur-De-Streams.md",
+    "213": "ADR-213-L-Identite-De-L-Appelant-Vient-D-Un-En-Tete-Qu-Il-Ne-Peut-Pas-Ecrire.md",
+    "214": "ADR-214-Habitudes-Utilisateur-Apprentissage-Deterministe.md",
+    "215": "ADR-215-Self-Host-Installer.md",
+    "216": "ADR-216-Plafond-De-Depense-D-Instance.md",
+    "217": "ADR-217-Capacites-Administrables.md",
+    "218": "ADR-218-Surface-Verifiee-Du-Demonstrateur.md",
+    "219": "ADR-219-Derniere-Position-Connue-Generalisee.md",
+    "220": "ADR-220-Comptabilite-Usage-LLM-Declaree.md",
+    "221": "ADR-221-Timeout-Par-Emplacement-Applique.md",
+    "222": "ADR-222-Suppression-Strategie-HITL-Non-Cablee.md",
+    "223": "ADR-223-Tarification-LLM-Par-Plages-Horaires-UTC.md",
+    "224": "ADR-224-Conformite-MCP-2026-07-28-SDK-v2.md",
+    "225": "ADR-225-Standard-Agent-Plugins-v1.md",
+    "226": "ADR-226-Document-Generation-Agent.md",
+    "227": "ADR-227-Reglages-Master-Detail.md",
+    "228": "ADR-228-Import-Export-Tabulaire-Administration.md",
+    "229": "ADR-229-Carte-Capacites-Source-Unique.md",
+    "230": "ADR-230-Page-Publique-Changelog.md",
+    "231": "ADR-231-Contexte-Runtime-Type.md",
+    "232": "ADR-232-cognitive-loops-closure.md",
+    "233": "ADR-233-ontology-simplification.md",
+    "234": "ADR-234-activity-timeline.md",
+    "235": "ADR-235-memory-supersession-trail.md",
+    "236": "ADR-236-procedural-memory.md",
+    "237": "ADR-237-voice-prosody-and-form.md",
+    "238": "ADR-238-proposals-inbox-adaptive-react.md",
+    "239": "ADR-239-evolution-program-closure.md",
+    "240": "ADR-240-expressive-eyes-widget.md",
+    "241": "ADR-241-Python-3.14-Trixie-Migration.md",
+    "242": "ADR-242-RAG-Hybrid-Fusion-Semantic-Gate.md",
+    "243": "ADR-243-OLED-Display-Mode-Refinement.md",
+    "244": "ADR-244-LLM-Catalogue-Truth.md",
+    "245": "ADR-245-Reasoning-Unification.md",
+    "246": "ADR-246-Native-Push-And-Wake-Relay.md",
+    "247": "ADR-247-Self-Diagnostics-And-Answer-Resilience.md",
+    "248": "ADR-248-React-Memory-Parity-And-Progress-Earned-Budget.md",
+    "249": "ADR-249-Ephemeral-Python-In-The-Existing-Sandbox.md",
+    "250": "ADR-250-Detached-Deploy-And-Honest-Remote-Verdicts.md",
+    "251": "ADR-251-Settings-Group-Tones-A-Measured-Fixed-Palette.md",
+    "252": "ADR-252-Expressive-Eyes-Animation-Rig.md",
+    "253": "ADR-253-Per-Turn-Expressivity-Annotation.md",
+    "254": "ADR-254-Embedding-Convergence-And-Shock-Absorbers.md",
+    "255": "ADR-255-MCP-Tool-Declaration-Conformance.md",
+    "256": "ADR-256-React-Budget-Conservation-And-Declared-Tool-Safety.md",
+    "257": "ADR-257-Seam-Defects-Provenance-Anchor-And-Delivered-Context.md",
+    "258": "ADR-258-Meeting-Recording-And-Structured-Minutes.md",
+    "259": "ADR-259-Meeting-Template-Library-And-Reformatting.md",
+    "260": "ADR-260-Redis-Key-Families-Scope-And-Reset-Purge.md",
+    "261": "ADR-261-Push-Driven-Heartbeat-Wake-And-Incremental-Drive-Sync.md",
+    "262": "ADR-262-Opt-In-Mail-Label-RAG-Source.md",
+    "263": "ADR-263-Execution-Authority-Chain-And-Effect-Register.md",
+    "264": "ADR-264-Living-Brows-And-Mouth.md",
+    "265": "ADR-265-Routine-Week-Timeline-And-Run-History.md",
+    "266": "ADR-266-Diagnosis-Evidence-At-Diagnosis-Time-And-Exact-Str-Embedding-Inputs.md",
+    "267": "ADR-267-Ollama-Native-Provider-And-Discovered-Capabilities.md",
+    "268": "ADR-268-Generic-Recurrence-And-Reminder-Management.md",
+    "269": "ADR-269-Relationship-Debrief.md",
+    "270": "ADR-270-Spend-Roads-And-Register-Authorship.md",
+    "271": "ADR-271-One-Page-Load-One-Act-Of-Reading.md",
+    "272": "ADR-272-Every-Platform-Paid-Token-Answers-To-Both-Ceilings.md",
+    "273": "ADR-273-Complete-Register-Extractions.md",
+    "274": "ADR-274-Document-Craft-Renderer-Owned-Model-Semantic.md",
+    "275": "ADR-275-Truncated-Structured-Output-Is-A-Refusal.md",
+    "276": "ADR-276-Workboard.md",
+    "277": "ADR-277-Settings-Shortcuts-Dock.md",
+    "278": "ADR-278-Per-Slot-Context-Window.md",
+    "279": "ADR-279-Generated-Assets-Gallery.md",
+    "280": "ADR-280-Complete-Capability-Control.md",
+    "281": "ADR-281-Anticipated-Moments-And-Mail-Watches.md",
+    "282": "ADR-282-Message-Bookmarks.md",
+    "283": "ADR-283-Worker-Memory-Anatomy.md",
+    "284": "ADR-284-Prompt-States-What-The-Code-Enforces.md",
+    "285": "ADR-285-Short-Answer-Without-Reasoning-And-One-Family-Declaration.md",
+    "286": "ADR-286-Tool-Result-Projected-Per-Item-Under-A-Token-Budget.md",
+    "287": "ADR-287-Email-Content-First-Detail-Levels-Digests-And-Neutral-Message.md",
+    "288": "ADR-288-Independent-Drafts-Reviewed-One-At-A-Time.md",
+    "289": "ADR-289-Draft-Surfaces-Drawn-From-One-Description.md",
+    "290": "ADR-290-Phone-As-A-Channel-Owner-Calls.md",
+    "291": "ADR-291-Kept-Answers-Knowledge-Space.md",
+    "292": "ADR-292-Portrait-Reads-Four-Sources.md",
+    "293": "ADR-293-React-Tools-Bound-By-Relevance.md",
+    "294": "ADR-294-A-Face-That-Never-Plays-The-Same-Twice.md",
+    "295": "ADR-295-Knowledge-Documents-As-Message-Attachments.md",
+    "296": "ADR-296-Mail-Attachments-Read-By-Text-Or-Vision.md",
+    "297": "ADR-297-Drive-Folder-Is-A-Tree-And-The-Count-Is-Exact.md",
+    "298": "ADR-298-Sandbox-Egress-Toolbox.md",
+    "299": "ADR-299-Live-Voice-Mode-Two-Intelligences-One-Seam.md",
+    "300": "ADR-300-A-Second-Live-Provider-One-Seam-Two-Wires.md",
+    "301": "ADR-301-Voice-Sessions-One-Policy-Per-Mode.md",
+    "302": "ADR-302-OAuth-Grant-Par-Compte-Et-Consentement-Groupe.md",
+    "303": "ADR-303-Tool-Failure-Restitution.md",
+    "304": "ADR-304-No-Transaction-Across-A-Network-Call.md",
+    "305": "ADR-305-Image-Model-Declares-Its-Offer.md",
+    "306": "ADR-306-Claude-Request-Surface-And-Billed-Prompt-Cache.md",
+    "307": "ADR-307-Keyless-Connectors-Belong-To-The-Instance.md",
+    "308": "ADR-308-ReAct-Cross-Turn-Prompt-Cache.md",
+    "309": "ADR-309-One-Prompt-Layout-For-Every-Cache-Mechanism.md",
+    "310": "ADR-310-ReAct-Turn-Judged-On-Its-Result.md"
+  }
+}

@@ -10,7 +10,9 @@
  *    second thing offered;
  *  - the release entry is EXCLUDED from the row below `lg`. The row appears at
  *    880px and is saturated there: a seventh entry ran the French row 96px past
- *    the viewport (measured). The width itself is guarded in a real browser by
+ *    the viewport (measured). The maps entry, which opens the page links right
+ *    after it (owner arbitration 2026-09-24), joins the row at `lg` for the
+ *    same reason. The width itself is guarded in a real browser by
  *    `e2e/smoke/landing-nav-row.spec.ts`; what is guarded HERE is that the
  *    mechanism keeping it out — the responsive class — still exists, since
  *    dropping it is a one-word edit no other unit assertion would notice.
@@ -80,6 +82,7 @@ function navLabels(): string[] {
 }
 
 const PAGE_LINKS_IN_ORDER = [
+  'landing.nav.maps',
   'landing.nav.story',
   'landing.nav.philosophy',
   'landing.nav.technical',
@@ -109,6 +112,21 @@ describe('LandingHeader navigation', () => {
     const entry = screen.getByRole('link', { name: 'landing.nav.changelog' });
     expect(entry.className).toContain('hidden');
     expect(entry.className).toContain('lg:block');
+  });
+
+  it('keeps the maps entry out of the row below lg, right after the release entry', () => {
+    render(<LandingHeader lng="fr" />);
+
+    const labels = navLabels();
+    expect(labels.indexOf('landing.nav.maps')).toBe(labels.indexOf('landing.nav.changelog') + 1);
+    const entry = screen.getByRole('link', { name: 'landing.nav.maps' });
+    expect(entry).toHaveAttribute('href', '/maps');
+    expect(entry.className).toContain('hidden');
+    expect(entry.className).toContain('lg:block');
+    // A page without the flag stays in the row at every width.
+    expect(screen.getByRole('link', { name: 'landing.nav.story' }).className).not.toContain(
+      'lg:block'
+    );
   });
 
   it('points every anchor at the home document, so it works from a secondary page', () => {

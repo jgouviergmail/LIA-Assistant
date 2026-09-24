@@ -1,8 +1,9 @@
 /**
  * The public space wears the cosmos identity since the swap: `/more` and
  * `/demo` carry the full scope, every reading page (story, why, how, faq,
- * blog index + article, privacy, terms) carries the CALM sub-scope, and none
- * of them is dev-gated (they are the real routes, indexable in production).
+ * blog index + article, privacy, terms, the four pages of `/maps`) carries the
+ * CALM sub-scope, and none of them is dev-gated (they are the real routes,
+ * indexable in production).
  *
  * Real content components are mocked to markers — each page's content has its
  * own tests; the oracle here is the scope + composition per page TYPE.
@@ -38,6 +39,15 @@ vi.mock('@/components/faq/PublicFAQContent', () => ({
 }));
 vi.mock('@/components/changelog/ChangelogHistory', () => ({
   ChangelogHistory: () => <div data-testid="changelog-history" />,
+}));
+vi.mock('@/components/maps/FunctionalMap', () => ({
+  FunctionalMap: () => <div data-testid="functional-map" />,
+}));
+vi.mock('@/components/maps/TechnicalMap', () => ({
+  TechnicalMap: () => <div data-testid="technical-map" />,
+}));
+vi.mock('@/components/maps/HistoryMap', () => ({
+  HistoryMap: () => <div data-testid="history-map" />,
 }));
 vi.mock('@/components/blog/BlogCard', () => ({
   BlogCard: () => <div data-testid="blog-card" />,
@@ -86,6 +96,10 @@ import ChangelogPage from '../changelog/page';
 import DemoPage from '../demo/page';
 import FaqPage from '../faq/page';
 import HowPage from '../how/page';
+import MapsPage from '../maps/page';
+import FunctionalMapPage from '../maps/functional/page';
+import HistoryMapPage from '../maps/history/page';
+import TechnicalMapPage from '../maps/technical/page';
 import MorePage from '../more/page';
 import PrivacyPage from '../privacy/page';
 import StoryPage from '../story/page';
@@ -136,6 +150,10 @@ describe('public pages — cosmos identity', () => {
     ['how', HowPage, 'how-content'],
     ['faq', FaqPage, 'faq-content'],
     ['changelog', ChangelogPage, 'changelog-history'],
+    ['maps', MapsPage, 'jsonld-breadcrumb'],
+    ['maps/functional', FunctionalMapPage, 'functional-map'],
+    ['maps/technical', TechnicalMapPage, 'technical-map'],
+    ['maps/history', HistoryMapPage, 'history-map'],
     ['blog', BlogPage, 'jsonld-bloglist'],
     ['privacy', PrivacyPage, 'privacy-content'],
     ['terms', TermsPage, 'terms-content'],
@@ -164,6 +182,7 @@ describe('public pages — cosmos identity', () => {
     ['story', StoryPage],
     ['faq', FaqPage],
     ['changelog', ChangelogPage],
+    ['maps', MapsPage],
   ])('/%s is NOT dev-gated (real route, renders in production)', async (_n, Page) => {
     vi.stubEnv('NODE_ENV', 'production');
     const { container } = render(await Page(PARAMS));

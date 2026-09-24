@@ -37,13 +37,12 @@ Le **Router Node** est le **premier node** du graph LangGraph, exécuté à chaq
 ```mermaid
 graph LR
     A[User Query] --> B[Router Node]
-    B --> C[LLM gpt-4.1-nano<br/>T=0.1]
+    B --> C[LLM<br/>router slot]
     C --> D[RouterOutput]
     D --> E{next_node?}
     E -->|response| F[Response Node<br/>Conversational]
     E -->|planner, pipeline mode| G[Planner Node<br/>Complex Multi-Step]
     E -->|react_setup, react mode| I[ReAct Setup<br/>Iterative Reasoning]
-    E -->|task_orchestrator| H[Task Orchestrator<br/>Simple Single-Step]
 ```
 
 > **ADR-070**: When `execution_mode == "react"` (user preference) and the query is actionable, the router routes to `react_setup` instead of `planner`. See [REACT_EXECUTION_MODE.md](./REACT_EXECUTION_MODE.md).
@@ -80,7 +79,7 @@ graph LR
 ```mermaid
 graph TD
     A[router_node invoked] --> B[Per-Turn State Cleanup<br/>plan_approved, rejection_reason]
-    B --> C[Message Windowing<br/>5 turns]
+    B --> C[Message Windowing<br/>per-node window]
     C --> D[Call Cached LLM<br/>_call_router_llm]
     D --> E{Force Planner<br/>Override?}
     E -->|Yes| F[Override next_node=planner]

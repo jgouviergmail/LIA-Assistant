@@ -69,9 +69,9 @@ LIA 的每一项技术决策都源于具体的约束条件。该项目旨在打�
 |------|---------|
 | ARM64 自托管 | Docker 多架构、语义嵌入（多语言）、Playwright chromium 跨平台 |
 | 数据主权 | 本地 PostgreSQL（非 SaaS 数据库）、Fernet 静态加密、本地 Redis 会话 |
-| 多 LLM 供应商 | Factory 模式搭配 8 个适配器，按节点配置，不与特定供应商强耦合 |
+| 多 LLM 供应商 | Factory 模式搭配 7 个适配器，按节点配置，不与特定供应商强耦合 |
 | 完全透明 | 587 Prometheus 指标、内嵌调试面板、逐 token 追踪 |
-| 生产可靠性 | 309 篇 ADR、由 pytest 在 1 852 个文件中收集的 ~30 855 个测试、原生可观测性、6 层 HITL |
+| 生产可靠性 | 309 篇 ADR、由 pytest 在 1 931 个文件中收集的 ~31 980 个测试、原生可观测性、6 层 HITL |
 | 成本可控 | Smart Services（节省 89% token）、语义嵌入、prompt 缓存、目录过滤 |
 
 ### 1.2. 架构原则
@@ -89,11 +89,11 @@ LIA 的每一项技术决策都源于具体的约束条件。该项目旨在打�
 
 | 指标 | 数值 |
 |------|------|
-| 测试 | 30,855 个（由 pytest 在 1,852 个测试文件中收集）+ 前端 8,906 个 vitest 测试（覆盖率阈值已锁定，ADR-116） |
-| pytest Fixtures | 969 个，其中 46 个通过 conftest 共享 |
-| 文档 | 647 篇 |
+| 测试 | 31,980 个（由 pytest 在 1,931 个测试文件中收集）+ 前端 8,956 个 vitest 测试（覆盖率阈值已锁定，ADR-116） |
+| pytest Fixtures | 1,069 个，其中 48 个通过 conftest 共享 |
+| 文档 | 694 篇 |
 | ADR（架构决策记录） | 309 篇 |
-| Prometheus 指标 | 553 定义 |
+| Prometheus 指标 | 587 定义 |
 | Grafana 仪表板 | 30 |
 | 支持语言（i18n） | 6（fr、en、de、es、it、zh） |
 
@@ -156,16 +156,16 @@ LIA 的每一项技术决策都源于具体的约束条件。该项目旨在打�
 ```
 apps/api/src/
 ├── core/                         # 横切技术核心
-│   ├── config/                   # 9 个 Pydantic BaseSettings 模块通过 MRO 组合
+│   ├── config/                   # Pydantic BaseSettings 模块通过 MRO 组合
 │   │   ├── __init__.py           # Settings 类（最终 MRO）
 │   │   ├── agents.py, database.py, llm.py, mcp.py, voice.py, usage_limits.py, ...
-│   ├── constants.py              # 1,000+ 集中常量
+│   ├── constants.py              # 2,000+ 集中常量
 │   ├── exceptions.py             # 集中异常（raise_user_not_found 等）
 │   └── i18n.py                   # i18n → settings 桥接
 │
 ├── domains/                      # 限界上下文（DDD）
 │   ├── agents/                   # 主领域 — LangGraph 编排
-│   │   ├── nodes/                # 7+ 图节点
+│   │   ├── nodes/                # 图节点：流水线、ReAct、HITL、主动行动
 │   │   ├── services/             # Smart Services、HITL、上下文解析
 │   │   ├── tools/                # 按领域分组的工具（@tool + ToolResponse）
 │   │   ├── orchestration/        # ExecutionPlan、并行执行器、验证器
@@ -173,7 +173,7 @@ apps/api/src/
 │   │   ├── semantic/             # 语义路由器、扩展服务
 │   │   ├── middleware/           # 记忆注入、人格注入
 │   │   ├── prompts/v1/           # 版本化 .txt 提示文件
-│   │   ├── graphs/               # 15 个智能体构建器（每个领域一个）
+│   │   ├── graphs/               # 每个领域一个智能体构建器
 │   │   ├── context/              # Context store（Data Registry）、装饰器
 │   │   └── models.py             # MessagesState（TypedDict + 自定义 reducer）
 │   ├── auth/                     # OAuth 2.1、BFF 会话、RBAC
@@ -185,11 +185,11 @@ apps/api/src/
 │   ├── channels/                 # 多渠道（Telegram）
 │   ├── voice/                    # TTS Factory、STT Sherpa、唤醒词
 │   ├── skills/                   # agentskills.io 标准
-│   ├── sub_agents/               # 持久化专用智能体
+│   ├── sub_agents/               # 临时委派的只读子智能体
 │   ├── peers/                    # 用户之间的连接（助手对助手转达）
 │   ├── relations/                # 个人 CRM（聚合 + 收藏）
 │   ├── usage_limits/             # 按用户配额（5 层防御）
-│   └── ...                       # conversations、reminders、scheduled_actions、users、user_mcp
+│   └── ...                       # conversations、reminders、scheduled_actions、users、user_mcp、live、telephony、workboard、meetings…
 │
 └── infrastructure/               # 横切层
     ├── llm/                      # Factory、providers、adapters、embeddings、tracking
@@ -198,7 +198,7 @@ apps/api/src/
     ├── browser/                  # Playwright 会话池、CDP、反检测
     ├── rate_limiting/            # Redis 分布式滑动窗口
     ├── scheduler/                # APScheduler、领导者选举、锁
-    └── observability/            # 23 Prometheus 指标文件、OTel 追踪
+    └── observability/            # 按子系统划分的 Prometheus 指标、OTel 追踪
 ```
 
 ### 3.2. 配置优先级链
@@ -241,22 +241,33 @@ LIA 提供两种执行模式（每个用户可通过聊天标题中的开关进�
 
 ```mermaid
 graph TD
-    A[User Message] --> B[Router Node]
+    A[User Message] --> CP[Compaction]
+    CP --> B[Router Node]
     B -->|conversation| C[Response Node]
     B -->|pipeline mode| D[Planner Node]
     B -->|react mode| R1[ReAct Setup]
+    D -->|empty plan| C
     D --> E[Semantic Validator]
+    E -->|ambiguous| CL[Clarification]
+    CL --> E
+    E -->|replan| D
     E --> F{Approval Gate}
-    F -->|approved| G[Task Orchestrator]
-    F -->|rejected| C
+    F --> G[Task Orchestrator]
     G --> H[Domain Agents + Tools]
-    H --> G
-    G --> C
+    G -->|drafts| HD[HITL Dispatch]
+    G -->|bulk action| FE[FOR_EACH Confirm]
+    FE -->|approved| G
+    H --> I[Initiative]
+    HD --> I
+    I --> C
     R1 --> R2[ReAct Call Model]
     R2 -->|tool_calls| R3[ReAct Execute Tools]
-    R2 -->|done| R4[ReAct Finalize]
     R3 --> R2
-    R4 --> C
+    R3 -->|draft| HD
+    R2 -->|declared gap| R5[ReAct Recovery]
+    R5 --> R2
+    R2 -->|done| R4[ReAct Finalize]
+    R4 --> I
     C --> J[SSE Stream]
 ```
 
@@ -654,10 +665,10 @@ state 由一个**类型化的运行上下文**补充（`LiaRuntimeContext`，ADR
 ### 11.1. 架构
 
 ```
-AsyncPostgresStore + Semantic Index (pgvector)
-├── Namespace: (user_id, "memories")        → Profil psychologique
-├── Namespace: (user_id, "documents", src)  → RAG documentaire
-└── Namespace: (user_id, "context", domain) → Contexte outils (Data Registry)
+PostgreSQL + pgvector
+├── memories                                        → 长期记忆：事实、偏好、心理画像
+├── rag_documents + rag_chunks                      → 知识空间，混合检索
+└── AsyncPostgresStore (user_id, "context", domain) → 工具上下文（Data Registry）
 ```
 
 ### 11.2. 增强记忆模式
@@ -1120,16 +1131,19 @@ URL → SSRF 验证（DNS + IP 黑名单 + 重定向后重检） → 可读性�
 Pre-commit (local)                GitHub Actions CI
 ========================          =========================
 .bak files check                  Lint Backend (Ruff + Black + MyPy strict)
-Secrets grep                      Lint Frontend (ESLint + TypeScript)
-Ruff + Black + MyPy               Unit tests + coverage (62 %)
-                                  Integration tests (PostgreSQL + Redis)
-快速单元测试                      Code Hygiene (i18n, Alembic, lockfiles)
-关键模式检测                      Docker build smoke test
-i18n 键同步                       Secret scan (Gitleaks)
-Alembic 迁移冲突                  ─────────────────────────
-.env.example 完整性               Security workflow (每周)
-ESLint + TypeScript check           CodeQL (Python + JS)
-                                    pip-audit + pnpm audit
+Secrets grep                      Lint Frontend (ESLint + ratchets + tsc)
+基础设施/个人信息拦截             Code Hygiene（i18n、文档、循环、CI 一致性）
+Ruff + Black + MyPy               Secret scan (Gitleaks)
+快速单元测试                      单元 + 智能体测试，覆盖率下限
+关键模式检测                      集成测试（PostgreSQL + Redis）
+i18n 键同步                       迁移重放（从零开始）
+Alembic 迁移冲突                  前端测试 + 覆盖率阈值
+.env.example 完整性               E2E + a11y (Playwright + axe)
+ESLint + TypeScript check         Docker 构建 · 安装器下限
+                                  ─────────────────────────
+                                  Security workflow（push、PR、每周）
+                                    CodeQL (Python + JS)
+                                    pip-audit + npm audit
                                     Trivy filesystem scan
                                     SBOM generation
 ```
@@ -1713,7 +1727,7 @@ Android 与 iOS 应用（ADR-246）是每个商店只发布一次的 **WebView �
 
 LIA 是一项软件工程实践，尝试解决一个具体问题：构建一个生产级的多智能体 AI 助手，透明、安全、可扩展，并且能在 Raspberry Pi 上运行。
 
-309 篇 ADR 不仅记录了做出的决策，还记录了被否决的替代方案和接受的权衡。1 852 个文件里的 ~30 855 个测试、完整的 CI/CD 和严格的 MyPy 并非虚荣指标 — 它们是让这种复杂度的系统能够无回归演进的机制。
+309 篇 ADR 不仅记录了做出的决策，还记录了被否决的替代方案和接受的权衡。1 931 个文件里的 ~31 980 个测试、完整的 CI/CD 和严格的 MyPy 并非虚荣指标 — 它们是让这种复杂度的系统能够无回归演进的机制。
 
 子系统之间的交织 — 心理记忆、贝叶斯学习、语义路由、系统化 HITL、LLM 驱动的主动性、内省日志 — 创造了一个各组件相互增强的系统。HITL 为模式学习提供数据，模式学习降低成本，降低的成本支撑更多功能，更多功能为记忆产生更多数据，记忆改善响应质量。这是一个设计中的良性循环，而非偶然。
 

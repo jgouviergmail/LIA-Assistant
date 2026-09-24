@@ -71,7 +71,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
 | Vollständige Transparenz | 587 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 309 ADRs, ~30.855 von pytest gesammelte Tests in 1.852 Dateien, native Observability, HITL auf 6 Ebenen |
+| Produktionszuverlässigkeit | 309 ADRs, ~31.980 von pytest gesammelte Tests in 1.931 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -89,11 +89,11 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 
 | Metrik | Wert |
 |----------|--------|
-| Tests | 30.855 von pytest über 1.852 Testdateien gesammelt + 8.906 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
-| pytest-Fixtures | 969, davon 46 über conftest geteilt |
-| Dokumentationsdokumente | 647 |
+| Tests | 31.980 von pytest über 1.931 Testdateien gesammelt + 8.956 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
+| pytest-Fixtures | 1.069, davon 48 über conftest geteilt |
+| Dokumentationsdokumente | 694 |
 | ADRs (Architecture Decision Records) | 309 |
-| Prometheus-Metriken | 553 Definitionen |
+| Prometheus-Metriken | 587 Definitionen |
 | Grafana-Dashboards | 30 |
 | Unterstützte Sprachen (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -156,16 +156,16 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 ```
 apps/api/src/
 ├── core/                         # Übergreifender technischer Kern
-│   ├── config/                   # 9 Pydantic BaseSettings-Module zusammengesetzt via MRO
+│   ├── config/                   # Pydantic BaseSettings-Module zusammengesetzt via MRO
 │   │   ├── __init__.py           # Settings-Klasse (finale MRO)
 │   │   ├── agents.py, database.py, llm.py, mcp.py, voice.py, usage_limits.py, ...
-│   ├── constants.py              # 1 000+ zentralisierte Konstanten
+│   ├── constants.py              # 2 000+ zentralisierte Konstanten
 │   ├── exceptions.py             # Zentralisierte Exceptions (raise_user_not_found, etc.)
 │   └── i18n.py                   # i18n-Bridge → Settings
 │
 ├── domains/                      # Bounded Contexts (DDD)
 │   ├── agents/                   # HAUPTDOMÄNE — LangGraph-Orchestrierung
-│   │   ├── nodes/                # 7+ Graphknoten
+│   │   ├── nodes/                # Graphknoten: Pipeline, ReAct, HITL, Initiative
 │   │   ├── services/             # Smart Services, HITL, Context Resolution
 │   │   ├── tools/                # Werkzeuge nach Domäne (@tool + ToolResponse)
 │   │   ├── orchestration/        # ExecutionPlan, Parallel Executor, Validators
@@ -173,7 +173,7 @@ apps/api/src/
 │   │   ├── semantic/             # Semantic Router, Expansion Service
 │   │   ├── middleware/           # Memory Injection, Personality Injection
 │   │   ├── prompts/v1/           # versionierte .txt-Prompt-Dateien
-│   │   ├── graphs/               # 15 Agent-Builder (einer pro Domäne)
+│   │   ├── graphs/               # Ein Agent-Builder pro Domäne
 │   │   ├── context/              # Context Store (Data Registry), Decorators
 │   │   └── models.py             # MessagesState (TypedDict + Custom Reducer)
 │   ├── auth/                     # OAuth 2.1, BFF-Sessions, RBAC
@@ -185,11 +185,11 @@ apps/api/src/
 │   ├── channels/                 # Multi-Kanal (Telegram)
 │   ├── voice/                    # TTS Factory, STT Sherpa, Wake Word
 │   ├── skills/                   # Standard agentskills.io
-│   ├── sub_agents/               # Spezialisierte persistente Agenten
+│   ├── sub_agents/               # Kurzlebige, delegierte Sub-Agenten, nur lesend
 │   ├── peers/                    # Verbindungen zwischen Nutzern (Assistent-zu-Assistent-Relais)
 │   ├── relations/                # Persönliches CRM (Aggregation + Favoriten)
 │   ├── usage_limits/             # Kontingente pro Benutzer (5-Layer Defence)
-│   └── ...                       # conversations, reminders, scheduled_actions, users, user_mcp
+│   └── ...                       # conversations, reminders, scheduled_actions, users, user_mcp, live, telephony, workboard, meetings…
 │
 └── infrastructure/               # Übergreifende Schicht
     ├── llm/                      # Factory, Providers, Adapter, Embeddings, Tracking
@@ -198,7 +198,7 @@ apps/api/src/
     ├── browser/                  # Playwright Session Pool, CDP, Anti-Erkennung
     ├── rate_limiting/            # Verteiltes Redis Sliding Window
     ├── scheduler/                # APScheduler, Leader Election, Locks
-    └── observability/            # 23 Prometheus-Metrik-Dateien, OTel-Tracing
+    └── observability/            # Prometheus-Metriken pro Subsystem, OTel-Tracing
 ```
 
 ### 3.2. Konfigurationsprioritätskette
@@ -241,22 +241,33 @@ LIA bietet zwei Ausführungsmodi (pro Benutzer über einen Toggle in der Chat-He
 
 ```mermaid
 graph TD
-    A[User Message] --> B[Router Node]
+    A[User Message] --> CP[Compaction]
+    CP --> B[Router Node]
     B -->|conversation| C[Response Node]
     B -->|pipeline mode| D[Planner Node]
     B -->|react mode| R1[ReAct Setup]
+    D -->|empty plan| C
     D --> E[Semantic Validator]
+    E -->|ambiguous| CL[Clarification]
+    CL --> E
+    E -->|replan| D
     E --> F{Approval Gate}
-    F -->|approved| G[Task Orchestrator]
-    F -->|rejected| C
+    F --> G[Task Orchestrator]
     G --> H[Domain Agents + Tools]
-    H --> G
-    G --> C
+    G -->|drafts| HD[HITL Dispatch]
+    G -->|bulk action| FE[FOR_EACH Confirm]
+    FE -->|approved| G
+    H --> I[Initiative]
+    HD --> I
+    I --> C
     R1 --> R2[ReAct Call Model]
     R2 -->|tool_calls| R3[ReAct Execute Tools]
-    R2 -->|done| R4[ReAct Finalize]
     R3 --> R2
-    R4 --> C
+    R3 -->|draft| HD
+    R2 -->|declared gap| R5[ReAct Recovery]
+    R5 --> R2
+    R2 -->|done| R4[ReAct Finalize]
+    R4 --> I
     C --> J[SSE Stream]
 ```
 
@@ -654,10 +665,10 @@ Die Blöcke leben jetzt in einem eigenen Zustandsschlüssel und werden bei jedem
 ### 11.1. Architektur
 
 ```
-AsyncPostgresStore + Semantic Index (pgvector)
-├── Namespace: (user_id, "memories")        → Psychologisches Profil
-├── Namespace: (user_id, "documents", src)  → Dokumenten-RAG
-└── Namespace: (user_id, "context", domain) → Tool-Kontext (Data Registry)
+PostgreSQL + pgvector
+├── memories                                        → Langzeitgedächtnis: Fakten, Vorlieben, psychologisches Profil
+├── rag_documents + rag_chunks                      → Wissensräume, hybride Suche
+└── AsyncPostgresStore (user_id, "context", domain) → Tool-Kontext (Data Registry)
 ```
 
 ### 11.2. Erweitertes Gedächtnisschema
@@ -1138,18 +1149,21 @@ strukturierte JSON, das die Anwendung ausgegeben hatte.
 Pre-commit (lokal)                GitHub Actions CI
 ========================          =========================
 .bak files check                  Lint Backend (Ruff + Black + MyPy strict)
-Secrets grep                      Lint Frontend (ESLint + TypeScript)
-Ruff + Black + MyPy               Unit Tests + Coverage (62 %)
-                                  Integration tests (PostgreSQL + Redis)
-Schnelle Unit Tests               Code Hygiene (i18n, Alembic, Lockfiles)
-Erkennung kritischer Patterns     Docker Build Smoke Test
-Sync i18n-Schlüssel               Secret Scan (Gitleaks)
-Alembic-Migrationskonflikte       ─────────────────────────
-.env.example-Vollständigkeit      Security Workflow (wöchentlich)
-ESLint + TypeScript Check           CodeQL (Python + JS)
-                                    pip-audit + pnpm audit
-                                    Trivy Filesystem Scan
-                                    SBOM-Generierung
+Secrets grep                      Lint Frontend (ESLint + ratchets + tsc)
+Infra-/Personendaten (Denylist)   Code Hygiene (i18n, Docs, Zyklen, CI-Parität)
+Ruff + Black + MyPy               Secret scan (Gitleaks)
+Schnelle Unit Tests               Unit + Agents Tests, Coverage-Untergrenze
+Erkennung kritischer Patterns     Integration Tests (PostgreSQL + Redis)
+Sync i18n-Schlüssel               Migrations-Replay (von Grund auf)
+Alembic-Migrationskonflikte       Frontend Tests + Coverage-Schwellen
+.env.example-Vollständigkeit      E2E + a11y (Playwright + axe)
+ESLint + TypeScript Check         Docker Build · Installer-Untergrenze
+                                  ─────────────────────────
+                                  Security Workflow (Push, PR, wöchentlich)
+                                    CodeQL (Python + JS)
+                                    pip-audit + npm audit
+                                    Trivy filesystem scan
+                                    SBOM generation
 ```
 
 ### 22.2. Standards
@@ -1750,7 +1764,7 @@ Dieselben zwei Modi erreichten dann das Telefon (ADR-301). Der Anruf des Inhaber
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 309 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~30.855 Tests in 1.852 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 309 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~31.980 Tests in 1.931 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 

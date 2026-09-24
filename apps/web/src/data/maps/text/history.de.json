@@ -1,0 +1,1652 @@
+{
+  "intro": {
+    "lede": "Jede Architekturentscheidung, von der ersten bis zur letzten, in wenigen Sätzen erzählt und mit den Bausteinen verknüpft, die sie geprägt hat.",
+    "src": "3e71c73dc5b1"
+  },
+  "themes": {
+    "orchestration": {
+      "name": "Orchestrierung",
+      "summary": "Wie LIA eine Anfrage versteht, plant und ausführt.",
+      "src": "bd9c5bb8ec13"
+    },
+    "models": {
+      "name": "Modelle und Kosten",
+      "summary": "Welche Modelle, wie eingestellt, zu welchem Preis und unter welchen Obergrenzen.",
+      "src": "bd54d9387b8c"
+    },
+    "memory": {
+      "name": "Gedächtnis und Personalisierung",
+      "summary": "Was LIA sich über dich merkt und wie sie es nutzt.",
+      "src": "2289ad2edbb6"
+    },
+    "connectors": {
+      "name": "Konnektoren und Tools",
+      "summary": "Die angebundenen Dienste und die offenen Protokolle.",
+      "src": "5d652bac024d"
+    },
+    "proactive": {
+      "name": "Initiative",
+      "summary": "Was LIA von sich aus tut, und wann.",
+      "src": "f4fb50d0fad4"
+    },
+    "voice": {
+      "name": "Stimme",
+      "summary": "Diktieren, zuhören, sich unterhalten, telefonieren.",
+      "src": "087a2d7ccbd2"
+    },
+    "knowledge": {
+      "name": "Wissen und Dokumente",
+      "summary": "Deine durchsuchbaren Dokumente und die, die LIA erstellt.",
+      "src": "4a89879d5c46"
+    },
+    "security": {
+      "name": "Sicherheit",
+      "summary": "Konten, Sitzungen, Isolation, Angriffsfläche.",
+      "src": "a8f8e8ef83a1"
+    },
+    "trust": {
+      "name": "Nachverfolgbarkeit und Ehrlichkeit",
+      "summary": "Die Wahrheit sagen, zeigen, woher eine Antwort stammt, festhalten, was getan wird.",
+      "src": "033f0ea0ea08"
+    },
+    "reliability": {
+      "name": "Zuverlässigkeit und Leistung",
+      "summary": "Last aushalten, nichts verlieren, sich von einem Ausfall erholen.",
+      "src": "6087906f3d56"
+    },
+    "experience": {
+      "name": "Nutzererlebnis und Oberfläche",
+      "summary": "Was du siehst und berührst: Bildschirme, Barrierefreiheit, LIAs Gesicht.",
+      "src": "0585435d751c"
+    },
+    "platform": {
+      "name": "Plattform und Auslieferung",
+      "summary": "Konfiguration, Codequalität, Deployment und Installation.",
+      "src": "956ecee7011f"
+    }
+  },
+  "eras": {
+    "foundations": {
+      "name": "Das Fundament",
+      "summary": "Der Agentengraph, die serverseitig gehaltenen Sitzungen, der Planer, das Datenregister, das Gedächtnis, die Observability, die sechs Sprachen und das Deployment auf einem Raspberry Pi: das Grundgerüst, auf dem alles andere ruht.",
+      "src": "a6b8755eb3ed"
+    },
+    "beyond-keyboard": {
+      "name": "Über die Tastatur hinaus",
+      "summary": "Eine erste Sicherheitshärtung, das Sprachdiktat, die Wissensräume und die Synchronisierung eines Online-Ordners, LIAs Tagebücher, der gesteuerte Browser, die Nutzungslimits – und die erste öffentliche Open-Source-Version.",
+      "src": "62ece173f274"
+    },
+    "reasoning-voice": {
+      "name": "Denken und das Wort ergreifen",
+      "summary": "Der ReAct-Modus, eine Psyche, die sich weiterentwickelt, die Skills, die Gesundheitsdaten, das Morgenbriefing, LIAs Stimme, die Sub-Agenten und ein pro Anbieter eingestelltes Reasoning.",
+      "src": "b53c0b1b12ff"
+    },
+    "audit": {
+      "name": "Audit und Gründlichkeit",
+      "summary": "Ein Monat mit hundert Entscheidungen: ein durchgängiges Audit, Sicherheit und Backups, eine CI, die genau das ausführt, was der Entwickler startet, Alarme, die aus gutem Grund wecken, und die ersten Regeln der Ehrlichkeit.",
+      "src": "4615f4d23a46"
+    },
+    "visibility": {
+      "name": "Alles sichtbar machen",
+      "summary": "Barrierefreiheit per Vertrag, angezeigte Einstellungen und Fähigkeiten, Kosten nach Uhrzeit, der Installer fürs Self-Hosting, ein Modellkatalog, der die Wahrheit sagt, die ausdrucksstarken Augen und die Selbstdiagnose.",
+      "src": "f85aeef39422"
+    },
+    "promises": {
+      "name": "Versprechen halten",
+      "summary": "Versiegelte Register, exakte Zahlen, das Workboard, die Meetings, das Telefon und der Live-Modus – und Fehlschläge, die benannt statt erraten werden.",
+      "src": "2078cd2aa94f"
+    }
+  },
+  "entries": {
+    "1": {
+      "title": "LangGraph orchestriert die Agenten",
+      "summary": "LIA braucht eine Engine, die eine Unterhaltung über mehrere Schritte führen, für eine Freigabe anhalten und danach weitermachen kann. LangGraph liefert diesen Ausführungsgraphen: Der Zustand jeder Unterhaltung wird in der Datenbank gespeichert, und die Antworten kommen Wort für Wort an.",
+      "src": "f524de292ed9"
+    },
+    "2": {
+      "title": "Der Browser sieht das Token nie",
+      "summary": "Im Browser gespeicherte Tokens konnten gestohlen werden und ließen sich nicht widerrufen. Ein Zwischenserver (BFF) hält die Sitzung jetzt serverseitig und vertraut dem Browser nur ein für JavaScript unzugängliches Cookie an – eine Sitzung lässt sich sofort widerrufen.",
+      "src": "5248b328d55f"
+    },
+    "3": {
+      "title": "Nur die nützlichen Tools laden",
+      "summary": "Bei jeder Frage den gesamten Tool-Katalog an das Modell zu schicken, verzehnfachte Promptgröße und Kosten. Der Router erkennt die betroffenen Domänen, und nur deren Teilmenge an Tools wird geladen, mit dem vollständigen Katalog als Rückfallebene im Zweifelsfall.",
+      "src": "b725799a1c6c"
+    },
+    "4": {
+      "title": "Ein Planer, der nachdenkt, bevor er handelt",
+      "summary": "Die ersten Pläne waren zu simpel und scheiterten oft. Der Planer analysiert jetzt die Absicht, zerlegt die Anfrage und schreibt dann einen Ausführungsplan, der Schritt für Schritt begründet ist.",
+      "src": "a5f88f552af6"
+    },
+    "5": {
+      "title": "Der Ausweichplan läuft nicht mehr doppelt",
+      "summary": "Der parallele Executor startete den Hauptplan und dessen Ausweichvariante gleichzeitig: doppelter Aufruf, doppelte Kosten. Verworfene Schritte werden jetzt entfernt, bevor jede Welle startet.",
+      "src": "5a7f5a6a1f30"
+    },
+    "6": {
+      "title": "Keine Liste ohne Grenze",
+      "summary": "Die Bitte um „alle Kontakte“ konnte Hunderte Einträge liefern und die Kosten explodieren lassen. Drei Sperren – eine Warnung des Planers, eine harte Obergrenze im Tool, Protokollierung – verhindern jetzt eine unbegrenzte Liste.",
+      "src": "0faa65d908d4"
+    },
+    "7": {
+      "title": "Dünne Knoten, dicke Services",
+      "summary": "Manche Knoten des Graphen umfassten Hunderte Zeilen und waren unlesbar geworden. Die Geschäftslogik wandert in eigene Services; ein Knoten koordiniert nur noch.",
+      "src": "abca8bbb7662"
+    },
+    "8": {
+      "title": "Den Plan vor dem Handeln freigeben",
+      "summary": "Statt die Ausführung Tool für Tool zu unterbrechen, legte LIA ihren Plan vor dem Start zur Freigabe vor. Heute wird der Plan automatisch freigegeben: Die Bestätigung erfolgt bei jeder sensiblen Aktion.",
+      "src": "3f81bff43469"
+    },
+    "9": {
+      "title": "Konfiguration, nach Domänen aufgeteilt",
+      "summary": "Eine Konfigurationsdatei mit fast 1.800 Zeilen bündelte alle Einstellungen. Sie wird in Module pro Domäne aufgeteilt, die zu einem einzigen, beim Start validierten Einstellungsobjekt zusammengeführt werden, ohne dass sich der Import ändert.",
+      "src": "01574df3e3ba"
+    },
+    "10": {
+      "title": "„E-Mails“, nicht „Gmail“",
+      "summary": "Die Domäne hieß Gmail, als gäbe es nur einen Anbieter. Sie bekommt einen generischen Namen, damit Outlook, Apple Mail und andere Platz finden, ohne bei jeder Erweiterung alles umbenennen zu müssen.",
+      "src": "d53a8bcb3273"
+    },
+    "11": {
+      "title": "Zwei Tool-Familien",
+      "summary": "Braucht es einen künstlichen „Konnektor“ für interne Tools (Kontext, Gedächtnis)? Nein: Tools, die mit einem externen Dienst sprechen, und Hilfstools bleiben zwei getrennte Kategorien, jede mit ihrem eigenen einfachen Muster.",
+      "src": "ed41008599e8"
+    },
+    "12": {
+      "title": "Strukturierte, wiederverwendbare Ergebnisse",
+      "summary": "Die Tools lieferten Rohtext, den nichts aufbewahrte. Ein Datenregister hält jetzt jedes zurückgegebene Element samt Metadaten fest, damit sich eine spätere Frage darauf beziehen und ein Entwurf bestätigt werden kann.",
+      "src": "e358017063f9"
+    },
+    "13": {
+      "title": "Ein Gedächtnis, das Unterhaltungen überdauert",
+      "summary": "Die Assistentin vergaß von einer Sitzung zur nächsten alles. Ein Langzeitgedächtnis, pro Person isoliert und nach Bedeutung durchsucht, bewahrt Vorlieben und wichtige Fakten – auch sensible Themen, die mit Taktgefühl zu behandeln sind.",
+      "src": "9607a37667c3"
+    },
+    "14": {
+      "title": "Parallel ausgeführte Pläne",
+      "summary": "Tools nacheinander auszuführen, summierte die Wartezeiten. Ein Ausführungsplan drückt Abhängigkeiten, Bedingungen und Ausweichwege aus und startet alles gleichzeitig, was gleichzeitig laufen kann.",
+      "src": "b0798d606c58"
+    },
+    "15": {
+      "title": "Eine gemeinsame Basis für angebundene Tools",
+      "summary": "Jedes Konnektor-Tool wiederholte 150 identische Zeilen (Authentifizierung, Fehler, Cache). Eine Basisklasse fasst diese Grundlage zusammen; ein neues Tool schreibt nur noch, was ihm eigen ist.",
+      "src": "2a47c33e6dd1"
+    },
+    "16": {
+      "title": "„Das zweite“ in jeder Domäne wiederfinden",
+      "summary": "Jede Domäne identifiziert und zeigt ihre Elemente auf eigene Weise an. Ein Register der Kontexttypen beschreibt jede Domäne einmal, und die Auflösung von „dieses hier“ oder „das dritte“ funktioniert überall gleich.",
+      "src": "009a060f08bc"
+    },
+    "17": {
+      "title": "Drosseln, ohne den Dienst zu blockieren",
+      "summary": "Es galt, sowohl die Nutzer vor Missbrauch als auch die Kontingente externer APIs zu schützen, auch mit mehreren Instanzen. Eine über Redis verteilte Drosselung, pro Person und pro Kategorie, weicht auf eine lokale Begrenzung aus, wenn Redis ausfällt.",
+      "src": "ff54b0e29676"
+    },
+    "18": {
+      "title": "Antworten, die live entstehen",
+      "summary": "Zehn Sekunden auf eine vollständige Antwort zu warten, ist mühsam. Der Server streamt jedes Wort, die Planschritte und die Freigabeanfragen laufend per Server-Sent Events.",
+      "src": "c9a430d5076b"
+    },
+    "19": {
+      "title": "Ein Katalog, der Agenten und Tools beschreibt",
+      "summary": "Der Planer muss wissen, welche Tools es gibt, was sie kosten und was sie voraussetzen. Typisierte Manifeste dienen zugleich als Dokumentation und als Konfiguration, nach Domäne gefiltert, um Tokens zu sparen.",
+      "src": "255a7b884f77"
+    },
+    "20": {
+      "title": "Drei Schichten Observability",
+      "summary": "Kein Werkzeug deckt allein Metriken, Traces und die Nachverfolgung der Modellaufrufe ab. Prometheus, Tempo und Langfuse arbeiten jeweils für sich, und die Anwendung läuft weiter, wenn eines davon ausfällt.",
+      "src": "f64bf469c84a"
+    },
+    "21": {
+      "title": "OAuth-Tokens, verschlüsselt und erneuert",
+      "summary": "Die Google-Zugänge mussten in der Datenbank unlesbar bleiben, sich vor Ablauf erneuern und durften nie zweimal gleichzeitig aufgefrischt werden. Verschlüsselung im Ruhezustand, vorzeitiges Auffrischen unter einer verteilten Sperre und PKCE decken ihren Lebenszyklus ab.",
+      "src": "3658de6f7356"
+    },
+    "22": {
+      "title": "Der Zustand einer Unterhaltung, gesichert",
+      "summary": "Um nach einer Unterbrechung oder einem Neustart weitermachen zu können, wird der Zustand des Graphen pro Gesprächsfaden in PostgreSQL gespeichert, mit Zusammenführungsregeln, die den Verlauf auf das Token-Budget kürzen.",
+      "src": "9f9556fe516b"
+    },
+    "23": {
+      "title": "Eine einheitliche Fehlerstrategie",
+      "summary": "Jeder Teil behandelte seine Fehler auf eigene Weise. Ein gemeinsames Format für die Tools, eine Hierarchie protokollierter Exceptions und in sechs Sprachen übersetzte Meldungen machen die Fehler einheitlich und messbar.",
+      "src": "7eded94323d2"
+    },
+    "24": {
+      "title": "Sechs Sprachen, durchgängig",
+      "summary": "Die Oberfläche, die Servermeldungen und die URLs müssen die Sprache der Person sprechen. i18next im Browser, gettext auf dem Server, sechs Sprachen und lokalisierte Adressen für die Suchmaschinenoptimierung.",
+      "src": "34a9221a51da"
+    },
+    "25": {
+      "title": "Prompts, verwaltet wie Code",
+      "summary": "Die Anweisungen an die Modelle müssen weiterentwickelt und zurückgerollt werden können. Sie liegen in versionierten Dateien, werden nach einer konfigurierbaren Version geladen und mit Variablen befüllt.",
+      "src": "7e035e248254"
+    },
+    "26": {
+      "title": "Das richtige Modell für jede Rolle",
+      "summary": "Routing, Planung und Antwort haben unterschiedliche Anforderungen. Jede Komponente erhält ihr eigenes Modell, hinter einer Abstraktion, mit der sich der Anbieter wechseln lässt, ohne den Code anzufassen.",
+      "src": "8a362915f6e7"
+    },
+    "27": {
+      "title": "Strukturierte Logs ohne personenbezogene Daten",
+      "summary": "Damit Logs auswertbar sind, müssen sie maschinenlesbar sein. structlog erzeugt JSON mit Kontext (Anfrage, Person, Unterhaltung) und filtert personenbezogene Daten vor dem Schreiben heraus.",
+      "src": "9404e98f0ed3"
+    },
+    "28": {
+      "title": "Ein Datenbankschema, auf Dauer angelegt",
+      "summary": "UUID-Kennungen, Datumsangaben stets in UTC, logisches Löschen und JSONB-Metadaten: Die Konventionen des PostgreSQL-Schemas werden einmal für die ganze Anwendung festgelegt.",
+      "src": "6eaebe89d0fa"
+    },
+    "29": {
+      "title": "Redis, das gezähmte Schweizer Taschenmesser",
+      "summary": "Sitzungen, OAuth-Zustände, Drosselung, Sperren und Caches laufen über Redis. Jede Verwendung hat ihre eigene Datenbank, ihre Ablaufzeiten und ihre atomaren Operationen, und ein Ausfall schränkt den Betrieb ein, ohne ihn zu blockieren.",
+      "src": "b2fcbcda7d95"
+    },
+    "30": {
+      "title": "„Schick ihm eine Mail“ verstehen",
+      "summary": "Eine Unterhaltung steckt voller impliziter Bezüge: „das zweite“, „dieses hier“, „ihm“. Die Kontextauflösung erkennt die Art der Gesprächsrunde und verknüpft diese Wörter mit den richtigen Elementen, ohne Domänen zu vermischen, in sechs Sprachen.",
+      "src": "df4280c2a2f3"
+    },
+    "31": {
+      "title": "Eine Anwendung testen, die mit Modellen spricht",
+      "summary": "Man kann nicht bei jedem Test echte Modelle aufrufen. Die Strategie simuliert den Anbieter an seiner Grenze, isoliert die Datenbank jedes Tests und deckt den asynchronen Code ab.",
+      "src": "4f25266a4f05"
+    },
+    "32": {
+      "title": "Eine versionierte, typisierte API",
+      "summary": "Die REST-API folgt einer einheitlichen Konvention: Versionspräfix, validierte Pydantic-Schemas, Router pro Domäne und ein gemeinsames Fehlerformat, automatisch dokumentiert.",
+      "src": "35e303018832"
+    },
+    "33": {
+      "title": "Auf einem Raspberry Pi deployen",
+      "summary": "Rund fünfzehn Dienste müssen in der Entwicklung genauso laufen wie auf einem Raspberry Pi 5. Docker Compose orchestriert das Ganze, mit Health-Checks, Ressourcenlimits und Images für zwei Architekturen.",
+      "src": "d62823d923df"
+    },
+    "34": {
+      "title": "Sicherheitshärtung",
+      "summary": "HTTP-only-Cookies, parametrisierte Abfragen, CSRF-Schutz, gehashte Passwörter: Die Anwendung richtet ihre Abwehr an den OWASP-Empfehlungen aus.",
+      "src": "7348b3e2f6bf"
+    },
+    "35": {
+      "title": "Standhalten, wenn ein Dienst ausfällt",
+      "summary": "Ein ausgefallener externer Dienst darf nicht die ganze Anwendung mitreißen. Circuit Breaker, zeitversetzte Wiederholungsversuche, Health-Probes und kontrollierter Funktionsabbau halten den Dienst aufrecht.",
+      "src": "1e7e016c2a9a"
+    },
+    "36": {
+      "title": "Die Persönlichkeit der Assistentin wählen",
+      "summary": "Enthusiastisch, Professorin oder Freundin: Jede Person wählt LIAs Ton. Die Persönlichkeiten liegen in der Datenbank, sind in sechs Sprachen übersetzt und werden in die Prompts eingefügt.",
+      "src": "539b81c54ff7"
+    },
+    "37": {
+      "title": "Ein psychologisches Gedächtnis",
+      "summary": "Um wirklich zu personalisieren, extrahiert LIA im Hintergrund, was in den Unterhaltungen zählt, findet es über die Bedeutung wieder und passt ihren Ton an die Sensibilität des Themas an, ohne je die Antwort zu blockieren.",
+      "src": "8db762aaade7"
+    },
+    "38": {
+      "title": "Ein modernes Next.js-Frontend",
+      "summary": "Serverseitiges Rendering, live gestreamte Antworten, sechs Sprachen und Cookie-Authentifizierung: Die Oberfläche basiert auf dem App Router von Next.js.",
+      "src": "85794bd732c2"
+    },
+    "39": {
+      "title": "Die Kosten jeder Anfrage im Griff",
+      "summary": "Jeder Modellaufruf muss gezählt und optimiert werden. Genaue Token-Zählung pro Anbieter, Kosten in Echtzeit, Caching und eine semantische Auswahl der Tools haben den gesendeten Katalog auf ein Zehntel geschrumpft.",
+      "src": "6119d418ead9"
+    },
+    "40": {
+      "title": "Umkehrbare Datenbankmigrationen",
+      "summary": "Jede Schemaänderung läuft über eine benannte, datierte und umkehrbare Alembic-Migration, die alle Modelle automatisch erkennt.",
+      "src": "998548bc76d8"
+    },
+    "41": {
+      "title": "Den gespeicherten Zustand weiterentwickeln",
+      "summary": "Gespeicherte Unterhaltungen müssen lesbar bleiben, wenn sich ihr Format ändert. Der Zustand trägt eine Versionsnummer und wird beim Laden automatisch migriert.",
+      "src": "d26db2bfbc5d"
+    },
+    "42": {
+      "title": "Der Lebenszyklus einer Unterhaltung",
+      "summary": "Eine Unterhaltung entsteht mit der ersten Nachricht, kann logisch gelöscht werden, hinterlässt ein Audit-Log und verschwindet per Kaskade mit dem Konto, gemäß DSGVO.",
+      "src": "c10c78b54de7"
+    },
+    "43": {
+      "title": "Ein spezialisierter Agent pro Domäne",
+      "summary": "Jede Domäne (Mail, Kontakte, Kalender…) hat ihren Agenten und ihre Tools, beaufsichtigt von einem übergeordneten Graphen, der einen einzigen Zustand teilt und die Observability weitergibt.",
+      "src": "3fd5f937aeba"
+    },
+    "44": {
+      "title": "Nichts Wichtiges ohne deine Freigabe",
+      "summary": "Eine Mail zu senden oder einen Termin anzulegen, erfordert eine Freigabe. Der Entwurf wird vorgelegt, lässt sich ändern oder abbrechen und wird erst nach Bestätigung ausgeführt – jede Entscheidung wird protokolliert.",
+      "src": "17fc069bb93a"
+    },
+    "45": {
+      "title": "Sauber injizierte Abhängigkeiten",
+      "summary": "Repositories, Services und Router greifen über die Dependency Injection von FastAPI ineinander, mit Datenbanksitzungen, die zum richtigen Zeitpunkt geöffnet und geschlossen werden und sich in Tests leicht simulieren lassen.",
+      "src": "a9edf6548888"
+    },
+    "46": {
+      "title": "Geplante Hintergrundaufgaben",
+      "summary": "Wechselkurse, Aufräumen des Gedächtnisses, Versand der Erinnerungen: Manche Aufgaben müssen von selbst laufen. Ein asynchroner Scheduler startet sie nach Cron-Ausdrücken, fährt sauber herunter und veröffentlicht seine Metriken.",
+      "src": "c380e75a9b5a"
+    },
+    "47": {
+      "title": "Google Workspace, eine einzige Integration",
+      "summary": "Gmail, Kalender, Kontakte, Drive und Tasks teilen eine gemeinsame Basis: zentral verwaltete OAuth-Scopes, unter Sperre erneuerte Tokens und Kontingente, die Dienst für Dienst eingehalten werden.",
+      "src": "abd089f2dd88"
+    },
+    "48": {
+      "title": "Routing nach Bedeutung statt Schlüsselwörtern",
+      "summary": "Schlüsselwortlisten pro Sprache lieferten schwache Scores und verlangten endlose Pflege. Der Router vergleicht jetzt die Bedeutung der Frage mit der der Domänen und Tools, in über hundert Sprachen.",
+      "src": "822c39238e1b"
+    },
+    "49": {
+      "title": "Lokal berechnete Embeddings",
+      "summary": "Um nicht mehr bei jeder semantischen Suche einen externen Dienst zu bezahlen und auf ihn zu warten, läuft ein mehrsprachiges Embedding-Modell auf dem eigenen Rechner, auch auf einem Raspberry Pi.",
+      "src": "79f70687e30b"
+    },
+    "50": {
+      "title": "LIA ergreift das Wort",
+      "summary": "Eine neuronale, mehrsprachige Sprachausgabe, Satz für Satz gestreamt, gibt LIA eine Stimme, mit dem ersten Ton in weniger als drei Sekunden und einer Aktivierung, die jede Person selbst wählt.",
+      "src": "9e670f186144"
+    },
+    "51": {
+      "title": "„Erinnere mich, den Arzt anzurufen“",
+      "summary": "Eine Erinnerung wird in natürlicher Sprache angelegt, in UTC gespeichert und als Push-Benachrichtigung an alle Geräte geschickt, mit einer persönlichen Nachricht – ohne je doppelt verschickt zu werden, auch mit mehreren Workern.",
+      "src": "95958d746318"
+    },
+    "52": {
+      "title": "Ergebnisse unterschiedlicher Form validieren",
+      "summary": "Agentenergebnisse können Kontakte, Mails, Orte… sein. Eine explizite Validierung dieser Typ-Union verhindert jeden stillen Datenverlust bei der Umwandlung.",
+      "src": "2d94d6f6a8c7"
+    },
+    "53": {
+      "title": "Interessen lernen",
+      "summary": "Nach jeder Antwort erkennt LIA im Hintergrund ein oder zwei Themen, die die Person interessieren, ohne die Unterhaltung zu verlangsamen, um erst ihre Antworten und dann ihre Initiativen zu personalisieren.",
+      "src": "c78fac4bacdf"
+    },
+    "54": {
+      "title": "Mit LIA ohne Tastatur sprechen",
+      "summary": "Aktivierungswort „OK Guy“, Mikrofontaste, Erkennung des Redeendes und kostenlose mehrsprachige Transkription auf dem Server: Die Spracheingabe kommt ohne laufende API-Kosten.",
+      "src": "1291c153c119"
+    },
+    "55": {
+      "title": "Persönliche Wissensräume",
+      "summary": "Jede Person kann ihre Dokumente hochladen; LIA zerlegt sie, indexiert sie und findet sie per hybrider Suche (Bedeutung + Wörter) wieder, um ihre Antworten anzureichern, in streng voneinander getrennten Räumen.",
+      "src": "0ac8716a1111"
+    },
+    "56": {
+      "title": "Einen Google-Drive-Ordner synchronisieren",
+      "summary": "Statt Dateien herunterzuladen und wieder hochzuladen, verknüpft man einen Drive-Ordner: LIA nutzt den bestehenden Konnektor und indexiert die Dokumente mit derselben Pipeline, Datei für Datei.",
+      "src": "dba1887a9951"
+    },
+    "57": {
+      "title": "LIA führt Tagebuch",
+      "summary": "Die Assistentin schreibt ihre eigenen Gedanken und Beobachtungen in der Ich-Form auf, gefärbt von ihrer Persönlichkeit, und ruft sie über die Bedeutung wieder ab, um mit jeder Person besser nachzudenken.",
+      "src": "e85f0db6d5d1"
+    },
+    "58": {
+      "title": "LIA kann über sich selbst sprechen",
+      "summary": "Auf „Was kannst du?“ antwortete LIA ganz allgemein. Ein System-Wissensraum, aus der FAQ indexiert, gibt ihr genaue Antworten zu ihren eigenen Funktionen.",
+      "src": "f17e3be594f8"
+    },
+    "59": {
+      "title": "Einen Browser steuern",
+      "summary": "Ein Formular ausfüllen, ein Produkt suchen, eine dynamische Seite lesen: Ein autonomer Agent steuert einen isolierten Playwright-Browser, beschreibt eine Aufgabe in natürlicher Sprache und erledigt sie.",
+      "src": "fb7987386cfc"
+    },
+    "60": {
+      "title": "Nutzungslimits pro Person",
+      "summary": "Jeder Modellaufruf kostet echtes Geld. Obergrenzen pro Person – Tokens, Nachrichten, Kosten – pro Zeitraum oder insgesamt schützen den Betreiber vor unkontrollierten Ausgaben.",
+      "src": "a91ed587b770"
+    },
+    "61": {
+      "title": "Deaktiviert heißt wirklich deaktiviert",
+      "summary": "Eine deaktivierte MCP-App erhielt weiterhin Anfragen. Die vom Analyzer gelieferten Domänen werden jetzt bei jedem Schritt mit den tatsächlich verfügbaren abgeglichen.",
+      "src": "4131931db489"
+    },
+    "62": {
+      "title": "Nach dem Handeln reagieren",
+      "summary": "Ein starrer Plan konnte nicht auf das reagieren, was er entdeckte. Eine Initiativphase liest die Ergebnisse erneut und schlägt nützliche Prüfungen vor, und ein iterativer Sub-Agent kann einen komplexen MCP-Server erkunden.",
+      "src": "bc7bc8a70dd2"
+    },
+    "63": {
+      "title": "Alle Worker sehen dieselbe Einstellung",
+      "summary": "Bei vier Prozessen erreichte eine geänderte Einstellung nur einen davon. Eine über Redis Pub/Sub verbreitete Invalidierung lädt den Cache in jedem Worker neu.",
+      "src": "c9d4f057de4d"
+    },
+    "64": {
+      "title": "Ein neutraler Beobachter für das Tagebuch",
+      "summary": "Die Gesprächspersönlichkeit sickerte in die Tagebuchnotizen ein. Eine feste Analysten-Persona schreibt jetzt klinische Beobachtungen und umsetzbare Direktiven, unabhängig von der aktiven Persönlichkeit.",
+      "src": "db752f1628a3"
+    },
+    "65": {
+      "title": "Toten Code bei den Agenten aufspüren",
+      "summary": "Die Agentenknoten pro Domäne wurden nie mehr durchlaufen. Die Analyse dokumentiert das, damit die Administration keine Einstellungen mehr anbietet, die zu nichts dienen.",
+      "src": "a547d9a5e1b0"
+    },
+    "66": {
+      "title": "Gedächtnis und Tagebücher in einer Datenbank",
+      "summary": "Zwei verschiedene Speicher erforderten fünf Embedding-Berechnungen pro Gesprächsrunde. Gedächtnis und Tagebücher ziehen zu PostgreSQL mit pgvector um, und ein einziges Embedding dient allen Zwecken.",
+      "src": "445716688153"
+    },
+    "67": {
+      "title": "Vier Zustände für ein Konto",
+      "summary": "Aktiv, deaktiviert, gelöscht, getilgt: Ein Konto durchläuft einen Lebenszyklus, der die Abrechnungshistorie nach dem Löschen bewahrt und auf Anfrage gemäß DSGVO alles tilgt.",
+      "src": "719c1106904f"
+    },
+    "68": {
+      "title": "Eine Psyche, die sich entwickelt",
+      "summary": "Die Persönlichkeit war ein starrer Text. Eine psychologische Engine mit fünf Schichten – Charakterzüge, Stimmung, Emotionen, Beziehung, Motivationen – entwickelt LIAs Zustand im Verlauf der Gespräche weiter.",
+      "src": "9a4381d26a1b"
+    },
+    "69": {
+      "title": "Asymmetrische Google-Embeddings",
+      "summary": "Die semantische Suche läuft jetzt über Gemini, mit zwei getrennten Räumen zum Speichern und zum Suchen und zwei Vektoren pro Element (Inhalt und Schlüsselwörter), um Dinge besser wiederzufinden.",
+      "src": "46d77a364aa8"
+    },
+    "70": {
+      "title": "Der ReAct-Modus",
+      "summary": "Ein starrer Plan passt sich keinem unerwarteten Ergebnis an. Ein zweiter Modus, den die Person wählen kann, lässt das Modell ein Tool aufrufen, das Ergebnis lesen und über den nächsten Schritt entscheiden, in einer in den Graphen integrierten Schleife.",
+      "src": "2eda62812c19"
+    },
+    "71": {
+      "title": "Einen Skill an seiner Bedeutung erkennen",
+      "summary": "Zwei konkurrierende Mechanismen erkannten die Skills. Der Query-Analyzer vergleicht die Anfrage jetzt mit der Beschreibung jedes aktiven Skills: ein einziges, semantisches Signal.",
+      "src": "f23a95a20b9a"
+    },
+    "72": {
+      "title": "Zwei Schlüssel genügen für den Kontext",
+      "summary": "Der Kontextmanager hielt drei Ansichten pro Domäne vor, davon eine nutzlos. Er behält nur noch die letzte Liste und das aktuelle Element, was die Auflösung von Bezügen vereinfacht.",
+      "src": "ce8d46c5743c"
+    },
+    "73": {
+      "title": "Das Wetter dort, wo du bist",
+      "summary": "Wetterwarnungen betrafen selbst auf Reisen den Wohnort. Ein zuletzt bekannter Standort, auf Wunsch gespeichert, lässt die Benachrichtigungen der Person dorthin folgen, wo sie sich gerade befindet.",
+      "src": "a29e94a52fbc"
+    },
+    "74": {
+      "title": "Ein Vertrag für die Daten der Tools",
+      "summary": "Mehrere Ausgabefelder wurden miteinander vermengt. Fachliche Entitäten laufen über einen einzigen expliziten, flachen Vertrag, den die Konsumenten lesen, ohne raten zu müssen.",
+      "src": "73d9ebb77dcc"
+    },
+    "75": {
+      "title": "Skills, die etwas zeigen",
+      "summary": "Eine Karte, ein Dashboard, ein QR-Code: Ein Skill kann zusätzlich zum Text einen interaktiven Rahmen oder ein Bild zurückgeben, über einen typisierten JSON-Vertrag.",
+      "src": "9e83678151da"
+    },
+    "76": {
+      "title": "Gesundheitsdaten vom iPhone",
+      "summary": "Ein iPhone-Kurzbefehl schickt täglich Schritte und Herzfrequenz gebündelt, authentifiziert über ein persönliches, widerrufbares Token, um Trends zu verfolgen und Veränderungen zu erkennen.",
+      "src": "66df294ba482"
+    },
+    "77": {
+      "title": "Das Morgenbriefing",
+      "summary": "Die Startseite wird zum Tagesbriefing: Wetter, Kalender, Mails, Erinnerungen… parallel außerhalb des Agentengraphen gelesen, mit einem Cache pro Abschnitt und einer ausformulierten Zusammenfassung.",
+      "src": "8330fae3a1be"
+    },
+    "78": {
+      "title": "Der Modellkatalog in der Datenbank",
+      "summary": "Fähigkeiten und Preise der Modelle waren im Code festgeschrieben. Der Katalog liegt jetzt in der Datenbank und lässt sich vom Administrator ohne erneutes Deployment bearbeiten.",
+      "src": "95c5435f56c1"
+    },
+    "79": {
+      "title": "Ein Tagebuch in vier Stufen",
+      "summary": "Das Tagebuch wird zu LIAs Organ der Metakognition: Rohbeobachtungen, Direktiven, Synthesen und ein Porträt der Person, jeweils mit eigenem Beweisstatus und eigener Selbsteinschätzung.",
+      "src": "90b03f049cf5"
+    },
+    "80": {
+      "title": "Genauere Remote-Transkription",
+      "summary": "Optional kann die Spracherkennung über das genauere ElevenLabs Scribe laufen; die Preise erhalten eine Einheit pro Minute oder pro Stunde Audio, damit korrekt abgerechnet wird.",
+      "src": "3b5693e75266"
+    },
+    "81": {
+      "title": "Die Stimme, konfiguriert wie ein Modell",
+      "summary": "Vierzehn Umgebungsvariablen steuerten die Sprachausgabe. Sie wird zu einer Rolle im Katalog, die in der Administration wie jedes andere Modell ausgewählt wird.",
+      "src": "387f51c660cf"
+    },
+    "82": {
+      "title": "Der erste Ton nach einer Sekunde",
+      "summary": "Persistenter HTTP-Client, Aufteilung in Sätze schon während der Generierung und sofortiges Senden: Die Stimme beginnt zu sprechen, bevor die geschriebene Antwort fertig ist.",
+      "src": "7f24709d53a8"
+    },
+    "83": {
+      "title": "Delegieren, ohne das Budget zu sprengen",
+      "summary": "Eine Zusammenfassung von fünf Mails hatte fast 500.000 Tokens verbraucht. Die Delegation an einen Sub-Agenten läuft über eine parametrisierte, begrenzte ReAct-Schleife, und der alte Mechanismus entfällt.",
+      "src": "f6dc4f56f4b6"
+    },
+    "84": {
+      "title": "Indexierbares suchen, den Rest beurteilen",
+      "summary": "„Meine medizinischen Termine“ lieferte kein Ergebnis: Das Wort „medizinisch“ wurde wörtlich gesucht. Ein Planungsprinzip trennt, was ein Dienst filtern kann, von dem, was das Modell beurteilen muss.",
+      "src": "c571f7cc2a60"
+    },
+    "85": {
+      "title": "Ein Register für die Anzeige jedes Entwurfs",
+      "summary": "Nach der Bestätigung erschienen drei gelöschte Erinnerungen als drei identische Zeilen. Ein deklaratives Register pro Entwurfstyp, beim Start geprüft, legt fest, wie jeder angezeigt wird.",
+      "src": "05f6535ec5ff"
+    },
+    "86": {
+      "title": "Den Verlauf verdichten, ohne zu blockieren",
+      "summary": "Eine zu lange Unterhaltung verhinderte jede neue Nachricht. Die Verdichtung erhält Timeouts, Wiederholungsversuche, Observability und eine sichtbare Kürzung statt einer Blockade.",
+      "src": "2adc1ca8dd48"
+    },
+    "87": {
+      "title": "Der native OpenAI-Client und Reasoning pro Anbieter",
+      "summary": "Ein selbst gebauter Client mit 1.800 Zeilen wird durch den nativen Client ersetzt; die Art, Reasoning anzufordern, wird zu einer Konfiguration pro Anbieter.",
+      "src": "b81a24a86899"
+    },
+    "88": {
+      "title": "Ein zurückhaltenderes, gezielteres Tagebuch",
+      "summary": "Das Tagebuch erzeugte nutzlose Einträge. Es schreibt weniger, behält seine Entdeckungsmechanismen, und jede Stufe dient beim Lesen einem klaren Zweck.",
+      "src": "cf35da26c104"
+    },
+    "89": {
+      "title": "Korrekte Metriken mit mehreren Workern",
+      "summary": "Jeder Prozess stellte seine eigenen Zähler bereit. Der Multiprozess-Modus von Prometheus aggregiert sie, und jede Gauge gibt an, wie sie zu kombinieren ist.",
+      "src": "21d4a2da51b0"
+    },
+    "90": {
+      "title": "Eine semantische Schicht mit Governance",
+      "summary": "Die Verknüpfungen zwischen Datentypen und Tools hatten zwei nicht synchronisierte Quellen. Sie sind jetzt die Vereinigung von Ontologie und Manifesten, und Tests sichern ihre Integrität.",
+      "src": "0993bb3abd7a"
+    },
+    "91": {
+      "title": "Die Antwort während der Initiative vorbereiten",
+      "summary": "Die Antwort wartete das Ende der Initiative ab, bevor sie ihren Kontext lud. Beides überlappt sich jetzt, was Gesprächsrunden mit Tools um mehrere Sekunden verkürzt.",
+      "src": "521ecc830715"
+    },
+    "92": {
+      "title": "Eine Unterbrechung pro Knotenausführung",
+      "summary": "Das Fortsetzen nach einer Freigabe spielte teure Aufrufe erneut ab. Jeder Knoten setzt nur noch eine Unterbrechung, und die Schleife läuft über den Graphen, was das Fortsetzen sicher macht.",
+      "src": "9b3aaf599dfa"
+    },
+    "93": {
+      "title": "Eine Vertrauenskette für die IP-Adresse",
+      "summary": "Die Adresse des Clients ließ sich fälschen, und HTML konnte eingeschleust werden. An die Loopback-Schnittstelle gebundene Ports, geprüfte Proxy-Header und HTML-Bereinigung schließen beide Lücken.",
+      "src": "0af07ed926c3"
+    },
+    "94": {
+      "title": "Code entfernen, der nicht mehr gebraucht wird",
+      "summary": "Drei Windowing-Funktionen wurden nirgends mehr aufgerufen. Sie verschwinden samt ihren Einstellungen und Tests: Ein totes Subsystem kostet bei jeder Änderung.",
+      "src": "309a3e52fd07"
+    },
+    "95": {
+      "title": "Fehlerklassen schließen",
+      "summary": "Ein Audit fand sieben Familien unauffälliger Fehler. Jede wird behoben und erhält einen dauerhaften Wächter – einen Test, eine Metrik oder eine schriftliche Regel –, damit sie nie zurückkehrt.",
+      "src": "d0244e2b0e48"
+    },
+    "96": {
+      "title": "Leistung, Netzwerk und Vertrauen geprüft",
+      "summary": "Ein Audit nahm drei Grenzen ins Visier: synchronen Code, der die asynchrone Schleife einfror, interne Dienste, die aus dem lokalen Netz erreichbar waren, und Modellausgaben, die ungefiltert angezeigt wurden. Jeder Fehler wird behoben und vorher/nachher gemessen.",
+      "src": "572bd6231adc"
+    },
+    "97": {
+      "title": "Nebenläufigkeit, DSGVO-Löschung und Sandbox",
+      "summary": "Manche Fehler treten nur bei Parallelität oder beim Löschen eines Kontos auf. Eine Datenbanksitzung pro paralleler Aufgabe, eine vollständige DSGVO-Löschung und eine gehärtete Skill-Sandbox beseitigen sie.",
+      "src": "3359293d3e18"
+    },
+    "98": {
+      "title": "Eine Schleuse für Widgets von Drittanbietern",
+      "summary": "Die Content Security Policy legte die MCP-Widgets lahm. Jedes Drittanbieter-Widget erhält jetzt ein eigenes Dokument und damit eine eigene Policy, ohne die der Anwendung zu schwächen.",
+      "src": "debded363eba"
+    },
+    "99": {
+      "title": "Eine nie angeschlossene Konfiguration entfernen",
+      "summary": "Ein nginx-Reverse-Proxy, seit der ersten Version mitgeliefert, war nie mit irgendetwas verbunden. Er wird entfernt, weil eine Datei, die nichts tut, jeden täuscht, der sie liest.",
+      "src": "b5b5af7e8d72"
+    },
+    "100": {
+      "title": "Eine fehlerhafte strukturierte Ausgabe retten",
+      "summary": "Ein Modell antwortete manchmal mit JSON in seinem Text statt in der erwarteten Struktur, und die Anfrage scheiterte. Ein Sicherheitsnetz fängt dieses JSON auf, und eine Schreibkonvention für Prompts vermeidet den Konflikt.",
+      "src": "20953f7f42d2"
+    },
+    "101": {
+      "title": "Eine zuverlässige Kalendersuche",
+      "summary": "„Meine nächsten Arzttermine“ scheiterte je nach Modus zufällig. Das Tool listet den Zeitraum auf und filtert dann selbst, setzt die Datumsangaben zurück und deckelt die gelesene Menge.",
+      "src": "70ec4ce417e8"
+    },
+    "102": {
+      "title": "Ein einziges Vokabular für die Domänen",
+      "summary": "Jede Domäne trägt einen Namen im Singular und einen Ergebnisschlüssel im Plural, beide aus einem einzigen Register abgeleitet: keine von Hand gepflegte Tabelle mehr.",
+      "src": "40e0b1b3e96b"
+    },
+    "103": {
+      "title": "Freigaben in deiner Sprache",
+      "summary": "Teile der menschlichen Freigabe blieben für alle auf Französisch. Die Anweisungen an die Modelle wechseln in neutrales Englisch, und alles, was die Person liest, wird in alle sechs Sprachen übersetzt, abgesichert durch einen Paritätswächter.",
+      "src": "3c59f0760950"
+    },
+    "104": {
+      "title": "Eine weniger übersättigte Psyche",
+      "summary": "LIAs Stimmung blieb in wenigen Zuständen hängen. Die Ursache – in jeder Gesprächsrunde neu erzeugte Emotionen – wird an der Quelle behoben, mit Schwellenwerten, die sich ohne neuen Build einstellen lassen.",
+      "src": "a6ecac0ed3b1"
+    },
+    "105": {
+      "title": "Eine Stimmung, die man hört",
+      "summary": "Der psychologische Zustand wurde mit abstrakten Adjektiven beschrieben und war nicht spürbar. Er fließt jetzt in die Sprechweise ein – Rhythmus, Länge, Stilebene –, ohne je „ich fühle mich“ zu sagen.",
+      "src": "468bb170265e"
+    },
+    "106": {
+      "title": "Eine einzige Bestätigung für beide Modi",
+      "summary": "Pipeline- und ReAct-Modus lösten Bestätigungen auf zwei verschiedene Arten aus. Ein einziger, typisierter Vertrag dient jetzt jeder Freigabe, unabhängig vom Modus.",
+      "src": "b45c2672ed7a"
+    },
+    "107": {
+      "title": "13.600 Zeilen toter Code weniger",
+      "summary": "Autonomie-Engines und ein Freigabe-Framework wurden nicht mehr aufgerufen. Sie werden in fünf geprüften Gruppen entfernt, ohne dass etwas Lebendiges verloren geht.",
+      "src": "77b3a1cb0e11"
+    },
+    "108": {
+      "title": "Eine gemeinsame Basis für API-Schlüssel",
+      "summary": "Brave, OpenWeatherMap und Perplexity drosselten Prozess für Prozess, bei mehreren Workern also falsch. Sie erben von einer gehärteten Basis mit deterministischem Lebenszyklus.",
+      "src": "c230ae37dc9a"
+    },
+    "109": {
+      "title": "Wirklich wiederherstellbare Backups",
+      "summary": "Kein Backup der Datenbank war versioniert. Ein eigener Container exportiert jede Nacht mit Aufbewahrungsfrist, und ein Skript beweist die Wiederherstellung in einer Wegwerf-Datenbank.",
+      "src": "94256851b241"
+    },
+    "110": {
+      "title": "Backups verschlüsseln – später",
+      "summary": "Die Optionen zur Verschlüsselung der Backups werden analysiert und verglichen; die Entscheidung lautet: aufschieben, mit einem vorgezeichneten Weg zu einer Offsite-Kopie.",
+      "src": "2e297edfccf3"
+    },
+    "111": {
+      "title": "Ein Verbindungspool für LangGraph",
+      "summary": "Jeder Worker teilte sich eine einzige Verbindung, um alle Unterhaltungen zu speichern. Verbindungspools beseitigen diesen Engpass, den größten des Systems.",
+      "src": "4b2374b828a0"
+    },
+    "112": {
+      "title": "Festgeschriebene Python-Abhängigkeiten",
+      "summary": "Die installierten Versionen wichen von Rechner zu Rechner ab. Universelle Lockfiles, von uv erzeugt und in der CI geprüft, legen jede transitive Abhängigkeit fest.",
+      "src": "f79dc8f7268e"
+    },
+    "113": {
+      "title": "Integrationstests, die endlich laufen",
+      "summary": "250 Integrationstests liefen in keinem Job. Sie kommen mit einer echten Datenbank in die CI, Quarantänen sind verboten, und die Testabdeckung kann nicht mehr sinken.",
+      "src": "0d00f893f1a3"
+    },
+    "114": {
+      "title": "Typisierte Konnektor-Fehler",
+      "summary": "Die Client-Schicht warf rohe HTTP-Exceptions. Sie wirft jetzt Domänenfehler, mit exakt derselben Antwort für den Aufrufer.",
+      "src": "4e6b3f13c08f"
+    },
+    "115": {
+      "title": "Lebendig oder bereit: zwei Probes",
+      "summary": "Die Health-Probe konnte nie einen Ausfall melden. Sie wird aufgeteilt in „lebendig“ (immer 200) und „bereit“ (503, solange Datenbank und Redis nicht antworten).",
+      "src": "5f8a521cb2bb"
+    },
+    "116": {
+      "title": "Ein Testfundament für das Frontend",
+      "summary": "Das Herz des Chats war nur durch die Typisierung geschützt. Hunderte Tests decken jetzt Streaming, Freigaben und Stimme ab, mit Abdeckungsschwellen, die nicht sinken.",
+      "src": "f575eeec38b4"
+    },
+    "117": {
+      "title": "Eine Antwort, die den Verbindungsabbruch überlebt",
+      "summary": "Das Schließen des Tabs brach die Generierung ab. Die Antwort entsteht jetzt separat, wird über Redis Streams verteilt und läuft live weiter, wenn man zurückkommt.",
+      "src": "0741f98316b1"
+    },
+    "118": {
+      "title": "Einen Skill aus dem Chat installieren",
+      "summary": "Der Skill-Generator verlangte vier manuelle Handgriffe. Der Skill wird jetzt direkt installiert, über eine einzige, gehärtete Import-Pipeline.",
+      "src": "eb86ca4751df"
+    },
+    "119": {
+      "title": "Alarme, die wirklich wecken",
+      "summary": "Das Alerting war ohne schriftliche Entscheidung abgeschaltet worden. Ein minimaler Kern lebenswichtiger Alarme läuft wieder an, von Prometheus ausgewertet und per E-Mail verschickt, jeder mit seiner Handlungsanleitung.",
+      "src": "cf0390f395b3"
+    },
+    "120": {
+      "title": "„Zu meinem Bruder“ führt nicht mehr irgendwohin",
+      "summary": "Eine Route zu „meinem Bruder“ führte manchmal an einen beliebigen Ort. Deterministische Belege für den Bezug auf eine Person und ein Parameterwächter zur Laufzeit schließen jedes Glied der Fehlerkette.",
+      "src": "0deb82c77e87"
+    },
+    "121": {
+      "title": "Die Bedeutung jedes Parameters annotieren",
+      "summary": "Nur 14 % der Parameter trugen einen semantischen Typ. Eine Annotationskampagne verknüpft endlich Teilnehmer, Absender, Adressen und Datumsangaben über Tool-Grenzen hinweg.",
+      "src": "afe89a1c2c8f"
+    },
+    "122": {
+      "title": "Die größte Funktion zerlegen",
+      "summary": "Die Funktion, die jede Antwort streamt, umfasste über 1.100 Zeilen. Die Koordination der Stimme wird daraus in eine typisierte Zustandsmaschine ausgelagert.",
+      "src": "9510f366bbb0"
+    },
+    "123": {
+      "title": "Ein Start in Etappen",
+      "summary": "Der Start der API umfasste 780 Zeilen. Jedes Subsystem erhält sein eigenes Initialisierungsmodul, und eine einzige Funktion bestimmt die Reihenfolge.",
+      "src": "3b7a2dc206d4"
+    },
+    "124": {
+      "title": "Keine rohen HTTP-Exceptions mehr",
+      "summary": "Router und Services werfen jetzt zentral definierte Fehler, mit identischer Antwort für die Clients: Die Regel gilt nun für das gesamte Backend.",
+      "src": "a5f61cbb3318"
+    },
+    "125": {
+      "title": "Einen Entwurf ohne Kaskade anzeigen",
+      "summary": "Das Rendern der Bestätigungsvorschauen war eine Kaskade von Bedingungen. Eine Render-Tabelle pro Entwurfstyp ersetzt sie.",
+      "src": "89b482facd81"
+    },
+    "126": {
+      "title": "Identität von den Konten entkoppeln",
+      "summary": "Die am stärksten beanspruchte Domäne hing von zu vielen anderen ab. Authentifizierung und Konten werden getrennt, damit die Identität ein stabiles Fundament bleibt.",
+      "src": "3921b16252c3"
+    },
+    "127": {
+      "title": "LIA telefoniert für dich",
+      "summary": "LIA kann eine dritte Person anrufen, um eine Verfügbarkeit zu prüfen, und danach eine Zusammenfassung im Chat liefern. Der Anruf läuft über deinen eigenen Konnektor und bleibt bestätigt, begrenzt und rein lesend.",
+      "src": "692117e3ee22"
+    },
+    "128": {
+      "title": "Der Neuplaner berät, er handelt nicht",
+      "summary": "Die Analyse gescheiterter Pläne bleibt ein Rat: Sie speist die Observability und die angezeigte Meldung, ohne von sich aus einen neuen Plan zu starten.",
+      "src": "7f762b31a867"
+    },
+    "129": {
+      "title": "Indexierung, die nach einem Crash weiterläuft",
+      "summary": "Ein Neustart ließ Dokumente mitten in der Verarbeitung hängen. Dokumente und Quellen werden zu Aufgaben mit Lease, die automatisch wieder aufgenommen werden.",
+      "src": "5cc6fe854c59"
+    },
+    "130": {
+      "title": "Bilanz eines Audits, Befund für Befund",
+      "summary": "Elf Audit-Befunde werden ohne Delegation und ohne Regression abgearbeitet: Jedes Refactoring beginnt mit Tests, die das aktuelle Verhalten festschreiben.",
+      "src": "2662588babaf"
+    },
+    "131": {
+      "title": "Abwechslungsreichere Interessensthemen",
+      "summary": "Die Hälfte der Benachrichtigungen drehte sich um dasselbe Thema. Die Interessen werden nach wahrgenommenem Thema gruppiert und nach ihrer Seltenheit gezogen, gestützt auf Messungen.",
+      "src": "cb9ab643bac4"
+    },
+    "132": {
+      "title": "Mit einem Klick freigeben",
+      "summary": "Freigabeanfragen waren nur ein Text, den man deuten musste. Sie werden zu Karten mit Schaltflächen, nachdem latente Fehler behoben wurden.",
+      "src": "8281fd9bbbf8"
+    },
+    "133": {
+      "title": "Hinter den Kulissen jeder Antwort",
+      "summary": "Die Ausführungsschritte verschwanden beim ersten Wort der Antwort. Sie werden jetzt mit der Nachricht gespeichert und lassen sich nachträglich einsehen.",
+      "src": "bae312693b52"
+    },
+    "134": {
+      "title": "„Erneut verbinden“ statt einer Entschuldigung",
+      "summary": "Ein widerrufener Konnektor führte zu einer vagen Entschuldigung. Ein Banner bietet die erneute Verbindung mit einem Klick an, dank einer Klassifizierung nach Exception-Typ, nie nach Meldungstext.",
+      "src": "ea8b4a360319"
+    },
+    "135": {
+      "title": "Konkrete Benachrichtigungen zu Interessen",
+      "summary": "Der Heartbeat kam immer wieder auf dieselben Interessen zurück, ohne je etwas Konkretes zu bieten. Eine abwechslungsreiche Stichprobe, ein gemeinsames Register, eine Wiederholungssperre auf Inhaltsebene und eine konkrete Anreicherung korrigieren den Kurs.",
+      "src": "b95b35f502ea"
+    },
+    "136": {
+      "title": "Widgets, die auf dem iPhone laden",
+      "summary": "Auf dem iPhone blieben Karten und MCP-Apps ohne jede Meldung leer. Eine angepasste Isolationseinstellung und sichtbare Fehlerzustände bringen die Anzeige in Ordnung.",
+      "src": "396a4691dc54"
+    },
+    "137": {
+      "title": "Widgets, die an ihrer Nachricht hängen",
+      "summary": "Widgets erschienen doppelt oder gingen verloren. Das Modell schreibt nie mehr ihr Markup: Der Host platziert sie, und sie reisen mit ihrer Nachricht.",
+      "src": "bc28ac9c63d9"
+    },
+    "138": {
+      "title": "Jede Antwort bewerten",
+      "summary": "👍 oder 👎 unter jeder Antwort, mit optionalem Kommentar: Das Urteil wird gespeichert und fließt ins Lernen zurück, nie aber, um die Antwort an deiner Stelle neu zu erzeugen.",
+      "src": "831666bfa466"
+    },
+    "139": {
+      "title": "Zusagen, die nicht mehr verloren gehen",
+      "summary": "„Ich muss den Klempner zurückrufen“ starb mit der Unterhaltung. Ein Register der Zusagen bewahrt sie auf, und der Heartbeat hakt maßvoll nach.",
+      "src": "d48a0a2b04db"
+    },
+    "140": {
+      "title": "Routinen, im Gespräch angelegt",
+      "summary": "„Mach mir das jeden Morgen“ gelingt jetzt direkt im Chat, nach einer Bestätigung, und LIA schlägt eine Routine vor, wenn sie eine Anfrage wiederkehren sieht.",
+      "src": "9092fc122bd6"
+    },
+    "141": {
+      "title": "Aktives Wissen",
+      "summary": "Die Dokumentenräume werden zu einer Domäne, die der Planer abfragt, und ein 360°-Überblick bündelt alles, was LIA über eine Person weiß.",
+      "src": "650e9222772f"
+    },
+    "142": {
+      "title": "Die Psyche messen, bevor man sie einstellt",
+      "summary": "Die psychologischen Einstellungen waren ohne Messung ausgeliefert worden. Zuerst kommt ein Beobachtungsinstrument, und die gewünschten Eigenschaften werden zu Tests.",
+      "src": "8f3668e2fa83"
+    },
+    "143": {
+      "title": "Passkeys, TOTP und erneute Authentifizierung",
+      "summary": "Passkeys, TOTP als zweiter Faktor mit Backup-Codes und eine erneute Prüfung vor jeder sensiblen Aktion: maximale Sicherheit und maximaler Komfort, ohne dem Browser je ein Geheimnis preiszugeben.",
+      "src": "e26b8004dd5f"
+    },
+    "144": {
+      "title": "„Meine Geräte“",
+      "summary": "Jede Person sieht die mit ihrem Konto verbundenen Geräte und kann eines aus der Ferne widerrufen, mit strikt minimalen Daten (Browserfamilien, gekürzte IP).",
+      "src": "292d56e7c65a"
+    },
+    "145": {
+      "title": "Das ganze Konto exportieren",
+      "summary": "Im Rahmen der DSGVO-Datenübertragbarkeit lädt jede Person ihre gesamten Daten herunter, vorbereitet von persistenten Jobs und ohne je ein Geheimnis zu exportieren.",
+      "src": "a5af1953c2f9"
+    },
+    "146": {
+      "title": "Eine App, die offline durchhält",
+      "summary": "Ein einziger Service Worker kümmert sich um Benachrichtigungen und den Offline-Betrieb, mit einer Offline-Seite in LIAs Farben.",
+      "src": "b41f43c7ce31"
+    },
+    "147": {
+      "title": "Auf Basis des gerade Gesehenen antworten",
+      "summary": "Wenn eine Gesprächsrunde keine Daten liefert, stützt sich die Antwort auf die zuletzt gesehenen Entitäten, ohne je alte Daten in eine andere Frage durchsickern zu lassen.",
+      "src": "a885a0eda1b1"
+    },
+    "148": {
+      "title": "Gesundheitssignale, in SQL aggregiert",
+      "summary": "Der Heartbeat übertrug pro Durchlauf 30.000 Zeilen für ein paar Zahlen. Eine tägliche Aggregation in der Datenbank liefert eine Zeile pro Tag.",
+      "src": "a9bbd433e0e5"
+    },
+    "149": {
+      "title": "Ein Wegwerf-Container für jedes Skript",
+      "summary": "Ein Skript durch einen Benutzerwechsel zu isolieren, schützte nur, wenn die API als root lief. Jedes Skill-Skript läuft jetzt in einem Wegwerf-Container, ohne Netzwerk.",
+      "src": "2a3d03f502f7"
+    },
+    "150": {
+      "title": "Suchen während einer Neuindexierung",
+      "summary": "Einen Wissensraum neu zu indexieren, ließ ihn teilweise leer. Zwei Generationen bestehen nebeneinander, und ein Zeiger schaltet erst um, wenn die neue bereit ist.",
+      "src": "d478f783ae28"
+    },
+    "151": {
+      "title": "Die CI ruft auf, was der Entwickler startet",
+      "summary": "Der CI-Workflow enthielt fast hundert inline geschriebene Befehle. Jeder Schritt ruft jetzt einen Task aus dem Taskfile auf: Die CI führt buchstäblich aus, was jede Person lokal startet.",
+      "src": "9e1f37b0c746"
+    },
+    "152": {
+      "title": "Drei verwaiste Hooks entfernt",
+      "summary": "Frontend-Hooks, die von nichts genutzt wurden, werden entfernt, und der Build beweist es: weniger Code zu pflegen, keine Funktion verloren.",
+      "src": "212c8597392b"
+    },
+    "153": {
+      "title": "„Lieber um 15 Uhr“ verstehen",
+      "summary": "Eine frei formulierte Antwort auf eine Freigabeanfrage (ja, nein, ändern) einzuordnen, ging bei manchen Tool-Namen schief. Die Einordnung erfolgt jetzt nach dem Handlungsverb, mit Beispielen, die alle Fälle abdecken.",
+      "src": "48ccd5a434d6"
+    },
+    "154": {
+      "title": "Ein Satz endet an einem echten Punkt",
+      "summary": "Die Stimme brach mitten in einer URL oder einer Dezimalzahl ab. Ein Trennzeichen beendet einen Satz nur, wenn ein Leerzeichen folgt oder der Text endet, in beiden nun zusammengeführten Implementierungen.",
+      "src": "83368b52cb31"
+    },
+    "155": {
+      "title": "Ein Test schaltet sich nie still ab",
+      "summary": "Zehn Testsuiten schalteten sich mangels API-Schlüssel ab und liefen deshalb nie in der CI. Der Anbieter wird simuliert oder der Test sichtbar markiert, und ein Wächter verhindert einen Rückfall.",
+      "src": "4788b81a9746"
+    },
+    "156": {
+      "title": "Neun verwaiste Frontend-Module entfernt",
+      "summary": "Neun Module und ihre verwaisten Übersetzungen werden Schlüssel für Schlüssel entfernt, ohne die anzutasten, die eine noch lebende Komponente mitbenutzt.",
+      "src": "f18d5e39fa15"
+    },
+    "157": {
+      "title": "Eine Lücke schließen, ohne das Linting zu brechen",
+      "summary": "Eine Schwachstelle in einer JavaScript-Abhängigkeit verlangte eine inkompatible Version. Ein kleiner Interop-Patch wendet den echten Upstream-Fix an, ohne die Werkzeugkette zu brechen.",
+      "src": "704262330036"
+    },
+    "158": {
+      "title": "Vollständige Übersetzungen, nicht nur vorhandene",
+      "summary": "Die Schlüsselparität sah nicht, dass eine Übersetzung abgeschnitten war. Die Kürzungen sind behoben, und eine Sperrklinke verhindert, dass ihre Zahl steigt.",
+      "src": "5b25cb112c38"
+    },
+    "159": {
+      "title": "Alle vier Tagebuchthemen erreichbar",
+      "summary": "Ein einziges Tagebuchthema bekam fast alle Einträge. Eingeordnet wird nach Gegenstand, und ein Messaufbau prüft, dass jedes Thema lebendig bleibt.",
+      "src": "597c938ddb28"
+    },
+    "160": {
+      "title": "„Erstelle ein Bild“ funktioniert wieder",
+      "summary": "Sechs Bildanfragen in Folge waren gescheitert: Das Modell schrieb das Wort „null“ als Skill-Namen. Die Ausgaben werden normalisiert, und zwei Obergrenzen, die die Funktion unmöglich machten, sind aufgehoben.",
+      "src": "cee14ce17325"
+    },
+    "161": {
+      "title": "Ein stummer Stream gibt die Kontrolle zurück",
+      "summary": "Auf Mobilgeräten konnte eine Antwort bei „Wird generiert…“ hängen bleiben, obwohl sie fertig war. Ein Watchdog im Browser erkennt die Stille und nimmt den Stream automatisch wieder auf.",
+      "src": "d5730674fd3f"
+    },
+    "162": {
+      "title": "Nur ein Worker indexiert die System-FAQ",
+      "summary": "Vier Worker indexierten das Systemwissen gleichzeitig neu und überlasteten den Anbieter. Nur einer nimmt sich das Recht zu indexieren, und sein Cache übersteht das Deployment.",
+      "src": "bc751adfff36"
+    },
+    "163": {
+      "title": "Nur ein Worker berechnet die Werkzeug-Embeddings",
+      "summary": "Beim ersten Start berechnete jeder Worker dieselben Embeddings neu. Ein per Datei angemeldeter Anspruch bestimmt, wer allein rechnet; die anderen warten auf sein Ergebnis.",
+      "src": "9af03ebd6354"
+    },
+    "164": {
+      "title": "Welche Durchgänge das Gedächtnis nähren",
+      "summary": "Jede Entscheidung, etwas ins Gedächtnis, in die Interessen oder ins Tagebuch zu übernehmen, wird jetzt gezählt, um zu prüfen, dass keine Art von Durchgang versehentlich ausgelassen wird.",
+      "src": "0d2eff1f9daf"
+    },
+    "165": {
+      "title": "Einen Skill ändern heißt, ihn neu zu erzeugen",
+      "summary": "Um einen Skill anzupassen, liest die Assistentin die aktuelle Version erneut und erzeugt das vollständige Paket neu, im Werkzeug bestätigt, statt einen Teil-Patch anzuwenden.",
+      "src": "2bd70c848314"
+    },
+    "166": {
+      "title": "Was sich zu merken lohnt",
+      "summary": "Jedes erwähnte Thema wurde zum Interesse. Die Frage lautet jetzt: Hat die Person eine dauerhafte Bindung gezeigt? Fragen heißt nicht mögen, und jedes neue Interesse verlangt eine zitierte Grundlage.",
+      "src": "26a9a7da6201"
+    },
+    "167": {
+      "title": "Die Herkunft reist mit den Daten",
+      "summary": "Von Dritten geschriebener Text — eine Mail, eine Einladung, eine Webseite — muss Daten bleiben, niemals eine Anweisung werden. Das Vertrauen wird je Datentyp deklariert und überall angewendet, wo das Modell diese Daten liest.",
+      "src": "d2004e6a98da"
+    },
+    "168": {
+      "title": "Eine längst tote Suche entfernt",
+      "summary": "Eine hybride Suche im Gedächtnis wurde seit Monaten nicht mehr genutzt. Das Modul, seine Einstellungen und seine Metriken verschwinden, mit Nachweis der Inaktivität.",
+      "src": "1381b8f35642"
+    },
+    "169": {
+      "title": "Der Kontext eines ReAct-Durchgangs ist Zustand",
+      "summary": "Die Anweisungen des ReAct-Durchgangs wurden als Nachrichten angehängt und verschwanden, sobald der Verlauf auf sein Fenster gekürzt wurde. Sie werden zu Zustand, der bei jeder Iteration vorne neu zusammengesetzt wird.",
+      "src": "9e195c945844"
+    },
+    "170": {
+      "title": "Ein Rechenbudget, keine Stoppuhr",
+      "summary": "Die Zeit, in der auf deine Freigabe gewartet wurde, zählte als Rechenzeit. Das ReAct-Budget zählt nur echtes Rechnen, und ein Wächter stoppt eine Schleife, die denselben Aufruf wiederholt.",
+      "src": "fc4616384755"
+    },
+    "171": {
+      "title": "Klebende Kopfzeilen funktionieren endlich",
+      "summary": "Eine globale CSS-Regel machte alle „klebenden“ Elemente seit jeher wirkungslos. Ein anderer Overflow-Wert beschneidet die Seite, ohne das Haften zu verhindern.",
+      "src": "5e46cb293509"
+    },
+    "172": {
+      "title": "Eine Einstellung suchen",
+      "summary": "Eine Einstellung zu finden, deren Namen man kannte, erforderte, alles aufzuklappen. Ein Suchfeld indexiert die Abschnitte und sagt klar, wenn es ein Ziel nicht gibt.",
+      "src": "7717445ce763"
+    },
+    "173": {
+      "title": "Vorausfüllen oder senden: zwei Links",
+      "summary": "Ein Link, der das Feld vorausfüllt, und ein Link, der die Anfrage sendet, haben jetzt zwei getrennte Parameter, damit nie ein Text gesendet wird, den die Person nicht bestätigt hat.",
+      "src": "99aa861776c6"
+    },
+    "174": {
+      "title": "Das Debriefing eines Anrufs bleibt erhalten",
+      "summary": "Nach einem Anruf blieben nur eine Zusammenfassung und ein paar Daten übrig. Zusagen, vorgeschlagene Folgeschritte und Unsicherheiten werden jetzt in einem strukturierten Debriefing aufbewahrt.",
+      "src": "4a8036775570"
+    },
+    "175": {
+      "title": "Routinen, die reagieren",
+      "summary": "Eine Routine kann durch eine Bedingung ausgelöst werden — eine überfällige Aufgabe, ein Wetterumschwung —, die bei jedem Tick geprüft wird, und läuft nur einmal pro neuem Sachverhalt.",
+      "src": "5f6cb028f3b8"
+    },
+    "176": {
+      "title": "Ein Beziehungsbuch",
+      "summary": "LIA bündelt, was sie über Menschen schon weiß — Zusagen, Anrufe, Erinnerungen — in einer schreibgeschützten Beziehungsansicht, ohne neue Tabelle.",
+      "src": "24d501819a33"
+    },
+    "177": {
+      "title": "Antworten in angereichertem HTML",
+      "summary": "Callouts, Aufzählungen, Tabellen, einklappbare Blöcke: Ein Vokabular aus Komponenten erlaubt gestaltete Antworten, bereinigt nach einem erweiterten Schema.",
+      "src": "fc29649751a5"
+    },
+    "178": {
+      "title": "Ein Produkt-Dashboard",
+      "summary": "Über die Technik hinaus misst ein Dashboard nützliche Ergebnisse, Aktivierung, Bindung und Kosten pro Ergebnis, auf Grundlage dauerhafter Daten in der Datenbank.",
+      "src": "79d4f71e968d"
+    },
+    "179": {
+      "title": "Eine einzige Tür für strukturierte Ausgaben",
+      "summary": "Ein Anrufbericht kam auf Englisch und ohne sein Debriefing an: Ein Pfad umging die gemeinsame Tür. Jede strukturierte Ausgabe geht jetzt durch sie, abgesichert durch einen AST-Wächter.",
+      "src": "9301941d7c61"
+    },
+    "180": {
+      "title": "Nutzer derselben Instanz verbinden",
+      "summary": "Sich über den exakten Namen finden, sich nach gegenseitiger Zustimmung verbinden, einander von Assistent zu Assistent schreiben und schreibgeschützt teilen: Ein eigener Kontext ordnet diese Verbindungen.",
+      "src": "b0c62e55d739"
+    },
+    "181": {
+      "title": "Die „Cosmos“-Identität der öffentlichen Website",
+      "summary": "Der öffentliche Bereich bekommt eine kosmische Identität und scrollgesteuerte Choreografien, angewendet über einen CSS-Scope, ohne die Komponenten neu zu schreiben.",
+      "src": "c36403a7c1e3"
+    },
+    "182": {
+      "title": "Verbindungen kennen, Fehler ehrlich melden",
+      "summary": "Auf „Hat er morgen Zeit?“ kam die Antwort, kein Dienst sei eingerichtet. Das Routing kennt jetzt die Verbindungen, und ein Fehlschlag wird so gemeldet, wie er ist.",
+      "src": "6eeb02c420e6"
+    },
+    "183": {
+      "title": "Ein Werkzeugkatalog, der in sich schlüssig ist",
+      "summary": "Dieselbe Anfrage scheiterte mal und gelang mal, rein zufällig. Ein gefilterter Katalog muss geschlossen sein: Alles, was ein Werkzeug verlangt, muss von einem anderen Werkzeug des Katalogs erzeugt werden.",
+      "src": "38aa288b5a31"
+    },
+    "184": {
+      "title": "Eine durchgesetzte Grenze ist eine veröffentlichte Grenze",
+      "summary": "Der Planer sah die Grenzen nicht, die das Werkzeug stillschweigend durchsetzte. Jede durchgesetzte Einschränkung wird dem veröffentlicht, der den Wert erzeugt, und ein Validierungsurteil gilt nicht als Fehlschlag.",
+      "src": "92dbef9b4202"
+    },
+    "185": {
+      "title": "Ein Zähler ist eine Behauptung",
+      "summary": "Eine angezeigte Zahl muss exakt sein oder darf nicht existieren: Wer auf einer gekürzten Seite zählt, unterschätzt stillschweigend. Aggregat über die ganze Menge, Paginierung nur der Zeilen, exakte Gesamtzahl daneben.",
+      "src": "8c13acb087b9"
+    },
+    "186": {
+      "title": "Die Worte einer Nachricht bekommen eine Schonfrist",
+      "summary": "Der Inhalt einer weitergeleiteten Nachricht wurde gleich bei der Zustellung gelöscht. Jetzt bleibt er, wie bei Anrufen, eine begrenzte Zeit erhalten, bevor er entfernt wird.",
+      "src": "8faf7ec9e855"
+    },
+    "187": {
+      "title": "Ein einziges Suchfeld",
+      "summary": "Die Suche nach einem Peer per Name oder Adresse läuft über ein einziges Feld, und der Server entscheidet, worum es sich handelt.",
+      "src": "a6f4f7622435"
+    },
+    "188": {
+      "title": "Das Beziehungsbuch befragt die Anbieter",
+      "summary": "Die Beziehungsansicht kann Kontakte und Geburtstage beim Anbieter lesen, sofern sie sagt, was sie angesehen hat, und jede Zuordnung prüft.",
+      "src": "f4bd55e348c3"
+    },
+    "189": {
+      "title": "Auffindbar sein und seine Adresse preisgeben",
+      "summary": "Zuzustimmen, gefunden zu werden, heißt nicht, seine E-Mail-Adresse zu zeigen: Das ist eine zweite Einwilligung, standardmäßig ausgeschaltet.",
+      "src": "ebee018ed7d0"
+    },
+    "190": {
+      "title": "Was der Katalog ankündigt, hält das Register ein",
+      "summary": "Ein angekündigtes, aber im Register fehlendes Werkzeug gab leere Antworten. Ein Wächter vergleicht beide, und die Kontaktkarte zeigt alle ihre Felder.",
+      "src": "961d15400d06"
+    },
+    "191": {
+      "title": "Ein Werkzeug, erreichbar aus seiner Domäne",
+      "summary": "Ein 360°-Überblick kam beschnitten zurück: Das Werkzeug war aus der angefragten Domäne nicht erreichbar. Jedes Werkzeug deklariert die Domänen, die es bedient, und ein Klick ist kein Satz.",
+      "src": "df66133c380c"
+    },
+    "192": {
+      "title": "Ein Deep Link ist eine echte Navigation",
+      "summary": "Ein zweiter 360°-Überblick blieb auf dem ersten stehen: Der Router des Browsers verwendete die URL wieder. Ein Deep Link aus dem Chat wird zu einer vollständigen Navigation.",
+      "src": "15df62a10c1f"
+    },
+    "193": {
+      "title": "In jeder Domäne lesen",
+      "summary": "Eine Domäne, die nur schreiben kann, verleitet zum Schreiben. Drei Lesefähigkeiten (Anrufe, Zusagen, Nachrichten) kommen hinzu, und die Identität einer Person lässt sich korrigieren.",
+      "src": "008c609dd5a5"
+    },
+    "194": {
+      "title": "Referenzen vor dem Merge prüfen",
+      "summary": "Ein falscher Referenzpfad zwischen Schritten fiel erst bei der Ausführung auf. Ein CI-Wächter prüft, dass jedes veröffentlichte Beispiel tatsächlich erzeugt wird.",
+      "src": "5c4b17a8cbcf"
+    },
+    "195": {
+      "title": "Eine Frage stellen, keine Diagnose",
+      "summary": "Die Rückfrage zeigte die technische Beschreibung eines Problems. Jeder Problemtyp hat seine eigene Frage, in sechs Sprachen, beim Start geprüft.",
+      "src": "af10e4ca5718"
+    },
+    "196": {
+      "title": "Eine Benachrichtigung hat ihre Identität vor dem Versand",
+      "summary": "Das 👍/👎 einer proaktiven Benachrichtigung traf manchmal die falsche Zeile. Die Kennung wählt der Erzeuger vor dem Versand, und sie wird überall verwendet.",
+      "src": "7445dc9a3b2a"
+    },
+    "197": {
+      "title": "Verbunden heißt nicht unterbrochen",
+      "summary": "Um keine aus Mails gewonnenen Benachrichtigungen mehr zu bekommen, musste man die Mail-Verbindung kappen. Elf Schalter trennen jetzt die Verbindung von der Erlaubnis zu unterbrechen.",
+      "src": "bb14a5996d91"
+    },
+    "198": {
+      "title": "Eine Routine, höchstens einmal am Tag",
+      "summary": "Beim Berechnen der nächsten fünf Ausführungen tauchte ein Fehler bei der Zeitumstellung auf. Eine Routine läuft konstruktionsbedingt höchstens einmal pro lokalem Tag.",
+      "src": "4c501cf93a45"
+    },
+    "199": {
+      "title": "Vorschlagen, was man schon weiß",
+      "summary": "Der leere Chat schlägt Einstiege aus dem bereits zwischengespeicherten Briefing vor, nie aus einem neuen Abruf: Einen Vorschlag gibt es nur, wenn es den Beleg gibt.",
+      "src": "b8f82470670e"
+    },
+    "200": {
+      "title": "Zeigen, was die Einstellungen bewirken",
+      "summary": "Die Proaktivitäts-Panels regelten Häufigkeit und Quellen, ohne die erzeugten Benachrichtigungen zu zeigen. Jetzt sind sie dort sichtbar, eingeklappt.",
+      "src": "f65ce4a30c34"
+    },
+    "201": {
+      "title": "Woher stammt, was LIA weiß",
+      "summary": "Eine Erinnerung behauptete eine Vorliebe, ohne zu sagen, woher sie kam. Jede Schlussfolgerung behält einen Verweis auf ihren Ursprung, und eine Löschung hinterlässt eine datierte Spur.",
+      "src": "9b961672f241"
+    },
+    "202": {
+      "title": "Ein Ort, um zu lesen, was LIA schickt",
+      "summary": "Weitergeleitete Nachrichten, Benachrichtigungen, Erinnerungen: Fünf Ströme hatten keinen Ort zum Lesen. Ein Ziel „Hinweise“ bündelt sie, ohne etwas einzustellen.",
+      "src": "b9aaf15b9af7"
+    },
+    "203": {
+      "title": "Keine Anruf-Option wird an deiner Stelle angenommen",
+      "summary": "Die Folgeschritte eines Anrufs schickten die Nachricht sofort ab. Jetzt füllen sie das Feld vor, damit nichts ohne dich angenommen wird.",
+      "src": "ca48648ac5db"
+    },
+    "204": {
+      "title": "Unsicherheit erklären statt benoten",
+      "summary": "Das Gewicht eines Interesses erklärt sich aus seinen Bestandteilen, nie aus einem Score: Gezeigt wird die Begründung, keine irreführende Note.",
+      "src": "21328dcc62bd"
+    },
+    "205": {
+      "title": "Ein Status benennt einen Ton",
+      "summary": "Drei Komponenten kodierten ihre eigenen Statusfarben. Ein Status benennt jetzt einen Ton, dargestellt von einer einzigen Komponente, die den Kontrastwächter erbt.",
+      "src": "b88559281ec4"
+    },
+    "206": {
+      "title": "Barrierefreie Komponenten per Vertrag",
+      "summary": "Ein UX-Audit zeigte, dass die Barrierefreiheit nur auf einem Bruchteil der Oberfläche geprüft wurde. Der Vertrag eines Feldes lebt an einem einzigen Ort, und ein leerer Bildschirm bietet immer einen Ausweg.",
+      "src": "bd16e1907662"
+    },
+    "207": {
+      "title": "Eine Aktion hat eine Flughöhe",
+      "summary": "Gleichartige Aktionen sahen von Bildschirm zu Bildschirm anders aus. Vier Flughöhen für Aktionen, vier Button-Formen und sonst nichts.",
+      "src": "602bb807a99e"
+    },
+    "208": {
+      "title": "Einheitliche Zeilenaktionen",
+      "summary": "Drei ähnliche Bildschirme boten ihre Aktionen auf drei Arten an, teils für die Tastatur unsichtbar. Eine einzige Komponente macht sie immer sichtbar und zugänglich.",
+      "src": "05c26d183019"
+    },
+    "209": {
+      "title": "Ein chronologisches Debug-Panel",
+      "summary": "Das Debug-Panel zeigte die Schritte durcheinander. Jeder Aufruf trägt jetzt seinen Zeitpunkt, gemessen ab Beginn des Laufs, und das Panel folgt der echten Ausführungsreihenfolge.",
+      "src": "0dc2c461cf6c"
+    },
+    "210": {
+      "title": "Eine Aktion wird nicht wiederholt",
+      "summary": "Die Rückkehr auf eine Seite führte eine bereits erledigte Kartenaktion erneut aus. Jeder Klick erhält eine Einmal-Kennung, die beim Einlösen geprüft wird.",
+      "src": "3371190f58d5"
+    },
+    "211": {
+      "title": "Ein Deployment stört den laufenden Stack nicht",
+      "summary": "Das Deployment löschte das aktive Verzeichnis unter den laufenden Containern. Die neue Version wird separat vorbereitet und schaltet erst um, wenn sie bereit ist.",
+      "src": "5821328ad3db"
+    },
+    "212": {
+      "title": "Log-Labels unter Kontrolle",
+      "summary": "Unterschiedliche Felder zu Loki-Labels zu befördern, vervielfachte die indexierten Streams. Nur Felder mit einer kleinen, geschlossenen Wertemenge werden zu Labels; der Rest wird beim Lesen gefiltert.",
+      "src": "a353a0032db9"
+    },
+    "213": {
+      "title": "Wer fragt an? Ein Header, den man nicht schreiben kann",
+      "summary": "Drei Stellen lasen die Adresse des Aufrufers, und ein Besucher konnte sie fälschen. Ein einziger Resolver bevorzugt den Header, den Cloudflare überschreibt, und versperrt damit das Umgehen der Limits.",
+      "src": "3d8f8d7f5d02"
+    },
+    "214": {
+      "title": "Gewohnheiten lernen, unter deiner Kontrolle",
+      "summary": "LIA lernt, wann du was tust, mit deterministischen und erklärbaren Statistiken, per Simulation kalibriert. Jede Gewohnheit lässt sich sehen, korrigieren und sperren, und ein einziger Schalter schaltet jedes Lernen ab.",
+      "src": "3396559ddb51"
+    },
+    "215": {
+      "title": "LIA zu Hause installieren",
+      "summary": "Ein geführter Installer baut die Anwendung lokal oder nutzt per Prüfsumme verifizierte Images und liest ein Geheimnis nie anders als über die Standardeingabe.",
+      "src": "7634d82b6e82"
+    },
+    "216": {
+      "title": "Eine Obergrenze für die ganze Instanz",
+      "summary": "Limits pro Nutzer begrenzen keine Instanz: N Konten ergeben unbegrenzte Ausgaben. Ein atomar aktualisiertes Tagesbudget der Instanz begrenzt das Deployment selbst.",
+      "src": "76d684433bd8"
+    },
+    "217": {
+      "title": "Ein Schalter, der wirklich wegnimmt",
+      "summary": "Transkription, Sprachsynthese, Bilder … jede Fähigkeit, die kein Konnektor ist, hat ihren Admin-Schalter, der sie der Assistentin tatsächlich entzieht.",
+      "src": "052c8acfc939"
+    },
+    "218": {
+      "title": "Schutzmaßnahmen, aus der Quelle neu berechnet",
+      "summary": "Die Tests der Demo froren ein, was der Code am Tag der Auslieferung tat. Jedes Versprechen wird aus der Quelle der Wahrheit neu berechnet; eine nicht eingeordnete Neuerung lässt die CI scheitern.",
+      "src": "32d3c888c404"
+    },
+    "219": {
+      "title": "Ein gemerkter Standort, der mit seinem Alter reist",
+      "summary": "Der letzte bekannte Standort diente nur den Benachrichtigungen. Jetzt lesen ihn alle Funktionen, und sein Alter wird immer mitgeteilt.",
+      "src": "bf9ddf61742e"
+    },
+    "220": {
+      "title": "Tokens zählen, ohne auf den Anbieter zu zählen",
+      "summary": "Manche Anbieter liefern den Verbrauch nur, wenn man danach fragt. Jeder Anbieter deklariert seine Zählweise, beim Start geprüft, und ein bezahlter Aufruf ohne Zählung löst einen Alarm aus.",
+      "src": "013340d902f8"
+    },
+    "221": {
+      "title": "Das angezeigte Timeout ist das angewendete",
+      "summary": "Das Timeout pro Modell war bearbeitbar, wurde aber nie angewendet. Es wird zur Transportgrenze jedes Aufrufs, abgeglichen mit den echten Latenzen.",
+      "src": "2571bd210852"
+    },
+    "222": {
+      "title": "Eine nie angeschlossene HITL-Schicht entfernt",
+      "summary": "1.200 Zeilen Wiederaufnahme-Strategie waren nie aufgerufen worden. Sie sind entfernt: Toter Code kostet bei jeder Änderung.",
+      "src": "4a0210d9d634"
+    },
+    "223": {
+      "title": "Preise nach Uhrzeit",
+      "summary": "DeepSeek rechnet nach UTC-Uhrzeit ab. Jede Tarifzeile trägt ihre Zeitfenster, und jeder Aufruf wird zu seinem eigenen Zeitpunkt bepreist.",
+      "src": "d8f285d1ab6e"
+    },
+    "224": {
+      "title": "Konform mit der neuen MCP-Version",
+      "summary": "Die Revision 2026-07-28 des MCP-Protokolls ist eine Neufassung. LIA spricht beide Epochen und bindet ihr OAuth an den entdeckten Aussteller, ohne Regression.",
+      "src": "54d1839f548b"
+    },
+    "225": {
+      "title": "Der Standard Agent Plugins",
+      "summary": "LIA installiert portable Plugins nach dem Standard Agent Plugins: Skills und MCP-Server mit einem Handgriff, samt einem Bericht Komponente für Komponente.",
+      "src": "c7902ae7eb8a"
+    },
+    "226": {
+      "title": "Echte Dokumente erzeugen",
+      "summary": "„Recherchiere und fasse es dann als CSV zusammen“: Ein Schreibmodell erzeugt den strukturierten Inhalt, und lokale Engines bauen die Excel-, Word-, PowerPoint- oder PDF-Datei.",
+      "src": "4f52586a2b1f"
+    },
+    "227": {
+      "title": "Einstellungen als Master-Detail",
+      "summary": "Einundfünfzig eingeklappte Abschnitte in einem Akkordeon waren viel. Eine Leiste listet die Abschnitte, ein Panel zeigt die Auswahl, beide aus einer einzigen Tabelle gerendert.",
+      "src": "412fe0fad829"
+    },
+    "228": {
+      "title": "Die Arbeitsmappe ist das Formular",
+      "summary": "124 Modelle Dialog für Dialog zu verwalten, ist nicht durchzuhalten. Der Katalog lässt sich als Excel-Arbeitsmappe exportieren und wieder importieren, mit einer Vorschau der Änderungen vor dem Schreiben.",
+      "src": "70eef7f85556"
+    },
+    "229": {
+      "title": "Eine Fähigkeitenkarte, die nicht mehr veraltet",
+      "summary": "Die Fähigkeitenseite beschrieb das Produkt von vor sechs Monaten. Eine einzige Aggregation beantwortet „wie steht es um diese Fähigkeit“, und ein Assert zwingt jede Neuerung, dort aufzutauchen.",
+      "src": "d1941b0f3c72"
+    },
+    "230": {
+      "title": "Eine öffentliche Versionshistorie",
+      "summary": "„Vollständige Historie ansehen“ führte auf eine Seite, die sie nicht hatte. Eine öffentliche, serverseitig gerenderte Seite veröffentlicht jede Version.",
+      "src": "05d605b3dd9a"
+    },
+    "231": {
+      "title": "Ein typisierter Ausführungskontext",
+      "summary": "Die Identität eines Durchgangs reiste in einem untypisierten Dictionary. Sie wandert in einen typisierten, eingefrorenen Kontext von LangGraph — ohne Agent Server zu übernehmen, der mit LIA unvereinbar ist.",
+      "src": "06ee29d12e13"
+    },
+    "232": {
+      "title": "Die kognitiven Schleifen schließen",
+      "summary": "Die Selbstbewertung des Tagebuchs lieferte seit Monaten kein Signal. Adaptive Schwellen pro Person, ein Wächter für die Initiative und endlich geschlossene Schleifen beleben sie wieder.",
+      "src": "ba8a387498bf"
+    },
+    "233": {
+      "title": "Eine Ontologie ohne unnötige Maschinerie",
+      "summary": "Reasoning-Funktionen für die Ontologie wurden von nichts genutzt. Sie werden gemäß der Doktrin entfernt: Eine nicht angeschlossene Fähigkeit verschwindet.",
+      "src": "32868ca86536"
+    },
+    "234": {
+      "title": "Proaktive Arbeit wird sichtbar",
+      "summary": "Ein Aktivitätsverlauf versammelt, was LIA aus eigenem Antrieb getan hat, parallel aus den bestehenden Audit-Logs gelesen.",
+      "src": "7f2a05f0f317"
+    },
+    "235": {
+      "title": "Eine korrigierte Erinnerung behält ihre Geschichte",
+      "summary": "Ändert sich eine Tatsache, wird die alte Erinnerung nicht mehr gelöscht: Sie wird als ersetzt markiert und mit ihrer Nachfolgerin verknüpft.",
+      "src": "fd6a7da2c24d"
+    },
+    "236": {
+      "title": "Ein Gedächtnis für die Arbeitsweise",
+      "summary": "LIA merkt sich ausdrückliche Anweisungen dazu, wie sie für dich arbeiten soll — eine siebte Gedächtniskategorie mit strengen Kriterien.",
+      "src": "3dd6a1cfa149"
+    },
+    "237": {
+      "title": "Eine Stimme, die der Stimmung folgt",
+      "summary": "LIAs Gefühlszustand moduliert die Parameter der synthetischen Stimme — Ausdrucksstärke, Stabilität — mit sanften Verstärkungen und einer neutralen Zone.",
+      "src": "07b356782e3c"
+    },
+    "238": {
+      "title": "Eine Vorschlagsbox, eine begrenzte Autonomie",
+      "summary": "LIAs Vorschläge erscheinen in einer eigenen Box, ohne jede neue Befugnis, und das ReAct-Budget passt sich der tatsächlich geleisteten Arbeit an.",
+      "src": "67352520033b"
+    },
+    "239": {
+      "title": "Abschluss eines Weiterentwicklungsprogramms",
+      "summary": "Das Weiterentwicklungsprogramm endet mit einer belegten Bestandsaufnahme: Die ambiente Proaktivität gab es schon in Form bedingter Routinen, deren Anlage als Einwilligung gilt. Mehrtägige Missionen, ein automatischer Kritiker und die Umwandlung von Routinen in Skills bleiben der Entscheidung des Projektinhabers vorbehalten, samt Belegen.",
+      "src": "48a9e9115418"
+    },
+    "240": {
+      "title": "Ausdrucksstarke Augen",
+      "summary": "Animierte Augen zeigen, was LIA tut — nachdenken, suchen, sprechen, auf deine Freigabe warten —, auf Grundlage von Signalen, die es schon gab, ganz ohne neues Backend.",
+      "src": "ba074d946f6c"
+    },
+    "241": {
+      "title": "Überall Python 3.14",
+      "summary": "Drei Python-Versionen existierten nebeneinander in Images, CI und Entwicklerrechnern. Ein einziger Interpreter, CPython 3.14 auf Debian Trixie, für die ganze Umgebung.",
+      "src": "fa47b2575a67"
+    },
+    "242": {
+      "title": "Eine gut dosierte Hybridsuche",
+      "summary": "Der lexikalische Score erdrückte den semantischen und verwarf gute Passagen. Die Schwelle gilt zuerst der Bedeutung, und das Lexikalische fügt nur einen begrenzten Bonus hinzu.",
+      "src": "4281aa0963c1"
+    },
+    "243": {
+      "title": "Ein OLED-Schwarz",
+      "summary": "Absolutes Schwarz für OLED-Bildschirme: eine Verfeinerung des Dunkelmodus über ein Attribut, kein viertes Theme, das die anderen kaputt machen würde.",
+      "src": "abc42ddd44bb"
+    },
+    "244": {
+      "title": "Ein Modellkatalog, der die Wahrheit sagt",
+      "summary": "89 von 114 Modellen trugen nie geprüfte Standardfähigkeiten. Zwei öffentliche Register speisen den Katalog, und jede Zeile sagt, woher ihre Fähigkeiten stammen.",
+      "src": "9212878eb7f2"
+    },
+    "245": {
+      "title": "Eine Reasoning-Absicht, ein Übersetzer",
+      "summary": "Ein Modell zum Nachdenken aufzufordern lief über vier gespeicherte Formen und sieben Konstruktoren. Eine einzige Absicht, ein abgeleitetes Profil und eine einzige Übersetzungsnaht je Anbieter.",
+      "src": "918e0e3b2f61"
+    },
+    "246": {
+      "title": "Ein Telefon benachrichtigen, das man nicht kontrolliert",
+      "summary": "Die mobilen Apps werden einmal für alle selbst gehosteten Server veröffentlicht. Android erhält die Benachrichtigungen über das Firebase des jeweiligen Servers; iOS geht über ein Relais, das keinerlei Inhalt transportiert.",
+      "src": "a6c7f473528c"
+    },
+    "247": {
+      "title": "Eine Assistentin, die ihre eigene Telemetrie liest",
+      "summary": "LIA erzeugte Hunderte Metriken, ohne eine davon zu lesen. Ein regelmäßiger Selbstcheck, ein Gedächtnis für diagnostizierte Vorfälle und Antworten, die einen bekannten Ausfall umgehen.",
+      "src": "5c4dc04e79c5"
+    },
+    "248": {
+      "title": "ReAct: Ein Versprechen ist keine Antwort",
+      "summary": "„Gib mir eine Minute“ ist keine Antwort. Die ReAct-Schleife teilt das Gedächtnis der Pipeline, verdient ihr Budget durch Ergebnisse und veröffentlicht nie eine Nachricht, die Arbeit ankündigt, die sie nicht leisten wird.",
+      "src": "3ae81d02c8a3"
+    },
+    "249": {
+      "title": "Ein Python-Taschenrechner für den Agenten",
+      "summary": "Für Berechnungen, die ein Modell schlecht kann, schreibt der Agent ein kurzes Skript und führt es in der bestehenden Sandbox aus, nur im ReAct-Modus, mit Daten, die übergeben statt abgeschrieben werden.",
+      "src": "56eeeb22796d"
+    },
+    "250": {
+      "title": "Eine verlorene Verbindung ist kein gescheitertes Deployment",
+      "summary": "Das Deployment endete mit einem Fehler, den man zu ignorieren gelernt hatte. Das Urteil des entfernten Hosts wird jetzt aus einer Datei gelesen, nie aus einem SSH-Exitcode abgeleitet.",
+      "src": "962955195f76"
+    },
+    "251": {
+      "title": "Farbe unterscheidet keine identischen Formen",
+      "summary": "53 Einstellungsabschnitte hatten dieselbe Farbe und manchmal dasselbe Symbol. Die kollidierenden Symbole sind korrigiert, und zwölf gemessene Gruppentöne helfen bei der Orientierung.",
+      "src": "31f7f8b305e7"
+    },
+    "252": {
+      "title": "Eine Animations-Engine für die Augen",
+      "summary": "Die Augen waren an die Grenze von CSS gestoßen. Eine TypeScript-Engine berechnet jeden Kanal in jedem Frame und veröffentlicht Eigenschaften, die das Stylesheet nur noch liest.",
+      "src": "a9d4ec509b97"
+    },
+    "253": {
+      "title": "Die Antwort gibt ihre Tonlage an",
+      "summary": "Das Modell, das die Antwort schreibt, gibt deren Tonlage selbst an — beruhigt, bedauernd, fröhlich … — in einem eigenen Vokabular für die Gesichtsanimation.",
+      "src": "93f488e9961d"
+    },
+    "254": {
+      "title": "Eine Lastspitze glätten, die keine Obergrenze sieht",
+      "summary": "Sechs Hintergrundaufgaben starteten in derselben Sekunde. Ein zufälliger Versatz an der Quelle, ein kurzer Stoßdämpfer auf Anbieterseite und eine Wartezeit, die bei Ablauf durchlässt, fangen die Spitze ab.",
+      "src": "8babdde8827b"
+    },
+    "255": {
+      "title": "Eine Autorität für das, was ein MCP-Server deklariert",
+      "summary": "Das Lesen der JSON-Schemas von MCP-Werkzeugen gab es doppelt. Ein einziges Modul liest die Deklaration buchstabengetreu nach dem Standard, für den Adapter wie für den Planer.",
+      "src": "8b165b4f71f3"
+    },
+    "256": {
+      "title": "Ein Budget, das alle Arbeit zählt",
+      "summary": "Das ReAct-Budget zählte nur das Reasoning. Die Werkzeugzeit wird zu einem zweiten, benannten Budget, jeder Aufruf hat seine Grenze, und eine Delegation kann nicht mehr alles aufbrauchen.",
+      "src": "8196d2f40772"
+    },
+    "257": {
+      "title": "Fünf Nahtfehler",
+      "summary": "Ein Literaturüberblick diente als Leseraster: Die Herkunft übersteht die Komprimierung, der Anker des Durchgangs hält, die Trace-Zählungen sind ehrlich, die Validierung prüft die Abdeckung, und der gelieferte Kontext wird gemessen.",
+      "src": "0dad4a453458"
+    },
+    "258": {
+      "title": "Eine Besprechung aufnehmen, das Protokoll bekommen",
+      "summary": "Die „+“-Schaltfläche macht Telefon oder Computer zum Aufnahmegerät: Das Audio wird in Segmenten übertragen, und LIA liefert ein strukturiertes Protokoll — Datum, Teilnehmende, Entscheidungen, Aufgaben.",
+      "src": "5523c01122b0"
+    },
+    "259": {
+      "title": "Eine Bibliothek von Protokollvorlagen",
+      "summary": "Dreißig eingebaute Vorlagen oder deine eigenen, automatisch passend zur Besprechung gewählt, und ein Protokoll, das sich in eine andere Vorlage umformatieren lässt.",
+      "src": "79b2565f719f"
+    },
+    "260": {
+      "title": "Jeder Redis-Schlüssel deklariert seinen Geltungsbereich",
+      "summary": "Ein Gespräch zurückzusetzen löschte auch Gelerntes. Jede Schlüsselfamilie deklariert ihren Geltungsbereich, und die Bereinigung entfernt nur, was ihre Familie deklariert.",
+      "src": "4b86a39fe481"
+    },
+    "261": {
+      "title": "Eine eintreffende E-Mail weckt LIA",
+      "summary": "Eine Push-Benachrichtigung von Gmail oder Drive stellt einen Weckruf in die Warteschlange. LIA arbeitet ihn unter all ihren Eignungsregeln ab, und Drive synchronisiert nur neu, was sich geändert hat.",
+      "src": "ce5a221acde0"
+    },
+    "262": {
+      "title": "Ein Gmail-Label als Wissensquelle",
+      "summary": "Ein Wissensraum folgt einem Gmail-Label, nie dem ganzen Postfach. Wer das Label entfernt, entfernt das Dokument: Die Einwilligung ist das Label.",
+      "src": "9ae154bf3ede"
+    },
+    "263": {
+      "title": "Jede Aktion erklärt, was sie schuldet, und hinterlässt eine Spur",
+      "summary": "Jedes Werkzeug erklärt, ob es liest, entwirft, um Bestätigung bittet oder handelt. Jede Aktion wird vor ihrem Stattfinden eingetragen und danach anhand ihres Ergebnisses abgeschlossen, und drei Register, die die Instanz pro Konto versiegeln kann, zeichnen nach, was LIA getan, gelesen und entschieden hat.",
+      "src": "8f1f04732027"
+    },
+    "264": {
+      "title": "Lebendige Augenbrauen und ein lebendiger Mund",
+      "summary": "Die Augenbrauen haben eine Wölbung, ein gemeinsamer Atem trägt das Gesicht, und der Mund hat ein Eigenleben: LIAs Gesicht bewegt sich, ohne je ein Budget von wenigen Pixeln zu verlassen.",
+      "src": "b500f4104f10"
+    },
+    "265": {
+      "title": "Die Woche der Routinen",
+      "summary": "Ein Wochenraster zeigt, wann jede Routine lief und mit welchem Ergebnis, aus einem Verlauf, der im Moment des Ergebnisses geschrieben wird.",
+      "src": "543a3cd550f5"
+    },
+    "266": {
+      "title": "Eine Diagnose, die ihre Belege rechtzeitig sammelt",
+      "summary": "Der Diagnostiker sammelt seine Belege in dem Moment, in dem der Vorfall eintritt, Quelle für Quelle, und ein an einen Embedding-Anbieter gesendeter Text ist immer ein exakter String.",
+      "src": "b2ecdd85b61d"
+    },
+    "267": {
+      "title": "Ollama als nativer Anbieter",
+      "summary": "Ollama wird über seinen nativen Client bedient, und sein Server deklariert selbst, was seine Modelle können: Werkzeuge, Vision, Reasoning, Kontextgröße.",
+      "src": "2bbcee96c172"
+    },
+    "268": {
+      "title": "Eine Wiederholungs-Engine, eine wiederkehrende Erinnerung",
+      "summary": "Eine einzige Wiederholungs-Engine bedient Routinen und Erinnerungen: „jeden zweiten Dienstag um 8 Uhr“ wird möglich, und eine Erinnerung kann sich endlich wiederholen.",
+      "src": "9da376d4f7f7"
+    },
+    "269": {
+      "title": "Ein schriftliches Debriefing je Beziehung",
+      "summary": "Für jede Beziehung schreibt LIA einmal am Tag eine datierte Zusammenfassung — wo du stehst, was anzusprechen ist —, die der Chat mitliest, ohne sie je als geprüfte Tatsache auszugeben.",
+      "src": "5e3bff71f1b9"
+    },
+    "270": {
+      "title": "Wissen, wo jeder Euro gezählt wird",
+      "summary": "Jedes Modul, das ein Modell aufruft, deklariert, wo seine Ausgaben verbucht werden, und jede Registerzeile deklariert, wer ihr Urheber ist: du, eine Routine oder LIA von sich aus.",
+      "src": "624413b20e7f"
+    },
+    "271": {
+      "title": "Ein Seitenaufruf, ein einziger Lesevorgang",
+      "summary": "Das Dashboard las deine Quellen bei jedem Laden doppelt. Gleichzeitige Anfragen teilen sich jetzt dieselbe Arbeit, auch über mehrere Prozesse hinweg.",
+      "src": "a62c04998d8a"
+    },
+    "272": {
+      "title": "Jedes bezahlte Token unterliegt zwei Obergrenzen",
+      "summary": "Jeder von der Plattform bezahlte Aufruf ist zugleich durch die Obergrenze des Kontos und durch das Tagesbudget der Instanz begrenzt, an der innersten Tür.",
+      "src": "04f69aaea874"
+    },
+    "273": {
+      "title": "Ein Registerexport ist vollständig",
+      "summary": "Die heruntergeladenen Register waren in der Zeilenzahl gedeckelt. Ein serverseitiger Cursor streamt sie vollständig, mit einer vorab angekündigten exakten Gesamtzahl.",
+      "src": "355cbac177e8"
+    },
+    "274": {
+      "title": "Das Rendering pflegt die Form, das Modell den Sinn",
+      "summary": "Das Modell sagt, was ein Inhalt ist — Liste, Zitat, Hinweis, Tabelle —, und die Rendering-Engine zeichnet ihn mit den nativen Mechanismen von Word, PowerPoint, Excel und PDF, ohne dass je etwas überläuft.",
+      "src": "9be7ae51886d"
+    },
+    "275": {
+      "title": "Eine abgeschnittene Ausgabe ist eine Ablehnung, keine Rettung",
+      "summary": "Eine vom Token-Limit abgeschnittene strukturierte Antwort wird nicht mehr zu einem kürzeren Dokument zusammengeflickt und als Erfolg verkündet: Sie ist eine Ablehnung und wird so benannt.",
+      "src": "c94bf668ac59"
+    },
+    "276": {
+      "title": "Das Workboard",
+      "summary": "Ein Ticket hat einen Lebenszyklus, einen Inhaber und ein Ergebnis. LIA kann ein Ticket ausführen, ihre Fragen direkt darin stellen und auf deine Antwort warten, allein oder mit einem Peer.",
+      "src": "4ab2eeed4fb8"
+    },
+    "277": {
+      "title": "Angeheftete Einstellungs-Verknüpfungen",
+      "summary": "Du heftest deine liebsten Einstellungsbereiche an ein schwebendes Dock: Die Liste folgt deinem Konto, die Position deinem Gerät.",
+      "src": "ae79a3bf1dee"
+    },
+    "278": {
+      "title": "Das Kontextfenster gehört zum Platz",
+      "summary": "Die Kontextgröße ist keine globale Einstellung der Instanz mehr: Jeder konfigurierte Platz hat seine eigene, vorbelegt mit dem, was der Server angibt.",
+      "src": "6f3229008cd7"
+    },
+    "279": {
+      "title": "Deine erzeugten Dateien gehören dir",
+      "summary": "Bilder, Dokumente und Screenshots, die LIA erzeugt, haben ihre Galerie, und das Zurücksetzen eines Gesprächs löscht nicht mehr die Dateien der anderen Gespräche.",
+      "src": "652dd446239c"
+    },
+    "280": {
+      "title": "Ein Schalter pro Fähigkeit",
+      "summary": "Fünfundzwanzig Fähigkeiten haben jeweils einen eigenen Schalter. Eine Fähigkeit abzuschalten entfernt die Funktion, nie deine Daten, und die Fähigkeitenkarte zählt nur, was sie benennt.",
+      "src": "4419dd06d318"
+    },
+    "281": {
+      "title": "Im richtigen Moment zurückkommen",
+      "summary": "Eine Besprechung endet um 15 Uhr: LIA kann gleich danach fragen, wie sie gelaufen ist, und eine Beobachtung auf eine erwartete E-Mail greift auf die Minute.",
+      "src": "2758493fdf0d"
+    },
+    "282": {
+      "title": "Eine Antwort aufbewahren",
+      "summary": "Eine aufbewahrte Antwort ist eine Kopie, die dir gehört: Sie übersteht das Zurücksetzen des Gesprächs, lässt sich wieder lesen und exportieren.",
+      "src": "56186bf5ffaa"
+    },
+    "283": {
+      "title": "Die Speicheranatomie eines Workers",
+      "summary": "Jeder Prozess deklariert und veröffentlicht den Speicher, den er belegt: Der Supervisor lädt die Anwendung nicht mehr, schwere Bibliotheken werden erst bei Bedarf geladen, und der Sprach-Cache ist begrenzt.",
+      "src": "f90b07986000"
+    },
+    "284": {
+      "title": "Ein Prompt sagt, was der Code erzwingt",
+      "summary": "Die Prompt-Prüfung fand sechs Stellen, an denen der Text etwas anderes sagte als der Code. Jede Variable hat einen Erzeuger, jede Grenze stammt aus einer einzigen Konstante.",
+      "src": "394648966fa2"
+    },
+    "285": {
+      "title": "Eine kurze Antwort ohne Reasoning",
+      "summary": "Ein Modell, das standardmäßig nachdenkt, verbrauchte sein ganzes Budget mit Denken und lieferte leere Erinnerungen. Eine kurze Antwort wird ohne Reasoning angefordert, und eine Modellfamilie wird einmal deklariert.",
+      "src": "e260f3ecafcd"
+    },
+    "286": {
+      "title": "Lesbare, begrenzte Werkzeugergebnisse",
+      "summary": "Ein Werkzeugergebnis wird Element für Element unter einem Token-Budget aufbereitet, und der Schnitt wird angekündigt: Der Agent liest ganze E-Mails statt technischer Header.",
+      "src": "840f53028a41"
+    },
+    "287": {
+      "title": "Saubere E-Mails, einmal zusammengefasst",
+      "summary": "Eine E-Mail kommt bereinigt an — ohne zitierten Verlauf und ohne Signatur —, in drei Detailstufen, und ihre Zusammenfassung wird nur einmal berechnet und dann zwischengespeichert.",
+      "src": "50efbea6e48a"
+    },
+    "288": {
+      "title": "Mehrere Entwürfe, einzeln geprüft",
+      "summary": "Zwei unabhängige E-Mails im selben Durchgang werden nacheinander vorgelegt, jede mit ihrer eigenen Entscheidung; nur ein bereits genehmigter Stapel bleibt gebündelt.",
+      "src": "05bb9a8716ab"
+    },
+    "289": {
+      "title": "Ein Entwurf, einmal beschrieben, überall gezeichnet",
+      "summary": "Eine Entwurfskarte wird nur einmal beschrieben und je nach Oberfläche gezeichnet: als visuelle Karte im Chat, als lesbarer Text in einem Ticket.",
+      "src": "4a39de642bf7"
+    },
+    "290": {
+      "title": "Das Telefon wird zum Kanal",
+      "summary": "LIA ruft dich unter einer Nummer an, die per gesprochenem Code verifiziert ist, liest während des Anrufs deine Daten, und was du sagst, wird zu deiner eigenen Nachricht im Chat.",
+      "src": "56411e51a3b5"
+    },
+    "291": {
+      "title": "Aufbewahrte Antworten werden abrufbar",
+      "summary": "Jede aufbewahrte Antwort wird in einem persönlichen Wissensraum indexiert: LIA kann sie wiederfinden, wenn du wieder darauf zu sprechen kommst.",
+      "src": "ad2550cda707"
+    },
+    "292": {
+      "title": "Ein Porträt, das seine Quellen nennt",
+      "summary": "Dein Porträt speist sich aus vier Quellen — Erinnerungen, Interessen, Gewohnheiten, Beziehungen — und sagt, welche davon es lesen konnte.",
+      "src": "7d8ce17234ca"
+    },
+    "293": {
+      "title": "Die ReAct-Schleife wählt ihre Werkzeuge nach Relevanz",
+      "summary": "Statt eines in Registrierungsreihenfolge abgeschnittenen Katalogs bindet die ReAct-Schleife die für deine Frage relevantesten Werkzeuge und deckt dabei jede Familie ab.",
+      "src": "5fe33c01fc62"
+    },
+    "294": {
+      "title": "Ein Gesicht, das nie dieselbe Szene noch einmal spielt",
+      "summary": "Augenbrauen, die auf dem Auge sitzen, Silbe für Silbe erzeugte Sprache, abwechslungsreiche Gesten und kleine Szenen in Ruhe: Der Avatar spielt nie zweimal dasselbe.",
+      "src": "b0bf858d9241"
+    },
+    "295": {
+      "title": "Ein Dokument aus deinen Wissensräumen anhängen",
+      "summary": "Ein Dokument aus einem Wissensraum, selbst einem pausierten, lässt sich als Kopie an eine Nachricht anhängen, ohne den Raum anzutasten.",
+      "src": "7b1bb32f9af9"
+    },
+    "296": {
+      "title": "Den Anhang einer E-Mail lesen",
+      "summary": "LIA öffnet einen Anhang: seinen Text, wenn er einen hat, das Vision-Modell, wenn es ein Bild oder ein Scan ist.",
+      "src": "cced9367e02e"
+    },
+    "297": {
+      "title": "Ein Drive-Ordner ist ein Baum",
+      "summary": "Ein verknüpfter Drive-Ordner wird samt Unterordnern indexiert, und oberhalb einer Schwelle nennt LIA vor dem Synchronisieren die genaue Anzahl der Dateien.",
+      "src": "d5d78ab895d2"
+    },
+    "298": {
+      "title": "Die Sandbox geht ins Netz, unter Kontrolle",
+      "summary": "Ein Skript kann einen Dienst über einen einzigen Proxy aufrufen, mit Tokens, die es nicht lesen kann. Ein unbekannter Host löst eine Frage aus, die LIA nicht überspringen kann.",
+      "src": "9bee30e79e12"
+    },
+    "299": {
+      "title": "Der Live-Modus: in Echtzeit sprechen",
+      "summary": "Ein Sprachmodell hört zu und antwortet im selben Atemzug, mit deinem eigenen Schlüssel; jede Bitte um Daten oder eine Aktion wird an LIAs Engine delegiert, mit denselben Regeln wie im Chat.",
+      "src": "df0c01b409f7"
+    },
+    "300": {
+      "title": "Ein zweiter Live-Anbieter",
+      "summary": "Jeder Anbieter deklariert seine Verbindungsart und seine Art zu delegieren, ohne jede Verzweigung nach seinem Namen: Gemini Live, GPT-Live und dann ElevenLabs laufen über dieselbe Naht.",
+      "src": "1ae59a177098"
+    },
+    "301": {
+      "title": "Eine Regel pro Sprachmodus",
+      "summary": "Am Telefon wie im Browser delegiert „Live“ jede Bitte während des Gesprächs, und „Live direkt“ liest, ohne zu handeln, und gibt deine Worte am Ende weiter: ein einziger Abschluss für beide.",
+      "src": "9715482a3f62"
+    },
+    "302": {
+      "title": "Eine Einwilligung pro Anbieter",
+      "summary": "Die eigenen Google- oder Microsoft-Dienste neu zu verbinden erfordert einen einzigen OAuth-Ablauf pro Konto, geprüft über eine signierte Identität, und jeder Dienst behält seinen eigenen Zustand.",
+      "src": "8476fcbdedea"
+    },
+    "303": {
+      "title": "Ein Werkzeugfehler wird gesagt, nie erraten",
+      "summary": "Wenn ein Werkzeug scheitert, sagt LIA das mit dem wahren Grund, statt eine Diagnose zu erfinden, und die Metriken zählen Fehlschläge endlich als Fehlschläge.",
+      "src": "efff537f2b37"
+    },
+    "304": {
+      "title": "Keine Transaktion während eines Netzwerkaufrufs",
+      "summary": "Eine Datenbankverbindung wartet nie mehr auf die Antwort eines Anbieters: Blockierte Weckrufe, gehaltene Sperren und untätige Verbindungen „in Transaktion“ verschwinden.",
+      "src": "405c6bcfb047"
+    },
+    "305": {
+      "title": "Mehrere Bildanbieter",
+      "summary": "Jede Familie von Bildmodellen deklariert, was sie akzeptiert und wie sie abgerechnet wird: OpenAI und Qwen Image laufen je über einen einzigen Client, und ein Bild lässt sich nachbearbeiten.",
+      "src": "a06d68d95f8a"
+    },
+    "306": {
+      "title": "Claude-Modelle, zum richtigen Preis abgerechnet",
+      "summary": "Die Anfrageoberfläche der Claude-Modelle wird einmal deklariert, und der Prompt-Cache wird genau so gestaltet und abgerechnet, wie der Anbieter ihn misst.",
+      "src": "0839113936b0"
+    },
+    "307": {
+      "title": "Konnektoren ohne Schlüssel gehören der Instanz",
+      "summary": "Wikipedia, Web-Browsing, Places, Wetter und Umwelt verlangen der Person nichts ab: Der Administrator schaltet sie für alle ein.",
+      "src": "a3f80e5d3024"
+    },
+    "308": {
+      "title": "Ein Cache, der von einem ReAct-Durchgang zum nächsten überlebt",
+      "summary": "Eine Option lässt jeden ReAct-Durchgang das Präfix des vorigen wiederverwenden — alle Werkzeuge, dann den Kontext des Durchgangs hinter der Frage —, damit schon gesendete Tokens weniger kosten.",
+      "src": "6081182700e0"
+    },
+    "309": {
+      "title": "Ein einziges Prompt-Layout für alle Caches",
+      "summary": "Das Stabile vor dem Veränderlichen, eine einzige Grenze, kein Cache-Schreiben, das niemand wieder liest: Jeder Anbieter übersetzt dieselbe Regel in seinen eigenen Mechanismus.",
+      "src": "c0cf350b6cc2"
+    },
+    "310": {
+      "title": "Ein ReAct-Durchgang, an seinem Ergebnis gemessen",
+      "summary": "Was die Schleife zu holen aufbricht, ist am Ende beschafft oder als fehlend gemeldet. Eine gemeldete Lücke eröffnet eine begrenzte Nachholrunde, und die Antwort sagt, was nicht beschafft werden konnte.",
+      "src": "fb30c2c99de7"
+    }
+  }
+}

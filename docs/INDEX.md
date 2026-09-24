@@ -40,6 +40,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Document | Description |
 |----------|-------------|
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Architecture globale |
+| [Cartes vivantes](./maps/README.md) | [Carte fonctionnelle](./maps/functional-map.html) (briques, dépendances, parcours), [carte technique](./maps/technical-map.html) (couches, technologies, chemins du dépôt) et [historique des décisions](./maps/adr-history.html) (chaque ADR vulgarisée, par thème et par chapitre) — publiées aussi sur le site public, rubrique « Cartes » (`/maps`), dans les six langues |
 | [ARCHITECTURE_LANGRAPH.md](./ARCHITECTURE_LANGRAPH.md) | **Le graphe** : nodes, routing, state, HITL, streaming, INTELLIPLANNER — la référence LangGraph |
 | [ARCHITECTURE_AGENT.md](./ARCHITECTURE_AGENT.md) | **Le manuel du domaine agents** : ajouter un connecteur, un agent, un tool ; manifestes, cache, DI, contexte, tests |
 | [STATE_AND_CHECKPOINT.md](./technical/STATE_AND_CHECKPOINT.md) | State management et persistence (les reducers font autorité ici) |
@@ -83,6 +84,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [GETTING_STARTED.md](./GETTING_STARTED.md) | Guide d'installation complet | ✅ |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Architecture globale, patterns, technologies | ✅ |
 | [INDEX.md](./INDEX.md) | Ce document - carte de la documentation | ✅ |
+| [Cartes vivantes](./maps/README.md) | Carte fonctionnelle, carte technique et historique illustré de toutes les décisions — pages interactives du site public (`/maps`, six langues) et documents HTML français, tirés des mêmes données et vérifiés à chaque commit | ✅ |
 | [GUIDE_SHOWROOM.md](./guides/GUIDE_SHOWROOM.md) | Showroom `/demo` : expliquer, mise en œuvre, paramétrer, déployer, exploiter | ✅ |
 | [Programme showroom public](./superpowers/specs/2026-08-05-public-web-showroom-program.md) | P0 mission guidée /demo → P1 installateur → P2 démo live isolée | ✅ |
 | [Plan P0 showroom](./superpowers/plans/2026-08-05-public-web-showroom-lot0.md) | Implémentation de la mission guidée client-only | ✅ |
@@ -603,7 +605,7 @@ LIA/
 │   │   │   ├── core/           # Configuration, security, middleware
 │   │   │   ├── domains/        # DDD: agents, auth, users, connectors, briefing, etc.
 │   │   │   └── infrastructure/ # Database, cache, LLM, MCP, startup, observability
-│   │   ├── tests/              # Tests pytest (1 061 fichiers de tests)
+│   │   ├── tests/              # Tests pytest : unitaires, agents, intégration
 │   │   └── alembic/            # Migrations DB
 │   └── web/                    # Frontend Next.js
 │       ├── src/
@@ -613,13 +615,13 @@ LIA/
 │       │   └── lib/            # API client, utils
 │       └── locales/            # Traductions i18n (6 langues)
 ├── docs/                       # Documentation (ce répertoire)
-│   ├── technical/              # Docs techniques détaillées (80+)
-│   ├── guides/                 # Guides pratiques (20+)
-│   ├── architecture/           # ADRs (119) + schémas Mermaid (.mmd)
-│   ├── knowledge/              # Fiches FAQ pour le RAG système (40)
-│   ├── runbooks/               # Procédures opérationnelles (40)
+│   ├── technical/              # Docs techniques détaillées
+│   ├── guides/                 # Guides pratiques
+│   ├── architecture/           # ADRs + schémas Mermaid (.mmd)
+│   ├── knowledge/              # Fiches FAQ pour le RAG système
+│   ├── runbooks/               # Procédures opérationnelles et runbooks d'alertes
 │   ├── audit/                  # Audit technique 360° public + protocole
-│   └── readme/                 # README spécialisés (15)
+│   └── maps/                   # Cartes vivantes : documents français générés (données : apps/web/src/data/maps)
 ├── infrastructure/             # Docker, observabilité, cloudflared, claude-cli
 │   └── observability/          # Prometheus, Grafana, Loki, Tempo, Alertmanager
 └── scripts/                    # Déploiement, audit, i18n, perf, monitoring

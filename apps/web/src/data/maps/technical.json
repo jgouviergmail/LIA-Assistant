@@ -1,0 +1,659 @@
+{
+  "repo": "https://github.com/jgouviergmail/LIA-Assistant/blob/main/",
+  "layers": [
+    {
+      "id": "l.clients",
+      "icon": "monitor-smartphone",
+      "tone": "blue"
+    },
+    {
+      "id": "l.edge",
+      "icon": "shield",
+      "tone": "slate"
+    },
+    {
+      "id": "l.api",
+      "icon": "server",
+      "tone": "emerald"
+    },
+    {
+      "id": "l.agents",
+      "icon": "workflow",
+      "tone": "violet"
+    },
+    {
+      "id": "l.models",
+      "icon": "cpu",
+      "tone": "amber"
+    },
+    {
+      "id": "l.integrations",
+      "icon": "plug-zap",
+      "tone": "cyan"
+    },
+    {
+      "id": "l.background",
+      "icon": "timer",
+      "tone": "rose"
+    },
+    {
+      "id": "l.data",
+      "icon": "database",
+      "tone": "indigo"
+    },
+    {
+      "id": "l.observability",
+      "icon": "gauge",
+      "tone": "orange"
+    },
+    {
+      "id": "l.delivery",
+      "icon": "rocket",
+      "tone": "teal"
+    }
+  ],
+  "bricks": [
+    {
+      "id": "t.web",
+      "layer": "l.clients",
+      "icon": "monitor",
+      "paths": ["apps/web/src/app", "apps/web/src/components", "apps/web/src/hooks"],
+      "deps": ["t.bff", "t.sse", "t.i18n"]
+    },
+    {
+      "id": "t.pwa",
+      "layer": "l.clients",
+      "icon": "app-window",
+      "paths": ["apps/web/public/firebase-messaging-sw.js", "apps/web/src/components/pwa"],
+      "deps": ["t.web", "t.push"]
+    },
+    {
+      "id": "t.mobile",
+      "layer": "l.clients",
+      "icon": "smartphone",
+      "paths": ["apps/mobile"],
+      "deps": ["t.web", "t.push", "t.bff"]
+    },
+    {
+      "id": "t.channels",
+      "layer": "l.clients",
+      "icon": "send",
+      "paths": ["apps/api/src/infrastructure/channels", "apps/api/src/domains/channels"],
+      "domains": ["channels"],
+      "infra": ["channels"],
+      "deps": ["t.fastapi", "t.scheduler"]
+    },
+    {
+      "id": "t.edge",
+      "layer": "l.edge",
+      "icon": "shield",
+      "paths": [
+        "infrastructure/caddy",
+        "apps/web/src/lib/csp.ts",
+        "apps/api/src/infrastructure/rate_limiting",
+        "apps/api/src/infrastructure/security"
+      ],
+      "infra": ["rate_limiting", "security"],
+      "deps": ["t.redis"]
+    },
+    {
+      "id": "t.bff",
+      "layer": "l.edge",
+      "icon": "key-round",
+      "paths": [
+        "apps/api/src/domains/auth",
+        "apps/api/src/core/session_dependencies.py",
+        "apps/api/src/core/oauth",
+        "apps/api/src/infrastructure/email"
+      ],
+      "domains": ["auth", "users"],
+      "infra": ["email"],
+      "deps": ["t.redis", "t.postgres"]
+    },
+    {
+      "id": "t.fastapi",
+      "layer": "l.api",
+      "icon": "server",
+      "paths": [
+        "apps/api/src/main.py",
+        "apps/api/src/serve.py",
+        "apps/api/src/api/v1/routes.py",
+        "apps/api/src/domains"
+      ],
+      "domains": ["shared"],
+      "infra": ["async_utils", "utils", "resilience"],
+      "deps": ["t.startup", "t.config", "t.postgres", "t.redis"]
+    },
+    {
+      "id": "t.sse",
+      "layer": "l.api",
+      "icon": "radio",
+      "paths": ["apps/api/src/infrastructure/streaming", "apps/api/src/domains/agents/api"],
+      "infra": ["streaming"],
+      "deps": ["t.langgraph"]
+    },
+    {
+      "id": "t.startup",
+      "layer": "l.api",
+      "icon": "power",
+      "paths": ["apps/api/src/infrastructure/startup"],
+      "infra": ["startup"],
+      "deps": ["t.config", "t.toolsys"]
+    },
+    {
+      "id": "t.config",
+      "layer": "l.api",
+      "icon": "cog",
+      "paths": [
+        "apps/api/src/core/config",
+        "apps/api/src/domains/feature_switches",
+        "apps/api/src/domains/system_settings"
+      ],
+      "domains": ["feature_switches", "system_settings", "capabilities"],
+      "deps": ["t.postgres"]
+    },
+    {
+      "id": "t.i18n",
+      "layer": "l.api",
+      "icon": "languages",
+      "paths": ["apps/web/locales", "apps/api/src/core/i18n.py"],
+      "deps": []
+    },
+    {
+      "id": "t.langgraph",
+      "layer": "l.agents",
+      "icon": "workflow",
+      "paths": [
+        "apps/api/src/domains/agents/graph.py",
+        "apps/api/src/domains/agents/models.py",
+        "apps/api/src/domains/agents/graphs"
+      ],
+      "domains": ["agents"],
+      "deps": ["t.postgres", "t.router", "t.planner", "t.react", "t.response", "t.hitl"]
+    },
+    {
+      "id": "t.router",
+      "layer": "l.agents",
+      "icon": "compass",
+      "paths": [
+        "apps/api/src/domains/agents/nodes/router_node_v3.py",
+        "apps/api/src/domains/agents/nodes/router_tool_scoring.py",
+        "apps/api/src/domains/agents/semantic"
+      ],
+      "deps": ["t.embeddings", "t.promptsys"]
+    },
+    {
+      "id": "t.planner",
+      "layer": "l.agents",
+      "icon": "list-checks",
+      "paths": [
+        "apps/api/src/domains/agents/nodes/planner_node_v3.py",
+        "apps/api/src/domains/agents/nodes/semantic_validator_node.py",
+        "apps/api/src/domains/agents/nodes/task_orchestrator_node.py",
+        "apps/api/src/domains/agents/orchestration"
+      ],
+      "deps": ["t.toolsys", "t.structured", "t.hitl"]
+    },
+    {
+      "id": "t.react",
+      "layer": "l.agents",
+      "icon": "repeat",
+      "paths": [
+        "apps/api/src/domains/agents/nodes/react_nodes.py",
+        "apps/api/src/domains/agents/nodes/react_recovery.py",
+        "apps/api/src/domains/agents/nodes/react_context.py"
+      ],
+      "deps": ["t.toolsys", "t.llmfactory", "t.sandbox", "t.hitl"]
+    },
+    {
+      "id": "t.response",
+      "layer": "l.agents",
+      "icon": "message-square",
+      "paths": ["apps/api/src/domains/agents/nodes/response_node.py"],
+      "deps": ["t.promptsys", "t.llmfactory", "t.sse"]
+    },
+    {
+      "id": "t.hitl",
+      "layer": "l.agents",
+      "icon": "user-check",
+      "paths": [
+        "apps/api/src/domains/agents/services/hitl_classifier.py",
+        "apps/api/src/domains/agents/drafts",
+        "apps/api/src/domains/agents/nodes/draft_sequence.py"
+      ],
+      "deps": ["t.langgraph", "t.redis"]
+    },
+    {
+      "id": "t.toolsys",
+      "layer": "l.agents",
+      "icon": "wrench",
+      "paths": ["apps/api/src/domains/agents/tools", "apps/api/src/domains/agents/registry"],
+      "deps": ["t.connclients", "t.registers", "t.dataregistry"]
+    },
+    {
+      "id": "t.dataregistry",
+      "layer": "l.agents",
+      "icon": "boxes",
+      "paths": ["apps/api/src/domains/agents/data_registry", "apps/api/src/domains/agents/context"],
+      "deps": ["t.redis"]
+    },
+    {
+      "id": "t.promptsys",
+      "layer": "l.agents",
+      "icon": "scroll-text",
+      "paths": [
+        "apps/api/src/domains/agents/prompts",
+        "apps/api/src/core/prompt_layout.py",
+        "apps/api/src/core/prompt_store.py"
+      ],
+      "deps": []
+    },
+    {
+      "id": "t.initiative",
+      "layer": "l.agents",
+      "icon": "zap",
+      "paths": ["apps/api/src/domains/agents/nodes/initiative_node.py"],
+      "deps": ["t.planner", "t.toolsys"]
+    },
+    {
+      "id": "t.llmfactory",
+      "layer": "l.models",
+      "icon": "cpu",
+      "paths": [
+        "apps/api/src/infrastructure/llm/factory.py",
+        "apps/api/src/infrastructure/llm/providers",
+        "apps/api/src/core/claude_surface.py"
+      ],
+      "infra": ["llm"],
+      "deps": ["t.reasoning", "t.catalogue", "t.pricing", "t.tracing"]
+    },
+    {
+      "id": "t.reasoning",
+      "layer": "l.models",
+      "icon": "brain",
+      "paths": [
+        "apps/api/src/core/reasoning_intent.py",
+        "apps/api/src/core/reasoning_profiles.py",
+        "apps/api/src/infrastructure/llm/reasoning"
+      ],
+      "deps": ["t.catalogue"]
+    },
+    {
+      "id": "t.catalogue",
+      "layer": "l.models",
+      "icon": "book-open",
+      "paths": [
+        "apps/api/src/infrastructure/llm/catalogue",
+        "apps/api/src/domains/llm_config",
+        "apps/api/src/infrastructure/tabular_io"
+      ],
+      "domains": ["llm_config", "llm"],
+      "infra": ["tabular_io"],
+      "deps": ["t.postgres"]
+    },
+    {
+      "id": "t.structured",
+      "layer": "l.models",
+      "icon": "braces",
+      "paths": [
+        "apps/api/src/infrastructure/llm/structured_output.py",
+        "apps/api/src/infrastructure/llm/output_truncation.py",
+        "apps/api/src/infrastructure/llm/strict_schema.py"
+      ],
+      "deps": ["t.llmfactory"]
+    },
+    {
+      "id": "t.embeddings",
+      "layer": "l.models",
+      "icon": "scan-search",
+      "paths": [
+        "apps/api/src/infrastructure/llm/tracked_embeddings.py",
+        "apps/api/src/infrastructure/store/bm25_index.py",
+        "apps/api/src/domains/rag_spaces"
+      ],
+      "domains": ["rag_spaces"],
+      "infra": ["store", "adaptive"],
+      "deps": ["t.postgres", "t.pricing"]
+    },
+    {
+      "id": "t.pricing",
+      "layer": "l.models",
+      "icon": "coins",
+      "paths": [
+        "apps/api/src/infrastructure/llm/spend_roads.py",
+        "apps/api/src/infrastructure/llm/usage_guard.py",
+        "apps/api/src/domains/usage_limits",
+        "apps/api/src/domains/llm"
+      ],
+      "domains": ["usage_limits", "llm", "google_api"],
+      "deps": ["t.postgres", "t.redis"]
+    },
+    {
+      "id": "t.connclients",
+      "layer": "l.integrations",
+      "icon": "cable",
+      "paths": [
+        "apps/api/src/domains/connectors/clients",
+        "apps/api/src/domains/connectors/active_client.py",
+        "apps/api/src/domains/connectors/keyless.py"
+      ],
+      "domains": ["connectors"],
+      "deps": ["t.bff", "t.pricing"]
+    },
+    {
+      "id": "t.mcp",
+      "layer": "l.integrations",
+      "icon": "blocks",
+      "paths": ["apps/api/src/infrastructure/mcp", "apps/api/src/domains/user_mcp"],
+      "domains": ["user_mcp"],
+      "infra": ["mcp"],
+      "deps": ["t.toolsys"]
+    },
+    {
+      "id": "t.skills",
+      "layer": "l.integrations",
+      "icon": "puzzle",
+      "paths": ["apps/api/src/domains/skills", "apps/api/src/domains/plugins"],
+      "domains": ["skills", "plugins"],
+      "infra": ["archives"],
+      "deps": ["t.sandbox", "t.mcp"]
+    },
+    {
+      "id": "t.sandbox",
+      "layer": "l.integrations",
+      "icon": "container",
+      "paths": [
+        "apps/api/src/domains/agents/python_sandbox",
+        "infrastructure/sandbox-egress",
+        "docker-compose.skill-sandbox.yml"
+      ],
+      "deps": ["t.docker", "t.redis"]
+    },
+    {
+      "id": "t.browser",
+      "layer": "l.integrations",
+      "icon": "globe",
+      "paths": ["apps/api/src/infrastructure/browser"],
+      "infra": ["browser"],
+      "deps": ["t.storage"]
+    },
+    {
+      "id": "t.voiceinfra",
+      "layer": "l.integrations",
+      "icon": "mic",
+      "paths": ["apps/api/src/domains/voice", "apps/api/src/infrastructure/media"],
+      "domains": ["voice"],
+      "infra": ["media"],
+      "deps": ["t.pricing"]
+    },
+    {
+      "id": "t.live",
+      "layer": "l.integrations",
+      "icon": "audio-lines",
+      "paths": [
+        "apps/api/src/domains/live",
+        "apps/api/src/domains/voice_sessions",
+        "apps/web/src/lib/live"
+      ],
+      "domains": ["live", "voice_sessions"],
+      "deps": ["t.bff", "t.sse", "t.pricing"]
+    },
+    {
+      "id": "t.phone",
+      "layer": "l.integrations",
+      "icon": "phone",
+      "paths": [
+        "apps/api/src/domains/telephony",
+        "apps/api/src/infrastructure/scheduler/voice_relay.py"
+      ],
+      "domains": ["telephony"],
+      "deps": ["t.live", "t.jobs"]
+    },
+    {
+      "id": "t.push",
+      "layer": "l.integrations",
+      "icon": "bell",
+      "paths": [
+        "apps/api/src/domains/notifications",
+        "apps/api/src/domains/push_relay",
+        "apps/api/src/infrastructure/external/push_relay_client.py"
+      ],
+      "domains": ["notifications", "push_relay", "push_channels"],
+      "infra": ["external"],
+      "deps": ["t.postgres"]
+    },
+    {
+      "id": "t.scheduler",
+      "layer": "l.background",
+      "icon": "clock",
+      "paths": [
+        "apps/api/src/infrastructure/scheduler",
+        "apps/api/src/core/recurrence",
+        "apps/api/src/infrastructure/locks"
+      ],
+      "infra": ["scheduler", "locks"],
+      "deps": ["t.redis", "t.postgres"]
+    },
+    {
+      "id": "t.proactive",
+      "layer": "l.background",
+      "icon": "heart-pulse",
+      "paths": [
+        "apps/api/src/infrastructure/proactive",
+        "apps/api/src/domains/heartbeat",
+        "apps/api/src/domains/moments"
+      ],
+      "domains": ["heartbeat", "moments"],
+      "infra": ["proactive"],
+      "deps": ["t.scheduler", "t.llmfactory", "t.push", "t.registers"]
+    },
+    {
+      "id": "t.jobs",
+      "layer": "l.background",
+      "icon": "list-restart",
+      "paths": [
+        "apps/api/src/domains/meetings",
+        "apps/api/src/infrastructure/scheduler/voice_session_closing.py"
+      ],
+      "domains": ["meetings"],
+      "deps": ["t.postgres", "t.scheduler"]
+    },
+    {
+      "id": "t.selfdiag",
+      "layer": "l.background",
+      "icon": "stethoscope",
+      "paths": ["apps/api/src/domains/diagnostics", "apps/api/src/infrastructure/telemetry"],
+      "domains": ["diagnostics"],
+      "infra": ["telemetry"],
+      "deps": ["t.metrics", "t.logs", "t.alerts"]
+    },
+    {
+      "id": "t.postgres",
+      "layer": "l.data",
+      "icon": "database",
+      "paths": ["apps/api/alembic", "apps/api/src/infrastructure/database"],
+      "infra": ["database"],
+      "deps": []
+    },
+    {
+      "id": "t.redis",
+      "layer": "l.data",
+      "icon": "layers",
+      "paths": ["apps/api/src/infrastructure/cache"],
+      "infra": ["cache"],
+      "deps": []
+    },
+    {
+      "id": "t.storage",
+      "layer": "l.data",
+      "icon": "hard-drive",
+      "paths": ["apps/api/src/domains/attachments"],
+      "domains": ["attachments"],
+      "deps": ["t.postgres"]
+    },
+    {
+      "id": "t.registers",
+      "layer": "l.data",
+      "icon": "scroll",
+      "paths": ["apps/api/src/domains/agents/effects"],
+      "domains": ["agents"],
+      "deps": ["t.postgres"]
+    },
+    {
+      "id": "t.metrics",
+      "layer": "l.observability",
+      "icon": "chart-line",
+      "paths": [
+        "apps/api/src/infrastructure/observability",
+        "infrastructure/observability/prometheus"
+      ],
+      "infra": ["observability"],
+      "deps": []
+    },
+    {
+      "id": "t.dashboards",
+      "layer": "l.observability",
+      "icon": "chart-no-axes-combined",
+      "paths": ["infrastructure/observability/grafana"],
+      "deps": ["t.metrics", "t.logs"]
+    },
+    {
+      "id": "t.alerts",
+      "layer": "l.observability",
+      "icon": "siren",
+      "paths": [
+        "infrastructure/observability/alertmanager",
+        "infrastructure/observability/prometheus/alerts-core.yml",
+        "docs/runbooks"
+      ],
+      "deps": ["t.metrics"]
+    },
+    {
+      "id": "t.logs",
+      "layer": "l.observability",
+      "icon": "logs",
+      "paths": [
+        "apps/api/src/infrastructure/observability/logging.py",
+        "infrastructure/observability/loki",
+        "infrastructure/observability/promtail"
+      ],
+      "deps": []
+    },
+    {
+      "id": "t.tracing",
+      "layer": "l.observability",
+      "icon": "waypoints",
+      "paths": [
+        "apps/api/src/infrastructure/observability/tracing.py",
+        "apps/api/src/infrastructure/llm/callback_factory.py",
+        "infrastructure/observability/tempo"
+      ],
+      "deps": []
+    },
+    {
+      "id": "t.docker",
+      "layer": "l.delivery",
+      "icon": "package",
+      "paths": [
+        "apps/api/Dockerfile.prod",
+        "apps/web/Dockerfile.prod",
+        "docker-compose.prod.yml",
+        "infrastructure/docker"
+      ],
+      "deps": []
+    },
+    {
+      "id": "t.cicd",
+      "layer": "l.delivery",
+      "icon": "git-branch",
+      "paths": [".github/workflows/ci.yml", "Taskfile.yml", "scripts/audit"],
+      "deps": ["t.docker"]
+    },
+    {
+      "id": "t.release",
+      "layer": "l.delivery",
+      "icon": "rocket",
+      "paths": [
+        "scripts/release",
+        "scripts/deploy",
+        "scripts/install",
+        ".github/workflows/release.yml"
+      ],
+      "deps": ["t.cicd", "t.docker"]
+    },
+    {
+      "id": "t.demo",
+      "layer": "l.delivery",
+      "icon": "flask-conical",
+      "paths": [
+        "infrastructure/demo-instance",
+        "docker-compose.demo-instance.yml",
+        "apps/api/src/domains/product"
+      ],
+      "domains": ["product"],
+      "infra": ["provisioning"],
+      "deps": ["t.release"]
+    }
+  ],
+  "flows": [
+    {
+      "id": "tflow.request",
+      "icon": "send",
+      "steps": [
+        "t.web",
+        "t.edge",
+        "t.bff",
+        "t.fastapi",
+        "t.langgraph",
+        "t.router",
+        "t.planner",
+        "t.toolsys",
+        "t.connclients",
+        "t.response",
+        "t.sse"
+      ]
+    },
+    {
+      "id": "tflow.llmcall",
+      "icon": "cpu",
+      "steps": [
+        "t.promptsys",
+        "t.pricing",
+        "t.reasoning",
+        "t.llmfactory",
+        "t.structured",
+        "t.pricing",
+        "t.registers",
+        "t.metrics"
+      ]
+    },
+    {
+      "id": "tflow.background",
+      "icon": "heart-pulse",
+      "steps": [
+        "t.scheduler",
+        "t.proactive",
+        "t.connclients",
+        "t.llmfactory",
+        "t.registers",
+        "t.push",
+        "t.registers"
+      ]
+    },
+    {
+      "id": "tflow.live",
+      "icon": "audio-lines",
+      "steps": ["t.web", "t.live", "t.live", "t.fastapi", "t.langgraph", "t.live", "t.jobs"]
+    },
+    {
+      "id": "tflow.delivery",
+      "icon": "rocket",
+      "steps": ["t.cicd", "t.cicd", "t.release", "t.release", "t.docker", "t.release", "t.demo"]
+    },
+    {
+      "id": "tflow.observe",
+      "icon": "gauge",
+      "steps": ["t.metrics", "t.logs", "t.dashboards", "t.alerts", "t.selfdiag"]
+    }
+  ]
+}

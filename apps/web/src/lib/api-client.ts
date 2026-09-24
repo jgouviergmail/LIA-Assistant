@@ -204,6 +204,8 @@ const PUBLIC_ROUTE_SEGMENTS = [
   'blog',
   'faq',
   'changelog',
+  // The living maps (/maps and its three pages, prefix match).
+  'maps',
   'more',
   'demo',
   'privacy',

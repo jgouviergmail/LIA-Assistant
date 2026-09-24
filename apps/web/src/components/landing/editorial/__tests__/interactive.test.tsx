@@ -1,18 +1,31 @@
 /**
  * Behavioural + keyboard a11y coverage for the editorial interactive bricks:
  * the catalog disclosure (native button, aria-expanded, content stays in the
- * DOM while collapsed) and the tabs (WAI-ARIA pattern, arrow-key roving).
+ * DOM while collapsed, deep-linkable through its anchor) and the tabs
+ * (WAI-ARIA pattern, arrow-key roving).
  */
 
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import { CatalogDisclosure } from '../CatalogDisclosure';
 import { Tabs } from '../Tabs';
 
+/** Move the URL fragment the way a followed link does, and say so to listeners. */
+function navigateToHash(hash: string): void {
+  act(() => {
+    window.history.replaceState(null, '', hash || window.location.pathname);
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+  });
+}
+
 describe('CatalogDisclosure', () => {
-  it('opens on arrival and folds away on demand, content always in the DOM', async () => {
+  afterEach(() => {
+    window.history.replaceState(null, '', window.location.pathname);
+  });
+
+  it('is folded on arrival and unfolds on demand, content always in the DOM', async () => {
     const user = userEvent.setup();
     render(
       <CatalogDisclosure summary="Everything here" hint="8 items">
@@ -21,23 +34,60 @@ describe('CatalogDisclosure', () => {
     );
 
     const button = screen.getByRole('button', { name: /Everything here/ });
-    // The detail IS the substance of the page: nothing to discover first.
-    expect(button).toHaveAttribute('aria-expanded', 'true');
-    const panel = document.getElementById(button.getAttribute('aria-controls') ?? '');
-    expect(panel?.firstElementChild).not.toHaveAttribute('inert');
-
-    await user.click(button);
+    // Owner arbitration 2026-09-24: the chapters read first, the catalog on demand.
     expect(button).toHaveAttribute('aria-expanded', 'false');
+    const panel = document.getElementById(button.getAttribute('aria-controls') ?? '');
     // SEO contract: collapsed content is hidden, not removed — and untabbable.
     expect(screen.getByText('detailed card copy')).toBeInTheDocument();
     expect(panel?.firstElementChild).toHaveAttribute('inert');
 
+    await user.click(button);
+    expect(button).toHaveAttribute('aria-expanded', 'true');
+    expect(panel?.firstElementChild).not.toHaveAttribute('inert');
+
     // Keyboard toggle (native button: Enter + Space).
     button.focus();
     await user.keyboard('{Enter}');
-    expect(button).toHaveAttribute('aria-expanded', 'true');
-    await user.keyboard(' ');
     expect(button).toHaveAttribute('aria-expanded', 'false');
+    await user.keyboard(' ');
+    expect(button).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('opens when the page is reached through its anchor', () => {
+    window.history.replaceState(null, '', '#c1-detail');
+    render(
+      <CatalogDisclosure summary="Everything here" anchor="c1-detail">
+        <p>detailed card copy</p>
+      </CatalogDisclosure>
+    );
+
+    expect(screen.getByRole('button', { name: /Everything here/ })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
+  });
+
+  it('opens when a link later moves the hash to it, and keeps the reader toggle otherwise', async () => {
+    const user = userEvent.setup();
+    render(
+      <CatalogDisclosure summary="Everything here" anchor="c2-detail">
+        <p>detailed card copy</p>
+      </CatalogDisclosure>
+    );
+    const button = screen.getByRole('button', { name: /Everything here/ });
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+
+    navigateToHash('#c2-detail');
+    expect(button).toHaveAttribute('aria-expanded', 'true');
+
+    // Folded by the reader while the hash still names it: the reader wins.
+    await user.click(button);
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+
+    // Unfolded by the reader, then the hash moves elsewhere: it stays open.
+    await user.click(button);
+    navigateToHash('#changelog');
+    expect(button).toHaveAttribute('aria-expanded', 'true');
   });
 });
 

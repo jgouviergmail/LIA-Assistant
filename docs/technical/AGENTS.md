@@ -51,7 +51,7 @@ graph TB
 
     subgraph "Registry Level"
         C --> D[Checkpointer PostgreSQL]
-        C --> E[Store InMemory/Redis]
+        C --> E[Store AsyncPostgresStore]
         C --> F[Agent Builders]
         C --> G[Catalogue Manifests]
     end

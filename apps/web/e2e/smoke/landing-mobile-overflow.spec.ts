@@ -24,6 +24,7 @@
  * the config default): the oscillation only exists with the timeline running.
  */
 import { test, expect } from '../fixtures';
+import { unfoldCatalogs } from './landing-catalogs';
 import { awaitStyledPage, expectNoOverflow } from './overflow-report';
 
 /**
@@ -70,6 +71,8 @@ test.describe('landing page — no horizontal overflow on mobile (fr)', () => {
       )
     );
     expect(sectionIds.length).toBeGreaterThanOrEqual(10);
+    // Folded on arrival: a collapsed catalog has no width to overflow with.
+    expect(await unfoldCatalogs(page)).toBeGreaterThan(0);
 
     for (const id of sectionIds) {
       await page.evaluate(sectionId => {
@@ -116,6 +119,7 @@ test.describe('landing page — every locale stays within 375px', () => {
         }, id);
         await page.waitForTimeout(250);
       }
+      await unfoldCatalogs(page);
       await expectNoOverflow(page, `locale ${lng} after full scroll`);
     }
   });

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>@@TITLE@@</title>
+<meta name="description" content="@@DESCRIPTION@@">
+<meta name="generator" content="scripts/audit/doc_maps.py">
+<link rel="icon" type="image/svg+xml" href="@@FAVICON@@">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap">
+<style>
+@@CSS@@
+</style>
+</head>
+<body data-page="@@PAGE@@">
+<a class="skip" href="#main">Aller au contenu</a>
+<header class="topbar">
+  <div class="topbar-in wrap">
+    <a class="brand" href="@@HOME@@" aria-label="LIA — carte fonctionnelle">
+      <span class="brand-mark" aria-hidden="true">@@LOGO@@</span>
+      <span class="brand-name">LIA</span>
+      <span class="brand-sub">Cartes du système</span>
+    </a>
+    <nav class="pages" aria-label="Documents"></nav>
+    <button type="button" class="icon-btn" id="theme-toggle" aria-label="Thème"></button>
+  </div>
+</header>
+<main id="main" class="wrap">
+  <noscript><p class="noscript">Ce document est interactif : active JavaScript pour afficher la carte. Ses données sont lisibles dans <code>docs/maps/data/</code>.</p></noscript>
+</main>
+<footer class="foot wrap">
+  <p>Généré par <code>scripts/audit/doc_maps.py</code> depuis <code>docs/maps/data/</code> — vérifié à chaque commit par <code>task lint:docs</code>. <span class="foot-stamp"></span></p>
+</footer>
+<div class="drawer-scrim" hidden></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="false" aria-labelledby="drawer-title" hidden>
+  <div class="drawer-head">
+    <div class="drawer-title-wrap" id="drawer-title"></div>
+    <button type="button" class="icon-btn" id="drawer-close" aria-label="Fermer le détail"></button>
+  </div>
+  <div class="drawer-body" id="drawer-body"></div>
+</aside>
+<div class="tip" role="tooltip" hidden></div>
+<script type="application/json" id="map-data">@@DATA@@</script>
+<script>
+@@JS@@
+</script>
+</body>
+</html>

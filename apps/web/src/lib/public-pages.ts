@@ -42,6 +42,12 @@ export const PUBLIC_PAGES: readonly PublicPage[] = [
   { path: '/faq', changeFrequency: 'monthly', priority: 0.7 },
   { path: '/changelog', changeFrequency: 'weekly', priority: 0.6 },
   { path: '/more', changeFrequency: 'monthly', priority: 0.7 },
+  // The living maps follow the code: a new decision lands on the history, and
+  // on the two maps' details, at every release.
+  { path: '/maps', changeFrequency: 'weekly', priority: 0.6 },
+  { path: '/maps/functional', changeFrequency: 'weekly', priority: 0.6 },
+  { path: '/maps/technical', changeFrequency: 'weekly', priority: 0.6 },
+  { path: '/maps/history', changeFrequency: 'weekly', priority: 0.6 },
   { path: '/demo', changeFrequency: 'monthly', priority: 0.5 },
   { path: '/why', changeFrequency: 'monthly', priority: 0.7 },
   { path: '/how', changeFrequency: 'monthly', priority: 0.7 },

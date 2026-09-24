@@ -23,6 +23,7 @@ export async function PublicFooter({ lng }: PublicFooterProps) {
 
   const navLinks = [
     { href: buildLocalizedPath('/', lang), label: t('public_footer.home') },
+    { href: buildLocalizedPath('/maps', lang), label: t('landing.nav.maps') },
     { href: buildLocalizedPath('/story', lang), label: t('public_footer.story') },
     { href: buildLocalizedPath('/why', lang), label: t('public_footer.philosophy') },
     { href: buildLocalizedPath('/how', lang), label: t('public_footer.technical') },

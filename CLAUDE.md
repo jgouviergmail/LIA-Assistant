@@ -77,11 +77,13 @@ task lint:lockfiles         # manifests vs compiled lockfiles (ADR-112)
 task lint:ci-parity         # the workflow orchestrates, it never implements (ADR-151)
 task lint:i18n              # strict key parity across the 6 locales
 task lint:docs              # documentation drift: broken links, stale code paths,
-                            # orphans, quoted facts vs their sources, AGENTS.md mirror
+                            # orphans, quoted facts vs their sources, AGENTS.md mirror,
+                            # living maps
+task docs:maps              # living maps: stamp new translations, regenerate facts + French docs
 ```
 
 **Documentation is gated on what it STATES, not only on how it links.**
-`task lint:docs` runs three instruments (all with `--fix`-style companions where
+`task lint:docs` runs four instruments (all with `--fix`-style companions where
 repair is mechanical):
 
 | Instrument | Answers | Repair |
@@ -89,6 +91,7 @@ repair is mechanical):
 | `scripts/audit/doc_audit.py` | Do the links resolve? Are the code paths real? Is any living document unreachable? | by hand |
 | `scripts/audit/doc_facts.py` | Does a quoted version or threshold equal its source? | `task docs:fix-facts` |
 | `scripts/audit/agents_mirror.py` | Is `AGENTS.md` the current render of `CLAUDE.md`? | `task docs:sync-agents` |
+| `scripts/audit/doc_maps.py` | Do the living maps know every ADR, backend domain and infrastructure module, in every language of the site with no stale translation, and is every generated file what its data renders? | `task docs:maps` (`--restamp` after a re-translation) |
 
 `lint:docs` decides existence from the **git index**, so its verdict matches a
 fresh clone: a file you moved but have not staged is invisible to it, and the
@@ -1077,6 +1080,7 @@ Run it after any Capacitor upgrade or any CSP change.
 ## Useful Documentation Pointers
 
 - Full documentation index: `docs/INDEX.md`
+- Living maps — the functional map, the technical map and the illustrated ADR history, published on the public site under `/maps` in the six languages of the site (the "Maps" entry of the header, `components/maps/`) and as three French offline documents in `docs/maps/`, all from ONE set of data in `apps/web/src/data/maps/` (the web container sees nothing else): the language-neutral structure, one text file per map and language (`text/<map>.<lang>.json`, French the source, every translated unit carrying `src`, the fingerprint of the French it translates) and the generated `facts.json`. **Every commit keeps them true**: a new ADR gets its entry (date, theme, the bricks it shaped) and its words in the SIX languages (a title, two or three plain sentences), a new backend domain or infrastructure module is claimed by its brick, then `task docs:maps` (it stamps first-time translations); a French sentence that changes leaves its translations STALE until they are translated again and `--restamp`ed. `lint:docs` and `test_doc_maps_guard.py` refuse the commit otherwise; `docs/maps/README.md` is the procedure.
 - Agent creation guide: `docs/guides/GUIDE_AGENT_CREATION.md`
 - Tool creation guide: `docs/guides/GUIDE_TOOL_CREATION.md`
 - Testing strategy: `docs/guides/GUIDE_TESTING.md`

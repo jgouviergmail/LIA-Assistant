@@ -1,0 +1,1652 @@
+{
+  "intro": {
+    "lede": "Cada decisión de arquitectura, de la primera a la última, contada en pocas frases y enlazada con los bloques a los que dio forma.",
+    "src": "3e71c73dc5b1"
+  },
+  "themes": {
+    "orchestration": {
+      "name": "Orquestación",
+      "summary": "Cómo LIA entiende, planifica y ejecuta una petición.",
+      "src": "bd9c5bb8ec13"
+    },
+    "models": {
+      "name": "Modelos y costes",
+      "summary": "Qué modelos, con qué ajustes, a qué precio y con qué topes.",
+      "src": "bd54d9387b8c"
+    },
+    "memory": {
+      "name": "Memoria y personalización",
+      "summary": "Lo que LIA recuerda de ti y cómo lo usa.",
+      "src": "2289ad2edbb6"
+    },
+    "connectors": {
+      "name": "Conectores y herramientas",
+      "summary": "Los servicios conectados y los protocolos abiertos.",
+      "src": "5d652bac024d"
+    },
+    "proactive": {
+      "name": "Iniciativa",
+      "summary": "Lo que LIA hace por su cuenta, y cuándo.",
+      "src": "f4fb50d0fad4"
+    },
+    "voice": {
+      "name": "Voz",
+      "summary": "Dictar, escuchar, conversar, llamar por teléfono.",
+      "src": "087a2d7ccbd2"
+    },
+    "knowledge": {
+      "name": "Conocimiento y documentos",
+      "summary": "Tus documentos consultables, y los que produce LIA.",
+      "src": "4a89879d5c46"
+    },
+    "security": {
+      "name": "Seguridad",
+      "summary": "Cuentas, sesiones, aislamiento, superficie de ataque.",
+      "src": "a8f8e8ef83a1"
+    },
+    "trust": {
+      "name": "Trazabilidad y honestidad",
+      "summary": "Decir la verdad, mostrar de dónde viene una respuesta, dejar constancia de lo que se hace.",
+      "src": "033f0ea0ea08"
+    },
+    "reliability": {
+      "name": "Fiabilidad y rendimiento",
+      "summary": "Aguantar la carga, no perder nada, recuperarse de una avería.",
+      "src": "6087906f3d56"
+    },
+    "experience": {
+      "name": "Experiencia e interfaz",
+      "summary": "Lo que ves y tocas: pantallas, accesibilidad, el rostro de LIA.",
+      "src": "0585435d751c"
+    },
+    "platform": {
+      "name": "Plataforma y entrega",
+      "summary": "Configuración, calidad del código, despliegue e instalación.",
+      "src": "956ecee7011f"
+    }
+  },
+  "eras": {
+    "foundations": {
+      "name": "Los cimientos",
+      "summary": "El grafo de agentes, las sesiones mantenidas en el servidor, el planificador, el registro de datos, la memoria, la observabilidad, los seis idiomas y el despliegue en una Raspberry Pi: el armazón sobre el que descansa todo lo demás.",
+      "src": "a6b8755eb3ed"
+    },
+    "beyond-keyboard": {
+      "name": "Más allá del teclado",
+      "summary": "Un primer refuerzo de la seguridad, el dictado por voz, los espacios de conocimiento y la sincronización de una carpeta en línea, los diarios de LIA, el navegador controlado, los límites de uso — y la primera versión pública en código abierto.",
+      "src": "62ece173f274"
+    },
+    "reasoning-voice": {
+      "name": "Razonar y tomar la palabra",
+      "summary": "El modo ReAct, una psique que evoluciona, las habilidades, los datos de salud, el briefing matinal, la voz de LIA, los subagentes y un razonamiento ajustado por proveedor.",
+      "src": "b53c0b1b12ff"
+    },
+    "audit": {
+      "name": "La auditoría y el rigor",
+      "summary": "Un mes de cien decisiones: una auditoría de principio a fin, la seguridad y las copias de seguridad, una CI que ejecuta exactamente lo que lanza el desarrollador, alertas que despiertan por un motivo, y las primeras reglas de honestidad.",
+      "src": "4615f4d23a46"
+    },
+    "visibility": {
+      "name": "Hacerlo todo visible",
+      "summary": "La accesibilidad por contrato, los ajustes y las capacidades a la vista, los costes según la hora, el instalador para el autoalojamiento, un catálogo de modelos que dice la verdad, los ojos expresivos y el autodiagnóstico.",
+      "src": "f85aeef39422"
+    },
+    "promises": {
+      "name": "Cumplir lo prometido",
+      "summary": "Registros sellados, recuentos exactos, el tablero de trabajo, las reuniones, el teléfono y el modo Live — y fallos que se dicen en vez de adivinarse.",
+      "src": "2078cd2aa94f"
+    }
+  },
+  "entries": {
+    "1": {
+      "title": "LangGraph orquesta los agentes",
+      "summary": "LIA necesita un motor capaz de llevar una conversación en varios pasos, de detenerse para pedir una aprobación y después retomarla. LangGraph aporta ese grafo de ejecución: el estado de cada conversación se guarda en la base de datos y las respuestas llegan palabra a palabra.",
+      "src": "f524de292ed9"
+    },
+    "2": {
+      "title": "El navegador nunca ve el token",
+      "summary": "Los tokens guardados en el navegador estaban expuestos al robo y no se podían revocar. Ahora un servidor intermedio (BFF) mantiene la sesión en el servidor y solo confía al navegador una cookie inaccesible para JavaScript — una sesión se revoca al instante.",
+      "src": "5248b328d55f"
+    },
+    "3": {
+      "title": "Cargar solo las herramientas útiles",
+      "summary": "Enviar todo el catálogo de herramientas al modelo en cada pregunta multiplicaba por diez el tamaño del prompt y el coste. El router detecta los dominios implicados y solo se carga su subconjunto de herramientas; en caso de duda, se recurre al catálogo completo.",
+      "src": "b725799a1c6c"
+    },
+    "4": {
+      "title": "Un planificador que razona antes de actuar",
+      "summary": "Los primeros planes eran demasiado simplistas y fallaban a menudo. Ahora el planificador analiza la intención, descompone la petición y después escribe un plan de ejecución justificado paso a paso.",
+      "src": "a5f88f552af6"
+    },
+    "5": {
+      "title": "El plan de respaldo ya no se ejecuta dos veces",
+      "summary": "El ejecutor paralelo lanzaba a la vez el plan principal y su alternativa de respaldo: doble llamada, doble coste. Ahora los pasos descartados se retiran antes de lanzar cada oleada.",
+      "src": "5a7f5a6a1f30"
+    },
+    "6": {
+      "title": "Nunca una lista sin límite",
+      "summary": "Pedir «todos los contactos» podía devolver cientos de fichas y disparar el coste. Ahora tres barreras — aviso del planificador, tope estricto en la herramienta, registro en los logs — impiden una lista sin límite.",
+      "src": "0faa65d908d4"
+    },
+    "7": {
+      "title": "Nodos finos, servicios gruesos",
+      "summary": "Algunos nodos del grafo tenían cientos de líneas y se habían vuelto ilegibles. La lógica de negocio pasa a servicios dedicados; un nodo se limita a coordinar.",
+      "src": "abca8bbb7662"
+    },
+    "8": {
+      "title": "Validar el plan antes de actuar",
+      "summary": "En lugar de interrumpir la ejecución herramienta por herramienta, LIA presentaba su plan para su aprobación antes de empezar. Hoy la aprobación del plan es automática: la validación se hace en cada acción sensible.",
+      "src": "3f81bff43469"
+    },
+    "9": {
+      "title": "La configuración, dividida por dominio",
+      "summary": "Un archivo de configuración de casi 1800 líneas reunía todos los ajustes. Se divide en módulos por dominio, reunidos en un único objeto de ajustes validado al arrancar, sin cambiar la forma de importarlo.",
+      "src": "01574df3e3ba"
+    },
+    "10": {
+      "title": "«Correos», no «Gmail»",
+      "summary": "El dominio se llamaba Gmail, como si solo existiera un proveedor. Recibe un nombre genérico para acoger Outlook, Apple Mail y otros sin tener que renombrarlo todo con cada incorporación.",
+      "src": "d53a8bcb3273"
+    },
+    "11": {
+      "title": "Dos familias de herramientas",
+      "summary": "¿Hace falta un falso «conector» para las herramientas internas (contexto, memoria)? No: las herramientas que hablan con un servicio externo y las herramientas utilitarias siguen siendo dos categorías distintas, cada una con su patrón sencillo.",
+      "src": "ed41008599e8"
+    },
+    "12": {
+      "title": "Resultados estructurados y reutilizables",
+      "summary": "Las herramientas devolvían texto plano que nada conservaba. Ahora un registro de datos guarda cada elemento devuelto, con sus metadatos, para que una pregunta posterior pueda hacer referencia a él y un borrador pueda confirmarse.",
+      "src": "e358017063f9"
+    },
+    "13": {
+      "title": "Una memoria que sobrevive a las conversaciones",
+      "summary": "La asistente lo olvidaba todo de una sesión a otra. Una memoria a largo plazo, aislada por persona y consultada por significado, conserva preferencias y hechos importantes — incluidos los temas sensibles, que hay que tratar con tacto.",
+      "src": "9607a37667c3"
+    },
+    "14": {
+      "title": "Planes ejecutados en paralelo",
+      "summary": "Ejecutar las herramientas una tras otra sumaba los tiempos de espera. Un plan de ejecución expresa dependencias, condiciones y alternativas de respaldo, y lanza a la vez todo lo que puede lanzarse.",
+      "src": "b0798d606c58"
+    },
+    "15": {
+      "title": "Una base común para las herramientas conectadas",
+      "summary": "Cada herramienta de conector repetía 150 líneas idénticas (autenticación, errores, caché). Una clase base concentra ese núcleo común; una herramienta nueva ya solo escribe lo que le es propio.",
+      "src": "2a47c33e6dd1"
+    },
+    "16": {
+      "title": "Encontrar «el segundo» en cualquier dominio",
+      "summary": "Cada dominio identifica y muestra sus elementos de forma distinta. Un registro de tipos de contexto describe cada dominio una sola vez, y la resolución de «este» o «el tercero» funciona igual en todas partes.",
+      "src": "009a060f08bc"
+    },
+    "17": {
+      "title": "Limitar las peticiones sin bloquear el servicio",
+      "summary": "Había que proteger tanto a los usuarios frente a los abusos como las cuotas de las API externas, incluso con varias instancias. Una limitación distribuida en Redis, por persona y por categoría, pasa a funcionar en local si Redis cae.",
+      "src": "ff54b0e29676"
+    },
+    "18": {
+      "title": "Respuestas que se escriben en directo",
+      "summary": "Esperar diez segundos a una respuesta completa es un fastidio. El servidor emite cada palabra, los pasos del plan y las solicitudes de aprobación sobre la marcha, mediante Server-Sent Events.",
+      "src": "c9a430d5076b"
+    },
+    "19": {
+      "title": "Un catálogo que describe agentes y herramientas",
+      "summary": "El planificador debe saber qué herramientas existen, qué cuestan y qué exigen. Unos manifiestos tipados sirven a la vez de documentación y de configuración, filtrados por dominio para ahorrar tokens.",
+      "src": "255a7b884f77"
+    },
+    "20": {
+      "title": "Tres capas de observabilidad",
+      "summary": "Ninguna herramienta cubre por sí sola métricas, trazas y seguimiento de las llamadas a los modelos. Prometheus, Tempo y Langfuse trabajan cada uno por su lado, y la aplicación sigue funcionando si uno de ellos cae.",
+      "src": "f64bf469c84a"
+    },
+    "21": {
+      "title": "Tokens OAuth cifrados y renovados",
+      "summary": "Los accesos a Google debían seguir siendo ilegibles en la base de datos, renovarse antes de caducar y no refrescarse nunca dos veces a la vez. Cifrado en reposo, refresco anticipado bajo un bloqueo distribuido y PKCE cubren su ciclo de vida.",
+      "src": "3658de6f7356"
+    },
+    "22": {
+      "title": "El estado de una conversación, guardado",
+      "summary": "Para reanudar tras una interrupción o un reinicio, el estado del grafo se guarda en PostgreSQL por hilo de conversación, con reglas de fusión que recortan el historial para ajustarlo al presupuesto de tokens.",
+      "src": "9f9556fe516b"
+    },
+    "23": {
+      "title": "Una estrategia de errores unificada",
+      "summary": "Cada parte gestionaba sus errores a su manera. Un formato común para las herramientas, una jerarquía de excepciones registradas en los logs y mensajes traducidos a seis idiomas hacen que los errores sean coherentes y medibles.",
+      "src": "7eded94323d2"
+    },
+    "24": {
+      "title": "Seis idiomas, de principio a fin",
+      "summary": "La interfaz, los mensajes del servidor y las URL deben hablar el idioma de la persona. i18next en el navegador, gettext en el servidor, seis idiomas y direcciones localizadas para el posicionamiento en buscadores.",
+      "src": "34a9221a51da"
+    },
+    "25": {
+      "title": "Prompts gestionados como código",
+      "summary": "Las instrucciones que se dan a los modelos deben poder evolucionar y volver atrás. Viven en archivos versionados, cargados según una versión configurable y rellenados con variables.",
+      "src": "7e035e248254"
+    },
+    "26": {
+      "title": "El modelo adecuado para cada rol",
+      "summary": "El enrutamiento, la planificación y la respuesta no tienen las mismas necesidades. Cada componente recibe su modelo, tras una abstracción que permite cambiar de proveedor sin tocar el código.",
+      "src": "8a362915f6e7"
+    },
+    "27": {
+      "title": "Logs estructurados y sin datos personales",
+      "summary": "Para poder aprovecharlos, los logs deben ser legibles por una máquina. structlog produce JSON contextualizado (petición, persona, conversación) y filtra los datos personales antes de escribir.",
+      "src": "9404e98f0ed3"
+    },
+    "28": {
+      "title": "Un esquema de base de datos pensado para durar",
+      "summary": "Identificadores UUID, fechas siempre en UTC, borrado lógico y metadatos JSONB: las convenciones del esquema PostgreSQL se fijan una vez para toda la aplicación.",
+      "src": "6eaebe89d0fa"
+    },
+    "29": {
+      "title": "Redis, una navaja suiza bajo control",
+      "summary": "Sesiones, estados OAuth, limitación de peticiones, bloqueos y cachés pasan por Redis. Cada uso tiene su base, sus caducidades y sus operaciones atómicas, y si Redis no está disponible el servicio se degrada sin bloquearse.",
+      "src": "b2fcbcda7d95"
+    },
+    "30": {
+      "title": "Entender «envíale un correo»",
+      "summary": "Una conversación está llena de referencias implícitas: «el segundo», «este», «él». La resolución de contexto detecta el tipo de turno y vincula esas palabras con los elementos correctos, sin mezclar los dominios, en seis idiomas.",
+      "src": "df4280c2a2f3"
+    },
+    "31": {
+      "title": "Probar una aplicación que habla con modelos",
+      "summary": "No se pueden llamar modelos reales en cada test. La estrategia simula el proveedor en su frontera, aísla la base de datos de cada test y cubre el código asíncrono.",
+      "src": "4f25266a4f05"
+    },
+    "32": {
+      "title": "Una API versionada y tipada",
+      "summary": "La API REST sigue una convención única: prefijo de versión, esquemas Pydantic validados, routers por dominio y un formato de error común, documentados automáticamente.",
+      "src": "35e303018832"
+    },
+    "33": {
+      "title": "Desplegar en una Raspberry Pi",
+      "summary": "Una quincena de servicios deben funcionar tanto en desarrollo como en una Raspberry Pi 5. Docker Compose lo orquesta todo, con comprobaciones de salud, límites de recursos e imágenes para dos arquitecturas.",
+      "src": "d62823d923df"
+    },
+    "34": {
+      "title": "Refuerzo de la seguridad",
+      "summary": "Cookies HTTP-only, consultas parametrizadas, protección CSRF, contraseñas con hash: la aplicación alinea sus defensas con las recomendaciones de OWASP.",
+      "src": "7348b3e2f6bf"
+    },
+    "35": {
+      "title": "Aguantar cuando un servicio cae",
+      "summary": "Un servicio externo averiado no debe arrastrar a toda la aplicación. Cortacircuitos, reintentos espaciados, comprobaciones de salud y degradación controlada mantienen el servicio.",
+      "src": "1e7e016c2a9a"
+    },
+    "36": {
+      "title": "Elegir la personalidad de la asistente",
+      "summary": "Entusiasta, profesora o amiga: cada persona elige el tono de LIA. Las personalidades se guardan en la base de datos, traducidas a seis idiomas, y se inyectan en los prompts.",
+      "src": "539b81c54ff7"
+    },
+    "37": {
+      "title": "Una memoria psicológica",
+      "summary": "Para personalizar de verdad, LIA extrae en segundo plano lo que importa de las conversaciones, lo recupera por significado y modula su tono según la sensibilidad del tema, sin bloquear nunca la respuesta.",
+      "src": "8db762aaade7"
+    },
+    "38": {
+      "title": "Un frontend Next.js moderno",
+      "summary": "Renderizado en el servidor, respuestas emitidas en directo, seis idiomas y autenticación por cookie: la interfaz se apoya en el App Router de Next.js.",
+      "src": "85794bd732c2"
+    },
+    "39": {
+      "title": "Controlar el coste de cada petición",
+      "summary": "Cada llamada a los modelos debe contarse y optimizarse. Un recuento preciso de tokens por proveedor, el coste en tiempo real, la caché y la selección semántica de herramientas han dividido por diez el catálogo enviado.",
+      "src": "6119d418ead9"
+    },
+    "40": {
+      "title": "Migraciones de base de datos reversibles",
+      "summary": "Cada cambio del esquema pasa por una migración de Alembic con nombre, fechada y reversible, que detecta automáticamente todos los modelos.",
+      "src": "998548bc76d8"
+    },
+    "41": {
+      "title": "Hacer evolucionar el estado guardado",
+      "summary": "Las conversaciones guardadas deben seguir siendo legibles cuando cambia su formato. El estado lleva un número de versión y se migra automáticamente al cargarse.",
+      "src": "d26db2bfbc5d"
+    },
+    "42": {
+      "title": "El ciclo de vida de una conversación",
+      "summary": "Una conversación nace con el primer mensaje, puede borrarse de forma lógica, deja un registro de auditoría y desaparece en cascada con la cuenta, conforme al RGPD.",
+      "src": "c10c78b54de7"
+    },
+    "43": {
+      "title": "Un agente especializado por dominio",
+      "summary": "Cada dominio (correo, contactos, agenda…) tiene su agente y sus herramientas, supervisados por un grafo padre que comparte un único estado y propaga la observabilidad.",
+      "src": "3fd5f937aeba"
+    },
+    "44": {
+      "title": "Nada importante sin tu visto bueno",
+      "summary": "Enviar un correo o crear una cita exige una aprobación. El borrador se presenta, se puede modificar o cancelar, y solo se ejecuta tras la confirmación — cada decisión queda registrada.",
+      "src": "17fc069bb93a"
+    },
+    "45": {
+      "title": "Dependencias inyectadas como es debido",
+      "summary": "Repositorios, servicios y routers se encadenan mediante la inyección de dependencias de FastAPI, con sesiones de base de datos abiertas y cerradas en el momento justo, y fáciles de simular en los tests.",
+      "src": "a9edf6548888"
+    },
+    "46": {
+      "title": "Tareas programadas en segundo plano",
+      "summary": "Tipos de cambio, limpieza de recuerdos, envío de recordatorios: algunas tareas deben ejecutarse solas. Un programador de tareas asíncrono las lanza según expresiones cron, se detiene limpiamente y publica sus métricas.",
+      "src": "c380e75a9b5a"
+    },
+    "47": {
+      "title": "Google Workspace, una sola integración",
+      "summary": "Gmail, Calendar, Contactos, Drive y Tasks comparten una base común: alcances OAuth centralizados, tokens renovados bajo bloqueo y cuotas respetadas servicio a servicio.",
+      "src": "abd089f2dd88"
+    },
+    "48": {
+      "title": "Un enrutamiento por significado, no por palabras clave",
+      "summary": "Las listas de palabras clave por idioma daban puntuaciones bajas y exigían un mantenimiento sin fin. Ahora el router compara el significado de la pregunta con el de los dominios y las herramientas, en más de cien idiomas.",
+      "src": "822c39238e1b"
+    },
+    "49": {
+      "title": "Embeddings calculados en local",
+      "summary": "Para no pagar ni esperar a un servicio externo en cada búsqueda semántica, un modelo de embeddings multilingüe se ejecuta en la propia máquina, incluso en una Raspberry Pi.",
+      "src": "79f70687e30b"
+    },
+    "50": {
+      "title": "LIA toma la palabra",
+      "summary": "Una síntesis de voz neuronal, multilingüe y emitida frase a frase da voz a LIA, con un primer sonido en menos de tres segundos, y cada persona decide si la activa.",
+      "src": "9e670f186144"
+    },
+    "51": {
+      "title": "«Recuérdame llamar al médico»",
+      "summary": "Un recordatorio se crea en lenguaje natural, se guarda en UTC y llega como notificación push a todos los dispositivos, con un mensaje personalizado — sin enviarse nunca dos veces, ni siquiera con varios workers.",
+      "src": "95958d746318"
+    },
+    "52": {
+      "title": "Validar resultados de formas variadas",
+      "summary": "Los resultados de los agentes pueden ser contactos, correos, lugares… Una validación explícita de esta unión de tipos impide cualquier pérdida silenciosa de datos durante la conversión.",
+      "src": "2d94d6f6a8c7"
+    },
+    "53": {
+      "title": "Aprender los intereses",
+      "summary": "Tras cada respuesta, LIA detecta en segundo plano uno o dos temas que interesan a la persona, sin ralentizar la conversación, para personalizar sus respuestas y, después, sus iniciativas.",
+      "src": "c78fac4bacdf"
+    },
+    "54": {
+      "title": "Hablar con LIA sin teclado",
+      "summary": "Palabra de activación «OK Guy», botón de micrófono, detección del final del habla y transcripción multilingüe gratuita en el servidor: la entrada por voz llega sin coste recurrente de API.",
+      "src": "1291c153c119"
+    },
+    "55": {
+      "title": "Espacios de conocimiento personales",
+      "summary": "Cada persona puede subir sus documentos; LIA los fragmenta, los indexa y los recupera mediante búsqueda híbrida (significado + palabras) para enriquecer sus respuestas, en espacios estrictamente aislados.",
+      "src": "0ac8716a1111"
+    },
+    "56": {
+      "title": "Sincronizar una carpeta de Google Drive",
+      "summary": "En lugar de descargar tus archivos y luego subirlos, enlazas una carpeta de Drive: LIA reutiliza el conector existente e indexa los documentos con el mismo pipeline, archivo por archivo.",
+      "src": "dba1887a9951"
+    },
+    "57": {
+      "title": "LIA lleva sus diarios",
+      "summary": "La asistente escribe sus propias reflexiones y observaciones, en primera persona, teñidas por su personalidad, y las relee por significado para razonar mejor con cada persona.",
+      "src": "e85f0db6d5d1"
+    },
+    "58": {
+      "title": "LIA sabe hablar de sí misma",
+      "summary": "Ante «¿Qué sabes hacer?», LIA respondía de forma genérica. Un espacio de conocimiento del sistema, indexado a partir de las preguntas frecuentes, le da respuestas exactas sobre sus propias funciones.",
+      "src": "f17e3be594f8"
+    },
+    "59": {
+      "title": "Controlar un navegador",
+      "summary": "Rellenar un formulario, buscar un producto, leer una página dinámica: un agente autónomo controla un navegador Playwright aislado, parte de una tarea descrita en lenguaje natural y la lleva a cabo.",
+      "src": "fb7987386cfc"
+    },
+    "60": {
+      "title": "Límites de uso por persona",
+      "summary": "Cada llamada a los modelos cuesta dinero real. Topes por persona — tokens, mensajes, coste — por periodo o en total protegen al operador frente a un gasto descontrolado.",
+      "src": "a91ed587b770"
+    },
+    "61": {
+      "title": "Desactivar es desactivar de verdad",
+      "summary": "Una aplicación MCP desactivada seguía recibiendo peticiones. Ahora los dominios que devuelve el analizador se filtran según los que están realmente disponibles, en cada paso.",
+      "src": "4131931db489"
+    },
+    "62": {
+      "title": "Reaccionar después de actuar",
+      "summary": "Un plan fijo no podía reaccionar a lo que descubría. Una fase de iniciativa relee los resultados y propone comprobaciones útiles, y un subagente iterativo sabe explorar un servidor MCP complejo.",
+      "src": "bc7bc8a70dd2"
+    },
+    "63": {
+      "title": "Todos los workers ven el mismo ajuste",
+      "summary": "Con cuatro procesos, un ajuste modificado solo llegaba a uno de ellos. Una invalidación difundida por Redis Pub/Sub recarga la caché en cada worker.",
+      "src": "c9d4f057de4d"
+    },
+    "64": {
+      "title": "Un observador neutral para el diario",
+      "summary": "La personalidad conversacional contaminaba las notas del diario. Ahora un personaje de analista fijo escribe observaciones clínicas y directrices accionables, sea cual sea la personalidad activa.",
+      "src": "db752f1628a3"
+    },
+    "65": {
+      "title": "Detectar el código muerto de los agentes",
+      "summary": "Los nodos de agentes por dominio ya no se recorrían nunca. El análisis lo documenta, para que la administración deje de ofrecer ajustes que no sirven para nada.",
+      "src": "a547d9a5e1b0"
+    },
+    "66": {
+      "title": "Memoria y diarios en una misma base",
+      "summary": "Dos almacenamientos distintos obligaban a cinco cálculos de embedding por turno. Memoria y diarios pasan a PostgreSQL con pgvector, y un único embedding sirve para todos los usos.",
+      "src": "445716688153"
+    },
+    "67": {
+      "title": "Cuatro estados para una cuenta",
+      "summary": "Activa, desactivada, eliminada, borrada: una cuenta sigue un ciclo de vida que conserva el historial de facturación tras la eliminación y lo borra todo a petición, en virtud del RGPD.",
+      "src": "719c1106904f"
+    },
+    "68": {
+      "title": "Una psique que evoluciona",
+      "summary": "La personalidad era un texto fijo. Un motor psicológico de cinco capas — rasgos, estado de ánimo, emociones, relación, motivaciones — hace evolucionar el estado de LIA a lo largo de los intercambios.",
+      "src": "9a4381d26a1b"
+    },
+    "69": {
+      "title": "Embeddings de Google asimétricos",
+      "summary": "La búsqueda semántica pasa a Gemini, con dos espacios distintos para almacenar y para buscar, y dos vectores por elemento (contenido y palabras clave) para recuperarlos mejor.",
+      "src": "46d77a364aa8"
+    },
+    "70": {
+      "title": "El modo ReAct",
+      "summary": "Un plan rígido no se adapta a un resultado inesperado. Un segundo modo, a elección de la persona, deja que el modelo llame a una herramienta, lea el resultado y decida qué hacer a continuación, en un bucle integrado en el grafo.",
+      "src": "2eda62812c19"
+    },
+    "71": {
+      "title": "Reconocer una habilidad por su significado",
+      "summary": "Dos mecanismos competían por identificar las habilidades. Ahora el analizador de consultas compara la petición con la descripción de cada habilidad activa: una única señal, semántica.",
+      "src": "f23a95a20b9a"
+    },
+    "72": {
+      "title": "Al contexto le bastan dos claves",
+      "summary": "El gestor de contexto guardaba tres vistas por dominio, una de ellas inútil. Ya solo guarda la última lista y el elemento actual, lo que simplifica la resolución de las referencias.",
+      "src": "ce8d46c5743c"
+    },
+    "73": {
+      "title": "El clima, allí donde estés",
+      "summary": "Las alertas meteorológicas hablaban del domicilio incluso durante un viaje. Una última ubicación conocida, guardada a petición, permite que las notificaciones sigan a la persona allí donde se encuentre.",
+      "src": "a29e94a52fbc"
+    },
+    "74": {
+      "title": "Un contrato para los datos de las herramientas",
+      "summary": "Varios campos de salida se confundían. Las entidades de negocio pasan por un único contrato explícito y plano, que los consumidores leen sin tener que adivinar.",
+      "src": "73d9ebb77dcc"
+    },
+    "75": {
+      "title": "Habilidades que muestran",
+      "summary": "Un mapa, un panel de control, un código QR: además de texto, una habilidad puede devolver un marco interactivo o una imagen, mediante un contrato JSON tipado.",
+      "src": "9e83678151da"
+    },
+    "76": {
+      "title": "Datos de salud desde el iPhone",
+      "summary": "Un atajo del iPhone envía cada día pasos y frecuencia cardiaca por lotes, autenticado con un token personal revocable, para seguir las tendencias y detectar las variaciones.",
+      "src": "66df294ba482"
+    },
+    "77": {
+      "title": "El briefing matinal",
+      "summary": "La página de inicio se convierte en un briefing del día: clima, agenda, correos, recordatorios… leídos en paralelo fuera del grafo de agentes, con una caché por sección y una síntesis redactada.",
+      "src": "8330fae3a1be"
+    },
+    "78": {
+      "title": "El catálogo de modelos en la base de datos",
+      "summary": "Las capacidades y los precios de los modelos estaban fijados en el código. El catálogo vive ahora en la base de datos, editable por el administrador sin volver a desplegar.",
+      "src": "95c5435f56c1"
+    },
+    "79": {
+      "title": "Un diario en cuatro niveles",
+      "summary": "El diario se convierte en el órgano de metacognición de LIA: observaciones en bruto, directrices, síntesis y retrato de la persona, cada uno con su nivel de evidencia y su autoevaluación.",
+      "src": "90b03f049cf5"
+    },
+    "80": {
+      "title": "Una transcripción remota más precisa",
+      "summary": "Como opción, el reconocimiento de voz puede pasar por ElevenLabs Scribe, más preciso; los precios incorporan una unidad por minuto o por hora de audio para calcularse con exactitud.",
+      "src": "3b5693e75266"
+    },
+    "81": {
+      "title": "La voz, configurada como un modelo",
+      "summary": "Catorce variables de entorno controlaban la síntesis de voz. Pasa a ser un rol del catálogo, que se elige en la administración como cualquier otro modelo.",
+      "src": "387f51c660cf"
+    },
+    "82": {
+      "title": "El primer sonido en un segundo",
+      "summary": "Cliente HTTP persistente, división en frases durante la generación y envío inmediato: la voz empieza a hablar antes de que termine la respuesta escrita.",
+      "src": "7f24709d53a8"
+    },
+    "83": {
+      "title": "Delegar sin que se dispare el presupuesto",
+      "summary": "Un resumen de cinco correos había consumido cerca de 500.000 tokens. La delegación a un subagente pasa por un bucle ReAct parametrizado y acotado, y el antiguo mecanismo se elimina.",
+      "src": "f6dc4f56f4b6"
+    },
+    "84": {
+      "title": "Buscar lo que se indexa, juzgar el resto",
+      "summary": "«Mis citas médicas» no daba ningún resultado: se buscaba tal cual la palabra «médica». Un principio de planificación separa lo que un servicio sabe filtrar de lo que el modelo debe juzgar.",
+      "src": "c571f7cc2a60"
+    },
+    "85": {
+      "title": "Un registro para mostrar cada borrador",
+      "summary": "Tras la confirmación, tres recordatorios eliminados aparecían como tres líneas idénticas. Un registro declarativo por tipo de borrador, verificado al arrancar, fija cómo se muestra cada uno.",
+      "src": "05f6535ec5ff"
+    },
+    "86": {
+      "title": "Compactar el historial sin bloquear",
+      "summary": "Una conversación demasiado larga impedía cualquier mensaje nuevo. La compactación incorpora tiempos límite, reintentos, observabilidad y un recorte visible en lugar de un bloqueo.",
+      "src": "2adc1ca8dd48"
+    },
+    "87": {
+      "title": "El cliente nativo de OpenAI y un razonamiento por proveedor",
+      "summary": "Un cliente propio de 1800 líneas se sustituye por el cliente nativo; la forma de pedir razonamiento pasa a ser una configuración por proveedor.",
+      "src": "b81a24a86899"
+    },
+    "88": {
+      "title": "Un diario más sobrio y mejor enfocado",
+      "summary": "El diario producía entradas inútiles. Escribe menos, conserva sus mecanismos de descubrimiento, y cada nivel responde a un uso concreto cuando se lee.",
+      "src": "cf35da26c104"
+    },
+    "89": {
+      "title": "Métricas correctas con varios workers",
+      "summary": "Cada proceso exponía sus propios contadores. El modo multiproceso de Prometheus los agrega, y cada indicador declara cómo se combina.",
+      "src": "21d4a2da51b0"
+    },
+    "90": {
+      "title": "Una capa semántica gobernada",
+      "summary": "Los vínculos entre tipos de datos y herramientas tenían dos fuentes desincronizadas. Ahora son la unión de la ontología y los manifiestos, y unos tests garantizan su integridad.",
+      "src": "0993bb3abd7a"
+    },
+    "91": {
+      "title": "Preparar la respuesta durante la iniciativa",
+      "summary": "La respuesta esperaba a que terminara la iniciativa para cargar su contexto. Ahora ambas se solapan, lo que ahorra varios segundos en los turnos con herramientas.",
+      "src": "521ecc830715"
+    },
+    "92": {
+      "title": "Una interrupción por ejecución de nodo",
+      "summary": "Reanudar tras una aprobación repetía llamadas costosas. Cada nodo ya solo plantea una interrupción y el bucle pasa por el grafo, lo que hace segura la reanudación.",
+      "src": "9b3aaf599dfa"
+    },
+    "93": {
+      "title": "Una cadena de confianza para la dirección IP",
+      "summary": "La dirección del cliente podía falsificarse y se podía inyectar HTML. Puertos ligados a localhost, cabeceras de proxy verificadas y saneamiento del HTML cierran esas dos brechas.",
+      "src": "0af07ed926c3"
+    },
+    "94": {
+      "title": "Eliminar el código que ya no sirve",
+      "summary": "Tres funciones de ventana de mensajes ya no se invocaban en ningún sitio. Desaparecen con sus ajustes y sus tests: un subsistema muerto cuesta en cada cambio.",
+      "src": "309a3e52fd07"
+    },
+    "95": {
+      "title": "Cerrar clases de defectos",
+      "summary": "Una auditoría encontró siete familias de defectos discretos. Cada una se corrige y recibe una salvaguarda permanente — un test, una métrica o una regla escrita — para que nunca vuelva.",
+      "src": "d0244e2b0e48"
+    },
+    "96": {
+      "title": "Rendimiento, red y confianza, auditados",
+      "summary": "Una auditoría se centró en tres fronteras: el código síncrono que congelaba el bucle asíncrono, los servicios internos accesibles desde la red local y la salida de los modelos mostrada sin filtrar. Cada defecto se corrige y se mide antes y después.",
+      "src": "572bd6231adc"
+    },
+    "97": {
+      "title": "Concurrencia, purga RGPD y entorno aislado",
+      "summary": "Algunos defectos solo aparecen en paralelo o al eliminar una cuenta. Una sesión de base de datos por tarea paralela, una purga RGPD completa y un entorno aislado de habilidades reforzado los eliminan.",
+      "src": "3359293d3e18"
+    },
+    "98": {
+      "title": "Una esclusa para los widgets de terceros",
+      "summary": "La política de seguridad de contenido rompía los widgets MCP. Ahora cada widget de terceros recibe su propio documento, y por tanto su propia política, sin debilitar la de la aplicación.",
+      "src": "debded363eba"
+    },
+    "99": {
+      "title": "Retirar una configuración nunca conectada",
+      "summary": "Un proxy inverso nginx incluido desde la primera versión nunca se había conectado a nada. Se elimina, porque un archivo que no sirve engaña a quien lo lee.",
+      "src": "b5b5af7e8d72"
+    },
+    "100": {
+      "title": "Rescatar una salida estructurada mal formada",
+      "summary": "A veces un modelo respondía con JSON dentro de su texto en lugar de la estructura esperada, y la petición fallaba. Una red de seguridad recupera ese JSON, y una convención de escritura de los prompts evita el conflicto.",
+      "src": "20953f7f42d2"
+    },
+    "101": {
+      "title": "Una búsqueda fiable en la agenda",
+      "summary": "«Mis próximas citas médicas» fallaba al azar según el modo. La herramienta lista el periodo y después filtra ella misma, restablece las fechas y limita el volumen leído.",
+      "src": "70ec4ce417e8"
+    },
+    "102": {
+      "title": "Un único vocabulario de dominios",
+      "summary": "Cada dominio lleva un nombre en singular y una clave de resultado en plural, ambos sacados de un registro único: ya no queda ninguna tabla mantenida a mano.",
+      "src": "40e0b1b3e96b"
+    },
+    "103": {
+      "title": "Validaciones en tu idioma",
+      "summary": "Partes de la validación humana seguían en francés para todo el mundo. Las instrucciones a los modelos pasan a un inglés neutro y todo lo que lee la persona se traduce a los seis idiomas, con un control de paridad que lo garantiza.",
+      "src": "3c59f0760950"
+    },
+    "104": {
+      "title": "Una psique menos saturada",
+      "summary": "El ánimo de LIA se quedaba atascado en unos pocos estados. La causa — las emociones creadas en cada turno — se trata en su origen, con umbrales ajustables sin reconstruir.",
+      "src": "a6ecac0ed3b1"
+    },
+    "105": {
+      "title": "Un estado de ánimo que se oye",
+      "summary": "El estado psicológico se describía con adjetivos abstractos y no se notaba. Pasa a la forma de hablar — ritmo, longitud, registro — sin decir nunca «me siento».",
+      "src": "468bb170265e"
+    },
+    "106": {
+      "title": "Una sola confirmación para los dos modos",
+      "summary": "Los modos Pipeline y ReAct activaban las confirmaciones de dos formas distintas. Ahora un contrato único y tipado sirve para cualquier validación, sea cual sea el modo.",
+      "src": "b45c2672ed7a"
+    },
+    "107": {
+      "title": "13.600 líneas de código muerto menos",
+      "summary": "Unos motores de autonomía y un marco de aprobación ya no se invocaban. Se eliminan en cinco grupos verificados, sin perder nada que siguiera vivo.",
+      "src": "77b3a1cb0e11"
+    },
+    "108": {
+      "title": "Una base común para las claves de API",
+      "summary": "Brave, OpenWeatherMap y Perplexity limitaban su ritmo de peticiones proceso a proceso, lo que resultaba erróneo con varios workers. Ahora heredan de una base reforzada, con un ciclo de vida determinista.",
+      "src": "c230ae37dc9a"
+    },
+    "109": {
+      "title": "Copias de seguridad que de verdad se restauran",
+      "summary": "Ninguna copia de seguridad de la base de datos estaba versionada. Un contenedor dedicado exporta cada noche con retención, y un script demuestra la restauración en una base desechable.",
+      "src": "94256851b241"
+    },
+    "110": {
+      "title": "Cifrar las copias de seguridad, más adelante",
+      "summary": "Se analizan y comparan las opciones de cifrado de las copias de seguridad; la decisión es aplazarlo, con un camino trazado hacia una copia fuera de las instalaciones.",
+      "src": "2e297edfccf3"
+    },
+    "111": {
+      "title": "Un pool de conexiones para LangGraph",
+      "summary": "Cada worker compartía una sola conexión para guardar todas las conversaciones. Los pools de conexiones eliminan ese cuello de botella, el primero del sistema.",
+      "src": "4b2374b828a0"
+    },
+    "112": {
+      "title": "Dependencias de Python fijadas",
+      "summary": "Las versiones instaladas variaban de una máquina a otra. Unos archivos de bloqueo universales, generados por uv y verificados en la CI, fijan cada dependencia transitiva.",
+      "src": "f79dc8f7268e"
+    },
+    "113": {
+      "title": "Tests de integración que por fin se ejecutan",
+      "summary": "250 tests de integración no se ejecutaban en ningún job. Se incorporan a la CI con una base de datos real, las cuarentenas quedan prohibidas y la cobertura ya no puede retroceder.",
+      "src": "0d00f893f1a3"
+    },
+    "114": {
+      "title": "Errores de conectores tipados",
+      "summary": "La capa de cliente lanzaba excepciones HTTP en bruto. Ahora lanza errores del dominio, con exactamente la misma respuesta para quien llama.",
+      "src": "4e6b3f13c08f"
+    },
+    "115": {
+      "title": "Vivo o listo: dos sondas",
+      "summary": "La sonda de salud nunca podía señalar una avería. Se divide en «vivo» (siempre 200) y «listo» (503 mientras la base de datos y Redis no respondan).",
+      "src": "5f8a521cb2bb"
+    },
+    "116": {
+      "title": "Una base de tests para el frontend",
+      "summary": "El núcleo del chat solo estaba protegido por el tipado. Ahora cientos de tests cubren el streaming, las validaciones y la voz, con umbrales de cobertura que no retroceden.",
+      "src": "f575eeec38b4"
+    },
+    "117": {
+      "title": "Una respuesta que sobrevive a la desconexión",
+      "summary": "Cerrar la pestaña interrumpía la generación. Ahora la respuesta se produce aparte, se difunde por Redis Streams y se reanuda en directo cuando vuelves.",
+      "src": "0741f98316b1"
+    },
+    "118": {
+      "title": "Instalar una habilidad desde el chat",
+      "summary": "El generador de habilidades exigía cuatro manipulaciones manuales. La habilidad se instala directamente, mediante un proceso de importación único y reforzado.",
+      "src": "eb86ca4751df"
+    },
+    "119": {
+      "title": "Alertas que despiertan de verdad",
+      "summary": "Las alertas se habían desactivado sin una decisión escrita. Vuelve un núcleo mínimo de alertas vitales, evaluadas por Prometheus y enviadas por correo electrónico, cada una con su procedimiento.",
+      "src": "cf0390f395b3"
+    },
+    "120": {
+      "title": "«A casa de mi hermano» ya no lleva a cualquier sitio",
+      "summary": "Un trayecto hacia «mi hermano» salía a veces hacia un lugar arbitrario. Evidencias deterministas de referencia a una persona y un control de parámetros en la ejecución cierran cada eslabón del fallo.",
+      "src": "0deb82c77e87"
+    },
+    "121": {
+      "title": "Anotar el significado de cada parámetro",
+      "summary": "Solo el 14 % de los parámetros llevaba un tipo semántico. Una campaña de anotación vincula por fin participantes, remitentes, direcciones y fechas de una herramienta a otra.",
+      "src": "afe89a1c2c8f"
+    },
+    "122": {
+      "title": "Dividir la función más grande",
+      "summary": "La función que emite cada respuesta tenía más de 1100 líneas. La coordinación de la voz se extrae a una máquina de estados tipada.",
+      "src": "9510f366bbb0"
+    },
+    "123": {
+      "title": "Un arranque dividido en etapas",
+      "summary": "El arranque de la API ocupaba 780 líneas. Cada subsistema recibe su módulo de inicialización, y una sola función decide el orden.",
+      "src": "3b7a2dc206d4"
+    },
+    "124": {
+      "title": "Se acabaron las excepciones HTTP en bruto",
+      "summary": "Los routers y los servicios lanzan ahora errores centralizados, con una respuesta idéntica para los clientes: la regla se aplica ya a todo el backend.",
+      "src": "a5f61cbb3318"
+    },
+    "125": {
+      "title": "Mostrar un borrador sin cascada",
+      "summary": "El renderizado de las vistas previas de confirmación era una cascada de condiciones. La sustituye una tabla de renderizado por tipo de borrador.",
+      "src": "89b482facd81"
+    },
+    "126": {
+      "title": "Desacoplar la identidad de las cuentas",
+      "summary": "El dominio más solicitado dependía de demasiados otros. Autenticación y cuentas se separan para que la identidad siga siendo una base estable.",
+      "src": "3921b16252c3"
+    },
+    "127": {
+      "title": "LIA hace llamadas por ti",
+      "summary": "LIA puede llamar a un tercero para comprobar una disponibilidad y después traer un resumen al chat. La llamada pasa por tu propio conector y sigue siendo confirmada, acotada y de solo lectura.",
+      "src": "692117e3ee22"
+    },
+    "128": {
+      "title": "El replanificador aconseja, no actúa",
+      "summary": "El análisis de los fallos de un plan sigue siendo un consejo: alimenta la observabilidad y el mensaje que se muestra, sin relanzar por sí mismo un nuevo plan.",
+      "src": "7f762b31a867"
+    },
+    "129": {
+      "title": "Indexaciones que se reanudan tras una caída",
+      "summary": "Un reinicio dejaba documentos bloqueados a mitad de procesamiento. Documentos y fuentes pasan a ser tareas con arrendamiento, que se retoman automáticamente.",
+      "src": "5cc6fe854c59"
+    },
+    "130": {
+      "title": "Balance de una auditoría, hallazgo por hallazgo",
+      "summary": "Once hallazgos de auditoría se tratan sin delegación y sin regresión: cada refactorización empieza con tests que fijan el comportamiento actual.",
+      "src": "2662588babaf"
+    },
+    "131": {
+      "title": "Temas de interés más variados",
+      "summary": "La mitad de las notificaciones hablaban del mismo tema. Los intereses se agrupan por tema percibido y se sortean según su rareza, con mediciones que lo respaldan.",
+      "src": "cb9ab643bac4"
+    },
+    "132": {
+      "title": "Aprobar con un clic",
+      "summary": "Las solicitudes de validación no eran más que un texto que había que interpretar. Se convierten en tarjetas con botones, tras corregir defectos latentes.",
+      "src": "8281fd9bbbf8"
+    },
+    "133": {
+      "title": "Los bastidores de cada respuesta",
+      "summary": "Los pasos de ejecución desaparecían con la primera palabra de la respuesta. Ahora se conservan con el mensaje y se pueden consultar después.",
+      "src": "bae312693b52"
+    },
+    "134": {
+      "title": "«Reconectar» en lugar de una excusa",
+      "summary": "Un conector revocado producía una excusa vaga. Un banner propone reconectar con un clic, gracias a una clasificación por tipo de excepción, nunca por mensaje.",
+      "src": "ea8b4a360319"
+    },
+    "135": {
+      "title": "Notificaciones de intereses concretas",
+      "summary": "El heartbeat volvía sin cesar a los mismos intereses sin nada concreto. Una muestra variada, un registro común, un filtro antirrepetición sobre el contenido y un enriquecimiento concreto corrigen el rumbo.",
+      "src": "b95b35f502ea"
+    },
+    "136": {
+      "title": "Widgets que cargan en el iPhone",
+      "summary": "En el iPhone, los mapas y las aplicaciones MCP se quedaban vacíos sin ningún mensaje. Una postura de aislamiento adaptada y unos estados de fallo visibles arreglan la visualización.",
+      "src": "396a4691dc54"
+    },
+    "137": {
+      "title": "Widgets ligados a su mensaje",
+      "summary": "Algunos widgets aparecían duplicados o se perdían. El modelo ya nunca escribe su marcado: el anfitrión los coloca y viajan con su mensaje.",
+      "src": "bc28ac9c63d9"
+    },
+    "138": {
+      "title": "Valorar cada respuesta",
+      "summary": "👍 o 👎 bajo cada respuesta, con un comentario opcional: el veredicto se conserva y se reinyecta en el aprendizaje, nunca para regenerar la respuesta en tu lugar.",
+      "src": "831666bfa466"
+    },
+    "139": {
+      "title": "Compromisos que ya no se pierden",
+      "summary": "«Tengo que volver a llamar al fontanero» moría con la conversación. Un registro de compromisos los guarda, y el heartbeat hace seguimiento con mesura.",
+      "src": "d48a0a2b04db"
+    },
+    "140": {
+      "title": "Rutinas creadas en la conversación",
+      "summary": "«Hazme esto todas las mañanas» llega ahora a buen puerto en el chat, tras una confirmación, y LIA sugiere una rutina cuando ve que una petición se repite.",
+      "src": "9092fc122bd6"
+    },
+    "141": {
+      "title": "Conocimientos activos",
+      "summary": "Los espacios documentales se convierten en un dominio que el planificador consulta, y una vista de 360° reúne todo lo que LIA sabe de una persona.",
+      "src": "650e9222772f"
+    },
+    "142": {
+      "title": "Medir la psique antes de ajustarla",
+      "summary": "Los ajustes psicológicos se habían entregado sin medición. Primero llega un instrumento de observación, y las propiedades deseadas se convierten en tests.",
+      "src": "8f3668e2fa83"
+    },
+    "143": {
+      "title": "Passkeys, TOTP y reautenticación",
+      "summary": "Passkeys, segundo factor TOTP con códigos de respaldo y nueva verificación antes de cualquier acción sensible: la máxima seguridad y la máxima comodidad, sin exponer nunca un secreto al navegador.",
+      "src": "e26b8004dd5f"
+    },
+    "144": {
+      "title": "«Mis dispositivos»",
+      "summary": "Cada persona ve los dispositivos conectados a su cuenta y puede revocar uno a distancia, con un mínimo estricto de datos (familias de navegadores, IP truncada).",
+      "src": "292d56e7c65a"
+    },
+    "145": {
+      "title": "Exportar toda tu cuenta",
+      "summary": "En virtud de la portabilidad del RGPD, cada persona descarga la totalidad de sus datos, preparados por tareas duraderas y sin exportar nunca un secreto.",
+      "src": "a5af1953c2f9"
+    },
+    "146": {
+      "title": "Una aplicación que aguanta sin conexión",
+      "summary": "Un único service worker gestiona las notificaciones y el modo sin conexión; cuando no hay red, muestra una página con los colores de LIA.",
+      "src": "b41f43c7ce31"
+    },
+    "147": {
+      "title": "Responder sobre lo que se acaba de ver",
+      "summary": "Cuando un turno no produce datos, la respuesta se apoya en las entidades recientes, sin dejar nunca que un dato antiguo contamine otra pregunta.",
+      "src": "a885a0eda1b1"
+    },
+    "148": {
+      "title": "Señales de salud agregadas en SQL",
+      "summary": "El heartbeat transfería 30.000 filas en cada pasada para unas pocas cifras. Una agregación diaria en la base de datos devuelve una fila por día.",
+      "src": "a9bbd433e0e5"
+    },
+    "149": {
+      "title": "Un contenedor desechable para cada script",
+      "summary": "Aislar un script cambiando de usuario solo protegía si la API se ejecutaba como root. Ahora cada script de habilidad se ejecuta en un contenedor desechable, sin red.",
+      "src": "2a3d03f502f7"
+    },
+    "150": {
+      "title": "Buscar durante una reindexación",
+      "summary": "Reindexar un espacio lo dejaba parcialmente vacío. Conviven dos generaciones, y un puntero solo cambia cuando la nueva está lista.",
+      "src": "d478f783ae28"
+    },
+    "151": {
+      "title": "La CI llama a lo que lanza el desarrollador",
+      "summary": "El workflow de integración continua contenía casi cien comandos escritos en línea. Ahora cada paso llama a una tarea del Taskfile: la CI ejecuta literalmente lo que cada uno lanza en local.",
+      "src": "9e1f37b0c746"
+    },
+    "152": {
+      "title": "Tres hooks huérfanos eliminados",
+      "summary": "Se retiran unos hooks del frontend que nada utilizaba, y la compilación lo demuestra: menos código que mantener, ninguna funcionalidad perdida.",
+      "src": "212c8597392b"
+    },
+    "153": {
+      "title": "Entender «mejor a las 15:00»",
+      "summary": "Clasificar una respuesta libre a una solicitud de aprobación (sí, no, modificar) fallaba con algunos nombres de herramientas. La clasificación se hace por verbo de acción, con ejemplos que cubren todos los casos.",
+      "src": "48ccd5a434d6"
+    },
+    "154": {
+      "title": "Una frase termina en un punto de verdad",
+      "summary": "La voz cortaba en mitad de una URL o de un número decimal. Un delimitador solo cierra una frase si va seguido de un espacio o está al final del texto, en las dos implementaciones, ahora unificadas.",
+      "src": "83368b52cb31"
+    },
+    "155": {
+      "title": "Un test nunca se desactiva en silencio",
+      "summary": "Diez suites de tests se desactivaban solas por falta de clave de API, así que nunca se ejecutaban en la CI. Se simula el proveedor o se marca el test de forma visible, y una salvaguarda impide la recaída.",
+      "src": "4788b81a9746"
+    },
+    "156": {
+      "title": "Nueve módulos huérfanos del frontend, retirados",
+      "summary": "Se eliminan nueve módulos y sus traducciones huérfanas, clave por clave, sin tocar las que todavía comparte un componente vivo.",
+      "src": "f18d5e39fa15"
+    },
+    "157": {
+      "title": "Corregir una vulnerabilidad sin romper el lint",
+      "summary": "Una vulnerabilidad de una dependencia de JavaScript exigía una versión incompatible. Un pequeño parche de interoperabilidad aplica la verdadera corrección de upstream sin romper las herramientas.",
+      "src": "704262330036"
+    },
+    "158": {
+      "title": "Traducciones completas, no solo presentes",
+      "summary": "La paridad de claves no veía que una traducción estaba truncada. Se reparan los truncamientos y un trinquete impide que aumenten.",
+      "src": "5b25cb112c38"
+    },
+    "159": {
+      "title": "Los cuatro temas del diario, alcanzables",
+      "summary": "Un solo tema del diario recibía casi todas las entradas. La clasificación se hace según el asunto, y un arnés de medición comprueba que cada tema siga vivo.",
+      "src": "597c938ddb28"
+    },
+    "160": {
+      "title": "«Crea una imagen» vuelve a funcionar",
+      "summary": "Seis peticiones de imagen seguidas habían fallado: el modelo escribía la palabra «null» como nombre de habilidad. Las salidas se normalizan y se levantan dos topes que hacían imposible la función.",
+      "src": "cee14ce17325"
+    },
+    "161": {
+      "title": "Un flujo mudo devuelve el control",
+      "summary": "En el móvil, una respuesta podía quedarse bloqueada en «Generando…» aunque ya estaba lista. Un perro guardián en el navegador detecta el silencio y reanuda el flujo automáticamente.",
+      "src": "d5730674fd3f"
+    },
+    "162": {
+      "title": "Un solo worker indexa la FAQ del sistema",
+      "summary": "Cuatro workers reindexaban el conocimiento del sistema a la vez y saturaban al proveedor. Uno solo se queda con el derecho a indexar, y su caché sobrevive al despliegue.",
+      "src": "bc751adfff36"
+    },
+    "163": {
+      "title": "Un solo worker calcula los embeddings de herramientas",
+      "summary": "En el primer arranque, cada worker recalculaba los mismos embeddings. Una reserva mediante un archivo designa un único calculador; los demás esperan su resultado.",
+      "src": "9af03ebd6354"
+    },
+    "164": {
+      "title": "Qué turnos alimentan la memoria",
+      "summary": "Ahora se cuenta cada decisión de extracción hacia la memoria, los intereses o el diario, para comprobar que ningún tipo de turno se ignora por error.",
+      "src": "0d2eff1f9daf"
+    },
+    "165": {
+      "title": "Modificar una habilidad es regenerarla",
+      "summary": "Para ajustar una habilidad, la asistente relee la versión actual y regenera el paquete completo, confirmado en la herramienta, en lugar de aplicar un parche parcial.",
+      "src": "2bd70c848314"
+    },
+    "166": {
+      "title": "Lo que merece recordarse",
+      "summary": "Cada tema mencionado se convertía en un interés. La pregunta pasa a ser: ¿ha mostrado la persona un vínculo duradero? Pedir algo no significa que te guste, y cada creación exige un fundamento citado.",
+      "src": "26a9a7da6201"
+    },
+    "167": {
+      "title": "La procedencia sigue al dato",
+      "summary": "El texto escrito por un tercero —un correo, una invitación, una página— debe seguir siendo un dato, nunca una instrucción. La confianza se declara por tipo de dato y se aplica allí donde el modelo lo lee.",
+      "src": "d2004e6a98da"
+    },
+    "168": {
+      "title": "Eliminada una búsqueda muerta desde hace tiempo",
+      "summary": "Una búsqueda híbrida de la memoria llevaba meses sin usarse. El módulo, sus ajustes y sus métricas desaparecen, con la prueba de su inactividad como respaldo.",
+      "src": "1381b8f35642"
+    },
+    "169": {
+      "title": "El contexto de un turno ReAct es estado",
+      "summary": "Las instrucciones del turno ReAct se añadían como mensajes y desaparecían al recortarse la ventana del historial. Pasan a ser estado, recompuesto al principio en cada iteración.",
+      "src": "9e195c945844"
+    },
+    "170": {
+      "title": "Un presupuesto de cómputo, no de reloj",
+      "summary": "El tiempo pasado esperando tu aprobación se contaba como cómputo. El presupuesto ReAct solo cuenta el cómputo real, y una guarda detiene un bucle que repite la misma llamada.",
+      "src": "fc4616384755"
+    },
+    "171": {
+      "title": "Las cabeceras sticky por fin funcionan",
+      "summary": "Una regla CSS global inutilizaba desde siempre todos los elementos «sticky». Otro valor de desbordamiento recorta la página sin romper el anclaje.",
+      "src": "5e46cb293509"
+    },
+    "172": {
+      "title": "Buscar un ajuste",
+      "summary": "Encontrar un ajuste cuyo nombre ya conocías obligaba a desplegarlo todo. Un campo de búsqueda indexa las secciones y dice claramente cuándo un destino no existe.",
+      "src": "7717445ce763"
+    },
+    "173": {
+      "title": "Rellenar o enviar: dos enlaces",
+      "summary": "Un enlace que rellena el campo y un enlace que envía la petición tienen ahora dos parámetros distintos, para no enviar nunca un texto que la persona no haya validado.",
+      "src": "99aa861776c6"
+    },
+    "174": {
+      "title": "El informe de una llamada, conservado",
+      "summary": "Tras una llamada, solo sobrevivían un resumen y algunos datos. Compromisos, seguimientos propuestos e incertidumbres se conservan ahora en un informe estructurado.",
+      "src": "4a8036775570"
+    },
+    "175": {
+      "title": "Rutinas que reaccionan",
+      "summary": "Una rutina puede dispararse por una condición —una tarea atrasada, un cambio meteorológico— comprobada en cada tick, y solo se ejecuta una vez por cada hecho nuevo.",
+      "src": "5f6cb028f3b8"
+    },
+    "176": {
+      "title": "Un cuaderno de relaciones",
+      "summary": "LIA reúne lo que ya sabe de las personas —compromisos, llamadas, recuerdos— en una vista relacional de solo lectura, sin ninguna tabla nueva.",
+      "src": "24d501819a33"
+    },
+    "177": {
+      "title": "Respuestas en HTML enriquecido",
+      "summary": "Recuadros destacados, viñetas, tablas, bloques plegables: un vocabulario de componentes permite respuestas maquetadas, saneadas según un esquema ampliado.",
+      "src": "fc29649751a5"
+    },
+    "178": {
+      "title": "Un panel de control de producto",
+      "summary": "Más allá de lo técnico, un panel de control mide los resultados útiles, la activación, la retención y el coste por resultado, a partir de datos duraderos en la base de datos.",
+      "src": "79d4f71e968d"
+    },
+    "179": {
+      "title": "Una sola puerta para la salida estructurada",
+      "summary": "El resultado de una llamada llegaba en inglés y sin su informe: un camino esquivaba la puerta común. Ahora toda salida estructurada pasa por ella, con una guarda AST que lo respalda.",
+      "src": "9301941d7c61"
+    },
+    "180": {
+      "title": "Conectar a los usuarios de una misma instancia",
+      "summary": "Encontrarse por nombre exacto, conectarse tras un acuerdo mutuo, escribirse de asistente a asistente y compartir en solo lectura: un contexto dedicado organiza estos vínculos.",
+      "src": "b0c62e55d739"
+    },
+    "181": {
+      "title": "La identidad «Cosmos» del sitio público",
+      "summary": "El espacio público adopta una identidad cósmica y coreografías guiadas por el desplazamiento, aplicadas mediante un ámbito CSS sin reescribir los componentes.",
+      "src": "c36403a7c1e3"
+    },
+    "182": {
+      "title": "Conciencia de las conexiones y fallos contados tal cual",
+      "summary": "«¿Está disponible mañana?» respondía que no había ningún servicio configurado. El enrutamiento conoce ahora las conexiones, y un fallo se comunica tal como es.",
+      "src": "6eeb02c420e6"
+    },
+    "183": {
+      "title": "Un catálogo de herramientas que se sostiene",
+      "summary": "Una misma petición fallaba y luego funcionaba al azar. Un catálogo filtrado debe ser cerrado: todo lo que exige una herramienta debe producirlo otra herramienta del catálogo.",
+      "src": "38aa288b5a31"
+    },
+    "184": {
+      "title": "Un límite aplicado es un límite publicado",
+      "summary": "El planificador no veía los límites que la herramienta aplicaba en silencio. Toda restricción aplicada se publica para quien produce el valor, y un veredicto de validación no equivale a un fallo.",
+      "src": "92dbef9b4202"
+    },
+    "185": {
+      "title": "Un contador es una afirmación",
+      "summary": "Un número mostrado debe ser exacto o no existir: contar sobre una página truncada subestima en silencio. Agregado sobre todo el conjunto, paginación solo de las filas y el total exacto al lado.",
+      "src": "8c13acb087b9"
+    },
+    "186": {
+      "title": "Las palabras de un mensaje tienen derecho a un plazo",
+      "summary": "El contenido de un mensaje retransmitido se borraba en cuanto se entregaba. Ahora se conserva durante un tiempo limitado, como las llamadas, antes de purgarse.",
+      "src": "8faf7ec9e855"
+    },
+    "187": {
+      "title": "Una sola caja de búsqueda",
+      "summary": "Buscar a un par por nombre o por dirección pasa por un solo campo, y es el servidor quien decide de qué se trata.",
+      "src": "a6f4f7622435"
+    },
+    "188": {
+      "title": "El cuaderno de relaciones consulta a los proveedores",
+      "summary": "La vista de relaciones puede leer contactos y cumpleaños en el proveedor, siempre que diga qué ha consultado y verifique cada coincidencia.",
+      "src": "f4bd55e348c3"
+    },
+    "189": {
+      "title": "Ser localizable y dar tu dirección",
+      "summary": "Aceptar que te encuentren no significa mostrar tu dirección de correo: es un segundo consentimiento, desactivado por defecto.",
+      "src": "ebee018ed7d0"
+    },
+    "190": {
+      "title": "Lo que el catálogo anuncia, el registro lo cumple",
+      "summary": "Una herramienta anunciada pero ausente del registro respondía en vacío. Una guarda compara ambos, y la ficha de contacto muestra todos sus campos.",
+      "src": "961d15400d06"
+    },
+    "191": {
+      "title": "Una herramienta accesible desde su dominio",
+      "summary": "Un punto 360° volvía amputado: la herramienta no era accesible desde el dominio pedido. Cada herramienta declara los dominios a los que sirve, y un clic no es una frase.",
+      "src": "df66133c380c"
+    },
+    "192": {
+      "title": "Un enlace profundo es una navegación real",
+      "summary": "Un segundo punto 360° se quedaba congelado en el primero: el enrutador del navegador reutilizaba la URL. Un enlace profundo del chat pasa a ser una navegación completa.",
+      "src": "15df62a10c1f"
+    },
+    "193": {
+      "title": "Leer en cada dominio",
+      "summary": "Un dominio que solo sabe escribir empuja a escribir. Se añaden tres capacidades de lectura (llamadas, compromisos, mensajes), y la identidad de una persona se puede corregir.",
+      "src": "008c609dd5a5"
+    },
+    "194": {
+      "title": "Verificar las referencias antes de fusionar",
+      "summary": "Una ruta de referencia errónea entre pasos solo se descubría al ejecutar. Una guarda de CI verifica que cada ejemplo publicado se produce de verdad.",
+      "src": "5c4b17a8cbcf"
+    },
+    "195": {
+      "title": "Hacer una pregunta, no un diagnóstico",
+      "summary": "La aclaración mostraba la descripción técnica de un problema. Cada tipo de problema tiene su pregunta, en seis idiomas, verificada al arrancar.",
+      "src": "af10e4ca5718"
+    },
+    "196": {
+      "title": "Una notificación tiene su identidad antes del envío",
+      "summary": "El 👍/👎 de una notificación proactiva apuntaba a veces a la fila equivocada. El identificador lo elige el productor antes del envío y sirve en todas partes.",
+      "src": "7445dc9a3b2a"
+    },
+    "197": {
+      "title": "Estar conectado no es ser interrumpido",
+      "summary": "Para dejar de recibir notificaciones sacadas de los correos había que desconectar el correo. Once interruptores separan ahora la conexión del permiso para interrumpir.",
+      "src": "bb14a5996d91"
+    },
+    "198": {
+      "title": "Una rutina, como mucho una vez al día",
+      "summary": "Al calcular las cinco próximas ejecuciones apareció un fallo con el cambio de hora. Una rutina se ejecuta como mucho una vez por día local, por construcción.",
+      "src": "4c501cf93a45"
+    },
+    "199": {
+      "title": "Sugerir lo que ya se sabe",
+      "summary": "El chat vacío propone arranques sacados del briefing que ya está en caché, nunca de una nueva consulta: una sugerencia solo existe si existe la prueba.",
+      "src": "b8f82470670e"
+    },
+    "200": {
+      "title": "Mostrar lo que producen los ajustes",
+      "summary": "Los paneles de proactividad ajustaban frecuencia y fuentes sin mostrar las notificaciones producidas. Ahora se ven allí mismo, plegadas.",
+      "src": "f65ce4a30c34"
+    },
+    "201": {
+      "title": "De dónde viene lo que LIA sabe",
+      "summary": "Un recuerdo afirmaba una preferencia sin decir de dónde venía. Cada conclusión guarda una referencia a su origen, y un borrado deja una huella fechada.",
+      "src": "9b961672f241"
+    },
+    "202": {
+      "title": "Un lugar para leer lo que LIA envía",
+      "summary": "Mensajes retransmitidos, notificaciones, recordatorios: cinco flujos no tenían un lugar donde leerse. Un destino «Avisos» los reúne, sin ajustar nada.",
+      "src": "b9aaf15b9af7"
+    },
+    "203": {
+      "title": "Ninguna opción de llamada aceptada en tu lugar",
+      "summary": "Los seguimientos de una llamada enviaban el mensaje de inmediato. Ahora rellenan el campo, para que nada se acepte sin ti.",
+      "src": "ca48648ac5db"
+    },
+    "204": {
+      "title": "Explicar la incertidumbre en lugar de puntuarla",
+      "summary": "El peso de un interés se explica por sus componentes, nunca por una puntuación: se muestra el razonamiento, no una nota engañosa.",
+      "src": "21328dcc62bd"
+    },
+    "205": {
+      "title": "Un estado nombra un tono",
+      "summary": "Tres componentes codificaban sus propios colores de estado. Ahora un estado nombra un tono, renderizado por un único componente que hereda la guarda de contraste.",
+      "src": "b88559281ec4"
+    },
+    "206": {
+      "title": "Componentes accesibles por contrato",
+      "summary": "Una auditoría de UX mostró que la accesibilidad solo se verificaba en una parte de la interfaz. El contrato de un campo vive en un solo lugar, y una pantalla vacía siempre ofrece una puerta de salida.",
+      "src": "bd16e1907662"
+    },
+    "207": {
+      "title": "Una acción tiene una altitud",
+      "summary": "Acciones de la misma naturaleza tenían formas distintas de una pantalla a otra. Cuatro altitudes de acción, cuatro formas de botón, y nada más.",
+      "src": "602bb807a99e"
+    },
+    "208": {
+      "title": "Acciones de fila coherentes",
+      "summary": "Tres pantallas similares mostraban sus acciones de tres maneras, a veces invisibles con el teclado. Un componente único las hace siempre visibles y accesibles.",
+      "src": "05c26d183019"
+    },
+    "209": {
+      "title": "Un panel de depuración cronológico",
+      "summary": "El panel de depuración mostraba los pasos desordenados. Cada llamada lleva ahora su instante, medido desde el inicio de la ejecución, y el panel respeta el orden real en que se ejecutó.",
+      "src": "0dc2c461cf6c"
+    },
+    "210": {
+      "title": "Una acción no se repite",
+      "summary": "Regresar a una página volvía a ejecutar una acción de tarjeta ya realizada. Cada clic recibe un identificador de un solo uso, verificado en el momento de consumirlo.",
+      "src": "3371190f58d5"
+    },
+    "211": {
+      "title": "Un despliegue no molesta a la pila en servicio",
+      "summary": "El despliegue borraba el directorio vivo bajo los contenedores en servicio. La nueva versión se prepara aparte y solo toma el relevo cuando está lista.",
+      "src": "5821328ad3db"
+    },
+    "212": {
+      "title": "Etiquetas de logs bajo control",
+      "summary": "Promover campos variados a etiquetas de Loki multiplicaba los flujos indexados. Solo los campos con un conjunto pequeño y cerrado de valores se convierten en etiquetas; el resto se filtra al leer.",
+      "src": "a353a0032db9"
+    },
+    "213": {
+      "title": "¿Quién llama? Una cabecera que no se puede escribir",
+      "summary": "Tres sitios leían la dirección de quien llama, y un visitante podía falsificarla. Un único resolutor prefiere la cabecera que Cloudflare sobrescribe, lo que cierra la vía para esquivar los límites.",
+      "src": "3d8f8d7f5d02"
+    },
+    "214": {
+      "title": "Aprender los hábitos, bajo tu control",
+      "summary": "LIA aprende cuándo haces qué mediante estadísticas deterministas y explicables, calibradas por simulación. Cada hábito se ve, se corrige y se bloquea, y un solo interruptor cierra todo aprendizaje.",
+      "src": "3396559ddb51"
+    },
+    "215": {
+      "title": "Instalar LIA en casa",
+      "summary": "Un instalador guiado construye la aplicación en local o usa imágenes verificadas por su huella, y nunca lee un secreto en otro sitio que no sea la entrada estándar.",
+      "src": "7634d82b6e82"
+    },
+    "216": {
+      "title": "Un tope para toda la instancia",
+      "summary": "Los límites por usuario no acotan una instancia: N cuentas suman un gasto sin límite. Un presupuesto diario de instancia, actualizado de forma atómica, acota el propio despliegue.",
+      "src": "76d684433bd8"
+    },
+    "217": {
+      "title": "Un interruptor que quita de verdad",
+      "summary": "Transcripción, síntesis de voz, imágenes… cada capacidad que no es un conector tiene su interruptor de administración, que de verdad le retira la capacidad a la asistente.",
+      "src": "052c8acfc939"
+    },
+    "218": {
+      "title": "Protecciones recalculadas desde la fuente",
+      "summary": "Las pruebas del demostrador congelaban lo que hacía el código el día de la entrega. Cada promesa se recalcula desde la fuente de verdad; una novedad sin clasificar hace fallar la CI.",
+      "src": "32d3c888c404"
+    },
+    "219": {
+      "title": "Una ubicación memorizada que viaja con su antigüedad",
+      "summary": "La última ubicación conocida solo servía para las notificaciones. Ahora la leen todas las funcionalidades, y su antigüedad siempre se indica.",
+      "src": "bf9ddf61742e"
+    },
+    "220": {
+      "title": "Contar los tokens sin contar con el proveedor",
+      "summary": "Algunos proveedores solo devuelven el consumo si se les pide. Cada proveedor declara su modo de recuento, verificado al arrancar, y una llamada de pago sin recuento dispara una alerta.",
+      "src": "013340d902f8"
+    },
+    "221": {
+      "title": "El tiempo de espera mostrado es el que se aplica",
+      "summary": "El tiempo de espera por modelo se podía editar pero nunca se aplicaba. Pasa a ser el límite de transporte de cada llamada, contrastado con las latencias reales.",
+      "src": "2571bd210852"
+    },
+    "222": {
+      "title": "Eliminada una capa HITL que nunca se conectó",
+      "summary": "1200 líneas de estrategia de reanudación no se habían llamado nunca. Se eliminan: el código muerto cuesta en cada cambio.",
+      "src": "4a0210d9d634"
+    },
+    "223": {
+      "title": "Tarifas según la hora",
+      "summary": "DeepSeek factura según la hora UTC. Cada línea de tarifa lleva sus franjas horarias, y cada llamada se valora en su propio instante.",
+      "src": "d8f285d1ab6e"
+    },
+    "224": {
+      "title": "Conforme a la nueva versión de MCP",
+      "summary": "La revisión 2026-07-28 del protocolo MCP es un rediseño completo. LIA habla las dos épocas y vincula su OAuth al emisor descubierto, sin regresiones.",
+      "src": "54d1839f548b"
+    },
+    "225": {
+      "title": "El estándar Agent Plugins",
+      "summary": "LIA instala plugins portátiles del estándar Agent Plugins: habilidades y servidores MCP en un solo gesto, con un informe componente por componente.",
+      "src": "c7902ae7eb8a"
+    },
+    "226": {
+      "title": "Generar documentos de verdad",
+      "summary": "«Haz una búsqueda y luego pásalo a CSV»: un modelo redactor produce el contenido estructurado, y motores locales construyen el archivo Excel, Word, PowerPoint o PDF.",
+      "src": "4f52586a2b1f"
+    },
+    "227": {
+      "title": "Ajustes en maestro-detalle",
+      "summary": "Cincuenta y una secciones plegadas en acordeón eran muchas. Un riel lista las secciones y un panel muestra la selección, ambos renderizados desde una única tabla.",
+      "src": "412fe0fad829"
+    },
+    "228": {
+      "title": "El libro de Excel es el formulario",
+      "summary": "Administrar 124 modelos un cuadro de diálogo cada vez no es sostenible. El catálogo se exporta a un libro de Excel y se vuelve a importar, con una vista previa de los cambios antes de escribirlos.",
+      "src": "70eef7f85556"
+    },
+    "229": {
+      "title": "Un mapa de capacidades que ya no envejece",
+      "summary": "La página de capacidades describía el producto de hace seis meses. Una sola agregación responde a «en qué punto está esta capacidad», y un assert obliga a que cada novedad figure en ella.",
+      "src": "d1941b0f3c72"
+    },
+    "230": {
+      "title": "Un historial de versiones público",
+      "summary": "«Ver todo el historial» llevaba a una página que no lo tenía. Una página pública, renderizada en el servidor, publica cada versión.",
+      "src": "05d605b3dd9a"
+    },
+    "231": {
+      "title": "Un contexto de ejecución tipado",
+      "summary": "La identidad de un turno viajaba en un diccionario sin tipar. Pasa a un contexto tipado e inmutable de LangGraph —sin adoptar Agent Server, incompatible con LIA.",
+      "src": "06ee29d12e13"
+    },
+    "232": {
+      "title": "Cerrar los bucles cognitivos",
+      "summary": "La autoevaluación del diario llevaba meses sin producir ninguna señal. Umbrales adaptativos por persona, una guarda sobre la iniciativa y bucles por fin cerrados la reactivan.",
+      "src": "ba8a387498bf"
+    },
+    "233": {
+      "title": "Una ontología sin maquinaria inútil",
+      "summary": "Nada consumía unas funciones de razonamiento sobre la ontología. Se eliminan según la doctrina: una capacidad sin conectar desaparece.",
+      "src": "32868ca86536"
+    },
+    "234": {
+      "title": "El trabajo proactivo se hace visible",
+      "summary": "Una cronología de actividad reúne lo que LIA ha hecho por iniciativa propia, leída en paralelo desde los registros de auditoría existentes.",
+      "src": "7f2a05f0f317"
+    },
+    "235": {
+      "title": "Corregir un recuerdo conserva el historial",
+      "summary": "Cuando un hecho cambia, el recuerdo antiguo ya no se borra: se marca como sustituido y se enlaza con su sucesor.",
+      "src": "fd6a7da2c24d"
+    },
+    "236": {
+      "title": "Una memoria de la forma de trabajar",
+      "summary": "LIA recuerda las instrucciones explícitas sobre su manera de trabajar para ti: una séptima categoría de memoria, con criterios estrictos.",
+      "src": "3dd6a1cfa149"
+    },
+    "237": {
+      "title": "Una voz que sigue el estado de ánimo",
+      "summary": "El estado emocional de LIA modula los parámetros de la voz sintetizada —expresividad, estabilidad— con ganancias suaves y una zona neutra.",
+      "src": "07b356782e3c"
+    },
+    "238": {
+      "title": "Una bandeja de propuestas, una autonomía acotada",
+      "summary": "Las propuestas de LIA aparecen en una bandeja propia, sin ninguna autoridad nueva, y el presupuesto ReAct se adapta al trabajo realmente producido.",
+      "src": "67352520033b"
+    },
+    "239": {
+      "title": "Cierre de un programa de evolución",
+      "summary": "El programa de evolución se cierra con un inventario probado: la proactividad ambiental ya existía en forma de rutinas condicionales, cuya creación equivale a un consentimiento. Las misiones de varios días, un crítico automático y la transformación de rutinas en habilidades quedan reservados a la decisión del propietario, con las pruebas sobre la mesa.",
+      "src": "48a9e9115418"
+    },
+    "240": {
+      "title": "Ojos expresivos",
+      "summary": "Unos ojos animados traducen lo que hace LIA —pensar, buscar, hablar, esperar tu aprobación— a partir de señales que ya existían, sin ningún backend nuevo.",
+      "src": "ba074d946f6c"
+    },
+    "241": {
+      "title": "Python 3.14 en todas partes",
+      "summary": "Tres versiones de Python convivían entre imágenes, CI y puestos de trabajo. Un solo intérprete, CPython 3.14 sobre Debian Trixie, para todo el entorno.",
+      "src": "fa47b2575a67"
+    },
+    "242": {
+      "title": "Una búsqueda híbrida bien dosificada",
+      "summary": "La puntuación léxica aplastaba a la semántica y descartaba buenos pasajes. El umbral se aplica primero al sentido, y lo léxico solo añade un bonus acotado.",
+      "src": "4281aa0963c1"
+    },
+    "243": {
+      "title": "Un negro OLED",
+      "summary": "Un negro absoluto para las pantallas OLED: un refinamiento del modo oscuro basado en un atributo, no un cuarto tema que rompería los demás.",
+      "src": "abc42ddd44bb"
+    },
+    "244": {
+      "title": "Un catálogo de modelos que dice la verdad",
+      "summary": "89 de 114 modelos tenían capacidades por defecto nunca verificadas. Dos registros públicos alimentan el catálogo, y cada fila dice de dónde vienen sus capacidades.",
+      "src": "9212878eb7f2"
+    },
+    "245": {
+      "title": "Una intención de razonamiento, un traductor",
+      "summary": "Pedir a un modelo que razonara pasaba por cuatro formas almacenadas y siete constructores. Una sola intención, un perfil derivado y una sola costura de traducción por proveedor.",
+      "src": "918e0e3b2f61"
+    },
+    "246": {
+      "title": "Notificar a un teléfono que no controlas",
+      "summary": "Las aplicaciones móviles se publican una sola vez para todos los servidores autoalojados. Android recibe las notificaciones a través del Firebase de cada servidor; iOS pasa por un relé que no transporta ningún contenido.",
+      "src": "a6c7f473528c"
+    },
+    "247": {
+      "title": "Una asistente que lee su propia telemetría",
+      "summary": "LIA producía cientos de métricas sin leer ninguna. Una autocomprobación periódica, una memoria de incidentes diagnosticados y respuestas que esquivan un fallo conocido.",
+      "src": "5c4dc04e79c5"
+    },
+    "248": {
+      "title": "ReAct: una promesa no es una respuesta",
+      "summary": "«Dame un minuto» no es una respuesta. El bucle ReAct comparte la memoria del pipeline, se gana su presupuesto produciendo y nunca publica un mensaje que anuncie un trabajo que no va a hacer.",
+      "src": "3ae81d02c8a3"
+    },
+    "249": {
+      "title": "Una calculadora Python para el agente",
+      "summary": "Para los cálculos que un modelo hace mal, el agente escribe un script corto y lo ejecuta en el entorno aislado existente, solo en modo ReAct, con los datos pasados sin volver a copiarlos.",
+      "src": "56eeeb22796d"
+    },
+    "250": {
+      "title": "Una conexión perdida no es un despliegue fallido",
+      "summary": "El despliegue terminaba con un error que habíamos aprendido a ignorar. El veredicto remoto se lee ahora en un archivo, nunca se deduce de un código de salida SSH.",
+      "src": "962955195f76"
+    },
+    "251": {
+      "title": "El color no separa formas idénticas",
+      "summary": "53 secciones de ajustes tenían el mismo color y a veces el mismo icono. Se corrigen los iconos que chocaban, y doce tonos de grupo, medidos, ayudan a orientarse.",
+      "src": "31f7f8b305e7"
+    },
+    "252": {
+      "title": "Un motor de animación para los ojos",
+      "summary": "Los ojos habían tocado el techo de CSS. Un motor TypeScript calcula cada canal en cada fotograma y publica propiedades que la hoja de estilos se limita a leer.",
+      "src": "a9d4ec509b97"
+    },
+    "253": {
+      "title": "La respuesta declara su registro",
+      "summary": "El modelo que escribe la respuesta declara él mismo su registro —tranquilo, apenado, alegre…— en un vocabulario propio de la animación del rostro.",
+      "src": "93f488e9961d"
+    },
+    "254": {
+      "title": "Suavizar una ráfaga que un tope no ve",
+      "summary": "Seis tareas en segundo plano salían en el mismo segundo. Un desfase aleatorio en origen, un amortiguador corto del lado del proveedor y una espera que expira abierta absorben la ráfaga.",
+      "src": "8babdde8827b"
+    },
+    "255": {
+      "title": "Una autoridad sobre lo que declara un servidor MCP",
+      "summary": "La lectura de los esquemas JSON de las herramientas MCP estaba duplicada. Un solo módulo lee la declaración al pie de la letra del estándar, tanto para el adaptador como para el planificador.",
+      "src": "8b165b4f71f3"
+    },
+    "256": {
+      "title": "Un presupuesto que cuenta todo el trabajo",
+      "summary": "El presupuesto ReAct solo contaba el razonamiento. El tiempo de las herramientas pasa a ser un segundo presupuesto con nombre propio, cada llamada tiene su límite, y una delegación ya no puede consumirlo todo.",
+      "src": "8196d2f40772"
+    },
+    "257": {
+      "title": "Cinco defectos de costura",
+      "summary": "Una revisión de la literatura sirvió de guía de lectura: la procedencia sobrevive a la compactación, el ancla del turno se mantiene, los recuentos de la traza son honestos, la validación verifica la cobertura y el contexto entregado se mide.",
+      "src": "0dad4a453458"
+    },
+    "258": {
+      "title": "Grabar una reunión, recibir el acta",
+      "summary": "El botón «+» convierte el teléfono o el ordenador en una grabadora: el audio sale por segmentos, y LIA entrega un acta estructurada —fecha, participantes, decisiones, acciones.",
+      "src": "5523c01122b0"
+    },
+    "259": {
+      "title": "Una biblioteca de plantillas de acta",
+      "summary": "Treinta plantillas integradas o las tuyas, elegidas automáticamente según la reunión, y un acta que se puede reformatear con otra plantilla.",
+      "src": "79b2565f719f"
+    },
+    "260": {
+      "title": "Cada clave de Redis declara su alcance",
+      "summary": "Reiniciar una conversación borraba también aprendizajes. Cada familia de claves declara su alcance, y la purga solo retira lo que su familia declara.",
+      "src": "4b86a39fe481"
+    },
+    "261": {
+      "title": "Un correo que llega despierta a LIA",
+      "summary": "Una notificación push de Gmail o de Drive pone en cola un despertar. LIA lo atiende bajo todas sus reglas de elegibilidad, y Drive solo resincroniza lo que ha cambiado.",
+      "src": "ce5a221acde0"
+    },
+    "262": {
+      "title": "Una etiqueta de Gmail como fuente de conocimiento",
+      "summary": "Un espacio de conocimiento sigue una etiqueta de Gmail, nunca todo el buzón. Quitar la etiqueta quita el documento: el consentimiento es la etiqueta.",
+      "src": "9ae154bf3ede"
+    },
+    "263": {
+      "title": "Cada acción declara lo que debe y deja rastro",
+      "summary": "Cada herramienta declara si lee, redacta, pide confirmación o actúa. Cada acción se inscribe antes de ocurrir y luego se salda a partir de su resultado, y tres registros, que la instancia puede sellar por cuenta, dejan constancia de lo que LIA ha hecho, leído y decidido.",
+      "src": "8f1f04732027"
+    },
+    "264": {
+      "title": "Cejas y boca con vida",
+      "summary": "Las cejas tienen curvatura, una misma respiración recorre el rostro y la boca tiene vida propia: el rostro de LIA se mueve sin salirse nunca de un presupuesto de unos pocos píxeles.",
+      "src": "b500f4104f10"
+    },
+    "265": {
+      "title": "La semana de las rutinas",
+      "summary": "Una cuadrícula semanal muestra cuándo se ejecutó cada rutina y con qué resultado, a partir de un historial escrito en el momento del resultado.",
+      "src": "543a3cd550f5"
+    },
+    "266": {
+      "title": "Un diagnóstico que reúne sus pruebas a tiempo",
+      "summary": "El diagnosticador recoge sus pruebas en el momento en que se produce el incidente, fuente por fuente, y un texto enviado a un proveedor de embeddings es siempre una cadena exacta.",
+      "src": "b2ecdd85b61d"
+    },
+    "267": {
+      "title": "Ollama como proveedor nativo",
+      "summary": "Ollama se usa a través de su cliente nativo, y su servidor declara él mismo lo que saben hacer sus modelos: herramientas, visión, razonamiento, tamaño de contexto.",
+      "src": "2bbcee96c172"
+    },
+    "268": {
+      "title": "Un motor de recurrencia, un recordatorio que se repite",
+      "summary": "Un solo motor de recurrencia sirve a las rutinas y a los recordatorios: «cada dos martes a las 8:00» se vuelve posible, y un recordatorio por fin puede repetirse.",
+      "src": "9da376d4f7f7"
+    },
+    "269": {
+      "title": "Un resumen escrito por relación",
+      "summary": "Para cada relación, LIA escribe una vez al día una síntesis fechada —en qué punto estás, qué abordar—, que el chat relee sin hacerla pasar nunca por un hecho verificado.",
+      "src": "5e3bff71f1b9"
+    },
+    "270": {
+      "title": "Saber dónde se contabiliza cada euro",
+      "summary": "Cada módulo que llama a un modelo declara dónde se registra su gasto, y cada fila del registro declara quién es su autor: tú, una rutina o LIA por su cuenta.",
+      "src": "624413b20e7f"
+    },
+    "271": {
+      "title": "Una carga de página, una sola lectura",
+      "summary": "El panel de control leía tus fuentes dos veces por carga. Las peticiones simultáneas comparten ahora el mismo trabajo, incluso entre varios procesos.",
+      "src": "a62c04998d8a"
+    },
+    "272": {
+      "title": "Cada token pagado responde ante dos topes",
+      "summary": "Toda llamada que paga la plataforma está acotada a la vez por el tope de la cuenta y por el presupuesto diario de la instancia, en la puerta más interior.",
+      "src": "04f69aaea874"
+    },
+    "273": {
+      "title": "Una extracción de registro es completa",
+      "summary": "Los registros descargados tenían un tope de filas. Un cursor en el servidor los transmite enteros, con un total exacto anunciado de antemano.",
+      "src": "355cbac177e8"
+    },
+    "274": {
+      "title": "El renderizado cuida la forma; el modelo, el sentido",
+      "summary": "El modelo dice qué es un contenido —lista, cita, alerta, tabla— y el motor de renderizado lo dibuja con los mecanismos nativos de Word, PowerPoint, Excel y PDF, sin desbordarse nunca.",
+      "src": "9be7ae51886d"
+    },
+    "275": {
+      "title": "Una salida cortada es un rechazo, no un rescate",
+      "summary": "Una respuesta estructurada truncada por el límite de tokens ya no se remienda como un documento más corto anunciado como un éxito: es un rechazo, y se dice como tal.",
+      "src": "c94bf668ac59"
+    },
+    "276": {
+      "title": "El tablero de trabajo",
+      "summary": "Un ticket tiene un ciclo de vida, un portador y un resultado. LIA puede ejecutar un ticket, hacer sus preguntas en él y esperar tu respuesta, sola o con un par.",
+      "src": "4ab2eeed4fb8"
+    },
+    "277": {
+      "title": "Accesos directos a ajustes, fijados",
+      "summary": "Fijas tus secciones de ajustes favoritas en un menú flotante: la lista sigue a tu cuenta y la posición, a tu dispositivo.",
+      "src": "ae79a3bf1dee"
+    },
+    "278": {
+      "title": "La ventana de contexto pertenece al puesto",
+      "summary": "El tamaño de contexto ya no es un ajuste global de la instancia: cada puesto configurado tiene el suyo, rellenado de antemano con lo que declara el servidor.",
+      "src": "6f3229008cd7"
+    },
+    "279": {
+      "title": "Tus archivos generados son tuyos",
+      "summary": "Las imágenes, documentos y capturas que produce LIA tienen su galería, y reiniciar una conversación ya no borra los archivos de las demás.",
+      "src": "652dd446239c"
+    },
+    "280": {
+      "title": "Un interruptor por capacidad",
+      "summary": "Veinticinco capacidades tienen cada una su interruptor. Apagar una capacidad retira la función, nunca tus datos, y el mapa de capacidades solo cuenta lo que nombra.",
+      "src": "4419dd06d318"
+    },
+    "281": {
+      "title": "Volver en el instante que importa",
+      "summary": "Cuando una reunión termina a las 15:00, LIA puede preguntarte justo después cómo ha ido, y una vigilancia sobre un correo esperado se atiende al minuto.",
+      "src": "2758493fdf0d"
+    },
+    "282": {
+      "title": "Guardar una respuesta",
+      "summary": "Una respuesta guardada es una copia que te pertenece: sobrevive al reinicio de la conversación, se puede releer y exportar.",
+      "src": "56186bf5ffaa"
+    },
+    "283": {
+      "title": "La anatomía de memoria de un worker",
+      "summary": "Cada proceso declara y publica la memoria que ocupa: el supervisor ya no carga la aplicación, las bibliotecas pesadas se cargan al usarse y la caché de voz está acotada.",
+      "src": "f90b07986000"
+    },
+    "284": {
+      "title": "Un prompt dice lo que el código impone",
+      "summary": "La auditoría de los prompts encontró seis sitios donde el texto decía algo distinto del código. Cada variable tiene un productor, y cada límite viene de una sola constante.",
+      "src": "394648966fa2"
+    },
+    "285": {
+      "title": "Una respuesta corta sin razonamiento",
+      "summary": "Un modelo que razona por defecto gastaba todo su presupuesto en pensar y devolvía recordatorios vacíos. Una respuesta corta se pide sin razonamiento, y una familia de modelos se declara una sola vez.",
+      "src": "e260f3ecafcd"
+    },
+    "286": {
+      "title": "Resultados de herramientas legibles y acotados",
+      "summary": "Un resultado de herramienta se proyecta elemento a elemento dentro de un presupuesto de tokens, y el corte se anuncia: el agente lee correos enteros en lugar de cabeceras técnicas.",
+      "src": "840f53028a41"
+    },
+    "287": {
+      "title": "Correos limpios, resumidos una sola vez",
+      "summary": "Un correo llega limpio —sin historial citado ni firma—, en tres niveles de detalle, y su resumen se calcula una sola vez y luego se guarda en caché.",
+      "src": "50efbea6e48a"
+    },
+    "288": {
+      "title": "Varios borradores, revisados uno a uno",
+      "summary": "Dos correos independientes en un mismo turno se presentan uno tras otro, cada uno con su decisión; solo un lote ya aprobado sigue agrupado.",
+      "src": "05bb9a8716ab"
+    },
+    "289": {
+      "title": "Un borrador descrito una vez, dibujado en todas partes",
+      "summary": "Una tarjeta de borrador se describe una sola vez y se dibuja según la superficie: tarjeta visual en el chat, texto legible en un ticket.",
+      "src": "4a39de642bf7"
+    },
+    "290": {
+      "title": "El teléfono se convierte en un canal",
+      "summary": "LIA te llama a un número verificado con un código dicho en voz alta, lee tus datos durante la llamada, y lo que dices se convierte en tu propio mensaje en el chat.",
+      "src": "56411e51a3b5"
+    },
+    "291": {
+      "title": "Las respuestas guardadas se vuelven consultables",
+      "summary": "Cada respuesta guardada se indexa en un espacio de conocimiento personal: LIA puede encontrarla cuando vuelvas a hablarle de ella.",
+      "src": "ad2550cda707"
+    },
+    "292": {
+      "title": "Un retrato que dice sus fuentes",
+      "summary": "Tu retrato se alimenta de cuatro fuentes —recuerdos, intereses, hábitos, relaciones— y dice cuáles ha podido leer.",
+      "src": "7d8ce17234ca"
+    },
+    "293": {
+      "title": "El bucle ReAct elige sus herramientas por relevancia",
+      "summary": "En lugar de un catálogo recortado según el orden de registro, el bucle ReAct vincula las herramientas más relevantes para tu pregunta, cubriendo cada familia.",
+      "src": "5fe33c01fc62"
+    },
+    "294": {
+      "title": "Un rostro que nunca repite la misma escena",
+      "summary": "Cejas apoyadas sobre el ojo, habla generada sílaba a sílaba, gestos variados y pequeñas escenas en reposo: el avatar nunca interpreta dos veces lo mismo.",
+      "src": "b0bf858d9241"
+    },
+    "295": {
+      "title": "Adjuntar un documento de tus espacios",
+      "summary": "Un documento de un espacio de conocimiento, incluso en pausa, se adjunta a un mensaje como copia, sin tocar el espacio.",
+      "src": "7b1bb32f9af9"
+    },
+    "296": {
+      "title": "Leer el adjunto de un correo",
+      "summary": "LIA abre un adjunto: su texto cuando lo tiene, el modelo de visión cuando es una imagen o un escaneo.",
+      "src": "cced9367e02e"
+    },
+    "297": {
+      "title": "Una carpeta de Drive es un árbol",
+      "summary": "Una carpeta de Drive vinculada se indexa con sus subcarpetas, y por encima de un umbral LIA anuncia el número exacto de archivos antes de sincronizar.",
+      "src": "d5d78ab895d2"
+    },
+    "298": {
+      "title": "El entorno aislado accede a la red, bajo control",
+      "summary": "Un script puede llamar a un servicio a través de un único proxy, con tokens que no puede leer. Un host desconocido da lugar a una pregunta que LIA no puede saltarse.",
+      "src": "9bee30e79e12"
+    },
+    "299": {
+      "title": "El modo Live: hablar en tiempo real",
+      "summary": "Un modelo de voz escucha y responde en un mismo aliento, con tu propia clave; cada petición de datos o de acción se delega en el motor de LIA, con las mismas reglas que el chat.",
+      "src": "df0c01b409f7"
+    },
+    "300": {
+      "title": "Un segundo proveedor Live",
+      "summary": "Cada proveedor declara su modo de conexión y su forma de delegar, sin ninguna bifurcación según su nombre: Gemini Live, GPT-Live y luego ElevenLabs pasan por la misma costura.",
+      "src": "1ae59a177098"
+    },
+    "301": {
+      "title": "Una política por modo de voz",
+      "summary": "Tanto por teléfono como en el navegador, «Live» delega cada petición durante la conversación y «Live directo» lee sin actuar y luego transmite tus palabras al final: un único cierre para ambos.",
+      "src": "9715482a3f62"
+    },
+    "302": {
+      "title": "Un consentimiento por proveedor",
+      "summary": "Volver a conectar tus servicios de Google o Microsoft requiere un solo flujo OAuth por cuenta, verificado mediante una identidad firmada, y cada servicio conserva su propio estado.",
+      "src": "8476fcbdedea"
+    },
+    "303": {
+      "title": "El fallo de una herramienta se dice, nunca se adivina",
+      "summary": "Cuando una herramienta falla, LIA lo dice con el motivo real en lugar de inventarse un diagnóstico, y las métricas por fin cuentan los fallos como fallos.",
+      "src": "efff537f2b37"
+    },
+    "304": {
+      "title": "Ninguna transacción durante una llamada de red",
+      "summary": "Una conexión a la base de datos ya nunca espera la respuesta de un proveedor: desaparecen los despertares atascados, los bloqueos retenidos y las conexiones inactivas «en transacción».",
+      "src": "405c6bcfb047"
+    },
+    "305": {
+      "title": "Varios proveedores de imágenes",
+      "summary": "Cada familia de modelos de imagen declara lo que acepta y cómo se factura: OpenAI y Qwen Image pasan por un solo cliente, y una imagen se puede retocar.",
+      "src": "a06d68d95f8a"
+    },
+    "306": {
+      "title": "Los modelos Claude, facturados a su justo precio",
+      "summary": "La superficie de petición de los modelos Claude se declara una sola vez, y la caché de prompt se moldea y se factura exactamente como la mide el proveedor.",
+      "src": "0839113936b0"
+    },
+    "307": {
+      "title": "Los conectores sin clave pertenecen a la instancia",
+      "summary": "Wikipedia, la navegación, Places, la meteorología y el medio ambiente no piden nada a la persona: es el administrador quien los activa para todo el mundo.",
+      "src": "a3f80e5d3024"
+    },
+    "308": {
+      "title": "Una caché que sobrevive de un turno ReAct al siguiente",
+      "summary": "Una opción hace que cada turno ReAct reutilice el prefijo del turno anterior —todas las herramientas y luego el contexto del turno tras la pregunta—, para pagar menos por los tokens ya enviados.",
+      "src": "6081182700e0"
+    },
+    "309": {
+      "title": "Una única disposición de prompt para todas las cachés",
+      "summary": "Lo estable antes que lo variable, una sola frontera, ninguna escritura de caché que nadie vuelva a leer: cada proveedor traduce la misma regla a su propio mecanismo.",
+      "src": "c0cf350b6cc2"
+    },
+    "310": {
+      "title": "Un turno ReAct juzgado por su resultado",
+      "summary": "Lo que el bucle sale a buscar acaba obtenido o declarado como ausente. Una carencia declarada abre una pasada de recuperación acotada, y la respuesta dice lo que no se ha podido obtener.",
+      "src": "fb30c2c99de7"
+    }
+  }
+}

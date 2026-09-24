@@ -39,7 +39,7 @@ Le **Planner Node** est le cerveau orchestrateur du système multi-agents LIA. I
 ```mermaid
 graph LR
     A[User Query] --> B[Planner Node]
-    B --> C[LLM gpt-4.1-mini]
+    B --> C[LLM<br/>planner slot]
     C --> D[ExecutionPlan JSON]
     D --> E[PlanValidator]
     E --> F{Valid?}
@@ -84,11 +84,11 @@ graph LR
 
 ```mermaid
 graph TD
-    A[planner_node invoked] --> B[Message Windowing<br/>10 turns]
+    A[planner_node invoked] --> B[Message Windowing<br/>per-node window]
     B --> C[Load Tool Catalogue<br/>Domain Filtering]
     C --> D[Load Active Contexts<br/>Store]
-    D --> E[Build Planner Prompt<br/>v5.1]
-    E --> F[LLM Call<br/>gpt-4.1-mini]
+    D --> E[Build Planner Prompt<br/>versioned file]
+    E --> F[LLM Call<br/>planner slot]
     F --> G[Parse JSON Response<br/>ExecutionPlan]
     G --> H{Parsing<br/>Success?}
     H -->|No| Z[Return Error]

@@ -14,7 +14,7 @@ LIA utilise **LangGraph v1.2.11** avec exécution parallèle native **asyncio** 
 
 - Routing intelligent avec classification binaire
 - Planification LLM avec validation sémantique
-- HITL (Human-in-the-Loop) à 3 niveaux
+- HITL (Human-in-the-Loop) à 6 niveaux
 - Exécution parallèle via `asyncio.gather()`
 - Streaming SSE temps réel
 - Data Registry pour rendu riche frontend
@@ -26,77 +26,45 @@ LIA utilise **LangGraph v1.2.11** avec exécution parallèle native **asyncio** 
 
 ## 1. Schéma Global du Graph
 
+Le graphe réel (`apps/api/src/domains/agents/graph.py`), des deux modes d'exécution jusqu'à la réponse :
+
+```mermaid
+graph TD
+    A[User Message] --> CP[Compaction]
+    CP --> B[Router Node]
+    B -->|conversation| C[Response Node]
+    B -->|pipeline mode| D[Planner Node]
+    B -->|react mode| R1[ReAct Setup]
+    D -->|empty plan| C
+    D --> E[Semantic Validator]
+    E -->|ambiguous| CL[Clarification]
+    CL --> E
+    E -->|replan| D
+    E --> F{Approval Gate}
+    F --> G[Task Orchestrator]
+    G --> H[Domain Agents + Tools]
+    G -->|drafts| HD[HITL Dispatch]
+    G -->|bulk action| FE[FOR_EACH Confirm]
+    FE -->|approved| G
+    H --> I[Initiative]
+    HD --> I
+    I --> C
+    R1 --> R2[ReAct Call Model]
+    R2 -->|tool_calls| R3[ReAct Execute Tools]
+    R3 --> R2
+    R3 -->|draft| HD
+    R2 -->|declared gap| R5[ReAct Recovery]
+    R5 --> R2
+    R2 -->|done| R4[ReAct Finalize]
+    R4 --> I
+    C --> J[SSE Stream]
 ```
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                              ENTRÉE UTILISATEUR                                  │
-│                                      │                                           │
-│                                      ▼                                           │
-│                         ┌────────────────────────┐                              │
-│                         │   compaction_node (F4) │                              │
-│                         │  (Context summarization │                              │
-│                         │   if > threshold)       │                              │
-│                         └──────────┬─────────────┘                              │
-│                                    │ (always)                                    │
-│                                    ▼                                           │
-│                         ┌────────────────────────┐                              │
-│                         │      router_node       │                              │
-│                         │  (Classification 0-1)  │                              │
-│                         │   Actionable vs Conv   │                              │
-│                         └──────────┬─────────────┘                              │
-│                                    │                                             │
-│              ┌─────────────────────┴─────────────────────┐                      │
-│              │                                           │                      │
-│              ▼                                           ▼                      │
-│   ┌──────────────────┐                       ┌──────────────────┐              │
-│   │   planner_node   │                       │   response_node  │              │
-│   │  (Plan LLM Gen)  │                       │    (Réponse)     │──────┐       │
-│   └────────┬─────────┘                       └──────────────────┘      │       │
-│            │                                                           │       │
-│            ▼                                                           │       │
-│   ┌──────────────────────┐                                            │       │
-│   │semantic_validator    │                                            │       │
-│   │ (Validation Phase 2) │                                            │       │
-│   └────────┬─────────────┘                                            │       │
-│            │                                                           │       │
-│   ┌────────┴────────┬───────────────┐                                 │       │
-│   │                 │               │                                 │       │
-│   ▼                 ▼               ▼                                 │       │
-│ ┌─────────┐  ┌────────────┐  ┌─────────────┐                         │       │
-│ │clarifi- │  │  planner   │  │approval_gate│                         │       │
-│ │cation   │  │ (re-plan)  │  │  (HITL P8)  │                         │       │
-│ │(HITL)   │  └─────┬──────┘  └──────┬──────┘                         │       │
-│ └────┬────┘        │                │                                 │       │
-│      │             │         ┌──────┴──────┬───────────┐             │       │
-│      └─────────────┘         │             │           │             │       │
-│                              ▼             ▼           ▼             │       │
-│                    ┌──────────────┐ ┌─────────┐ ┌──────────┐        │       │
-│                    │task_         │ │planner  │ │response  │        │       │
-│                    │orchestrator  │ │(REPLAN) │ │(REJECT)  │────────┤       │
-│                    └──────┬───────┘ └─────────┘ └──────────┘        │       │
-│                           │                                          │       │
-│            ┌──────────────┼──────────────┐                          │       │
-│            │              │              │                          │       │
-│            ▼              ▼              ▼                          │       │
-│   ┌────────────┐  ┌────────────┐  ┌────────────┐                   │       │
-│   │contacts_   │  │emails_     │  │draft_      │                   │       │
-│   │agent       │  │agent       │  │critique    │                   │       │
-│   │(SubGraph)  │  │(SubGraph)  │  │(HITL LOT6) │                   │       │
-│   └─────┬──────┘  └─────┬──────┘  └─────┬──────┘                   │       │
-│         │               │               │                          │       │
-│         └───────────────┴───────────────┘                          │       │
-│                         │                                          │       │
-│                         ▼                                          │       │
-│               ┌──────────────────┐                                 │       │
-│               │   response_node  │◄────────────────────────────────┘       │
-│               │  (Synthèse LLM)  │                                         │
-│               │  JSON + Few-Shot │                                         │
-│               └────────┬─────────┘                                         │
-│                        │                                                    │
-│                        ▼                                                    │
-│                      [END]                                                  │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+
+- **Entrée** : `compaction` puis `router`, qui choisit la réponse directe, le mode Pipeline ou le mode ReAct.
+- **Pipeline** : `planner` → `semantic_validator` (→ `clarification` si la demande est ambiguë, → `planner` pour re-planifier) → `approval_gate` (pass-through) → `task_orchestrator` → agents de domaine.
+- **ReAct** : `react_setup` → `react_call_model` ↔ `react_execute_tools`, `react_recovery` quand un fait est déclaré manquant, `react_finalize` (détail en §1b).
+- **Validation** : les brouillons des deux modes passent par `hitl_dispatch` ; un lot FOR_EACH par `for_each_confirm`.
+- **Sortie** : `initiative` peut enchaîner une action de suivi, puis `response` synthétise et diffuse en SSE.
 
 ---
 

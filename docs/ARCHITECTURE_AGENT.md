@@ -69,6 +69,7 @@ est un bug à corriger dans la même livraison, pas une nuance à conserver.
 │   │   Router    │ → │   Planner   │ → │   ParallelExecutor      │  │
 │   │  (routing)  │   │ (planning)  │   │   (tool execution)      │  │
 │   └─────────────┘   └─────────────┘   └─────────────────────────┘  │
+│   ou, en mode ReAct : call model ↔ execute tools (+ recovery)      │
 └───────────────────────────────────────────────────────────────────────┘
                                   ↑
 ┌─────────────────────────────────────────────────────────────────────┐

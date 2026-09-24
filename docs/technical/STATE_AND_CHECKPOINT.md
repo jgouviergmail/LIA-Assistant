@@ -44,10 +44,9 @@ Ce système permet:
 graph TB
     User[User Message] --> Graph[LangGraph StateGraph]
     Graph --> State[MessagesState]
-    State --> Reducers[4 Reducers]
+    State --> Reducers[2 Reducers]
     Reducers --> Truncate[add_messages_with_truncate]
-    Reducers --> Replace[replace_routing_decision]
-    Reducers --> Merge[merge_execution_plan]
+    Reducers --> Merge[merge_registry]
     State --> Checkpoint[PostgreSQL Checkpoint]
     Checkpoint --> Persistence[(PostgreSQL DB)]
 
@@ -64,7 +63,7 @@ graph TB
 
 **Reducers**:
 - Fonctions définissant comment fusionner old state + new updates
-- 4 reducers: `add_messages_with_truncate`, `replace_routing_decision`, `merge_execution_plan`, `add_messages` (standard)
+- 2 reducers déclarés par `MessagesState` : `add_messages_with_truncate` (messages) et `merge_registry` (registry, dernier écrit gagnant, éviction LRU) ; `replace_routing_decision` et `merge_execution_plan`, décrits plus bas, sont hérités et ne sont plus branchés
 - Pattern Annotated: `Annotated[list[BaseMessage], add_messages_with_truncate]`
 
 **PostgreSQL Checkpointing**:
@@ -754,7 +753,7 @@ merged_value = reducer_function(old_state["field"], node_update["field"])
 new_state["field"] = merged_value
 ```
 
-### Les 4 Reducers de MessagesState
+### Les reducers de MessagesState (deux actifs, deux hérités décrits pour mémoire)
 
 #### 1. **add_messages_with_truncate** (messages)
 

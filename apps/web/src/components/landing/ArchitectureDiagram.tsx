@@ -12,6 +12,7 @@ import {
   Bot,
   Send,
   RefreshCw,
+  SearchCheck,
   Wrench,
   Eye,
   Zap,
@@ -24,7 +25,8 @@ import {
  * Two-mode execution diagram — entry (request → router) forks into two
  * side-by-side panels: the economical Pipeline (5 numbered steps, human
  * approval highlighted) and the autonomous ReAct loop (reason → act →
- * observe). Both converge on the streaming response. Mirrors the real
+ * observe, and one bounded recovery pass for what is still missing,
+ * ADR-310). Both converge on the streaming response. Mirrors the real
  * LangGraph topology (ADR-070).
  */
 
@@ -138,6 +140,7 @@ export function ArchitectureDiagram() {
     { icon: Brain, label: n('reason'), iconColor: 'text-purple-500' },
     { icon: Wrench, label: n('tools'), iconColor: 'text-emerald-500' },
     { icon: Eye, label: n('observe'), iconColor: 'text-sky-500' },
+    { icon: SearchCheck, label: n('recover'), iconColor: 'text-amber-500' },
   ];
 
   return (

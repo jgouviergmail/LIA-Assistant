@@ -186,7 +186,7 @@ Infrastructure Layer (Database, Cache, LLM)
         │  Frontend (Next.js)   │   │  Backend (FastAPI) │
         │  - SSR Pages          │   │  - REST API        │
         │  - Static Assets      │   │  - SSE Streaming   │
-        │  - Client State       │   │  - WebSocket (fut) │
+        │  - Client State       │   │  - WebSocket (voix)│
         └───────────────────────┘   └──────┬─────────────┘
                                            │
         ┌──────────────────────────────────┼──────────────┐
@@ -1495,123 +1495,55 @@ export function useChat(conversationId: string) {
 
 ### LangGraph StateGraph
 
-```python
-# apps/api/src/domains/agents/graph.py
-def build_graph() -> CompiledStateGraph:
-    graph = StateGraph(MessagesState)
+Le graphe est assemblé par `build_graph()` dans `apps/api/src/domains/agents/graph.py`. La compaction du contexte ouvre chaque tour ; le routeur choisit ensuite la réponse directe, le mode Pipeline (planificateur → validateur sémantique → orchestrateur) ou le mode ReAct (boucle à cinq nœuds). Les deux modes convergent vers le nœud d'initiative puis vers le nœud de réponse, et tout brouillon à valider passe par le même nœud de dispatch HITL. L'état est checkpointé dans PostgreSQL après chaque nœud, ce qui rend chaque interruption reprenable.
 
-    # Add nodes
-    graph.add_node(NODE_ROUTER, router_node)
-    graph.add_node(NODE_PLANNER, planner_node)
-    graph.add_node(NODE_APPROVAL_GATE, approval_gate_node)
-    graph.add_node(NODE_COMPACTION, compaction_node)  # F4: Context compaction
-    graph.add_node(NODE_TASK_ORCHESTRATOR, task_orchestrator_node)
-    graph.add_node(AGENT_CONTACTS, contacts_agent_node)
-    graph.add_node(NODE_RESPONSE, response_node)
-
-    # Entry point (F4: compaction before router)
-    graph.set_entry_point(NODE_COMPACTION)
-    graph.add_edge(NODE_COMPACTION, NODE_ROUTER)
-
-    # Conditional edges
-    graph.add_conditional_edges(
-        NODE_ROUTER,
-        route_from_router,  # Function: state -> next_node
-        {NODE_PLANNER: NODE_PLANNER, NODE_RESPONSE: NODE_RESPONSE},
-    )
-
-    graph.add_conditional_edges(
-        NODE_APPROVAL_GATE,
-        route_from_approval_gate,
-        {NODE_TASK_ORCHESTRATOR: NODE_TASK_ORCHESTRATOR, NODE_RESPONSE: NODE_RESPONSE},
-    )
-
-    # Edges
-    graph.add_edge(NODE_PLANNER, NODE_APPROVAL_GATE)
-    graph.add_edge(NODE_TASK_ORCHESTRATOR, NODE_RESPONSE)
-    graph.add_edge(AGENT_CONTACTS, NODE_RESPONSE)
-    graph.add_edge(NODE_RESPONSE, END)
-
-    # Compile with checkpointer & store
-    return graph.compile(checkpointer=checkpointer, store=store)
+```mermaid
+graph TD
+    A[User Message] --> CP[Compaction]
+    CP --> B[Router Node]
+    B -->|conversation| C[Response Node]
+    B -->|pipeline mode| D[Planner Node]
+    B -->|react mode| R1[ReAct Setup]
+    D -->|empty plan| C
+    D --> E[Semantic Validator]
+    E -->|ambiguous| CL[Clarification]
+    CL --> E
+    E -->|replan| D
+    E --> F{Approval Gate}
+    F --> G[Task Orchestrator]
+    G --> H[Domain Agents + Tools]
+    G -->|drafts| HD[HITL Dispatch]
+    G -->|bulk action| FE[FOR_EACH Confirm]
+    FE -->|approved| G
+    H --> I[Initiative]
+    HD --> I
+    I --> C
+    R1 --> R2[ReAct Call Model]
+    R2 -->|tool_calls| R3[ReAct Execute Tools]
+    R3 --> R2
+    R3 -->|draft| HD
+    R2 -->|declared gap| R5[ReAct Recovery]
+    R5 --> R2
+    R2 -->|done| R4[ReAct Finalize]
+    R4 --> I
+    C --> J[SSE Stream]
 ```
 
-### Flow Détaillé
+| Nœud | Rôle |
+|---|---|
+| `compaction` | Résume l'historique quand il dépasse le seuil de la fenêtre du slot |
+| `router` | Conversation, mode Pipeline ou mode ReAct ; classe les outils par pertinence depuis un seul embedding |
+| `planner` | Écrit un plan d'exécution typé (DSL), réparé mécaniquement avant validation |
+| `semantic_validator`, `clarification` | Vérifie la couverture du plan ; pose une question quand la demande est ambiguë |
+| `approval_gate` | Pass-through : la validation porte sur chaque action sensible (HITL au niveau de l'outil) |
+| `task_orchestrator` | Exécute les étapes par vagues de dépendances, en parallèle |
+| agents de domaine | Contacts, e-mails, agenda, fichiers, tâches, météo, lieux, trajets, web, navigateur, domotique… |
+| `hitl_dispatch`, `for_each_confirm` | Présente les brouillons un par un ; confirme un lot FOR_EACH |
+| `initiative` | Décide d'une action de suivi après l'exécution |
+| `react_setup`, `react_call_model`, `react_execute_tools`, `react_recovery`, `react_finalize` | La boucle ReAct : un seul prédicat d'arrêt, une passe de rattrapage bornée quand un fait manque |
+| `response` | Synthèse finale, diffusée en SSE |
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│                     User Message Received                     │
-└────────────────────────┬─────────────────────────────────────┘
-                         │
-                         ▼
-┌────────────────────────────────────────────────────────────────┐
-│  1. ROUTER NODE (v1)                                           │
-│  - Binary classification: conversation | actionable            │
-│  - Confidence scoring (0-1)                                    │
-│  - Domain detection (contacts, email, calendar)                │
-│  - Context label (general, contact, email)                     │
-│  - Decision: response (direct) or planner (multi-step)         │
-└────────────────────┬────────────────────┬──────────────────────┘
-                     │                    │
-        conversation │                    │ actionable
-                     ▼                    ▼
-┌─────────────────────────────┐  ┌────────────────────────────────┐
-│  6. RESPONSE NODE (direct)  │  │  2. PLANNER NODE (v5)          │
-│  - Synthesize answer        │  │  - Generate ExecutionPlan JSON │
-│  - Markdown formatting      │  │  - Multi-step with dependencies│
-│  - Stream to user           │  │  - Cost estimation             │
-└─────────────────────────────┘  └──────────────┬─────────────────┘
-                                                 │
-                                                 ▼
-                                ┌────────────────────────────────────┐
-                                │  3. PLAN VALIDATOR                 │
-                                │  - Schema validation               │
-                                │  - Dependency graph check          │
-                                │  - Permission validation           │
-                                │  - Budget check (max_cost_usd)     │
-                                └──────────────┬─────────────────────┘
-                                               │
-                                               ▼
-                                ┌────────────────────────────────────┐
-                                │  4. APPROVAL GATE (HITL)           │
-                                │  - Evaluate approval strategies    │
-                                │  - Generate LLM question           │
-                                │  - Interrupt user                  │
-                                │  - Wait for decision:              │
-                                │    • APPROVE → continue            │
-                                │    • REJECT → explain + response   │
-                                │    • EDIT → modify plan            │
-                                └────────────┬───────────────────────┘
-                                             │ approved
-                                             ▼
-                                ┌────────────────────────────────────┐
-                                │  5. TASK ORCHESTRATOR              │
-                                │  - Build dependency graph          │
-                                │  - Execute steps in waves          │
-                                │  - Parallel execution (asyncio)    │
-                                │  - Collect results per turn_id     │
-                                │  - MCP tools via ContextVar        │
-                                │    (UserMCPToolsContext) merged     │
-                                │    alongside AgentRegistry tools   │
-                                └──────────────┬─────────────────────┘
-                                               │
-                                               ▼
-                                ┌────────────────────────────────────┐
-                                │  5a. CONTACTS AGENT (ReAct)        │
-                                │  - Invoke tools (search, get, etc) │
-                                │  - LLM reasoning loop              │
-                                │  - Return structured results       │
-                                └──────────────┬─────────────────────┘
-                                               │
-                                               ▼
-                                ┌────────────────────────────────────┐
-                                │  6. RESPONSE NODE (synthesis)      │
-                                │  - Aggregate agent results         │
-                                │  - Creative synthesis              │
-                                │  - Anti-hallucination patterns     │
-                                │  - Stream to user                  │
-                                └────────────────────────────────────┘
-```
+La [carte technique](./maps/technical-map.html) place ce graphe dans le système complet ; la [carte fonctionnelle](./maps/functional-map.html) en montre les parcours du point de vue de la personne.
 
 Pour les détails complets, voir [ARCHITECTURE_LANGRAPH.md](./ARCHITECTURE_LANGRAPH.md)
 

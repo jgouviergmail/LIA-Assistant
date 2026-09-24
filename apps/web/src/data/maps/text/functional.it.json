@@ -1,0 +1,481 @@
+{
+  "intro": {
+    "lede": "Cosa sa fare LIA, a cosa serve ogni blocco, su cosa si appoggia e come i blocchi si concatenano quando le parli.",
+    "src": "b50325cbaf36"
+  },
+  "groups": {
+    "g.converse": {
+      "name": "Conversare e capire",
+      "summary": "Il filo della conversazione, la comprensione di ogni richiesta e i due modi di eseguirla: un piano verificato, oppure un ciclo autonomo.",
+      "src": "0e9a45bf3a99"
+    },
+    "g.remember": {
+      "name": "Ricordare e conoscerti",
+      "summary": "Ciò che LIA ricorda di te, come lo rilegge e la personalità che ti mostra — tutto è visibile e correggibile.",
+      "src": "88aadb520be1"
+    },
+    "g.act": {
+      "name": "Agire nei tuoi servizi",
+      "summary": "I tuoi account e servizi reali: e-mail, agenda, contatti, file, luoghi, web, strumenti di terze parti. LIA agisce a tuo nome, mai senza la tua approvazione per ciò che conta.",
+      "src": "37500120340d"
+    },
+    "g.know": {
+      "name": "Sapere e produrre",
+      "summary": "I tuoi documenti resi consultabili, e ciò che LIA crea per te: documenti, immagini, verbali.",
+      "src": "dd5a852a05a6"
+    },
+    "g.initiative": {
+      "name": "Prendere l'iniziativa",
+      "summary": "Ciò che LIA fa senza che glielo si chieda — al momento giusto, entro limiti che fissi tu, e sempre annotato nel registro.",
+      "src": "68170eebd9d3"
+    },
+    "g.voice": {
+      "name": "Parlare",
+      "summary": "La voce in tre forme: dettare e ascoltare, conversare in tempo reale, e il telefono.",
+      "src": "609bc05a0ecb"
+    },
+    "g.trust": {
+      "name": "Fiducia e controllo",
+      "summary": "Chi accede a cosa, cosa viene tracciato, quanto costa ogni azione, e le impostazioni che tengono tutto questo nelle tue mani.",
+      "src": "014e039174f3"
+    }
+  },
+  "bricks": {
+    "f.chat": {
+      "name": "Conversazione",
+      "role": "L'unico filo in cui parli con LIA, per iscritto o a voce: risposte in streaming, allegati, schede visive e costo mostrato sotto ogni risposta.",
+      "goal": "Rispondere con esattezza e in fretta, in un solo filo, mostrando quanto è costata ogni risposta.",
+      "src": "e93f1ad586e4"
+    },
+    "f.routing": {
+      "name": "Comprensione della richiesta",
+      "role": "Legge ogni messaggio: semplice scambio o richiesta da eseguire, domini coinvolti (agenda, e-mail…), lingua, e ordina gli strumenti per pertinenza.",
+      "goal": "Indirizzare ogni richiesta sulla strada giusta senza spendere più del necessario.",
+      "src": "d8835f003b0f"
+    },
+    "f.planning": {
+      "name": "Pianificazione (Pipeline)",
+      "role": "Trasforma una richiesta in un piano tipizzato — fasi, dipendenze, cicli su un elenco —, lo verifica, poi esegue in parallelo le fasi indipendenti.",
+      "goal": "La modalità predefinita: deterministica ed economica, da quattro a otto volte meno token di un ciclo autonomo.",
+      "src": "7c9f64e8783b"
+    },
+    "f.react": {
+      "name": "Modalità ReAct",
+      "role": "Ciclo autonomo ragionamento ↔ strumenti per le richieste aperte: strumenti scelti per pertinenza, budget che si estende finché il ciclo produce, e un passaggio di recupero limitato quando manca un fatto.",
+      "goal": "Esplorare quando la strada non è nota in anticipo, e chiudere con un risultato ottenuto o una mancanza dichiarata.",
+      "src": "42b810358c6b"
+    },
+    "f.hitl": {
+      "name": "Validazione umana",
+      "role": "Nulla di sensibile parte senza la tua approvazione: bozze di e-mail e di eventi, eliminazioni, lotti su un elenco. Ogni bozza si rilegge, si modifica o si rifiuta, una per una.",
+      "goal": "Mantenere il controllo su tutto ciò che agisce a tuo nome.",
+      "src": "bcec793d5dac"
+    },
+    "f.context": {
+      "name": "Contesto e riferimenti",
+      "role": "Ricorda ciò che è appena stato mostrato: «il secondo», «quello di domani» o «rispondigli» si risolvono senza ripetere nulla.",
+      "goal": "Parlare con LIA come con qualcuno che segue la conversazione.",
+      "src": "838390f4dd90"
+    },
+    "f.provenance": {
+      "name": "Provenienza e onestà",
+      "role": "Ogni risposta dice da dove vengono i suoi fatti — fonti, strumenti usati — e riferisce un fallimento così com'è, senza inventare diagnosi.",
+      "goal": "Poter credere a una risposta perché la si può verificare.",
+      "src": "12c6a842c090"
+    },
+    "f.subagents": {
+      "name": "Sotto-agenti delegati",
+      "role": "Un compito lungo o specialistico può essere affidato a un sotto-agente, entro un budget limitato.",
+      "goal": "Suddividere una richiesta grande senza far esplodere la spesa.",
+      "src": "e01396305da7"
+    },
+    "f.sandbox": {
+      "name": "Calcolo Python effimero",
+      "role": "Per un calcolo che un modello fa male, LIA scrive un breve script e lo esegue in una sandbox isolata; la rete passa da un solo proxy, e lì dentro le tue chiavi non sono mai visibili.",
+      "goal": "Cifre esatte invece che stimate, senza mai esporre i tuoi dati né le tue chiavi.",
+      "src": "eec3a61bd09c"
+    },
+    "f.memory": {
+      "name": "Memoria a lungo termine",
+      "role": "Fatti, preferenze e istruzioni di lavoro estratti in background dalle tue conversazioni; ogni ricordo si vede, si corregge e conserva la sua cronologia quando cambia.",
+      "goal": "Non dover ripetere ciò che LIA sa già di te.",
+      "src": "9f5f203e3b93"
+    },
+    "f.journals": {
+      "name": "Diari e ritratto",
+      "role": "LIA tiene i propri taccuini di riflessione e compila il tuo ritratto a partire da quattro fonti — ricordi, interessi, abitudini, relazioni — dicendo quali è riuscita a leggere.",
+      "goal": "Una comprensione di te che si affina con il tempo, e che resta leggibile.",
+      "src": "4b4842e18151"
+    },
+    "f.psyche": {
+      "name": "Psiche e volto",
+      "role": "Uno stato emotivo che evolve nel corso degli scambi, modula il tono e la voce, e anima gli occhi e il volto di LIA.",
+      "goal": "Una presenza coerente anziché un automa dal tono sempre uguale.",
+      "src": "b306b381d1ee"
+    },
+    "f.personality": {
+      "name": "Personalità",
+      "role": "Lo stile di LIA — caloroso, conciso, professionale… —, scelto da te e applicato ovunque lei parli, telefono compreso.",
+      "goal": "Un'assistente che parla come preferisci.",
+      "src": "0398d0885670"
+    },
+    "f.habits": {
+      "name": "Abitudini apprese",
+      "role": "Statistiche deterministiche e spiegabili su quando fai cosa; ogni abitudine si vede, si corregge o si blocca, e un solo interruttore spegne ogni apprendimento.",
+      "goal": "Anticipare senza tirare a indovinare, e senza imparare nulla alle tue spalle.",
+      "src": "6871ff106b3b"
+    },
+    "f.interests": {
+      "name": "Interessi",
+      "role": "Gli argomenti che contano per te, appresi dalle tue conversazioni, che alimentano scoperte inviate al momento giusto.",
+      "goal": "Segnalarti ciò che ti interessa davvero, senza rumore.",
+      "src": "9583583e3892"
+    },
+    "f.relations": {
+      "name": "Relazioni",
+      "role": "Una scheda per persona che raccoglie i tuoi scambi, e un debriefing scritto una volta al giorno: a che punto sei, cosa affrontare.",
+      "goal": "Non perdere più il filo delle tue relazioni.",
+      "src": "10f1a5e20272"
+    },
+    "f.openloops": {
+      "name": "Fili aperti",
+      "role": "Gli impegni presi di sfuggita — «ti faccio sapere domani» — vengono individuati e non si perdono più.",
+      "goal": "Mantenere ciò che è stato promesso, da te come da LIA.",
+      "src": "6da9b64e9977"
+    },
+    "f.bookmarks": {
+      "name": "Risposte conservate",
+      "role": "Una risposta che conservi diventa una copia che ti appartiene: sopravvive al reset, si esporta, e LIA può ritrovarla.",
+      "goal": "Conservare ciò che ha valore, fuori dalla conversazione che l'ha prodotto.",
+      "src": "81a00bf4a820"
+    },
+    "f.peers": {
+      "name": "Connessioni tra pari",
+      "role": "Collegare due account LIA: scambiarsi messaggi tramite l'assistente, affidarsi ticket a vicenda.",
+      "goal": "Collaborare senza lasciare l'assistente.",
+      "src": "ad8f77dcd088"
+    },
+    "f.connectors": {
+      "name": "Connettori",
+      "role": "Google, Microsoft, Apple e i servizi con chiave personale; un solo flusso di consenso per fornitore, un fornitore attivo per categoria. I servizi senza chiave vengono attivati per tutti dall'amministratore.",
+      "goal": "Collegare una volta i tuoi veri account, e che restino collegati.",
+      "src": "5029d2448b8e"
+    },
+    "f.mail": {
+      "name": "E-mail",
+      "role": "Leggere e-mail ripulite, riassumerle una sola volta, cercare, scrivere, rispondere e leggere gli allegati — l'invio passa sempre da una bozza approvata.",
+      "goal": "Gestire la tua casella in poche frasi.",
+      "src": "27fec2781b28"
+    },
+    "f.calendar": {
+      "name": "Agenda",
+      "role": "Consultare, cercare, creare, spostare ed eliminare eventi, con invitati, promemoria e fusi orari.",
+      "goal": "Organizzare il tuo tempo parlando.",
+      "src": "dac71f968107"
+    },
+    "f.contacts": {
+      "name": "Contatti",
+      "role": "Ritrovare qualcuno, i suoi recapiti e i suoi compleanni, creare o aggiornare una scheda.",
+      "goal": "Sapere di chi parli quando dici «scrivi a Marie».",
+      "src": "620b9e7a0222"
+    },
+    "f.tasks": {
+      "name": "Attività",
+      "role": "Le tue liste di attività presso il tuo fornitore: aggiungere, spuntare, spostare, ritrovare.",
+      "goal": "Non dimenticare nulla di ciò che resta da fare.",
+      "src": "622330403b7b"
+    },
+    "f.drive": {
+      "name": "File",
+      "role": "Cercare e leggere i tuoi file online, e collegare un'intera cartella — sottocartelle comprese — a uno spazio di conoscenza.",
+      "goal": "Ritrovare un documento da ciò che contiene.",
+      "src": "ec74d6fcf071"
+    },
+    "f.places": {
+      "name": "Luoghi, tragitti e meteo",
+      "role": "Luoghi, itinerari, meteo e qualità dell'aria; la tua ultima posizione nota serve ovunque, sempre con la sua età.",
+      "goal": "Rispondere a «come ci arrivo» e «che tempo farà» con dati aggiornati.",
+      "src": "2ea1df8563a9"
+    },
+    "f.health": {
+      "name": "Salute",
+      "role": "Segnali di salute — passi e frequenza cardiaca — inviati dal tuo telefono, aggregati e letti nel contesto.",
+      "goal": "Tenere conto della tua forma, senza fare il medico.",
+      "src": "c9d973606ede"
+    },
+    "f.web": {
+      "name": "Web e navigazione",
+      "role": "Ricerca web, enciclopedia, lettura di pagine e browser pilotato per i siti che lo richiedono.",
+      "goal": "Andare a cercare un'informazione aggiornata, fonti alla mano.",
+      "src": "6e6bb106a1ce"
+    },
+    "f.mcp": {
+      "name": "Server MCP",
+      "role": "Collegare strumenti di terze parti conformi allo standard MCP — vecchie e nuove revisioni del protocollo, OAuth compreso.",
+      "goal": "Estendere LIA senza aspettare un'integrazione nativa.",
+      "src": "af65afc24b06"
+    },
+    "f.skills": {
+      "name": "Competenze e plugin",
+      "role": "Competenze secondo lo standard Agent Skills e plugin secondo lo standard Agent Plugins, installati con un solo gesto e con un resoconto componente per componente.",
+      "goal": "Dare a LIA abilità portabili.",
+      "src": "27fba8d5dbbc"
+    },
+    "f.rag": {
+      "name": "Spazi di conoscenza",
+      "role": "I tuoi documenti, le cartelle online, le etichette delle e-mail e le risposte conservate, indicizzati e ritrovati con una ricerca ibrida — il senso e le parole.",
+      "goal": "Che LIA risponda con ciò che sai già, citando la fonte.",
+      "src": "98b6818ca83f"
+    },
+    "f.documents": {
+      "name": "Documenti generati",
+      "role": "Report Word, presentazioni PowerPoint, cartelle di lavoro Excel e PDF impaginati dal motore di rendering, senza che nulla trabocchi; una galleria conserva i tuoi file.",
+      "goal": "Passare da una ricerca a un elaborato pulito.",
+      "src": "40eb00fb8abe"
+    },
+    "f.images": {
+      "name": "Immagini generate",
+      "role": "Creare o ritoccare un'immagine presso più fornitori, ciascuno con i suoi formati e il suo prezzo indicato.",
+      "goal": "Illustrare un'idea con una frase.",
+      "src": "c14d4690f7b2"
+    },
+    "f.meetings": {
+      "name": "Riunioni",
+      "role": "Registrare una riunione dal telefono o dal computer e ricevere un verbale strutturato, in un modello scelto automaticamente.",
+      "goal": "Seguire la riunione, non prendere appunti.",
+      "src": "e76d94f73fa1"
+    },
+    "f.heartbeat": {
+      "name": "Heartbeat autonomo",
+      "role": "A intervalli regolari, LIA controlla se ha qualcosa di utile da dirti — anche un'e-mail in arrivo la risveglia —, poi decide secondo regole di idoneità rigorose.",
+      "goal": "Parlare al momento giusto, o tacere.",
+      "src": "ead695041662"
+    },
+    "f.initiative": {
+      "name": "Iniziativa nel turno",
+      "role": "Dopo un'azione, LIA può proseguire di sua iniziativa con ciò che serve: avvisare, verificare, proporre il seguito.",
+      "goal": "Finire il lavoro, non solo la frase.",
+      "src": "2b7bcbf11c51"
+    },
+    "f.moments": {
+      "name": "Momenti anticipati",
+      "role": "Tornare nell'istante che conta: subito dopo una riunione, o all'arrivo di un'e-mail che aspettavi.",
+      "goal": "Una domanda al momento giusto vale più di un promemoria a caso.",
+      "src": "118138594074"
+    },
+    "f.briefing": {
+      "name": "Briefing del giorno",
+      "role": "La pagina iniziale: agenda, e-mail, meteo, promemoria e una sintesi, letti una sola volta per caricamento.",
+      "goal": "Sapere a che punto sei con un colpo d'occhio.",
+      "src": "5ee486bb168c"
+    },
+    "f.routines": {
+      "name": "Routine",
+      "role": "Azioni pianificate ricorrenti o condizionali — tra cui il monitoraggio di un'e-mail attesa —, con la cronologia della settimana.",
+      "goal": "Delegare ciò che si ripete, senza pensarci.",
+      "src": "1049f8e8af13"
+    },
+    "f.reminders": {
+      "name": "Promemoria",
+      "role": "Un promemoria che suona all'ora stabilita e può ripetersi, formulato da LIA nel momento in cui suona.",
+      "goal": "Non dimenticare più, senza post-it.",
+      "src": "e681ab76106e"
+    },
+    "f.workboard": {
+      "name": "Bacheca di lavoro",
+      "role": "Ticket affidati a LIA o a un pari: ciclo di vita, domande poste sul ticket, risultato e costo.",
+      "goal": "Affidare un lavoro che va oltre una conversazione.",
+      "src": "b6502c335d28"
+    },
+    "f.notifications": {
+      "name": "Notifiche e canali",
+      "role": "Notifiche web e mobile, e Telegram; una notifica inviata da LIA è un'azione annotata nel registro.",
+      "goal": "Raggiungerti dove sei, senza mai farlo in silenzio.",
+      "src": "feb9356742c4"
+    },
+    "f.activity": {
+      "name": "Attività e proposte",
+      "role": "Tutto ciò che LIA ha fatto di sua iniziativa, letto dai suoi registri, e le sue proposte in attesa di una tua decisione.",
+      "goal": "Vedere il lavoro invisibile.",
+      "src": "793e40b9c449"
+    },
+    "f.voice": {
+      "name": "Modalità vocale",
+      "role": "Dettare i tuoi messaggi, ascoltare le risposte, risvegliare LIA con una parola; la voce segue l'umore.",
+      "goal": "Usare LIA con le mani occupate.",
+      "src": "3fc0f86339b5"
+    },
+    "f.live": {
+      "name": "Modalità Live",
+      "role": "Una conversazione vocale in tempo reale sulla tua chiave; ogni richiesta di dati o di azione viene delegata al motore di LIA, con le stesse regole della chat.",
+      "goal": "Parlare in modo naturale, senza perdere la validazione né la tracciabilità.",
+      "src": "95d27bb242b3"
+    },
+    "f.telephony": {
+      "name": "Telefono",
+      "role": "LIA ti chiama su un numero verificato o chiama un terzo per te; ciò che dici al telefono diventa un tuo messaggio nella chat.",
+      "goal": "Raggiungere LIA senza schermo.",
+      "src": "4fe7ee13e992"
+    },
+    "f.security": {
+      "name": "Account e sicurezza",
+      "role": "Sessioni tramite cookie lato server, doppio fattore, attivazione da parte di un amministratore, indirizzo del chiamante impossibile da falsificare.",
+      "goal": "Che il tuo account sia accessibile solo a te.",
+      "src": "215d35f572a2"
+    },
+    "f.privacy": {
+      "name": "Dati e privacy",
+      "role": "Tre registri — azioni, consultazioni, decisioni —, che l'istanza può sigillare in una catena per account; export completo dei tuoi dati; oblio; tracciabilità ai sensi dell'articolo 12 dell'AI Act.",
+      "goal": "Sapere cosa LIA ha fatto, letto e deciso — e poter portare via tutto o cancellare tutto.",
+      "src": "57fc43e143ea"
+    },
+    "f.costs": {
+      "name": "Costi e quote",
+      "role": "Ogni euro pagato dalla piattaforma è tracciato, mostrato, attribuito alla persona giusta; un tetto per account e un budget giornaliero per l'istanza.",
+      "goal": "Nessuna spesa invisibile, nessuna spesa senza limite.",
+      "src": "3b9c91f76ee2"
+    },
+    "f.llmconfig": {
+      "name": "Modelli e ragionamento",
+      "role": "Ogni ruolo di LIA gira sul modello scelto dall'amministratore, tra diversi fornitori, con il suo livello di riflessione e la sua finestra di contesto.",
+      "goal": "Il modello giusto per ogni compito, al giusto prezzo.",
+      "src": "7fcb2b358d81"
+    },
+    "f.admin": {
+      "name": "Impostazioni e amministrazione",
+      "role": "Impostazioni personali e scorciatoie fissate; per l'amministratore, un interruttore per capacità, la mappa delle capacità e la ricerca nelle impostazioni.",
+      "goal": "Regolare tutto da un unico posto.",
+      "src": "86812bccc672"
+    },
+    "f.diagnostics": {
+      "name": "Autodiagnosi",
+      "role": "LIA legge la propria telemetria, diagnostica i suoi incidenti prove alla mano e aggira un guasto noto invece di subirlo.",
+      "goal": "Un'assistente che sa quando non sta bene.",
+      "src": "76dbe3c7e424"
+    },
+    "f.product": {
+      "name": "Prodotto e demo",
+      "role": "La demo pubblica, i feedback sulle risposte e le metriche di prodotto che guidano gli sviluppi.",
+      "goal": "Mostrare LIA senza rischi, e migliorarla sulla base dei fatti.",
+      "src": "2566c38f3406"
+    }
+  },
+  "flows": {
+    "flow.ask": {
+      "name": "Una richiesta diventa un'azione",
+      "summary": "Il percorso predefinito, in modalità Pipeline: capire, pianificare, far approvare, eseguire, rendere conto.",
+      "steps": [
+        "Scrivi: «manda a Marie il verbale di stamattina».",
+        "La richiesta viene riconosciuta come eseguibile; vengono rilevati i domini e-mail e contatti.",
+        "«Il verbale» viene ritrovato tra ciò che è appena stato mostrato.",
+        "Viene scritto e verificato un piano tipizzato: trovare Marie, preparare l'e-mail.",
+        "Marie viene trovata nei tuoi contatti.",
+        "Ti viene presentata la bozza: approvi, modifichi o rifiuti.",
+        "L'e-mail parte dal tuo account.",
+        "La risposta dice cosa è stato fatto; l'azione viene annotata nel registro."
+      ],
+      "src": "71fae576cf5a"
+    },
+    "flow.react": {
+      "name": "Una domanda aperta, in modalità ReAct",
+      "summary": "Quando la strada non è nota in anticipo, il ciclo esplora — e finisce con un risultato o una mancanza dichiarata.",
+      "steps": [
+        "«Domani vado in macchina da mio fratello: come faccio ad arrivare alle 19?»",
+        "Gli strumenti disponibili vengono ordinati per pertinenza rispetto a questa domanda.",
+        "Il ciclo ragiona e chiama i suoi strumenti uno dopo l'altro.",
+        "Viene ritrovato l'indirizzo di tuo fratello.",
+        "Tragitto, ora di partenza e meteo all'arrivo.",
+        "Manca un fatto? Viene dichiarato, e un passaggio di recupero limitato lo cerca ancora.",
+        "La risposta dice cosa è stato ottenuto, e cosa non è stato possibile ottenere."
+      ],
+      "src": "27c9beed2e2b"
+    },
+    "flow.initiative": {
+      "name": "LIA prende l'iniziativa",
+      "summary": "Un segnale esterno, una decisione prudente, un messaggio che dice di venire da LIA.",
+      "steps": [
+        "Arriva un'e-mail importante: la notifica del tuo fornitore risveglia LIA.",
+        "L'heartbeat valuta: è utile, è il momento giusto?",
+        "Il tuo ritmo abituale pesa nella decisione.",
+        "Sei in riunione? LIA aspetta.",
+        "La notifica parte — annotata nel registro come un'azione.",
+        "Il messaggio compare nel tuo filo, colorato per dire che LIA ha parlato per prima."
+      ],
+      "src": "d9d438a62218"
+    },
+    "flow.live": {
+      "name": "Una conversazione vocale in tempo reale",
+      "summary": "Due intelligenze e una cucitura: la voce conversa, il motore di LIA agisce.",
+      "steps": [
+        "Apri una sessione Live sulla tua chiave.",
+        "Il modello vocale ascolta e risponde nello stesso respiro.",
+        "«Cosa ho domani?» viene delegato al motore di LIA come un turno ordinario.",
+        "L'agenda viene letta con le stesse regole della chat.",
+        "Un'azione sensibile? La domanda di validazione diventa la risposta vocale.",
+        "Alla fine, una scheda riepiloga la sessione e quanto è costata."
+      ],
+      "src": "77ddea7882a0"
+    },
+    "flow.learn": {
+      "name": "LIA impara a conoscerti",
+      "summary": "Ciò che viene detto di sfuggita diventa un ricordo, un interesse, un'abitudine — tutti visibili.",
+      "steps": [
+        "Menzioni un'allergia alla frutta a guscio.",
+        "Il fatto viene estratto in background, archiviato, correggibile.",
+        "Gli argomenti ricorrenti diventano interessi.",
+        "I momenti in cui fai le cose diventano abitudini, visibili e bloccabili.",
+        "LIA compila il tuo ritratto e dice quali fonti ha letto.",
+        "Il suo umore e il suo tono si adattano alla relazione."
+      ],
+      "src": "30baef5255f2"
+    },
+    "flow.knowledge": {
+      "name": "Ciò che sai, LIA lo legge",
+      "summary": "Le tue fonti diventano un corpus consultabile, citato in ogni risposta.",
+      "steps": [
+        "Colleghi una cartella online: le sue sottocartelle contano, il numero esatto di file viene annunciato.",
+        "Oppure un'etichetta delle e-mail: vengono indicizzate solo le conversazioni che la portano.",
+        "I documenti vengono suddivisi, indicizzati, ritrovati per senso e per parole.",
+        "Una domanda ritrova il passo giusto, citato con la sua fonte.",
+        "Una risposta conservata entra nel tuo spazio e torna a essere reperibile."
+      ],
+      "src": "955cebe2a92c"
+    },
+    "flow.costs": {
+      "name": "Ogni euro contato",
+      "summary": "Dalla chiamata al registro: tariffata al suo istante, limitata prima, mostrata dopo.",
+      "steps": [
+        "Prima di ogni chiamata a pagamento: vengono verificati il tetto dell'account e il budget dell'istanza.",
+        "La tariffa viene dal catalogo: fascia oraria, cache, giorni di punta.",
+        "Il costo compare sotto la risposta, nella stessa unità per tutti i servizi.",
+        "La spesa viene attribuita all'account giusto e al suo autore: tu, una routine, o LIA.",
+        "L'amministratore vede la spesa per persona e per servizio."
+      ],
+      "src": "4261ac718c4a"
+    },
+    "flow.ticket": {
+      "name": "Un ticket affidato",
+      "summary": "Un lavoro che va oltre una conversazione, con le sue domande e il suo risultato.",
+      "steps": [
+        "Crei «organizzare il seminario» e lo affidi a LIA.",
+        "LIA lo esegue con i tuoi strumenti, nella modalità scelta per questo ticket.",
+        "Un'azione da confermare? Il ticket passa in «Da confermare», con la scheda a supporto.",
+        "Vieni avvisato; il tuo commento è la risposta.",
+        "Risultato, costo e cronologia restano sul ticket."
+      ],
+      "src": "8183bc543606"
+    },
+    "flow.meeting": {
+      "name": "Una riunione registrata",
+      "summary": "Dalla registrazione al verbale, poi alla domanda giusta al momento giusto.",
+      "steps": [
+        "Il «+» trasforma il tuo telefono o il tuo computer in un registratore.",
+        "L'audio viene trascritto segmento per segmento.",
+        "Viene redatto un verbale strutturato nel modello scelto automaticamente.",
+        "Entra in uno spazio di conoscenza.",
+        "Subito dopo, LIA può chiederti com'è andata la riunione."
+      ],
+      "src": "97ed7772581f"
+    }
+  }
+}

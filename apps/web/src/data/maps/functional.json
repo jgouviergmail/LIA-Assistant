@@ -1,0 +1,539 @@
+{
+  "groups": [
+    {
+      "id": "g.converse",
+      "icon": "messages-square",
+      "tone": "blue"
+    },
+    {
+      "id": "g.remember",
+      "icon": "brain",
+      "tone": "violet"
+    },
+    {
+      "id": "g.act",
+      "icon": "plug",
+      "tone": "emerald"
+    },
+    {
+      "id": "g.know",
+      "icon": "library",
+      "tone": "amber"
+    },
+    {
+      "id": "g.initiative",
+      "icon": "sparkles",
+      "tone": "rose"
+    },
+    {
+      "id": "g.voice",
+      "icon": "audio-lines",
+      "tone": "cyan"
+    },
+    {
+      "id": "g.trust",
+      "icon": "shield-check",
+      "tone": "slate"
+    }
+  ],
+  "bricks": [
+    {
+      "id": "f.chat",
+      "group": "g.converse",
+      "icon": "message-square",
+      "domains": ["chat", "conversations", "attachments"],
+      "surfaces": ["/dashboard/chat"],
+      "deps": ["f.routing", "f.memory", "f.provenance", "f.costs"]
+    },
+    {
+      "id": "f.routing",
+      "group": "g.converse",
+      "icon": "compass",
+      "domains": ["agents"],
+      "surfaces": [],
+      "deps": ["f.context", "f.memory", "f.llmconfig"]
+    },
+    {
+      "id": "f.planning",
+      "group": "g.converse",
+      "icon": "list-checks",
+      "domains": ["agents"],
+      "surfaces": ["/dashboard/chat"],
+      "deps": ["f.routing", "f.hitl", "f.connectors", "f.provenance"]
+    },
+    {
+      "id": "f.react",
+      "group": "g.converse",
+      "icon": "repeat",
+      "domains": ["agents"],
+      "surfaces": ["/dashboard/chat"],
+      "deps": ["f.routing", "f.hitl", "f.sandbox", "f.connectors", "f.provenance"]
+    },
+    {
+      "id": "f.hitl",
+      "group": "g.converse",
+      "icon": "user-check",
+      "domains": ["agents"],
+      "surfaces": ["/dashboard/chat", "/dashboard/workboard"],
+      "deps": ["f.chat", "f.notifications"]
+    },
+    {
+      "id": "f.context",
+      "group": "g.converse",
+      "icon": "link-2",
+      "domains": ["agents"],
+      "surfaces": [],
+      "deps": ["f.chat"]
+    },
+    {
+      "id": "f.provenance",
+      "group": "g.converse",
+      "icon": "badge-check",
+      "domains": ["agents"],
+      "surfaces": ["/dashboard/chat"],
+      "deps": ["f.privacy"]
+    },
+    {
+      "id": "f.subagents",
+      "group": "g.converse",
+      "icon": "bot",
+      "domains": ["sub_agents"],
+      "surfaces": [],
+      "deps": ["f.planning", "f.skills", "f.costs"]
+    },
+    {
+      "id": "f.sandbox",
+      "group": "g.converse",
+      "icon": "square-terminal",
+      "domains": ["agents", "skills"],
+      "surfaces": ["/dashboard/chat"],
+      "deps": ["f.connectors", "f.hitl"]
+    },
+    {
+      "id": "f.memory",
+      "group": "g.remember",
+      "icon": "brain",
+      "domains": ["memories"],
+      "surfaces": ["/dashboard/settings"],
+      "deps": ["f.chat", "f.admin"]
+    },
+    {
+      "id": "f.journals",
+      "group": "g.remember",
+      "icon": "notebook-pen",
+      "domains": ["journals"],
+      "surfaces": ["/dashboard/settings"],
+      "deps": ["f.memory", "f.interests", "f.habits", "f.relations", "f.psyche"]
+    },
+    {
+      "id": "f.psyche",
+      "group": "g.remember",
+      "icon": "smile",
+      "domains": ["psyche"],
+      "surfaces": ["/dashboard/chat"],
+      "deps": ["f.personality", "f.chat"]
+    },
+    {
+      "id": "f.personality",
+      "group": "g.remember",
+      "icon": "venetian-mask",
+      "domains": ["personalities"],
+      "surfaces": ["/dashboard/settings"],
+      "deps": []
+    },
+    {
+      "id": "f.habits",
+      "group": "g.remember",
+      "icon": "calendar-clock",
+      "domains": ["habits"],
+      "surfaces": ["/dashboard/settings"],
+      "deps": ["f.chat", "f.admin"]
+    },
+    {
+      "id": "f.interests",
+      "group": "g.remember",
+      "icon": "telescope",
+      "domains": ["interests"],
+      "surfaces": ["/dashboard/settings"],
+      "deps": ["f.chat", "f.web"]
+    },
+    {
+      "id": "f.relations",
+      "group": "g.remember",
+      "icon": "contact",
+      "domains": ["relations"],
+      "surfaces": ["/dashboard/relations"],
+      "deps": ["f.contacts", "f.mail", "f.calendar", "f.memory", "f.peers"]
+    },
+    {
+      "id": "f.openloops",
+      "group": "g.remember",
+      "icon": "circle-dashed",
+      "domains": ["open_loops"],
+      "surfaces": ["/dashboard/settings"],
+      "deps": ["f.chat"]
+    },
+    {
+      "id": "f.bookmarks",
+      "group": "g.remember",
+      "icon": "bookmark",
+      "domains": ["bookmarks"],
+      "surfaces": ["/dashboard/chat", "/dashboard/settings"],
+      "deps": ["f.chat", "f.rag"]
+    },
+    {
+      "id": "f.peers",
+      "group": "g.remember",
+      "icon": "handshake",
+      "domains": ["peers"],
+      "surfaces": ["/dashboard/settings"],
+      "deps": ["f.security"]
+    },
+    {
+      "id": "f.connectors",
+      "group": "g.act",
+      "icon": "plug",
+      "domains": ["connectors", "push_channels"],
+      "surfaces": ["/dashboard/settings"],
+      "deps": ["f.security", "f.privacy"]
+    },
+    {
+      "id": "f.mail",
+      "group": "g.act",
+      "icon": "mail",
+      "domains": ["agents", "connectors"],
+      "surfaces": ["/dashboard/chat"],
+      "deps": ["f.connectors", "f.hitl"]
+    },
+    {
+      "id": "f.calendar",
+      "group": "g.act",
+      "icon": "calendar",
+      "domains": ["agents", "connectors"],
+      "surfaces": ["/dashboard/chat"],
+      "deps": ["f.connectors", "f.hitl"]
+    },
+    {
+      "id": "f.contacts",
+      "group": "g.act",
+      "icon": "book-user",
+      "domains": ["agents", "connectors"],
+      "surfaces": ["/dashboard/chat"],
+      "deps": ["f.connectors", "f.hitl"]
+    },
+    {
+      "id": "f.tasks",
+      "group": "g.act",
+      "icon": "list-todo",
+      "domains": ["agents", "connectors"],
+      "surfaces": ["/dashboard/chat"],
+      "deps": ["f.connectors", "f.hitl"]
+    },
+    {
+      "id": "f.drive",
+      "group": "g.act",
+      "icon": "folder-tree",
+      "domains": ["agents", "connectors", "rag_spaces"],
+      "surfaces": ["/dashboard/spaces"],
+      "deps": ["f.connectors"]
+    },
+    {
+      "id": "f.places",
+      "group": "g.act",
+      "icon": "map-pin",
+      "domains": ["agents", "google_api"],
+      "surfaces": ["/dashboard/chat"],
+      "deps": ["f.connectors", "f.costs"]
+    },
+    {
+      "id": "f.health",
+      "group": "g.act",
+      "icon": "activity",
+      "domains": ["health_metrics"],
+      "surfaces": ["/dashboard/settings"],
+      "deps": ["f.security"]
+    },
+    {
+      "id": "f.web",
+      "group": "g.act",
+      "icon": "globe",
+      "domains": ["agents"],
+      "surfaces": ["/dashboard/chat"],
+      "deps": ["f.connectors"]
+    },
+    {
+      "id": "f.mcp",
+      "group": "g.act",
+      "icon": "blocks",
+      "domains": ["user_mcp"],
+      "surfaces": ["/dashboard/settings"],
+      "deps": ["f.hitl", "f.security"]
+    },
+    {
+      "id": "f.skills",
+      "group": "g.act",
+      "icon": "puzzle",
+      "domains": ["skills", "plugins"],
+      "surfaces": ["/dashboard/settings"],
+      "deps": ["f.sandbox", "f.mcp"]
+    },
+    {
+      "id": "f.rag",
+      "group": "g.know",
+      "icon": "library",
+      "domains": ["rag_spaces"],
+      "surfaces": ["/dashboard/spaces"],
+      "deps": ["f.drive", "f.mail", "f.costs"]
+    },
+    {
+      "id": "f.documents",
+      "group": "g.know",
+      "icon": "file-text",
+      "domains": ["document_generation", "attachments"],
+      "surfaces": ["/dashboard/documents/[id]", "/dashboard/settings"],
+      "deps": ["f.chat", "f.costs"]
+    },
+    {
+      "id": "f.images",
+      "group": "g.know",
+      "icon": "image",
+      "domains": ["image_generation"],
+      "surfaces": ["/dashboard/chat", "/dashboard/settings"],
+      "deps": ["f.costs", "f.llmconfig"]
+    },
+    {
+      "id": "f.meetings",
+      "group": "g.know",
+      "icon": "mic-vocal",
+      "domains": ["meetings"],
+      "surfaces": ["/dashboard/meetings", "/dashboard/meetings/templates"],
+      "deps": ["f.voice", "f.documents", "f.rag", "f.calendar"]
+    },
+    {
+      "id": "f.heartbeat",
+      "group": "g.initiative",
+      "icon": "heart-pulse",
+      "domains": ["heartbeat"],
+      "surfaces": ["/dashboard/notifications"],
+      "deps": [
+        "f.habits",
+        "f.interests",
+        "f.calendar",
+        "f.mail",
+        "f.notifications",
+        "f.psyche",
+        "f.health",
+        "f.workboard",
+        "f.openloops"
+      ]
+    },
+    {
+      "id": "f.initiative",
+      "group": "g.initiative",
+      "icon": "zap",
+      "domains": ["agents"],
+      "surfaces": ["/dashboard/chat"],
+      "deps": ["f.planning", "f.react"]
+    },
+    {
+      "id": "f.moments",
+      "group": "g.initiative",
+      "icon": "alarm-clock",
+      "domains": ["moments"],
+      "surfaces": ["/dashboard/notifications"],
+      "deps": ["f.calendar", "f.meetings", "f.notifications", "f.heartbeat"]
+    },
+    {
+      "id": "f.briefing",
+      "group": "g.initiative",
+      "icon": "sunrise",
+      "domains": ["briefing"],
+      "surfaces": ["/dashboard"],
+      "deps": ["f.calendar", "f.mail", "f.places", "f.reminders", "f.habits", "f.journals"]
+    },
+    {
+      "id": "f.routines",
+      "group": "g.initiative",
+      "icon": "calendar-sync",
+      "domains": ["scheduled_actions"],
+      "surfaces": ["/dashboard/actions"],
+      "deps": ["f.planning", "f.react", "f.notifications", "f.mail"]
+    },
+    {
+      "id": "f.reminders",
+      "group": "g.initiative",
+      "icon": "bell-ring",
+      "domains": ["reminders"],
+      "surfaces": ["/dashboard/actions"],
+      "deps": ["f.notifications", "f.llmconfig"]
+    },
+    {
+      "id": "f.workboard",
+      "group": "g.initiative",
+      "icon": "kanban",
+      "domains": ["workboard"],
+      "surfaces": ["/dashboard/workboard"],
+      "deps": ["f.react", "f.planning", "f.peers", "f.hitl", "f.notifications"]
+    },
+    {
+      "id": "f.notifications",
+      "group": "g.initiative",
+      "icon": "bell",
+      "domains": ["notifications", "channels", "push_relay"],
+      "surfaces": ["/dashboard/notifications"],
+      "deps": ["f.chat", "f.privacy"]
+    },
+    {
+      "id": "f.activity",
+      "group": "g.initiative",
+      "icon": "history",
+      "domains": ["activity"],
+      "surfaces": ["/dashboard/activity"],
+      "deps": ["f.heartbeat", "f.routines", "f.interests", "f.journals", "f.openloops", "f.habits"]
+    },
+    {
+      "id": "f.voice",
+      "group": "g.voice",
+      "icon": "mic",
+      "domains": ["voice"],
+      "surfaces": ["/dashboard/chat"],
+      "deps": ["f.chat", "f.psyche", "f.llmconfig"]
+    },
+    {
+      "id": "f.live",
+      "group": "g.voice",
+      "icon": "audio-lines",
+      "domains": ["live", "voice_sessions"],
+      "surfaces": ["/dashboard/chat"],
+      "deps": ["f.chat", "f.hitl", "f.connectors", "f.costs"]
+    },
+    {
+      "id": "f.telephony",
+      "group": "g.voice",
+      "icon": "phone",
+      "domains": ["telephony", "voice_sessions"],
+      "surfaces": ["/dashboard/settings"],
+      "deps": ["f.live", "f.chat", "f.connectors"]
+    },
+    {
+      "id": "f.security",
+      "group": "g.trust",
+      "icon": "lock-keyhole",
+      "domains": ["auth", "users"],
+      "surfaces": ["/login", "/register"],
+      "deps": []
+    },
+    {
+      "id": "f.privacy",
+      "group": "g.trust",
+      "icon": "file-lock",
+      "domains": ["account_export"],
+      "surfaces": ["/dashboard/settings"],
+      "deps": []
+    },
+    {
+      "id": "f.costs",
+      "group": "g.trust",
+      "icon": "coins",
+      "domains": ["usage_limits", "llm", "google_api"],
+      "surfaces": ["/dashboard/chat", "/dashboard/settings"],
+      "deps": ["f.llmconfig"]
+    },
+    {
+      "id": "f.llmconfig",
+      "group": "g.trust",
+      "icon": "cpu",
+      "domains": ["llm_config", "llm"],
+      "surfaces": ["/dashboard/settings"],
+      "deps": []
+    },
+    {
+      "id": "f.admin",
+      "group": "g.trust",
+      "icon": "sliders-horizontal",
+      "domains": ["capabilities", "feature_switches", "system_settings", "users"],
+      "surfaces": ["/dashboard/settings", "/dashboard/capabilities"],
+      "deps": ["f.security"]
+    },
+    {
+      "id": "f.diagnostics",
+      "group": "g.trust",
+      "icon": "stethoscope",
+      "domains": ["diagnostics"],
+      "surfaces": ["/dashboard/settings"],
+      "deps": ["f.admin"]
+    },
+    {
+      "id": "f.product",
+      "group": "g.trust",
+      "icon": "flask-conical",
+      "domains": ["product"],
+      "surfaces": ["/demo"],
+      "deps": ["f.admin"]
+    }
+  ],
+  "flows": [
+    {
+      "id": "flow.ask",
+      "icon": "send",
+      "steps": [
+        "f.chat",
+        "f.routing",
+        "f.context",
+        "f.planning",
+        "f.contacts",
+        "f.hitl",
+        "f.mail",
+        "f.provenance"
+      ]
+    },
+    {
+      "id": "flow.react",
+      "icon": "repeat",
+      "steps": [
+        "f.chat",
+        "f.routing",
+        "f.react",
+        "f.contacts",
+        "f.places",
+        "f.react",
+        "f.provenance"
+      ]
+    },
+    {
+      "id": "flow.initiative",
+      "icon": "sparkles",
+      "steps": ["f.mail", "f.heartbeat", "f.habits", "f.calendar", "f.notifications", "f.chat"]
+    },
+    {
+      "id": "flow.live",
+      "icon": "audio-lines",
+      "steps": ["f.live", "f.live", "f.chat", "f.calendar", "f.hitl", "f.costs"]
+    },
+    {
+      "id": "flow.learn",
+      "icon": "brain",
+      "steps": ["f.chat", "f.memory", "f.interests", "f.habits", "f.journals", "f.psyche"]
+    },
+    {
+      "id": "flow.knowledge",
+      "icon": "library",
+      "steps": ["f.drive", "f.mail", "f.rag", "f.chat", "f.bookmarks"]
+    },
+    {
+      "id": "flow.costs",
+      "icon": "coins",
+      "steps": ["f.costs", "f.llmconfig", "f.chat", "f.privacy", "f.admin"]
+    },
+    {
+      "id": "flow.ticket",
+      "icon": "kanban",
+      "steps": ["f.workboard", "f.react", "f.hitl", "f.notifications", "f.workboard"]
+    },
+    {
+      "id": "flow.meeting",
+      "icon": "mic-vocal",
+      "steps": ["f.meetings", "f.voice", "f.documents", "f.rag", "f.moments"]
+    }
+  ]
+}

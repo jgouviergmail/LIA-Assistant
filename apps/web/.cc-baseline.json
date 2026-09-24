@@ -162,7 +162,7 @@
     },
     "src/lib/api-server.ts": {
       "count": 1,
-      "max": 21
+      "max": 20
     },
     "src/lib/api/chat.ts": {
       "count": 1,

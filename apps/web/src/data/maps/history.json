@@ -1,0 +1,2269 @@
+{
+  "themes": [
+    {
+      "id": "orchestration",
+      "icon": "workflow",
+      "tone": "violet"
+    },
+    {
+      "id": "models",
+      "icon": "cpu",
+      "tone": "amber"
+    },
+    {
+      "id": "memory",
+      "icon": "brain",
+      "tone": "fuchsia"
+    },
+    {
+      "id": "connectors",
+      "icon": "plug",
+      "tone": "emerald"
+    },
+    {
+      "id": "proactive",
+      "icon": "sparkles",
+      "tone": "rose"
+    },
+    {
+      "id": "voice",
+      "icon": "audio-lines",
+      "tone": "cyan"
+    },
+    {
+      "id": "knowledge",
+      "icon": "library",
+      "tone": "lime"
+    },
+    {
+      "id": "security",
+      "icon": "shield-check",
+      "tone": "sky"
+    },
+    {
+      "id": "trust",
+      "icon": "badge-check",
+      "tone": "teal"
+    },
+    {
+      "id": "reliability",
+      "icon": "gauge",
+      "tone": "orange"
+    },
+    {
+      "id": "experience",
+      "icon": "palette",
+      "tone": "indigo"
+    },
+    {
+      "id": "platform",
+      "icon": "rocket",
+      "tone": "slate"
+    }
+  ],
+  "eras": [
+    {
+      "id": "foundations",
+      "from": "2025-10-01",
+      "to": "2025-12-31"
+    },
+    {
+      "id": "beyond-keyboard",
+      "from": "2026-01-01",
+      "to": "2026-03-31"
+    },
+    {
+      "id": "reasoning-voice",
+      "from": "2026-04-01",
+      "to": "2026-06-30"
+    },
+    {
+      "id": "audit",
+      "from": "2026-07-01",
+      "to": "2026-07-31"
+    },
+    {
+      "id": "visibility",
+      "from": "2026-08-01",
+      "to": "2026-08-31"
+    },
+    {
+      "id": "promises",
+      "from": "2026-09-01",
+      "to": null
+    }
+  ],
+  "entries": [
+    {
+      "adr": 1,
+      "date": "2025-10-15",
+      "theme": "orchestration",
+      "functional": ["f.planning", "f.hitl"],
+      "technical": ["t.langgraph", "t.sse"]
+    },
+    {
+      "adr": 2,
+      "date": "2025-10-20",
+      "theme": "security",
+      "functional": ["f.security"],
+      "technical": ["t.bff", "t.redis"]
+    },
+    {
+      "adr": 3,
+      "date": "2025-11-09",
+      "theme": "models",
+      "functional": ["f.routing"],
+      "technical": ["t.router", "t.toolsys"]
+    },
+    {
+      "adr": 4,
+      "date": "2025-11-10",
+      "theme": "orchestration",
+      "functional": ["f.planning"],
+      "technical": ["t.planner"]
+    },
+    {
+      "adr": 5,
+      "date": "2025-11-14",
+      "theme": "orchestration",
+      "functional": ["f.planning"],
+      "technical": ["t.planner"]
+    },
+    {
+      "adr": 6,
+      "date": "2025-11-14",
+      "theme": "models",
+      "functional": ["f.contacts", "f.planning"],
+      "technical": ["t.toolsys"]
+    },
+    {
+      "adr": 7,
+      "date": "2025-11-16",
+      "theme": "platform",
+      "functional": ["f.planning"],
+      "technical": ["t.langgraph", "t.fastapi"]
+    },
+    {
+      "adr": 8,
+      "date": "2025-11-09",
+      "theme": "orchestration",
+      "functional": ["f.hitl", "f.planning"],
+      "technical": ["t.hitl", "t.planner"],
+      "nofile": "Documented in docs/technical/HITL.md (Phase 8 section) and in the ADR index."
+    },
+    {
+      "adr": 9,
+      "date": "2025-11-20",
+      "theme": "platform",
+      "functional": ["f.admin"],
+      "technical": ["t.config"]
+    },
+    {
+      "adr": 10,
+      "date": "2025-11-20",
+      "theme": "connectors",
+      "functional": ["f.mail", "f.connectors"],
+      "technical": ["t.connclients"]
+    },
+    {
+      "adr": 11,
+      "date": "2025-12-21",
+      "theme": "orchestration",
+      "functional": ["f.context"],
+      "technical": ["t.toolsys"]
+    },
+    {
+      "adr": 12,
+      "date": "2025-12-21",
+      "theme": "orchestration",
+      "functional": ["f.context", "f.hitl"],
+      "technical": ["t.dataregistry", "t.toolsys"]
+    },
+    {
+      "adr": 13,
+      "date": "2025-12-21",
+      "theme": "memory",
+      "functional": ["f.memory"],
+      "technical": ["t.postgres", "t.embeddings"]
+    },
+    {
+      "adr": 14,
+      "date": "2025-12-21",
+      "theme": "orchestration",
+      "functional": ["f.planning"],
+      "technical": ["t.planner"]
+    },
+    {
+      "adr": 15,
+      "date": "2025-12-21",
+      "theme": "connectors",
+      "functional": ["f.connectors"],
+      "technical": ["t.toolsys", "t.connclients"]
+    },
+    {
+      "adr": 16,
+      "date": "2025-12-21",
+      "theme": "orchestration",
+      "functional": ["f.context"],
+      "technical": ["t.dataregistry"]
+    },
+    {
+      "adr": 17,
+      "date": "2025-12-21",
+      "theme": "reliability",
+      "functional": ["f.costs"],
+      "technical": ["t.redis", "t.fastapi"]
+    },
+    {
+      "adr": 18,
+      "date": "2025-12-21",
+      "theme": "experience",
+      "functional": ["f.chat"],
+      "technical": ["t.sse", "t.web"]
+    },
+    {
+      "adr": 19,
+      "date": "2025-12-21",
+      "theme": "orchestration",
+      "functional": ["f.planning", "f.routing"],
+      "technical": ["t.toolsys"]
+    },
+    {
+      "adr": 20,
+      "date": "2025-12-21",
+      "theme": "reliability",
+      "functional": ["f.diagnostics"],
+      "technical": ["t.metrics", "t.tracing"]
+    },
+    {
+      "adr": 21,
+      "date": "2025-12-21",
+      "theme": "security",
+      "functional": ["f.connectors", "f.security"],
+      "technical": ["t.connclients", "t.redis"]
+    },
+    {
+      "adr": 22,
+      "date": "2025-12-21",
+      "theme": "orchestration",
+      "functional": ["f.chat", "f.hitl"],
+      "technical": ["t.langgraph", "t.postgres"]
+    },
+    {
+      "adr": 23,
+      "date": "2025-12-21",
+      "theme": "reliability",
+      "functional": ["f.provenance"],
+      "technical": ["t.fastapi", "t.toolsys"]
+    },
+    {
+      "adr": 24,
+      "date": "2025-12-21",
+      "theme": "experience",
+      "functional": ["f.chat"],
+      "technical": ["t.i18n", "t.web"]
+    },
+    {
+      "adr": 25,
+      "date": "2025-12-21",
+      "theme": "models",
+      "functional": ["f.planning"],
+      "technical": ["t.promptsys"]
+    },
+    {
+      "adr": 26,
+      "date": "2025-12-21",
+      "theme": "models",
+      "functional": ["f.llmconfig"],
+      "technical": ["t.llmfactory"]
+    },
+    {
+      "adr": 27,
+      "date": "2025-12-21",
+      "theme": "reliability",
+      "functional": ["f.privacy"],
+      "technical": ["t.logs"]
+    },
+    {
+      "adr": 28,
+      "date": "2025-12-21",
+      "theme": "platform",
+      "functional": ["f.admin"],
+      "technical": ["t.postgres"]
+    },
+    {
+      "adr": 29,
+      "date": "2025-12-21",
+      "theme": "platform",
+      "functional": ["f.security"],
+      "technical": ["t.redis"]
+    },
+    {
+      "adr": 30,
+      "date": "2025-12-21",
+      "theme": "orchestration",
+      "functional": ["f.context"],
+      "technical": ["t.dataregistry", "t.router"]
+    },
+    {
+      "adr": 31,
+      "date": "2025-12-21",
+      "theme": "platform",
+      "functional": [],
+      "technical": ["t.cicd"]
+    },
+    {
+      "adr": 32,
+      "date": "2025-12-21",
+      "theme": "platform",
+      "functional": ["f.admin"],
+      "technical": ["t.fastapi"]
+    },
+    {
+      "adr": 33,
+      "date": "2025-12-21",
+      "theme": "platform",
+      "functional": [],
+      "technical": ["t.docker"]
+    },
+    {
+      "adr": 34,
+      "date": "2026-01-13",
+      "theme": "security",
+      "functional": ["f.security"],
+      "technical": ["t.bff", "t.edge"]
+    },
+    {
+      "adr": 35,
+      "date": "2025-12-21",
+      "theme": "reliability",
+      "functional": ["f.connectors"],
+      "technical": ["t.fastapi", "t.connclients"]
+    },
+    {
+      "adr": 36,
+      "date": "2025-12-21",
+      "theme": "memory",
+      "functional": ["f.personality"],
+      "technical": ["t.postgres", "t.promptsys"]
+    },
+    {
+      "adr": 37,
+      "date": "2025-12-21",
+      "theme": "memory",
+      "functional": ["f.memory"],
+      "technical": ["t.embeddings", "t.postgres"]
+    },
+    {
+      "adr": 38,
+      "date": "2025-12-21",
+      "theme": "experience",
+      "functional": ["f.chat"],
+      "technical": ["t.web"]
+    },
+    {
+      "adr": 39,
+      "date": "2025-12-28",
+      "theme": "models",
+      "functional": ["f.costs"],
+      "technical": ["t.pricing", "t.metrics"]
+    },
+    {
+      "adr": 40,
+      "date": "2025-12-21",
+      "theme": "platform",
+      "functional": [],
+      "technical": ["t.postgres"]
+    },
+    {
+      "adr": 41,
+      "date": "2025-12-21",
+      "theme": "orchestration",
+      "functional": ["f.chat"],
+      "technical": ["t.langgraph"]
+    },
+    {
+      "adr": 42,
+      "date": "2025-12-21",
+      "theme": "security",
+      "functional": ["f.chat", "f.privacy"],
+      "technical": ["t.postgres"]
+    },
+    {
+      "adr": 43,
+      "date": "2025-12-21",
+      "theme": "orchestration",
+      "functional": ["f.planning"],
+      "technical": ["t.langgraph", "t.toolsys"]
+    },
+    {
+      "adr": 44,
+      "date": "2025-12-21",
+      "theme": "orchestration",
+      "functional": ["f.hitl"],
+      "technical": ["t.hitl", "t.langgraph"]
+    },
+    {
+      "adr": 45,
+      "date": "2025-12-21",
+      "theme": "platform",
+      "functional": [],
+      "technical": ["t.fastapi", "t.postgres"]
+    },
+    {
+      "adr": 46,
+      "date": "2025-12-28",
+      "theme": "platform",
+      "functional": ["f.reminders", "f.memory"],
+      "technical": ["t.scheduler"]
+    },
+    {
+      "adr": 47,
+      "date": "2025-12-21",
+      "theme": "connectors",
+      "functional": ["f.connectors", "f.mail", "f.calendar", "f.contacts", "f.drive", "f.tasks"],
+      "technical": ["t.connclients"]
+    },
+    {
+      "adr": 48,
+      "date": "2025-12-28",
+      "theme": "models",
+      "functional": ["f.routing"],
+      "technical": ["t.router", "t.embeddings"]
+    },
+    {
+      "adr": 49,
+      "date": "2026-03-29",
+      "theme": "models",
+      "functional": ["f.routing", "f.memory"],
+      "technical": ["t.embeddings"]
+    },
+    {
+      "adr": 50,
+      "date": "2026-05-07",
+      "theme": "voice",
+      "functional": ["f.voice"],
+      "technical": ["t.voiceinfra"]
+    },
+    {
+      "adr": 51,
+      "date": "2025-12-28",
+      "theme": "proactive",
+      "functional": ["f.reminders", "f.notifications"],
+      "technical": ["t.scheduler", "t.push"]
+    },
+    {
+      "adr": 52,
+      "date": "2026-01-24",
+      "theme": "orchestration",
+      "functional": ["f.planning"],
+      "technical": ["t.toolsys"]
+    },
+    {
+      "adr": 53,
+      "date": "2026-01-27",
+      "theme": "memory",
+      "functional": ["f.interests"],
+      "technical": ["t.langgraph"]
+    },
+    {
+      "adr": 54,
+      "date": "2026-02-02",
+      "theme": "voice",
+      "functional": ["f.voice"],
+      "technical": ["t.voiceinfra", "t.web"]
+    },
+    {
+      "adr": 55,
+      "date": "2026-03-14",
+      "theme": "knowledge",
+      "functional": ["f.rag"],
+      "technical": ["t.embeddings", "t.postgres"]
+    },
+    {
+      "adr": 56,
+      "date": "2026-03-17",
+      "theme": "knowledge",
+      "functional": ["f.rag", "f.drive"],
+      "technical": ["t.connclients", "t.jobs"]
+    },
+    {
+      "adr": 57,
+      "date": "2026-03-19",
+      "theme": "memory",
+      "functional": ["f.journals"],
+      "technical": ["t.embeddings", "t.promptsys"]
+    },
+    {
+      "adr": 58,
+      "date": "2026-03-19",
+      "theme": "knowledge",
+      "functional": ["f.rag"],
+      "technical": ["t.embeddings"]
+    },
+    {
+      "adr": 59,
+      "date": "2026-03-19",
+      "theme": "connectors",
+      "functional": ["f.web"],
+      "technical": ["t.toolsys", "t.docker", "t.browser"]
+    },
+    {
+      "adr": 60,
+      "date": "2026-03-21",
+      "theme": "models",
+      "functional": ["f.costs"],
+      "technical": ["t.pricing"]
+    },
+    {
+      "adr": 61,
+      "date": "2026-03-23",
+      "theme": "orchestration",
+      "functional": ["f.admin", "f.mcp"],
+      "technical": ["t.router", "t.config"]
+    },
+    {
+      "adr": 62,
+      "date": "2026-03-24",
+      "theme": "orchestration",
+      "functional": ["f.initiative", "f.mcp"],
+      "technical": ["t.initiative", "t.mcp"]
+    },
+    {
+      "adr": 63,
+      "date": "2026-03-24",
+      "theme": "reliability",
+      "functional": ["f.admin"],
+      "technical": ["t.redis", "t.config"]
+    },
+    {
+      "adr": 64,
+      "date": "2026-03-25",
+      "theme": "memory",
+      "functional": ["f.journals"],
+      "technical": ["t.promptsys"]
+    },
+    {
+      "adr": 65,
+      "date": "2026-03-26",
+      "theme": "platform",
+      "functional": ["f.llmconfig"],
+      "technical": ["t.langgraph"]
+    },
+    {
+      "adr": 66,
+      "date": "2026-03-30",
+      "theme": "memory",
+      "functional": ["f.memory", "f.journals"],
+      "technical": ["t.postgres", "t.embeddings"]
+    },
+    {
+      "adr": 67,
+      "date": "2026-03-31",
+      "theme": "security",
+      "functional": ["f.privacy", "f.security"],
+      "technical": ["t.postgres"]
+    },
+    {
+      "adr": 68,
+      "date": "2026-04-01",
+      "theme": "memory",
+      "functional": ["f.psyche"],
+      "technical": ["t.promptsys"]
+    },
+    {
+      "adr": 69,
+      "date": "2026-04-02",
+      "theme": "models",
+      "functional": ["f.memory", "f.rag"],
+      "technical": ["t.embeddings"]
+    },
+    {
+      "adr": 70,
+      "date": "2026-04-08",
+      "theme": "orchestration",
+      "functional": ["f.react"],
+      "technical": ["t.react", "t.langgraph"]
+    },
+    {
+      "adr": 71,
+      "date": "2026-04-15",
+      "theme": "connectors",
+      "functional": ["f.skills"],
+      "technical": ["t.skills", "t.router"]
+    },
+    {
+      "adr": 72,
+      "date": "2026-04-18",
+      "theme": "orchestration",
+      "functional": ["f.context"],
+      "technical": ["t.dataregistry"]
+    },
+    {
+      "adr": 73,
+      "date": "2026-04-19",
+      "theme": "proactive",
+      "functional": ["f.heartbeat", "f.places"],
+      "technical": ["t.proactive"]
+    },
+    {
+      "adr": 74,
+      "date": "2026-04-19",
+      "theme": "orchestration",
+      "functional": ["f.context"],
+      "technical": ["t.toolsys"]
+    },
+    {
+      "adr": 75,
+      "date": "2026-04-20",
+      "theme": "experience",
+      "functional": ["f.skills"],
+      "technical": ["t.skills", "t.web"]
+    },
+    {
+      "adr": 76,
+      "date": "2026-04-20",
+      "theme": "connectors",
+      "functional": ["f.health"],
+      "technical": ["t.fastapi", "t.postgres"]
+    },
+    {
+      "adr": 77,
+      "date": "2026-04-22",
+      "theme": "proactive",
+      "functional": ["f.briefing"],
+      "technical": ["t.fastapi", "t.redis"]
+    },
+    {
+      "adr": 78,
+      "date": "2026-05-05",
+      "theme": "models",
+      "functional": ["f.llmconfig", "f.costs"],
+      "technical": ["t.catalogue", "t.postgres"]
+    },
+    {
+      "adr": 79,
+      "date": "2026-05-06",
+      "theme": "memory",
+      "functional": ["f.journals"],
+      "technical": ["t.promptsys"]
+    },
+    {
+      "adr": 80,
+      "date": "2026-05-07",
+      "theme": "voice",
+      "functional": ["f.voice", "f.costs"],
+      "technical": ["t.voiceinfra", "t.pricing"]
+    },
+    {
+      "adr": 81,
+      "date": "2026-05-07",
+      "theme": "voice",
+      "functional": ["f.voice", "f.llmconfig"],
+      "technical": ["t.voiceinfra", "t.catalogue"]
+    },
+    {
+      "adr": 82,
+      "date": "2026-05-07",
+      "theme": "voice",
+      "functional": ["f.voice"],
+      "technical": ["t.voiceinfra", "t.sse"]
+    },
+    {
+      "adr": 83,
+      "date": "2026-05-13",
+      "theme": "orchestration",
+      "functional": ["f.subagents"],
+      "technical": ["t.react"]
+    },
+    {
+      "adr": 84,
+      "date": "2026-05-15",
+      "theme": "orchestration",
+      "functional": ["f.planning", "f.calendar"],
+      "technical": ["t.planner"]
+    },
+    {
+      "adr": 85,
+      "date": "2026-05-17",
+      "theme": "experience",
+      "functional": ["f.hitl"],
+      "technical": ["t.hitl", "t.startup"]
+    },
+    {
+      "adr": 86,
+      "date": "2026-05-19",
+      "theme": "reliability",
+      "functional": ["f.chat"],
+      "technical": ["t.langgraph", "t.metrics"]
+    },
+    {
+      "adr": 87,
+      "date": "2026-05-31",
+      "theme": "models",
+      "functional": ["f.llmconfig"],
+      "technical": ["t.llmfactory", "t.reasoning"]
+    },
+    {
+      "adr": 88,
+      "date": "2026-06-02",
+      "theme": "memory",
+      "functional": ["f.journals"],
+      "technical": ["t.promptsys"]
+    },
+    {
+      "adr": 89,
+      "date": "2026-06-03",
+      "theme": "reliability",
+      "functional": ["f.diagnostics"],
+      "technical": ["t.metrics"]
+    },
+    {
+      "adr": 90,
+      "date": "2026-07-02",
+      "theme": "orchestration",
+      "functional": ["f.planning", "f.initiative"],
+      "technical": ["t.planner", "t.toolsys"]
+    },
+    {
+      "adr": 91,
+      "date": "2026-07-02",
+      "theme": "reliability",
+      "functional": ["f.initiative", "f.chat"],
+      "technical": ["t.response"]
+    },
+    {
+      "adr": 92,
+      "date": "2026-07-02",
+      "theme": "orchestration",
+      "functional": ["f.hitl"],
+      "technical": ["t.hitl", "t.langgraph"]
+    },
+    {
+      "adr": 93,
+      "date": "2026-07-03",
+      "theme": "security",
+      "functional": ["f.security"],
+      "technical": ["t.edge", "t.bff"]
+    },
+    {
+      "adr": 94,
+      "date": "2026-07-03",
+      "theme": "platform",
+      "functional": [],
+      "technical": ["t.langgraph"]
+    },
+    {
+      "adr": 95,
+      "date": "2026-07-03",
+      "theme": "reliability",
+      "functional": [],
+      "technical": ["t.cicd"]
+    },
+    {
+      "adr": 96,
+      "date": "2026-07-03",
+      "theme": "reliability",
+      "functional": [],
+      "technical": ["t.fastapi", "t.edge"]
+    },
+    {
+      "adr": 97,
+      "date": "2026-07-04",
+      "theme": "security",
+      "functional": ["f.privacy", "f.skills"],
+      "technical": ["t.postgres", "t.sandbox"]
+    },
+    {
+      "adr": 98,
+      "date": "2026-07-04",
+      "theme": "security",
+      "functional": ["f.mcp"],
+      "technical": ["t.edge", "t.web"]
+    },
+    {
+      "adr": 99,
+      "date": "2026-07-04",
+      "theme": "platform",
+      "functional": [],
+      "technical": ["t.docker"]
+    },
+    {
+      "adr": 100,
+      "date": "2026-07-04",
+      "theme": "models",
+      "functional": ["f.planning"],
+      "technical": ["t.structured", "t.promptsys"]
+    },
+    {
+      "adr": 101,
+      "date": "2026-07-04",
+      "theme": "connectors",
+      "functional": ["f.calendar"],
+      "technical": ["t.connclients", "t.toolsys"]
+    },
+    {
+      "adr": 102,
+      "date": "2026-07-04",
+      "theme": "orchestration",
+      "functional": ["f.routing"],
+      "technical": ["t.toolsys"]
+    },
+    {
+      "adr": 103,
+      "date": "2026-07-05",
+      "theme": "experience",
+      "functional": ["f.hitl"],
+      "technical": ["t.i18n", "t.hitl"]
+    },
+    {
+      "adr": 104,
+      "date": "2026-07-05",
+      "theme": "memory",
+      "functional": ["f.psyche"],
+      "technical": ["t.promptsys"]
+    },
+    {
+      "adr": 105,
+      "date": "2026-07-05",
+      "theme": "memory",
+      "functional": ["f.psyche"],
+      "technical": ["t.promptsys"]
+    },
+    {
+      "adr": 106,
+      "date": "2026-07-06",
+      "theme": "orchestration",
+      "functional": ["f.hitl", "f.react"],
+      "technical": ["t.hitl"]
+    },
+    {
+      "adr": 107,
+      "date": "2026-07-07",
+      "theme": "platform",
+      "functional": [],
+      "technical": ["t.langgraph", "t.cicd"]
+    },
+    {
+      "adr": 108,
+      "date": "2026-07-07",
+      "theme": "connectors",
+      "functional": ["f.web", "f.places"],
+      "technical": ["t.connclients", "t.redis"]
+    },
+    {
+      "adr": 109,
+      "date": "2026-07-08",
+      "theme": "platform",
+      "functional": ["f.privacy"],
+      "technical": ["t.postgres", "t.docker"]
+    },
+    {
+      "adr": 110,
+      "date": "2026-07-08",
+      "theme": "security",
+      "functional": ["f.privacy"],
+      "technical": ["t.postgres"]
+    },
+    {
+      "adr": 111,
+      "date": "2026-07-08",
+      "theme": "reliability",
+      "functional": ["f.chat"],
+      "technical": ["t.langgraph", "t.postgres"]
+    },
+    {
+      "adr": 112,
+      "date": "2026-07-08",
+      "theme": "platform",
+      "functional": [],
+      "technical": ["t.cicd", "t.docker"]
+    },
+    {
+      "adr": 113,
+      "date": "2026-07-08",
+      "theme": "platform",
+      "functional": [],
+      "technical": ["t.cicd"]
+    },
+    {
+      "adr": 114,
+      "date": "2026-07-08",
+      "theme": "reliability",
+      "functional": ["f.connectors"],
+      "technical": ["t.connclients"]
+    },
+    {
+      "adr": 115,
+      "date": "2026-07-09",
+      "theme": "reliability",
+      "functional": [],
+      "technical": ["t.fastapi", "t.docker"]
+    },
+    {
+      "adr": 116,
+      "date": "2026-07-09",
+      "theme": "experience",
+      "functional": ["f.chat"],
+      "technical": ["t.web", "t.cicd"]
+    },
+    {
+      "adr": 117,
+      "date": "2026-07-09",
+      "theme": "reliability",
+      "functional": ["f.chat"],
+      "technical": ["t.sse", "t.redis"]
+    },
+    {
+      "adr": 118,
+      "date": "2026-07-09",
+      "theme": "connectors",
+      "functional": ["f.skills"],
+      "technical": ["t.skills"]
+    },
+    {
+      "adr": 119,
+      "date": "2026-07-10",
+      "theme": "reliability",
+      "functional": ["f.diagnostics"],
+      "technical": ["t.alerts", "t.metrics"]
+    },
+    {
+      "adr": 120,
+      "date": "2026-07-10",
+      "theme": "orchestration",
+      "functional": ["f.planning", "f.context"],
+      "technical": ["t.planner"]
+    },
+    {
+      "adr": 121,
+      "date": "2026-07-10",
+      "theme": "orchestration",
+      "functional": ["f.planning"],
+      "technical": ["t.toolsys"]
+    },
+    {
+      "adr": 122,
+      "date": "2026-07-10",
+      "theme": "platform",
+      "functional": ["f.voice"],
+      "technical": ["t.sse"]
+    },
+    {
+      "adr": 123,
+      "date": "2026-07-10",
+      "theme": "platform",
+      "functional": [],
+      "technical": ["t.startup"]
+    },
+    {
+      "adr": 124,
+      "date": "2026-07-10",
+      "theme": "reliability",
+      "functional": [],
+      "technical": ["t.fastapi"]
+    },
+    {
+      "adr": 125,
+      "date": "2026-07-11",
+      "theme": "experience",
+      "functional": ["f.hitl"],
+      "technical": ["t.hitl"]
+    },
+    {
+      "adr": 126,
+      "date": "2026-07-11",
+      "theme": "platform",
+      "functional": ["f.security"],
+      "technical": ["t.bff", "t.fastapi"]
+    },
+    {
+      "adr": 127,
+      "date": "2026-07-13",
+      "theme": "voice",
+      "functional": ["f.telephony"],
+      "technical": ["t.phone", "t.connclients"]
+    },
+    {
+      "adr": 128,
+      "date": "2026-07-13",
+      "theme": "orchestration",
+      "functional": ["f.planning"],
+      "technical": ["t.planner"]
+    },
+    {
+      "adr": 129,
+      "date": "2026-07-14",
+      "theme": "knowledge",
+      "functional": ["f.rag"],
+      "technical": ["t.jobs", "t.postgres"]
+    },
+    {
+      "adr": 130,
+      "date": "2026-07-14",
+      "theme": "platform",
+      "functional": [],
+      "technical": ["t.cicd"]
+    },
+    {
+      "adr": 131,
+      "date": "2026-07-18",
+      "theme": "proactive",
+      "functional": ["f.interests", "f.heartbeat"],
+      "technical": ["t.proactive"]
+    },
+    {
+      "adr": 132,
+      "date": "2026-07-18",
+      "theme": "experience",
+      "functional": ["f.hitl"],
+      "technical": ["t.web", "t.hitl"]
+    },
+    {
+      "adr": 133,
+      "date": "2026-07-22",
+      "theme": "trust",
+      "functional": ["f.chat", "f.provenance"],
+      "technical": ["t.web", "t.sse"]
+    },
+    {
+      "adr": 134,
+      "date": "2026-07-18",
+      "theme": "experience",
+      "functional": ["f.connectors"],
+      "technical": ["t.web", "t.connclients"]
+    },
+    {
+      "adr": 135,
+      "date": "2026-07-19",
+      "theme": "proactive",
+      "functional": ["f.heartbeat", "f.interests"],
+      "technical": ["t.proactive"]
+    },
+    {
+      "adr": 136,
+      "date": "2026-07-21",
+      "theme": "experience",
+      "functional": ["f.mcp", "f.skills"],
+      "technical": ["t.edge", "t.web"]
+    },
+    {
+      "adr": 137,
+      "date": "2026-07-21",
+      "theme": "experience",
+      "functional": ["f.skills", "f.mcp"],
+      "technical": ["t.web", "t.response"]
+    },
+    {
+      "adr": 138,
+      "date": "2026-07-22",
+      "theme": "experience",
+      "functional": ["f.chat", "f.product"],
+      "technical": ["t.web", "t.postgres"]
+    },
+    {
+      "adr": 139,
+      "date": "2026-07-22",
+      "theme": "proactive",
+      "functional": ["f.openloops", "f.heartbeat"],
+      "technical": ["t.postgres", "t.proactive"]
+    },
+    {
+      "adr": 140,
+      "date": "2026-07-22",
+      "theme": "proactive",
+      "functional": ["f.routines", "f.hitl"],
+      "technical": ["t.scheduler", "t.hitl"]
+    },
+    {
+      "adr": 141,
+      "date": "2026-07-22",
+      "theme": "knowledge",
+      "functional": ["f.rag", "f.relations"],
+      "technical": ["t.toolsys", "t.embeddings"]
+    },
+    {
+      "adr": 142,
+      "date": "2026-07-22",
+      "theme": "memory",
+      "functional": ["f.psyche"],
+      "technical": ["t.metrics"]
+    },
+    {
+      "adr": 143,
+      "date": "2026-07-23",
+      "theme": "security",
+      "functional": ["f.security"],
+      "technical": ["t.bff"]
+    },
+    {
+      "adr": 144,
+      "date": "2026-07-23",
+      "theme": "security",
+      "functional": ["f.security"],
+      "technical": ["t.bff", "t.redis"]
+    },
+    {
+      "adr": 145,
+      "date": "2026-07-23",
+      "theme": "security",
+      "functional": ["f.privacy"],
+      "technical": ["t.jobs"]
+    },
+    {
+      "adr": 146,
+      "date": "2026-07-23",
+      "theme": "experience",
+      "functional": ["f.notifications"],
+      "technical": ["t.pwa"]
+    },
+    {
+      "adr": 147,
+      "date": "2026-07-23",
+      "theme": "trust",
+      "functional": ["f.context"],
+      "technical": ["t.response", "t.dataregistry"]
+    },
+    {
+      "adr": 148,
+      "date": "2026-07-24",
+      "theme": "reliability",
+      "functional": ["f.health", "f.heartbeat"],
+      "technical": ["t.postgres"]
+    },
+    {
+      "adr": 149,
+      "date": "2026-07-25",
+      "theme": "security",
+      "functional": ["f.skills", "f.sandbox"],
+      "technical": ["t.sandbox"]
+    },
+    {
+      "adr": 150,
+      "date": "2026-07-25",
+      "theme": "knowledge",
+      "functional": ["f.rag"],
+      "technical": ["t.jobs", "t.embeddings"]
+    },
+    {
+      "adr": 151,
+      "date": "2026-07-25",
+      "theme": "platform",
+      "functional": [],
+      "technical": ["t.cicd"]
+    },
+    {
+      "adr": 152,
+      "date": "2026-07-25",
+      "theme": "platform",
+      "functional": [],
+      "technical": ["t.web"]
+    },
+    {
+      "adr": 153,
+      "date": "2026-07-26",
+      "theme": "orchestration",
+      "functional": ["f.hitl"],
+      "technical": ["t.hitl"]
+    },
+    {
+      "adr": 154,
+      "date": "2026-07-26",
+      "theme": "voice",
+      "functional": ["f.voice"],
+      "technical": ["t.voiceinfra"]
+    },
+    {
+      "adr": 155,
+      "date": "2026-07-26",
+      "theme": "platform",
+      "functional": [],
+      "technical": ["t.cicd"]
+    },
+    {
+      "adr": 156,
+      "date": "2026-07-26",
+      "theme": "platform",
+      "functional": [],
+      "technical": ["t.web", "t.i18n"]
+    },
+    {
+      "adr": 157,
+      "date": "2026-07-27",
+      "theme": "security",
+      "functional": [],
+      "technical": ["t.cicd"]
+    },
+    {
+      "adr": 158,
+      "date": "2026-07-27",
+      "theme": "experience",
+      "functional": [],
+      "technical": ["t.i18n"]
+    },
+    {
+      "adr": 159,
+      "date": "2026-07-27",
+      "theme": "memory",
+      "functional": ["f.journals"],
+      "technical": ["t.promptsys"]
+    },
+    {
+      "adr": 160,
+      "date": "2026-07-27",
+      "theme": "orchestration",
+      "functional": ["f.images", "f.skills"],
+      "technical": ["t.router", "t.planner"]
+    },
+    {
+      "adr": 161,
+      "date": "2026-07-27",
+      "theme": "reliability",
+      "functional": ["f.chat"],
+      "technical": ["t.web", "t.sse"]
+    },
+    {
+      "adr": 162,
+      "date": "2026-07-27",
+      "theme": "reliability",
+      "functional": ["f.rag"],
+      "technical": ["t.jobs", "t.startup"]
+    },
+    {
+      "adr": 163,
+      "date": "2026-07-27",
+      "theme": "reliability",
+      "functional": ["f.routing"],
+      "technical": ["t.embeddings", "t.startup"]
+    },
+    {
+      "adr": 164,
+      "date": "2026-07-27",
+      "theme": "memory",
+      "functional": ["f.memory", "f.interests", "f.journals"],
+      "technical": ["t.metrics"]
+    },
+    {
+      "adr": 165,
+      "date": "2026-07-27",
+      "theme": "connectors",
+      "functional": ["f.skills"],
+      "technical": ["t.skills"]
+    },
+    {
+      "adr": 166,
+      "date": "2026-07-27",
+      "theme": "memory",
+      "functional": ["f.interests", "f.memory"],
+      "technical": ["t.promptsys"]
+    },
+    {
+      "adr": 167,
+      "date": "2026-07-27",
+      "theme": "security",
+      "functional": ["f.provenance", "f.mail"],
+      "technical": ["t.dataregistry", "t.response"]
+    },
+    {
+      "adr": 168,
+      "date": "2026-07-27",
+      "theme": "platform",
+      "functional": ["f.memory"],
+      "technical": ["t.postgres"]
+    },
+    {
+      "adr": 169,
+      "date": "2026-07-27",
+      "theme": "orchestration",
+      "functional": ["f.react"],
+      "technical": ["t.react", "t.langgraph"]
+    },
+    {
+      "adr": 170,
+      "date": "2026-07-27",
+      "theme": "orchestration",
+      "functional": ["f.react"],
+      "technical": ["t.react"]
+    },
+    {
+      "adr": 171,
+      "date": "2026-07-28",
+      "theme": "experience",
+      "functional": [],
+      "technical": ["t.web"]
+    },
+    {
+      "adr": 172,
+      "date": "2026-07-28",
+      "theme": "experience",
+      "functional": ["f.admin"],
+      "technical": ["t.web"]
+    },
+    {
+      "adr": 173,
+      "date": "2026-07-29",
+      "theme": "experience",
+      "functional": ["f.chat"],
+      "technical": ["t.web"]
+    },
+    {
+      "adr": 174,
+      "date": "2026-07-29",
+      "theme": "voice",
+      "functional": ["f.telephony"],
+      "technical": ["t.postgres"]
+    },
+    {
+      "adr": 175,
+      "date": "2026-07-29",
+      "theme": "proactive",
+      "functional": ["f.routines"],
+      "technical": ["t.scheduler"]
+    },
+    {
+      "adr": 176,
+      "date": "2026-07-29",
+      "theme": "memory",
+      "functional": ["f.relations"],
+      "technical": ["t.fastapi"]
+    },
+    {
+      "adr": 177,
+      "date": "2026-07-29",
+      "theme": "experience",
+      "functional": ["f.chat"],
+      "technical": ["t.response", "t.web"]
+    },
+    {
+      "adr": 178,
+      "date": "2026-07-29",
+      "theme": "reliability",
+      "functional": ["f.product"],
+      "technical": ["t.dashboards", "t.postgres"]
+    },
+    {
+      "adr": 179,
+      "date": "2026-07-29",
+      "theme": "models",
+      "functional": ["f.telephony"],
+      "technical": ["t.structured"]
+    },
+    {
+      "adr": 180,
+      "date": "2026-07-29",
+      "theme": "memory",
+      "functional": ["f.peers"],
+      "technical": ["t.postgres", "t.fastapi"]
+    },
+    {
+      "adr": 181,
+      "date": "2026-07-30",
+      "theme": "experience",
+      "functional": [],
+      "technical": ["t.web"]
+    },
+    {
+      "adr": 182,
+      "date": "2026-07-30",
+      "theme": "trust",
+      "functional": ["f.peers", "f.provenance"],
+      "technical": ["t.router", "t.response"]
+    },
+    {
+      "adr": 183,
+      "date": "2026-07-31",
+      "theme": "orchestration",
+      "functional": ["f.planning", "f.routing"],
+      "technical": ["t.planner", "t.toolsys"]
+    },
+    {
+      "adr": 184,
+      "date": "2026-07-31",
+      "theme": "trust",
+      "functional": ["f.planning", "f.provenance"],
+      "technical": ["t.planner", "t.toolsys"]
+    },
+    {
+      "adr": 185,
+      "date": "2026-07-31",
+      "theme": "trust",
+      "functional": ["f.relations", "f.peers"],
+      "technical": ["t.postgres"]
+    },
+    {
+      "adr": 186,
+      "date": "2026-07-31",
+      "theme": "security",
+      "functional": ["f.peers", "f.privacy"],
+      "technical": ["t.postgres"]
+    },
+    {
+      "adr": 187,
+      "date": "2026-07-31",
+      "theme": "experience",
+      "functional": ["f.peers"],
+      "technical": ["t.fastapi"]
+    },
+    {
+      "adr": 188,
+      "date": "2026-07-31",
+      "theme": "connectors",
+      "functional": ["f.relations", "f.contacts"],
+      "technical": ["t.connclients"]
+    },
+    {
+      "adr": 189,
+      "date": "2026-07-31",
+      "theme": "security",
+      "functional": ["f.peers", "f.privacy"],
+      "technical": ["t.postgres"]
+    },
+    {
+      "adr": 190,
+      "date": "2026-08-01",
+      "theme": "orchestration",
+      "functional": ["f.relations", "f.contacts"],
+      "technical": ["t.toolsys", "t.cicd"]
+    },
+    {
+      "adr": 191,
+      "date": "2026-08-01",
+      "theme": "orchestration",
+      "functional": ["f.relations", "f.routing"],
+      "technical": ["t.toolsys"]
+    },
+    {
+      "adr": 192,
+      "date": "2026-08-01",
+      "theme": "experience",
+      "functional": ["f.chat"],
+      "technical": ["t.web"]
+    },
+    {
+      "adr": 193,
+      "date": "2026-08-01",
+      "theme": "orchestration",
+      "functional": ["f.telephony", "f.openloops", "f.peers"],
+      "technical": ["t.toolsys"]
+    },
+    {
+      "adr": 194,
+      "date": "2026-08-02",
+      "theme": "orchestration",
+      "functional": ["f.planning"],
+      "technical": ["t.cicd", "t.planner"]
+    },
+    {
+      "adr": 195,
+      "date": "2026-08-02",
+      "theme": "experience",
+      "functional": ["f.hitl"],
+      "technical": ["t.hitl", "t.i18n"]
+    },
+    {
+      "adr": 196,
+      "date": "2026-08-03",
+      "theme": "proactive",
+      "functional": ["f.heartbeat", "f.notifications"],
+      "technical": ["t.proactive"]
+    },
+    {
+      "adr": 197,
+      "date": "2026-08-03",
+      "theme": "proactive",
+      "functional": ["f.heartbeat"],
+      "technical": ["t.proactive"]
+    },
+    {
+      "adr": 198,
+      "date": "2026-08-03",
+      "theme": "proactive",
+      "functional": ["f.routines"],
+      "technical": ["t.scheduler"]
+    },
+    {
+      "adr": 199,
+      "date": "2026-08-03",
+      "theme": "experience",
+      "functional": ["f.briefing", "f.chat"],
+      "technical": ["t.redis"]
+    },
+    {
+      "adr": 200,
+      "date": "2026-08-03",
+      "theme": "experience",
+      "functional": ["f.heartbeat", "f.interests"],
+      "technical": ["t.web"]
+    },
+    {
+      "adr": 201,
+      "date": "2026-08-04",
+      "theme": "trust",
+      "functional": ["f.provenance", "f.memory", "f.journals"],
+      "technical": ["t.postgres"]
+    },
+    {
+      "adr": 202,
+      "date": "2026-08-04",
+      "theme": "experience",
+      "functional": ["f.activity", "f.notifications"],
+      "technical": ["t.web"]
+    },
+    {
+      "adr": 203,
+      "date": "2026-08-04",
+      "theme": "trust",
+      "functional": ["f.telephony", "f.hitl"],
+      "technical": ["t.web"]
+    },
+    {
+      "adr": 204,
+      "date": "2026-08-04",
+      "theme": "trust",
+      "functional": ["f.interests"],
+      "technical": ["t.fastapi"]
+    },
+    {
+      "adr": 205,
+      "date": "2026-08-04",
+      "theme": "experience",
+      "functional": [],
+      "technical": ["t.web"]
+    },
+    {
+      "adr": 206,
+      "date": "2026-08-05",
+      "theme": "experience",
+      "functional": [],
+      "technical": ["t.web"]
+    },
+    {
+      "adr": 207,
+      "date": "2026-08-05",
+      "theme": "experience",
+      "functional": [],
+      "technical": ["t.web"]
+    },
+    {
+      "adr": 208,
+      "date": "2026-08-05",
+      "theme": "experience",
+      "functional": ["f.memory", "f.interests"],
+      "technical": ["t.web"]
+    },
+    {
+      "adr": 209,
+      "date": "2026-08-05",
+      "theme": "trust",
+      "functional": ["f.provenance", "f.costs"],
+      "technical": ["t.web", "t.pricing"]
+    },
+    {
+      "adr": 210,
+      "date": "2026-08-05",
+      "theme": "reliability",
+      "functional": ["f.chat", "f.briefing"],
+      "technical": ["t.web", "t.redis"]
+    },
+    {
+      "adr": 211,
+      "date": "2026-08-05",
+      "theme": "platform",
+      "functional": [],
+      "technical": ["t.docker", "t.release"]
+    },
+    {
+      "adr": 212,
+      "date": "2026-08-05",
+      "theme": "reliability",
+      "functional": [],
+      "technical": ["t.logs"]
+    },
+    {
+      "adr": 213,
+      "date": "2026-08-05",
+      "theme": "security",
+      "functional": ["f.security"],
+      "technical": ["t.bff", "t.edge"]
+    },
+    {
+      "adr": 214,
+      "date": "2026-08-05",
+      "theme": "memory",
+      "functional": ["f.habits", "f.heartbeat"],
+      "technical": ["t.postgres", "t.proactive"]
+    },
+    {
+      "adr": 215,
+      "date": "2026-08-06",
+      "theme": "platform",
+      "functional": [],
+      "technical": ["t.release", "t.docker"]
+    },
+    {
+      "adr": 216,
+      "date": "2026-08-06",
+      "theme": "models",
+      "functional": ["f.costs"],
+      "technical": ["t.pricing", "t.postgres"]
+    },
+    {
+      "adr": 217,
+      "date": "2026-08-06",
+      "theme": "platform",
+      "functional": ["f.admin"],
+      "technical": ["t.config"]
+    },
+    {
+      "adr": 218,
+      "date": "2026-08-06",
+      "theme": "security",
+      "functional": ["f.admin"],
+      "technical": ["t.demo", "t.cicd"]
+    },
+    {
+      "adr": 219,
+      "date": "2026-08-16",
+      "theme": "connectors",
+      "functional": ["f.places", "f.heartbeat"],
+      "technical": ["t.proactive"]
+    },
+    {
+      "adr": 220,
+      "date": "2026-08-16",
+      "theme": "models",
+      "functional": ["f.costs"],
+      "technical": ["t.pricing", "t.llmfactory"]
+    },
+    {
+      "adr": 221,
+      "date": "2026-08-16",
+      "theme": "models",
+      "functional": ["f.llmconfig"],
+      "technical": ["t.llmfactory"]
+    },
+    {
+      "adr": 222,
+      "date": "2026-08-16",
+      "theme": "platform",
+      "functional": ["f.hitl"],
+      "technical": ["t.hitl"]
+    },
+    {
+      "adr": 223,
+      "date": "2026-08-17",
+      "theme": "models",
+      "functional": ["f.costs"],
+      "technical": ["t.pricing"]
+    },
+    {
+      "adr": 224,
+      "date": "2026-07-28",
+      "theme": "connectors",
+      "functional": ["f.mcp"],
+      "technical": ["t.mcp"]
+    },
+    {
+      "adr": 225,
+      "date": "2026-08-17",
+      "theme": "connectors",
+      "functional": ["f.skills", "f.mcp"],
+      "technical": ["t.skills", "t.mcp"]
+    },
+    {
+      "adr": 226,
+      "date": "2026-08-17",
+      "theme": "knowledge",
+      "functional": ["f.documents"],
+      "technical": ["t.structured", "t.storage"]
+    },
+    {
+      "adr": 227,
+      "date": "2026-08-18",
+      "theme": "experience",
+      "functional": ["f.admin"],
+      "technical": ["t.web"]
+    },
+    {
+      "adr": 228,
+      "date": "2026-08-19",
+      "theme": "platform",
+      "functional": ["f.llmconfig", "f.costs"],
+      "technical": ["t.catalogue", "t.fastapi"]
+    },
+    {
+      "adr": 229,
+      "date": "2026-08-18",
+      "theme": "trust",
+      "functional": ["f.admin"],
+      "technical": ["t.startup", "t.fastapi"]
+    },
+    {
+      "adr": 230,
+      "date": "2026-08-19",
+      "theme": "experience",
+      "functional": [],
+      "technical": ["t.web"]
+    },
+    {
+      "adr": 231,
+      "date": "2026-08-29",
+      "theme": "orchestration",
+      "functional": [],
+      "technical": ["t.langgraph"]
+    },
+    {
+      "adr": 232,
+      "date": "2026-08-19",
+      "theme": "memory",
+      "functional": ["f.journals", "f.initiative"],
+      "technical": ["t.embeddings"]
+    },
+    {
+      "adr": 233,
+      "date": "2026-08-19",
+      "theme": "platform",
+      "functional": ["f.planning"],
+      "technical": ["t.toolsys"]
+    },
+    {
+      "adr": 234,
+      "date": "2026-08-19",
+      "theme": "trust",
+      "functional": ["f.activity"],
+      "technical": ["t.fastapi"]
+    },
+    {
+      "adr": 235,
+      "date": "2026-08-19",
+      "theme": "memory",
+      "functional": ["f.memory"],
+      "technical": ["t.postgres"]
+    },
+    {
+      "adr": 236,
+      "date": "2026-08-19",
+      "theme": "memory",
+      "functional": ["f.memory"],
+      "technical": ["t.promptsys"]
+    },
+    {
+      "adr": 237,
+      "date": "2026-08-19",
+      "theme": "voice",
+      "functional": ["f.voice", "f.psyche"],
+      "technical": ["t.voiceinfra"]
+    },
+    {
+      "adr": 238,
+      "date": "2026-08-20",
+      "theme": "proactive",
+      "functional": ["f.heartbeat", "f.react"],
+      "technical": ["t.proactive", "t.react"]
+    },
+    {
+      "adr": 239,
+      "date": "2026-08-20",
+      "theme": "platform",
+      "functional": ["f.routines", "f.hitl", "f.skills"],
+      "technical": ["t.scheduler", "t.jobs"]
+    },
+    {
+      "adr": 240,
+      "date": "2026-08-20",
+      "theme": "experience",
+      "functional": ["f.psyche", "f.chat"],
+      "technical": ["t.web"]
+    },
+    {
+      "adr": 241,
+      "date": "2026-08-20",
+      "theme": "platform",
+      "functional": [],
+      "technical": ["t.docker", "t.cicd"]
+    },
+    {
+      "adr": 242,
+      "date": "2026-08-22",
+      "theme": "knowledge",
+      "functional": ["f.rag"],
+      "technical": ["t.embeddings"]
+    },
+    {
+      "adr": 243,
+      "date": "2026-08-23",
+      "theme": "experience",
+      "functional": [],
+      "technical": ["t.web"]
+    },
+    {
+      "adr": 244,
+      "date": "2026-08-24",
+      "theme": "models",
+      "functional": ["f.llmconfig"],
+      "technical": ["t.catalogue"]
+    },
+    {
+      "adr": 245,
+      "date": "2026-08-26",
+      "theme": "models",
+      "functional": ["f.llmconfig"],
+      "technical": ["t.reasoning"]
+    },
+    {
+      "adr": 246,
+      "date": "2026-08-24",
+      "theme": "platform",
+      "functional": ["f.notifications"],
+      "technical": ["t.mobile", "t.push"]
+    },
+    {
+      "adr": 247,
+      "date": "2026-08-28",
+      "theme": "reliability",
+      "functional": ["f.diagnostics"],
+      "technical": ["t.selfdiag", "t.metrics"]
+    },
+    {
+      "adr": 248,
+      "date": "2026-08-28",
+      "theme": "orchestration",
+      "functional": ["f.react"],
+      "technical": ["t.react"]
+    },
+    {
+      "adr": 249,
+      "date": "2026-08-29",
+      "theme": "orchestration",
+      "functional": ["f.sandbox", "f.react"],
+      "technical": ["t.sandbox"]
+    },
+    {
+      "adr": 250,
+      "date": "2026-08-29",
+      "theme": "platform",
+      "functional": [],
+      "technical": ["t.release"]
+    },
+    {
+      "adr": 251,
+      "date": "2026-08-30",
+      "theme": "experience",
+      "functional": ["f.admin"],
+      "technical": ["t.web"]
+    },
+    {
+      "adr": 252,
+      "date": "2026-08-31",
+      "theme": "experience",
+      "functional": ["f.psyche"],
+      "technical": ["t.web"]
+    },
+    {
+      "adr": 253,
+      "date": "2026-09-01",
+      "theme": "experience",
+      "functional": ["f.psyche", "f.chat"],
+      "technical": ["t.response", "t.web"]
+    },
+    {
+      "adr": 254,
+      "date": "2026-09-01",
+      "theme": "reliability",
+      "functional": [],
+      "technical": ["t.scheduler", "t.redis"]
+    },
+    {
+      "adr": 255,
+      "date": "2026-09-02",
+      "theme": "connectors",
+      "functional": ["f.mcp"],
+      "technical": ["t.mcp"]
+    },
+    {
+      "adr": 256,
+      "date": "2026-09-02",
+      "theme": "orchestration",
+      "functional": ["f.react"],
+      "technical": ["t.react"]
+    },
+    {
+      "adr": 257,
+      "date": "2026-09-02",
+      "theme": "trust",
+      "functional": ["f.provenance", "f.react"],
+      "technical": ["t.react", "t.response"]
+    },
+    {
+      "adr": 258,
+      "date": "2026-09-02",
+      "theme": "voice",
+      "functional": ["f.meetings"],
+      "technical": ["t.jobs", "t.voiceinfra"]
+    },
+    {
+      "adr": 259,
+      "date": "2026-09-03",
+      "theme": "voice",
+      "functional": ["f.meetings", "f.documents"],
+      "technical": ["t.structured"]
+    },
+    {
+      "adr": 260,
+      "date": "2026-09-03",
+      "theme": "reliability",
+      "functional": ["f.chat", "f.habits"],
+      "technical": ["t.redis"]
+    },
+    {
+      "adr": 261,
+      "date": "2026-09-03",
+      "theme": "proactive",
+      "functional": ["f.heartbeat", "f.mail", "f.drive"],
+      "technical": ["t.push", "t.proactive", "t.redis"]
+    },
+    {
+      "adr": 262,
+      "date": "2026-09-03",
+      "theme": "knowledge",
+      "functional": ["f.rag", "f.mail"],
+      "technical": ["t.embeddings", "t.connclients"]
+    },
+    {
+      "adr": 263,
+      "date": "2026-09-04",
+      "theme": "trust",
+      "functional": ["f.provenance", "f.hitl", "f.privacy"],
+      "technical": ["t.registers", "t.toolsys", "t.postgres"]
+    },
+    {
+      "adr": 264,
+      "date": "2026-09-05",
+      "theme": "experience",
+      "functional": ["f.psyche"],
+      "technical": ["t.web"]
+    },
+    {
+      "adr": 265,
+      "date": "2026-09-05",
+      "theme": "proactive",
+      "functional": ["f.routines"],
+      "technical": ["t.scheduler", "t.web"]
+    },
+    {
+      "adr": 266,
+      "date": "2026-09-05",
+      "theme": "reliability",
+      "functional": ["f.diagnostics"],
+      "technical": ["t.selfdiag", "t.embeddings"]
+    },
+    {
+      "adr": 267,
+      "date": "2026-09-05",
+      "theme": "models",
+      "functional": ["f.llmconfig"],
+      "technical": ["t.llmfactory", "t.catalogue"]
+    },
+    {
+      "adr": 268,
+      "date": "2026-09-06",
+      "theme": "proactive",
+      "functional": ["f.reminders", "f.routines"],
+      "technical": ["t.scheduler"]
+    },
+    {
+      "adr": 269,
+      "date": "2026-09-07",
+      "theme": "memory",
+      "functional": ["f.relations", "f.contacts"],
+      "technical": ["t.structured", "t.postgres"]
+    },
+    {
+      "adr": 270,
+      "date": "2026-09-07",
+      "theme": "trust",
+      "functional": ["f.costs", "f.provenance"],
+      "technical": ["t.pricing", "t.registers"]
+    },
+    {
+      "adr": 271,
+      "date": "2026-09-07",
+      "theme": "reliability",
+      "functional": ["f.briefing"],
+      "technical": ["t.redis", "t.fastapi"]
+    },
+    {
+      "adr": 272,
+      "date": "2026-09-07",
+      "theme": "models",
+      "functional": ["f.costs"],
+      "technical": ["t.pricing", "t.llmfactory"]
+    },
+    {
+      "adr": 273,
+      "date": "2026-09-07",
+      "theme": "trust",
+      "functional": ["f.privacy"],
+      "technical": ["t.registers", "t.postgres"]
+    },
+    {
+      "adr": 274,
+      "date": "2026-09-08",
+      "theme": "knowledge",
+      "functional": ["f.documents"],
+      "technical": ["t.structured", "t.storage"]
+    },
+    {
+      "adr": 275,
+      "date": "2026-09-08",
+      "theme": "reliability",
+      "functional": ["f.documents", "f.meetings"],
+      "technical": ["t.structured"]
+    },
+    {
+      "adr": 276,
+      "date": "2026-09-09",
+      "theme": "proactive",
+      "functional": ["f.workboard", "f.peers", "f.hitl"],
+      "technical": ["t.fastapi", "t.postgres", "t.hitl"]
+    },
+    {
+      "adr": 277,
+      "date": "2026-09-09",
+      "theme": "experience",
+      "functional": ["f.admin"],
+      "technical": ["t.web"]
+    },
+    {
+      "adr": 278,
+      "date": "2026-09-10",
+      "theme": "models",
+      "functional": ["f.llmconfig"],
+      "technical": ["t.llmfactory", "t.catalogue"]
+    },
+    {
+      "adr": 279,
+      "date": "2026-09-10",
+      "theme": "knowledge",
+      "functional": ["f.documents", "f.images"],
+      "technical": ["t.storage", "t.postgres"]
+    },
+    {
+      "adr": 280,
+      "date": "2026-09-10",
+      "theme": "platform",
+      "functional": ["f.admin"],
+      "technical": ["t.config", "t.startup"]
+    },
+    {
+      "adr": 281,
+      "date": "2026-09-11",
+      "theme": "proactive",
+      "functional": ["f.moments", "f.heartbeat", "f.routines"],
+      "technical": ["t.proactive", "t.scheduler"]
+    },
+    {
+      "adr": 282,
+      "date": "2026-09-12",
+      "theme": "memory",
+      "functional": ["f.bookmarks"],
+      "technical": ["t.postgres", "t.web"]
+    },
+    {
+      "adr": 283,
+      "date": "2026-09-12",
+      "theme": "reliability",
+      "functional": [],
+      "technical": ["t.fastapi", "t.metrics", "t.voiceinfra"]
+    },
+    {
+      "adr": 284,
+      "date": "2026-09-12",
+      "theme": "orchestration",
+      "functional": ["f.planning"],
+      "technical": ["t.promptsys"]
+    },
+    {
+      "adr": 285,
+      "date": "2026-09-12",
+      "theme": "models",
+      "functional": ["f.reminders", "f.llmconfig"],
+      "technical": ["t.reasoning"]
+    },
+    {
+      "adr": 286,
+      "date": "2026-09-15",
+      "theme": "orchestration",
+      "functional": ["f.react", "f.mail"],
+      "technical": ["t.react", "t.toolsys"]
+    },
+    {
+      "adr": 287,
+      "date": "2026-09-15",
+      "theme": "connectors",
+      "functional": ["f.mail"],
+      "technical": ["t.connclients", "t.redis"]
+    },
+    {
+      "adr": 288,
+      "date": "2026-09-16",
+      "theme": "orchestration",
+      "functional": ["f.hitl"],
+      "technical": ["t.hitl", "t.langgraph"]
+    },
+    {
+      "adr": 289,
+      "date": "2026-09-16",
+      "theme": "experience",
+      "functional": ["f.hitl", "f.workboard"],
+      "technical": ["t.hitl", "t.web"]
+    },
+    {
+      "adr": 290,
+      "date": "2026-09-16",
+      "theme": "voice",
+      "functional": ["f.telephony"],
+      "technical": ["t.phone", "t.voiceinfra"]
+    },
+    {
+      "adr": 291,
+      "date": "2026-09-16",
+      "theme": "knowledge",
+      "functional": ["f.bookmarks", "f.rag"],
+      "technical": ["t.embeddings"]
+    },
+    {
+      "adr": 292,
+      "date": "2026-09-17",
+      "theme": "memory",
+      "functional": ["f.journals", "f.memory", "f.habits", "f.interests"],
+      "technical": ["t.promptsys"]
+    },
+    {
+      "adr": 293,
+      "date": "2026-09-17",
+      "theme": "orchestration",
+      "functional": ["f.react"],
+      "technical": ["t.react", "t.embeddings"]
+    },
+    {
+      "adr": 294,
+      "date": "2026-09-17",
+      "theme": "experience",
+      "functional": ["f.psyche"],
+      "technical": ["t.web"]
+    },
+    {
+      "adr": 295,
+      "date": "2026-09-17",
+      "theme": "knowledge",
+      "functional": ["f.rag", "f.chat"],
+      "technical": ["t.storage"]
+    },
+    {
+      "adr": 296,
+      "date": "2026-09-17",
+      "theme": "connectors",
+      "functional": ["f.mail"],
+      "technical": ["t.connclients", "t.toolsys"]
+    },
+    {
+      "adr": 297,
+      "date": "2026-09-17",
+      "theme": "knowledge",
+      "functional": ["f.drive", "f.rag"],
+      "technical": ["t.connclients", "t.embeddings"]
+    },
+    {
+      "adr": 298,
+      "date": "2026-09-18",
+      "theme": "security",
+      "functional": ["f.sandbox"],
+      "technical": ["t.sandbox", "t.docker"]
+    },
+    {
+      "adr": 299,
+      "date": "2026-09-18",
+      "theme": "voice",
+      "functional": ["f.live", "f.voice"],
+      "technical": ["t.live", "t.web"]
+    },
+    {
+      "adr": 300,
+      "date": "2026-09-19",
+      "theme": "voice",
+      "functional": ["f.live"],
+      "technical": ["t.live", "t.pricing"]
+    },
+    {
+      "adr": 301,
+      "date": "2026-09-20",
+      "theme": "voice",
+      "functional": ["f.live", "f.telephony"],
+      "technical": ["t.live", "t.phone", "t.jobs"]
+    },
+    {
+      "adr": 302,
+      "date": "2026-09-21",
+      "theme": "security",
+      "functional": ["f.connectors", "f.security"],
+      "technical": ["t.connclients", "t.redis"]
+    },
+    {
+      "adr": 303,
+      "date": "2026-09-22",
+      "theme": "trust",
+      "functional": ["f.react", "f.planning", "f.diagnostics"],
+      "technical": ["t.toolsys", "t.metrics", "t.response"]
+    },
+    {
+      "adr": 304,
+      "date": "2026-09-22",
+      "theme": "reliability",
+      "functional": ["f.heartbeat", "f.reminders", "f.notifications"],
+      "technical": ["t.postgres", "t.connclients", "t.scheduler", "t.channels"]
+    },
+    {
+      "adr": 305,
+      "date": "2026-09-23",
+      "theme": "models",
+      "functional": ["f.images", "f.costs"],
+      "technical": ["t.llmfactory", "t.pricing"]
+    },
+    {
+      "adr": 306,
+      "date": "2026-09-23",
+      "theme": "models",
+      "functional": ["f.llmconfig", "f.costs"],
+      "technical": ["t.llmfactory", "t.pricing"]
+    },
+    {
+      "adr": 307,
+      "date": "2026-09-23",
+      "theme": "connectors",
+      "functional": ["f.connectors", "f.admin"],
+      "technical": ["t.connclients", "t.config"]
+    },
+    {
+      "adr": 308,
+      "date": "2026-09-23",
+      "theme": "models",
+      "functional": ["f.react", "f.costs"],
+      "technical": ["t.react", "t.llmfactory"]
+    },
+    {
+      "adr": 309,
+      "date": "2026-09-23",
+      "theme": "models",
+      "functional": ["f.costs"],
+      "technical": ["t.promptsys", "t.llmfactory"]
+    },
+    {
+      "adr": 310,
+      "date": "2026-09-24",
+      "theme": "orchestration",
+      "functional": ["f.react"],
+      "technical": ["t.react", "t.response"]
+    }
+  ]
+}

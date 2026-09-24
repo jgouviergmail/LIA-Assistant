@@ -48,15 +48,35 @@ const SECTION_ANCHORS: readonly NavAnchor[] = [
   { id: 'changelog', key: 'landing.nav.changelog', lgOnly: true },
 ];
 
-/** Links to separate pages — order: Story, Philosophy, Technical, Blog, FAQ, More */
-const PAGE_LINKS = [
+/** One separate page of the public site, as the nav links it. */
+interface NavPage {
+  readonly id: string;
+  /** i18n key of its label. */
+  readonly key: string;
+  /** Unlocalized path. */
+  readonly href: string;
+  /** Hidden in the desktop row below `lg`, like `NavAnchor.lgOnly`. */
+  readonly lgOnly?: boolean;
+}
+
+/**
+ * Links to separate pages — order: Maps, Story, Philosophy, Technical, Blog,
+ * FAQ, More.
+ *
+ * "Maps" opens the page links, right after the release anchor (owner
+ * arbitration 2026-09-24: « entre Nouveautés et Story »). The 880px row has no
+ * room left for it (`smoke/landing-nav-row.spec.ts`), so it joins the row at
+ * `lg`, exactly like the release entry beside it.
+ */
+const PAGE_LINKS: readonly NavPage[] = [
+  { id: 'maps', key: 'landing.nav.maps', href: '/maps', lgOnly: true },
   { id: 'story', key: 'landing.nav.story', href: '/story' },
   { id: 'why', key: 'landing.nav.philosophy', href: '/why' },
   { id: 'how', key: 'landing.nav.technical', href: '/how' },
   { id: 'blog', key: 'landing.nav.blog', href: '/blog' },
   { id: 'faq', key: 'landing.nav.faq', href: '/faq' },
   { id: 'more', key: 'landing.nav.more', href: '/more' },
-] as const;
+];
 
 export function LandingHeader({ lng }: LandingHeaderProps) {
   const { t } = useTranslation();
@@ -162,11 +182,14 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
               </a>
             ))}
             <span className="w-px h-4 bg-border mx-0.5" aria-hidden="true" />
-            {PAGE_LINKS.map(({ id, key, href }) => (
+            {PAGE_LINKS.map(({ id, key, href, lgOnly }) => (
               <Link
                 key={id}
                 href={buildLocalizedPath(href, lng as Language)}
-                className="px-1.5 py-2 text-sm font-medium rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                className={cn(
+                  'px-1.5 py-2 text-sm font-medium rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted/50',
+                  lgOnly && 'hidden lg:block'
+                )}
               >
                 {t(key)}
               </Link>

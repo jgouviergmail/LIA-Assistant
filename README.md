@@ -421,24 +421,33 @@ Switchable per user from the chat header:
 
 ```mermaid
 graph TD
-    A[User Message] --> B[Router Node]
+    A[User Message] --> CP[Compaction]
+    CP --> B[Router Node]
     B -->|conversation| C[Response Node]
     B -->|pipeline mode| D[Planner Node]
     B -->|react mode| R1[ReAct Setup]
+    D -->|empty plan| C
     D --> E[Semantic Validator]
+    E -->|ambiguous| CL[Clarification]
+    CL --> E
+    E -->|replan| D
     E --> F{Approval Gate}
-    F -->|approved| G[Task Orchestrator]
-    F -->|rejected| C
+    F --> G[Task Orchestrator]
     G --> H[Domain Agents + Tools]
-    H --> G
-    G --> C
+    G -->|drafts| HD[HITL Dispatch]
+    G -->|bulk action| FE[FOR_EACH Confirm]
+    FE -->|approved| G
+    H --> I[Initiative]
+    HD --> I
+    I --> C
     R1 --> R2[ReAct Call Model]
     R2 -->|tool_calls| R3[ReAct Execute Tools]
-    R2 -->|done| R4[ReAct Finalize]
+    R3 --> R2
+    R3 -->|draft| HD
     R2 -->|declared gap| R5[ReAct Recovery]
     R5 --> R2
-    R3 --> R2
-    R4 --> C
+    R2 -->|done| R4[ReAct Finalize]
+    R4 --> I
     C --> J[SSE Stream]
 ```
 
@@ -478,7 +487,7 @@ docs/                     # Architecture, technical documents, guides, runbooks,
 | **Boot-time completeness** | Every registry keyed by an enum or a domain is asserted complete at startup; the app refuses to boot on a missing entry rather than failing silently later                                                                                                           |
 | **Error architecture**     | Tools return `ToolResponse` / `ToolErrorModel` with a closed `ToolErrorCode` taxonomy and a recoverability flag; the API raises through centralised exception helpers, never a raw `HTTPException`                                                                   |
 
-> The long version: [How does LIA work?](https://lia.jeyswork.com/how) (public architecture guide), [ARCHITECTURE.md](docs/ARCHITECTURE.md), [ARCHITECTURE_LANGRAPH.md](docs/ARCHITECTURE_LANGRAPH.md).
+> The long version: [How does LIA work?](https://lia.jeyswork.com/how) (public architecture guide), [ARCHITECTURE.md](docs/ARCHITECTURE.md), [ARCHITECTURE_LANGRAPH.md](docs/ARCHITECTURE_LANGRAPH.md), and the [living maps](docs/maps/README.md) — the functional map, the technical map and the history of every decision, also published in six languages on the [public site](https://lia.jeyswork.com/maps).
 
 ---
 
@@ -607,6 +616,7 @@ Instrumentation and caching are in place — per-node message windowing, LLM con
 | [GETTING_STARTED.md](docs/GETTING_STARTED.md) | Detailed installation guide                                                                          |
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md)       | Complete system architecture                                                                         |
 | [INDEX.md](docs/INDEX.md)                     | The full documentation map                                                                           |
+| [Living maps](docs/maps/README.md)            | A functional map, a technical map and the illustrated history of every decision — interactive pages on the public site (`/maps`, six languages) and offline French documents, from one set of data checked on every commit |
 | [CLAUDE.md](CLAUDE.md)                        | The engineering rulebook the AI works under — its systemic rules, each paid for by a measured defect |
 
 | Domain                 | Documents                                                                                                                                                                                                                                                                            |
