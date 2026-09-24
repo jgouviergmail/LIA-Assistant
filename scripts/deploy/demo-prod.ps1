@@ -258,6 +258,13 @@ switch ($Action) {
     }
 
     "down" {
+        # `deploy:prod` swaps the deploy directory for the new bundle, which
+        # never carries this secrets file - and compose cannot even parse the
+        # project without it, so the documented `deploy:prod` -> `demo:prod:down`
+        # sequence died on "couldn't find env file" (measured 2026-09-24).
+        # Push it first, exactly as `up` does. ASCII only: see the note at the
+        # top of TestTheDriverSurvivesWindowsPowerShellEncoding.
+        Push-DemoEnv
         Invoke-Remote "$Compose --profile tunnel down" "Stop"
         Write-Host "`nStopped. The tmpfs database died with it, by design." -ForegroundColor Green
     }
