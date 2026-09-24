@@ -1,6 +1,6 @@
 [project]
 name = "lia-api"
-version = "1.47.1"
+version = "1.47.2"
 description = "LIA Assistant - AI conversational assistant with multi-agent orchestration"
 license = "AGPL-3.0-or-later"
 authors = [
@@ -235,7 +235,7 @@ disable_error_code = ["no-any-return", "arg-type", "assignment", "override", "un
 minversion = "9.0"
 # Coverage gate ratchet doctrine: +2 points per release, never lowered
 # (see docs/guides/GUIDE_TESTING.md and ADR-113). Keep in sync with ci.yml.
-addopts = "-ra -q --strict-markers --cov=src --cov-report=term-missing --cov-report=html --cov-fail-under=73"
+addopts = "-ra -q --strict-markers --cov=src --cov-report=term-missing --cov-report=html --cov-fail-under=74"
 testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
@@ -255,6 +255,11 @@ filterwarnings = [
     # message prefix, not a broad category filter — the 27 setex call sites
     # were migrated to `set(..., ex=ttl)` and must never come back.
     "error:Call to deprecated:DeprecationWarning",
+    # python-telegram-bot deprecations are ERRORS: the numeric time periods
+    # (`RetryAfter.retry_after`, v22.2) warned at every flood limit until the
+    # package opted in to `timedelta` (`infrastructure/channels/telegram`), and
+    # the next deprecation must be fixed where it appears, not scrolled past.
+    "error::telegram.warnings.PTBDeprecationWarning",
     # asyncio event-loop self-pipe transport occasionally GC'd after pytest-asyncio
     # tears down the per-test loop (asyncio_default_fixture_loop_scope="function") on
     # Windows. The tracemalloc allocation traceback contains ONLY pytest/pytest-asyncio

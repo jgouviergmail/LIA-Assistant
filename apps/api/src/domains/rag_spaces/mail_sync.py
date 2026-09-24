@@ -250,6 +250,9 @@ async def sync_source(
     """
     doc_repo = RAGDocumentRepository(db)
     jobs = RAGJobsRepository(db)
+    # The caller's reads end before Gmail is asked (ADR-304); every thread
+    # read below follows a lease heartbeat, which commits.
+    await db.commit()
     profile = await client.get_profile()
     anchor = _history_id(profile.get("historyId"))
     max_threads = settings.rag_mail_max_threads_per_sync
@@ -290,6 +293,9 @@ async def sync_source(
             user_id=user_id,
             thread_id=thread_id,
         )
+    # The loop's reads and writes end before the threads embed (ADR-304):
+    # each document embeds on a session of its own, for seconds to minutes.
+    await db.commit()
     synced, embed_failed = await process_queued(queued, counter=rag_mail_sync_threads_total)
     await _complete_source(
         db, source, thread_count=len(thread_ids), last_history_id=anchor or source.last_history_id
@@ -458,6 +464,7 @@ async def apply_history(
             thread_id=thread_id,
         ):
             changed += 1
+    await db.commit()  # nothing held while the threads embed (ADR-304)
     await process_queued(queued, counter=rag_mail_sync_threads_total)
     await _complete_source(db, source, last_history_id=new_id or source.last_history_id)
     return "indexed" if changed else "nothing"

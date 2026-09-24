@@ -772,3 +772,76 @@ async def test_list_pricing_with_combined_filters(
     assert Decimal(data["models"][1]["input_unit_price"]) >= Decimal(
         data["models"][2]["input_unit_price"]
     )
+
+
+# ============================================================================
+# Cross-worker invalidation (ADR-063) — every worker bills with the new tariff
+# ============================================================================
+
+
+@pytest.fixture
+def published_invalidations(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """Record every cross-worker invalidation the request publishes."""
+    published: list[str] = []
+
+    async def record(cache_name: str) -> None:
+        published.append(cache_name)
+
+    monkeypatch.setattr("src.infrastructure.cache.invalidation.publish_cache_invalidation", record)
+    return published
+
+
+@pytest.mark.asyncio
+@pytest.mark.integration
+async def test_a_price_update_tells_every_worker_to_reload(
+    admin_client: tuple[AsyncClient, User],
+    sample_pricing: LLMModelPricing,
+    published_invalidations: list[str],
+):
+    """A worker keeps its prices in memory: without the published
+    invalidation, only the worker that served the edit billed the new tariff
+    — three calls in four at the old one with four workers."""
+    client, _ = admin_client
+
+    response = await client.put(
+        "/api/v1/admin/llm/pricing/gpt-4.1-mini", json={"output_unit_price": "12.00"}
+    )
+
+    assert response.status_code == 200
+    assert "pricing" in published_invalidations
+
+
+@pytest.mark.asyncio
+@pytest.mark.integration
+async def test_the_cache_reload_tells_every_worker(
+    admin_client: tuple[AsyncClient, User],
+    sample_pricing: LLMModelPricing,
+    published_invalidations: list[str],
+):
+    client, _ = admin_client
+
+    response = await client.post("/api/v1/admin/llm/pricing/reload-cache")
+
+    assert response.status_code == 200
+    assert "pricing" in published_invalidations
+
+
+@pytest.mark.asyncio
+@pytest.mark.integration
+async def test_a_new_exchange_rate_tells_every_worker_to_reload(
+    admin_client: tuple[AsyncClient, User],
+    sample_currency_rate: CurrencyExchangeRate,
+    published_invalidations: list[str],
+):
+    """The pricing cache converts every cost to euros with the rate it read at
+    its last rebuild: a rate written without the invalidation reached no
+    worker's costs until it restarted."""
+    client, _ = admin_client
+
+    response = await client.post(
+        "/api/v1/admin/llm/currencies",
+        json={"from_currency": "USD", "to_currency": "EUR", "rate": "0.93"},
+    )
+
+    assert response.status_code == 201
+    assert published_invalidations == ["pricing"]

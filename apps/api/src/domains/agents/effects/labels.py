@@ -21,11 +21,13 @@ from collections.abc import Callable
 from typing import Any
 
 from src.core.constants import MCP_TOOL_NAME_PREFIX
+from src.core.text_clip import clip_on_word
 
 #: A builder reads the call arguments and returns the values its wording needs.
 LabelValuesBuilder = Callable[[dict[str, Any]], dict[str, Any]]
 
-#: One value is one line of a card: long enough to identify, short enough to read.
+#: One value is one line of a card: long enough to identify, short enough to
+#: read. The ellipsis of a shortened value counts inside it.
 MAX_VALUE_CHARS = 120
 
 #: Prefix under which a draft executor is recorded (``draft:email``).
@@ -49,8 +51,9 @@ def _text(value: Any, fallback: str = "?") -> str:
         shown = ", ".join(str(item) for item in value[:LIST_ITEMS_SHOWN])
         rest = len(value) - LIST_ITEMS_SHOWN
         value = (f"{shown}, +{rest}" if rest > 0 else shown) or fallback
-    text = " ".join(str(value).split())
-    return text[:MAX_VALUE_CHARS] if len(text) > MAX_VALUE_CHARS else text
+    # On a word boundary with an ellipsis: a card that ended on « posture cr »
+    # read as broken, not as shortened (2026-09-23).
+    return clip_on_word(" ".join(str(value).split()), MAX_VALUE_CHARS)
 
 
 def _first(arguments: dict[str, Any], *names: str, fallback: str = "?") -> str:

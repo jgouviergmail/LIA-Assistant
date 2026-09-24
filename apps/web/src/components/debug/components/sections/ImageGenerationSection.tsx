@@ -8,12 +8,7 @@
 
 import React from 'react';
 import { Image as ImageIcon } from 'lucide-react';
-import {
-  DebugChip,
-  DebugSection,
-  MetricRow,
-  SubSectionHeader,
-} from '../shared';
+import { DebugChip, DebugSection, MetricRow, SubSectionHeader } from '../shared';
 import { formatCost, formatDuration } from '../../utils/formatters';
 import type { ImageGenerationCall, ImageGenerationSummary } from '@/types/chat';
 
@@ -76,6 +71,12 @@ export const ImageGenerationSection = React.memo(function ImageGenerationSection
                 <DebugChip tone="warning">
                   {call.image_count} image{call.image_count > 1 ? 's' : ''}
                 </DebugChip>
+                {(call.input_image_count ?? 0) > 0 && (
+                  <DebugChip tone="neutral">
+                    {call.input_image_count} reference image
+                    {(call.input_image_count ?? 0) > 1 ? 's' : ''}
+                  </DebugChip>
+                )}
               </div>
               <div className="space-y-0.5 text-[10px] text-muted-foreground">
                 {call.duration_ms > 0 && (

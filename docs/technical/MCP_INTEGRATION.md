@@ -402,7 +402,8 @@ Feature 2.1 extends MCP support to allow each user to declare, authenticate, and
 
 ```
 Chat Request:
-  1. setup_user_mcp_tools(user_id, db) → queries enabled+active servers
+  1. setup_user_mcp_tools(user_id) → queries enabled+active servers in a short
+     session of its own, closed before any server is connected (ADR-304)
   2. For each server: pool.get_or_connect() → ephemeral connect → list_tools() → cache metadata
   3. Build UserMCPToolAdapter + ToolManifest per tool
   4. Set ContextVar user_mcp_tools_ctx

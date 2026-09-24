@@ -16,9 +16,11 @@ from uuid import UUID
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.client_ip import resolve_client_ip
 from src.core.config import settings
 from src.core.exceptions import raise_structured_validation_error
 from src.core.security.utils import decrypt_data, encrypt_data
+from src.domains.llm.models import LLMModelKindEnum
 from src.domains.llm_config.cache import LLMConfigOverrideCache
 from src.domains.llm_config.constants import LLM_DEFAULTS, LLM_PROVIDERS, LLM_TYPES_REGISTRY
 from src.domains.llm_config.models import LLMConfigOverride, ProviderApiKey
@@ -141,6 +143,58 @@ def _merge_config(defaults: LLMAgentConfig, overrides: dict[str, Any]) -> LLMAge
     from src.core.llm_config_helper import merge_config as _merge_impl
 
     return _merge_impl(defaults, overrides)
+
+
+def _refuse_unserved_image_model(llm_type: str, provider: str | None, model: str | None) -> None:
+    """Refuse an image slot the image domain cannot serve as stated (ADR-305).
+
+    The image slot's list offers only servable models; this is the write path's
+    half of that promise. The slot's provider must also be the one serving the
+    model: the image tools run on the model's own provider, so a mismatched
+    provider would only make the admin card name a vendor that is not billed.
+    Without evidence (the options cache not loaded yet) nothing is refused —
+    absence of evidence is never a rejection.
+
+    Args:
+        llm_type: The slot being written.
+        provider: The provider it would be configured with; ``None`` keeps the
+            slot's default.
+        model: The model it would be configured with; ``None`` keeps the
+            slot's default, whose availability the image options endpoint
+            reports — a reset to the default is never refused.
+
+    Raises:
+        HTTPException: 422 ``image_model_not_served`` or
+            ``image_model_provider_mismatch``, naming the model.
+    """
+    from src.domains.image_generation.options_cache import ImageOptionsCache
+
+    metadata = LLM_TYPES_REGISTRY.get(llm_type)
+    if model is None or metadata is None or metadata.required_kind != LLMModelKindEnum.image:
+        return
+    if not ImageOptionsCache.is_loaded():
+        return
+    options = ImageOptionsCache.get_options_for_model(model)
+    if options is None:
+        raise_structured_validation_error(
+            error_type="image_model_not_served",
+            loc=["body", "model"],
+            msg=(
+                f"Image model {model!r} is not served: it needs a provider client and "
+                "at least one active pricing row its family accepts."
+            ),
+            input_value=model,
+            ctx={"model": model},
+        )
+    configured_provider = provider or LLM_DEFAULTS[llm_type].provider
+    if configured_provider != options.provider:
+        raise_structured_validation_error(
+            error_type="image_model_provider_mismatch",
+            loc=["body", "provider"],
+            msg=f"Image model {model!r} is served by {options.provider!r}, not {configured_provider!r}.",
+            input_value=configured_provider,
+            ctx={"model": model, "provider": options.provider},
+        )
 
 
 class LLMConfigService:
@@ -319,6 +373,8 @@ class LLMConfigService:
         if update.model == "":
             update.model = None
 
+        _refuse_unserved_image_model(llm_type, update.provider, update.model)
+
         # === Strict validation of reasoning_effort against what the model offers ===
         # Philosophy A — raw truth: a level the model's resolved ladder does not
         # carry is rejected with HTTP 422 + structured ctx, never silently
@@ -364,27 +420,24 @@ class LLMConfigService:
                 target_provider = update.provider or LLM_DEFAULTS[llm_type].provider
                 validate_reasoning_effort(caps, update.reasoning_effort, target_provider)
 
-            # Coherence rule (Anthropic): extended thinking is incompatible with a
-            # custom temperature/top_p (API: "temperature may only be set to 1 when
-            # thinking is enabled"). When the selected reasoning_effort enables
-            # thinking, force temperature/top_p to None so the stored config stays
-            # coherent. The admin UI mirrors this by locking those fields; the
-            # factory also omits them at call time (defense in depth).
+            # Coherence rule (Anthropic): a temperature/top_p the request may not
+            # carry is not stored either -- thinking switched on (« temperature
+            # may only be set to 1 when thinking is enabled »), or a generation
+            # that refuses sampling outright (Opus 4.7 on, ADR-306). ONE rule,
+            # read by the provider adapter too; the admin UI hides the fields
+            # for the same reasons.
             if update.provider == "anthropic" and update.model is not None:
+                from src.core.claude_surface import sampling_omitted
                 from src.infrastructure.llm.reasoning.translate import kwargs_for
 
-                thinking_on = "thinking" in kwargs_for(
-                    "anthropic", update.model, update.reasoning_effort
-                )
-                if thinking_on and (update.temperature is not None or update.top_p is not None):
+                rendered = kwargs_for("anthropic", update.model, update.reasoning_effort)
+                if sampling_omitted(update.model, rendered.get("thinking")) and (
+                    update.temperature is not None or update.top_p is not None
+                ):
                     logger.info(
-                        "anthropic_reasoning_temperature_locked",
+                        "anthropic_sampling_locked",
                         llm_type=llm_type,
                         model=update.model,
-                        msg=(
-                            "Reasoning enabled → temperature/top_p forced to None "
-                            "(Anthropic API constraint)"
-                        ),
                     )
                     update.temperature = None
                     update.top_p = None
@@ -525,6 +578,49 @@ class LLMConfigService:
         }
 
     @staticmethod
+    def _catalogue_capabilities(provider: str, model_names: list[str]) -> list[ModelCapabilities]:
+        """The catalogue's non-image models of one provider, as the metadata API shapes them.
+
+        An image model is offered by the image domain alone, which knows whether a
+        client serves it and a row bills it (ADR-305) — a catalogue row proves
+        neither, so it is skipped here.
+
+        Args:
+            provider: The provider the names belong to.
+            model_names: Its catalogue model names.
+
+        Returns:
+            One entry per model with a profile, image models excluded.
+        """
+        from src.infrastructure.llm.model_capabilities_cache import ModelCapabilitiesCache
+
+        caps: list[ModelCapabilities] = []
+        for model_id in model_names:
+            profile = ModelCapabilitiesCache.get(model_id)
+            # A missing profile is a race (the list changed between the two reads).
+            if profile is None or profile.kind == LLMModelKindEnum.image.value:
+                continue
+            caps.append(
+                ModelCapabilities(
+                    model_id=model_id,
+                    kind=profile.kind,
+                    max_output_tokens=profile.max_output_tokens,
+                    supports_tools=profile.supports_tool_calling,
+                    supports_structured_output=profile.supports_structured_output,
+                    supports_vision=profile.supports_vision,
+                    is_reasoning_model=profile.is_reasoning_model,
+                    supports_temperature=profile.supports_temperature,
+                    supports_top_p=profile.supports_top_p,
+                    supports_frequency_penalty=profile.supports_frequency_penalty,
+                    supports_presence_penalty=profile.supports_presence_penalty,
+                    **LLMConfigService._reasoning_metadata(provider, profile),
+                    cost_input=None,
+                    cost_output=None,
+                )
+            )
+        return caps
+
+    @staticmethod
     def get_provider_models(
         kinds: list[str] | None = None,
         capability: str | None = None,
@@ -536,8 +632,9 @@ class LLMConfigService:
         - Chat models → :class:`ModelCapabilitiesCache` (from
           ``llm_models``, populated at boot).
         - Image-generation models →
-          :class:`ImageOptionsCache.get_models_grouped_by_provider`
-          (DISTINCT on ``image_generation_pricing``).
+          :class:`ImageOptionsCache.get_models_grouped_by_provider` — the
+          SERVABLE ones only (ADR-305); the catalogue's ``kind = image`` rows
+          are not offered on their own.
 
         Cost fields are intentionally None: pricing lives in separate
         caches consumed by ``AsyncPricingService`` and
@@ -563,38 +660,12 @@ class LLMConfigService:
             provider,
             model_names,
         ) in ModelCapabilitiesCache.get_models_grouped_by_provider().items():
-            caps: list[ModelCapabilities] = []
-            for model_id in model_names:
-                profile = ModelCapabilitiesCache.get(model_id)
-                if profile is None:
-                    # Race condition guard: provider list changed between
-                    # get_models_grouped_by_provider() and get(). Skip.
-                    continue
-                caps.append(
-                    ModelCapabilities(
-                        model_id=model_id,
-                        kind=profile.kind,
-                        max_output_tokens=profile.max_output_tokens,
-                        supports_tools=profile.supports_tool_calling,
-                        supports_structured_output=profile.supports_structured_output,
-                        supports_vision=profile.supports_vision,
-                        is_reasoning_model=profile.is_reasoning_model,
-                        supports_temperature=profile.supports_temperature,
-                        supports_top_p=profile.supports_top_p,
-                        supports_frequency_penalty=profile.supports_frequency_penalty,
-                        supports_presence_penalty=profile.supports_presence_penalty,
-                        **LLMConfigService._reasoning_metadata(provider, profile),
-                        cost_input=None,
-                        cost_output=None,
-                    )
-                )
-            providers[provider] = caps
+            providers[provider] = LLMConfigService._catalogue_capabilities(provider, model_names)
 
-        # Image-generation models from ImageOptionsCache. The model list is
-        # the DISTINCT of model_name across active image_generation_pricing
-        # rows, grouped by provider. Capability flags are False/0 — image
-        # models don't expose chat capabilities. ``kind="image"`` is the
-        # source of truth (replaces the legacy ``is_image_model`` flag).
+        # Image-generation models from ImageOptionsCache: exactly the models a
+        # family declares, a client serves and an active pricing row bills
+        # (ADR-305). Capability flags are False/0 — image models don't expose
+        # chat capabilities. ``kind="image"`` is the source of truth.
         for (
             provider,
             image_model_ids,
@@ -774,7 +845,7 @@ class LLMConfigService:
             resource_type=resource_type,
             resource_id=None,
             details=details,
-            ip_address=request.client.host if request.client else None,
+            ip_address=resolve_client_ip(request),
             user_agent=request.headers.get("user-agent"),
         )
         self.db.add(audit_entry)

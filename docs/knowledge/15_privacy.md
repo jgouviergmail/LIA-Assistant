@@ -299,3 +299,12 @@ direct session nothing is archived while you speak, and your words are
 relayed at the end as a message from you. The registers record the session
 and the capabilities read, never the audio nor a transcript of it. Deleting
 your account removes all of it.
+
+## Can signing in with Google activate or unblock an account?
+No. Signing in with Google proves an email address, nothing more: an account's status never changes on that occasion. A registration awaiting the administrator's approval stays pending, and an account an administrator blocked stays blocked.
+
+LIA believes the announced address only when Google vouches for it (Google's own verification flag). If someone had created an account with your address without ever verifying it, your Google sign-in proves the address is yours: that person's password and sessions are revoked, and the administrators are notified as after an email verification — the account then waits for approval like any other. A deleted account is never revived.
+
+And even an inactive account can always sign out: ending your own session requires no status.
+
+Behind this, every record of « who is calling » — the administration audit, the address a new session shows in « My devices », the rate limits — reads one resolver of the address Cloudflare vouches for, never an address the visitor could write themselves.

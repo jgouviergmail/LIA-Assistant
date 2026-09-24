@@ -295,7 +295,7 @@ def test_all_constants_properly_imported():
         "PASSWORD_RESET_TOKEN_EXPIRE_HOURS",
         "SCHEDULER_JOB_CURRENCY_SYNC",
         "SESSION_COOKIE_SECURE_PRODUCTION",
-        "TOOL_CONTEXT_MAX_ITEMS",
+        "RECENT_ENTITIES_MAX_ITEMS_DEFAULT",
     ]
 
     for const_name in required_constants:

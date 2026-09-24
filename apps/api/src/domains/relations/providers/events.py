@@ -37,8 +37,8 @@ from typing import TYPE_CHECKING, Any
 
 import structlog
 
-from src.domains.connectors.preferences.owner_defaults import resolve_owner_calendar_id
-from src.domains.relations.providers.client import open_category_client
+from src.domains.connectors.calendar_access import CalendarAccess, open_active_calendar
+from src.domains.relations.providers.client import ProviderNotConfigured
 from src.domains.relations.providers.schemas import SharedEvent
 from src.domains.shared.text_normalization import fold_email
 
@@ -138,18 +138,16 @@ async def _read_window(user_id: UUID, *, window_days: int, now: datetime) -> lis
     resolution, the costliest thing to get wrong here, sits alone.
     """
     window = timedelta(days=window_days)
-    async with open_category_client("calendar", user_id) as opened:
-        calendar_id = await resolve_owner_calendar_id(
-            db=opened.session,
-            client=opened.client,
-            owner_id=user_id,
-            connector_type=opened.connector_type,
-        )
-        response = await opened.client.list_events(
+    # The shared calendar door: the owner's configured calendar, no session
+    # held while the provider answers (ADR-304).
+    async with open_active_calendar(user_id) as access:
+        if not isinstance(access, CalendarAccess):
+            raise ProviderNotConfigured("calendar")
+        response = await access.client.list_events(
             time_min=(now - window).isoformat(),
             time_max=(now + window).isoformat(),
             max_results=_WINDOW_PAGE_SIZE,
-            calendar_id=calendar_id,
+            calendar_id=access.calendar_id,
         )
     return [event for event in (response.get("items") or []) if isinstance(event, dict)]
 

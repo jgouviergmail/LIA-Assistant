@@ -45,7 +45,7 @@ def test_data_authority_accepts_recent_entities_as_a_citable_source() -> None:
 
     <DataAuthority> enumerates where a factual attribute may come from. On a
     tool-less turn the only carrier is <RecentEntities> (current-turn data is
-    empty and <History> has no ToolMessages): leaving it out of the enumeration
+    empty and the earlier messages carry prose only): leaving it out of the enumeration
     told the model to refuse exactly when grounding had just supplied the answer.
     """
     prompt = load_prompt("response_system_prompt_base")

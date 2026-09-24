@@ -32,6 +32,12 @@ export const REASONING_DOC_TEXT: Record<string, string> = {
     'Extended thinking is billed inside max_tokens, and locks temperature/top_p while on.',
   anthropic_4_6: 'Adaptive thinking. Locks temperature/top_p while on.',
   anthropic_sonnet_4_6: 'Adaptive thinking. Locks temperature/top_p while on.',
+  anthropic_4_7:
+    'Adaptive thinking, off until a depth is chosen. The API refuses temperature and top_p, so neither is sent.',
+  anthropic_5:
+    'Adaptive thinking is on when left unset and billed inside max_tokens. The API refuses temperature and top_p, so neither is sent.',
+  anthropic_always_on:
+    'Thinking cannot be disabled and is billed inside max_tokens. The API refuses temperature and top_p, so neither is sent.',
   deepseek_v4:
     'Thinking is on by default and billed inside max_tokens; temperature/top_p are ignored while on.',
   qwen3_max: 'Hybrid thinking, off by default. An explicit token budget is accepted.',

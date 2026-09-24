@@ -33,6 +33,7 @@ which tools require HITL approval via interrupt().
 
 from __future__ import annotations
 
+import contextlib
 import json
 from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any, NamedTuple, Protocol
@@ -52,6 +53,7 @@ from src.domains.agents.tools.react_tool_wrapper import ReactToolWrapper
 from src.domains.agents.tools.tool_resolution import resolve_tool_instance
 from src.infrastructure.mcp.registration import declares_destructive_tool
 from src.infrastructure.observability.metrics_react import (
+    react_cross_turn_cache_fallback_total,
     react_tool_selector_capped_total,
     react_tools_bound,
     react_tools_resolved,
@@ -130,6 +132,28 @@ def bound_tool_tokens(tools: Sequence[BaseTool]) -> int:
     return total
 
 
+def every_tool_token_budget() -> int | None:
+    """Tokens every tool's schemas may take in one call, or None when unknown (ADR-308).
+
+    The ``react_cross_turn_cache_max_window_fraction`` share of the ReAct slot's
+    own window (ADR-278), read through the seam the tool result budget reads. An
+    unknown or unreadable window sets no budget: the cap still bounds the count.
+
+    Returns:
+        The budget in tokens, or None.
+    """
+    window = 0
+    # Best-effort read: a catalogue hiccup leaves the cap as the only bound,
+    # never breaks the turn.
+    with contextlib.suppress(Exception):
+        from src.core.llm_config_helper import get_effective_context_window_for_slot
+
+        window = get_effective_context_window_for_slot("react_agent")
+    if window <= 0:
+        return None
+    return int(window * settings.react_cross_turn_cache_max_window_fraction)
+
+
 class ReactToolSelector:
     """Select and wrap the tools the ReAct loop binds for a turn.
 
@@ -203,6 +227,56 @@ class ReactToolSelector:
         # of cap events fires once capabilities are already lost; this
         # distribution is what shows a deployment creeping towards its ceiling.
         react_tools_resolved.observe(resolved_count)
+        # ADR-308: the same tools, in the same order, on every turn — or, when
+        # they cannot all be bound, the relevance selection of a known-good turn.
+        every_tool = (
+            self._every_tool(rows, max_tools) if settings.react_cross_turn_cache_enabled else None
+        )
+        if every_tool is not None:
+            wrapped_tools = every_tool
+        else:
+            wrapped_tools, hitl_map = self._by_relevance(rows, hitl_map, ranking, priority_agents)
+
+        if skipped:
+            logger.debug(
+                "react_tool_selector_skipped",
+                skipped=skipped,
+                reason="manifest_without_registered_tool",
+            )
+
+        react_tools_bound.observe(len(wrapped_tools))
+        logger.info(
+            "react_tool_selector_complete",
+            available_manifests=len(available_manifests),
+            resolved_count=resolved_count,
+            tool_count=len(wrapped_tools),
+            hitl_count=sum(1 for v in hitl_map.values() if v),
+            capped=resolved_count > max_tools,
+            every_tool=every_tool is not None,
+        )
+
+        return wrapped_tools, hitl_map
+
+    def _by_relevance(
+        self,
+        rows: list[_Row],
+        hitl_map: dict[str, bool],
+        ranking: Sequence[str] | None,
+        priority_agents: set[str],
+    ) -> tuple[list[ReactToolWrapper], dict[str, bool]]:
+        """The relevance composition of ADR-293, then the cap.
+
+        Args:
+            rows: The resolved tools, in registration order.
+            hitl_map: Tool name → HITL required, for every resolved tool.
+            ranking: The turn's global relevance order, or None.
+            priority_agents: The detected domains' agents.
+
+        Returns:
+            The bound tools and their HITL map.
+        """
+        max_tools = settings.react_agent_max_tools
+        resolved_count = len(rows)
         top_k = settings.react_tool_semantic_top_k
         relevance_on = bool(ranking) and top_k > 0
         wrapped_tools, tiers, units, kept_names, dropped_by_relevance = self._compose(
@@ -221,28 +295,45 @@ class ReactToolSelector:
             logger.debug(
                 "react_tool_selector_relevance_dropped", dropped_tools=dropped_by_relevance
             )
-        wrapped_tools, hitl_map = self._apply_cap(
+        return self._apply_cap(
             wrapped_tools, tiers, units, hitl_map, max_tools, priority_agents, resolved_count
         )
 
-        if skipped:
-            logger.debug(
-                "react_tool_selector_skipped",
-                skipped=skipped,
-                reason="manifest_without_registered_tool",
-            )
+    @staticmethod
+    def _every_tool(rows: list[_Row], max_tools: int) -> list[ReactToolWrapper] | None:
+        """Every resolved tool in registration order, or None when they cannot all be bound.
 
-        react_tools_bound.observe(len(wrapped_tools))
-        logger.info(
-            "react_tool_selector_complete",
-            available_manifests=len(available_manifests),
-            resolved_count=resolved_count,
-            tool_count=len(wrapped_tools),
-            hitl_count=sum(1 for v in hitl_map.values() if v),
-            capped=resolved_count > max_tools,
+        None sends the turn back to the relevance selection (ADR-308): above the
+        operator's cap a cut would have to choose, and a cut that follows the
+        question is exactly the changing prefix the flag exists to avoid; beyond
+        the allowed share of the slot's window the schemas would crowd out the
+        conversation. Each fallback is counted by reason.
+
+        Args:
+            rows: The resolved tools, in registration order.
+            max_tools: The operator's cap.
+
+        Returns:
+            The tools to bind, or None.
+        """
+        tools = [row.tool for row in rows]
+        reason: str | None = None
+        if len(tools) > max_tools:
+            reason = "cap"
+        else:
+            budget = every_tool_token_budget()
+            if budget is not None and bound_tool_tokens(tools) > budget:
+                reason = "window"
+        if reason is None:
+            return tools
+        react_cross_turn_cache_fallback_total.labels(reason=reason).inc()
+        logger.warning(
+            "react_cross_turn_cache_fallback",
+            reason=reason,
+            resolved_count=len(tools),
+            max_tools=max_tools,
         )
-
-        return wrapped_tools, hitl_map
+        return None
 
     def _manifest_tools(self, manifest: Any) -> list[_Resolved] | None:
         """The tools one manifest binds, or None when unresolvable.

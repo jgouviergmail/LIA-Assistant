@@ -76,6 +76,29 @@ def _render_anthropic_adaptive(
     return {"thinking": {"type": "adaptive"}, "effort": level}
 
 
+def _render_anthropic_adaptive_display(
+    level: str, intent: ReasoningIntent, _max_output: int
+) -> dict[str, Any]:
+    """Claude from Opus 4.7 on (ADR-306): adaptive thinking, visibility per call.
+
+    ``none`` is SPELLED OUT: omitting ``thinking`` means « think » on Opus 5 and
+    Sonnet 5, so the absence that switches reasoning off on the 4.6 pair would
+    switch it on here. An always-on generation never receives it -- its ladder
+    has no ``none`` and the coercion hands it the cheapest depth instead.
+
+    A depth also says whether the reasoning is shown: ``summarized`` feeds the
+    live progress UI, ``omitted`` (the API default on these generations) is
+    ``exclude_from_output``. A token budget is never sent: ``budget_tokens`` is
+    a 400 on every generation this family serves.
+    """
+    if level == _NO_DEPTH:
+        return {}
+    if level == "none":
+        return {"thinking": {"type": "disabled"}}
+    display = "omitted" if intent.exclude_from_output else "summarized"
+    return {"thinking": {"type": "adaptive", "display": display}, "effort": level}
+
+
 def _render_anthropic_budget(
     level: str, intent: ReasoningIntent, max_output: int
 ) -> dict[str, Any]:
@@ -173,6 +196,7 @@ def _render_ollama(level: str, _intent: ReasoningIntent, _max_output: int) -> di
 _RENDERERS: dict[str, Callable[[str, ReasoningIntent, int], dict[str, Any]]] = {
     "openai": _render_openai,
     "anthropic_adaptive": _render_anthropic_adaptive,
+    "anthropic_adaptive_display": _render_anthropic_adaptive_display,
     "anthropic_budget": _render_anthropic_budget,
     "gemini_level": _render_gemini_level,
     "gemini_budget": _render_gemini_budget,

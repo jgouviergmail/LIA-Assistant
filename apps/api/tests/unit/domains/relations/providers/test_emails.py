@@ -55,7 +55,7 @@ def _patched(by_query: dict[str, list[dict]] | None = None):
 
     @contextlib.asynccontextmanager
     async def _open(category, user_id):
-        yield CategoryClient(client=client, connector_type=None, session=None)
+        yield CategoryClient(client=client, connector_type=None)
 
     return patch("src.domains.relations.providers.emails.open_category_client", _open), client
 
@@ -202,7 +202,7 @@ class TestBoundaries:
 
         @contextlib.asynccontextmanager
         async def _open(category, user_id):
-            yield CategoryClient(client=client, connector_type=None, session=None)
+            yield CategoryClient(client=client, connector_type=None)
 
         with patch("src.domains.relations.providers.emails.open_category_client", _open):
             found = await fetch_exchanged_emails(
@@ -224,7 +224,7 @@ class TestBoundaries:
 
         @contextlib.asynccontextmanager
         async def _open(category, user_id):
-            yield CategoryClient(client=client, connector_type=None, session=None)
+            yield CategoryClient(client=client, connector_type=None)
 
         with patch("src.domains.relations.providers.emails.open_category_client", _open):
             found = await fetch_exchanged_emails(

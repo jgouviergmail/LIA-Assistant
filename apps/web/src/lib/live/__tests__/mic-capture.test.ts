@@ -4,8 +4,8 @@
  *  - the worklet is loaded at the LIVE chunk size, never the push-to-talk's;
  *  - chunks reach the caller while unmuted and are dropped while muted;
  *  - `stop()` releases the track, the node and the context, in that order;
- *  - a refused microphone rejects with the browser's own error (the caller
- *    names the outcome `mic_denied`), and nothing is left open.
+ *  - the PCM context is created before the permission prompt (iOS), and a
+ *    refused microphone closes it with the browser's own error preserved.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
@@ -31,6 +31,7 @@ class FakeWorkletNode {
 }
 
 class FakeContext {
+  state: 'suspended' | 'running' = 'suspended';
   audioWorklet = {
     addModule: vi.fn(async (url: string) => {
       workletUrls.push(url);
@@ -39,6 +40,9 @@ class FakeContext {
   source = { connect: vi.fn(), disconnect: vi.fn() };
   createMediaStreamSource = vi.fn(() => this.source);
   close = vi.fn(async () => {});
+  resume = vi.fn(async () => {
+    this.state = 'running';
+  });
   constructor(readonly options?: { sampleRate?: number }) {
     contexts.push(this);
   }
@@ -75,6 +79,7 @@ describe('startMicCapture', () => {
       onChunk,
     });
     expect(contexts[0].options?.sampleRate).toBe(SAMPLE_RATE);
+    expect(contexts[0].resume).toHaveBeenCalledOnce();
     expect(capture.stream).toBe(stream);
     expect(workletUrls).toHaveLength(1);
     const chunk = new Int16Array(CHUNK_SAMPLES).buffer;
@@ -94,16 +99,21 @@ describe('startMicCapture', () => {
     expect(onChunk).toHaveBeenCalledTimes(2);
   });
 
-  it('propagates a refused microphone and opens nothing', async () => {
+  it('opens the PCM context before asking for the microphone and closes it on refusal', async () => {
     const denied = Object.assign(new Error('denied'), { name: 'NotAllowedError' });
+    const getUserMedia = vi.fn(async () => {
+      expect(contexts).toHaveLength(1);
+      throw denied;
+    });
     Object.defineProperty(navigator, 'mediaDevices', {
       configurable: true,
-      value: { getUserMedia: vi.fn(async () => Promise.reject(denied)) },
+      value: { getUserMedia },
     });
     await expect(
       startMicCapture({ sampleRate: SAMPLE_RATE, chunkSamples: CHUNK_SAMPLES, onChunk: vi.fn() })
     ).rejects.toBe(denied);
-    expect(contexts).toHaveLength(0);
+    expect(getUserMedia).toHaveBeenCalledOnce();
+    expect(contexts[0].close).toHaveBeenCalledOnce();
   });
 
   it('opens the microphone alone, no worklet, for a transport that carries the audio', async () => {
@@ -139,10 +149,9 @@ describe('startMicCapture', () => {
     expect(contexts[0].close).toHaveBeenCalled();
   });
 
-  it('releases the track when the audio context itself refuses the rate', async () => {
-    // `new AudioContext({ sampleRate })` can throw (an unsupported rate): the
-    // stream was already open, and a refused context must not leave the
-    // microphone light on.
+  it('does not request the microphone when the audio context refuses the rate', async () => {
+    // `new AudioContext({ sampleRate })` can throw (an unsupported rate).
+    const getUserMedia = navigator.mediaDevices.getUserMedia as ReturnType<typeof vi.fn>;
     g.AudioContext = class {
       constructor() {
         throw new DOMException('rate', 'NotSupportedError');
@@ -151,6 +160,6 @@ describe('startMicCapture', () => {
     await expect(
       startMicCapture({ sampleRate: SAMPLE_RATE, chunkSamples: CHUNK_SAMPLES, onChunk: vi.fn() })
     ).rejects.toThrow('rate');
-    expect(track.stop).toHaveBeenCalledTimes(1);
+    expect(getUserMedia).not.toHaveBeenCalled();
   });
 });

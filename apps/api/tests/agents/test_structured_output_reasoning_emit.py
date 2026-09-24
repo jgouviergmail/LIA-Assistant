@@ -67,7 +67,15 @@ class _FakeStructuredLLM:
         return _DECISION
 
 
+#: A Claude model that accepts a forced tool call: the native (forced) path these
+#: fakes exercise. A real ``ChatAnthropic`` always names its model, and a name the
+#: Claude surface does not declare takes the auto-tool door instead (ADR-306).
+_FORCED_TOOL_CLAUDE = "claude-sonnet-4-6"
+
+
 class _FakeNativeLLM:
+    model_name = _FORCED_TOOL_CLAUDE
+
     def __init__(self) -> None:
         self.structured = _FakeStructuredLLM()
 
@@ -353,7 +361,7 @@ class _FakeBrokenStreamStructuredLLM:
 
 
 class _FakeBrokenNativeLLM:
-    def __init__(self, model_name: str = "fake-broken-model") -> None:
+    def __init__(self, model_name: str = _FORCED_TOOL_CLAUDE) -> None:
         self.model_name = model_name
         self.structured = _FakeBrokenStreamStructuredLLM()
 
@@ -415,13 +423,13 @@ class TestReasoningStreamNegativeCache:
 
     async def test_negative_cache_is_model_scoped(self) -> None:
         """A different model of the same provider re-probes the stream."""
-        broken_a = _FakeBrokenNativeLLM(model_name="model-a")
+        broken_a = _FakeBrokenNativeLLM(model_name="claude-sonnet-4-6")
         await _run_native(broken_a)
         assert broken_a.structured.astream_calls == 1
 
-        broken_b = _FakeBrokenNativeLLM(model_name="model-b")
+        broken_b = _FakeBrokenNativeLLM(model_name="claude-opus-4-6")
         await _run_native(broken_b)
-        # model-b is a different cache key → the stream IS attempted
+        # another model is a different cache key → the stream IS attempted
         assert broken_b.structured.astream_calls == 1
         assert broken_b.structured.ainvoke_calls == 1
 

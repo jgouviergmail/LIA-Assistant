@@ -34,6 +34,7 @@ from src.core.security import (
     verify_single_use_token,
 )
 from src.domains.auth.demo_signup_ceiling import reserve_demo_signup
+from src.domains.auth.google_identity import GoogleSignInRefusedError, google_email_is_verified
 from src.domains.auth.repository import AuthRepository
 from src.domains.auth.schemas import (
     # Removed: AuthResponse, TokenResponse (BFF Pattern migration v0.3.0)
@@ -421,11 +422,14 @@ class AuthService:
 
         await self.db.commit()
 
+        # Which of the three outcomes it was is logged by the branch that took it
+        # (oauth_user_login, oauth_linked_to_existing_account,
+        # new_user_created_via_oauth). An "is_new_user" field here compared the
+        # stored Google id with the one just stored, and was always true.
         logger.info(
             "google_oauth_completed",
             user_id=str(user.id),
             email=user.email,
-            is_new_user=user.oauth_provider_id == userinfo["id"],
         )
 
         # BFF Pattern: Return user only, session created by router
@@ -567,14 +571,24 @@ class AuthService:
 
         Handles three scenarios:
         1. User exists by OAuth provider ID → return existing user
-        2. User exists by email → link OAuth to existing account
-        3. New user → create with OAuth credentials
+        2. User exists by email → attach the Google identity, granting nothing
+           (``_link_google_identity``)
+        3. New user → create with OAuth credentials, inactive until an admin
+           approves
+
+        The Google ``id`` IS the identity and is matched as-is. The ``email`` is
+        a claim: it is trusted, to reach an existing account or to create one,
+        only when Google vouches for it (``google_email_is_verified``).
 
         Args:
             userinfo: User info from Google API
 
         Returns:
             User model instance
+
+        Raises:
+            GoogleSignInRefusedError: The address is explicitly unverified, or
+                it belongs to a deleted account.
         """
         from src.infrastructure.observability.metrics_oauth import (
             oauth_user_creation_total,
@@ -607,31 +621,17 @@ class AuthService:
             )
             return user
 
+        # Everything below trusts the ADDRESS, so Google must vouch for it.
+        if not google_email_is_verified(userinfo):
+            raise GoogleSignInRefusedError("email_not_verified")
+
         # Check if user exists by email
         user = await self.repository.get_by_email(email)
 
         if user:
-            # Link OAuth to existing account
-            await self.repository.update(
-                user,
-                {
-                    "oauth_provider": "google",
-                    "oauth_provider_id": google_id,
-                    "picture_url": picture_url,
-                    "is_verified": True,  # Google verifies emails
-                    FIELD_IS_ACTIVE: True,
-                    "last_login": datetime.now(UTC),
-                },
+            return await self._link_google_identity(
+                user, google_id=google_id, picture_url=picture_url
             )
-            # Track as login (existing user now using OAuth)
-            oauth_user_login_total.labels(provider="google").inc()
-            logger.info(
-                "oauth_linked_to_existing_account",
-                user_id=str(user.id),
-                email=email,
-                provider="google",
-            )
-            return user
 
         # Create new user
         user_data = {
@@ -680,6 +680,80 @@ class AuthService:
             user_name=full_name,
             user_language=detected_language,
         )
+
+        return user
+
+    async def _link_google_identity(
+        self, user: User, *, google_id: str, picture_url: str | None
+    ) -> User:
+        """Attach a Google identity to the account a verified address names.
+
+        The link grants the account NOTHING: its activation stays whatever an
+        admin decided. Measured in production on 2026-09-18, the link wrote
+        ``is_active=True``, so a registration still awaiting approval activated
+        itself by signing in with Google (an account an admin had blocked could
+        unblock itself the same way), and nobody was told.
+
+        What the link DOES establish is that the signer controls the address.
+        When nobody had proven that before, the account passes to them: the
+        password and the sessions the registrant held were never tied to the
+        address, so they are revoked (pre-account hijacking), and the
+        registration awaits approval exactly as after an e-mail verification:
+        the admins are asked, the person is told.
+
+        Args:
+            user: The account the verified address belongs to.
+            google_id: The Google account id to attach.
+            picture_url: The Google profile picture, if any.
+
+        Returns:
+            The same account, now carrying the Google identity.
+
+        Raises:
+            GoogleSignInRefusedError: The account was deleted; its row is kept
+                for billing and must not be revived.
+        """
+        from src.infrastructure.observability.metrics_oauth import oauth_user_login_total
+
+        if user.is_deleted:
+            raise GoogleSignInRefusedError("account_deleted")
+
+        proves_address = not user.is_verified
+        updates: dict[str, Any] = {
+            "oauth_provider": "google",
+            "oauth_provider_id": google_id,
+            "picture_url": picture_url,
+            "is_verified": True,
+            "last_login": datetime.now(UTC),
+        }
+        if proves_address:
+            updates["hashed_password"] = None
+        await self.repository.update(user, updates)
+
+        if proves_address:
+            redis = await get_redis_session()
+            await SessionStore(redis).delete_all_user_sessions(str(user.id))
+
+        oauth_user_login_total.labels(provider="google").inc()
+        logger.info(
+            "oauth_linked_to_existing_account",
+            user_id=str(user.id),
+            provider="google",
+            proved_address=proves_address,
+            is_active=user.is_active,
+        )
+
+        if proves_address and not user.is_active:
+            await self._notify_admins_of_new_registration(
+                user_email=user.email,
+                user_name=user.full_name,
+                registration_method="google",
+            )
+            await self._send_pending_activation_notification(
+                user_email=user.email,
+                user_name=user.full_name,
+                user_language=user.language or settings.default_language,
+            )
 
         return user
 

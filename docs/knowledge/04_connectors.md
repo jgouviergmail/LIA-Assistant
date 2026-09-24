@@ -11,8 +11,6 @@ A **connector** is a secure gateway between LIA and your external services:
 • 👥 **Contacts**: search and create contacts
 • 📁 **Drive**: explore your files, read and write Sheets/Docs content
 • ✅ **Tasks**: manage your tasks
-• 📍 **Places**: search for locations
-• 🗺️ **Routes**: directions and routes
 • 👥 **Contact groups**: target a whole label ("email the family group")
 • 📆 **Free slots**: find real availability without reading meeting content
 • ✉️ **Gmail settings**: out-of-office responder and filters (both confirmed)
@@ -28,14 +26,17 @@ A **connector** is a secure gateway between LIA and your external services:
 • 👥 **Microsoft Contacts**: search and manage contacts
 • ✅ **Microsoft To Do**: manage tasks and lists
 
-**Google platform services (no personal key — a single toggle):**
+**Always active, nothing to configure (provided by your instance):**
+• 📚 **Wikipedia**: encyclopedic search
+• 🌐 **Page browsing**: open and read web pages
+• 📍 **Google Places**: search for locations
+• 🗺️ **Google Routes**: directions and routes
 • 🌤️ **Google Weather**: current conditions and forecasts
 • 🌿 **Google Environment**: air quality and pollen forecasts
 • 🏞️ **Street View**: place thumbnails when imagery exists
 
 **External services (API key):**
 • 🌤️ **OpenWeatherMap**: weather and forecasts
-• 📚 **Wikipedia**: encyclopedic search
 • 🔍 **Perplexity**: AI web search
 • 🦁 **Brave Search**: web and news enrichment
 
@@ -194,8 +195,9 @@ Some services require a **personal API key**:
 3. Get your API key
 4. Activate in LIA as above
 
-**📚 Wikipedia:**
-No key required! Wikipedia is free and directly accessible.
+**📚 Without a key:**
+Wikipedia, page browsing and the Google services your instance provides
+(Places, Weather, Environment) are always active: there is nothing to activate.
 
 **🔒 Key security:**
 Your API keys are stored securely and encrypted.
@@ -379,6 +381,10 @@ LIA integrates with **7 Google services**:
 • Compare transport modes
 • Estimate travel times
 
+**ℹ️ Places and Routes need no connection:**
+they run on your instance's Google key and are always active, like Google
+Weather and Google Environment.
+
 ## Are connectors secure?
 Security is our top priority:
 
@@ -438,17 +444,17 @@ Activating an Apple service automatically deactivates its Google equivalent (and
 **🔐 Security:**
 Your app-specific password is encrypted and never exposed. You can revoke it at any time from your Apple account.
 
-## Which connectors are active as soon as I sign up?
+## Which connectors are always active?
 The ones that ask nothing of you: **Wikipedia**, **page browsing**, **Google
 Places**, **Google Weather** and **Google Environment** (air quality and
-pollen) — no account to link, no key to paste. A new account starts with all
-of them active, so the assistant can look up a place or the weather from the
-first conversation.
+pollen) — no account to link, no key to paste. Your instance provides them to
+every account from the first conversation, so they do not appear in
+**Settings > Connectors** and there is nothing to switch on or off.
 
-Three cases where one is not activated: the administrator switched it off for
-the instance, the instance has no platform Google key, or page browsing is
-disabled. You can switch any of them off in **Settings > Connectors**. Existing
-accounts are not touched: what you chose stays as it is.
+If one is missing, the instance is withholding it: its administrator switched
+it off for everyone, it has no platform Google key, or page browsing is
+disabled on it. For the weather, a personal **OpenWeatherMap** key you add in
+the settings takes precedence over Google Weather.
 
 ## Can I connect several Google or Microsoft services with one authorization?
 Yes. In **Settings > Connectors**, select the Google or Microsoft services to

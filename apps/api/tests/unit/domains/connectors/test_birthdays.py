@@ -7,6 +7,7 @@ heartbeat→briefing edge would create a domain import cycle, forbidden by
 the release contract).
 """
 
+from contextlib import asynccontextmanager
 from datetime import date
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
@@ -71,6 +72,22 @@ class TestUpcomingBirthdaysComputation:
         assert [i.contact_name for i in items] == ["A", "B"]
 
 
+class _Units:
+    """A detached connector service counting the sessions it holds open."""
+
+    def __init__(self, service):
+        self.service = service
+        self.open = 0
+
+    @asynccontextmanager
+    async def unit_of_work(self):
+        self.open += 1
+        try:
+            yield self.service
+        finally:
+            self.open -= 1
+
+
 @pytest.mark.unit
 class TestFetchUpcomingBirthdays:
     """Provider fetch: silent None when not configured, typed error on failure."""
@@ -80,15 +97,11 @@ class TestFetchUpcomingBirthdays:
         service.get_connector_credentials = AsyncMock(return_value=None)
 
         with (
-            patch("src.domains.connectors.birthdays.get_db_context") as db_ctx,
             patch(
-                "src.domains.connectors.birthdays.ConnectorService",
-                return_value=service,
+                "src.domains.connectors.birthdays.DetachedConnectorService",
+                return_value=_Units(service),
             ),
         ):
-            db_ctx.return_value.__aenter__ = AsyncMock(return_value=MagicMock())
-            db_ctx.return_value.__aexit__ = AsyncMock(return_value=False)
-
             result = await fetch_upcoming_birthdays(
                 uuid4(),
                 ZoneInfo("Europe/Paris"),
@@ -108,19 +121,15 @@ class TestFetchUpcomingBirthdays:
         client._make_request = AsyncMock(side_effect=httpx.ConnectError("boom"))
 
         with (
-            patch("src.domains.connectors.birthdays.get_db_context") as db_ctx,
             patch(
-                "src.domains.connectors.birthdays.ConnectorService",
-                return_value=service,
+                "src.domains.connectors.birthdays.DetachedConnectorService",
+                return_value=_Units(service),
             ),
             patch(
                 "src.domains.connectors.birthdays.GooglePeopleClient",
                 return_value=client,
             ),
         ):
-            db_ctx.return_value.__aenter__ = AsyncMock(return_value=MagicMock())
-            db_ctx.return_value.__aexit__ = AsyncMock(return_value=False)
-
             with pytest.raises(BirthdayFetchError):
                 await fetch_upcoming_birthdays(
                     uuid4(),
@@ -130,27 +139,30 @@ class TestFetchUpcomingBirthdays:
                 )
 
     async def test_fetch_computes_items_in_user_local_frame(self):
-        """Connections are scanned then computed against the USER's local date."""
+        """Connections are scanned — with no session held — then computed
+        against the USER's local date."""
         service = MagicMock()
         service.get_connector_credentials = AsyncMock(return_value=MagicMock())
         client = MagicMock()
         client.close = AsyncMock()
-        client._make_request = AsyncMock(return_value={"connections": [_connection("Zoé", 7, 23)]})
+        units = _Units(service)
+
+        async def _page(*_args, **_kwargs):
+            assert units.open == 0, "a session was still open while Contacts answered"
+            return {"connections": [_connection("Zoé", 7, 23)]}
+
+        client._make_request = AsyncMock(side_effect=_page)
 
         with (
-            patch("src.domains.connectors.birthdays.get_db_context") as db_ctx,
             patch(
-                "src.domains.connectors.birthdays.ConnectorService",
-                return_value=service,
+                "src.domains.connectors.birthdays.DetachedConnectorService",
+                return_value=units,
             ),
             patch(
                 "src.domains.connectors.birthdays.GooglePeopleClient",
                 return_value=client,
             ),
         ):
-            db_ctx.return_value.__aenter__ = AsyncMock(return_value=MagicMock())
-            db_ctx.return_value.__aexit__ = AsyncMock(return_value=False)
-
             result = await fetch_upcoming_birthdays(
                 uuid4(),
                 ZoneInfo("Europe/Paris"),
@@ -183,19 +195,15 @@ class TestFetchUpcomingBirthdays:
                 client._make_request = AsyncMock(side_effect=side_effect)
 
             with (
-                patch("src.domains.connectors.birthdays.get_db_context") as db_ctx,
                 patch(
-                    "src.domains.connectors.birthdays.ConnectorService",
-                    return_value=service,
+                    "src.domains.connectors.birthdays.DetachedConnectorService",
+                    return_value=_Units(service),
                 ),
                 patch(
                     "src.domains.connectors.birthdays.GooglePeopleClient",
                     return_value=client,
                 ),
             ):
-                db_ctx.return_value.__aenter__ = AsyncMock(return_value=MagicMock())
-                db_ctx.return_value.__aexit__ = AsyncMock(return_value=False)
-
                 if expectation is None:
                     await fetch_upcoming_birthdays(
                         uuid4(), ZoneInfo("Europe/Paris"), horizon_days=1, max_items=5

@@ -18,7 +18,6 @@ from src.domains.agents.orchestration.mappers import map_execution_result_to_age
 from src.domains.agents.orchestration.orchestrator import (
     create_orchestration_plan,
     get_next_agent_from_plan,
-    should_execute_agent,
 )
 from src.domains.agents.orchestration.schemas import (
     AgentResult,
@@ -50,5 +49,4 @@ __all__ = [
     "create_orchestration_plan",
     "get_next_agent_from_plan",
     "map_execution_result_to_agent_result",
-    "should_execute_agent",
 ]

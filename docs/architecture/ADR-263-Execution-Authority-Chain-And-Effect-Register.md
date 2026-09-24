@@ -655,6 +655,92 @@ exclusions, same pseudonymisation — the caller's own identifier included. Thei
 own file names them by handle, which is what makes it safe to hand to a lawyer,
 a data protection authority or a bug report without editing it first.
 
+### 23. The run is read where ADR-231 writes it, and a ReAct turn's acts are stated as its own (2026-09-23)
+
+**Measured.** ADR-231 (2026-08-29) took run-scoped values off `configurable`: the
+orchestration service writes the run id in `metadata` and nowhere else.
+`scope_from_config` and `step_effect_key` kept reading `configurable`, found
+nothing, and fell back to the THREAD id — so every direct effect of a chat turn
+was filed under the conversation rather than the turn (Docker dev: 54 of the 64
+ReAct effects since then; production: 72 ReAct and 13 pipeline rows). Only the
+draft executor, which receives the run id as an argument (§10), was keyed right.
+Two consequences, both invisible to the gates:
+
+- `performed_effects(run_id)` — the turn summary — found nothing for a direct
+  action: the card under the bubble never appeared for a reminder, an image or a
+  document;
+- the pipeline step key `{run}:step:{step_id}` became `{thread}:step:step_1` for
+  every turn of the conversation, and the unique `(thread_id, idempotency_key)`
+  made the second one LOSE: production, 2026-09-22 19:29, `create_reminder_tool`
+  as `step_1` lost its claim and was served an earlier turn's recorded result
+  (`effect_already_performed`, `served=record`). The reminder was never created
+  and the tool answered as if it had been.
+
+The unit tests stayed green throughout: they built `configurable.run_id`, a shape
+no writer produces.
+
+**Decision.** A graph config's run id has ONE reader, `core/run_config.run_id_of`
+(metadata only; in `core` so the nodes, the register and the tracing read it the
+same way). Eleven readers moved to it — every plan id used to be
+`smart_unknown` — and `test_run_id_single_reader_guard.py` refuses a run id read
+from `configurable` or an ad-hoc read of `config.metadata`. A step key built
+without a run is logged (`effect_step_key_without_run`), never silent. Nothing is
+migrated: the poisoned keys are `<thread>:step:*`, the new ones `<run>:step:*`,
+so they cannot collide, and the register keeps its old rows as written. A HITL
+resume reuses its run id, so a replay stays served, not re-performed
+(`test_step_key_per_turn_db.py`, real PostgreSQL).
+
+**A ReAct turn's acts are stated as its own.** The response model reformulates
+the loop's answer and never sees a tool result, so that prose was its only
+evidence that anything happened. Measured on the failing turn's own checkpoint
+(an image generated in 48 s, the loop answering « Voilà : un chat tigré … »),
+with the real response model: **6 answers out of 6** told the person LIA cannot
+generate images.
+
+A first repair wrote the register's sentence as a DATA line before the loop's
+answer. It removed the dominant failure — on a later turn's captured prompt, a
+caption-only answer drew **14 denials out of 15** without the line and 0 with
+it — yet the person saw the denial again the same day, on a turn that carried
+the line. That prompt, captured (5 759 tokens against the real call's 5 812)
+and replayed 100 times, never denied but invented a SECOND image 3 times
+(« Deux images ont été générées »): « Image générée : … » beside a loop answer
+that repeats it reads as two acts, and nothing in it says whose act it is —
+while the base prompt's role contract tells the model its role dispatches no
+tool.
+
+So the acts left the data block. `response_directive_performed_actions.txt` is
+a system block of its own, between the rejection/cancel directive and the
+data, built by `services/performed_actions_directive.py` — the sibling of the
+failures directive's module — and emitted only when the register holds a
+SUCCEEDED effect for the run, read under the TRUE run id (`run_id_of`, never
+the node's `"unknown"` logging placeholder, under which the register itself
+may file rows): it
+lists the acts (`succeeded_effect_sentences`, in the person's language), says
+the model performed them with its own tools, and that an image or a document
+among them is already displayed. Measured with the real chain
+(`_build_response_chain`) on the same prompt: **0 denials and 0 invented images
+out of 100** with the loop's answer, and **0 and 0 out of 100** with a
+caption-only answer — the shape that drew 14 denials out of 15. The acts are
+read from the loop's result in the STATE, so a turn that acted without
+answering (a budget exit) still states them. An act on LIA's OWN conversation
+context is not stated — a skill activated, an item chosen as the reference,
+both declared `REASON_INTERNAL_CONTEXT` by their manifest: the directive tells
+the model to say its acts are done, and the skill activation alone is the
+second most frequent effect on Docker dev (24 rows), so every skill turn would
+have narrated its plumbing. A name no manifest carries (a draft executor) is
+stated rather than hidden. The pipeline is unchanged: its
+summary already carries each tool's own confirmation (« Image generated
+successfully and will be displayed automatically »), which is exactly what the
+ReAct response model lacked. A failed effect is not stated here — the honesty
+directive states it, once (ADR-303).
+
+**A card that ends on « posture cr » reads as broken.** An effect label value
+is bounded (`MAX_VALUE_CHARS`) and was cut mid-word with no mark. It is now cut
+on a word boundary with the ellipsis counted inside the bound, by the one
+implementation the relationship debrief already needed privately
+(`core/text_clip.clip_on_word`). The label is built when an effect is CLAIMED,
+so rows written before keep their old cut.
+
 ## Consequences
 
 **What changes for a user (lot 5).** Above the two tabs, a card states how much
@@ -731,6 +817,9 @@ bookkeeping. A mutation pays two short transactions.
 | `test_article12_export` | a source column shadowing the file's own discriminator |
 | `TestEverySpecIsREACHABLE` | an export contract the route refuses, or a route value nothing describes |
 | `test_user_technical_export` | a reader's own technical file carrying content, or a route that could read someone else's register |
+| `test_run_id_single_reader_guard` | a run id read from `configurable` (no writer writes it there since ADR-231), or a second reader of `config.metadata` |
+| `test_step_key_per_turn_db` | two turns of one conversation sharing a pipeline step key — the second action served instead of performed |
+| `test_performed_actions_directive`, `TestTheActsHaveTheirOwnBlock` | a ReAct turn's acts written back into the data block, a directive emitted for a turn that did nothing, or the register read under a placeholder run id |
 
 Three of those refuse the BOOT. That is deliberate: `init_agent_registry` used
 to catch its own guards' `RuntimeError` and merely log it, so three ADR-085

@@ -231,7 +231,8 @@ async def _invoke_and_track(
     # Presence, not magnitude: the previous code keyed on the raw dict being
     # non-empty, and a provider reporting a zero-token call still reported one.
     reported_usage = getattr(response, "usage_metadata", None)
-    tokens_in, tokens_out, tokens_cache = tokens_from_response(response)
+    measured = tokens_from_response(response)
+    tokens_in, tokens_out, tokens_cache = measured.prompt, measured.completion, measured.cached
 
     # EUR cost via the sync in-memory pricing cache (already populated at startup).
     cost_eur = 0.0
@@ -241,6 +242,7 @@ async def _invoke_and_track(
             prompt_tokens=tokens_in,
             completion_tokens=tokens_out,
             cached_tokens=tokens_cache,
+            cache_write_tokens=measured.cache_write,
         )
     except Exception as exc:
         logger.debug(
@@ -263,6 +265,7 @@ async def _invoke_and_track(
             tokens_in=tokens_in,
             tokens_out=tokens_out,
             tokens_cache=tokens_cache,
+            tokens_cache_write=measured.cache_write,
             model_name=model_name,
             source="user",
         )
@@ -282,6 +285,7 @@ async def _invoke_and_track(
             tokens_in=tokens_in,
             tokens_out=tokens_out,
             tokens_cache=tokens_cache,
+            tokens_cache_write=measured.cache_write,
             cost_eur=cost_eur,
             model_name=model_name,
         )

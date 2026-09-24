@@ -71,6 +71,7 @@ PromptVersion = str  # Accept any version string, validated at runtime
 PromptName = Literal[
     "response_system_prompt_base",
     "response_context_sections",
+    "response_prompt_lines",
     "hitl_item_filter_prompt",
     "smart_planner_prompt_lines",
     "smart_planner_mcp_format_reference_prompt",
@@ -91,11 +92,15 @@ PromptName = Literal[
     # offer, and its one-line scaffolds (hosts, carriers, the unknown-host rule).
     "react_computation_network_prompt",
     "react_computation_lines",
+    # ADR-310: what a recovery pass tells the model after its draft declared gaps.
+    "react_recovery_directive",
     "runtime_failures_directive",
     "diagnostician_prompt",
     "response_directive_plan_rejection",
     "response_directive_draft_cancelled",
     "response_directive_plan_blocked",
+    # ADR-263 §23: what a ReAct turn DID, read from the effect register.
+    "response_directive_performed_actions",
     "hitl_classifier_prompt",
     "hitl_classifier_examples",
     "reminder_prompt",

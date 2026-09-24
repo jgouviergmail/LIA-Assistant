@@ -46,12 +46,20 @@ def test_telephony_routes_mounted() -> None:
 
 def test_notification_reaper_is_wired_into_the_scheduler() -> None:
     """The T1 return-notification reaper must be registered when telephony is enabled
-    (a durable outbox with no drain worker would silently never recover)."""
+    (a durable outbox with no drain worker would silently never recover).
+
+    The registration lives in ``scheduler_telephony`` since ADR-304 (the startup
+    step is frozen at its size cap): the registrar is exercised, and the step is
+    held to calling it."""
     import inspect
+    from unittest.mock import MagicMock
 
     from src.core.constants import SCHEDULER_JOB_TELEPHONY_NOTIFICATION_REAPER
     from src.infrastructure.startup import schedulers
+    from src.infrastructure.startup.scheduler_telephony import register_telephony_jobs
 
-    source = inspect.getsource(schedulers)
-    assert "telephony_notification_reaper" in source
-    assert SCHEDULER_JOB_TELEPHONY_NOTIFICATION_REAPER in source
+    scheduler = MagicMock()
+    register_telephony_jobs(scheduler)
+    registered = {call.kwargs["id"] for call in scheduler.add_job.call_args_list}
+    assert SCHEDULER_JOB_TELEPHONY_NOTIFICATION_REAPER in registered
+    assert "register_telephony_jobs(scheduler)" in inspect.getsource(schedulers)

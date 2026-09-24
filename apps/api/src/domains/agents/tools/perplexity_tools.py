@@ -139,10 +139,12 @@ class PerplexityBaseTool(APIKeyConnectorTool[PerplexityClient]):
         """
 
         async def create_client() -> PerplexityClient:
-            # Get user settings using the shared DB session
-            # connector_service.db is the AsyncSession
-            user_service = UserService(connector_service.db)
-            user = await user_service.get_user_by_id(user_uuid)
+            # The user's settings, in a short session of its own: the turn's
+            # shared one must not stay open while Perplexity answers (ADR-304).
+            from src.infrastructure.database.session import get_db_context
+
+            async with get_db_context() as db:
+                user = await UserService(db).get_user_by_id(user_uuid)
 
             return self.client_class(
                 api_key=credentials.api_key,

@@ -209,12 +209,14 @@ class TestSynthesisCost:
             return (0.011, 0.0094)
 
         monkeypatch.setattr(processing, "get_cached_cost_usd_eur", _cost)
-        assert processing.synthesis_cost_eur(SynthesisUsage(1200, 300, 100, "gpt-4.1")) == 0.0094
+        usage = SynthesisUsage(1200, 300, 100, "gpt-4.1", tokens_cache_write=800)
+        assert processing.synthesis_cost_eur(usage) == 0.0094
         assert seen == {
             "model": "gpt-4.1",
             "prompt_tokens": 1200,
             "completion_tokens": 300,
             "cached_tokens": 100,
+            "cache_write_tokens": 800,
         }
 
     def test_an_unpriced_model_gives_none_not_zero(self, monkeypatch: pytest.MonkeyPatch) -> None:

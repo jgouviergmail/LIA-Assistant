@@ -130,12 +130,34 @@ react_tool_selector_capped_total = Counter(
     "is losing capabilities the model can no longer see (ADR-256)",
 )
 
+react_cross_turn_cache_fallback_total = Counter(
+    "react_cross_turn_cache_fallback_total",
+    "Turns where REACT_CROSS_TURN_CACHE_ENABLED could not bind every tool and kept "
+    "the relevance selection: `cap` (the account holds more tools than "
+    "react_agent_max_tools) or `window` (the schemas exceed the allowed share of the "
+    "slot's context window). A steady rate means the flag buys nothing on those "
+    "turns (ADR-308)",
+    ["reason"],
+)
+
+react_recovery_turns_total = Counter(
+    "react_recovery_turns_total",
+    "ReAct turns that took at least one recovery pass (ADR-310), by what the passes "
+    "achieved: `resolved` (the final answer declares no gap), `partial` (fewer gaps "
+    "than first declared), `still_unresolved`, `cut` (a budget ended the loop during "
+    "the pass). A high `still_unresolved` share means the ladder finds no source for "
+    "those facts; a rising total, that the tools serve less.",
+    ["outcome"],
+)
+
 react_tools_bound = Histogram(
     "react_tools_bound",
     "Tools actually bound to the ReAct loop for a turn, AFTER the relevance "
     "selection (detected domains, family coverage, semantic top-K — ADR-293) and the "
     "cap. Read against react_tools_resolved: the gap is what relevance spared",
-    buckets=[10, 25, 40, 50, 60, 75, 90, 100, 150, 250],
+    # Up to the cap's ceiling: with REACT_CROSS_TURN_CACHE_ENABLED a whole
+    # catalogue is bound, and the cap may reach 400 (ADR-308).
+    buckets=[10, 25, 40, 50, 60, 75, 90, 100, 150, 250, 400],
 )
 
 react_bound_tool_tokens = Histogram(
@@ -143,7 +165,9 @@ react_bound_tool_tokens = Histogram(
     "Tokens the bound tool schemas add to EVERY model call of a ReAct turn. "
     "Measured 2026-09-17: 26 155 for 80 tools, 95 % of the first call's prompt "
     "— the part the delivered-context histogram never counted (ADR-293)",
-    buckets=[2000, 5000, 10000, 15000, 20000, 30000, 45000, 60000, 100000],
+    # 400 bound tools weigh about 140 000 tokens at the 354 per schema measured
+    # on production's catalogue (ADR-308).
+    buckets=[2000, 5000, 10000, 15000, 20000, 30000, 45000, 60000, 100000, 150000, 200000],
 )
 
 react_tools_resolved = Histogram(

@@ -1,6 +1,8 @@
 # Size-management lines of the journal consolidation prompt, `key|template` per
 # line; blank lines and #-comments are ignored (prompt audit 2026-09-12, lot B).
-# The service picks the line by the measured usage; every word is here.
+# The service picks the line by the measured usage; every word is here. The
+# per-turn extraction (journals/extraction_service.py) reads `size_exceeded` and
+# `size_approaching` too: one wording for one limit.
 
 size_exceeded|CRITICAL: You have EXCEEDED the size limit. You MUST summarize or delete entries to get back within the limit.
 size_approaching|WARNING: You are approaching the size limit. Consider summarizing or deleting older entries to make room.

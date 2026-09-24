@@ -74,7 +74,6 @@ async def _owner_calendar_id(client: Any, user_id: UUID) -> str:
 
     try:
         return await resolve_owner_calendar_id(
-            db=client.connector_service.db,
             client=client,
             owner_id=user_id,
             connector_type=client.connector_type,

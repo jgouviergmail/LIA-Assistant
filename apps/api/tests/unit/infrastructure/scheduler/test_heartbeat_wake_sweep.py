@@ -8,7 +8,10 @@ is a reindex, not a decision.
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import uuid
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -38,14 +41,39 @@ def _settings(**overrides: object) -> SimpleNamespace:
         "push_wake_cooldown_minutes": 20,
         "push_wake_max_users_per_sweep": 10,
         "push_wake_sweep_interval_seconds": 120,
+        "push_wake_serve_timeout_seconds": 180,
+        "push_wake_calendar_lookahead_hours": 24,
+        "push_wake_calendar_recent_update_minutes": 10,
     }
     base.update(overrides)
     return SimpleNamespace(**base)
 
 
+def _acquired_lock() -> MagicMock:
+    lock = MagicMock()
+    lock.acquired = True
+    lock_cm = MagicMock()
+    lock_cm.__aenter__ = AsyncMock(return_value=lock)
+    lock_cm.__aexit__ = AsyncMock(return_value=False)
+    return lock_cm
+
+
 @pytest.fixture(autouse=True)
 def _settings_patch(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(sweep, "settings", _settings())
+
+
+@pytest.fixture(autouse=True)
+def _no_mail_watch_lookup(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Hermetic: a Gmail wake's watch lookup used to reach a REAL database from these
+    unit tests (2 s each, and a schema error in the log). The watches have their own
+    module (test_wake_mail_watches.py)."""
+    monkeypatch.setattr(
+        "src.domains.scheduled_actions.mail_watches.has_mail_watches",
+        AsyncMock(return_value=False),
+    )
+    # Same leak through the capability switch, read from the database per sweep.
+    monkeypatch.setattr(sweep, "is_capability_enabled", AsyncMock(return_value=True))
 
 
 class TestServeOne:
@@ -198,7 +226,7 @@ class TestSweep:
         with (
             patch.object(sweep, "get_redis_cache", AsyncMock(return_value=MagicMock())),
             patch.object(sweep, "SchedulerLock", MagicMock(return_value=lock_cm)),
-            patch.object(sweep, "pop_wakes", AsyncMock(return_value=payloads)),
+            patch.object(sweep, "pop_next_wake", AsyncMock(side_effect=[payloads, None])),
             patch.object(sweep, "_serve_one", _serve),
         ):
             result = await sweep.run_heartbeat_wake_sweep()
@@ -216,6 +244,71 @@ class TestSweep:
             == before["reindexed"] + 1
         )
 
+    async def test_a_wake_that_stops_moving_is_cut_and_the_next_account_is_served(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Production, 2026-09-22: one Drive drain held the sweep 22 minutes (ADR-304)."""
+        monkeypatch.setattr(sweep, "settings", _settings(push_wake_serve_timeout_seconds=0.05))
+        stuck, next_one = _payload("google_drive"), _payload("google_gmail")
+
+        async def _serve(_redis: object, payload: WakePayload) -> str:
+            if payload is stuck:
+                await asyncio.sleep(10)
+            return "notified"
+
+        before = sweep.push_wakes_total.labels(
+            provider="google_drive", outcome="timeout"
+        )._value.get()
+        with (
+            patch.object(sweep, "get_redis_cache", AsyncMock(return_value=MagicMock())),
+            patch.object(sweep, "SchedulerLock", MagicMock(return_value=_acquired_lock())),
+            patch.object(
+                sweep, "pop_next_wake", AsyncMock(side_effect=[[stuck], [next_one], None])
+            ),
+            patch.object(sweep, "_serve_one", _serve),
+        ):
+            result = await sweep.run_heartbeat_wake_sweep()
+        assert result == {"served": 1, "skipped": 1}
+        assert (
+            sweep.push_wakes_total.labels(provider="google_drive", outcome="timeout")._value.get()
+            == before + 1
+        )
+
+    async def test_accounts_are_popped_one_at_a_time(self) -> None:
+        """While one account is served, the others are still queued — nobody waits behind it."""
+        queue = [[_payload("google_gmail")], [_payload("google_calendar")]]
+        queued_during_first_serve: list[int] = []
+
+        async def _pop(_redis: object, _providers: object) -> list[WakePayload] | None:
+            return queue.pop(0) if queue else None
+
+        async def _serve(_redis: object, _payload: WakePayload) -> str:
+            queued_during_first_serve.append(len(queue))
+            return "no_signal"
+
+        with (
+            patch.object(sweep, "get_redis_cache", AsyncMock(return_value=MagicMock())),
+            patch.object(sweep, "SchedulerLock", MagicMock(return_value=_acquired_lock())),
+            patch.object(sweep, "pop_next_wake", _pop),
+            patch.object(sweep, "_serve_one", _serve),
+        ):
+            await sweep.run_heartbeat_wake_sweep()
+        assert queued_during_first_serve == [1, 0]
+
+    async def test_the_sweep_stops_at_its_per_sweep_bound(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(sweep, "settings", _settings(push_wake_max_users_per_sweep=2))
+        pop = AsyncMock(side_effect=lambda *_: [_payload()])
+        with (
+            patch.object(sweep, "get_redis_cache", AsyncMock(return_value=MagicMock())),
+            patch.object(sweep, "SchedulerLock", MagicMock(return_value=_acquired_lock())),
+            patch.object(sweep, "pop_next_wake", pop),
+            patch.object(sweep, "_serve_one", AsyncMock(return_value="no_signal")),
+        ):
+            await sweep.run_heartbeat_wake_sweep()
+        assert pop.await_count == 2
+
     async def test_the_lock_is_sized_on_the_sweeps_own_period(self) -> None:
         """A 120 s sweep under the default 300 s TTL found its previous lock
         still held on every other tick (2026-09-11): the TTL follows the period."""
@@ -227,7 +320,7 @@ class TestSweep:
         with (
             patch.object(sweep, "get_redis_cache", AsyncMock(return_value=MagicMock())),
             patch.object(sweep, "SchedulerLock", MagicMock(return_value=lock_cm)) as lock_cls,
-            patch.object(sweep, "pop_wakes", AsyncMock()),
+            patch.object(sweep, "pop_next_wake", AsyncMock(return_value=None)),
         ):
             await sweep.run_heartbeat_wake_sweep()
         assert lock_cls.call_args.kwargs["ttl_seconds"] == sweep.ttl_for_interval(120)
@@ -242,7 +335,7 @@ class TestSweep:
         with (
             patch.object(sweep, "get_redis_cache", AsyncMock(return_value=MagicMock())),
             patch.object(sweep, "SchedulerLock", MagicMock(return_value=lock_cm)),
-            patch.object(sweep, "pop_wakes", AsyncMock()) as pop,
+            patch.object(sweep, "pop_next_wake", AsyncMock()) as pop,
         ):
             result = await sweep.run_heartbeat_wake_sweep()
         assert result["lock_busy"] == 1
@@ -289,3 +382,124 @@ class TestMailSources:
             patch.object(sweep, "try_acquire_wake_cooldown", AsyncMock(return_value=False)),
         ):
             assert await sweep._serve_one(MagicMock(), _payload("google_gmail")) == "cooldown"
+
+
+class _OpenSessions:
+    """A detached connector service whose unit of work counts open sessions."""
+
+    open = 0
+
+    def __init__(self, credentials: object) -> None:
+        self.service = MagicMock()
+        self.service.get_connector_credentials = AsyncMock(return_value=credentials)
+        self.service.db = MagicMock()
+
+    @contextlib.asynccontextmanager
+    async def unit_of_work(self) -> AsyncIterator[MagicMock]:
+        _OpenSessions.open += 1
+        try:
+            yield self.service
+        finally:
+            _OpenSessions.open -= 1
+
+
+class TestProbesHoldNoSession:
+    """The Gmail and calendar probes read credentials, close, THEN call Google (ADR-304)."""
+
+    async def test_the_gmail_delta_is_read_with_no_session_open(self) -> None:
+        seen: list[int] = []
+
+        async def _preview(_client: object, _anchor: str) -> tuple[list[str], str]:
+            seen.append(_OpenSessions.open)
+            return ["m1"], "h2"
+
+        async def _metadata(_client: object, _ids: list[str]) -> list[dict]:
+            seen.append(_OpenSessions.open)
+            return [{"id": "m1"}]
+
+        redis = MagicMock()
+        redis.get = AsyncMock(return_value=b"h1")
+        client = MagicMock()
+        client.close = AsyncMock()
+        detached = _OpenSessions({"token": "x"})
+        with (
+            patch.object(sweep, "get_redis_cache", AsyncMock(return_value=redis)),
+            patch(
+                "src.domains.connectors.session_scope.DetachedConnectorService",
+                return_value=detached,
+            ),
+            patch(
+                "src.domains.connectors.clients.google_gmail_client.GoogleGmailClient",
+                return_value=client,
+            ) as client_cls,
+            patch("src.domains.heartbeat.wake_context.gmail_delta_preview", _preview),
+            patch("src.domains.heartbeat.wake_context.fetch_mail_metadata", _metadata),
+            patch.object(sweep, "record_surface_consultations"),
+        ):
+            delta = await sweep._gmail_delta(_payload("google_gmail"))
+        assert delta == ([{"id": "m1"}], "h2")
+        assert seen == [0, 0]
+        # The client writes through the detached service, never a caller session.
+        assert client_cls.call_args.args[2] is detached
+        client.close.assert_awaited_once()
+
+    async def test_the_calendar_probe_reads_its_preference_in_the_same_short_session(
+        self,
+    ) -> None:
+        seen: list[int] = []
+
+        async def _resolve(
+            *, client: object, name: str | None, owner_id: object, container: object
+        ) -> str:
+            seen.append(_OpenSessions.open)
+            return f"id-of-{name}"
+
+        async def _changes(_client: object, **kwargs: object) -> list[dict]:
+            seen.append(_OpenSessions.open)
+            assert kwargs["calendar_id"] == "id-of-Work"
+            return []
+
+        client = MagicMock()
+        client.close = AsyncMock()
+        with (
+            patch(
+                "src.domains.connectors.session_scope.DetachedConnectorService",
+                return_value=_OpenSessions({"token": "x"}),
+            ),
+            patch(
+                "src.domains.connectors.clients.google_calendar_client.GoogleCalendarClient",
+                return_value=client,
+            ),
+            patch(
+                "src.domains.connectors.preferences.owner_defaults.read_owner_container_name",
+                AsyncMock(return_value="Work"),
+            ),
+            patch(
+                "src.domains.connectors.preferences.owner_defaults.resolve_owner_container_id",
+                _resolve,
+            ),
+            patch("src.domains.heartbeat.wake_context.fetch_calendar_changes", _changes),
+            patch.object(sweep, "record_surface_consultations"),
+        ):
+            outcome, _enriched = await sweep._calendar_signal(
+                _payload("google_calendar"), SimpleNamespace(email="me@example.test")
+            )
+        assert outcome == "no_signal"
+        assert seen == [0, 0]
+        client.close.assert_awaited_once()
+
+    async def test_no_calendar_credentials_is_a_disabled_source_and_calls_nothing(self) -> None:
+        with (
+            patch(
+                "src.domains.connectors.session_scope.DetachedConnectorService",
+                return_value=_OpenSessions(None),
+            ),
+            patch(
+                "src.domains.connectors.clients.google_calendar_client.GoogleCalendarClient"
+            ) as client_cls,
+        ):
+            outcome, _ = await sweep._calendar_signal(
+                _payload("google_calendar"), SimpleNamespace(email="me@example.test")
+            )
+        assert outcome == "source_disabled"
+        client_cls.assert_not_called()

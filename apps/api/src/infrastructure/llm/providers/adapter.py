@@ -28,8 +28,10 @@ from src.core.constants import OLLAMA_BASE_URL_ENV
 from src.core.reasoning_intent import requested_level
 from src.domains.llm_config.cache import LLMConfigOverrideCache
 from src.domains.llm_config.constants import LLM_PROVIDERS
+from src.infrastructure.llm.providers.anthropic_kwargs import prepare_anthropic_kwargs
 from src.infrastructure.llm.providers.deepseek_limits import capped_max_tokens
 from src.infrastructure.llm.providers.ollama_urls import ollama_native_root
+from src.infrastructure.llm.providers.qwen_chat import ChatQwenCached
 from src.infrastructure.llm.providers.responses_adapter import (
     create_responses_llm,
     is_responses_api_eligible,
@@ -42,6 +44,10 @@ logger = get_logger(__name__)
 
 ProviderType = Literal["openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"]
 
+
+# What ``_require_api_key`` returns when no key is configured, so the application
+# can start without keys. A caller that must fail clearly compares against it.
+API_KEY_NOT_CONFIGURED = "NOT_CONFIGURED"
 
 _ENV_FALLBACK: dict[str, str] = {
     "openai": "OPENAI_API_KEY",
@@ -177,7 +183,7 @@ def _require_api_key(provider: str) -> str:
         env_var=env_hint,
         hint="Configure via Settings > Administration > LLM Configuration or set environment variable",
     )
-    return "NOT_CONFIGURED"
+    return API_KEY_NOT_CONFIGURED
 
 
 class ProviderAdapter:
@@ -325,14 +331,25 @@ class ProviderAdapter:
 
         # Create LLM using init_chat_model (LangChain 1.0+)
         try:
-            llm = init_chat_model(
-                model=model,
-                model_provider=provider_for_init,
-                temperature=final_temperature,
-                max_tokens=max_tokens,
-                streaming=streaming,
-                **additional_kwargs,
-            )
+            if provider == "qwen":
+                # The same ChatOpenAI init_chat_model would build, plus DashScope's
+                # explicit cache markers and its write count (ADR-309).
+                llm = ChatQwenCached(
+                    model=model,
+                    temperature=final_temperature,
+                    max_tokens=max_tokens,
+                    streaming=streaming,
+                    **additional_kwargs,
+                )
+            else:
+                llm = init_chat_model(
+                    model=model,
+                    model_provider=provider_for_init,
+                    temperature=final_temperature,
+                    max_tokens=max_tokens,
+                    streaming=streaming,
+                    **additional_kwargs,
+                )
 
             logger.info(
                 "llm_created_successfully",
@@ -693,8 +710,13 @@ class ProviderAdapter:
         """
         Create Gemini LLM using official langchain-google-genai integration.
 
-        Prompt caching: Gemini uses automatic "implicit caching" for prompts >= 32k tokens.
-        Explicit Context Caching requires creating CachedContent resources (not applicable here).
+        Prompt caching: implicit, automatic, and read back only when a request
+        shares a long identical prefix with a recent one. The documented minimum is
+        4,096 tokens on the Gemini 3.x Flash models, but measured 2026-09-23 on
+        gemini-3.7-flash no request of 10.3K tokens or less ever read one (four
+        request shapes, eleven attempts, gaps of 3 to 15 s), while 17.8K-token
+        requests read ~12.3K (ADR-309). Explicit caching is a separate
+        ``cachedContents`` resource with an hourly storage price (not used here).
 
         Gemini models (2025):
         - Gemini 3 Series (Preview):
@@ -841,8 +863,9 @@ class ProviderAdapter:
                 )
 
         # Qwen (Alibaba Cloud): OpenAI-compatible API via DashScope
-        # Prompt caching: Implicit cache is automatic (≥256 tokens, no flag needed).
-        # Explicit cache (follow-up): cache_control in content blocks, ≥1024 tokens.
+        # Prompt caching: an implicit cache on the models that have one (≥1,024
+        # tokens); Qwen 3.5 / 3.6 have none and are marked explicitly by
+        # ChatQwenCached (qwen_chat.py, ADR-309).
         # base_url is overridable via QWEN_BASE_URL env var (e.g. swap us → cn region).
         elif provider == "qwen":
             additional_kwargs["base_url"] = _get_base_url("qwen")
@@ -988,72 +1011,12 @@ class ProviderAdapter:
                     reasoning_effort=openai_reasoning.get("reasoning_effort"),
                 )
 
-        # Anthropic: Standard provider with prompt caching enabled
         elif provider == "anthropic":
+            # What each Claude generation accepts (ADR-306): anthropic_kwargs.py.
             additional_kwargs["anthropic_api_key"] = _require_api_key("anthropic")
             provider_for_init = "anthropic"
-
-            # Anthropic prompt caching is GA — but it is NEVER automatic by
-            # default (verified against the provider doc, 2026-09-02): it
-            # requires explicit block-level cache_control breakpoints, or a
-            # ROOT-level cache_control field whose breakpoint auto-moves with
-            # the conversation. Both are applied by the factory.py payload
-            # patch (static system split + root field, Lot F); this adapter
-            # only selects the provider. Minimum cacheable length varies by
-            # model (512-4096 tokens).
-            # Ref: https://platform.claude.com/docs/en/docs/build-with-claude/prompt-caching
-
-            # Reasoning: delegate to typed builder.
-            # IMPORTANT FIX: previously this code wrote `additional_kwargs["effort"]`
-            # which was silently dropped by langchain-anthropic (additional_kwargs
-            # is a *messages* convention, NOT a constructor field). The builder
-            # returns `{"effort": "..."}` which we now spread into the constructor
-            # kwargs — langchain-anthropic 1.3.5 maps it to native
-            # output_config.effort (cf. chat_models.py:1186-1197).
-            reasoning_value = additional_kwargs.pop("reasoning_effort", None)
-            anthropic_reasoning = reasoning_kwargs_for("anthropic", model, reasoning_value)
-            additional_kwargs.update(anthropic_reasoning)
-            thinking_enabled = "thinking" in anthropic_reasoning
-            if anthropic_reasoning:
-                logger.info(
-                    "anthropic_effort_configured",
-                    model=model,
-                    effort=anthropic_reasoning.get("effort"),
-                    thinking=(
-                        anthropic_reasoning["thinking"].get("type") if thinking_enabled else None
-                    ),
-                )
-
-            # Remove parameters not supported by Anthropic
-            additional_kwargs.pop("frequency_penalty", None)  # Not supported
-            additional_kwargs.pop("presence_penalty", None)  # Not supported
-            # Claude 4.5+ rejects temperature + top_p together — drop top_p
-            additional_kwargs.pop("top_p", None)
-
-            if thinking_enabled:
-                # Extended thinking is incompatible with custom temperature on
-                # Anthropic (API: "temperature may only be set to 1 when thinking is
-                # enabled"). Omit temperature entirely so the API uses its default.
-                # The admin UI mirrors this by locking the temperature field when
-                # reasoning is enabled (no hidden override — config-driven).
-                temperature_override = "__OMIT__"
-            elif temperature is not None and temperature > 1.0:
-                # Anthropic temperature range is 0.0-1.0 (not 0.0-2.0 like OpenAI)
-                logger.warning(
-                    "anthropic_temperature_capped",
-                    requested=temperature,
-                    capped_to=1.0,
-                    msg=f"Anthropic temperature max is 1.0, capped from {temperature}",
-                )
-                temperature_override = 1.0
-
-            logger.debug(
-                "anthropic_prompt_caching_enabled",
-                llm_type=kwargs.get("llm_type", "unknown"),
-                msg="Anthropic prompt caching armed by the factory payload patch "
-                "(static-system breakpoint + root cache_control; min cacheable "
-                "length 512-4096 tokens by model)",
-            )
+            sent = prepare_anthropic_kwargs(model, temperature, additional_kwargs)
+            temperature_override = "__OMIT__" if sent is None else sent
 
         else:
             raise ValueError(f"Unsupported provider: {provider}")

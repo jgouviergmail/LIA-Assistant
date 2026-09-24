@@ -152,20 +152,21 @@ class ConnectorType(str, enum.Enum):
         """
         Check if this connector type asks NOTHING of the person to activate.
 
-        A keyless connector is activated by one click in the settings: it
-        needs no OAuth consent and no per-user key (the platform key or no
-        key at all). Every new account starts with all of them
-        (``users/keyless_connectors_provisioning.py``), and the frontend's
-        ``requiresKey: false`` entries mirror this set — a test pins the two.
+        A keyless connector needs no OAuth consent and no per-user key (the
+        platform key or no key at all), so it belongs to the INSTANCE, not to
+        the account: whether it serves someone is decided by
+        ``connectors/keyless.py`` alone, no per-account row exists, and the
+        settings never offer it (ADR-307) — a test keeps it off the frontend's
+        activation list.
 
         Returns:
-            True when activation requires no user-provided credential.
+            True when the service asks nothing of the person.
         """
         return self in _KEYLESS_USER_CONNECTOR_TYPES
 
     @classmethod
     def get_keyless_types(cls) -> frozenset[ConnectorType]:
-        """Get the connector types a person activates without any credential."""
+        """Get the connector types the instance provides to every account (ADR-307)."""
         return _KEYLESS_USER_CONNECTOR_TYPES
 
     @classmethod
@@ -258,10 +259,11 @@ _GLOBAL_API_KEY_CONNECTOR_TYPES: frozenset[ConnectorType] = frozenset(
     }
 )
 
-# Keyless user connectors: a one-click activation, nothing asked of the
-# person. Platform-key types that HAVE a connector row (Routes has none — its
-# tools read the platform key directly) plus the two free services. Mirrored
-# by the frontend's `requiresKey: false` entries; a test pins the parity.
+# Keyless user connectors: nothing asked of the person, so the INSTANCE decides
+# whether they serve an account (`connectors/keyless.py`, ADR-307) and no
+# per-account row exists. The platform-key types a tool gates on (Routes is not
+# one — its tools read the platform key directly) plus the two free services.
+# A test keeps every one of them off the frontend's activation list.
 _KEYLESS_USER_CONNECTOR_TYPES: frozenset[ConnectorType] = frozenset(
     {
         ConnectorType.WIKIPEDIA,
@@ -293,8 +295,9 @@ CONNECTOR_FUNCTIONAL_CATEGORIES: dict[str, frozenset[ConnectorType]] = {
         }
     ),
     "tasks": frozenset({ConnectorType.GOOGLE_TASKS, ConnectorType.MICROSOFT_TASKS}),
-    # Weather (lot E, 2026-08): Google Weather (platform key, default-friendly)
-    # vs OpenWeatherMap (personal key). One active provider at a time; AQ and
+    # Weather (lot E, 2026-08): OpenWeatherMap (personal key) vs Google Weather
+    # (keyless, the instance's DEFAULT — ADR-307): the provider the person
+    # configured wins, Google Weather answers when they configured none. AQ and
     # pollen (GOOGLE_ENVIRONMENT) stay OUT of the category on purpose — they
     # are platform services independent of the weather provider choice.
     "weather": frozenset({ConnectorType.OPENWEATHERMAP, ConnectorType.GOOGLE_WEATHER}),

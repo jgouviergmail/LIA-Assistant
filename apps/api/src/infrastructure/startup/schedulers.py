@@ -46,10 +46,7 @@ from src.core.constants import (
     SCHEDULER_JOB_RAG_JOB_REAPER,
     SCHEDULER_JOB_REMINDER_NOTIFICATION,
     SCHEDULER_JOB_SCHEDULED_ACTION_EXECUTOR,
-    SCHEDULER_JOB_TELEPHONY_NOTIFICATION_REAPER,
-    SCHEDULER_JOB_TELEPHONY_RETENTION_REAPER,
-    SCHEDULER_JOB_TELEPHONY_RETURN_REAPER,
-    SCHEDULER_JOB_TELEPHONY_STALE_REAPER,
+    SCHEDULER_JOB_TELEGRAM_WEBHOOK,
     SCHEDULER_JOB_TOKEN_REFRESH,
     SCHEDULER_JOB_UNVERIFIED_CLEANUP,
     SCHEDULER_JOB_USER_MCP_EVICTION,
@@ -71,6 +68,7 @@ from src.infrastructure.startup.scheduler_jitter import jitter_seconds_for
 from src.infrastructure.startup.scheduler_ledger import register_ledger_jobs
 from src.infrastructure.startup.scheduler_meetings import register_meetings_jobs
 from src.infrastructure.startup.scheduler_push import register_push_jobs
+from src.infrastructure.startup.scheduler_telephony import register_telephony_jobs
 
 if TYPE_CHECKING:
     from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -112,6 +110,24 @@ async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
 
     # Start APScheduler for background tasks
     try:
+        # Telegram webhook (ADR-304): bot-GLOBAL, so the leader alone sets it —
+        # a one-shot job every newly elected leader runs once, however late its
+        # election (no misfire window). Every worker setting it at boot was a
+        # « Conflict: terminated by other setWebhook » at every deploy.
+        if getattr(settings, "channels_enabled", False) and getattr(
+            settings, "telegram_webhook_url", None
+        ):
+            from src.infrastructure.channels.telegram.bot import ensure_telegram_webhook
+
+            scheduler.add_job(
+                ensure_telegram_webhook,
+                trigger="date",
+                id=SCHEDULER_JOB_TELEGRAM_WEBHOOK,
+                name="Set the Telegram webhook (leader only)",
+                replace_existing=True,
+                misfire_grace_time=None,
+            )
+
         # Schedule daily currency sync at configured time (default: 3:00 AM UTC)
         scheduler.add_job(
             sync_currency_rates,
@@ -556,72 +572,11 @@ async def init_scheduler(scheduler: AsyncIOScheduler) -> SchedulerLeaderElector:
                 interval_hours=settings.journal_consolidation_interval_hours,
             )
 
-        # Schedule telephony reapers (agentic calls — spec P4.3)
-        # - stale-call reaper (interval): frees phantom in-flight calls with no webhook.
-        # - notification reaper (interval): re-dispatches return notifications a crash
-        #   left PENDING (T1 durability).
-        # - retention reaper (daily cron): clears summary/structured_data past TTL (D-8).
+        # Telephony reapers (spec P4.3): registration lives in
+        # scheduler_telephony.py (this file is frozen at its size cap); the
+        # flag and the ORDER stay here.
         if getattr(settings, "telephony_enabled", False):
-            from src.domains.telephony.reapers import (
-                telephony_notification_reaper,
-                telephony_retention_reaper,
-                telephony_return_reaper,
-                telephony_stale_call_reaper,
-            )
-
-            scheduler.add_job(
-                telephony_stale_call_reaper,
-                trigger="interval",
-                minutes=settings.telephony_stale_reaper_interval_minutes,
-                jitter=jitter_seconds_for(minutes=settings.telephony_stale_reaper_interval_minutes),
-                id=SCHEDULER_JOB_TELEPHONY_STALE_REAPER,
-                name="Telephony stale-call recovery",
-                replace_existing=True,
-                max_instances=1,
-                misfire_grace_time=60,
-            )
-            scheduler.add_job(
-                telephony_notification_reaper,
-                trigger="interval",
-                minutes=settings.telephony_notification_reaper_interval_minutes,
-                jitter=jitter_seconds_for(
-                    minutes=settings.telephony_notification_reaper_interval_minutes
-                ),
-                id=SCHEDULER_JOB_TELEPHONY_NOTIFICATION_REAPER,
-                name="Telephony return-notification recovery",
-                replace_existing=True,
-                max_instances=1,
-                misfire_grace_time=60,
-            )
-            scheduler.add_job(
-                telephony_return_reaper,
-                trigger="interval",
-                minutes=settings.telephony_return_reaper_interval_minutes,
-                jitter=jitter_seconds_for(
-                    minutes=settings.telephony_return_reaper_interval_minutes
-                ),
-                id=SCHEDULER_JOB_TELEPHONY_RETURN_REAPER,
-                name="Telephony pre-synthesis return recovery",
-                replace_existing=True,
-                max_instances=1,
-                misfire_grace_time=60,
-            )
-            scheduler.add_job(
-                telephony_retention_reaper,
-                trigger="cron",
-                hour=4,
-                minute=30,
-                id=SCHEDULER_JOB_TELEPHONY_RETENTION_REAPER,
-                name="Telephony call retention purge",
-                replace_existing=True,
-                max_instances=1,
-                misfire_grace_time=600,
-            )
-            logger.info(
-                "telephony_reapers_scheduled",
-                stale_interval_minutes=settings.telephony_stale_reaper_interval_minutes,
-                notification_interval_minutes=settings.telephony_notification_reaper_interval_minutes,
-            )
+            register_telephony_jobs(scheduler)
 
         # Meetings (ADR-258): registration lives in scheduler_meetings.py (this
         # file is frozen at its size cap); the flag and the ORDER stay here.

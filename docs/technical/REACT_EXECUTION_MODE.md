@@ -6,6 +6,8 @@
 | 1.1 | 2026-07-28 | [ADR-169](../architecture/ADR-169-React-System-Blocks-Are-State.md), [ADR-170](../architecture/ADR-170-React-Compute-Budget-And-Loop-Guard.md) |
 | 1.2 | 2026-08-29 | [ADR-248](../architecture/ADR-248-React-Memory-Parity-And-Progress-Earned-Budget.md), [ADR-249](../architecture/ADR-249-Ephemeral-Python-In-The-Existing-Sandbox.md) |
 | 1.3 | 2026-09-18 | [ADR-298](../architecture/ADR-298-Sandbox-Egress-Toolbox.md) |
+| 1.4 | 2026-09-23 | [ADR-308](../architecture/ADR-308-ReAct-Cross-Turn-Prompt-Cache.md) |
+| 1.5 | 2026-09-24 | [ADR-310](../architecture/ADR-310-ReAct-Turn-Judged-On-Its-Result.md) |
 
 ## Table of Contents
 
@@ -49,39 +51,28 @@ The user toggles between modes via a frontend toggle (Zap icon). The preference 
 
 ## Architecture
 
-Custom ReAct loop as **4 nodes in the parent LangGraph graph** (not a `create_react_agent` subgraph — avoided due to LangGraph bugs with dynamic tool interrupts, GitHub #5863/#4796):
+Custom ReAct loop as **5 nodes in the parent LangGraph graph** (not a `create_react_agent` subgraph — avoided due to LangGraph bugs with dynamic tool interrupts, GitHub #5863/#4796):
 
 ```
-                          ┌──────────────────────────┐
-                          │       Router Node        │
-                          └──────────┬───────────────┘
-                 execution_mode?     │
-              ┌──────────────────────┼──────────────────────┐
-              │ "pipeline"           │ "react"               │
-              ▼                      ▼                       │
-       ┌──────────┐          ┌──────────────┐               │
-       │ Planner  │          │ react_setup  │               │
-       └────┬─────┘          └──────┬───────┘               │
-            │                       │                       │
-            ▼                       ▼                       │
-     ┌──────────────┐       ┌───────────────┐              │
-     │ Orchestrator │       │react_call_model│◄────┐       │
-     └──────┬───────┘       └───────┬───────┘     │       │
-            │                       │              │       │
-            ▼                tool_calls?           │       │
-     ┌──────────┐          yes │        no │       │       │
-     │ Agents   │              ▼           ▼       │       │
-     └────┬─────┘   ┌─────────────────┐ ┌────────┐│       │
-          │         │react_exec_tools │ │finalize││       │
-          ▼         └────────┬────────┘ └───┬────┘│       │
-     ┌──────────┐            │              │      │       │
-     │Initiative│            └──────────────┘      │       │
-     └────┬─────┘                                  │       │
-          │                                        │       │
-          ▼                                        ▼       │
-       ┌─────────────────────────────────────────────┐     │
-       │              Response Node                   │     │
-       └─────────────────────────────────────────────┘     │
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│                           ReAct Execution Loop                                   │
+│                                                                                  │
+│ router ──(react)──► react_setup ──► react_call_model ◄───────────────────┬────┐  │
+│                                            │                             │    │  │
+│                   ┌────────────────────────┼───────────────────┐         │    │  │
+│        tool_calls │         none declared  │     gap declared  │         │    │  │
+│                   ▼                        ▼      a pass left  ▼         │    │  │
+│          react_execute_tools        react_finalize      react_recovery ──┘    │  │
+│                   │                        │           (draft removed,        │  │
+│           draft? ─┤                        │            pass recorded)        │  │
+│      no (loop) ───┼────────────────────────┼──────────────────────────────────┘  │
+│            yes    │                        │                                     │
+│                   ▼                        │                                     │
+│    hitl_dispatch ─► initiative             │                                     │
+│    (draft_critique)      │                 │                                     │
+│                          ▼                 ▼                                     │
+│                         response_node ──► [END]                                  │
+└──────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 Each node benefits from the parent graph's PostgreSQL checkpointer, so `interrupt()` works natively in `react_execute_tools` (and in the shared `hitl_dispatch` node reached for draft confirmation) — see [HITL in ReAct](#hitl-in-react).
@@ -93,14 +84,27 @@ Each node benefits from the parent graph's PostgreSQL checkpointer, so `interrup
 graph.add_edge(NODE_REACT_SETUP, NODE_REACT_CALL_MODEL)
 graph.add_conditional_edges(
     NODE_REACT_CALL_MODEL,
-    route_from_react_call_model,  # → execute_tools or finalize
+    route_from_react_call_model,  # → execute_tools, finalize, or recovery (ADR-310)
     {
         NODE_REACT_EXECUTE_TOOLS: NODE_REACT_EXECUTE_TOOLS,
         NODE_REACT_FINALIZE: NODE_REACT_FINALIZE,
+        NODE_REACT_RECOVERY: NODE_REACT_RECOVERY,
     },
 )
-graph.add_edge(NODE_REACT_EXECUTE_TOOLS, NODE_REACT_CALL_MODEL)  # Loop
-graph.add_edge(NODE_REACT_FINALIZE, NODE_RESPONSE)
+graph.add_edge(NODE_REACT_RECOVERY, NODE_REACT_CALL_MODEL)
+graph.add_conditional_edges(
+    NODE_REACT_EXECUTE_TOOLS,
+    route_from_react_execute_tools,
+    {
+        NODE_REACT_CALL_MODEL: NODE_REACT_CALL_MODEL,  # Loop back (no draft)
+        NODE_DRAFT_CRITIQUE: NODE_DRAFT_CRITIQUE,  # Draft → shared HITL dispatch
+    },
+)
+graph.add_conditional_edges(
+    NODE_REACT_FINALIZE,
+    route_from_react_finalize,  # optionally via the initiative (INITIATIVE_REACT_ENABLED)
+    {NODE_INITIATIVE: NODE_INITIATIVE, NODE_RESPONSE: NODE_RESPONSE},
+)
 ```
 
 Routing from router: when `execution_mode == "react"` and the router classifies the query as actionable, it routes to `NODE_REACT_SETUP` instead of `NODE_PLANNER`.
@@ -239,6 +243,61 @@ was going nowhere burn fifteen calls before saying so. Every exit is now named �
 and the reason travels to the response node, so the answer can state what happened instead
 of inventing a diagnosis.
 
+### react_recovery (ADR-310)
+
+The loop used to end the moment the model called no tool, so a fact it could not get ended the
+turn as a stated gap however many sources it still had (measured 2026-09-23: a forecast served
+for the wrong day, answered « I could not get it » after 4 iterations of the 70 its budget
+allowed, a web search never tried). A turn is now judged on its result
+([ADR-310](../architecture/ADR-310-ReAct-Turn-Judged-On-Its-Result.md)):
+
+- **The protocol.** Every fact the loop set out to obtain — what the person asked for, and
+  each cross-check it started — ends obtained or declared, never dropped in silence. The final
+  message closes with an `<unresolved>` block, one line per such fact still missing after the
+  ladder, with the rungs tried, and carries no block when nothing is missing. A detail nobody
+  asked for and nobody looked up is not a gap, nor is a fact obtained from another source: it
+  carries that source (`Source: … (fallback)`). `declared_unresolved` reads every block — from
+  the LAST opening before each closing, because a model that names the tag in its reasoning
+  opens nothing — case-insensitively, and ignores an empty one, the `...` placeholder or a lone
+  « none » in six languages.
+- **One predicate.** `should_recover` (`nodes/react_recovery.py`) is true when the last message
+  is a final answer that declares a gap, fewer passes were taken than `REACT_RECOVERY_PASSES_MAX`
+  (`0` switches the pass off), and `react_exit_reason` — which it CALLS — lets the loop go on.
+  The router reads it in its « no tool calls » branch.
+- **The node calls no model.** It removes the draft from the thread at once (`RemoveMessage`) —
+  so every exit of the loop, the draft hand-off to the HITL dispatch included, leaves one answer
+  — and appends `{anchor_id, draft, unresolved}` to `react_recovery_passes` (reset by
+  `react_turn_reset()`, guarded).
+- **What the model is shown is transient.** `with_recovery_directives` puts, on every later call
+  of the turn, the draft and a directive (`react_recovery_directive.txt`) right after the
+  draft's place — after the system messages glued to it, so the turn's context stays after its
+  question (ADR-308). Neither is written to `messages`: no later turn reads the directive as
+  something the person said, the roles alternate on every provider, and the prefix before the
+  anchor stays the same for the provider's cache. Passes sharing an anchor are shown together,
+  in the order they were taken. The final message after a pass REPLACES the draft, so the
+  directive asks for it complete — every finding restated, updated.
+- **The outcome.** `react_finalize` merges `react_agent_result["recovery"]` (`passes`,
+  `outcome`: `resolved`, `partial`, `still_unresolved`, `cut`) and counts it once per turn that
+  took a pass (`react_recovery_turns_total{outcome}`, dashboard 20); the debug panel's ReAct
+  section draws it as « Recovery ». A pass that ends with no usable answer — an empty reply, or
+  a budget that stops it with calls pending — hands the last draft back as the final message,
+  since the draft left the thread at the pass. A fact still unresolved reaches the response node
+  inside the final message, which says it is missing, with what was tried — never an estimate.
+
+The doctrine behind the protocol lives in the prompt's static part: a result counts only if it
+answers what was asked — a wrong day, place or entity, or a list the tool says it cut, is an
+obstacle exactly like an error — and every obstacle climbs the RECOVERY LADDER: the loop's own
+call corrected, then another source (a sibling tool, then, for public facts, the web search or
+page fetch tools of the turn's list), then the declaration, never repeating a call that already
+failed with the same arguments. The sandbox rung lives in the `<Computation>` block, rendered
+only when `run_python_tool` is bound (ADR-284). Relative dates are resolved to ISO 8601 against
+the `<Context>` date and timezone before any tool parameter; the pipeline planner and the
+initiative carry the same line.
+
+`task react:recovery:measure` runs seven obstacles and a clean control through the loop's own
+functions on real models, with deterministic stub tools, and compares a doctrine with its predecessor
+(`--baseline-prompt FILE`); the figures are in ADR-310.
+
 ### react_finalize
 
 Collects iteration count and prepares metadata for the response node:
@@ -249,6 +308,8 @@ Collects iteration count and prepares metadata for the response node:
   model's last "let me look into your emails…" as the answer. That sentence was the
   measured production defect: an announcement, then silence, because a budget exhaustion
   had ended the turn on a message that was never meant to be final.
+- After a recovery pass, merges `react_agent_result["recovery"]` (`passes`, `outcome`) and
+  counts it once (ADR-310, see [react_recovery](#react_recovery-adr-310)).
 
 ## Tool System
 
@@ -261,6 +322,17 @@ The ReAct agent binds tools **by relevance** ([ADR-293](../architecture/ADR-293-
 - HITL map built from the in-hand tool manifests (`permissions.hitl_required`)
 
 Tools are NOT stored in state (non-serializable). Tool names and HITL map are stored instead, and tools are rebuilt in each node that needs them.
+
+### Cross-turn prompt cache (ADR-308)
+
+`REACT_CROSS_TURN_CACHE_ENABLED` (off by default) makes a turn's prompt prefix the previous turn's, so the provider's prompt cache is read across turns ([ADR-308](../architecture/ADR-308-ReAct-Cross-Turn-Prompt-Cache.md)). Off, nothing above changes. On, two things change together:
+
+- **Every available tool is bound, in registration order** — `ReactToolSelector.select` ignores the ranking and `REACT_TOOL_SEMANTIC_TOP_K`, so the tools are the same bytes on every turn. When they cannot all be bound the turn keeps the relevance selection and the fallback is counted by reason (`react_cross_turn_cache_fallback_total`, dashboard 20): `cap` when the account holds more tools than `REACT_AGENT_MAX_TOOLS` (bound 400 — set it to the account's whole catalogue; 400 tools weigh about 140K tokens of schemas, a load for a model with a 1M window), `window` when the schemas exceed `REACT_CROSS_TURN_CACHE_MAX_WINDOW_FRACTION` of the `react_agent` slot's window.
+- **The turn's context follows the question** (`nodes/react_turn_layout.py`, called by `react_call_model_node`). The leading system message is the static prompt ending on its `DYNAMIC CONTEXT` line — where the payload shapers cut their breakpoint and the OpenAI cache key stops (ADR-306) — and the context (that line, the prompt's dynamic part, then every context block) comes right after the question, before the loop's own messages. Its shape is declared per provider in `CONTEXT_PLACEMENT`, checked at boot: a system message after the question for OpenAI, DeepSeek and Qwen; the context appended to the question's own message, as text, for Anthropic (a system message that is not first is refused), Gemini (its client folds a later system message back into the system instruction), Ollama and Perplexity. Nothing of it reaches the checkpoint.
+
+Measured on real turns (2026-09-23), weighted by production's gaps between ReAct turns: −18 % per turn on Claude Sonnet 5, −34 % on gpt-5.6-luna, −42 % on deepseek-flash, −18 % on qwen3.7-plus; +18 % on qwen3.5-plus, which has no prompt cache at all on the Frankfurt endpoint. Binding every tool WITHOUT moving the context cost 44 % more on DeepSeek, whose cached prefix puts the system prompt before the tools — which is why the flag does both.
+
+Under the same flag, the loop's history drops its oldest turns by BLOCKS ([ADR-309](../architecture/ADR-309-One-Prompt-Layout-For-Every-Cache-Mechanism.md)): it keeps between N and N + block − 1 turns, the block being `REACT_CROSS_TURN_HISTORY_BLOCK_FRACTION` of the window, so each turn's history extends the previous one and a provider reads it again. One implementation: `get_windowed_messages(block_size=…)`. Without the flag the loop slides one turn at a time as before. The response node always slides: it receives the conversation once, as its messages, after the turn's own context (the query, the date, the results), which no cache reads — blocks there would only add tokens.
 
 ### Tool results (ADR-286)
 
@@ -294,13 +366,15 @@ ReAct has two HITL paths, both reusing existing infrastructure (no ReAct-specifi
 
 ## Response Synthesis
 
-The ReAct loop never streams its own tokens to the user. `react_finalize` stores the loop's final answer in `react_agent_result.final_message`, and `response_node` delivers it — preserving all post-processing (personality, display mode, voice, registry cards, memory/journal extraction). Three invariants keep that hand-off clean:
+The ReAct loop never streams its own tokens to the user. `react_finalize` stores the loop's final answer in `react_agent_result.final_message`, and `response_node` delivers it — preserving all post-processing (personality, display mode, voice, registry cards, memory/journal extraction). Four invariants keep that hand-off clean:
 
 1. **Authoritative answer** — `response_node` injects the final answer as `agent_results[…]["data"]["react_synthesis"]`. `_format_status_messages()` (in `formatters/agent_results.py`) surfaces it verbatim as the authoritative current-turn data the response LLM reformulates. Writer and reader use the same `FIELD_REACT_SYNTHESIS` constant, so the contract cannot drift (a missing/renamed key previously dropped the answer into a `"Statut inconnu"` status message, forcing the response LLM to reconstruct one).
 
 2. **No reasoning leak** — `react_setup` injects the `react_agent_prompt` (with its PLAN/ACT/OBSERVE/CROSS-CHECK `<Workflow>` and tool-calling role) as `SystemMessage`s that accumulate in `state["messages"]`. `filter_for_llm_context()` (in `utils/message_filters.py`) **excludes every internal-scaffolding `SystemMessage`** from the response LLM's conversational context, allowlisting only the compaction summary (matched via `COMPACTION_SUMMARY_MARKER`, the message that carries compacted history). Without this, the response LLM mimics the agent's reasoning structure (`PLAN … OBSERVATION … CROSS-CHECK …`) or impersonates its role instead of answering.
 
-3. **Single, de-duplicated stream** — LangGraph `stream_mode="messages"` emits **both** the response LLM's token deltas (`AIMessageChunk`) and the complete post-processed `AIMessage` the node returns to the `messages` channel. `StreamingService._process_messages_chunk()` streams the deltas only and skips the complete message once deltas have been seen (with a non-streaming fallback that emits it when no delta occurred), so the reply is never shown twice. The canonical post-processed content (HTML cards, psyche-tag cleanup) is still delivered by the `content_replacement` chunk after the stream loop.
+3. **What the turn DID is the model's own act** (ADR-263 §23) — the response LLM never sees a tool result, so the pipeline's per-tool confirmation (« Image generated successfully and will be displayed automatically ») has no ReAct counterpart. `build_performed_actions_block` (`services/performed_actions_directive.py`, the sibling of the failures directive) reads the run's SUCCEEDED effects from the register (minus those whose manifest declares `REASON_INTERNAL_CONTEXT` — a skill activated is plumbing, not an answer), and `_build_response_chain` states them in their own system block (`response_directive_performed_actions.txt`) between the directives and the data: done with the model's own tools, an image or document among them already displayed. Never as data lines beside the answer — measured, a bare « Image générée : … » there read as somebody else's caption (a denial the person saw) or as a second image (3 answers out of 100); the directive: 0 out of 100 for both, including a caption-only answer.
+
+4. **Single, de-duplicated stream** — LangGraph `stream_mode="messages"` emits **both** the response LLM's token deltas (`AIMessageChunk`) and the complete post-processed `AIMessage` the node returns to the `messages` channel. `StreamingService._process_messages_chunk()` streams the deltas only and skips the complete message once deltas have been seen (with a non-streaming fallback that emits it when no delta occurred), so the reply is never shown twice. The canonical post-processed content (HTML cards, psyche-tag cleanup) is still delivered by the `content_replacement` chunk after the stream loop.
 
 ## Initiative enrichment on the nominal path (ADR-070 / ADR-062)
 
@@ -429,7 +503,11 @@ REACT_AGENT_MAX_ITERATIONS=15         # Max ReAct loop iterations
 REACT_AGENT_TIMEOUT_SECONDS=120       # Hard timeout for entire execution
 REACT_AGENT_MAX_TOOLS=100             # Safety-net cap on bound tools (resolved count, post-expansion)
 REACT_TOOL_SEMANTIC_TOP_K=40          # Semantic slice of the global ranking bound beside domains + family coverage (0 = every tool, cap alone) — ADR-293
+REACT_CROSS_TURN_CACHE_ENABLED=false  # Every tool + the turn's context after the question: the provider's cache is read across turns — ADR-308
+REACT_CROSS_TURN_CACHE_MAX_WINDOW_FRACTION=0.5  # Beyond this share of the slot's window, a turn keeps the relevance selection
+REACT_CROSS_TURN_HISTORY_BLOCK_FRACTION=0.5  # Under the flag, the ReAct loop's history drops by blocks of this share of its window — ADR-309
 REACT_AGENT_HISTORY_WINDOW_TURNS=5    # Conversation history window
+REACT_RECOVERY_PASSES_MAX=1           # Recovery passes a declared gap buys per turn (0-3, 0 = off) — ADR-310
 REACT_MCP_EXPAND_ITERATIVE_ENABLED=true  # Expand iterative USER MCP servers into individual tools (false = keep task tool; MCP App servers always keep it)
 INITIATIVE_REACT_ENABLED=false        # Run the Initiative phase on the ReAct nominal path (ADR-070; pipeline uses INITIATIVE_ENABLED)
 
@@ -453,7 +531,7 @@ PYTHON_SANDBOX_NETWORK_TIMEOUT_SECONDS=60  # A network run's whole budget
 ```
 
 LLM type: `react_agent` — configurable in admin LLM config panel.
-Default: `qwen3.5-plus`, temperature 0.0, reasoning_effort medium, max_tokens 16000.
+Default: the `react_agent` entry of `LLM_DEFAULTS` (`apps/api/src/domains/llm_config/constants.py`); a deployment's own configuration lives in `llm_config_overrides`.
 
 ## Streaming Step Visibility (v1.16.2)
 
@@ -473,11 +551,14 @@ During ReAct execution, the frontend displays accumulated execution steps in rea
 |------|---------|
 | `src/domains/agents/nodes/react_nodes.py` | 4 node functions, iteration budget, exit reasons |
 | `src/domains/agents/nodes/react_context.py` | Memory/context blocks, at pipeline parity (ADR-248) |
+| `src/domains/agents/nodes/react_recovery.py` | The recovery protocol: the declaration's reader, the predicate, the node, the transient directive, the outcome (ADR-310) |
 | `src/domains/agents/tools/python_sandbox_tools.py` | `run_python_tool` + per-turn run budget (ADR-249) |
 | `src/domains/agents/python_sandbox/catalogue_manifests.py` | Manifest: ReAct-only, published bounds |
 | `src/domains/agents/tools/react_tool_wrapper.py` | Tool wrapper: per-item projection under a token budget, stated cut, registry collection (ADR-286) |
 | `src/domains/agents/services/react_tool_selector.py` | Tool selection by relevance: detected domains, family coverage, semantic slice, stable-sort cap (ADR-293) |
+| `src/domains/agents/services/performed_actions_directive.py` | The turn's succeeded acts, from the register, stated to the response model as its own (ADR-263 §23) |
 | `src/domains/agents/prompts/v1/react_agent_prompt.txt` | System prompt |
+| `src/domains/agents/prompts/v1/react_recovery_directive.txt` | What a recovery pass tells the model (ADR-310) |
 | `src/domains/agents/nodes/routing.py` | `route_from_react_call_model()` |
 | `src/domains/agents/graph.py` | Graph wiring (edges + conditional) |
 | `src/domains/agents/models.py` | State fields (react_*, schema 1.2) |
@@ -485,3 +566,4 @@ During ReAct execution, the frontend displays accumulated execution steps in rea
 | `docs/architecture/ADR-070-ReAct-Execution-Mode.md` | Architecture decision record |
 | `docs/architecture/ADR-248-React-Memory-Parity-And-Progress-Earned-Budget.md` | Memory parity, truncation honesty, earned budget |
 | `docs/architecture/ADR-249-Ephemeral-Python-In-The-Existing-Sandbox.md` | Sandboxed scripts |
+| `docs/architecture/ADR-310-ReAct-Turn-Judged-On-Its-Result.md` | The recovery pass, the ladder, absolute dates |

@@ -227,7 +227,7 @@ Each reader answers `used | empty | disabled | unavailable` with an exact `total
 ### LLM Configuration
 
 Two entries in `LLM_DEFAULTS` + `LLM_TYPES_REGISTRY`:
-- `journal_extraction` — Post-conversation (frequent, lightweight). Default: `openai/gpt-5.4-mini`, temp 0.5, reasoning_effort: low, power tier: MEDIUM. Reads the previous turn's injected directives + current `PsycheState.last_appraisal` to enrich the prompt with deferred self-evaluation context (ADR-079).
+- `journal_extraction` — Post-conversation (frequent, lightweight). Default: `openai/gpt-5.4-mini`, temp 0.5, reasoning_effort: low, power tier: MEDIUM. Reads the previous turn's injected directives + current `PsycheState.last_appraisal` to enrich the prompt with deferred self-evaluation context (ADR-079). It runs on every turn, so its prompt keeps the rules, the final check, the output format and the analyst persona (`{analyst_persona}`) above its `DYNAMIC_CONTEXT_MARKER` and the turn's data below; the call sends the first part as the system message, which a provider's prompt cache reads again ([ADR-309](../architecture/ADR-309-One-Prompt-Layout-For-Every-Cache-Mechanism.md)).
 - `journal_consolidation` — Periodic review (rare, complex). Default: `qwen/qwen3.5-plus`, temp 0.5, reasoning_effort: low, power tier: HIGH. Same call now also compiles the user-model portrait (full ~200 tokens + brief ~60 tokens) — zero additional LLM call.
 
 Both configurable in Admin > LLM Configuration (category: `background`).

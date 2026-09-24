@@ -43,6 +43,7 @@ class ImagePricingResponse(BaseModel):
     quality: str
     size: str
     cost_per_image_usd: Decimal
+    cost_per_input_image_usd: Decimal | None
     effective_from: datetime
     is_active: bool
 
@@ -51,8 +52,9 @@ class ImagePricingCreate(BaseModel):
     """Request model for creating a new image pricing entry.
 
     Composite key: (model, quality, size). Must be unique among active entries.
-    Application-level invariant: all rows for a given ``model`` must share
-    the same ``provider`` (validated at the service layer).
+    Application-level invariants: all rows for a given ``model`` share the same
+    ``provider``, and the model's family (ADR-305) accepts the quality, the size
+    and the presence or absence of a reference-image price.
     """
 
     provider: ProviderLiteral = Field(
@@ -82,6 +84,15 @@ class ImagePricingCreate(BaseModel):
         gt=0,
         description="Cost per generated image in USD",
     )
+    cost_per_input_image_usd: Decimal | None = Field(
+        default=None,
+        gt=0,
+        description=(
+            "Cost per reference image sent to an edit, in USD. Required for a "
+            "family that bills reference images per image (Qwen Image), refused "
+            "for one that bills them as tokens (OpenAI GPT Image) — ADR-305."
+        ),
+    )
 
 
 class ImagePricingUpdate(BaseModel):
@@ -89,7 +100,8 @@ class ImagePricingUpdate(BaseModel):
 
     ``provider`` is intentionally NOT updatable — it is intrinsic to a model.
     model/quality/size can be changed to rename a pricing entry (uniqueness
-    validated server-side).
+    validated server-side). An omitted reference-image price keeps the current
+    one; the new version is validated against the family like a creation.
     """
 
     model: str | None = Field(
@@ -114,6 +126,15 @@ class ImagePricingUpdate(BaseModel):
         ...,
         gt=0,
         description="Cost per generated image in USD",
+    )
+    cost_per_input_image_usd: Decimal | None = Field(
+        default=None,
+        gt=0,
+        description=(
+            "Cost per reference image sent to an edit, in USD. Required for a "
+            "family that bills reference images per image (Qwen Image), refused "
+            "for one that bills them as tokens (OpenAI GPT Image) — ADR-305."
+        ),
     )
 
 

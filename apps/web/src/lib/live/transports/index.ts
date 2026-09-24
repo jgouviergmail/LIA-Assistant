@@ -6,6 +6,7 @@
 import type { LiveTransport } from '../transport';
 
 import { ElevenLabsLiveTransport } from './elevenlabs-ws';
+import { ElevenLabsWebRtcTransport } from './elevenlabs-webrtc';
 import { GeminiLiveTransport } from './gemini-ws';
 import { OpenAiLiveTransport } from './openai-webrtc';
 
@@ -15,7 +16,13 @@ const FACTORIES: Readonly<Record<string, () => LiveTransport>> = {
   elevenlabs: () => new ElevenLabsLiveTransport(),
 };
 
-export function createLiveTransport(provider: string): LiveTransport {
+export function createLiveTransport(
+  provider: string,
+  audioTransport: 'websocket' | 'webrtc' = 'websocket'
+): LiveTransport {
+  if (provider === 'elevenlabs' && audioTransport === 'webrtc') {
+    return new ElevenLabsWebRtcTransport();
+  }
   const factory = FACTORIES[provider];
   if (!factory) throw new Error(`live_provider_unsupported:${provider}`);
   return factory();

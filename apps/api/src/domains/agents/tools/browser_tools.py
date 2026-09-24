@@ -146,6 +146,25 @@ async def _emit_progressive_screenshot(
         logger.debug("browser_progressive_screenshot_failed", error=str(e))
 
 
+#: Sentences the browser layer raises when a bound is reached. Kept HERE, next
+#: to their only reader, and pinned against their producers by
+#: ``test_browser_limit_markers_match_their_producers``: the previous marker
+#: read « Max concurrent » while ``pool.py`` writes « Maximum concurrent », so
+#: the branch could never be true and a saturated pool was reported as a
+#: CONFIGURATION error — the model was invited to fix a setting where it should
+#: have waited (ADR-303). Typed exceptions would remove this reading entirely;
+#: until then the agreement is TESTED rather than assumed.
+BROWSER_LIMIT_MARKERS: tuple[str, ...] = (
+    "Maximum concurrent",
+    "Max navigations",
+)
+
+
+def _is_browser_limit_error(message: str) -> bool:
+    """Whether this browser-layer refusal is a bound reached, not a bad request."""
+    return any(marker in message for marker in BROWSER_LIMIT_MARKERS)
+
+
 # ============================================================================
 # DATA REGISTRY INTEGRATION
 # ============================================================================
@@ -452,7 +471,7 @@ async def browser_navigate_tool(
     except ValueError as e:
         logger.warning("browser_navigate_validation_error", url=url[:200], error=str(e))
         error_code = "INVALID_INPUT" if "URL blocked" in str(e) else "CONFIGURATION_ERROR"
-        if "Max concurrent" in str(e) or "Max navigations" in str(e):
+        if _is_browser_limit_error(str(e)):
             error_code = "RATE_LIMIT_EXCEEDED"
         return UnifiedToolOutput.failure(message=str(e), error_code=error_code)
 

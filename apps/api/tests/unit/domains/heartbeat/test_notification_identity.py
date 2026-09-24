@@ -74,7 +74,7 @@ def _patch_generation():
     """Neutralize the two LLM-bound calls inside generate_content."""
     return patch(
         "src.domains.heartbeat.proactive_task.generate_heartbeat_message",
-        new=AsyncMock(return_value=("final message", 3, 5, 1)),
+        new=AsyncMock(return_value=("final message", 3, 5, 1, 0)),
     )
 
 

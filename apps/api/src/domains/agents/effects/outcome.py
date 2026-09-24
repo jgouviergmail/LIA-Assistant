@@ -17,6 +17,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Final
 
+from src.core.tool_outcome import explicit_success
+
 #: Identifiers a provider hands back, most specific first, so a result carrying
 #: both ``id`` and ``message_id`` records the one that names the operation.
 #: A superset of the per-domain keys the draft executor already knows
@@ -102,6 +104,10 @@ def _find_provider_ref(data: Any) -> str | None:
 def _explicit_success(data: Any, result: Any) -> bool:
     """The one reading of « did this call succeed », shared by both registers.
 
+    Delegates to :func:`src.core.tool_outcome.explicit_success`, which the
+    metrics decorator and the ReAct loop read too: three readers once answered
+    this question three ways on the same payload (ADR-303).
+
     Args:
         data: The rendered result, when one was produced.
         result: The raw return value, read when the rendering is not a mapping.
@@ -109,8 +115,7 @@ def _explicit_success(data: Any, result: Any) -> bool:
     Returns:
         False only when the tool explicitly said so.
     """
-    explicit = data.get("success") if isinstance(data, dict) else getattr(result, "success", None)
-    return explicit is not False
+    return explicit_success(data) if isinstance(data, dict) else explicit_success(result)
 
 
 def succeeded_only(result: Any) -> bool:

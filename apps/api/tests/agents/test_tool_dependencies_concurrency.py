@@ -6,6 +6,7 @@ multiple tools execute in parallel (e.g., HITL approval of multiple actions).
 """
 
 import asyncio
+import uuid
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -316,3 +317,118 @@ class TestToolDependenciesAclose:
         """aclose() on an empty cache is a safe no-op."""
         await tool_deps.aclose()
         assert tool_deps._clients_cache == {}
+
+
+class _Fake:
+    """A connector service with one real coroutine method and a session."""
+
+    def __init__(self, db: object) -> None:
+        self.db = db
+        self.calls = 0
+
+    async def get_connector(self, _user_id: object, _connector_type: object) -> str:
+        self.calls += 1
+        return "row"
+
+    async def fail(self) -> None:
+        raise RuntimeError("the read failed")
+
+
+class TestNoTransactionLeftOpen:
+    """ADR-304: an operation on the turn's shared session ends its transaction.
+
+    A credential read used to keep the turn's transaction open for the rest of
+    the turn — every tool's network calls included.
+    """
+
+    async def test_an_explicit_operation_commits_behind_itself(
+        self, tool_deps, mock_db_session
+    ) -> None:
+        from src.domains.connectors.models import ConnectorType
+
+        service = await tool_deps.get_connector_service()
+        service._service.get_connector_credentials = AsyncMock(return_value=None)
+        await service.get_connector_credentials(uuid.uuid4(), ConnectorType.GOOGLE_GMAIL)
+        mock_db_session.commit.assert_awaited_once()
+        mock_db_session.rollback.assert_not_awaited()
+
+    async def test_a_forwarded_coroutine_is_serialized_and_commits(self, mock_db_session) -> None:
+        """Before ADR-304 a method reached through ``__getattr__`` ran unguarded."""
+        from src.domains.agents.dependencies import ConcurrencySafeConnectorService
+
+        lock = asyncio.Lock()
+        fake = _Fake(mock_db_session)
+        wrapper = ConcurrencySafeConnectorService(fake, lock)  # type: ignore[arg-type]
+
+        async with lock:
+            pending = asyncio.create_task(wrapper.get_connector(uuid.uuid4(), "gmail"))
+            await asyncio.sleep(0.05)
+            assert fake.calls == 0, "the forwarded method ran while the lock was held"
+        assert await pending == "row"
+        mock_db_session.commit.assert_awaited_once()
+
+    async def test_a_failed_operation_rolls_its_transaction_back(self, mock_db_session) -> None:
+        from src.domains.agents.dependencies import ConcurrencySafeConnectorService
+
+        wrapper = ConcurrencySafeConnectorService(
+            _Fake(mock_db_session), asyncio.Lock()  # type: ignore[arg-type]
+        )
+        with pytest.raises(RuntimeError):
+            await wrapper.fail()
+        mock_db_session.rollback.assert_awaited_once()
+        mock_db_session.commit.assert_not_awaited()
+
+    async def test_a_plain_attribute_is_returned_as_is(self, tool_deps, mock_db_session) -> None:
+        service = await tool_deps.get_connector_service()
+        assert service.db is mock_db_session
+
+
+class TestConnectorClientUnitOfWork:
+    """A client's own writes run on a session of their own, never the turn's (ADR-304)."""
+
+    async def test_a_unit_of_work_neither_uses_the_turn_session_nor_blocks_a_tool(
+        self, tool_deps, mock_db_session, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A token refresh used to hold the lock — and the turn's session —
+        through the token endpoint; a parallel credential read waited on it."""
+        from contextlib import asynccontextmanager
+
+        from src.domains.connectors import session_scope
+        from src.domains.connectors.models import ConnectorType
+        from src.domains.connectors.session_scope import connector_unit_of_work, owns_session
+
+        own_session = MagicMock(spec=AsyncSession)
+
+        @asynccontextmanager
+        async def _own():
+            yield own_session
+
+        monkeypatch.setattr(session_scope, "get_db_context", _own)
+        service = await tool_deps.get_connector_service()
+        service._service.get_connector_credentials = AsyncMock(return_value=None)
+        assert owns_session(service), "a client may end its unit's transaction early"
+        order: list[str] = []
+        inside = asyncio.Event()
+        release = asyncio.Event()
+
+        async def client_unit() -> None:
+            async with connector_unit_of_work(service) as underlying:
+                assert underlying.db is own_session
+                assert underlying.db is not mock_db_session
+                order.append("unit:start")
+                inside.set()
+                await release.wait()
+                order.append("unit:end")
+
+        async def parallel_tool() -> None:
+            await inside.wait()
+            await service.get_connector_credentials(uuid.uuid4(), ConnectorType.GOOGLE_GMAIL)
+            order.append("tool:read")
+
+        unit = asyncio.create_task(client_unit())
+        tool = asyncio.create_task(parallel_tool())
+        await inside.wait()
+        await asyncio.wait_for(tool, timeout=1)
+        release.set()
+        await unit
+        assert order == ["unit:start", "tool:read", "unit:end"]

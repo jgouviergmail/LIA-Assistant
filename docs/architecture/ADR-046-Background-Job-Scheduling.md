@@ -7,6 +7,8 @@
 
 ---
 
+> **Amendé par ADR-304 (2026-09-22)** : les rappels ne sont plus verrouillés par lot. Un rappel est réclamé seul (`claim_next_due`, PROCESSING committé aussitôt), notifié sans transaction ouverte, réglé sous condition de sa réclamation, et une réclamation abandonnée est libérée sur `updated_at`. Le code ci-dessous (`get_and_lock_pending_reminders`) est historique. Voir [ADR-304](ADR-304-No-Transaction-Across-A-Network-Call.md).
+
 ## Context and Problem Statement
 
 L'application nécessitait des tâches de fond planifiées :

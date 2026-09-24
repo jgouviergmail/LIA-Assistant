@@ -148,6 +148,13 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
+# The V8 heap is bounded BELOW the container limit. Unbounded, Node derives
+# it from the cgroup — 259 MB inside a 256 MB container (measured 2026-09-22)
+# — so the heap alone could fill the container, garbage collection only
+# pressed at the very edge, and what lives off the heap (code, buffers, image
+# optimisation) had no room. 320 MB leaves ~190 MB of the 512M prod limit to
+# it; the demonstrator runs the same image under the same limit.
+ENV NODE_OPTIONS="--max-old-space-size=320"
 
 # Create non-root user
 RUN addgroup --system --gid 1001 nodejs && \

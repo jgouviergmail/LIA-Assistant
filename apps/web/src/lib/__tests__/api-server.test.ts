@@ -15,9 +15,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { SERVER_ACTION_TIMEOUT } from '@/lib/constants';
 
-const { cookieGet } = vi.hoisted(() => ({ cookieGet: vi.fn() }));
+const { cookieGet, headerGet } = vi.hoisted(() => ({ cookieGet: vi.fn(), headerGet: vi.fn() }));
 vi.mock('next/headers', () => ({
   cookies: async () => ({ get: cookieGet }),
+  headers: async () => ({ get: headerGet }),
 }));
 
 import {
@@ -55,6 +56,7 @@ beforeEach(() => {
   // below exercise that path, and the noise would drown the run.
   vi.spyOn(console, 'error').mockImplementation(() => {});
   cookieGet.mockReturnValue({ name: 'lia_session', value: 'sess-42' });
+  headerGet.mockReturnValue(null);
   // A fresh Response per call: a body can only be read once.
   globalThis.fetch = vi.fn().mockImplementation(async () => jsonResponse(200, { ok: true }));
   process.env.API_URL_SERVER = 'http://api:8000';
@@ -102,6 +104,29 @@ describe('createServerApiClient — authentication forwarding', () => {
     await api.get('/ping');
 
     expect(lastCall()[0]).toBe('http://api:8000/api/v1/ping');
+  });
+});
+
+describe('createServerApiClient — who is calling (ADR-213)', () => {
+  // A Server Action reaches the backend from THIS server, so the connection
+  // peer the backend sees is the web container: the audit of the 2026-09-22
+  // account deactivation recorded 172.18.0.19. The address Cloudflare wrote on
+  // the incoming request is the one worth carrying across.
+  it('forwards the address Cloudflare vouched for', async () => {
+    headerGet.mockImplementation((name: string) =>
+      name.toLowerCase() === 'cf-connecting-ip' ? '203.0.113.9' : null
+    );
+    const api = await createServerApiClient();
+    await api.patch('/users/admin/42/activation', { is_active: false });
+
+    expect(headersOf(lastCall()[1])['CF-Connecting-IP']).toBe('203.0.113.9');
+  });
+
+  it('forwards no address when the request carried none (development)', async () => {
+    const api = await createServerApiClient();
+    await api.get('/users/me');
+
+    expect(headersOf(lastCall()[1])).not.toHaveProperty('CF-Connecting-IP');
   });
 });
 

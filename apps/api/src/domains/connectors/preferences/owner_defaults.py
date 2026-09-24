@@ -22,6 +22,8 @@ single-user test.
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -33,6 +35,7 @@ from src.domains.connectors.preferences.resolver import (
 )
 from src.domains.connectors.preferences.service import ConnectorPreferencesService
 from src.domains.connectors.repository import ConnectorRepository
+from src.infrastructure.database.session import get_db_context
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -93,17 +96,101 @@ async def read_owner_preference_name(
     )
 
 
+@dataclass(frozen=True, slots=True)
+class OwnerContainer:
+    """One kind of default container an owner configures (a calendar, a task list).
+
+    Attributes:
+        preference: The connector preference holding its NAME.
+        fallback: The provider's own default when no name resolves.
+        resolve: Resolves a name to an id on the provider (a network call).
+        failure_event: What a degraded resolution logs.
+    """
+
+    preference: str
+    fallback: str
+    resolve: Callable[..., Awaitable[str]]
+    failure_event: str
+
+
+CALENDAR = OwnerContainer(
+    CALENDAR_PREFERENCE,
+    "primary",
+    resolve_calendar_name,
+    "owner_default_calendar_resolution_failed",
+)
+TASK_LIST = OwnerContainer(
+    TASK_LIST_PREFERENCE,
+    "@default",
+    resolve_task_list_name,
+    "owner_default_task_list_resolution_failed",
+)
+
+
+async def read_owner_container_name(
+    db: AsyncSession, owner_id: UUID, connector_type: ConnectorType, container: OwnerContainer
+) -> str | None:
+    """The DATABASE half: the container name the owner configured, if readable.
+
+    Split from the resolution so a caller reads it in a short session and
+    closes that session before the network call that resolves it (ADR-304).
+
+    Args:
+        db: Session to read the connector on.
+        owner_id: The user who OWNS the data being read.
+        connector_type: Their active connector for the category.
+        container: Which default (:data:`CALENDAR`, :data:`TASK_LIST`).
+
+    Returns:
+        The configured name; None when unset or unreadable (logged).
+    """
+    try:
+        return await read_owner_preference_name(db, owner_id, connector_type, container.preference)
+    except _PREFERENCE_ERRORS as exc:
+        _log_fallback(container, owner_id, exc)
+        return None
+
+
+async def resolve_owner_container_id(
+    *, client: Any, name: str | None, owner_id: UUID, container: OwnerContainer
+) -> str:
+    """The NETWORK half: the id of a configured name, or the provider's default.
+
+    Args:
+        client: The category's client (same list interface across providers).
+        name: What :func:`read_owner_container_name` returned.
+        owner_id: The user whose data is being read (for the log).
+        container: Which default (:data:`CALENDAR`, :data:`TASK_LIST`).
+
+    Returns:
+        An id; the container's fallback when no name is configured or it
+        cannot be resolved; other failures propagate (see
+        :data:`_PREFERENCE_ERRORS`).
+    """
+    if not name:
+        return container.fallback
+    try:
+        return await container.resolve(client=client, name=name, fallback=container.fallback)
+    except _PREFERENCE_ERRORS as exc:
+        _log_fallback(container, owner_id, exc)
+        return container.fallback
+
+
+def _log_fallback(container: OwnerContainer, owner_id: UUID, exc: Exception) -> None:
+    logger.warning(
+        container.failure_event,
+        owner_id=str(owner_id),
+        error=str(exc),
+        error_type=type(exc).__name__,
+    )
+
+
 async def resolve_owner_calendar_id(
-    *,
-    db: AsyncSession,
-    client: Any,
-    owner_id: UUID,
-    connector_type: ConnectorType,
+    *, client: Any, owner_id: UUID, connector_type: ConnectorType
 ) -> str:
     """Calendar id the OWNER configured as their default, or ``primary``.
 
     Args:
-        db: Session to read the connector on.
         client: Calendar client (Google or Apple — same list interface).
         owner_id: The user whose calendar is being read.
         connector_type: Their active calendar connector.
@@ -113,32 +200,15 @@ async def resolve_owner_calendar_id(
         or unreadable; other failures propagate (see
         :data:`_PREFERENCE_ERRORS`).
     """
-    try:
-        name = await read_owner_preference_name(db, owner_id, connector_type, CALENDAR_PREFERENCE)
-        if not name:
-            return "primary"
-        return await resolve_calendar_name(client=client, name=name, fallback="primary")
-    except _PREFERENCE_ERRORS as exc:
-        logger.warning(
-            "owner_default_calendar_resolution_failed",
-            owner_id=str(owner_id),
-            error=str(exc),
-            error_type=type(exc).__name__,
-        )
-        return "primary"
+    return await _resolve_owner_default(CALENDAR, client, owner_id, connector_type)
 
 
 async def resolve_owner_task_list_id(
-    *,
-    db: AsyncSession,
-    client: Any,
-    owner_id: UUID,
-    connector_type: ConnectorType,
+    *, client: Any, owner_id: UUID, connector_type: ConnectorType
 ) -> str:
     """Task list id the OWNER configured as their default, or ``@default``.
 
     Args:
-        db: Session to read the connector on.
         client: Tasks client (Google Tasks or Microsoft To Do).
         owner_id: The user whose tasks are being read.
         connector_type: Their active tasks connector.
@@ -148,16 +218,20 @@ async def resolve_owner_task_list_id(
         unset or unreadable; other failures propagate (see
         :data:`_PREFERENCE_ERRORS`).
     """
-    try:
-        name = await read_owner_preference_name(db, owner_id, connector_type, TASK_LIST_PREFERENCE)
-        if not name:
-            return "@default"
-        return await resolve_task_list_name(client=client, name=name, fallback="@default")
-    except _PREFERENCE_ERRORS as exc:
-        logger.warning(
-            "owner_default_task_list_resolution_failed",
-            owner_id=str(owner_id),
-            error=str(exc),
-            error_type=type(exc).__name__,
-        )
-        return "@default"
+    return await _resolve_owner_default(TASK_LIST, client, owner_id, connector_type)
+
+
+async def _resolve_owner_default(
+    container: OwnerContainer, client: Any, owner_id: UUID, connector_type: ConnectorType
+) -> str:
+    """Read the name in a short session of its own, then resolve it on the network.
+
+    The callers are chat tools holding the turn's shared session: they used
+    to pass it here, read on it outside the tools' lock, and leave its
+    transaction open while the name was resolved on the provider (ADR-304).
+    """
+    async with get_db_context() as db:
+        name = await read_owner_container_name(db, owner_id, connector_type, container)
+    return await resolve_owner_container_id(
+        client=client, name=name, owner_id=owner_id, container=container
+    )

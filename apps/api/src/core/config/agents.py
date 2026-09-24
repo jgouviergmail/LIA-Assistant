@@ -276,16 +276,21 @@ from src.core.constants import (
     REACT_AGENT_MAX_ITERATIONS_DEFAULT,
     REACT_AGENT_MAX_TOOLS_DEFAULT,
     REACT_AGENT_TIMEOUT_SECONDS_DEFAULT,
+    REACT_CROSS_TURN_CACHE_ENABLED_DEFAULT,
+    REACT_CROSS_TURN_CACHE_MAX_WINDOW_FRACTION_DEFAULT,
+    REACT_CROSS_TURN_HISTORY_BLOCK_FRACTION_DEFAULT,
     REACT_ITERATIONS_BASE_DEFAULT,
     REACT_ITERATIONS_PER_EXTRA_DOMAIN_DEFAULT,
     REACT_ITERATIONS_PROGRESS_EXTENSION_DEFAULT,
     REACT_MCP_EXPAND_ITERATIVE_ENABLED_DEFAULT,
+    REACT_RECOVERY_PASSES_MAX_DEFAULT,
     REACT_REPEATED_CALL_BLOCK_THRESHOLD_DEFAULT,
     REACT_REPEATED_CALL_TERMINAL_THRESHOLD_DEFAULT,
     REACT_TOOL_BUDGET_SECONDS_DEFAULT,
     REACT_TOOL_RESULT_MAX_TOKENS_DEFAULT,
     REACT_TOOL_RESULT_WINDOW_FRACTION_DEFAULT,
     REACT_TOOL_SEMANTIC_TOP_K_DEFAULT,
+    RECENT_ENTITIES_MAX_ITEMS_DEFAULT,
     RECENT_ENTITIES_MAX_TURN_AGE_DEFAULT,
     REGISTRY_MAX_ITEMS_DEFAULT,
     RESPONSE_CONTEXT_PREFETCH_AT_ROUTER_ENABLED_DEFAULT,
@@ -563,6 +568,15 @@ class AgentsSettings(BaseSettings):
             "grounding when the current turn produced no data (0 disables the injection)"
         ),
     )
+    response_recent_entities_max_items: int = Field(
+        default=RECENT_ENTITIES_MAX_ITEMS_DEFAULT,
+        gt=0,
+        le=100,
+        description=(
+            "Max number of recent entities the grounding block injects into the response "
+            "prompt — a prompt budget, independent of what the context store keeps"
+        ),
+    )
 
     # ========================================================================
     # Agent Iteration Limits (Security)
@@ -837,8 +851,13 @@ class AgentsSettings(BaseSettings):
     react_agent_max_tools: int = Field(
         default=REACT_AGENT_MAX_TOOLS_DEFAULT,
         ge=5,
-        le=200,
-        description="Maximum number of tools provided to the ReAct agent per request.",
+        le=400,
+        description=(
+            "Maximum number of tools provided to the ReAct agent per request. With "
+            "REACT_CROSS_TURN_CACHE_ENABLED an account holding more tools keeps the "
+            "relevance selection, so it must cover the account's whole catalogue; up "
+            "to 400 to leave room for a growing one (ADR-308)."
+        ),
     )
     react_tool_semantic_top_k: int = Field(
         default=REACT_TOOL_SEMANTIC_TOP_K_DEFAULT,
@@ -882,6 +901,47 @@ class AgentsSettings(BaseSettings):
         description=(
             "Fraction of the ReAct slot's context window one tool result may occupy; "
             "the effective budget is min(ceiling, window × fraction) (ADR-286)."
+        ),
+    )
+    react_cross_turn_cache_enabled: bool = Field(
+        default=REACT_CROSS_TURN_CACHE_ENABLED_DEFAULT,
+        description=(
+            "Bind every available tool in registration order and place the turn's "
+            "context after the question, so a ReAct turn's prompt prefix (tools + static "
+            "prompt) is the previous turn's and the provider's prompt cache is read across "
+            "turns (ADR-308). Off: the relevance selection and the context in the system "
+            "prompt, unchanged."
+        ),
+    )
+    react_cross_turn_cache_max_window_fraction: float = Field(
+        default=REACT_CROSS_TURN_CACHE_MAX_WINDOW_FRACTION_DEFAULT,
+        gt=0.0,
+        le=0.9,
+        description=(
+            "Largest share of the ReAct slot's context window every tool's schemas may "
+            "take; beyond it a turn keeps the relevance selection (ADR-308)."
+        ),
+    )
+    react_cross_turn_history_block_fraction: float = Field(
+        default=REACT_CROSS_TURN_HISTORY_BLOCK_FRACTION_DEFAULT,
+        gt=0.0,
+        le=1.0,
+        description=(
+            "Under REACT_CROSS_TURN_CACHE_ENABLED, the share of the ReAct loop's history "
+            "window dropped at once: it keeps between N and N + block - 1 turns, so each "
+            "turn's history extends the previous one (ADR-309). The response node keeps "
+            "sliding: its history follows the turn's own context, which no cache reads."
+        ),
+    )
+    react_recovery_passes_max: int = Field(
+        default=REACT_RECOVERY_PASSES_MAX_DEFAULT,
+        ge=0,
+        le=3,
+        description=(
+            "Recovery passes a ReAct turn may take when its final message declares facts "
+            "it could not obtain (ADR-310): the loop resumes with the draft and the gaps "
+            "instead of ending. 0 = off. The iteration, compute and tool budgets stay the "
+            "hard bounds."
         ),
     )
 

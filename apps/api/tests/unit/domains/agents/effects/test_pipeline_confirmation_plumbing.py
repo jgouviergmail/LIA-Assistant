@@ -90,7 +90,10 @@ class TestTheExecutorTurnsTheGatesAnswerIntoADraft:
             outcome = await _execute_tool(
                 tool_name="plumbing_probe_cancel_tool",
                 args={"plan": "premium"},
-                config={"configurable": {"thread_id": "thread-pipeline", "run_id": "run-1"}},
+                config={
+                    "configurable": {"thread_id": "thread-pipeline"},
+                    "metadata": {"run_id": "run-1"},
+                },
                 store=None,
                 step_id="s1",
             )
@@ -129,7 +132,10 @@ class TestTheExecutorTurnsTheGatesAnswerIntoADraft:
             outcome = await _execute_tool(
                 tool_name="plumbing_probe_read_tool",
                 args={"q": "x"},
-                config={"configurable": {"thread_id": "thread-pipeline", "run_id": "run-1"}},
+                config={
+                    "configurable": {"thread_id": "thread-pipeline"},
+                    "metadata": {"run_id": "run-1"},
+                },
                 store=None,
                 step_id="s1",
             )

@@ -499,6 +499,10 @@ reasoning at all, which used to require picking a reasoning template. Changing a
 model's provider is reported rather than applied, and teaching LIA a brand-new
 reasoning family is a code change, not a spreadsheet edit.
 
+**A time window can name its days.** Some providers bill their peak hours on weekdays only — DeepSeek, for instance, bills its weekends at the off-peak rate all day. The windows tab of the workbook carries a days column (codes `mon` to `sun`); a window with no days applies every day. A window that crosses midnight belongs to the day it starts on. A workbook of an earlier format is refused rather than read as « every day », which would bill every weekend at the full rate again. In the LLM pricing dialog, each window has the same day selector as the routine editor, with every-day, weekdays and weekend shortcuts.
+
+**Every price is the one the provider bills.** The reference tariffs are re-read on the providers' pages, and a correction only replaces a value LIA shipped, never one an administrator entered. A write to a model's prompt cache is billed at its own price (1.25 times the input where the provider bills it that way). And an edited price reaches every server process at once: every writer of the pricing tables — a tariff, the workbook import, the exchange rate — publishes the change after it is saved.
+
 ## How do I choose how deeply a model thinks?
 
 In **Settings → Administration → LLM Pricing**, open a model: LIA shows the
@@ -522,6 +526,8 @@ inside the answer budget. LIA therefore writes its short notifications — a
 reminder, for instance — without thinking wherever the model can be told to, and
 a reply that comes back empty or cut is replaced by the plain sentence rather
 than sent as is.
+
+Some models think even when no level is chosen, at the depth their provider sets, and some cannot switch it off. LIA knows the depth such a model runs at, and warns you in LLM Configuration if the answer budget is too low for that implicit thinking.
 
 ## How does the settings priority chain work?
 

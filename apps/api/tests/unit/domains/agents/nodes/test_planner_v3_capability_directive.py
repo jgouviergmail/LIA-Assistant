@@ -94,7 +94,7 @@ async def _run_node(directive: dict[str, str] | None) -> dict[str, Any]:
         "messages": [],
         "oauth_scopes": [],
     }
-    config = {"configurable": {"run_id": "test-run", "user_id": "u"}}
+    config = {"configurable": {"user_id": "u"}, "metadata": {"run_id": "test-run"}}
 
     planning_result = type(
         "PlanningResult",

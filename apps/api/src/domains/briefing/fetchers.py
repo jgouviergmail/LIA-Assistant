@@ -33,7 +33,8 @@ from src.core.constants import (
 )
 from src.core.exceptions import ConnectorAPIError, MaxRetriesExceededError
 from src.domains.agents.tools.weather_environment_enrichment import (
-    environment_extras_or_none,
+    environment_enrichment_active,
+    fetch_environment_extras,
 )
 from src.domains.briefing.constants import (
     BRIEFING_WEATHER_FORECAST_CNT,
@@ -71,10 +72,9 @@ from src.domains.briefing.schemas import (
     WeatherData,
 )
 from src.domains.connectors.clients.google_drive_client import GoogleDriveClient
-from src.domains.connectors.clients.registry import ClientRegistry
 from src.domains.connectors.models import ConnectorType
-from src.domains.connectors.provider_resolver import resolve_active_connector
 from src.domains.connectors.service import ConnectorService
+from src.domains.connectors.session_scope import DetachedConnectorService
 from src.domains.connectors.weather_provider import resolve_weather_client
 from src.domains.health_metrics.service import HealthMetricsService
 from src.domains.heartbeat.geocoding import resolve_city_name
@@ -139,13 +139,16 @@ async def fetch_weather(
         except NoLocationAvailableError:
             raise ConnectorNotConfiguredError("location") from None
 
-        # AQ/pollen enrichment (2026-08) — inside THIS session's scope (an
-        # AsyncSession is not safe for concurrent use, so it must not join
-        # the gather below). Fail-quiet: returns None and the card renders
-        # exactly as before.
-        environment = await environment_extras_or_none(
-            user.id, connector_service, location.lat, location.lon, language
-        )
+        # AQ/pollen enrichment (2026-08): whether it runs is READ here; the
+        # provider is called below, once this session is closed (ADR-304).
+        environment_active = await environment_enrichment_active(user.id, connector_service)
+
+    # Fail-quiet: None and the card renders exactly as before.
+    environment = (
+        await fetch_environment_extras(user.id, location.lat, location.lon, language)
+        if environment_active
+        else None
+    )
 
     try:
         results = await asyncio.gather(
@@ -212,7 +215,7 @@ async def fetch_agenda(
         open_active_calendar,
     )
 
-    async with get_db_context() as db, open_active_calendar(db, user.id) as access:
+    async with open_active_calendar(user.id) as access:
         # The refusal is NAMED, so the two sentences a reader may need stay
         # distinct: "connect a calendar" and "your connection expired".
         if access is CalendarUnavailable.NO_CREDENTIALS:
@@ -264,66 +267,66 @@ async def fetch_mails(
     ``language`` argument is forwarded to ``format_email_item`` so received
     timestamps are rendered with the user's locale conventions.
     """
-    async with get_db_context() as db:
-        connector_service = ConnectorService(db)
-        resolved_type = await resolve_active_connector(user.id, "email", connector_service)
-        if resolved_type is None:
-            raise ConnectorNotConfiguredError("email")
+    from src.domains.connectors.active_client import (
+        ActiveClient,
+        ClientUnavailable,
+        open_active_client,
+    )
 
-        credentials: Any = (
-            await connector_service.get_apple_credentials(user.id, resolved_type)
-            if resolved_type.is_apple
-            else await connector_service.get_connector_credentials(user.id, resolved_type)
-        )
-        if not credentials:
+    # The shared door: no session held while the mailbox answers, and the
+    # transport closed on every path (it was never closed here) — ADR-304.
+    async with open_active_client("email", user.id) as opened:
+        if opened is ClientUnavailable.NO_CREDENTIALS:
             raise ConnectorAccessError(
                 "email",
                 ERROR_CODE_CONNECTOR_OAUTH_EXPIRED,
                 "Credentials missing or refresh failed",
             )
-
-        client_class = ClientRegistry.get_client_class(resolved_type)
-        if client_class is None:
+        if not isinstance(opened, ActiveClient):
             raise ConnectorNotConfiguredError("email")
-        client = client_class(user.id, credentials, connector_service)
-
-        # All unread emails in INBOX (not date-filtered — the user wants every
-        # unread, regardless of when it arrived).
-        try:
-            result = await client.search_emails(
-                query="is:unread in:inbox",
-                max_results=settings.briefing_max_mails_items,
-                use_cache=True,
-            )
-        except (TimeoutError, httpx.HTTPError) as exc:
-            raise ConnectorAccessError("email", _classify_http_error(exc), str(exc)) from exc
-
-        messages = result.get("messages", []) or []
-        full_messages = []
-        for msg in messages:
-            # Apple returns IDs-only; full bodies are cached in Redis — get_message is a hit.
-            if set(msg.keys()) <= {"id", "threadId"}:
-                try:
-                    full = await client.get_message(
-                        msg["id"], format=GMAIL_FORMAT_METADATA, use_cache=True
-                    )
-                    if full:
-                        full_messages.append(full)
-                except (TimeoutError, httpx.HTTPError) as exc:
-                    logger.debug(
-                        "briefing_mail_fetch_skipped",
-                        user_id=str(user.id),
-                        message_id=msg.get("id"),
-                        error=str(exc),
-                    )
-            else:
-                full_messages.append(msg)
+        full_messages = await _unread_inbox(opened.client, user)
 
     items = [
         format_email_item(m, user_tz, language)
         for m in full_messages[: settings.briefing_max_mails_items]
     ]
     return MailsData(items=items, total_unread_today=len(full_messages))
+
+
+async def _unread_inbox(client: Any, user: User) -> list[dict[str, Any]]:
+    """Every unread INBOX message of an open client, full metadata.
+
+    Not date-filtered: the reader wants every unread, whenever it arrived.
+    Apple returns IDs only; its full bodies are cached in Redis, so each
+    ``get_message`` is a cache hit.
+    """
+    try:
+        result = await client.search_emails(
+            query="is:unread in:inbox",
+            max_results=settings.briefing_max_mails_items,
+            use_cache=True,
+        )
+    except (TimeoutError, httpx.HTTPError) as exc:
+        raise ConnectorAccessError("email", _classify_http_error(exc), str(exc)) from exc
+
+    full_messages: list[dict[str, Any]] = []
+    for msg in result.get("messages", []) or []:
+        if not set(msg.keys()) <= {"id", "threadId"}:
+            full_messages.append(msg)
+            continue
+        try:
+            full = await client.get_message(msg["id"], format=GMAIL_FORMAT_METADATA, use_cache=True)
+        except (TimeoutError, httpx.HTTPError) as exc:
+            logger.debug(
+                "briefing_mail_fetch_skipped",
+                user_id=str(user.id),
+                message_id=msg.get("id"),
+                error=str(exc),
+            )
+            continue
+        if full:
+            full_messages.append(full)
+    return full_messages
 
 
 # =============================================================================
@@ -471,36 +474,6 @@ async def fetch_health(*, user: User) -> HealthData:
 # =============================================================================
 
 
-async def _resolve_tasks_client(user: User) -> tuple[Any, str]:
-    """Resolve the active tasks provider client + preferred task list id.
-
-    Same glue as the heartbeat ``_fetch_tasks``: dynamic provider resolution
-    (Google Tasks / Microsoft To Do) then best-effort default-list preference.
-
-    Raises:
-        ConnectorNotConfiguredError: if no active tasks connector.
-    """
-    from src.domains.connectors.preferences.owner_defaults import resolve_owner_task_list_id
-
-    async with get_db_context() as db:
-        connector_service = ConnectorService(db)
-        resolved_type = await resolve_active_connector(user.id, "tasks", connector_service)
-        if resolved_type is None:
-            raise ConnectorNotConfiguredError("tasks")
-        credentials = await connector_service.get_connector_credentials(user.id, resolved_type)
-        if not credentials:
-            raise ConnectorNotConfiguredError("tasks")
-        client_class = ClientRegistry.get_client_class(resolved_type)
-        if client_class is None:
-            raise ConnectorNotConfiguredError("tasks")
-        client = client_class(user.id, credentials, connector_service)
-
-        task_list_id = await resolve_owner_task_list_id(
-            db=db, client=client, owner_id=user.id, connector_type=resolved_type
-        )
-    return client, task_list_id
-
-
 def _task_to_item(task: dict[str, Any], today_local: date) -> TaskItem | None:
     """Map one provider-normalized task to a TaskItem (None if not pending).
 
@@ -541,24 +514,37 @@ async def fetch_tasks(*, user: User, user_tz: ZoneInfo) -> TasksData:
         ConnectorNotConfiguredError: if no active tasks connector.
         ConnectorAccessError: on credential or HTTP failure.
     """
-    client, task_list_id = await _resolve_tasks_client(user)
+    from src.domains.connectors.active_client import ActiveClient, open_active_client
+    from src.domains.connectors.preferences.owner_defaults import (
+        TASK_LIST,
+        resolve_owner_container_id,
+    )
 
     today_local = datetime.now(user_tz).date()
     due_max = (datetime.now(UTC) + timedelta(days=settings.briefing_tasks_horizon_days)).strftime(
         "%Y-%m-%dT%H:%M:%SZ"
     )
-    try:
-        result = await client.list_tasks(
-            task_list_id=task_list_id,
-            max_results=settings.briefing_max_tasks_items * 4,
-            show_completed=False,
-            due_max=due_max,
-        )
-    except (TimeoutError, httpx.HTTPError, MaxRetriesExceededError) as exc:
-        cause = getattr(exc, "last_error", None) or exc
-        raise ConnectorAccessError("tasks", _classify_http_error(cause), str(exc)) from exc
-    finally:
-        await client.close()
+    # Same door as the heartbeat: provider, credentials and the preferred
+    # list's NAME in one short session; nothing held while Tasks answers.
+    async with open_active_client("tasks", user.id, container=TASK_LIST) as opened:
+        if not isinstance(opened, ActiveClient):
+            raise ConnectorNotConfiguredError("tasks")
+        try:
+            task_list_id = await resolve_owner_container_id(
+                client=opened.client,
+                name=opened.preferred_name,
+                owner_id=user.id,
+                container=TASK_LIST,
+            )
+            result = await opened.client.list_tasks(
+                task_list_id=task_list_id,
+                max_results=settings.briefing_max_tasks_items * 4,
+                show_completed=False,
+                due_max=due_max,
+            )
+        except (TimeoutError, httpx.HTTPError, MaxRetriesExceededError) as exc:
+            cause = getattr(exc, "last_error", None) or exc
+            raise ConnectorAccessError("tasks", _classify_http_error(cause), str(exc)) from exc
 
     raw_items = result.get("items", []) or []
     items = [item for task in raw_items if (item := _task_to_item(task, today_local)) is not None]
@@ -584,14 +570,15 @@ async def fetch_documents(
     """
     from src.domains.briefing.formatters import _format_trigger_at_local
 
-    async with get_db_context() as db:
-        connector_service = ConnectorService(db)
-        credentials = await connector_service.get_connector_credentials(
-            user.id, ConnectorType.GOOGLE_DRIVE
-        )
-        if not credentials:
-            raise ConnectorNotConfiguredError("drive")
-        client = GoogleDriveClient(user.id, credentials, connector_service)
+    # Read in a session of its own, closed before Drive is called; the client
+    # refreshes its token through a detached service (ADR-304) — it used to
+    # outlive the session it had borrowed.
+    connectors = DetachedConnectorService()
+    async with connectors.unit_of_work() as service:
+        credentials = await service.get_connector_credentials(user.id, ConnectorType.GOOGLE_DRIVE)
+    if not credentials:
+        raise ConnectorNotConfiguredError("drive")
+    client = GoogleDriveClient(user.id, credentials, connectors)
 
     try:
         # Empty query + files_only → all non-trashed files, modifiedTime desc.

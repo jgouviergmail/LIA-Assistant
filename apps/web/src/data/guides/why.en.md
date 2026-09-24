@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version**: 6.0
-**Date**: 2026-09-22
-**Application**: LIA v1.47.1
+**Version**: 6.1
+**Date**: 2026-09-24
+**Application**: LIA v1.47.2
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -131,11 +131,11 @@ Talk to LIA as you would to a human assistant — no commands to memorize, no sy
 
 ### 3.3. Web intelligence and environment
 
-Wikipedia, page browsing, places, weather and air quality ask nothing of you: a new account starts with them active.
+Wikipedia, page browsing, places, weather and air quality ask nothing of you: your instance provides them to every account, always on, with nothing to configure.
 
 - **Web search**: multi-source search (Brave Search, Perplexity, Wikipedia) for comprehensive, sourced answers
 - **Weather**: current conditions and 5-day forecasts, with change detection (rain start/end, temperature drops, wind alerts)
-- **Air quality and pollen**: the air-quality index and in-season pollen types, attached to any weather answer when the service is enabled — with the category the provider itself publishes, and your country's index when one exists
+- **Air quality and pollen**: the air-quality index and in-season pollen types, attached to any weather answer — with the category the provider itself publishes, and your country's index when one exists
 - **Places and businesses**: nearby location search with details, hours, reviews
 - **Routing**: multi-modal route calculation (car, walking, cycling, transit) with automatic geolocation
 - **Position on the move**: when your live position is unavailable (a mobile app left dormant), LIA uses your last remembered position — if you enabled it — rather than your home address, and always states that position's age instead of presenting it as current
@@ -152,7 +152,7 @@ LIA offers a complete voice mode:
 
 ### 3.5. Creation and media
 
-- **Image generation**: create images from text descriptions, edit existing photos
+- **Image generation**: create images from text descriptions, edit existing photos — with OpenAI's GPT Image or Qwen Image 3.0, whichever model the administrator chose; your quality, size and format preferences adapt to what the model can do, never moving to a dearer option
 - **Document generation**: ask for a CSV, an Excel sheet, a Word report, a PowerPoint or a PDF — a dedicated writer model produces the content in your language, then a local renderer builds the real file with its format's own codes: 16:9 slides whose layout follows the intent, a table of contents and pagination computed by Word, typed Excel columns under a filterable Table, exact page numbers and bookmarks in the PDF. Text is measured before it is placed, so nothing overflows; and if the model is cut short, LIA says so instead of handing you an amputated document. The file arrives as a downloadable card with an explicit expiry
 - **Excalidraw diagrams**: generate diagrams and schemas directly in conversation
 - **Attachments**: attach photos and PDFs — LIA analyzes visual content and extracts text from documents; the « + » also offers every document of your knowledge spaces, a paused space included, as a copy for that message
@@ -245,6 +245,8 @@ Each user gets their own account with:
 - Their own connectors (Google, Microsoft, Apple)
 - Their private knowledge spaces
 
+An account opens only with the administrator's approval, and no shortcut goes around it: signing in with Google proves an address, never an approval — a pending registration or a blocked account stays as it is.
+
 ### 4.2. Per-user usage management
 
 The administrator maintains control over consumption:
@@ -315,6 +317,8 @@ You're not paying a subscription that hides the real costs. You see exactly what
 The same transparency applies to actions: under every response, a collapsed “⚙ N steps · X s” line unfolds what actually happened — routing, tools called, duration — and that trace is stored with the message: it survives reloads, on every device. Every response can also be rated with a discreet 👍/👎, remembered and fed back into the assistant's learning — never used to regenerate the answer on your behalf.
 
 The rule has no exception by path. Everything the platform pays for you with its own keys reaches your usage and your limits, whatever the modality: a map lookup during a phone call or a direct live session, the weather calls of the morning briefing, the geocoding of your address, a place photo shown to you (counted when it is displayed, never in advance), a voice synthesis (counted only for the sentences actually delivered). A phone bill and a live session card show one figure for what the run cost, Maps euros included. And what you pay with your **own** connector keys — a live model, the phone agent, a web search — stays outside: shown to you where it happens, recorded nowhere.
+
+And the figure shown is the one the provider really bills: tariffs are re-read on its pages, a write to a model's cache counts at its own price, an off-peak hour knows its days (weekends, when the provider does it), a route is counted at the tier its request triggers — and a price the administrator edits reaches every server at once.
 
 ### 6.4. Trust through evidence
 
@@ -468,6 +472,8 @@ That demand reaches down to the machine. A server is several processes, and "the
 ### 8.3. An anti-hallucination pipeline
 
 The response system features a three-layer anti-hallucination mechanism: data formatting with explicit boundaries, directives enforcing exclusive use of verified data, and explicit edge case handling. The LLM is constrained to synthesize only what comes from actual tool results. And what the model reads is true: a prompt states only what the code enforces — a published bound is the applied bound, a number comes from a setting — and an instruction is emitted only when its content exists.
+
+A failure, for its part, is **said, never guessed**: when a service fails, LIA names which one and what it answered, instead of inventing a configuration problem — measured before the fix, one answer in three did so on the turns where a tool had failed. And in autonomous mode, an answer is judged on its result: what LIA set out to obtain ends obtained, or declared at the end of the answer with what it tried; a fact that came from another source carries that source.
 
 ### 8.4. Human-in-the-Loop with 6 levels
 

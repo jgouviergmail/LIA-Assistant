@@ -43,7 +43,9 @@ def _pricing_row(model_name: str, input_price: str, unit: str = "per_1m_tokens")
         audio_output_unit_price=None,
         pricing_unit=SimpleNamespace(value=unit),
         time_slots=None,
-        model=SimpleNamespace(model_name=model_name),
+        # A catalogue row always carries its provider (NOT NULL): the index reads
+        # it to set the tariff's cache-write multiplier (ADR-306).
+        model=SimpleNamespace(model_name=model_name, provider=SimpleNamespace(value="openai")),
     )
 
 

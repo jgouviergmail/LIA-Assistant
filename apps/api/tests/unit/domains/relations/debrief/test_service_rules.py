@@ -491,7 +491,11 @@ class TestWhatTheUsageLogRecords:
 
         tracker = AsyncMock()
         usage = SimpleNamespace(
-            tokens_in=10, tokens_out=20, tokens_cache=0, model_name="gpt-4.1-mini"
+            tokens_in=10,
+            tokens_out=20,
+            tokens_cache=0,
+            tokens_cache_write=0,
+            model_name="gpt-4.1-mini",
         )
         with patch("src.infrastructure.proactive.tracking.track_proactive_tokens", tracker):
             await RelationDebriefService(uuid4())._track(usage, "gerard dupont", "run-probe")
@@ -509,7 +513,9 @@ class TestWhatTheUsageLogRecords:
         from src.domains.relations.debrief.service import RelationDebriefService
 
         tracker = AsyncMock()
-        usage = SimpleNamespace(tokens_in=0, tokens_out=0, tokens_cache=0, model_name="m")
+        usage = SimpleNamespace(
+            tokens_in=0, tokens_out=0, tokens_cache=0, tokens_cache_write=0, model_name="m"
+        )
         with patch("src.infrastructure.proactive.tracking.track_proactive_tokens", tracker):
             await RelationDebriefService(uuid4())._track(usage, "gerard dupont", "run-probe")
 
@@ -523,7 +529,9 @@ class TestWhatTheUsageLogRecords:
         from src.domains.relations.debrief.service import RelationDebriefService
 
         tracker = AsyncMock()
-        usage = SimpleNamespace(tokens_in=1, tokens_out=1, tokens_cache=0, model_name="m")
+        usage = SimpleNamespace(
+            tokens_in=1, tokens_out=1, tokens_cache=0, tokens_cache_write=0, model_name="m"
+        )
         with patch("src.infrastructure.proactive.tracking.track_proactive_tokens", tracker):
             await RelationDebriefService(uuid4())._track(usage, "gérard dupont", "run-probe")
 

@@ -44,6 +44,7 @@ from src.core.exceptions import (
 )
 from src.core.i18n_api_messages import APIMessages
 from src.domains.connectors.schemas import ConnectorCredentials
+from src.domains.connectors.session_scope import connector_unit_of_work, owns_session
 from src.infrastructure.cache.redis import get_redis_session
 from src.infrastructure.locks import OAuthLock
 from src.infrastructure.rate_limiting import RedisRateLimiter, get_rate_limiter
@@ -90,7 +91,7 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
         self,
         user_id: UUID,
         credentials: ConnectorCredentials,
-        connector_service: Any,  # ConnectorService (avoid circular import)
+        connector_service: Any,  # ConnectorService or DetachedConnectorService
         rate_limit_per_second: int = DEFAULT_RATE_LIMIT_PER_SECOND,
     ) -> None:
         """
@@ -99,7 +100,11 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
         Args:
             user_id: User UUID.
             credentials: OAuth credentials (access_token, refresh_token, expires_at).
-            connector_service: Service for token refresh operations.
+            connector_service: Where the client's own writes (a refreshed token,
+                an invalidated connector) run: the caller's ``ConnectorService``,
+                whose session the client never closes, or a
+                ``DetachedConnectorService`` when the caller holds no session
+                (``connectors/session_scope.py``, ADR-304).
             rate_limit_per_second: Max requests per second (default: 10).
         """
         self.user_id = user_id
@@ -399,11 +404,15 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
             refresh_margin_seconds=OAUTH_TOKEN_REFRESH_MARGIN_SECONDS,
         )
 
-        # Use Redis lock to prevent multiple refresh attempts
+        # Use Redis lock to prevent multiple refresh attempts. The writes run
+        # through the one seam that never closes a caller's session (ADR-304).
         redis_session = await get_redis_session()
-        async with OAuthLock(redis_session, self.user_id, self.connector_type):
+        async with (
+            OAuthLock(redis_session, self.user_id, self.connector_type),
+            connector_unit_of_work(self.connector_service) as service,
+        ):
             # Double-check token still needs refresh (another coroutine might have refreshed)
-            fresh_credentials = await self.connector_service.get_connector_credentials(
+            fresh_credentials = await service.get_connector_credentials(
                 self.user_id, self.connector_type
             )
 
@@ -425,48 +434,55 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
             # Refresh token
             from src.domains.connectors.repository import ConnectorRepository
 
-            # Get connector from DB
-            async with self.connector_service.db as db:
-                repo = ConnectorRepository(db)
-                connector = await repo.get_by_user_and_type(self.user_id, self.connector_type)
+            # Get connector from DB — on the unit of work's session, which is
+            # the caller's own and is therefore used, never entered (entering
+            # an AsyncSession closes it and expunges the caller's rows).
+            connector = await ConnectorRepository(service.db).get_by_user_and_type(
+                self.user_id, self.connector_type
+            )
 
-                if not connector:
-                    raise ResourceNotFoundError(
-                        resource_type="connector",
-                        detail=f"{connector_type_value} connector not found",
-                        connector_type=connector_type_value,
-                    )
-
-                # Ensure we have fresh credentials to use for refresh
-                if not fresh_credentials:
-                    logger.error(
-                        "oauth_token_refresh_no_credentials",
-                        user_id=str(self.user_id),
-                        connector_type=connector_type_value,
-                    )
-                    raise ValidationError(
-                        detail=f"No credentials found for {connector_type_value} connector",
-                        connector_type=connector_type_value,
-                    )
-
-                # Refresh via connector service using fresh_credentials from DB
-                refreshed_credentials = await self.connector_service._refresh_oauth_token(
-                    connector, fresh_credentials
+            if not connector:
+                raise ResourceNotFoundError(
+                    resource_type="connector",
+                    detail=f"{connector_type_value} connector not found",
+                    connector_type=connector_type_value,
                 )
-                self.credentials = refreshed_credentials
-                with suppress(Exception):
-                    from src.infrastructure.observability.metrics import (
-                        connector_token_refresh_total,
-                    )
 
-                    connector_token_refresh_total.labels(
-                        connector_type=connector_type_value, status="success"
-                    ).inc()
-                logger.info(
-                    "oauth_token_refreshed_success",
+            # Ensure we have fresh credentials to use for refresh
+            if not fresh_credentials:
+                logger.error(
+                    "oauth_token_refresh_no_credentials",
                     user_id=str(self.user_id),
                     connector_type=connector_type_value,
                 )
+                raise ValidationError(
+                    detail=f"No credentials found for {connector_type_value} connector",
+                    connector_type=connector_type_value,
+                )
+
+            if owns_session(self.connector_service):
+                # The token endpoint is a network call: a session nobody shares
+                # ends its reads' transaction before it, so no pooled
+                # connection waits on the provider. A caller's transaction is
+                # the caller's to end (ADR-304).
+                await service.db.commit()
+
+            # Refresh via connector service using fresh_credentials from DB
+            refreshed_credentials = await service._refresh_oauth_token(connector, fresh_credentials)
+            self.credentials = refreshed_credentials
+            with suppress(Exception):
+                from src.infrastructure.observability.metrics import (
+                    connector_token_refresh_total,
+                )
+
+                connector_token_refresh_total.labels(
+                    connector_type=connector_type_value, status="success"
+                ).inc()
+            logger.info(
+                "oauth_token_refreshed_success",
+                user_id=str(self.user_id),
+                connector_type=connector_type_value,
+            )
 
         return self.credentials.access_token
 
@@ -907,45 +923,49 @@ class BaseOAuthClient(ABC, Generic[ConnectorTypeT]):  # noqa: UP046
             from src.domains.connectors.models import ConnectorStatus
             from src.domains.connectors.repository import ConnectorRepository
 
-            async with self.connector_service.db as db:
-                repo = ConnectorRepository(db)
-                connector = await repo.get_by_user_and_type(self.user_id, self.connector_type)
+            # The unit of work's session is used, never entered: entering an
+            # AsyncSession closes it and expunges the caller's rows (ADR-304).
+            async with connector_unit_of_work(self.connector_service) as service:
+                db = service.db
+                connector = await ConnectorRepository(db).get_by_user_and_type(
+                    self.user_id, self.connector_type
+                )
 
-                if connector:
-                    connector.status = ConnectorStatus.ERROR
-
-                    error_info = {
-                        "last_error": (
-                            error_detail[:500] if error_detail else "OAuth authentication failed"
-                        ),
-                        "error_at": datetime.now(UTC).isoformat(),
-                        "error_type": "oauth_authentication_failed",
-                    }
-                    # New-dict reassignment — in-place JSONB mutation is
-                    # silently dropped by SQLAlchemy
-                    connector.connector_metadata = {
-                        **(connector.connector_metadata or {}),
-                        **error_info,
-                    }
-
-                    await db.flush()
-                    await db.commit()
-
-                    logger.warning(
-                        "connector_invalidated_auth_failure",
-                        user_id=str(self.user_id),
-                        connector_id=str(connector.id),
-                        connector_type=connector_type_value,
-                        error_detail=error_detail[:200] if error_detail else None,
-                    )
-
-                    await self.connector_service._invalidate_user_connectors_cache(self.user_id)
-                else:
+                if not connector:
                     logger.warning(
                         "connector_not_found_for_invalidation",
                         user_id=str(self.user_id),
                         connector_type=connector_type_value,
                     )
+                    return
+
+                connector.status = ConnectorStatus.ERROR
+                error_info = {
+                    "last_error": (
+                        error_detail[:500] if error_detail else "OAuth authentication failed"
+                    ),
+                    "error_at": datetime.now(UTC).isoformat(),
+                    "error_type": "oauth_authentication_failed",
+                }
+                # New-dict reassignment — in-place JSONB mutation is
+                # silently dropped by SQLAlchemy
+                connector.connector_metadata = {
+                    **(connector.connector_metadata or {}),
+                    **error_info,
+                }
+
+                await db.flush()
+                await db.commit()
+
+                logger.warning(
+                    "connector_invalidated_auth_failure",
+                    user_id=str(self.user_id),
+                    connector_id=str(connector.id),
+                    connector_type=connector_type_value,
+                    error_detail=error_detail[:200] if error_detail else None,
+                )
+
+                await service._invalidate_user_connectors_cache(self.user_id)
 
         except Exception as e:
             logger.error(

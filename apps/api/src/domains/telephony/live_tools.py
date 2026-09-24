@@ -409,6 +409,8 @@ async def detach_live_tools(
     )
     if creds is None or not creds.api_key:
         return False
+    # The reads end before the vendor is asked (ADR-304).
+    await db.commit()
     client = (client_factory or ElevenLabsAgentsClient)(creds.api_key)
     if not await attach_live_tools(client, connector, ()):
         return False

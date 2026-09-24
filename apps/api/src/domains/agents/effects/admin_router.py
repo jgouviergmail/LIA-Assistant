@@ -26,6 +26,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.client_ip import resolve_client_ip
 from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.dependencies import get_db
@@ -239,7 +240,7 @@ async def read_admin_view(
                 resource_type="agent_effects",
                 resource_id=scoped_to,
                 details={"row_count": len(rows), "scoped_to_user": scoped_to is not None},
-                ip_address=request.client.host if request.client else None,
+                ip_address=resolve_client_ip(request),
                 user_agent=request.headers.get("user-agent"),
             )
         )
@@ -308,7 +309,7 @@ def _audit_unmask(
             resource_type="agent_effects",
             resource_id=None,
             details={"row_count": row_count, "scope": scope, "surface": "readable_export"},
-            ip_address=request.client.host if request.client else None,
+            ip_address=resolve_client_ip(request),
             user_agent=request.headers.get("user-agent"),
         )
     )

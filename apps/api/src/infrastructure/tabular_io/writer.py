@@ -125,6 +125,11 @@ def _cell_value(column: ColumnSpec, raw: Any, labels: Mapping[str, str]) -> Any:
     """
     if raw is None or raw == "":
         return None
+    if column.kind == "enum_list" and isinstance(raw, (list, tuple)):
+        # The reader splits the cell on commas; the writer joins the same way,
+        # or the round trip the spec promises breaks on the first list column.
+        joined = ", ".join(str(item) for item in raw)
+        return neutralize_formula(joined) if joined else None
     if column.kind == "boolean":
         return _label(
             labels, "boolean.true" if raw else "boolean.false", "TRUE" if raw else "FALSE"
@@ -253,7 +258,11 @@ def _attach_validations(sheet: Worksheet, spec: SheetSpec, row_count: int) -> No
                 formula1=f"=LST_{referential}",
                 allow_blank=True,
                 showDropDown=False,
-                showErrorMessage=True,
+                # A list column holds SEVERAL values in one cell, and Excel's
+                # list check compares the whole cell to one entry: it would
+                # refuse "mon, fri". There the arrow only offers the values and
+                # the reader, which splits the cell, is the one that checks.
+                showErrorMessage=column.kind != "enum_list",
             )
             sheet.add_data_validation(listing)
             listing.add(cells)

@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from src.core.client_ip import resolve_client_ip
 from src.core.dependencies import get_db
 from src.core.exceptions import (
     raise_invalid_input,
@@ -44,8 +45,7 @@ from src.domains.llm.service import (
     TimeSlotsUnitMismatchError,
 )
 from src.domains.users.models import AdminAuditLog, User
-from src.infrastructure.cache.pricing_cache import PricingCacheService
-from src.infrastructure.cache.redis import get_redis_cache
+from src.infrastructure.cache.pricing_cache import refresh_and_publish_pricing_cache
 from src.infrastructure.llm.model_capabilities_cache import ModelCapabilitiesCache
 
 
@@ -106,8 +106,7 @@ async def _invalidate_caches(db: AsyncSession) -> None:
     ModelCapabilitiesCache) and to all uvicorn workers via Redis Pub/Sub.
     """
     await ModelCapabilitiesCache.invalidate_and_reload(db)
-    redis = await get_redis_cache()
-    await PricingCacheService(redis).refresh_from_database()
+    await refresh_and_publish_pricing_cache()
 
 
 logger = structlog.get_logger(__name__)
@@ -395,7 +394,7 @@ async def create_pricing(
             # Counts only — the slot prices are already visible on the row.
             "time_slots_count": len(pricing.time_slots or []),
         },
-        ip_address=request.client.host if request.client else None,
+        ip_address=resolve_client_ip(request),
         user_agent=request.headers.get("user-agent"),
     )
     db.add(audit_entry)
@@ -482,7 +481,7 @@ async def update_pricing(
             "new_pricing_id": str(new_pricing.id) if new_pricing else None,
             "time_slots_count": (len(new_pricing.time_slots or []) if new_pricing else None),
         },
-        ip_address=request.client.host if request.client else None,
+        ip_address=resolve_client_ip(request),
         user_agent=request.headers.get("user-agent"),
     )
     db.add(audit_entry)
@@ -546,7 +545,7 @@ async def deactivate_pricing(
             FIELD_MODEL_NAME: model_name,
             "pricing_id": str(pricing_id),
         },
-        ip_address=request.client.host if request.client else None,
+        ip_address=resolve_client_ip(request),
         user_agent=request.headers.get("user-agent"),
     )
     db.add(audit_entry)
@@ -579,18 +578,12 @@ async def reload_pricing_cache(
     Use after manual DB edits, or to recover from a stale cache without
     waiting for TTL expiration.
     """
-    from src.infrastructure.cache.pricing_cache import (
-        PricingCacheService,
-        get_cache_stats,
-    )
-    from src.infrastructure.cache.redis import get_redis_cache
+    from src.infrastructure.cache.pricing_cache import get_cache_stats
 
-    redis = await get_redis_cache()
-    pricing_service = PricingCacheService(redis)
-
-    # Invalidate + refresh the pricing cache (Redis-backed)
-    await pricing_service.invalidate()
-    success = await pricing_service.refresh_from_database()
+    # Rebuild from the database, then tell every worker (ADR-063). The local
+    # copy is never emptied first: a rebuild that failed would have left this
+    # worker billing every call at zero.
+    success = await refresh_and_publish_pricing_cache()
     if not success:
         raise_invalid_input("Failed to refresh pricing cache from database")
 
@@ -606,7 +599,7 @@ async def reload_pricing_cache(
         resource_type="llm_model_pricing",
         resource_id=None,
         details={"cache_stats": stats},
-        ip_address=request.client.host if request.client else None,
+        ip_address=resolve_client_ip(request),
         user_agent=request.headers.get("user-agent"),
     )
     db.add(audit_entry)
@@ -683,6 +676,10 @@ async def create_currency_rate(
     )
     await db.commit()
     await db.refresh(new_rate)
+    # The pricing cache converts every cost to euros with the rate it read at
+    # its last rebuild: without this, no worker used the new rate until it
+    # restarted.
+    await refresh_and_publish_pricing_cache()
 
     logger.info(
         "currency_rate_created",

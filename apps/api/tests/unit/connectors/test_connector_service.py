@@ -1133,73 +1133,25 @@ class TestAPIKeyMetadata:
     """Tests for API key connector metadata management."""
 
     @pytest.mark.asyncio
-    async def test_get_api_key_credentials_updates_last_used(self):
-        """Test get_api_key_credentials updates last_used_at (Lines 1279-1281)."""
-        mock_db = AsyncMock()
-        service = ConnectorService(mock_db)
+    async def test_the_last_used_stamp_is_written_apart_from_the_callers_session(self):
+        """ADR-304: a READ of credentials leaves nothing in its caller's session.
 
-        user_id = uuid.uuid4()
-        connector_type = ConnectorType.GOOGLE_GMAIL
-
-        # Create real encrypted credentials
-        credentials_data = {
-            "api_key": "test_key_123",
-            "api_secret": "secret_456",
-            "key_name": "Test Key",
-            "expires_at": None,
-        }
-        encrypted_creds = create_encrypted_credentials(credentials_data)
-
-        # Mock active connector with metadata (last_used_at)
-        old_last_used = datetime.now(UTC) - timedelta(hours=24)
-        mock_connector = create_mock_connector(
-            user_id=user_id,
-            connector_type=connector_type,
-            status=ConnectorStatus.ACTIVE,
-            scopes=[],
-            connector_metadata={"last_used_at": old_last_used.isoformat()},
-            credentials_encrypted=encrypted_creds,
-        )
-        service.repository.get_by_user_and_type = AsyncMock(return_value=mock_connector)
-
-        # Lines 1279-1281 executed: last_used_at update
-        result = await service.get_api_key_credentials(user_id, connector_type)
-
-        assert result is not None
-        # Verify last_used_at was updated (should be more recent)
-        updated_last_used = datetime.fromisoformat(
-            mock_connector.connector_metadata["last_used_at"]
-        )
-        assert updated_last_used > old_last_used
-        # Line 1281: Uses flush(), not commit()
-        mock_db.flush.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_get_api_key_credentials_reassigns_metadata_new_dict(self):
-        """last_used_at update must REASSIGN a new dict, not mutate in place.
-
-        SQLAlchemy silently skips the UPDATE when a JSONB column is mutated
-        in place, so last_used_at would never be persisted (audit wave 2, B5).
-        The new-object identity is the observable proxy for "will be flushed".
+        The stamp used to reassign the metadata and FLUSH it on the caller's
+        session — an UPDATE holding the row for the caller's whole transaction.
+        It is now written by ``stamp_api_key_use`` in a transaction of its own
+        (proved on PostgreSQL in tests/integration/domains/connectors/
+        test_api_key_use_stamp.py); the caller's object and session stay as read.
         """
         mock_db = AsyncMock()
         service = ConnectorService(mock_db)
-
         user_id = uuid.uuid4()
-        connector_type = ConnectorType.GOOGLE_GMAIL
-
-        credentials_data = {
-            "api_key": "test_key_123",
-            "api_secret": "secret_456",
-            "key_name": "Test Key",
-            "expires_at": None,
-        }
-        encrypted_creds = create_encrypted_credentials(credentials_data)
-
+        encrypted_creds = create_encrypted_credentials(
+            {"api_key": "test_key_123", "api_secret": None, "key_name": "Test Key"}
+        )
         original_metadata = {"key_name": "Test Key"}
         mock_connector = create_mock_connector(
             user_id=user_id,
-            connector_type=connector_type,
+            connector_type=ConnectorType.GOOGLE_GMAIL,
             status=ConnectorStatus.ACTIVE,
             scopes=[],
             connector_metadata=original_metadata,
@@ -1207,16 +1159,16 @@ class TestAPIKeyMetadata:
         )
         service.repository.get_by_user_and_type = AsyncMock(return_value=mock_connector)
 
-        result = await service.get_api_key_credentials(user_id, connector_type)
+        with patch(
+            "src.domains.connectors.service.stamp_api_key_use", new_callable=AsyncMock
+        ) as stamp:
+            result = await service.get_api_key_credentials(user_id, ConnectorType.GOOGLE_GMAIL)
 
-        assert result is not None
-        # New dict object (in-place mutation would keep the same identity)
-        assert mock_connector.connector_metadata is not original_metadata
-        # Existing keys preserved, last_used_at added
-        assert mock_connector.connector_metadata["key_name"] == "Test Key"
-        assert "last_used_at" in mock_connector.connector_metadata
-        # Original dict untouched (no side effect on the old object)
+        assert result is not None and result.api_key == "test_key_123"
+        stamp.assert_awaited_once_with(mock_connector.id)
+        assert mock_connector.connector_metadata is original_metadata
         assert "last_used_at" not in original_metadata
+        mock_db.flush.assert_not_awaited()
 
 
 # ========================================================================

@@ -21,6 +21,7 @@ Usage:
         language: str | None = None
 """
 
+import re
 from collections.abc import Sequence
 from datetime import datetime
 from typing import Any
@@ -177,38 +178,37 @@ class ImageGenerationValidatorMixin:
 
     Add to any Pydantic model that has image_generation_default_quality,
     image_generation_default_size, or image_generation_output_format fields.
+
+    A quality or size preference is an INTENT (ADR-305): what it may be depends on
+    the image model the administrator configured, which can change after it was
+    stored. Only its shape is validated here; the image domain maps it onto the
+    configured model's offer at run time (``image_generation/preferences.py``).
     """
 
     @field_validator("image_generation_default_quality", mode="before", check_fields=False)
     @classmethod
     def validate_image_generation_quality(cls, v: str | None) -> str | None:
-        """Validate image generation quality is supported."""
+        """Validate the shape of an image quality preference."""
         if v is None:
             return v
 
-        from src.core.constants import IMAGE_GENERATION_VALID_QUALITIES
+        from src.core.constants import IMAGE_GENERATION_QUALITY_PATTERN
 
-        if v not in IMAGE_GENERATION_VALID_QUALITIES:
-            raise ValueError(
-                f"Invalid image quality: {v}. "
-                f"Must be one of {', '.join(IMAGE_GENERATION_VALID_QUALITIES)}"
-            )
+        if not re.fullmatch(IMAGE_GENERATION_QUALITY_PATTERN, v):
+            raise ValueError(f"Invalid image quality: {v}. Expected a short lowercase token")
         return v
 
     @field_validator("image_generation_default_size", mode="before", check_fields=False)
     @classmethod
     def validate_image_generation_size(cls, v: str | None) -> str | None:
-        """Validate image generation size is supported."""
+        """Validate the shape of an image size preference (WIDTHxHEIGHT)."""
         if v is None:
             return v
 
-        from src.core.constants import IMAGE_GENERATION_VALID_SIZES
+        from src.core.constants import IMAGE_GENERATION_SIZE_PATTERN
 
-        if v not in IMAGE_GENERATION_VALID_SIZES:
-            raise ValueError(
-                f"Invalid image size: {v}. "
-                f"Must be one of {', '.join(IMAGE_GENERATION_VALID_SIZES)}"
-            )
+        if not re.fullmatch(IMAGE_GENERATION_SIZE_PATTERN, v):
+            raise ValueError(f"Invalid image size: {v}. Expected WIDTHxHEIGHT")
         return v
 
     @field_validator("image_generation_output_format", mode="before", check_fields=False)

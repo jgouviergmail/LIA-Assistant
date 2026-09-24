@@ -36,6 +36,7 @@ from src.core.constants import (
     REDIS_KEY_WAKE_PAYLOAD_PREFIX,
     REDIS_KEY_WAKE_PENDING,
 )
+from src.infrastructure.observability.metrics_push_channels import push_wakes_enqueued_total
 
 logger = structlog.get_logger(__name__)
 
@@ -49,14 +50,18 @@ class WakePayload:
         provider: ``google_gmail`` | ``google_calendar`` | ``google_drive``.
         enqueued_at: When the FIRST notification of the pair was queued (UTC).
         history_id: Gmail history id carried by the notification, if any.
-        page_token: Drive changes page token to consume, if any.
+
+    A Drive wake carries no page token: the channel row is the only authority
+    on where its feed resumes. A token copied into the queue at notification
+    time was read DURING the previous drain, and made every drain replay the
+    one before it (ADR-304, measured 2026-09-22). Payloads queued before that
+    change still parse — the key is simply ignored.
     """
 
     user_id: UUID
     provider: str
     enqueued_at: datetime
     history_id: int | None = None
-    page_token: str | None = None
     # Enriched by the sweep, in process only (never persisted): what the
     # pre-filter fetched, handed to the aggregator so nothing is read twice.
     messages: tuple[dict[str, Any], ...] = ()
@@ -71,7 +76,6 @@ class WakePayload:
                 "provider": self.provider,
                 "enqueued_at": self.enqueued_at.isoformat(),
                 "history_id": self.history_id,
-                "page_token": self.page_token,
             }
         )
 
@@ -84,7 +88,6 @@ class WakePayload:
                 provider=str(data["provider"]),
                 enqueued_at=datetime.fromisoformat(str(data["enqueued_at"])),
                 history_id=int(data["history_id"]) if data.get("history_id") is not None else None,
-                page_token=str(data["page_token"]) if data.get("page_token") else None,
             )
         except KeyError, ValueError, TypeError, json.JSONDecodeError:
             return None
@@ -105,7 +108,6 @@ async def enqueue_wake(
     *,
     ttl_seconds: int,
     history_id: int | None = None,
-    page_token: str | None = None,
 ) -> bool:
     """Queue one wake for ``(user, provider)`` (best-effort).
 
@@ -115,7 +117,6 @@ async def enqueue_wake(
         provider: Push provider value.
         ttl_seconds: Staleness bound of the queued payload.
         history_id: Gmail history id from the notification, if any.
-        page_token: Drive changes token to consume, if any.
 
     Returns:
         True when a NEW payload was queued; False when one was already
@@ -126,55 +127,59 @@ async def enqueue_wake(
         provider=provider,
         enqueued_at=datetime.now(UTC),
         history_id=history_id,
-        page_token=page_token,
     )
     try:
         created = await redis.set(
             payload_key(user_id, provider), payload.to_json(), nx=True, ex=ttl_seconds
         )
         await redis.sadd(REDIS_KEY_WAKE_PENDING, str(user_id))
+        if created:
+            push_wakes_enqueued_total.labels(provider=provider).inc()
         return bool(created)
     except Exception as exc:  # noqa: BLE001 — best-effort: a lost wake is a tick, not a bug
         logger.debug("push_wake_enqueue_failed", provider=provider, error=str(exc))
         return False
 
 
-async def pop_wakes(redis: Any, limit: int, providers: tuple[str, ...]) -> list[WakePayload]:
-    """Pop up to ``limit`` users from the queue and collect their payloads.
+async def pop_next_wake(redis: Any, providers: tuple[str, ...]) -> list[WakePayload] | None:
+    """Pop ONE queued user and collect their payloads.
 
-    A user popped with no live payload (expired TTL) yields nothing — that
-    wake is stale by definition. Payloads are DELETED on read: the sweep owns
-    them from here.
+    One at a time on purpose (ADR-304): the sweep used to pop ten users at
+    once and serve them in turn, so one wake that stopped moving held the other
+    nine — other accounts' mail and calendar wakes — for as long as it lasted
+    (22 minutes, measured in production on 2026-09-22). A user still queued is
+    a user the next sweep can serve.
+
+    A user popped with no live payload (expired TTL) yields an empty list —
+    that wake is stale by definition. Payloads are DELETED on read: the sweep
+    owns them from here.
 
     Args:
         redis: Async Redis client.
-        limit: Maximum users to pop.
         providers: The provider values to look up per user.
 
     Returns:
-        The payloads to serve, oldest first.
+        The user's payloads, oldest first; an empty list when they all
+        expired; None when the queue is empty (or Redis failed).
     """
     try:
-        popped = await redis.spop(REDIS_KEY_WAKE_PENDING, limit)
+        popped = await redis.spop(REDIS_KEY_WAKE_PENDING)
     except Exception as exc:  # noqa: BLE001 — best-effort
         logger.debug("push_wake_pop_failed", error=str(exc))
-        return []
+        return None
     if not popped:
-        return []
-    if isinstance(popped, str | bytes):
-        popped = [popped]
+        return None
+    user_str = popped.decode() if isinstance(popped, bytes) else str(popped)
     payloads: list[WakePayload] = []
-    for raw_user in popped:
-        user_str = raw_user.decode() if isinstance(raw_user, bytes) else str(raw_user)
-        for provider in providers:
-            key = payload_key(user_str, provider)
-            raw = await redis.get(key)
-            if not raw:
-                continue
-            await redis.delete(key)
-            payload = WakePayload.from_json(raw)
-            if payload is not None:
-                payloads.append(payload)
+    for provider in providers:
+        key = payload_key(user_str, provider)
+        raw = await redis.get(key)
+        if not raw:
+            continue
+        await redis.delete(key)
+        payload = WakePayload.from_json(raw)
+        if payload is not None:
+            payloads.append(payload)
     payloads.sort(key=lambda p: p.enqueued_at)
     return payloads
 

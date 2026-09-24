@@ -214,6 +214,7 @@ class MetricsCallbackHandler(AsyncCallbackHandler):
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             cached_tokens=cached_tokens,
+            cache_write_tokens=usage.cache_write_tokens,
         )
         # Get configured currency (validated Enum: USD or EUR)
         currency = settings.default_currency.upper()
@@ -577,6 +578,7 @@ class TokenTrackingCallback(AsyncCallbackHandler):
                 prompt_tokens=usage_data.input_tokens,
                 completion_tokens=usage_data.output_tokens,
                 cached_tokens=usage_data.cached_tokens,
+                cache_write_tokens=usage_data.cache_write_tokens,
                 duration_ms=duration_ms,
                 # v3.4 waterfall: real start stamp when the per-call context
                 # captured one (0.0 means the on_llm_start pairing was lost).
@@ -651,6 +653,7 @@ class TokenTrackingCallback(AsyncCallbackHandler):
                 prompt_tokens=0,
                 completion_tokens=0,
                 cached_tokens=0,
+                cache_write_tokens=0,
                 duration_ms=duration_ms,
                 started_at=start_time if start_time > 0 else None,
                 llm_type=call_ctx.get("llm_type"),

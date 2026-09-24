@@ -26,6 +26,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
+from src.domains.connectors.keyless import is_keyless_available
 from src.domains.connectors.models import CONNECTOR_FUNCTIONAL_CATEGORIES, ConnectorType
 from src.domains.connectors.repository import ConnectorRepository
 from src.domains.heartbeat.source_policy import HEARTBEAT_SOURCE_KEYS, HEARTBEAT_SOURCE_ORDER
@@ -59,8 +60,16 @@ async def _emails(user: User, db: AsyncSession, repo: ConnectorRepository) -> bo
 
 
 async def _weather(user: User, db: AsyncSession, repo: ConnectorRepository) -> bool:
+    # The fetcher needs a place, then the category's provider: the person's
+    # own OpenWeatherMap, else Google Weather, which the INSTANCE provides to
+    # every account (ADR-307) — reading OpenWeatherMap alone marked the source
+    # « not connected » on every account served by the default.
+    if not user.home_location_encrypted:
+        return False
     connector = await repo.get_by_user_and_type(user.id, ConnectorType.OPENWEATHERMAP)
-    return bool(connector and connector.status.value == "active" and user.home_location_encrypted)
+    if connector and connector.status.value == "active":
+        return True
+    return await is_keyless_available(repo, ConnectorType.GOOGLE_WEATHER)
 
 
 async def _interests(user: User, db: AsyncSession, repo: ConnectorRepository) -> bool:

@@ -14,7 +14,6 @@ from src.domains.agents.models import MessagesState
 from src.domains.agents.orchestration import (
     create_orchestration_plan,
     get_next_agent_from_plan,
-    should_execute_agent,
 )
 from src.domains.agents.orchestration.schemas import AgentResult, OrchestratorPlan
 
@@ -179,117 +178,6 @@ def test_get_next_agent_from_plan_all_done():
 
     # Assert
     assert next_agent is None  # All agents executed
-
-
-def test_should_execute_agent_not_executed():
-    """Test should execute agent when not yet executed."""
-    # Arrange
-    state: MessagesState = {
-        "messages": [],
-        "metadata": {},
-        "routing_history": [],
-        "agent_results": {},
-        "orchestration_plan": None,
-    }
-
-    # Act
-    should_execute = should_execute_agent("contacts_agent", state)
-
-    # Assert
-    assert should_execute is True
-
-
-def test_should_execute_agent_already_success():
-    """Test should NOT execute agent when already succeeded."""
-    # Arrange
-    result: AgentResult = {
-        "agent_name": "contacts_agent",
-        "status": "success",
-        "data": None,
-        "error": None,
-        "tokens_in": 0,
-        "tokens_out": 0,
-        "duration_ms": 100,
-    }
-
-    state: MessagesState = {
-        "messages": [],
-        "metadata": {},
-        "routing_history": [],
-        "agent_results": {"contacts_agent": result},
-        "orchestration_plan": None,
-    }
-
-    # Act
-    should_execute = should_execute_agent("contacts_agent", state)
-
-    # Assert
-    assert should_execute is False
-
-
-def test_should_execute_agent_connector_disabled():
-    """Test should NOT execute agent when connector disabled."""
-    # Arrange
-    result: AgentResult = {
-        "agent_name": "contacts_agent",
-        "status": "connector_disabled",
-        "data": None,
-        "error": "Connector not activated",
-        "tokens_in": 0,
-        "tokens_out": 0,
-        "duration_ms": 50,
-    }
-
-    state: MessagesState = {
-        "messages": [],
-        "metadata": {},
-        "routing_history": [],
-        "agent_results": {"contacts_agent": result},
-        "orchestration_plan": None,
-    }
-
-    # Act
-    should_execute = should_execute_agent("contacts_agent", state)
-
-    # Assert
-    assert should_execute is False  # Terminal state, don't retry
-
-
-def test_should_execute_agent_error_state():
-    """Test should execute agent when in error state (allows retry)."""
-    # Arrange
-    result: AgentResult = {
-        "agent_name": "contacts_agent",
-        "status": "error",
-        "data": None,
-        "error": "Network timeout",
-        "tokens_in": 0,
-        "tokens_out": 0,
-        "duration_ms": 1000,
-    }
-
-    state: MessagesState = {
-        "messages": [],
-        "metadata": {},
-        "routing_history": [],
-        "agent_results": {"contacts_agent": result},
-        "orchestration_plan": None,
-    }
-
-    # Act
-    # Note: In V1, errors are not retried (agent skipped)
-    # But should_execute_agent returns True to allow manual retry logic
-    should_execute = should_execute_agent("contacts_agent", state)
-
-    # Assert
-    # Current implementation: error is terminal in V1, so False
-    # Future V2: might implement retry logic
-    assert should_execute is True  # Allows retry in future
-
-
-# ==============================================================================
-# Fixtures
-# ==============================================================================
 
 
 @pytest.fixture

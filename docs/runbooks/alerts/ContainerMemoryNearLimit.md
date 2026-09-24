@@ -13,7 +13,7 @@ secondes à quelques minutes selon le service.
 ```promql
 (
   container_memory_working_set_bytes{name=~"lia.*"}
-  / container_spec_memory_limit_bytes{name=~"lia.*"} > 0
+  / (container_spec_memory_limit_bytes{name=~"lia.*"} > 0)
 ) * 100 > 95
 ```
 
@@ -30,8 +30,12 @@ Prometheus est le pire cas : son TSDB mappe en mémoire jusqu'à
 `--storage.tsdb.retention.size` (2 Go en prod) dans un cgroup de 512 Mo. Son
 cache **remplit la limite par construction**. Une alerte basée sur `usage`
 sonnait donc en boucle sur un conteneur parfaitement sain — c'est ce qui a
-motivé le passage à `working_set` (`usage - inactive_file`), la grandeur que le
-noyau utilise réellement pour décider de l'OOM.
+motivé le passage à `working_set` (`usage - inactive_file`). Ce n'est pas
+exactement la grandeur du noyau : il récupère d'abord le cache **inactif**, mais
+les pages de fichiers **actives** restent comptées dans le working set alors
+qu'elles sont encore récupérables. C'est la meilleure approximation que publie
+cAdvisor de ce qui ne peut plus être rendu avant un OOM — la décomposition du
+diagnostic (§ 1) tranche.
 
 **Conséquence pratique** : depuis ce changement, une occurrence de cette alerte
 signale une vraie pression mémoire. Elle mérite d'être traitée, pas acquittée.
@@ -68,7 +72,7 @@ docker inspect lia-<service>-prod --format '{{.State.OOMKilled}} {{.RestartCount
 ```
 
 Si `OOMKilled=true`, la limite est franchement insuffisante — passer
-directement à la section « Redimensionner ».
+directement au « Cas D » de la remédiation.
 
 ### 3. Marge sur l'hôte
 
@@ -128,7 +132,24 @@ le worker en cause — voir [ApiWorkerMemoryHigh.md](./ApiWorkerMemoryHigh.md).
 container_memory_working_set_bytes{name="lia-api-prod"}[6h]
 ```
 
-### Cas C — tout service
+### Cas C — le frontend Next.js (`lia-web-prod`)
+
+Node dérive la limite de son tas V8 **du cgroup** quand rien ne la fixe :
+~259 Mo dans un conteneur de 256 Mo (mesuré le 2026-09-22). Le tas seul pouvait
+alors remplir le conteneur, et tout ce qui vit hors du tas (code, buffers,
+optimisation d'images) n'avait plus de place — sans aucune fuite. L'image fixe
+donc le tas sous la limite (`NODE_OPTIONS=--max-old-space-size=320` dans
+`apps/web/Dockerfile.prod`, limite Compose 512M).
+
+```bash
+docker exec lia-web-prod node -e \
+  "console.log(require('v8').getHeapStatistics().heap_size_limit / 1048576)"
+```
+
+Un tas proche de son plafond en plateau est une charge ; une croissance
+linéaire sur des heures est une fuite (comparer `anon` du § 1 sur 6 h).
+
+### Cas D — tout service
 
 Relever la limite, puis redéployer :
 
@@ -159,6 +180,12 @@ Contrôler aussi qu'aucune boucle de redémarrage n'a été introduite
 
 ## Historique
 
+- **2026-09-22** — `lia-web-prod` à 95,32 % de 256M pendant 10 minutes.
+  Diagnostic : pas de fuite, pas de cache de fichiers — le tas V8, dont Node
+  tirait la limite du cgroup lui-même (259 Mo pour 256 Mo). Corrections : tas
+  borné à 320 Mo dans l'image, limite portée à 512M (démonstrateur aligné), et
+  la description de l'alerte ne prétend plus que le working set EST la grandeur
+  de l'OOM.
 - **2026-08-16** — ~15 alertes sur plusieurs jours, toutes sur les conteneurs
   `lia-demo-instance-*`. Diagnostic : 7 services du démonstrateur n'avaient
   aucun `mem_limit`, cAdvisor publie alors `container_spec_memory_limit_bytes`

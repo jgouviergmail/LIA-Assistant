@@ -16,8 +16,12 @@ surface of the ``LLMResult``:
 - response-level ``llm_output["token_usage"]`` (OpenAI-compatible aggregate)
   — fallback only, so a provider populating both is never double-counted.
 
-Counters are *raw provider-reported* values; cache-aware billing adjustments
-(e.g. subtracting cached tokens from the billable input) belong to the caller.
+The counters are in the ONE reader's buckets (``usage_metadata.py``, ADR-306):
+``tokens_in`` is the billable input with the cache reads REMOVED, priced apart
+through ``tokens_cache``, and ``tokens_cache_write`` is the part of
+``tokens_in`` Claude wrote to its prompt cache. They used to be the RAW
+provider values while four of the five callers priced ``tokens_cache`` on top,
+so every cached token was billed twice there.
 """
 
 from __future__ import annotations
@@ -27,47 +31,44 @@ from typing import Any
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.outputs import LLMResult
 
-
-def _cache_read_tokens(meta: dict[str, Any]) -> int:
-    """Cache-read count from ``usage_metadata`` (flat or nested-details shape)."""
-    flat = meta.get("cache_read_input_tokens", 0)
-    if flat:
-        return int(flat)
-    details = meta.get("input_token_details") or {}
-    return int(details.get("cache_read", 0) or 0)
+from src.infrastructure.llm.usage_metadata import (
+    UsageTokens,
+    sum_usage,
+    tokens_from_usage_metadata,
+)
 
 
-def _generation_usage(response: LLMResult) -> tuple[int, int, int, bool]:
+def _generation_usage(response: LLMResult) -> UsageTokens | None:
     """Sum per-generation ``message.usage_metadata`` (LangChain-canonical surface).
 
     Returns:
-        ``(tokens_in, tokens_out, tokens_cache, found)`` — ``found`` is False
-        when no generation carried usage metadata at all.
+        The summed reading, or ``None`` when no generation carried usage
+        metadata at all.
     """
-    tokens_in = tokens_out = tokens_cache = 0
-    found = False
-    for generation_list in response.generations:
-        for gen in generation_list:
-            msg = getattr(gen, "message", None)
-            meta = getattr(msg, "usage_metadata", None) if msg is not None else None
-            if not meta:
-                continue
-            found = True
-            tokens_in += int(meta.get("input_tokens", 0) or 0)
-            tokens_out += int(meta.get("output_tokens", 0) or 0)
-            tokens_cache += _cache_read_tokens(meta)
-    return tokens_in, tokens_out, tokens_cache, found
+    readings = [
+        tokens_from_usage_metadata(meta)
+        for generation_list in response.generations
+        for gen in generation_list
+        if (meta := getattr(getattr(gen, "message", None), "usage_metadata", None))
+    ]
+    return sum_usage(readings) if readings else None
 
 
-def _aggregate_usage(response: LLMResult) -> tuple[int, int, int]:
-    """Usage from ``llm_output["token_usage"]`` (OpenAI-compatible aggregate)."""
+def _aggregate_usage(response: LLMResult) -> UsageTokens:
+    """Usage from ``llm_output["token_usage"]`` (OpenAI-compatible aggregate).
+
+    Its ``prompt_tokens`` includes the cached ones, like ``input_tokens`` does,
+    so it goes through the same reader under the LangChain spelling.
+    """
     llm_output = getattr(response, "llm_output", None) or {}
     token_usage = llm_output.get("token_usage") or {}
     details = token_usage.get("prompt_tokens_details") or {}
-    return (
-        int(token_usage.get("prompt_tokens", 0) or 0),
-        int(token_usage.get("completion_tokens", 0) or 0),
-        int(details.get("cached_tokens", 0) or 0),
+    return tokens_from_usage_metadata(
+        {
+            "input_tokens": token_usage.get("prompt_tokens"),
+            "output_tokens": token_usage.get("completion_tokens"),
+            "input_token_details": {"cache_read": details.get("cached_tokens")},
+        }
     )
 
 
@@ -85,6 +86,7 @@ class TokenCaptureHandler(BaseCallbackHandler):
         self.tokens_in: int = 0
         self.tokens_out: int = 0
         self.tokens_cache: int = 0
+        self.tokens_cache_write: int = 0
 
     @property
     def has_usage(self) -> bool:
@@ -93,11 +95,10 @@ class TokenCaptureHandler(BaseCallbackHandler):
 
     def on_llm_end(self, response: LLMResult, **kwargs: Any) -> None:
         """Extract token usage from the LLM response (both known surfaces)."""
-        tokens_in, tokens_out, tokens_cache, found = _generation_usage(response)
-        if not found:
-            # Fallback surface, reached only when NO generation carried
-            # usage_metadata — the two surfaces can never double-count.
-            tokens_in, tokens_out, tokens_cache = _aggregate_usage(response)
-        self.tokens_in += tokens_in
-        self.tokens_out += tokens_out
-        self.tokens_cache += tokens_cache
+        # Fallback surface, reached only when NO generation carried
+        # usage_metadata — the two surfaces can never double-count.
+        usage = _generation_usage(response) or _aggregate_usage(response)
+        self.tokens_in += usage.prompt
+        self.tokens_out += usage.completion
+        self.tokens_cache += usage.cached
+        self.tokens_cache_write += usage.cache_write

@@ -178,6 +178,18 @@ function build(overrides: Partial<LiveControllerDeps> = {}) {
     flush: vi.fn(),
     dispose: vi.fn(),
     onSpeakingChange: vi.fn(),
+    diagnostics: vi.fn(() => ({
+      chunks: 3,
+      drains: 2,
+      audio_ms: 120,
+      source_rate: 16000,
+      context_rate: 48000,
+      short_gap_count: 0,
+      short_gap_ms: 0,
+      short_gap_bins: new Array<number>(12).fill(0),
+      long_gap_count: 0,
+      max_gap_ms: 0,
+    })),
     isSpeaking: false,
   };
   const stream = { id: 'mic-stream' } as unknown as MediaStream;
@@ -263,6 +275,66 @@ describe('LiveSessionController', () => {
     await token.controller.end();
   });
 
+  it('renews an unused token after a slow iOS microphone permission prompt', async () => {
+    const minted = {
+      ...START,
+      connect_deadline_at: new Date(Date.now() + 60_000).toISOString(),
+    };
+    const post = vi.fn(async (url: string): Promise<unknown> => {
+      if (url === '/live/sessions') return minted;
+      if (url.endsWith('/credential')) return { ...minted, credential: 'tok-fresh' };
+      return {};
+    });
+    const h = build({ api: fakeApi(post) });
+    h.deps.startMic = vi.fn(async () => {
+      vi.setSystemTime(Date.now() + 55_000);
+      return h.mic;
+    });
+    await h.controller.start();
+    expect(post).toHaveBeenCalledWith(`/live/sessions/${SESSION}/credential`, {});
+    expect(h.transport.connects[0].credential).toBe('tok-fresh');
+    expect(useLiveStore.getState().status).toBe('live');
+  });
+
+  it('does not count a system microphone permission prompt as a hidden session', async () => {
+    const h = build();
+    let approve: (mic: typeof h.mic) => void = () => {};
+    h.deps.startMic = vi.fn(
+      () =>
+        new Promise<typeof h.mic>(resolve => {
+          approve = resolve;
+        })
+    );
+    const starting = h.controller.start();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(h.deps.startMic).toHaveBeenCalledTimes(1);
+    h.controller.pageHidden(true);
+    await vi.advanceTimersByTimeAsync(CONFIG.hidden_grace_seconds * 1000 + 1);
+    expect(useLiveStore.getState().status).toBe('connecting');
+    h.controller.pageHidden(false);
+    approve(h.mic);
+    await starting;
+    expect(useLiveStore.getState().status).toBe('live');
+  });
+
+  it('releases a microphone approved after the session was already closed', async () => {
+    const h = build();
+    let approve: (mic: typeof h.mic) => void = () => {};
+    h.deps.startMic = vi.fn(
+      () =>
+        new Promise<typeof h.mic>(resolve => {
+          approve = resolve;
+        })
+    );
+    const starting = h.controller.start();
+    await vi.advanceTimersByTimeAsync(0);
+    await h.controller.end('ended');
+    approve(h.mic);
+    await starting;
+    expect(h.mic.stop).toHaveBeenCalledTimes(1);
+    expect(h.transport.connects).toHaveLength(0);
+  });
+
   it('starts, archives a voice turn, delegates, reconnects on goAway and ends', async () => {
     const h = build();
     await h.controller.start();
@@ -346,6 +418,7 @@ describe('LiveSessionController', () => {
     expect(h.post).toHaveBeenCalledWith(`/live/sessions/${SESSION}/end`, {
       outcome: 'ended',
       detail: null,
+      audio_diagnostics: h.player.diagnostics(),
       provider_conversation_id: null,
     });
     const summary = h.chat.appendMessage.mock.calls.at(-1)?.[0];
@@ -433,6 +506,45 @@ describe('LiveSessionController', () => {
     expect(h.player.enqueue).not.toHaveBeenCalled();
   });
 
+  it('lets the ElevenLabs SDK own iOS audio and sends its transport choice to the API', async () => {
+    const userAgent = vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Chrome iPhone');
+    try {
+      const h = build();
+      h.transport.audio = {
+        ownership: 'managed',
+        inputRate: 48000,
+        outputRate: 48000,
+        chunkMs: 20,
+      };
+      h.deps.api = fakeApi(async (url: string, body?: unknown) => {
+        if (url === '/live/sessions') {
+          expect(body).toEqual({ mode: 'direct', audio_transport: 'webrtc' });
+          return {
+            ...START,
+            provider: 'elevenlabs',
+            mode: 'direct',
+            audio_transport: 'webrtc',
+            tool_names: ['get_events_tool'],
+          };
+        }
+        if (url.endsWith('/end')) return { summary_message_id: null, duration_seconds: 1 };
+        return {};
+      });
+      const createTransport = vi.fn(() => h.transport);
+      h.deps.createTransport = createTransport;
+      const connect = vi.spyOn(h.transport, 'connect');
+      await h.controller.start('direct');
+      expect(createTransport).toHaveBeenCalledWith('elevenlabs', 'webrtc');
+      expect(h.deps.startMic).not.toHaveBeenCalled();
+      expect(h.player.dispose).toHaveBeenCalledOnce();
+      expect(connect.mock.calls[0][0].toolNames).toEqual(['get_events_tool']);
+      expect(useLiveStore.getState().status).toBe('live');
+      await h.controller.end();
+    } finally {
+      userAgent.mockRestore();
+    }
+  });
+
   it('ends as provider_closed without a handle and as resumption_failed after the attempts', async () => {
     const h = build();
     await h.controller.start();
@@ -444,6 +556,7 @@ describe('LiveSessionController', () => {
     expect(h.post).toHaveBeenCalledWith(`/live/sessions/${SESSION}/end`, {
       outcome: 'provider_closed',
       detail: 'close 1006: gone',
+      audio_diagnostics: h.player.diagnostics(),
       provider_conversation_id: null,
     });
 
@@ -693,6 +806,21 @@ describe('LiveSessionController', () => {
     expect(g.transport.connects).toHaveLength(0);
   });
 
+  it('records an AudioContext startup failure as an error, not a microphone refusal', async () => {
+    const unsupported = new DOMException('sample rate unsupported', 'NotSupportedError');
+    const h = build({ startMic: vi.fn(async () => Promise.reject(unsupported)) });
+    await h.controller.start();
+    expect(useLiveStore.getState()).toMatchObject({ outcome: 'error' });
+    expect(h.post).toHaveBeenCalledWith(
+      `/live/sessions/${SESSION}/end`,
+      expect.objectContaining({
+        outcome: 'error',
+        detail: expect.stringContaining('NotSupportedError'),
+      })
+    );
+    expect(h.transport.connects).toHaveLength(0);
+  });
+
   it('a delegation arriving while one runs replaces it: the chat is stopped, the old call closed silently', async () => {
     let finishFirst: () => void = () => {};
     const sendMessage = vi
@@ -922,6 +1050,7 @@ describe('LiveSessionController', () => {
     expect(h.post).toHaveBeenCalledWith(`/live/sessions/${SESSION}/end`, {
       outcome: 'ended',
       detail: null,
+      audio_diagnostics: h.player.diagnostics(),
       provider_conversation_id: null,
     });
     expect(useLiveStore.getState().status).toBe('ended');
@@ -951,7 +1080,7 @@ describe('LiveSessionController', () => {
     const h = build({
       api: fakeApi(async (url: string, body?: unknown) => {
         if (url === '/live/sessions') {
-          expect(body).toEqual({ mode: 'direct' });
+          expect(body).toEqual({ mode: 'direct', audio_transport: 'websocket' });
           return { ...START, mode: 'direct' };
         }
         if (url.endsWith('/tools')) {
@@ -1085,7 +1214,10 @@ describe('LiveSessionController', () => {
   it('a delegated session posts its mode too', async () => {
     const h = build();
     await h.controller.start();
-    expect(h.post).toHaveBeenCalledWith('/live/sessions', { mode: 'delegated' });
+    expect(h.post).toHaveBeenCalledWith('/live/sessions', {
+      mode: 'delegated',
+      audio_transport: 'websocket',
+    });
     expect(useLiveStore.getState().mode).toBe('delegated');
     await h.controller.end();
   });
@@ -1121,11 +1253,41 @@ describe('LiveSessionController', () => {
     expect(h.post).toHaveBeenCalledWith(`/live/sessions/${SESSION}/end`, {
       outcome: 'ended',
       detail: null,
+      audio_diagnostics: h.player.diagnostics(),
       provider_conversation_id: 'conv_42',
     });
     // Shown to the person (the banner tells it once), never on the card.
     expect(useLiveStore.getState().vendorBill).toEqual(bill);
     const summary = h.chat.appendMessage.mock.calls.at(-1)?.[0];
     expect(JSON.stringify(summary)).not.toContain('0.1234');
+  });
+
+  it('sends aggregate playback diagnostics for a PCM session', async () => {
+    const post = vi.fn(async (url: string): Promise<unknown> => {
+      if (url === '/live/sessions') return { ...START, provider: 'elevenlabs' };
+      if (url.endsWith('/end')) return { summary_message_id: null };
+      return {};
+    });
+    const h = build({ api: fakeApi(post) });
+    await h.controller.start();
+    await h.controller.end();
+    expect(post).toHaveBeenCalledWith(`/live/sessions/${SESSION}/end`, {
+      outcome: 'ended',
+      detail: null,
+      audio_diagnostics: {
+        chunks: 3,
+        drains: 2,
+        audio_ms: 120,
+        source_rate: 16000,
+        context_rate: 48000,
+        short_gap_count: 0,
+        short_gap_ms: 0,
+        short_gap_bins: new Array<number>(12).fill(0),
+        long_gap_count: 0,
+        max_gap_ms: 0,
+      },
+      provider_conversation_id: null,
+    });
+    expect(h.player.diagnostics).toHaveBeenCalledBefore(h.player.dispose);
   });
 });

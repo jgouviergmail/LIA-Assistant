@@ -148,76 +148,33 @@ class ToolContextManager:
         return (str(user_id), str(session_id), "context", domain)
 
     @staticmethod
-    def _apply_intelligent_truncation(
-        items: list[dict[str, Any]], max_items: int, domain: str
-    ) -> list[dict[str, Any]]:
-        """
-        Apply intelligent truncation to keep most valuable context items.
+    def _as_shown(items: list[dict[str, Any]], domain: str) -> list[dict[str, Any]]:
+        """Keep a list as it was shown, up to the connectors' per-request ceiling.
 
-        Strategy: Keep 70% most recent items + 30% highest confidence items.
-        This preserves both recency and quality while preventing memory bloat.
+        The ceiling (``settings.api_max_items_per_request``) is the largest page a
+        list tool can return, so a native list is never cut. A longer list keeps
+        its FIRST items, which the caller numbers from 1: « the 4th » stays the
+        4th. The former 70 %-recent / 30 %-confidence cut kept events 1-3 and
+        9-15 of a 15-event agenda and renumbered them 1..10, so « the 4th »
+        resolved to the 9th event.
 
         Args:
-            items: List of items to truncate (NOT yet indexed).
-            max_items: Maximum number of items to keep (from settings.tool_context_max_items).
+            items: Items in the order the tool returned them (NOT yet indexed).
             domain: Domain identifier for logging.
 
         Returns:
-            Truncated list of items (maintains original order).
-
-        Example:
-            >>> items = [{"name": "A", "confidence": 0.9}, ...]  # 200 items
-            >>> truncated = _apply_intelligent_truncation(items, 100, "contacts")
-            >>> len(truncated)  # 100
-            >>> # Result: 70 most recent + 30 highest confidence (deduplicated)
+            The first ``api_max_items_per_request`` items, in their original order.
         """
-        if len(items) <= max_items:
-            return items  # No truncation needed
-
-        # Strategy: 70% most recent, 30% highest confidence
-        recent_count = int(max_items * 0.7)
-        high_conf_count = max_items - recent_count
-
-        # Most recent items (preserve order - already sorted by tool result)
-        recent_items = items[-recent_count:]  # Last N items (most recent)
-
-        # Highest confidence items (from items NOT in recent selection)
-        remaining = items[:-recent_count] if recent_count > 0 else items
-
-        # Sort by confidence if available, otherwise use first items as fallback
-        def get_confidence(item: dict[str, Any]) -> float:
-            """Extract confidence score, default to settings if missing."""
-            # Try common confidence field names
-            for key in ["confidence", "score", "relevance", "rank"]:
-                if key in item and isinstance(item[key], int | float):
-                    return float(item[key])
-            return settings.default_item_confidence
-
-        sorted_by_conf = sorted(remaining, key=get_confidence, reverse=True)
-        high_conf_items = sorted_by_conf[:high_conf_count]
-
-        # Combine and restore original order
-        # Use set of ids/keys to deduplicate if items have unique identifiers
-        selected_items = recent_items + high_conf_items
-
-        # Restore original order based on position in source list
-        item_to_index = {id(item): idx for idx, item in enumerate(items)}
-        selected_items.sort(key=lambda x: item_to_index[id(x)])
-
-        # Log truncation event
-        logger.warning(
+        ceiling = settings.api_max_items_per_request
+        if len(items) <= ceiling:
+            return items
+        logger.info(
             "context_items_truncated",
             domain=domain,
             original_count=len(items),
-            truncated_count=len(selected_items),
-            removed_count=len(items) - len(selected_items),
-            max_items=max_items,
-            recent_kept=recent_count,
-            high_conf_kept=high_conf_count,
-            strategy="70_recent_30_confidence",
+            kept=ceiling,
         )
-
-        return selected_items
+        return items[:ceiling]
 
     # ==========================================
     # LIST OPERATIONS
@@ -290,18 +247,17 @@ class ToolContextManager:
             )
             return
 
-        # Apply intelligent truncation if items exceed max limit
-        max_items = settings.tool_context_max_items
-        if len(items) > max_items:
-            items = self._apply_intelligent_truncation(items, max_items, domain)
-
-        # Enrich items with index (1-based)
-        indexed_items = [{**item, FIELD_INDEX: idx} for idx, item in enumerate(items, 1)]
+        # Numbered from 1 in the order shown; a list past the ceiling keeps its
+        # first items under those same numbers, and states its original total.
+        total_count = len(items)
+        indexed_items = [
+            {**item, FIELD_INDEX: idx} for idx, item in enumerate(self._as_shown(items, domain), 1)
+        ]
 
         # Parse metadata to ContextMetadata
         context_metadata = ContextMetadata(
             turn_id=metadata.get(FIELD_TURN_ID, 0),
-            total_count=len(indexed_items),
+            total_count=total_count,
             query=metadata.get(FIELD_QUERY),
             tool_name=metadata.get(FIELD_TOOL_NAME),
             timestamp=metadata.get(FIELD_TIMESTAMP, datetime.now(UTC).isoformat()),

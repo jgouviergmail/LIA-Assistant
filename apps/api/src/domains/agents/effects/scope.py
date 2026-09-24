@@ -19,9 +19,14 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, replace
 
+import structlog
+
+from src.core.run_config import run_id_of
 from src.domains.agents.context.runtime_context import runtime_context_if_running
 from src.domains.agents.effects.schemas import EffectSourceName
 from src.domains.agents.effects.source import resolve_source
+
+logger = structlog.get_logger(__name__)
 
 
 @dataclass(frozen=True)
@@ -128,10 +133,7 @@ def scope_from_config(
     """
     from src.domains.agents.context.runtime_context import runtime_context_if_running
 
-    configurable: dict[str, object] = {}
-    if isinstance(config, dict):
-        configurable = config.get("configurable") or {}
-    resolved = run_id or str(configurable.get("run_id") or "")
+    resolved = run_id or run_id_of(config)
 
     context = runtime_context_if_running()
     if not resolved:
@@ -191,9 +193,12 @@ def step_effect_key(config: object, step_id: str) -> str:
     Returns:
         The key to claim under.
     """
-    configurable = config.get("configurable") or {} if isinstance(config, dict) else {}
-    run_id = str(configurable.get("run_id") or "")
+    run_id = run_id_of(config)
     if not run_id:
+        # The thread is the same for every turn of the conversation, so a key
+        # built on it collides with the previous turns' identical step ids —
+        # never silently (the defect of 2026-09-22 read from exactly here).
         context = runtime_context_if_running()
         run_id = context.thread_id if context is not None else "unknown"
+        logger.warning("effect_step_key_without_run", step_id=step_id)
     return f"{run_id}:step:{step_id}"

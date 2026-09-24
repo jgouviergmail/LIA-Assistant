@@ -66,6 +66,8 @@ INFERENCE_PARAM_ALLOWLIST: Final[frozenset[str]] = frozenset(
         "reasoning_effort",
         "reasoning",
         "thinking",
+        # Claude's effort: ``ChatAnthropic`` publishes it here and nowhere else.
+        "output_config",
         "thinking_level",
         "thinking_budget",
         "include_thoughts",
@@ -183,27 +185,62 @@ def _reasoning(kept: dict[str, Any]) -> tuple[str | None, int | None]:
         ``(None, None)`` rather than an exception: a provider changing its
         payload must degrade to « unknown », never to a failed turn.
     """
-    level = kept.get("reasoning_effort") or kept.get("thinking_level")
+    level: object = kept.get("reasoning_effort") or kept.get("thinking_level")
     budget = _integer(kept.get("thinking_budget"))
+    # In reading order: a spelling read earlier wins over a later one.
+    for read in (_claude_reasoning, _reasoning_field):
+        found_level, found_budget = read(kept)
+        level = level or found_level
+        budget = budget if budget is not None else found_budget
+    return (str(level) if isinstance(level, str) and level else None), budget
 
+
+def _claude_reasoning(kept: dict[str, Any]) -> tuple[object, int | None]:
+    """Claude's shapes: a budget in ``thinking``, the depth in ``output_config``.
+
+    ``ChatAnthropic`` publishes ``output_config`` and never its ``effort`` field,
+    which is why the adapter carries the depth there (ADR-306); ``disabled`` is
+    the off switch, spelled out since Opus 5 thinks unasked.
+
+    Args:
+        kept: The allowlisted parameters.
+
+    Returns:
+        ``(level, budget_tokens)``, each None when absent.
+    """
+    level: object = None
+    budget: int | None = None
     thinking = kept.get("thinking")
     if isinstance(thinking, dict):
-        budget = budget if budget is not None else _integer(thinking.get("budget_tokens"))
-        level = level or thinking.get("effort")
+        budget = _integer(thinking.get("budget_tokens"))
+        if thinking.get("type") == "disabled":
+            level = "none"
+    output_config = kept.get("output_config")
+    if level is None and isinstance(output_config, dict):
+        level = output_config.get("effort")
+    return level, budget
 
+
+def _reasoning_field(kept: dict[str, Any]) -> tuple[object, int | None]:
+    """OpenAI's ``reasoning`` object, and Ollama's ``think`` (a boolean or a level).
+
+    Args:
+        kept: The allowlisted parameters.
+
+    Returns:
+        ``(level, budget_tokens)``, each None when absent. Ollama's ``True``
+        (server default, depth unknown) deliberately says nothing rather than
+        inventing a depth.
+    """
     reasoning = kept.get("reasoning")
     if isinstance(reasoning, dict):
-        level = level or reasoning.get("effort")
-        budget = budget if budget is not None else _integer(reasoning.get("max_tokens"))
-    elif reasoning is False:
-        # Ollama's ``think=false``: thinking switched off, i.e. the ladder's ``none``.
-        level = level or "none"
-    elif isinstance(reasoning, str):
-        # Ollama's ``think=<level>``; ``True`` (server default, depth unknown)
-        # deliberately says nothing rather than inventing a depth.
-        level = level or reasoning
-
-    return (str(level) if isinstance(level, str) and level else None), budget
+        return reasoning.get("effort"), _integer(reasoning.get("max_tokens"))
+    if reasoning is False:
+        # ``think=false``: thinking switched off, i.e. the ladder's ``none``.
+        return "none", None
+    if isinstance(reasoning, str):
+        return reasoning, None
+    return None, None
 
 
 def _number(value: Any) -> float | None:

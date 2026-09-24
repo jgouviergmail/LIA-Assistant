@@ -87,6 +87,11 @@ describe('live-message', () => {
     expect(liveErrorKey('connector_missing')).toBe('live.error.connector_missing');
     expect(liveErrorKey('instance_busy')).toBe('live.error.instance_busy');
     expect(liveErrorKey('Network request failed')).toBe('live.error.start');
+    expect(
+      liveErrorKey(
+        'Error: live_socket_closed_1008: The provided API key has an IP address restriction.'
+      )
+    ).toBe('live.error.key_ip_restricted');
     expect(liveErrorKey(null)).toBe('live.error.start');
   });
 });

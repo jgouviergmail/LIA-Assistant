@@ -56,6 +56,41 @@ class TestCreateAuthenticatedSessionWithCookie:
     """Tests for create_authenticated_session_with_cookie function."""
 
     @pytest.mark.asyncio
+    async def test_the_session_records_the_address_cloudflare_vouches_for(self):
+        """The devices view shows where a session came from (ADR-213).
+
+        The connection peer is either a proxy (the web container behind a server
+        action) or the leftmost X-Forwarded-For entry, which the visitor writes.
+        """
+        from starlette.requests import Request
+
+        request = Request(
+            {
+                "type": "http",
+                "method": "POST",
+                "path": "/api/v1/auth/login",
+                "headers": [
+                    (b"user-agent", b"Mozilla/5.0 (Windows NT 10.0) Chrome/126.0"),
+                    (b"x-forwarded-for", b"127.0.0.1, 203.0.113.9"),
+                    (b"cf-connecting-ip", b"203.0.113.9"),
+                ],
+                "client": ("127.0.0.1", 50000),
+            }
+        )
+        store = AsyncMock()
+        store.create_session = AsyncMock(return_value=MagicMock(session_id="s", user_id="u"))
+
+        with (
+            patch("src.core.session_helpers.get_redis_session", AsyncMock()),
+            patch("src.core.session_helpers.SessionStore", return_value=store),
+        ):
+            await create_authenticated_session_with_cookie(
+                response=MagicMock(spec=Response), user_id="u", request=request
+            )
+
+        assert store.create_session.await_args.kwargs["client_meta"].ip_trunc == "203.0.113.x"
+
+    @pytest.mark.asyncio
     async def test_creates_session_and_sets_cookie(self):
         """Test that session is created and cookie is set."""
         response = MagicMock(spec=Response)

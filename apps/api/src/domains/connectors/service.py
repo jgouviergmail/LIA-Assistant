@@ -24,7 +24,6 @@ from tenacity import (
 from src.core.config import settings
 from src.core.exceptions import (
     ConnectorTokenExpiredError,
-    raise_configuration_missing,
     raise_invalid_input,
     raise_oauth_flow_failed,
     raise_oauth_state_mismatch,
@@ -38,6 +37,8 @@ from src.core.security import (
     encrypt_data,
 )
 from src.core.security.authorization import check_resource_ownership_by_user_id
+from src.domains.connectors.api_key_use import stamp_api_key_use
+from src.domains.connectors.keyless import is_keyless_available
 from src.domains.connectors.models import (
     Connector,
     ConnectorGlobalConfig,
@@ -2072,84 +2073,27 @@ class ConnectorService:
             metadata={"created_via": "oauth_flow_stateless"},
         )
 
-    # ========== GOOGLE PLACES CONNECTOR (API Key based) ==========
-
-    async def activate_places_connector(self, user_id: UUID) -> ConnectorResponse:
-        """
-        Activate Google Places connector (simple toggle, uses global API key).
-
-        Google Places now uses the global GOOGLE_API_KEY instead of per-user OAuth.
-        This method creates/reactivates a connector record to mark it as "enabled".
-
-        Args:
-            user_id: User UUID
-
-        Returns:
-            ConnectorResponse with created/updated connector
-        """
-        # Check if Google Places is globally enabled
-        await self._check_connector_enabled(ConnectorType.GOOGLE_PLACES)
-
-        # Verify global API key is configured
-        if not settings.google_api_key:
-            raise_configuration_missing("google_places", "GOOGLE_API_KEY")
-
-        # Check if connector exists
-        existing = await self.repository.get_by_user_and_type(user_id, ConnectorType.GOOGLE_PLACES)
-
-        if existing:
-            # Reactivate if not already active
-            if existing.status != ConnectorStatus.ACTIVE:
-                existing.status = ConnectorStatus.ACTIVE
-                existing.credentials_encrypted = "{}"
-                existing.connector_metadata = {"auth_type": "global_api_key"}
-                await self.db.commit()
-                await self.db.refresh(existing)
-                await self._invalidate_user_connectors_cache(user_id)
-
-                logger.info(
-                    "google_places_connector_reactivated",
-                    user_id=str(user_id),
-                    connector_id=str(existing.id),
-                )
-            return ConnectorResponse.model_validate(existing)
-
-        # Create new connector (no credentials needed - uses global API key)
-        connector = Connector(
-            user_id=user_id,
-            connector_type=ConnectorType.GOOGLE_PLACES,
-            status=ConnectorStatus.ACTIVE,
-            scopes=[],  # No OAuth scopes
-            credentials_encrypted="{}",  # Empty - uses global API key
-            connector_metadata={"auth_type": "global_api_key"},
-        )
-        self.db.add(connector)
-        await self.db.commit()
-        await self.db.refresh(connector)
-
-        logger.info(
-            "google_places_connector_activated",
-            user_id=str(user_id),
-            connector_id=str(connector.id),
-        )
-
-        await self._invalidate_user_connectors_cache(user_id)
-        return ConnectorResponse.model_validate(connector)
+    # ========== CONNECTOR ACTIVATION CHECKS ==========
 
     async def is_connector_active(self, user_id: UUID, connector_type: ConnectorType) -> bool:
         """
         Check if user has a specific connector enabled and active.
 
         Generic method for checking connector status, used by tools with
-        uses_global_api_key=True and other connector checks.
+        uses_global_api_key=True and other connector checks. A keyless type
+        (Wikipedia, the browser, Google Places / Weather / Environment) has no
+        per-account row: the instance alone decides whether it serves the
+        account (ADR-307).
 
         Args:
             user_id: User UUID
             connector_type: Type of connector to check
 
         Returns:
-            True if connector exists and is active, False otherwise
+            True if the connector serves this account, False otherwise
         """
+        if connector_type.is_keyless:
+            return await is_keyless_available(self.repository, connector_type)
         connector = await self.repository.get_by_user_and_type(user_id, connector_type)
         return connector is not None and connector.status == ConnectorStatus.ACTIVE
 
@@ -2548,14 +2492,10 @@ class ConnectorService:
             decrypted_json = decrypt_data(connector.credentials_encrypted)
             credentials = APIKeyCredentials.model_validate_json(decrypted_json)
 
-            # Update last used timestamp in metadata (new-dict reassignment —
-            # in-place JSONB mutation is silently dropped by SQLAlchemy)
+            # « Last used », in a transaction of its own: a READ leaves no row
+            # lock in its caller's transaction (ADR-304, api_key_use.py).
             if connector.connector_metadata:
-                connector.connector_metadata = {
-                    **connector.connector_metadata,
-                    "last_used_at": datetime.now(UTC).isoformat(),
-                }
-                await self.db.flush()
+                await stamp_api_key_use(connector.id)
 
             return credentials
 

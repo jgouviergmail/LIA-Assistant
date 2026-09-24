@@ -22,6 +22,7 @@ from src.core.constants import CHANNEL_TYPE_TELEGRAM, TELEGRAM_TYPING_ACTION
 from src.domains.channels.abstractions import BaseChannelSender, ChannelOutboundMessage
 from src.infrastructure.async_utils import safe_fire_and_forget
 from src.infrastructure.channels.telegram.bot import get_bot
+from src.infrastructure.channels.telegram.flood_control import retry_after_seconds
 from src.infrastructure.channels.telegram.formatter import (
     format_notification,
     split_message,
@@ -123,16 +124,17 @@ class TelegramSender(BaseChannelSender):
                 )
                 return None
             except RetryAfter as e:
+                delay_seconds = retry_after_seconds(e)
                 logger.warning(
                     "telegram_rate_limit",
                     chat_id=channel_user_id,
-                    retry_after=e.retry_after,
+                    retry_after=delay_seconds,
                 )
                 channel_send_errors_total.labels(
                     channel_type=CHANNEL_TYPE_TELEGRAM,
                     error_type="rate_limit",
                 ).inc()
-                await asyncio.sleep(e.retry_after)
+                await asyncio.sleep(delay_seconds)
                 # Retry once
                 try:
                     sent = await bot.send_message(

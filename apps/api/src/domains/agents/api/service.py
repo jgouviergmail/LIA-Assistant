@@ -275,92 +275,8 @@ class AgentService(
         else:
             return "6+"
 
-    async def _warmup_contacts_cache_if_active(
-        self,
-        user_id: uuid.UUID,
-        tool_deps: ToolDependencies,
-    ) -> None:
-        """
-        Warmup contacts cache if a contacts provider is active (Google or Apple).
-
-        This prevents the "first search returns 0 results" issue by preloading
-        the contacts list into Redis cache.
-
-        Args:
-            user_id: User UUID
-            tool_deps: ToolDependencies with shared DB session
-
-        Note:
-            - Runs asynchronously, non-blocking
-            - Fails silently if connector not active or on error
-            - Caches first 100 contacts with 5-minute TTL
-        """
-        try:
-            # Import here to avoid circular dependency
-            from src.core.config import get_settings
-            from src.domains.connectors.clients.registry import ClientRegistry
-            from src.domains.connectors.provider_resolver import resolve_active_connector
-
-            settings = get_settings()
-
-            # Dynamically resolve the active contacts provider (Google or Apple)
-            connector_service = await tool_deps.get_connector_service()
-            resolved_type = await resolve_active_connector(user_id, "contacts", connector_service)
-
-            if resolved_type is None:
-                # No contacts connector active, skip warmup
-                return
-
-            # Get credentials based on provider type
-            if resolved_type.is_apple:
-                credentials = await connector_service.get_apple_credentials(user_id, resolved_type)
-            else:
-                credentials = await connector_service.get_connector_credentials(
-                    user_id, resolved_type
-                )
-
-            if not credentials:
-                return
-
-            # Create appropriate client via registry
-            client_class = ClientRegistry.get_client_class(resolved_type)
-            if client_class is None:
-                return
-            client = client_class(user_id, credentials, connector_service)
-
-            # Use global security limit for warmup
-            warmup_limit = settings.api_max_items_per_request
-
-            logger.info(
-                "contacts_cache_warmup_starting",
-                user_id=str(user_id),
-                provider=resolved_type.value,
-                warmup_limit=warmup_limit,
-            )
-
-            # Preload contacts into cache with security limit
-            await client.list_connections(
-                page_size=warmup_limit,
-                use_cache=True,  # Cache the results
-            )
-
-            logger.info(
-                "contacts_cache_warmup_completed",
-                user_id=str(user_id),
-                provider=resolved_type.value,
-            )
-
-        except Exception as e:
-            # Fail silently - warmup is optional optimization
-            logger.warning(
-                "contacts_cache_warmup_failed",
-                user_id=str(user_id),
-                error=str(e),
-                error_type=type(e).__name__,
-            )
-
     async def _warmup_contacts_cache_background(self, user_id: uuid.UUID) -> None:
-        """Run the contacts cache warmup with its own DB session (background-safe).
+        """Preload the contacts list into the Redis cache, off the request path.
 
         The warmup used to block the request path (300-800ms People API call on
         every cache expiry) before the graph could start. It is now fired in the
@@ -369,19 +285,41 @@ class AgentService(
         produce empty results — worst case the first contacts tool call pays its
         own API latency, exactly like a cold cache did before.
 
-        A dedicated session is required: the request's ToolDependencies session
-        must not be used concurrently with the running graph (AsyncSession is
-        not safe for concurrent use).
-        """
-        from src.infrastructure.database import get_db_context
+        It opens through the shared door (ADR-304): no session is held while
+        the provider answers — it used to keep one open for the whole call —
+        and the client is closed on every path. Fails silently: the warmup is
+        an optional optimization.
 
-        async with get_db_context() as warmup_db:
-            warmup_deps = ToolDependencies(db_session=warmup_db)
-            try:
-                await self._warmup_contacts_cache_if_active(user_id, warmup_deps)
-            finally:
-                # Close the warmup's cached connector clients (pooled httpx).
-                await warmup_deps.aclose()
+        Args:
+            user_id: Whose contacts.
+        """
+        from src.core.config import get_settings
+        from src.domains.connectors.active_client import ActiveClient, open_active_client
+
+        try:
+            async with open_active_client("contacts", user_id) as opened:
+                if not isinstance(opened, ActiveClient):
+                    return
+                # The global security limit bounds the preload.
+                warmup_limit = get_settings().api_max_items_per_request
+                provider = opened.connector_type.value
+                logger.info(
+                    "contacts_cache_warmup_starting",
+                    user_id=str(user_id),
+                    provider=provider,
+                    warmup_limit=warmup_limit,
+                )
+                await opened.client.list_connections(page_size=warmup_limit, use_cache=True)
+                logger.info(
+                    "contacts_cache_warmup_completed", user_id=str(user_id), provider=provider
+                )
+        except Exception as e:
+            logger.warning(
+                "contacts_cache_warmup_failed",
+                user_id=str(user_id),
+                error=str(e),
+                error_type=type(e).__name__,
+            )
 
     async def _patch_user_message_hitl_flags(
         self,
@@ -653,7 +591,6 @@ class AgentService(
         await self._ensure_graph_built()
 
         # === NEW: Get or create conversation using ConversationOrchestrator ===
-        from src.domains.agents.dependencies import ToolDependencies
         from src.domains.agents.services.conversation_orchestrator import ConversationOrchestrator
         from src.domains.agents.services.orchestration.service import OrchestrationService
         from src.domains.conversations.service import ConversationService
@@ -806,7 +743,7 @@ class AgentService(
                     verdict_collector(),
                 ):
                     # === Per-user MCP tools setup (evolution F2.1) ===
-                    _user_mcp_token = await setup_user_mcp_tools(user_id, db)
+                    _user_mcp_token = await setup_user_mcp_tools(user_id)
 
                     # === Build per-request filtered tool manifests (centralized) ===
                     from src.domains.agents.registry import get_global_registry
@@ -966,6 +903,11 @@ class AgentService(
                     side_channel_queue: asyncio.Queue = asyncio.Queue()
                     activity_summary = ActivitySummary()
                     delivery_metadata: dict[str, Any] = {}
+
+                    # The setup's reads end here (ADR-304): the graph runs for
+                    # seconds to minutes and this session must not wait on it.
+                    # The tools' connector operations each end their own.
+                    await db.commit()
 
                     # === StreamingService handles everything: SSE formatting + HITL ===
                     try:

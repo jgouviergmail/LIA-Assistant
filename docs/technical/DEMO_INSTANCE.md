@@ -212,7 +212,9 @@ maintained source of truth; the migrations carry an older, partial copy — 91
 prices against 224.
 
 Since ADR-223 the bundle also carries DeepSeek's **UTC time-slot tariff**
-(peak 01:00-04:00 and 06:00-10:00 UTC at 2x, off-peak elsewhere): the ledger
+(peak 01:00-04:00 and 06:00-10:00 UTC at 2x, Monday to Friday only since the
+ADR-223 amendment of 2026-09-23 — weekends are off-peak all day — off-peak
+elsewhere): the ledger
 values each call at the tariff of its instant, so the ceiling counts what the
 provider actually invoices instead of charging the peak rate 24/7. Because
 this database is rebuilt from the bundle at every boot, windowed tariffs for

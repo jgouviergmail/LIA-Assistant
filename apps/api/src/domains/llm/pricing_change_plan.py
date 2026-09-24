@@ -30,8 +30,16 @@ from decimal import Decimal
 from enum import Enum
 from typing import Any
 
-from src.domains.llm.pricing_sheet import FINGERPRINT_COLUMN, MODELS_SHEET
+from src.domains.llm.pricing_sheet import (
+    FINGERPRINT_COLUMN,
+    MODELS_SHEET,
+    WEEKDAY_CODES,
+    weekdays_from_codes,
+)
 from src.infrastructure.tabular_io.report import CellIssue, IssueCode, ParsedRow
+
+#: The plan's line for a rewrite of a model's windows (the time-slot sheet).
+TIME_SLOTS_FIELD = "time_slots"
 
 #: Fields whose change means a new tariff version rather than an in-place edit.
 PRICING_FIELDS: frozenset[str] = frozenset(
@@ -42,7 +50,15 @@ PRICING_FIELDS: frozenset[str] = frozenset(
         "output_unit_price",
         "audio_input_unit_price",
         "audio_output_unit_price",
+        TIME_SLOTS_FIELD,
     }
+)
+
+#: The three prices a window overrides, in the order a preview prints them.
+_WINDOW_PRICE_KEYS: tuple[str, ...] = (
+    "input_unit_price",
+    "cached_input_unit_price",
+    "output_unit_price",
 )
 
 #: Never compared as a value: they drive the lifecycle or the windows instead.
@@ -350,23 +366,58 @@ def _window_signature(slots: Sequence[ParsedRow]) -> tuple[tuple[str | None, ...
     """Canonical, order-independent view of a model's windows.
 
     Resolution never depends on order (ADR-223), so a reordering is not an
-    edit either — comparing sorted signatures keeps the diff honest.
+    edit either — comparing sorted signatures keeps the diff honest. The days
+    are part of a window: a change of days alone changes every weekend's
+    price, and must be written.
     """
     return tuple(
         sorted(
-            tuple(
-                _render(slot.values.get(key))
-                for key in (
-                    "start_utc",
-                    "end_utc",
-                    "input_unit_price",
-                    "cached_input_unit_price",
-                    "output_unit_price",
-                )
+            (
+                *(
+                    _render(slot.values.get(key))
+                    for key in ("start_utc", "end_utc", *_WINDOW_PRICE_KEYS)
+                ),
+                _days_text(slot.values.get("weekdays")),
             )
             for slot in slots
         )
     )
+
+
+def _days_text(value: Any) -> str | None:
+    """The days of a window, canonical: what the diff compares and the preview shows.
+
+    Order, repeats and the whole week typed out name the same days, so they
+    render the same, and an every-day window renders as nothing. A value the
+    week does not know is kept verbatim, so it can never read as a real set of
+    days.
+    """
+    if not isinstance(value, (list, tuple)):
+        return _render(value)
+    codes = [str(code) for code in value]
+    if not all(code in WEEKDAY_CODES for code in codes):
+        return ",".join(codes)
+    days = weekdays_from_codes(codes)
+    return None if days is None else ",".join(WEEKDAY_CODES[day - 1] for day in days)
+
+
+def _windows_text(slots: Sequence[ParsedRow]) -> str | None:
+    """A model's windows as one preview line: hours, prices, and the days when some.
+
+    What the administrator reviews before applying. Without it a rewrite that
+    keeps the window count — a price inside a window, the days alone — showed
+    as an update with nothing under it, and could not be checked.
+    """
+    if not slots:
+        return None
+    lines = []
+    for slot in slots:
+        values = slot.values
+        hours = f"{_render(values.get('start_utc'))}-{_render(values.get('end_utc'))}"
+        prices = "/".join(_render(values.get(key)) or "—" for key in _WINDOW_PRICE_KEYS)
+        days = _days_text(values.get("weekdays"))
+        lines.append(f"{hours} {prices}" + (f" ({days})" if days else ""))
+    return "; ".join(sorted(lines))
 
 
 def _update_change(
@@ -390,6 +441,24 @@ def _update_change(
         len(stored) if stored else (1 if existing.get("time_slots_mode") == "windows" else 0)
     )
     slots_after, slots_touched = _resolve_slots(row, existing, slots_by_model, stored)
+    if slots_touched:
+        # The rewrite is a line of the plan like any field: the preview shows
+        # it, the tariff it supersedes is counted, and the plan's fingerprint
+        # covers what the windows BECOME — two different rewrites of the same
+        # count would otherwise hash alike.
+        supplied = (
+            ()
+            if row.values.get("time_slots_mode") == "flat"
+            else slots_by_model.get(row.key or "", ())
+        )
+        fields = (
+            *fields,
+            FieldChange(
+                field=TIME_SLOTS_FIELD,
+                before=_windows_text(stored),
+                after=_windows_text(supplied),
+            ),
+        )
 
     action = _resolve_action(row, existing, fields, slots_touched)
     return ModelChange(

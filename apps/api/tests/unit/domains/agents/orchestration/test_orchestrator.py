@@ -28,7 +28,6 @@ from src.domains.agents.models import MessagesState
 from src.domains.agents.orchestration.orchestrator import (
     create_orchestration_plan,
     get_next_agent_from_plan,
-    should_execute_agent,
 )
 from src.domains.agents.orchestration.schemas import OrchestratorPlan
 
@@ -203,118 +202,6 @@ class TestCreateOrchestrationPlan:
 
         assert plan.execution_mode == EXECUTION_MODE_SEQUENTIAL
         assert plan.metadata["version"] == "v1_sequential"
-
-
-class TestShouldExecuteAgent:
-    """Tests for should_execute_agent() function."""
-
-    def test_should_execute_agent_no_results(self, empty_state):
-        """Test that agent should execute when no results exist."""
-        result = should_execute_agent(AGENT_CONTACT, empty_state)
-
-        assert result is True
-
-    def test_should_execute_agent_not_executed_yet(self):
-        """Test that agent should execute if not in agent_results."""
-        state = MessagesState(
-            messages=[],
-            agent_results={
-                "other_agent": {
-                    "status": STATUS_SUCCESS,
-                    "agent_name": "other_agent",
-                }
-            },
-        )
-
-        result = should_execute_agent(AGENT_CONTACT, state)
-
-        assert result is True
-
-    def test_should_execute_agent_success_status(self):
-        """Test that agent should NOT execute if already successful."""
-        state = MessagesState(
-            messages=[],
-            agent_results={
-                AGENT_CONTACT: {
-                    "status": STATUS_SUCCESS,
-                    "agent_name": AGENT_CONTACT,
-                }
-            },
-        )
-
-        result = should_execute_agent(AGENT_CONTACT, state)
-
-        assert result is False
-
-    def test_should_execute_agent_connector_disabled(self):
-        """Test that agent should NOT execute if connector disabled."""
-        state = MessagesState(
-            messages=[],
-            agent_results={
-                AGENT_CONTACT: {
-                    "status": "connector_disabled",
-                    "agent_name": AGENT_CONTACT,
-                }
-            },
-        )
-
-        result = should_execute_agent(AGENT_CONTACT, state)
-
-        assert result is False
-
-    def test_should_execute_agent_error_status(self):
-        """Test that agent SHOULD execute again if previous status was error."""
-        state = MessagesState(
-            messages=[],
-            agent_results={
-                AGENT_CONTACT: {
-                    "status": STATUS_ERROR,
-                    "agent_name": AGENT_CONTACT,
-                }
-            },
-        )
-
-        result = should_execute_agent(AGENT_CONTACT, state)
-
-        assert result is True
-
-    def test_should_execute_agent_pending_status(self):
-        """Test that agent SHOULD execute if status is pending."""
-        state = MessagesState(
-            messages=[],
-            agent_results={
-                AGENT_CONTACT: {
-                    "status": "pending",
-                    "agent_name": AGENT_CONTACT,
-                }
-            },
-        )
-
-        result = should_execute_agent(AGENT_CONTACT, state)
-
-        assert result is True
-
-    def test_should_execute_agent_logs_skip(self):
-        """Test that skipping execution is logged."""
-        state = MessagesState(
-            messages=[],
-            agent_results={
-                AGENT_CONTACT: {
-                    "status": STATUS_SUCCESS,
-                    "agent_name": AGENT_CONTACT,
-                }
-            },
-        )
-
-        with patch("src.domains.agents.orchestration.orchestrator.logger") as mock_logger:
-            result = should_execute_agent(AGENT_CONTACT, state)
-
-            assert result is False
-            mock_logger.debug.assert_called_once()
-            call_args = mock_logger.debug.call_args
-            assert call_args[0][0] == "agent_already_executed"
-            assert call_args[1]["agent_name"] == AGENT_CONTACT
-            assert call_args[1]["status"] == STATUS_SUCCESS
 
 
 class TestGetNextAgentFromPlan:
@@ -653,11 +540,7 @@ class TestOrchestrationIntegration:
             orchestration_plan=plan,  # Object format
         )
 
-        # Step 3: Check if agent should execute
-        should_execute = should_execute_agent(AGENT_CONTACT, state)
-        assert should_execute is True
-
-        # Step 4: Get next agent
+        # Step 3: Get next agent
         next_agent = get_next_agent_from_plan(state)
         assert next_agent == AGENT_CONTACT
 

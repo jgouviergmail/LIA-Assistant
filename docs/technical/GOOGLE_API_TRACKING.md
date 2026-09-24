@@ -38,17 +38,13 @@ Le système de tracking Google API permet de :
 
 ### APIs Supportées
 
-| API | Endpoints | SKU Name | Coût/1000 req |
-|-----|-----------|----------|---------------|
-| **Places API** | /places:searchText | Text Search Pro | $32.00 |
-| | /places:searchNearby | Nearby Search Pro | $32.00 |
-| | /places/{id} | Place Details Pro | $17.00 |
-| | /places:autocomplete | Autocomplete | $2.83 |
-| | /{photo}/media | Place Photos | $7.00 |
-| **Routes API** | /directions/v2:computeRoutes | Compute Routes | $5.00 |
-| | /distanceMatrix/v2:computeRouteMatrix | Route Matrix | $5.00 |
-| **Geocoding API** | /geocode/json | Geocoding | $5.00 |
-| **Static Maps API** | /staticmap | Static Maps | $2.00 |
+La grille en vigueur n'est pas recopiée ici : elle vit dans
+`infrastructure/database/seeds/google_api_pricing_seed.sql` (portée sur les instances
+existantes par migration) et dans l'écran d'administration. La garde
+`test_google_api_pricing_seed_guard.py` exige une ligne pour chaque point d'accès suivi —
+y compris les suffixes de niveau (`:lite` Places, `:pro`/`:enterprise` Routes) — et
+vérifie les SKU que les masques et les requêtes déclenchent réellement. Explication des
+SKU : [GOOGLE_API.md](./GOOGLE_API.md).
 
 ---
 
@@ -819,19 +815,15 @@ google_api_cost_eur_total = Counter(
 # 5. Seed pricing data (Google Maps Platform 2026 rates)
 ```
 
-### Seed Data (Pricing 2026)
+### Seed Data
 
-| API | Endpoint | SKU | $/1000 |
-|-----|----------|-----|--------|
-| places | /places:searchText | Text Search Pro | 32.00 |
-| places | /places:searchNearby | Nearby Search Pro | 32.00 |
-| places | /places/{id} | Place Details Pro | 17.00 |
-| places | /places:autocomplete | Autocomplete | 2.83 |
-| places | /{photo}/media | Place Photos | 7.00 |
-| routes | /directions/v2:computeRoutes | Compute Routes | 5.00 |
-| routes | /distanceMatrix/v2:computeRouteMatrix | Route Matrix | 5.00 |
-| geocoding | /geocode/json | Geocoding | 5.00 |
-| static_maps | /staticmap | Static Maps | 2.00 |
+La grille en vigueur n'est pas recopiée ici : elle vit dans
+`infrastructure/database/seeds/google_api_pricing_seed.sql` (portée sur les instances
+existantes par migration) et dans l'écran d'administration. La garde
+`test_google_api_pricing_seed_guard.py` exige une ligne pour chaque point d'accès suivi —
+y compris les suffixes de niveau (`:lite` Places, `:pro`/`:enterprise` Routes) — et
+vérifie les SKU que les masques et les requêtes déclenchent réellement. Explication des
+SKU : [GOOGLE_API.md](./GOOGLE_API.md).
 
 ### Troubleshooting
 

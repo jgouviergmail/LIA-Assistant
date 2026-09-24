@@ -31,7 +31,9 @@ _ERRORS_FILE = Path(errors.__file__)
 
 #: Refusals the BROWSER raises itself, before any request leaves; the API
 #: never names them and must not be asked to.
-_CLIENT_ONLY_CODES = {"unsupported_browser"}
+# The browser detects support before minting and receives the Gemini WebSocket
+# refusal directly; the API cannot classify either one on its own connection.
+_CLIENT_ONLY_CODES = {"unsupported_browser", "key_ip_restricted"}
 
 
 def _declared(path: Path, constant: str) -> set[str]:

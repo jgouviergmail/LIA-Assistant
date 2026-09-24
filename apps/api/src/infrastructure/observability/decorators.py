@@ -24,11 +24,13 @@ import functools
 import inspect
 import time
 from collections.abc import Callable
-from typing import ParamSpec, TypeVar, cast
+from typing import Any, ParamSpec, TypeVar, cast
 
 import structlog
 from langgraph.errors import GraphInterrupt
 from prometheus_client import Counter, Histogram
+
+from src.core.tool_outcome import error_code_of, explicit_success
 
 P = ParamSpec("P")
 T = TypeVar("T")
@@ -286,6 +288,78 @@ def track_metrics(
     return decorator
 
 
+def _record_returned_outcome(
+    *,
+    result: Any,
+    tool_name: str,
+    agent_name: str,
+    counter_metric: Counter | None,
+    usage_counter: Counter | None,
+    started_at: float,
+    log_execution: bool,
+    func_name: str,
+) -> None:
+    """Count and log what the tool actually RETURNED (ADR-303).
+
+    A tool fails by returning: ``ToolErrorModel.to_response()`` and
+    ``UnifiedToolOutput.failure()`` never raise. Counting every return as a
+    success made the tool success rate 1.0 by construction — numerator and
+    denominator both counted the failures — so its recording rule and the two
+    alerts reading it could not fire. Measured in production on 2026-09-09:
+    four HTTP 403s, four ``failed`` rows in the consultation register, and a
+    Prometheus counter that saw four successes.
+
+    The failure log carries the CODE, never the message: a code is bounded and
+    safe on a label and in a log line, where a message carries the URL, the
+    name or the mailbox that was being read.
+
+    Args:
+        result: What the tool returned.
+        tool_name: Bounded tool name (label cardinality).
+        agent_name: Owning agent, for the label and the log.
+        counter_metric: Framework counter, when one was given.
+        usage_counter: The business counter, or None when its lazy import
+            failed (graceful degradation, unchanged).
+        started_at: ``time.time()`` at call start, for the duration.
+        log_execution: Whether the caller asked for the debug trace.
+        func_name: The wrapped function, for the debug trace.
+    """
+    succeeded = explicit_success(result)
+    duration_ms = int((time.time() - started_at) * 1000)
+
+    if counter_metric:
+        counter_metric.labels(
+            tool_name=tool_name,
+            agent_name=agent_name,
+            success="true" if succeeded else "false",
+        ).inc()
+
+    if usage_counter is not None:
+        agent_type = extract_agent_type_from_agent_name(agent_name)
+        usage_counter.labels(
+            agent_type=agent_type,
+            tool_name=tool_name,
+            outcome=map_success_to_outcome(success=succeeded),
+        ).inc()
+
+    if not succeeded:
+        logger.warning(
+            "tool_returned_failure",
+            tool_name=tool_name,
+            agent_name=agent_name,
+            error_code=error_code_of(result),
+            duration_ms=duration_ms,
+        )
+    elif log_execution:
+        logger.debug(
+            "tool_execution_completed",
+            tool_name=tool_name,
+            agent_name=agent_name,
+            func_name=func_name,
+            duration_ms=duration_ms,
+        )
+
+
 def track_tool_metrics(
     *,
     tool_name: str,
@@ -385,28 +459,18 @@ def track_tool_metrics(
                     # Execute function
                     result = await func(*args, **kwargs)  # type: ignore[misc]
 
-                    # Record success metrics (FRAMEWORK)
-                    if counter_metric:
-                        counter_metric.labels(
-                            tool_name=tool_name, agent_name=agent_name, success="true"
-                        ).inc()
-
-                    # Record success metrics (BUSINESS - Phase 3.2)
-                    if business_metrics_available:
-                        agent_type = extract_agent_type_from_agent_name(agent_name)
-                        outcome = map_success_to_outcome(success=True)
-                        agent_tool_usage_total.labels(
-                            agent_type=agent_type, tool_name=tool_name, outcome=outcome
-                        ).inc()
-
-                    if log_execution:
-                        logger.debug(
-                            "tool_execution_completed",
-                            tool_name=tool_name,
-                            agent_name=agent_name,
-                            func_name=func.__name__,
-                            duration_ms=int((time.time() - start_time) * 1000),
-                        )
+                    _record_returned_outcome(
+                        result=result,
+                        tool_name=tool_name,
+                        agent_name=agent_name,
+                        counter_metric=counter_metric,
+                        usage_counter=(
+                            agent_tool_usage_total if business_metrics_available else None
+                        ),
+                        started_at=start_time,
+                        log_execution=log_execution,
+                        func_name=func.__name__,
+                    )
 
                     return cast(T, result)
 
@@ -479,28 +543,18 @@ def track_tool_metrics(
                     # Execute function
                     result = func(*args, **kwargs)
 
-                    # Record success metrics (FRAMEWORK)
-                    if counter_metric:
-                        counter_metric.labels(
-                            tool_name=tool_name, agent_name=agent_name, success="true"
-                        ).inc()
-
-                    # Record success metrics (BUSINESS - Phase 3.2)
-                    if business_metrics_available:
-                        agent_type = extract_agent_type_from_agent_name(agent_name)
-                        outcome = map_success_to_outcome(success=True)
-                        agent_tool_usage_total.labels(
-                            agent_type=agent_type, tool_name=tool_name, outcome=outcome
-                        ).inc()
-
-                    if log_execution:
-                        logger.debug(
-                            "tool_execution_completed",
-                            tool_name=tool_name,
-                            agent_name=agent_name,
-                            func_name=func.__name__,
-                            duration_ms=int((time.time() - start_time) * 1000),
-                        )
+                    _record_returned_outcome(
+                        result=result,
+                        tool_name=tool_name,
+                        agent_name=agent_name,
+                        counter_metric=counter_metric,
+                        usage_counter=(
+                            agent_tool_usage_total if business_metrics_available else None
+                        ),
+                        started_at=start_time,
+                        log_execution=log_execution,
+                        func_name=func.__name__,
+                    )
 
                     return result
 

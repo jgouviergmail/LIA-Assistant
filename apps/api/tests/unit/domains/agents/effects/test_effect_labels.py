@@ -23,6 +23,7 @@ import pytest
 
 from src.domains.agents.effects.labels import (
     EFFECT_LABEL_BUILDERS,
+    MAX_VALUE_CHARS,
     assert_effect_label_completeness,
     build_effect_label,
 )
@@ -87,7 +88,19 @@ class TestTheValuesCarryNoSurprises:
         """A card is a sentence, not a payload — and the column is encrypted."""
         label = build_effect_label("draft:email", {"draft": {"to": "x" * 500}})
         assert label is not None
-        assert len(label["values"]["recipient"]) <= 120
+        assert len(label["values"]["recipient"]) <= MAX_VALUE_CHARS
+
+    def test_a_long_prompt_is_cut_on_a_word_not_inside_one(self) -> None:
+        """Reported 2026-09-23: the image card ended on « … posture cr »."""
+        prompt = (
+            "Image photoréaliste d’un chat domestique jouant de la trompette, trompette "
+            "dorée tenue avec ses pattes avant, posture crâneuse, lumière de studio douce"
+        )
+
+        target = build_effect_label("generate_image", {"prompt": prompt})["values"]["target"]
+
+        assert target.endswith("avant, posture…")
+        assert len(target) <= MAX_VALUE_CHARS
 
 
 @pytest.fixture

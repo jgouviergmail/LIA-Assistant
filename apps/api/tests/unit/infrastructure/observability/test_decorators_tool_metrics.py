@@ -14,6 +14,7 @@ Phase: 3.2 - Business Metrics - Step 2.2
 Date: 2025-11-23
 """
 
+import logging
 from unittest.mock import MagicMock
 
 import pytest
@@ -348,3 +349,86 @@ def test_business_metric_definition():
     from prometheus_client import Counter
 
     assert isinstance(agent_tool_usage_total, Counter)
+
+
+# ============================================================================
+# TESTS - A RETURNED failure is a failure (ADR-303)
+# ============================================================================
+
+
+class TestReturnedFailureIsCounted:
+    """A tool fails by RETURNING, and that is the documented way.
+
+    ``ToolErrorModel.to_response()`` and ``UnifiedToolOutput.failure()`` both
+    return — they never raise — so a decorator that only watches for exceptions
+    counts every one of them as a success. Measured in production on
+    2026-09-09: four HTTP 403s, four ``failed`` rows in the consultation
+    register, and ``agent_tool_invocations_total{success="true"} = 4``.
+    """
+
+    async def test_async_returned_failure_counts_false_and_logs_the_code(
+        self, mock_framework_metrics, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        counter, histogram = mock_framework_metrics
+
+        @track_tool_metrics(
+            tool_name="web_fetch",
+            agent_name="web_fetch_agent",
+            counter_metric=counter,
+            duration_metric=histogram,
+        )
+        async def failing_tool() -> dict:
+            return {
+                "success": False,
+                "error": "HTTP error 403 fetching https://secret.example/private",
+                "error_code": "FORBIDDEN",
+            }
+
+        with caplog.at_level(logging.WARNING):
+            result = await failing_tool()
+
+        assert result["success"] is False
+        counter.labels.assert_called_with(
+            tool_name="web_fetch", agent_name="web_fetch_agent", success="false"
+        )
+        record = next(r for r in caplog.records if "tool_returned_failure" in r.getMessage())
+        assert "FORBIDDEN" in record.getMessage()
+        # The code labels the failure; the message would carry the URL.
+        assert "secret.example" not in record.getMessage()
+
+    async def test_async_returned_success_still_counts_true(self, mock_framework_metrics) -> None:
+        counter, histogram = mock_framework_metrics
+
+        @track_tool_metrics(
+            tool_name="t", agent_name="a", counter_metric=counter, duration_metric=histogram
+        )
+        async def ok_tool() -> dict:
+            return {"success": True, "data": {}}
+
+        await ok_tool()
+        counter.labels.assert_called_with(tool_name="t", agent_name="a", success="true")
+
+    async def test_a_plain_answer_is_not_a_failure(self, mock_framework_metrics) -> None:
+        """Silence is never a failure: a tool returning prose succeeded."""
+        counter, histogram = mock_framework_metrics
+
+        @track_tool_metrics(
+            tool_name="t", agent_name="a", counter_metric=counter, duration_metric=histogram
+        )
+        async def prose_tool() -> str:
+            return "Paris: 10-22 °C"
+
+        await prose_tool()
+        counter.labels.assert_called_with(tool_name="t", agent_name="a", success="true")
+
+    def test_sync_returned_failure_counts_false(self, mock_framework_metrics) -> None:
+        counter, histogram = mock_framework_metrics
+
+        @track_tool_metrics(
+            tool_name="t", agent_name="a", counter_metric=counter, duration_metric=histogram
+        )
+        def failing_sync_tool() -> dict:
+            return {"success": False, "error_code": "TIMEOUT"}
+
+        failing_sync_tool()
+        counter.labels.assert_called_with(tool_name="t", agent_name="a", success="false")

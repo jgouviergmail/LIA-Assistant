@@ -387,7 +387,6 @@ def get_response_prompt(
     user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
     user_language: str = settings.default_language,
     personality_instruction: str | None = None,
-    conversation_history: str = "",
     window_size: int = 20,
     psychological_profile: str | None = None,
     knowledge_context: str = "",
@@ -414,6 +413,8 @@ def get_response_prompt(
     The dynamic tail is made of the sections declared in
     ``response_context_sections.txt`` (key, tag, ONE instruction each), rendered
     only when their content is non-empty — see ``_render_context_sections``.
+    The conversation is not one of them: it reaches the model once, as the
+    conversation's own messages after this prompt (ADR-309).
 
     V3 Architecture: LLM generates conversational response only.
     Data formatting is handled by HTML components (ContactCard, EmailCard, etc.)
@@ -427,7 +428,6 @@ def get_response_prompt(
         user_timezone: User's IANA timezone for temporal context.
         user_language: User's language code (fr, en, etc.); the model reads its name.
         personality_instruction: LLM personality prompt instruction.
-        conversation_history: Formatted conversation history string, empty when none.
         window_size: Number of turns in conversation window.
         psychological_profile: User's psychological profile for memory injection.
         knowledge_context: Brave Search enrichment context for encyclopedic knowledge.
@@ -516,7 +516,6 @@ def get_response_prompt(
             "anticipated_needs": anticipated_needs_str,
             "recent_entities": recent_entities,
             "peer_context": peer_context,
-            "conversation_history": conversation_history,
         }
     )
 

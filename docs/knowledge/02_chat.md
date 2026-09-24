@@ -254,6 +254,8 @@ The assistant **reasons step by step**: it calls a tool, analyzes the result, th
 
 **⏱️ Honest time budgets** — a ReAct turn counts thinking time and tool-work time separately, each with its own bound, so a single long delegation (a sub-agent, an iterative MCP task, a browser run) can never consume the whole turn. The deadline is measured on compute time: waiting for your approval never eats into it, and a timeout caused by a slow external tool is attributed to that tool, not reported as the assistant cutting you short.
 
+**🎯 Judged on its result** — in ReAct mode, LIA checks that each result really answers your question — the right day, the right place, a complete list — and treats a result that answers another question as an obstacle, exactly like an error. In front of an obstacle it climbs a short ladder: the same call corrected (an exact date, a wider window, a relaxed search), then another source, which it names as such (« Source: web search (fallback) »). Whatever it still could not obtain is listed at the end of the answer with what it tried, never dropped in silence. When the draft declares such a gap, the loop takes one bounded recovery pass to try the rungs it has not tried yet; a turn with nothing missing takes no pass and costs nothing more. Relative dates — « tomorrow », « next Saturday » — become an exact date before any tool is queried, in every language, and a tool that cannot read a value refuses it instead of silently replacing it.
+
 ## How do I copy a message or code, and are math formulas rendered correctly?
 
 Since v1.16.9, the chat has several useful finishing touches:
@@ -430,6 +432,8 @@ jargon, a code path or an example address — what LIA shows you is a question,
 not its internal diagnosis.
 
 You can answer, rephrase, or drop it: nothing is sent until you decide.
+
+**When a service fails along the way** — a calendar that is unavailable, a page that refuses access —, LIA says so: which tool, what it answered, and what succeeded anyway. It never invents a « service not configured » to fill the gap: measured before this rule was enforced, one answer in three did exactly that on the turns where a tool had failed, while the connectors were active. A plan that half-succeeded gives you back what worked and names what did not. In ReAct mode LIA first tries another way (a corrected parameter, another source); what it could not obtain is listed at the end of the answer, with what it tried.
 
 ## In rich HTML, what does an answer look like?
 

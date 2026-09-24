@@ -4,6 +4,12 @@
 **Deciders**: Engineering (LIA LLM infrastructure), `jgouviergmail`
 **Related**: ADR-078 (LLM Catalogue DB Source of Truth), ADR-026 (LLM Model Selection)
 
+> **Amended by [ADR-306](ADR-306-Claude-Request-Surface-And-Billed-Prompt-Cache.md)
+> (2026-09-23).** `ChatOpenAICached` no longer exists for the cache key alone: on
+> GPT-5.6 and GPT-6, which cache by breakpoint and bill a write at 1.25x, it also
+> places a breakpoint at the end of the static prefix
+> (`providers/openai_payload.py`) — without it every call rewrote its whole prompt.
+
 > **Partially superseded (2026-08-27, v1.32.0) by [ADR-245](ADR-245-Reasoning-Unification.md)**:
 > the per-provider builders this ADR introduced
 > (`infrastructure/llm/providers/reasoning_builders.py`, `build_*_reasoning`) are

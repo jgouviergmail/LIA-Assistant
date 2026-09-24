@@ -205,6 +205,34 @@ class TestTimeSlotsAreLegible:
         assert len(mine) == 2
         assert mine[0]["start_utc"] == "01:00"
         assert mine[0]["input_unit_price"] == Decimal("0.44")
+        assert mine[0]["weekdays"] is None  # an every-day window: an empty cell
+
+    async def test_a_window_carries_its_days_to_both_sheets(
+        self, async_session: AsyncSession
+    ) -> None:
+        """The days are on the time-slot sheet for editing, and on the row that
+        carries the price, so a Monday-Friday peak never reads as a daily one."""
+        pricing = await create_llm_pricing_async(
+            async_session,
+            model_name="ex-weekday-windows",
+            input_price=Decimal("0.15"),
+            output_price=Decimal("0.60"),
+        )
+        pricing.time_slots = [
+            {**PEAK[0], "weekdays": [1, 2, 3, 4, 5]},
+            PEAK[1],
+        ]
+        await async_session.flush()
+
+        payload = await build_export_rows(async_session, labels=LABELS)
+
+        mine = [row for row in payload.slots if row["model_name"] == "ex-weekday-windows"]
+        assert mine[0]["weekdays"] == ["mon", "tue", "wed", "thu", "fri"]
+        assert mine[1]["weekdays"] is None
+        row = next(r for r in payload.models if r["model_name"] == "ex-weekday-windows")
+        assert row["time_slots_summary"] == (
+            "2 fenêtres : 01:00-04:00 (mon,tue,wed,thu,fri), 06:00-10:00"
+        )
 
 
 @pytest.mark.unit

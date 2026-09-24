@@ -181,6 +181,11 @@ MODEL_CONTEXT_WINDOWS: dict[str, int] = {
     # e.g., "o1-mini" before "o1", "gpt-4-turbo" before "gpt-4".
     #
     # OpenAI GPT-5.x series (2025-2026) — all 1M, order doesn't matter
+    # GPT-6: 1 050 000 window minus the 128 000 output it reserves. Read here
+    # while the seeded row stays ``declared`` (see the Qwen series below).
+    "gpt-6-astra": 922_000,
+    "gpt-6-sol": 922_000,
+    "gpt-6-luna": 922_000,
     "gpt-5-mini": 1_047_576,
     "gpt-5-nano": 1_047_576,
     "gpt-5.1": 1_047_576,
@@ -206,11 +211,21 @@ MODEL_CONTEXT_WINDOWS: dict[str, int] = {
     "o3-mini": 200_000,
     "o3": 200_000,
     "o4-mini": 200_000,
-    # Anthropic Claude 4.x series
-    "claude-opus-4-6": 200_000,
+    # Anthropic Claude (Models API max_input_tokens, 2026-09-23 — ADR-306). A
+    # newer name before the older one it starts with: ``claude-opus-4`` used to
+    # hand 200K to Opus 4.7/4.8, and the 4.6 pair carried 200K for a 1M window.
+    # Sonnet 4.5: 200K per the context-windows documentation (the Models API
+    # reports 1M).
+    "claude-fable-5": 1_000_000,
+    "claude-mythos-5": 1_000_000,
+    "claude-opus-5": 1_000_000,
+    "claude-sonnet-5": 1_000_000,
+    "claude-opus-4-8": 1_000_000,
+    "claude-opus-4-7": 1_000_000,
+    "claude-opus-4-6": 1_000_000,
     "claude-opus-4-5": 200_000,
     "claude-opus-4": 200_000,
-    "claude-sonnet-4-6": 200_000,
+    "claude-sonnet-4-6": 1_000_000,
     "claude-sonnet-4-5": 200_000,
     "claude-sonnet-4": 200_000,
     "claude-haiku-4-5": 200_000,
@@ -221,6 +236,9 @@ MODEL_CONTEXT_WINDOWS: dict[str, int] = {
     "claude-3-sonnet-20240229": 200_000,
     "claude-3-haiku-20240307": 200_000,
     # Google Gemini series
+    # A seeded model stays ``declared`` on a fresh install, so its window is
+    # read HERE (see the Qwen series below).
+    "gemini-3.8-flash": 1_048_576,
     "gemini-3.1-pro-preview": 1_000_000,
     "gemini-3-pro-preview": 1_000_000,
     "gemini-3-flash-preview": 1_000_000,
@@ -246,7 +264,14 @@ MODEL_CONTEXT_WINDOWS: dict[str, int] = {
     "llama-3.1-sonar-small-128k-online": 128_000,
     "llama-3.1-sonar-large-128k-online": 128_000,
     "llama-3.1-sonar-huge-128k-online": 128_000,
-    # Qwen series (more specific prefixes before shorter ones)
+    # Qwen series (more specific prefixes before shorter ones). A model the
+    # reference seed inserts stays ``declared``, so on a fresh install its
+    # window is read HERE — a Qwen name missing from this table runs at the
+    # 128K default against a 1M window.
+    "qwen3.8-flash": 1_000_000,
+    "qwen3.7-max": 1_000_000,
+    "qwen3.7-flash": 1_000_000,
+    "qwen3.6-flash": 1_000_000,
     "qwen3.6-plus": 1_000_000,
     "qwen3.5-plus": 1_000_000,
     "qwen3.5-flash": 1_000_000,

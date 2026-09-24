@@ -55,24 +55,26 @@ LIA est une **plateforme d'assistant conversationnel entreprise** construite sur
 - **Architecture Async-First** : FastAPI async, SQLAlchemy async, asyncio natif
 - **Stateless Backend** : State centralisé (PostgreSQL checkpoints + Redis sessions)
 - **Event-Driven** : SSE streaming pour communication temps-réel
-- **Multi-Provider LLM** : Abstraction via Factory pattern (8 providers supportés)
+- **Multi-Provider LLM** : Abstraction via Factory pattern (7 providers supportés)
 - **Enterprise-Grade Observability** : Prometheus, Grafana, Loki, Tempo, Langfuse
 
 ### Métriques Projet
 
+Ordres de grandeur mesurés le 2026-09-24 (`git ls-files`) ; les valeurs exactes que le code possède — métriques, ADR, versions — sont tenues par `task release:check` dans le README et la landing, pas ici.
+
 | Métrique | Valeur |
 |----------|--------|
-| **Lignes de Code** | 150,000+ |
-| **Fichiers** | 1,500+ |
-| **Modules Python** | 300+ |
-| **Tests** | ~590 fichiers pytest |
-| **Métriques Prometheus** | 419 |
-| **Dashboards Grafana** | 25 |
-| **API Endpoints** | 90+ |
-| **LLM Providers** | 9 (catalogue-driven, ADR-078) |
-| **Agents** | 19+ |
-| **Tools** | 76 |
-| **Fichiers Prompts** | 78 (`prompts/v1/`) |
+| **Lignes de Code** | 720 000+ hors tests (Python, TypeScript, CSS — mesure du README) |
+| **Modules Python** | 1 700+ (`apps/api/src`) |
+| **Fichiers TypeScript** | 1 000+ hors tests (`apps/web/src`) |
+| **Tests** | 1 850+ fichiers pytest, 700+ fichiers vitest |
+| **Métriques Prometheus** | 580+ |
+| **Dashboards Grafana** | 30 |
+| **Routes d'API** | 500+ |
+| **LLM Providers** | 7 (catalogue en base, ADR-244) |
+| **Agents** | 20 |
+| **Tools** | 115 exposés au catalogue |
+| **Fichiers Prompts** | 150+ (`prompts/v1/`) |
 | **Langues i18n** | 6 |
 
 ---
@@ -2083,8 +2085,14 @@ interaction = HitlInteractionRegistry.from_action_type(action_type, ...)
 - Response: 20 turns (52% TTFT improvement)
 
 **2. Prompt Caching**
-- OpenAI: >1024 tokens system message → 90% discount
-- Anthropic: Automatic caching for repeated prefixes
+- OpenAI: prefixes of 1,024+ tokens are cached (a read costs 0.1x); on GPT-5.6 and
+  GPT-6, which cache by breakpoint, the static prefix carries an explicit breakpoint
+  and a write is billed at 1.25x
+  ([ADR-306](./architecture/ADR-306-Claude-Request-Surface-And-Billed-Prompt-Cache.md))
+- Anthropic: the static prefix is marked at the `DYNAMIC CONTEXT` marker whatever the
+  system's shape, the rolling breakpoint only in tool loops, previous turns' thinking
+  never replayed, 5-minute TTL; a cache write is billed at 1.25x on every cost path
+  ([ADR-306](./architecture/ADR-306-Claude-Request-Surface-And-Billed-Prompt-Cache.md))
 
 **3. Parallel Execution**
 - asyncio.gather() for independent tools
@@ -2223,12 +2231,16 @@ POST /admin/llm/pricing/sheet/import?dry_run=false&plan_fingerprint=...
 GET /admin/image-pricing/pricing?search=gpt&page=1&page_size=20&sort_by=model&sort_order=asc
 Response: ImagePricingListResponse {
     total: 9, entries: [
-        { id, model: "gpt-image-1", quality: "low", size: "1024x1024",
-          cost_per_image_usd: "0.011000", effective_from, is_active: true }
+        { id, provider: "openai", model: "gpt-image-2", quality: "low", size: "1024x1024",
+          cost_per_image_usd: "0.011000", cost_per_input_image_usd: null,
+          effective_from, is_active: true }
     ]
 }
 
-# Create / Update (versioned) / Deactivate
+# Create / Update (versioned) / Deactivate — every row is held to its model's
+# family (ADR-305): 400 when no family declares the model, when the family refuses
+# the quality or the size, or when the reference-image price is missing (Qwen) or
+# present (OpenAI)
 POST /admin/image-pricing/pricing
 PUT /admin/image-pricing/pricing/{pricing_id}
 DELETE /admin/image-pricing/pricing/{pricing_id}
@@ -2458,7 +2470,7 @@ class ContextResolutionService:
 
 #### Recent-Entity Grounding (ADR-147)
 
-`filter_registry_by_current_turn` returns `{}` when a turn produced no `registry_updates` (anti-contamination, 2025-12-26), and `<History>` deliberately excludes `ToolMessage` — so on a tool-less turn the response LLM has **no authoritative structured data** and can only echo prose (production symptom: an appointment quoted at "16h" instead of 11h15).
+`filter_registry_by_current_turn` returns `{}` when a turn produced no `registry_updates` (anti-contamination, 2025-12-26), and the earlier turns reach the response LLM as the answers' prose (a card answer reduced to its leading text) — so on a tool-less turn it has **no authoritative structured data** and can only echo prose (production symptom: an appointment quoted at "16h" instead of 11h15).
 
 `context/recent_entities.py` closes that gap **for text only**:
 
@@ -2467,7 +2479,7 @@ class ContextResolutionService:
 | Gate | Current-turn registry empty **and** turn not REFERENCE (their empty registry is a data-leak fail-safe) |
 | Selection | **By recency**, from `agent_results` turn keys — never by the current query's domains (`RoutingDecider` routes to the response node precisely when no domain is detected) |
 | Source | Merged `state["registry"]` — no store round-trip |
-| Bounds | `RESPONSE_RECENT_ENTITIES_MAX_TURN_AGE` (0 disables) and `TOOL_CONTEXT_MAX_ITEMS`, truncation logged |
+| Bounds | `RESPONSE_RECENT_ENTITIES_MAX_TURN_AGE` (0 disables) and `RESPONSE_RECENT_ENTITIES_MAX_ITEMS`, truncation logged |
 | Prompt | `<RecentEntities>` after the dynamic-context marker, explicitly non-authoritative (current-turn data wins) |
 
 The HTML/photo/widget path keeps reading the empty current-turn registry, so a tool-less turn still yields **no data cards** — the invariant documented in [REACT_EXECUTION_MODE.md](./technical/REACT_EXECUTION_MODE.md) is preserved.
@@ -3931,6 +3943,15 @@ Carnets de bord introspectifs donnant à l'assistant une personnalité vivante e
 | Un second puis un troisième fournisseur live sans qu'une ligne de la couture ne bouge : un fournisseur DÉCLARE son fil (`connection` jeton ou offre SDP, `delegation_wire` fonction ou native), la catégorie `live` additive, un connecteur qui se souvient de chaque modèle, durées et plafond par modèle, le coût de la session montré depuis les relevés du fournisseur et jamais enregistré, un modèle live offert seulement si tarifé, la session DIRECTE (les outils de lecture derrière une porte unique, ×9 jetons mesuré), ElevenLabs Agents sur le premier fil (`AgentSyncing`, `portal_voice`, facturation `vendor` : la plateforme ne tarife rien, la facture du fournisseur lue une fois à la fin) | [ADR-300](./architecture/ADR-300-A-Second-Live-Provider-One-Seam-Two-Wires.md) | [LIVE_MODE.md](./technical/LIVE_MODE.md) |
 | Sessions vocales : une politique par MODE, quelle que soit la ligne — Live (chaque demande un tour de chat de la personne pendant qu'elle parle, par un pont serveur sur le téléphone) ou Live direct (la voix lit, n'agit sur rien, les mots relayés à la fin), UNE clôture pour le téléphone et le navigateur, ce que les lignes partagent sorti dans `domains/voice_sessions/`, le mode effectif dérivé et publié, un runner qui ne tient aucune session de base pendant le tour, l'admission des consultations en UNE séquence | [ADR-301](./architecture/ADR-301-Voice-Sessions-One-Policy-Per-Mode.md) | [TELEPHONY.md](./technical/TELEPHONY.md) |
 | Chaque euro que la plateforme paie pour une personne est tracé, affiché, attribué et compté, quelle que soit la modalité : un prédicat de persistance couvrant chaque famille du traceur, un compteur Google qui échoue fermé dans une alerte, chaque surface hors tour sous sa propre comptabilité, la route déclarée dans `google_api/spend_roads.py`, les images comptées au proxy sous un run id signé, `billed_cost_eur` | [ADR-272 (amendement)](./architecture/ADR-272-Every-Platform-Paid-Token-Answers-To-Both-Ceilings.md) | [USAGE_LIMITS.md](./technical/USAGE_LIMITS.md) |
+| Un échec d'outil est DIT, jamais deviné : un vocabulaire de statut dont chaque membre est produit et lu, un agrégat binaire dont `failed_steps` porte le partiel, un fait sur un canal (la directive d'honnêteté, plus conditionnée au diagnostic), un verdict STRUCTUREL en ReAct (`ToolMessage.status`), un prédicat de succès unique pour le registre, les métriques et la boucle, un ratchet contre la classification par les mots d'un message | [ADR-303](./architecture/ADR-303-Tool-Failure-Restitution.md) | [RESPONSE.md](./technical/RESPONSE.md) |
+| Aucune transaction ouverte pendant un appel réseau : un client connecteur jamais construit sur la session de son appelant (garde exacte), une porte unique vers le client actif d'une catégorie, des jobs qui committent avant chaque attente, les opérations de connecteur du tour qui terminent leur transaction, le tampon de clé API en fusion atomique à part, le flux Drive poussé borné et repris par comparer-et-échanger, les réveils servis un par un sous plafond (`PushWakeSweepStalled`), les rappels réclamés un par un, le webhook Telegram posé par le leader seul, WebSockets sans E/S, tas V8 borné | [ADR-304](./architecture/ADR-304-No-Transaction-Across-A-Network-Call.md) | [CONNECTORS_PATTERNS.md](./technical/CONNECTORS_PATTERNS.md) |
+| Un modèle d'image déclare son offre, un client par fournisseur la sert : des familles (OpenAI GPT Image, Qwen Image 3.0) qui déclarent qualités, tailles, paliers et facturation de l'image de référence, rien d'inservable ni tarifé ni proposé ni choisi, la retouche OpenAI sur le modèle configuré, une préférence résolue comme intention, le format de la personne appliqué une fois pour tous | [ADR-305](./architecture/ADR-305-Image-Model-Declares-Its-Offer.md) | [IMAGE_GENERATION.md](./technical/IMAGE_GENERATION.md) |
+| La surface de requête Claude déclarée une fois et le cache de prompt façonné et facturé comme le fournisseur le mesure : huit modèles, une table mesurée (`core/claude_surface.py`), le point d'arrêt sur le préfixe statique quelle que soit la forme du système, l'écriture de cache facturée à son prix sur chaque porte, la même règle pour GPT-5.6/GPT-6 | [ADR-306](./architecture/ADR-306-Claude-Request-Surface-And-Billed-Prompt-Cache.md) | [LLM_PROVIDERS.md](./technical/LLM_PROVIDERS.md) |
+| Un connecteur qui ne demande rien à la personne appartient à l'instance : aucune ligne par compte, un prédicat unique (`connectors/keyless.py`), le fournisseur météo de la personne gagne et Google Weather est le défaut | [ADR-307](./architecture/ADR-307-Keyless-Connectors-Belong-To-The-Instance.md) | [CONNECTORS_PATTERNS.md](./technical/CONNECTORS_PATTERNS.md) |
+| Un drapeau fait du préfixe d'un tour ReAct celui du tour précédent : tous les outils liés et le contexte du tour après la question, une forme par fournisseur déclarée et vérifiée au démarrage, un repli compté ; désactivé par défaut, jugé sur la moyenne des mécanismes de cache | [ADR-308](./architecture/ADR-308-ReAct-Cross-Turn-Prompt-Cache.md) | [REACT_EXECUTION_MODE.md](./technical/REACT_EXECUTION_MODE.md) |
+| Une mise en page de prompt pour tous les mécanismes de cache : le stable avant le volatil, une frontière lue une fois, les appels uniques en message système, la conversation de la réponse envoyée une fois, les familles à cache explicite marquées | [ADR-309](./architecture/ADR-309-One-Prompt-Layout-For-Every-Cache-Mechanism.md) | [PROMPTS.md](./technical/PROMPTS.md) |
+| Un tour ReAct est jugé sur son résultat : ce que la boucle entreprend finit obtenu ou déclaré (`<unresolved>`), un écart déclaré achète une passe de reprise bornée par un nœud sans modèle, des dates absolues avant tout paramètre, un outil qui refuse une valeur illisible | [ADR-310](./architecture/ADR-310-ReAct-Turn-Judged-On-Its-Result.md) | [REACT_EXECUTION_MODE.md](./technical/REACT_EXECUTION_MODE.md) |
+| Une identité fédérée ne donne aucun droit (la liaison Google ne change jamais le statut d'un compte) et « qui appelle ? » n'a qu'une réponse (`resolve_client_ip`, garde AST) ; le run id d'une config de graphe n'a qu'un lecteur et les actes d'un tour ReAct sont dits comme les siens ; le cache des prix reconstruit depuis la base et publié par chaque écrivain | [ADR-002](./architecture/ADR-002-BFF-Pattern-Authentication.md), [ADR-213](./architecture/ADR-213-L-Identite-De-L-Appelant-Vient-D-Un-En-Tete-Qu-Il-Ne-Peut-Pas-Ecrire.md), [ADR-263 §23](./architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md), [ADR-063](./architecture/ADR-063-Cross-Worker-Cache-Invalidation.md) (amendements) | [AUTHENTICATION.md](./technical/AUTHENTICATION.md) |
 
 ---
 

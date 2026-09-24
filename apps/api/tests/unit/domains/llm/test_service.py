@@ -328,6 +328,39 @@ async def test_create_persists_time_slots_as_plain_json(
 
 
 @pytest.mark.unit
+async def test_create_persists_the_weekdays_of_a_slot(
+    async_session: AsyncSession,
+) -> None:
+    """The days travel into JSONB with the window — the resolver reads them there."""
+    service = LLMModelService(async_session)
+    _, pricing = await service.create(
+        _make_create("svc-slots-days", time_slots=[{**_SLOT_PAYLOAD, "weekdays": [5, 1, 2, 3, 4]}])
+    )
+
+    assert pricing.time_slots is not None
+    assert pricing.time_slots[0]["weekdays"] == [1, 2, 3, 4, 5]
+
+
+@pytest.mark.unit
+async def test_an_unrelated_price_change_keeps_the_weekdays(
+    async_session: AsyncSession,
+) -> None:
+    """The new temporal version inherits the slots WHOLE: a copy rebuilt
+    from the keys it knew would bill every weekend at peak again."""
+    service = LLMModelService(async_session)
+    await service.create(
+        _make_create("svc-slots-days-inherit", time_slots=[{**_SLOT_PAYLOAD, "weekdays": [1]}])
+    )
+
+    _, new_pricing = await service.update(
+        "svc-slots-days-inherit", ModelPriceUpdate(output_unit_price=Decimal("0.99"))
+    )
+
+    assert new_pricing.time_slots is not None
+    assert new_pricing.time_slots[0]["weekdays"] == [1]
+
+
+@pytest.mark.unit
 async def test_create_normalizes_empty_slots_to_null(
     async_session: AsyncSession,
 ) -> None:

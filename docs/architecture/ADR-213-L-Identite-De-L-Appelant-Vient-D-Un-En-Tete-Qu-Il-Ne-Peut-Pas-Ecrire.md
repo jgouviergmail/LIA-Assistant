@@ -79,3 +79,42 @@ jamais, et la robustesse aux scopes incomplets.
   avec une adresse de bridge variable, il n'y a pas de pair fixe à déclarer.
 - **Signer l'identité côté proxy** : coût sans bénéfice tant que le port reste
   lié à la loopback, où seul un pair de confiance peut écrire l'en-tête.
+
+## Amendement 2026-09-23 — une seule réponse, et une garde pour la tenir
+
+**Constat.** La décision couvrait trois lecteurs, et rien n'empêchait les
+autres de lire le pair. Le 2026-09-23, **vingt et un** sites le lisaient encore
+(vingt-deux lectures) :
+
+- **Les dix-neuf écritures du journal d'audit admin**, qui lisaient
+  `request.client.host`. C'est l'entrée d'`X-Forwarded-For` la plus à gauche,
+  celle que le visiteur écrit, ou bien, derrière une Server Action Next.js, le
+  conteneur web lui-même. La désactivation de compte du 2026-09-22 a ainsi été
+  auditée depuis `172.18.0.19`, l'adresse de `lia-web-prod`.
+- **L'adresse qu'une nouvelle session enregistre** pour la vue « Appareils »
+  (`core/session_helpers.py`).
+- **Le compartiment de limitation des événements produit**, qui relisait
+  `X-Forwarded-For` à la main et en prenait l'entrée la plus à gauche :
+  exactement le contournement mesuré plus haut, rouvert sur un endpoint public.
+
+**Décision.**
+
+1. Tout lecteur de « qui appelle ? » appelle `resolve_client_ip`. Les vingt et
+   un sites y passent.
+2. Une garde AST en fait une règle :
+   `apps/api/tests/unit/test_client_ip_single_resolver_guard.py` refuse
+   `<x>.client.host` et toute lecture d'`X-Forwarded-For` hors de
+   `core/client_ip.py`. Ses auto-tests prouvent qu'elle voit ses propres
+   exemples.
+3. Le client serveur Next.js (`apps/web/src/lib/api-server.ts`) transmet
+   l'en-tête `CF-Connecting-IP` de la requête entrante : une Server Action
+   atteint l'API depuis le serveur web, qui serait sinon l'appelant de toutes
+   les actions admin, de toutes les sessions et d'un seul compartiment de
+   limitation partagé par tous. La confiance reste celle de la topologie décrite
+   plus haut, puisque le serveur web n'est lui aussi joignable que par le tunnel.
+
+**Preuves.** La garde, puis les tests de comportement sur les trois formes :
+l'audit (`test_the_audit_names_the_caller_not_the_proxy_in_front`), la session
+(`test_the_session_records_the_address_cloudflare_vouches_for`) et le
+compartiment (`test_a_rotated_forwarded_header_buys_no_fresh_budget`). Côté web,
+`api-server.test.ts` (« who is calling »).

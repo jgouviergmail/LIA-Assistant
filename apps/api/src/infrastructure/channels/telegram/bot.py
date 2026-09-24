@@ -16,6 +16,7 @@ from telegram import Bot
 from telegram.ext import Application
 
 from src.core.config import settings
+from src.infrastructure.channels.telegram.flood_control import retry_after_seconds
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -46,7 +47,8 @@ async def initialize_telegram_bot() -> Bot | None:
     Initialize the Telegram bot and configure webhook or polling.
 
     Production (TELEGRAM_WEBHOOK_URL set):
-        Sets the webhook URL with secret token for signature verification.
+        Builds the bot only: the webhook itself is set by the scheduler
+        leader (:func:`ensure_telegram_webhook`), once for all workers.
 
     Development (no TELEGRAM_WEBHOOK_URL):
         Starts long polling via python-telegram-bot's Application updater,
@@ -74,38 +76,12 @@ async def initialize_telegram_bot() -> Bot | None:
     _bot = _application.bot
 
     if webhook_url:
-        # Production: set webhook with secret token.
-        # Multi-worker boot (uvicorn --workers N): all workers call
-        # set_webhook with the SAME url simultaneously — Telegram flood-limits
-        # the duplicates (RetryAfter, observed at every prod deploy). The
-        # webhook is bot-global so one successful call is enough; retry once
-        # after the announced delay, and treat a residual flood-limit as
-        # success when another worker already set the identical URL.
-        from telegram.error import RetryAfter
-
-        try:
-            await _bot.set_webhook(
-                url=webhook_url,
-                secret_token=webhook_secret,
-                allowed_updates=["message", "callback_query"],
-            )
-        except RetryAfter as exc:
-            await asyncio.sleep(exc.retry_after + 0.5)
-            try:
-                await _bot.set_webhook(
-                    url=webhook_url,
-                    secret_token=webhook_secret,
-                    allowed_updates=["message", "callback_query"],
-                )
-            except RetryAfter:
-                webhook_info = await _bot.get_webhook_info()
-                if webhook_info.url == webhook_url:
-                    logger.info(
-                        "telegram_webhook_already_set_by_peer_worker",
-                        webhook_url=webhook_url,
-                    )
-                else:
-                    raise
+        # Production: the webhook is bot-GLOBAL state, so it is set ONCE — by
+        # the scheduler leader (``ensure_telegram_webhook``, a one-shot job) —
+        # never by every worker at boot: N workers calling setWebhook together
+        # answered « Conflict: terminated by other setWebhook » and RetryAfter
+        # floods at every deploy (measured in production, 2026-09-22). Every
+        # worker still holds the bot: it sends, and the webhook route receives.
         logger.info(
             "telegram_bot_initialized_webhook",
             webhook_url=webhook_url,
@@ -147,12 +123,57 @@ async def initialize_telegram_bot() -> Bot | None:
     return _bot
 
 
+async def ensure_telegram_webhook() -> None:
+    """Set the bot's webhook — run by the scheduler leader alone (ADR-304).
+
+    A one-shot job every newly elected leader runs: the webhook is bot-global,
+    so one call serves every worker, a failover re-asserts it, and a rotated
+    secret reaches Telegram at the next boot. Telegram replaces a webhook set
+    to the same URL, so a re-run is harmless. A flood-limit left by a previous
+    deploy is waited out once; a webhook that could not be set is an ERROR —
+    Telegram delivers nothing until it is.
+    """
+    from telegram.error import RetryAfter
+
+    webhook_url = getattr(settings, "telegram_webhook_url", None)
+    if _bot is None or not webhook_url:
+        logger.info(
+            "telegram_webhook_setup_skipped",
+            reason="no_bot" if _bot is None else "polling_mode",
+        )
+        return
+    webhook = {
+        "url": webhook_url,
+        "secret_token": getattr(settings, "telegram_webhook_secret", None),
+        "allowed_updates": ["message", "callback_query"],
+    }
+    try:
+        try:
+            await _bot.set_webhook(**webhook)
+        except RetryAfter as exc:
+            await asyncio.sleep(retry_after_seconds(exc) + 0.5)
+            await _bot.set_webhook(**webhook)
+    except Exception as exc:
+        logger.error(
+            "telegram_webhook_setup_failed",
+            error=str(exc),
+            error_type=type(exc).__name__,
+        )
+        return
+    logger.info("telegram_webhook_set", webhook_url=webhook_url)
+
+
 async def shutdown_telegram_bot() -> None:
     """
     Gracefully shut down the Telegram bot.
 
-    Deletes webhook (production) or stops polling (development),
-    then shuts down the Application.
+    Stops polling (development), then shuts down the Application. The webhook
+    (production) is left in place: it is bot-global, so a worker that stops —
+    one of N, or the old container of a deploy — used to delete it for every
+    other worker, and Telegram delivered nothing until the next boot set it
+    again. While the API is down, Telegram retries its deliveries, and a switch
+    back to polling needs no deletion here: python-telegram-bot's polling
+    bootstrap removes any webhook itself before its first ``getUpdates``.
     """
     global _bot, _application, _bot_username
 
@@ -162,11 +183,7 @@ async def shutdown_telegram_bot() -> None:
     webhook_url = getattr(settings, "telegram_webhook_url", None)
 
     try:
-        if webhook_url:
-            # Production: delete webhook
-            await _bot.delete_webhook()
-            logger.info("telegram_webhook_deleted")
-        elif _application and _application.updater:
+        if not webhook_url and _application and _application.updater:
             # Development: stop polling
             await _application.updater.stop()
             logger.info("telegram_polling_stopped")

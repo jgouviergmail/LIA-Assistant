@@ -63,6 +63,11 @@ ALLOWED: set[tuple[str, str]] = {
     # pagination (fetches every contact across pages, then local search returns
     # capped results). Not an agent-facing search — must not be ceiling-capped.
     ("google_people_client.py", "list_connections"),
+    # The Drive changes feed drained by the push reindex (ADR-304): an internal
+    # page_token pagination that never reaches an agent, clamped to Google's own
+    # 1 000. Capped at the agent ceiling (25) it took 5 832 calls in 50 minutes
+    # to drain one account and blocked the wake sweep 22 minutes (2026-09-22).
+    ("google_drive_client.py", "list_changes"),
 }
 
 

@@ -157,6 +157,8 @@ class SynthesisUsage:
     tokens_out: int
     tokens_cache: int
     model_name: str
+    #: The part of ``tokens_in`` Claude wrote to its prompt cache (ADR-306).
+    tokens_cache_write: int = 0
 
 
 @dataclass(frozen=True)
@@ -499,6 +501,7 @@ async def synthesize_minutes(
         tokens_out=capture.tokens_out,
         tokens_cache=capture.tokens_cache,
         model_name=model,
+        tokens_cache_write=capture.tokens_cache_write,
     )
     logger.info(
         "meeting_synthesis_done",

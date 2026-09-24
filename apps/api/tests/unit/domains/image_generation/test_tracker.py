@@ -28,6 +28,7 @@ class TestTrackImageGenerationCall:
                 quality="low",
                 size="1024x1024",
                 image_count=1,
+                input_image_count=1,
                 prompt="a cat",
             )
 
@@ -38,6 +39,7 @@ class TestTrackImageGenerationCall:
             image_count=1,
             prompt_preview="a cat",
             duration_ms=0.0,
+            input_image_count=1,
         )
 
     def test_noop_when_no_tracker(self) -> None:

@@ -286,6 +286,54 @@ class TestValidations:
         assert "LST_PROVIDER" in workbook.defined_names
 
 
+_LIST_SHEET = SheetSpec(
+    name="Windows",
+    title_key="title.windows",
+    key_column="model_name",
+    columns=(
+        ColumnSpec(key="model_name", label_key="l.name", kind="text"),
+        ColumnSpec(key="days", label_key="l.days", kind="enum_list", referential="DAY"),
+    ),
+)
+_LIST_SPEC = WorkbookSpec(
+    sheets=(_LIST_SHEET,),
+    referentials={"DAY": ("mon", "tue", "fri")},
+    schema_version=1,
+)
+
+
+def _list_workbook(days: object) -> openpyxl.Workbook:
+    blob = build_workbook(
+        _LIST_SPEC,
+        {"Windows": [{"model_name": "m", "days": days}]},
+        notice=[],
+        labels=LABELS,
+        metadata={},
+    )
+    return openpyxl.load_workbook(io.BytesIO(blob))
+
+
+@pytest.mark.unit
+class TestEnumList:
+    """A column holding SEVERAL referential values in one cell."""
+
+    def test_a_list_is_written_as_its_comma_separated_values(self) -> None:
+        sheet = _list_workbook(["mon", "fri"])["Windows"]
+        assert sheet.cell(row=3, column=2).value == "mon, fri"
+
+    def test_an_empty_list_is_an_empty_cell(self) -> None:
+        sheet = _list_workbook([])["Windows"]
+        assert sheet.cell(row=3, column=2).value is None
+
+    def test_the_dropdown_offers_the_values_without_refusing_a_combination(self) -> None:
+        """Excel's list check compares the WHOLE cell to one entry: with its
+        error alert on, it refuses "mon, fri" before the reader — the one that
+        splits and checks each value — ever sees it."""
+        validations = _list_workbook(["mon"])["Windows"].data_validations.dataValidation
+        (listing,) = [v for v in validations if v.formula1 == "=LST_DAY"]
+        assert listing.showErrorMessage is False
+
+
 @pytest.mark.unit
 class TestEmptyAndEdgeCases:
     def test_a_sheet_with_no_row_still_carries_its_headers(self) -> None:

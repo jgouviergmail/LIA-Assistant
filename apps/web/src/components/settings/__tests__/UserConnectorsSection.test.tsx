@@ -240,3 +240,60 @@ describe('UserConnectorsSection — shared OAuth reconnection', () => {
     ));
   });
 });
+
+/**
+ * ADR-307: the connectors that ask nothing of the person (Wikipedia, page
+ * browsing, Google Places / Weather / Environment) belong to the instance —
+ * « My connectors » neither lists nor offers them, and what it does offer is
+ * activated with the person's own key.
+ */
+describe('UserConnectorsSection — keyless services are not the account’s', () => {
+  const KEYLESS = ['wikipedia', 'browser', 'google_places', 'google_weather', 'google_environment'];
+  const EXTERNAL_FAMILY = /settings\.connectors\.available_external/;
+
+  it('offers only the connectors that take a personal key', async () => {
+    const { user } = render();
+    await user.click(await screen.findByRole('button', { name: EXTERNAL_FAMILY }));
+
+    for (const type of ['openweathermap', 'perplexity', 'brave_search']) {
+      expect(await screen.findByText(`settings.connectors.${type}.label`)).toBeInTheDocument();
+    }
+    for (const type of KEYLESS) {
+      expect(screen.queryByText(`settings.connectors.${type}.label`)).not.toBeInTheDocument();
+    }
+    expect(screen.getAllByLabelText('settings.connectors.api_key.key_placeholder')).toHaveLength(3);
+  });
+
+  it('never lists a keyless row the API still returned', async () => {
+    stub(KEYLESS.map((connector_type, i) => makeConnector({ id: `k${i}`, connector_type })));
+    render();
+
+    expect(
+      await screen.findByRole('button', { name: EXTERNAL_FAMILY })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /settings\.connectors\.connected_api_key/ })
+    ).not.toBeInTheDocument();
+  });
+
+  it('activates with the key the person typed, on the one activation endpoint', async () => {
+    post.mockResolvedValue(makeConnector({ id: 'owm', connector_type: 'openweathermap' }));
+    const { user } = render();
+    await user.click(await screen.findByRole('button', { name: EXTERNAL_FAMILY }));
+
+    const [owmKey] = screen.getAllByLabelText('settings.connectors.api_key.key_placeholder');
+    await user.type(owmKey, '  owm-personal-key  ');
+    await user.click(screen.getAllByTitle('settings.connectors.api_key.activate')[0]);
+
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith('/connectors/api-key/activate', {
+        connector_type: 'openweathermap',
+        api_key: 'owm-personal-key',
+        key_name: 'openweathermap_key',
+      })
+    );
+    expect(takeUpdater(setData)({ connectors: [] })).toEqual({
+      connectors: [expect.objectContaining({ id: 'owm' })],
+    });
+  });
+});

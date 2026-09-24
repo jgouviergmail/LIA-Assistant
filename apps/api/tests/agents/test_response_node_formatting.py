@@ -47,25 +47,32 @@ class TestFormatAgentResultsForPrompt:
         assert "calendar_agent" in formatted
         assert "Calendar API unavailable" in formatted
 
-    def test_connector_disabled_status_is_reported(self):
-        """Disabled connectors surface as warnings."""
-        agent_results = {
-            "1:emails_agent": {"status": "connector_disabled", "error": "Gmail non activé"}
-        }
+    def test_a_status_outside_the_vocabulary_never_reaches_the_model(self):
+        """An unknown status is LOGGED, never narrated (ADR-303).
 
-        formatted = format_agent_results_for_prompt(agent_results, current_turn_id=1)
-
-        assert "⚠️" in formatted
-        assert "Gmail non activé" in formatted
-
-    def test_unknown_status_is_flagged(self):
-        """Unknown statuses are flagged rather than silently dropped."""
+        This test used to assert the opposite — that « half-done » reached the
+        prompt behind a ❓ — and that assertion is the defect itself: the same
+        branch turned every failed plan into « ❓ plan_executor : Statut inconnu
+        (failed) » and dropped the error text with it. A status the vocabulary
+        does not hold is a wiring bug for an operator to read in the logs, never
+        a sentence the model can repeat to the person.
+        """
         agent_results = {"1:mystery_agent": {"status": "half-done"}}
 
         formatted = format_agent_results_for_prompt(agent_results, current_turn_id=1)
 
-        assert "❓" in formatted
-        assert "half-done" in formatted
+        assert formatted == ""
+
+    def test_a_failed_agent_states_its_error(self):
+        """The live failure path: ERROR with no failed_steps says what happened."""
+        agent_results = {
+            "1:emails_agent": {"status": "error", "error": "Gmail refused the request"}
+        }
+
+        formatted = format_agent_results_for_prompt(agent_results, current_turn_id=1)
+
+        assert "❌" in formatted
+        assert "Gmail refused the request" in formatted
 
     # ------------------------------------------------------------------
     # Turn filtering

@@ -16,6 +16,7 @@ import pytest
 
 from src.core.config import settings
 from src.domains.peers.models import PeerConnectionStatus
+from src.infrastructure.llm.usage_metadata import UsageTokens
 from src.infrastructure.scheduler import peer_message_delivery as delivery
 
 SENDER_ID = uuid4()
@@ -103,11 +104,11 @@ class TestGenerateDeliveryText:
                 new=AsyncMock(side_effect=_invoke),
             ),
         ):
-            text, tin, tout, _tcache = await delivery._generate_delivery_text(
+            text, usage, _model = await delivery._generate_delivery_text(
                 _message(), _user(SENDER_ID, "fr", "Jerome"), _user(RECIPIENT_ID, "it", "Marie"), 3
             )
         assert text == "Ton père demande comment tu vas."
-        assert (tin, tout) == (100, 20)
+        assert (usage.prompt, usage.completion) == (100, 20)
         system = captured["messages"][0].content
         assert "Jerome" in system
         assert "<<<RELAYED_MESSAGE_START>>>" in system
@@ -197,7 +198,9 @@ class TestDeliverClaimedMessage:
             ),
             patch(
                 "src.infrastructure.scheduler.peer_message_delivery._generate_delivery_text",
-                new=AsyncMock(return_value=("Livré !", 100, 20, 0)),
+                new=AsyncMock(
+                    return_value=delivery._DeliveryText("Livré !", UsageTokens(100, 20, 0), "m")
+                ),
             ),
             patch(
                 "src.infrastructure.scheduler.peer_message_delivery.NotificationDispatcher"

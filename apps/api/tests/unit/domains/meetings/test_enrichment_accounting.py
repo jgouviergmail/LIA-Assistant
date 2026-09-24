@@ -64,7 +64,6 @@ async def test_the_geocoding_call_lands_on_the_meeting_run(
     )
     meeting = _meeting()
     calendar, label = await enrichment.enrich_meeting(
-        MagicMock(),
         meeting,
         stopped_at=datetime(2026, 9, 20, 10, 0, tzinfo=UTC),
         language="fr",
@@ -87,7 +86,6 @@ async def test_a_meeting_with_no_position_bills_nothing(
         "src.domains.connectors.clients.google_geocoding_helpers.reverse_geocode", geocode
     )
     calendar, label = await enrichment.enrich_meeting(
-        MagicMock(),
         _meeting(lat=None, lon=None),
         stopped_at=datetime(2026, 9, 20, 10, 0, tzinfo=UTC),
         language="fr",
@@ -110,7 +108,6 @@ async def test_the_calendar_location_is_the_fallback(
         AsyncMock(return_value=None),
     )
     calendar, label = await enrichment.enrich_meeting(
-        MagicMock(),
         _meeting(),
         stopped_at=datetime(2026, 9, 20, 10, 0, tzinfo=UTC),
         language="fr",

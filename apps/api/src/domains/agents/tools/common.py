@@ -90,6 +90,64 @@ class ToolErrorCode(str, Enum):
     NOT_IMPLEMENTED = "NOT_IMPLEMENTED"
 
 
+def http_status_to_error_code(status: int) -> ToolErrorCode:
+    """Classify an HTTP refusal by its STATUS, never by the reason phrase.
+
+    401 → UNAUTHORIZED, 403 → FORBIDDEN (an anti-bot challenge answers 403),
+    404/410 → NOT_FOUND, 429 → RATE_LIMIT_EXCEEDED, 408 and 5xx →
+    EXTERNAL_API_ERROR (transient), any other 4xx → INVALID_INPUT (the request
+    itself), anything else → EXTERNAL_API_ERROR.
+
+    Shared by every HTTP-bound tool so the honesty directive reads ONE
+    vocabulary: before this, a 403 was reported as ``EXTERNAL_API_ERROR``,
+    which the directive reads as « the provider is failing, a fallback may
+    apply » — the opposite of the truth for a site that refuses automated
+    reading (ADR-303).
+
+    Args:
+        status: The HTTP status the server answered.
+
+    Returns:
+        The taxonomy member.
+    """
+    if status == 401:
+        return ToolErrorCode.UNAUTHORIZED
+    if status == 403:
+        return ToolErrorCode.FORBIDDEN
+    if status in (404, 410):
+        return ToolErrorCode.NOT_FOUND
+    if status == 429:
+        return ToolErrorCode.RATE_LIMIT_EXCEEDED
+    if status == 408 or status >= 500:
+        return ToolErrorCode.EXTERNAL_API_ERROR
+    if 400 <= status < 500:
+        return ToolErrorCode.INVALID_INPUT
+    return ToolErrorCode.EXTERNAL_API_ERROR
+
+
+def coerce_tool_error_code(value: object) -> ToolErrorCode | None:
+    """Read a payload's error code as a taxonomy member, or None (ADR-303).
+
+    Tools emit free-form codes through ``UnifiedToolOutput.failure`` (measured
+    in-tree: ``TOOL_ERROR``, ``VALIDATION_ERROR``, ``RATE_LIMITED``…) and a
+    third-party MCP server emits its own. Only a member of the taxonomy is
+    typed; the raw string stays in the payload for the response model and the
+    logs, so nothing is lost by refusing to guess.
+
+    Args:
+        value: Whatever the payload carried under ``error_code``.
+
+    Returns:
+        The member, or None for an empty or unknown value.
+    """
+    if not value:
+        return None
+    try:
+        return ToolErrorCode(str(value))
+    except ValueError:
+        return None
+
+
 # ============================================================================
 # Base Response Models
 # ============================================================================

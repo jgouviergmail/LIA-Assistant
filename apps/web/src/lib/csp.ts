@@ -102,6 +102,7 @@ export const LIVE_PROVIDER_CONNECT_SRC = [
   'wss://generativelanguage.googleapis.com',
   // ElevenLabs Agents over a signed WebSocket URL (ADR-300 wave 4).
   'wss://api.elevenlabs.io',
+  'wss://livekit.rtc.elevenlabs.io',
 ] as const;
 
 /**

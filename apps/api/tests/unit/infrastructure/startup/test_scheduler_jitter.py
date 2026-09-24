@@ -30,6 +30,7 @@ _SCHEDULERS = (
     pathlib.Path("src/infrastructure/startup/scheduler_meetings.py"),
     pathlib.Path("src/infrastructure/startup/scheduler_push.py"),
     pathlib.Path("src/infrastructure/startup/scheduler_ledger.py"),
+    pathlib.Path("src/infrastructure/startup/scheduler_telephony.py"),
 )
 
 #: Jobs that must stay on an exact cadence, with the reason each one earns it.

@@ -375,11 +375,36 @@ from typing import NamedTuple
 
 class TokenUsage(NamedTuple):
     """Token usage extracted from LLMResult."""
-    input_tokens: int          # 1250 (non-cached)
+    input_tokens: int          # 1250 (non-cached; cache WRITES included)
     output_tokens: int         # 450
-    cached_tokens: int         # 300 (prompt caching)
+    cached_tokens: int         # 300 (cache reads)
     model_name: str            # "gpt-4.1-mini-2024-11-20"
+    cache_write_tokens: int = 0  # part of input_tokens written to the cache (ADR-306)
 ```
+
+### Écritures de cache (ADR-306)
+
+Une écriture de cache est un jeton de prompt : elle reste dans `input_tokens` (au prix
+d'entrée) et elle est AUSSI comptée à part, parce qu'un fournisseur peut la facturer
+plus cher. Le lecteur unique (`usage_metadata.tokens_from_usage_metadata`) la lit sur
+la clé générique `cache_creation` — la seule présente sur le chemin que LIA emprunte
+avec Claude (mesuré le 2026-09-23 : 5 076 jetons écrits, aucune clé par TTL) — et sur
+la ventilation par TTL quand langchain-anthropic la fournit. Le TARIF dit ce qu'elle
+coûte : `CachedModelPrice.cache_write_multiplier`, fixé à la construction de l'index
+depuis le fournisseur du modèle (1,25 pour tout tarif Anthropic et OpenAI, 1,0
+ailleurs — chez OpenAI, seuls GPT-5.6 et GPT-6 signalent une écriture, les modèles
+antérieurs répondent `0`), et
+`get_cached_cost_usd_eur(..., cache_write_tokens=...)` ajoute
+`écritures × prix d'entrée × (multiplicateur − 1)`.
+
+Toutes les portes de coût reçoivent le compte — `record_node_tokens`,
+`track_proactive_tokens`, `record_instance_llm_spend`, la métrique `llm_cost_total` —
+et la garde `test_cache_write_reaches_every_price` refuse un appel de `src/` qui
+l'oublie (un `0` explicite là où ce qui est facturé n'a pas de cache : caractères
+TTS, embeddings). `TokenCaptureHandler` compte dans les mêmes seaux que le lecteur
+unique (lectures de cache hors de `tokens_in`). Limite énoncée : les colonnes de
+`token_usage_logs` ne portent pas le compte des écritures ; un coût recalculé depuis
+les colonnes et le tarif est court du supplément sur un appel qui a écrit.
 
 ### Strategy 2 : llm_output Dict (Legacy)
 

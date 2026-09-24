@@ -7,6 +7,8 @@ including Hue light/room name fetching, domain filtering, and error handling.
 Created: 2026-03-27
 """
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -45,12 +47,24 @@ def _make_room(name: str, room_id: str = "") -> dict:
     }
 
 
-def _mock_async_session_context(mock_session: MagicMock) -> MagicMock:
-    """Wrap a mock to behave as an async context manager."""
-    ctx = AsyncMock()
-    ctx.__aenter__ = AsyncMock(return_value=mock_session)
-    ctx.__aexit__ = AsyncMock(return_value=False)
-    return ctx
+class _Units:
+    """A detached connector service counting the sessions it holds open."""
+
+    def __init__(self, service: MagicMock) -> None:
+        self.service = service
+        self.open = 0
+
+    @asynccontextmanager
+    async def unit_of_work(self) -> AsyncIterator[MagicMock]:
+        self.open += 1
+        try:
+            yield self.service
+        finally:
+            self.open -= 1
+
+
+_DETACHED = "src.domains.connectors.session_scope.DetachedConnectorService"
+_CLIENT = "src.domains.connectors.clients.philips_hue_client.PhilipsHueClient"
 
 
 class TestBuildIotDeviceContext:
@@ -87,20 +101,14 @@ class TestBuildIotDeviceContext:
         config = _CONFIG
         mock_service = MagicMock()
         mock_service.get_hue_credentials = AsyncMock(return_value=None)
-        mock_session = MagicMock()
 
         with (
-            patch(
-                "src.infrastructure.database.session.AsyncSessionLocal",
-                return_value=_mock_async_session_context(mock_session),
-            ),
-            patch(
-                "src.domains.connectors.service.ConnectorService",
-                return_value=mock_service,
-            ),
+            patch(_DETACHED, return_value=_Units(mock_service)),
+            patch(_CLIENT) as client_class,
         ):
             result = await SmartPlannerService._build_iot_device_context(["hue"], config)
         assert result == ""
+        client_class.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_injects_light_and_room_names(self) -> None:
@@ -109,30 +117,29 @@ class TestBuildIotDeviceContext:
         lights = [_make_light("Plafond salon"), _make_light("Bureau")]
         rooms = [_make_room("Salon"), _make_room("Chambre")]
 
-        mock_client = MagicMock()
-        mock_client.list_lights = AsyncMock(return_value=lights)
-        mock_client.list_rooms = AsyncMock(return_value=rooms)
-
-        mock_credentials = MagicMock()
         mock_service = MagicMock()
-        mock_service.get_hue_credentials = AsyncMock(return_value=mock_credentials)
-        mock_session = MagicMock()
+        mock_service.get_hue_credentials = AsyncMock(return_value=MagicMock())
+        units = _Units(mock_service)
+        open_while_asked: list[int] = []
+
+        async def _lights() -> list[dict]:
+            open_while_asked.append(units.open)
+            return lights
+
+        mock_client = MagicMock()
+        mock_client.list_lights = AsyncMock(side_effect=_lights)
+        mock_client.list_rooms = AsyncMock(return_value=rooms)
+        mock_client.close = AsyncMock()
 
         with (
-            patch(
-                "src.infrastructure.database.session.AsyncSessionLocal",
-                return_value=_mock_async_session_context(mock_session),
-            ),
-            patch(
-                "src.domains.connectors.service.ConnectorService",
-                return_value=mock_service,
-            ),
-            patch(
-                "src.domains.connectors.clients.philips_hue_client.PhilipsHueClient",
-                return_value=mock_client,
-            ),
+            patch(_DETACHED, return_value=units),
+            patch(_CLIENT, return_value=mock_client),
         ):
             result = await SmartPlannerService._build_iot_device_context(["hue"], config)
+
+        # ADR-304: no session held while the bridge answers; the transport closed.
+        assert open_while_asked == [0]
+        mock_client.close.assert_awaited_once()
 
         assert '"Plafond salon"' in result
         assert '"Bureau"' in result
@@ -147,10 +154,7 @@ class TestBuildIotDeviceContext:
         """Returns empty string on any exception (non-blocking)."""
         config = _CONFIG
 
-        with patch(
-            "src.infrastructure.database.session.AsyncSessionLocal",
-            side_effect=RuntimeError("DB unavailable"),
-        ):
+        with patch(_DETACHED, side_effect=RuntimeError("DB unavailable")):
             result = await SmartPlannerService._build_iot_device_context(["hue"], config)
         assert result == ""
 
@@ -162,25 +166,14 @@ class TestBuildIotDeviceContext:
         mock_client = MagicMock()
         mock_client.list_lights = AsyncMock(return_value=[])
         mock_client.list_rooms = AsyncMock(return_value=[])
+        mock_client.close = AsyncMock()
 
-        mock_credentials = MagicMock()
         mock_service = MagicMock()
-        mock_service.get_hue_credentials = AsyncMock(return_value=mock_credentials)
-        mock_session = MagicMock()
+        mock_service.get_hue_credentials = AsyncMock(return_value=MagicMock())
 
         with (
-            patch(
-                "src.infrastructure.database.session.AsyncSessionLocal",
-                return_value=_mock_async_session_context(mock_session),
-            ),
-            patch(
-                "src.domains.connectors.service.ConnectorService",
-                return_value=mock_service,
-            ),
-            patch(
-                "src.domains.connectors.clients.philips_hue_client.PhilipsHueClient",
-                return_value=mock_client,
-            ),
+            patch(_DETACHED, return_value=_Units(mock_service)),
+            patch(_CLIENT, return_value=mock_client),
         ):
             result = await SmartPlannerService._build_iot_device_context(["hue"], config)
         assert result == ""

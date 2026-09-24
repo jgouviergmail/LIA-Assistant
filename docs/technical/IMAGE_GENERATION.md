@@ -1,141 +1,208 @@
 # AI Image Generation (evolution)
 
-> Architecture and integration guide for AI-powered image generation from text descriptions.
+> Architecture and integration guide for AI-powered image generation and editing.
 
 **Phase**: evolution — AI Image Generation
 **Created**: 2026-03-25
-**Last Updated**: 2026-05-05 (v1.19.0 — DB-driven catalogue, [ADR-078](../architecture/ADR-078-LLM-Catalogue-DB-Source-Of-Truth.md))
+**Last Updated**: 2026-09-23 (several vendors, [ADR-305](../architecture/ADR-305-Image-Model-Declares-Its-Offer.md))
 **Status**: Implemented
 
-> **🆕 v1.19.0** : the `IMAGE_GENERATION_MODELS` Python constant is removed. The list of available models, qualities, sizes and prices comes from the `image_generation_pricing` table (which gained a NOT NULL `provider` column) and is loaded into the singleton `ImageOptionsCache` at boot. The user preferences screen is driven by `useImageGenerationOptions` (frontend hook) calling `GET /api/v1/image-generation/options` (backend endpoint backed by the cache). Adding a model is now an admin operation (Tarification LLM Image), not a code change.
+> **ADR-305**: an image model declares its offer through its **family**, and one
+> provider **client** serves it. OpenAI GPT Image and Qwen Image 3.0 are served
+> today. A model no family declares cannot be priced, offered, selected or run —
+> and the image slot's model list comes from the image domain alone.
 
 ---
 
 ## Overview
 
-LIA can generate images from text descriptions using AI models (OpenAI gpt-image-1 family). Images are generated via a dedicated tool (`generate_image`), saved as attachments on disk, and displayed as cards below the assistant response.
+LIA generates images from text descriptions and edits an existing image (generated
+or uploaded) from an instruction. The image model is chosen by the administrator
+(Configuration LLM, slot `image_generation`); the person chooses a quality and a size
+among what that model offers. Images are saved as attachments on disk and displayed
+as cards below the assistant response.
 
 ### Features
 
 | Feature | Description |
 |---------|-------------|
-| Multi-model | gpt-image-1, gpt-image-1.5, gpt-image-1-mini (admin-configurable; full CRUD via admin DB-driven catalogue v1.19.0+) |
-| Multi-provider | Extensible factory (OpenAI today, add Gemini/Stability later); `provider` column on every pricing row, surfaced in admin UI |
-| User preferences | Quality (low/medium/high), size (square/landscape/portrait), format (PNG); options dropdowns rebuilt from the DB catalogue live |
-| Admin LLM Config | Model/provider selection via admin UI (LLM_TYPES_REGISTRY) |
-| Admin Pricing | Full CRUD admin panel for image pricing (provider + model + quality + size → cost/image), live cross-worker invalidation via Pub/Sub |
-| Cost tracking | Per-image pricing (DB-cached), consolidated into TrackingContext |
-| Attachment storage | Disk + DB with TTL-based cleanup via existing attachment system |
+| Several vendors | OpenAI GPT Image (`gpt-image-*`) and Qwen Image 3.0 (`qwen-image-3.0`, `qwen-image-3.0-pro`), each through its own client |
+| Families | What a model accepts (qualities, sizes, billing tiers, reference images) is declared once in `families.py` and read by every surface |
+| User preferences | Quality and size among what the configured model offers (a stored preference survives a model change and is mapped onto the new offer), and the output format every image is delivered in |
+| Admin LLM Config | Model selection via the admin UI; only servable image models are listed, and an unserved one is refused on write |
+| Admin Pricing | Full CRUD on `image_generation_pricing`; every row is validated against its family (quality, size, reference-image price) |
+| Cost tracking | Output images per (quality, size), plus the reference image of an edit where the vendor bills it per image, in the one exchange rate |
+| Attachment storage | Disk + DB with TTL-based cleanup via the attachment system |
 | Usage limits | Image costs included in per-user usage limit enforcement |
 
 ---
 
 ## Architecture
 
+### Families and clients
+
+```
+image_generation/
+├── families.py          ImageFamily per (provider, model prefixes): qualities,
+│                        sizes (FixedSizes | AreaEnvelope), billing tiers,
+│                        reference-image billing, source limits
+├── sizing.py            WIDTHxHEIGHT arithmetic: orientation, nearest size
+├── preferences.py       the configured model's offer, and the person's
+│                        preferences mapped onto it (the ONE resolver)
+├── options_cache.py     what each SERVABLE model offers (a family, and the
+│                        active pricing rows it accepts)
+├── pricing_service.py   what one call costs (output + reference images)
+├── resize.py            an edit's source: EXIF orientation, family box, byte limit
+├── encoding.py          flattening and encoding, and the person's output format
+│                        (the vendor's PNG converted once, for every vendor)
+├── client.py            provider → client registry, completeness checked at import
+└── providers/
+    ├── base.py          ImageGenerationClient, ImageResult (PNG bytes), SourceImage,
+    │                    the failure contract (ImageGenerationError and its facts)
+    ├── openai_sdk.py    the SDK client both vendors share (key, base URL, timeout)
+    │                    and the translation of its failures into the contract
+    ├── openai_images.py images.generate / images.edit on the configured model
+    ├── qwen_images.py   the workspace's OpenAI-compatible /images/generations
+    └── result_download.py  a vendor result URL, held to the vendor's hosts
+```
+
+| | OpenAI GPT Image | Qwen Image 3.0 |
+|---|---|---|
+| Qualities | `low`, `medium`, `high` | `standard` |
+| Sizes | 1024x1024, 1536x1024, 1024x1536 | any `WxH`, area 512²–2048², aspect ≤ 8:1 |
+| Billing tier | none | 1K when area ≤ 2,250,000 px, else 2K |
+| Reference image of an edit | billed as tokens by OpenAI (not priced per image) | billed per image at the output's tier |
+| Source sent to an edit | fitted within the output size | fitted within 2048 px and 10 MB of file (a larger base64 form is accepted — measured) |
+| Transport | base64 in the answer | a URL valid 24 hours, downloaded at once |
+
+The registry refuses to import when a family's provider has no client or a client
+serves no family; `run_failfast_validations()` converts that into a refused boot. A
+declared family is therefore a servable one: `resolve_image_family` is the one
+question every surface asks.
+
 ### Data Flow
 
 ```
 User: "Generate an image of an astronaut cat"
   |
-Router → domain: image_generation, tool: generate_image (score: 1.0)
+Router → domain: image_generation, tool: generate_image
   |
 Planner → ExecutionPlan with 1 TOOL step
   |
-Task Orchestrator → parallel_executor invokes generate_image tool
+Task Orchestrator → parallel_executor invokes generate_image
   |
-  ├─ 1. Load user preferences (quality, size) from User model
-  ├─ 2. Resolve provider + model from LLMConfigOverrideCache
-  ├─ 3. OpenAIImageClient.generate(prompt) → base64 PNG
-  ├─ 4. track_image_generation_call() → cost in TrackingContext
-  ├─ 5. Save PNG as Attachment (disk + DB, TTL cleanup)
-  ├─ 6. store_pending_image(conversation_id, url, alt)
-  └─ 7. Return UnifiedToolOutput.action_success()
+  ├─ 1. Caller: user id, the person's stored quality and size
+  ├─ 2. active_image_options(): the configured model's offer (or the reason it
+  │     is not served)
+  ├─ 3. effective_quality / effective_size: the preferences mapped onto the offer
+  ├─ 4. create_image_client(provider).generate(...) → PNG bytes
+  ├─ 5. track_image_generation_call() → cost in TrackingContext
+  ├─ 6. encode_for_delivery(): the PNG in the person's format (png, jpeg, webp),
+  │     then saved as an Attachment (disk + DB, TTL cleanup)
+  ├─ 7. store_pending_image(conversation_id, url, alt)
+  └─ 8. Return UnifiedToolOutput.action_success()
   |
-Response Node → LLM generates text (knows image was generated)
+Response Node → the model answers (it knows the image was generated)
   |
-SSE Streaming
-  ├─ Stream LLM tokens
-  ├─ Archive message with generated_images in metadata
-  ├─ done chunk includes generated_images: [{url, alt}]
-  └─ Frontend renders image card below message bubble
+SSE Streaming → done chunk includes generated_images: [{url, alt, expires_at}]
 ```
 
 ### Edit Image Flow
 
 ```
-User: "Make this image look realistic"
+User: "Make this image look like night"
   |
-Router → domain: image_generation, tool: edit_image (score: 1.0)
+edit_image (source_attachment_id optional)
   |
-Planner → ExecutionPlan with 1 TOOL step (source_attachment_id optional)
-  |
-Task Orchestrator → parallel_executor invokes edit_image tool
-  |
-  ├─ 1. Load user preferences (quality) from User model
-  ├─ 2. Resolve source image:
-  │     a. If source_attachment_id is valid UUID → use it
-  │     b. Else → SELECT latest image attachment for user (ORDER BY created_at DESC)
-  ├─ 3. Resize source to nearest supported dimension (1024×1024, 1024×1536, 1536×1024)
-  ├─ 4. OpenAIImageClient.edit(prompt, image_b64) → new base64 PNG
-  ├─ 5. track_image_generation_call() → cost in TrackingContext
-  ├─ 6. Save result as new Attachment
-  ├─ 7. store_pending_image(conversation_id, url, alt)
-  └─ 8. Return UnifiedToolOutput.action_success()
+  ├─ 1. Caller and the configured model's offer (as above)
+  ├─ 2. Source: the named attachment, else the person's latest image
+  ├─ 3. read_oriented_size(): the source's size as displayed (EXIF applied)
+  ├─ 4. edit_size(): the offered size nearest to the source's proportions,
+  │     within the billing tier of the person's preferred size
+  ├─ 5. prepare_source_image(): oriented, fitted within family.source_box(),
+  │     PNG (JPEG when the PNG exceeds the vendor's byte limit)
+  ├─ 6. client.edit(prompt, source, model, quality, size) → PNG bytes
+  ├─ 7. track_image_generation_call(input_image_count=1)
+  └─ 8. Save, queue the card, return
 ```
 
 ### Key Design Decisions
 
-1. **Attachment-based storage** (not inline base64): Images are saved to disk and served via `/api/v1/attachments/{id}`. This avoids bloating the LLM context and SSE stream with multi-MB data.
+1. **The model that runs is the model that is priced.** OpenAI edits go through
+   `images.edit` on the configured model. The former Responses-API detour ran the
+   tool's own default model (`gpt-image-1`) and a text model whose tokens nobody
+   recorded (ADR-305).
 
-2. **Done metadata delivery** (not markdown injection): Image URLs are sent in the `done` chunk metadata, not as markdown tokens. The frontend renders them as dedicated HTML cards. This avoids HTML nesting violations (`<div>` inside `<p>`) and proxy issues.
+2. **A preference is an intent.** The person's stored quality and size are
+   validated for their shape only (a short token, `WIDTHxHEIGHT`) and mapped at run
+   time: a quality the model does not offer becomes the cheapest it offers; a size
+   becomes the offered one of the same orientation with the nearest area.
+   `GET /image-generation/options` publishes the EFFECTIVE values so the settings
+   show what the next image will use.
 
-3. **Module-level dict** (not ContextVar): `_pending_images` in `image_store.py` uses a thread-safe dict keyed by `conversation_id`. ContextVar was rejected because LangGraph tool execution runs in separate async tasks where ContextVar writes are invisible to the parent streaming coroutine.
+3. **A vendor URL is held to the vendor.** Qwen answers with a URL valid 24 hours;
+   it is downloaded at once over https, from the vendor's hosts only, without
+   following a redirect, under a size ceiling and a total deadline, and must be a
+   PNG. The URL (a signed token) is never logged. A download that fails after the
+   vendor answered is an `ImageDeliveryError`: the image was billed, so its cost is
+   recorded even though no card is shown.
 
-4. **UnifiedToolOutput** (not plain str): The tool returns `UnifiedToolOutput.action_success()` so the `adaptive_replanner` correctly detects a successful result (not "empty_results").
+4. **A failure is classified by its facts.** A client translates its vendor's
+   failures into `ImageGenerationError`, carrying the HTTP status, the vendor's code
+   and whether it timed out (`ImageProviderNotConfiguredError` for a missing key);
+   the tool maps those facts through the taxonomy every tool shares
+   (`http_status_to_error_code`, ADR-303): 429 → `RATE_LIMIT_EXCEEDED`, a refused
+   prompt → `INVALID_INPUT`, a missing key → `CONFIGURATION_ERROR`. An exception no
+   client translated is a defect: `INTERNAL_ERROR`, its message never handed to the
+   model.
+
+5. **The person's format is applied once, for every vendor.** Every client returns
+   a PNG; `encode_for_delivery` writes it in the format the person chose before it
+   is stored — PNG kept byte for byte, JPEG flattened onto white (no alpha channel),
+   WebP keeping its transparency, lossy formats at `IMAGE_GENERATION_ENCODING_QUALITY`.
+   Asking each vendor instead would be one path per vendor, and Qwen answers with a
+   PNG URL whatever it is asked. The image is already billed when it is converted,
+   so a conversion that fails delivers the PNG. Measured on a real 1024×1024 image:
+   826 KiB as PNG, 58 KiB as JPEG (19 ms), 19 KiB as WebP (135 ms).
+
+6. **Attachment-based storage** (not inline base64): images are saved to disk and
+   served via `/api/v1/attachments/{id}`, keeping multi-MB data out of the LLM
+   context and the SSE stream.
+
+7. **Done metadata delivery** (not markdown injection): image URLs travel in the
+   `done` chunk metadata and the frontend renders dedicated cards.
+
+8. **Module-level dict** (not ContextVar): `_pending_images` in `image_store.py` is
+   keyed by `conversation_id`, because LangGraph runs tools in separate tasks whose
+   ContextVar writes the streaming coroutine cannot see.
+
+9. **UnifiedToolOutput** (not plain str): `action_success()` lets the adaptive
+   replanner recognise a successful action rather than an empty result.
 
 ---
 
 ## File Structure
 
-### New Files
-
 | File | Description |
 |------|-------------|
-| `src/core/config/image_generation.py` | Settings (feature flag, max images) |
-| `src/domains/image_generation/__init__.py` | Domain package |
-| `src/domains/image_generation/models.py` | `ImageGenerationPricing` SQLAlchemy model |
-| `src/domains/image_generation/repository.py` | Pricing DB queries |
-| `src/domains/image_generation/pricing_service.py` | In-memory pricing cache (follows GoogleApiPricingService) |
-| `src/domains/image_generation/client.py` | Abstract client + OpenAI impl + factory |
+| `src/core/config/image_generation.py` | Settings (feature flag, rate limit, timeouts, result download) |
+| `src/domains/image_generation/families.py` | Image families and their resolution |
+| `src/domains/image_generation/sizing.py` | Size arithmetic shared by every family |
+| `src/domains/image_generation/preferences.py` | Configured model's offer + preference resolution |
+| `src/domains/image_generation/providers/` | Contract and one client per vendor |
+| `src/domains/image_generation/client.py` | Registry, factory, completeness check |
+| `src/domains/image_generation/options_cache.py` | `ImageOptionsCache`: servable models only |
+| `src/domains/image_generation/options_router.py` | `GET /api/v1/image-generation/options` |
+| `src/domains/image_generation/pricing_service.py` | Cost of a call |
+| `src/domains/image_generation/resize.py` | Edit source preparation |
+| `src/domains/image_generation/encoding.py` | Flattening, encoding, the person's output format |
+| `src/domains/image_generation/router.py` | Admin CRUD (`/admin/image-pricing/pricing`), family-validated |
 | `src/domains/image_generation/tracker.py` | TrackingContext helper |
-| `src/domains/image_generation/image_store.py` | Pending images store for SSE delivery |
-| `src/domains/image_generation/resize.py` | Intelligent resize to nearest supported dimension |
-| `src/domains/agents/tools/image_generation_tools.py` | `generate_image` + `edit_image` tools |
-| `src/domains/agents/image_generation/catalogue_manifests.py` | Agent + Tool manifests |
-| `src/domains/image_generation/router.py` | Admin CRUD endpoints (`/admin/image-pricing/pricing`) |
-| `src/domains/image_generation/schemas.py` | Pydantic request/response schemas for admin API |
+| `src/domains/image_generation/image_store.py` | Pending images for SSE delivery |
+| `src/domains/agents/tools/image_generation_tools.py` | `generate_image` + `edit_image` |
+| `src/domains/agents/image_generation/catalogue_manifests.py` | Agent + tool manifests |
 | `apps/web/src/components/settings/ImageGenerationSettings.tsx` | User settings UI |
-| `apps/web/src/components/settings/AdminImagePricingSection.tsx` | Admin pricing management UI |
-
-### Modified Files
-
-| File | Change |
-|------|--------|
-| `src/core/config/__init__.py` | `ImageGenerationSettings` in MRO |
-| `src/core/constants.py` | `IMAGE_GENERATION_*` constants |
-| `src/core/field_names.py` | `FIELD_IMAGE_GENERATION_*` |
-| `src/domains/users/models.py` | 4 user preference columns |
-| `src/domains/chat/models.py` | Cost tracking columns (MessageTokenSummary + UserStatistics) |
-| `src/domains/chat/service.py` | `ImageGenerationRecord`, `record_image_generation_call()` |
-| `src/domains/chat/schemas.py` | `TokenSummaryDTO` includes image costs in consolidated `cost_eur` |
-| `src/domains/chat/repository.py` | UPSERT + statistics with image fields |
-| `src/domains/usage_limits/repository.py` | Image costs in SQL sums |
-| `src/domains/llm_config/constants.py` | `image_generation` LLM type. Note: the legacy `IMAGE_GENERATION_MODELS` constant was removed in v1.19.0 — the model list is now driven by `ImageOptionsCache` reading the DB catalogue. |
-| `src/domains/image_generation/options_cache.py` | `ImageOptionsCache` singleton: loads `image_generation_pricing` rows at boot, exposes `QualityOption`/`SizeOption`/`ModelOptions` grouped by provider, invalidated cross-worker (ADR-063). |
-| `src/domains/image_generation/options_router.py` | `GET /api/v1/image-generation/options` — exposes the live catalogue to the user preferences screen. |
-| `src/domains/agents/api/service.py` | Done metadata + message archiving with images |
-| `src/domains/agents/nodes/response_node.py` | `/api/v1/attachments/` in allowed prefixes |
-| `src/domains/agents/orchestration/adaptive_replanner.py` | Detect `result` key for action tools |
+| `apps/web/src/components/settings/AdminImagePricingSection.tsx` | Admin pricing UI |
 
 ---
 
@@ -180,12 +247,19 @@ it visible rather than pushing it back.
 
 ### Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `IMAGE_GENERATION_ENABLED` | `false` | Global feature flag |
-| `IMAGE_GENERATION_MAX_IMAGES_PER_REQUEST` | `1` | Max images per tool call (1-4) |
-| `IMAGE_GENERATION_RATE_LIMIT_CALLS` | `10` | Max tool calls per user per window (`generate_image` and `edit_image` tracked separately) |
-| `IMAGE_GENERATION_RATE_LIMIT_WINDOW` | `300` | Rate limit window in seconds |
+| Variable | Description |
+|----------|-------------|
+| `IMAGE_GENERATION_ENABLED` | Global feature flag |
+| `IMAGE_GENERATION_MAX_IMAGES_PER_REQUEST` | Max images per tool call |
+| `IMAGE_GENERATION_RATE_LIMIT_CALLS` | Max tool calls per user per window (`generate_image` and `edit_image` tracked separately) |
+| `IMAGE_GENERATION_RATE_LIMIT_WINDOW` | Rate limit window in seconds |
+| `IMAGE_GENERATION_TOOL_TIMEOUT_SECONDS` / `MAX_IMAGE_GENERATION_TOOL_TIMEOUT_SECONDS` | Floor and ceiling of an image tool step; the ceiling is also each client's HTTP timeout |
+| `IMAGE_GENERATION_RESULT_DOWNLOAD_TIMEOUT_SECONDS` | Total deadline to download an image a vendor returned as a URL |
+| `IMAGE_GENERATION_RESULT_MAX_MB` | Largest image downloaded from a vendor result URL |
+| `IMAGE_GENERATION_ENCODING_QUALITY` | JPEG/WebP quality of an image delivered in the person's format, and of an edit's source re-encoded to fit its vendor |
+| `QWEN_BASE_URL` | Qwen's OpenAI-compatible base URL — the workspace host of the region whose price grid is seeded |
+
+Defaults and bounds live in `src/core/config/image_generation.py` and `.env.example`.
 
 Both tools carry the standard `@track_tool_metrics` + `@rate_limit` decorators (per-user
 sliding window). The rate limit is a technical anti-runaway ceiling for a paid external
@@ -196,34 +270,37 @@ exceeded, the tool returns the standard `rate_limit_exceeded` JSON payload with
 
 ### User Preferences (per-user, Settings > Preferences)
 
-| Setting | Default | Values |
-|---------|---------|--------|
-| `image_generation_enabled` | `true` | User opt-in |
-| `image_generation_default_quality` | `low` | low, medium, high |
-| `image_generation_default_size` | `1024x1536` | 1024x1024, 1536x1024, 1024x1536 |
-| `image_generation_output_format` | `png` | png, jpeg, webp |
+| Setting | Stored as | Used as |
+|---------|-----------|---------|
+| `image_generation_enabled` | boolean | User opt-in |
+| `image_generation_default_quality` | a short lowercase token | mapped onto the configured model's qualities |
+| `image_generation_default_size` | `WIDTHxHEIGHT` | mapped onto the configured model's sizes |
+| `image_generation_output_format` | png, jpeg, webp | the format every generated or edited image is stored and served in |
 
 ### Admin LLM Config
 
-LLM type `image_generation` in the admin Configuration LLM UI. Default: `openai / gpt-image-1`. Available models: `gpt-image-1.5`, `gpt-image-1`, `gpt-image-1-mini`.
+LLM type `image_generation` in the admin Configuration LLM UI. The list offers the
+models `ImageOptionsCache` holds — a family declares them, a client serves them, an
+active pricing row bills them — and nothing else; the write path refuses any other
+(`image_model_not_served`) and a provider that is not the model's own
+(`image_model_provider_mismatch`).
 
 ---
 
 ## Pricing
 
-Pricing is stored in the `image_generation_pricing` table and cached in memory at startup. Cost is per-image, not per-token.
+Pricing is stored in the `image_generation_pricing` table and cached in memory at
+startup. Cost is per image, keyed by (model, quality, size). A row may also carry
+`cost_per_input_image_usd`, the price of each reference image an edit sends —
+required for a family that bills reference images per image, refused for one that
+does not. The EUR figure uses the pricing cache's exchange rate, the one every cost
+family reads.
 
-| Model | Quality | 1024x1024 | 1024x1536 | 1536x1024 |
-|-------|---------|-----------|-----------|-----------|
-| gpt-image-1 | low | $0.011 | $0.016 | $0.016 |
-| gpt-image-1 | medium | $0.042 | $0.063 | $0.063 |
-| gpt-image-1 | high | $0.167 | $0.250 | $0.250 |
-| gpt-image-1.5 | low | $0.009 | $0.013 | $0.013 |
-| gpt-image-1.5 | medium | $0.034 | $0.050 | $0.050 |
-| gpt-image-1.5 | high | $0.133 | $0.200 | $0.200 |
-| gpt-image-1-mini | low | $0.005 | $0.006 | $0.006 |
-| gpt-image-1-mini | medium | $0.011 | $0.015 | $0.015 |
-| gpt-image-1-mini | high | $0.036 | $0.052 | $0.052 |
+The reference seed (`infrastructure/database/seeds/image_generation_pricing_seed.sql`)
+carries the OpenAI rows and the Qwen Image 3.0 rows of the Germany (Frankfurt) grid,
+deployment scope Global; migration `a9d3f1c7e5b2` carries the Qwen rows to instances
+that never replay seeds. The seed is the reference for the figures; a guard test
+holds it equal to the migration and holds every row to its family's rules.
 
 ### Cost Consolidation
 
@@ -236,15 +313,26 @@ Image generation costs are consolidated into the single `cost_eur` value shown t
 
 ## Extensibility
 
-### Adding a New Provider (v1.19.0+)
+### Adding a new vendor
 
-1. Create `XxxImageClient(ImageGenerationClient)` in `client.py`
-2. Add `"xxx": XxxImageClient` to `_IMAGE_CLIENT_REGISTRY`
-3. Add the provider to `LLMProviderEnum` if not already present
-4. Through the admin UI (Administration → Tarification LLM Image), insert pricing rows for the new provider + models. The cache invalidates cross-worker via Pub/Sub and the user preferences dropdowns update live.
+1. Declare its family in `families.py` (qualities, size rule, billing tiers,
+   reference-image billing, source limits) and add a rule for its model prefixes.
+2. Write its client under `providers/` (implement `generate`, `edit`, `aclose`;
+   return PNG bytes). A vendor speaking the OpenAI wire builds its SDK client with
+   `openai_sdk_client` and wraps its calls in `vendor_errors`; one with a native SDK
+   translates its own failures into `ImageGenerationError` the same way — status,
+   vendor code, timeout — so the tool's classification needs no change.
+3. Register the client in `client.py` — the import-time check refuses a family
+   without a client and a client without a family.
+4. Price its models: seed rows, plus a migration mirroring them for instances that
+   do not replay seeds, plus the catalogue row (`llm_models`, kind `image`) that
+   ADR-244's referential rule expects for any model a slot names.
 
-### Adding a New Model (v1.19.0+)
+### Adding a model of a known family
 
-1. Open *Administration → Tarification LLM Image → Ajouter*. Pick the provider, fill in model name, quality, size, cost per image. Save.
-2. The write triggers `publish_cache_invalidation(CACHE_NAME_IMAGE_GENERATION_OPTIONS)`; every API worker reloads `ImageOptionsCache` in milliseconds. The frontend consumer `useImageGenerationOptions` listens to the cross-sibling React Context (`catalogue-invalidation-context.tsx`) and refetches.
-3. **No code change, no redeploy.** For seeds (initial environment setup), `infrastructure/database/seeds/image_generation_pricing_seed.sql` provides 27 OpenAI rows.
+Through *Administration → LLM Image Pricing → Add*: pick the provider, fill in the
+model name, a quality and a size the family accepts, the price per image, and the
+reference-image price when the family bills it. The write publishes the cache
+invalidation; every worker reloads `ImageOptionsCache`, and the model becomes
+selectable in Configuration LLM. A model outside every family is refused with the
+reason.

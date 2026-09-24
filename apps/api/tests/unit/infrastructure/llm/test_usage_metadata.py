@@ -47,6 +47,107 @@ class TestBothProviderSpellings:
         assert tokens_from_usage_metadata(usage) == UsageTokens(300, 50, 0)
 
 
+class TestCacheWrites:
+    """A prompt-cache write is counted apart; its TARIFF decides what it costs (ADR-306).
+
+    Two shapes reach the reader for one Claude call. Through the path LIA runs,
+    langchain-anthropic reports the generic ``cache_creation`` alone (measured
+    on Sonnet 5 through ``get_llm``, 2026-09-23: 5,075 written tokens, no TTL
+    keys); when the response carries the TTL breakdown it fills
+    ``ephemeral_*_input_tokens`` and sets ``cache_creation`` to 0. Either way
+    ``input_tokens`` includes the written tokens.
+    """
+
+    def test_the_shape_of_the_path_lia_runs(self) -> None:
+        """Copied from the runtime probe: the generic key, and nothing else."""
+        usage = {
+            "input_tokens": 5147,
+            "output_tokens": 5,
+            "total_tokens": 5152,
+            "input_token_details": {"cache_creation": 5075, "cache_read": 0},
+        }
+        assert tokens_from_usage_metadata(usage) == UsageTokens(5147, 5, 0, 5075)
+
+    def test_the_anthropic_ttl_breakdown_is_the_write_count(self) -> None:
+        usage = {
+            "input_tokens": 6000,
+            "output_tokens": 50,
+            "input_token_details": {
+                "cache_read": 0,
+                "cache_creation": 0,
+                "ephemeral_5m_input_tokens": 5074,
+                "ephemeral_1h_input_tokens": 0,
+            },
+        }
+        tokens = tokens_from_usage_metadata(usage)
+        assert tokens == UsageTokens(6000, 50, 0, 5074)
+        # A write is still a prompt token: its input price is inside ``prompt``.
+        assert tokens.cache_write <= tokens.prompt
+
+    def test_both_ttls_are_written_tokens(self) -> None:
+        usage = {
+            "input_tokens": 900,
+            "output_tokens": 1,
+            "input_token_details": {
+                "ephemeral_5m_input_tokens": 300,
+                "ephemeral_1h_input_tokens": 200,
+            },
+        }
+        assert tokens_from_usage_metadata(usage).cache_write == 500
+
+    def test_a_read_and_a_write_in_one_call(self) -> None:
+        usage = {
+            "input_tokens": 10_000,
+            "output_tokens": 40,
+            "input_token_details": {
+                "cache_read": 8_000,
+                "cache_creation": 0,
+                "ephemeral_5m_input_tokens": 1_500,
+                "ephemeral_1h_input_tokens": 0,
+            },
+        }
+        assert tokens_from_usage_metadata(usage) == UsageTokens(2_000, 40, 8_000, 1_500)
+
+    def test_the_generic_key_counts_whoever_reports_it(self) -> None:
+        """langchain-openai maps OpenAI's ``cache_write_tokens`` to the same key.
+        The COUNT is the same fact on every provider; whether a write costs
+        more than an input token is the tariff's to say (``CachedModelPrice``)."""
+        usage = {
+            "input_tokens": 1000,
+            "output_tokens": 10,
+            "input_token_details": {"cache_read": 0, "cache_creation": 1000},
+        }
+        assert tokens_from_usage_metadata(usage).cache_write == 1000
+
+    def test_the_two_shapes_never_add_up_twice(self) -> None:
+        """langchain-anthropic zeroes the generic key when it fills the breakdown."""
+        usage = {
+            "input_tokens": 900,
+            "output_tokens": 1,
+            "input_token_details": {"cache_creation": 0, "ephemeral_5m_input_tokens": 600},
+        }
+        assert tokens_from_usage_metadata(usage).cache_write == 600
+
+    def test_writes_are_summed_across_models_by_the_callback_reader(self) -> None:
+        from src.infrastructure.llm.usage_metadata import tokens_from_callback
+
+        class _Handler:
+            usage_metadata = {
+                "claude-opus-5": {
+                    "input_tokens": 3000,
+                    "output_tokens": 5,
+                    "input_token_details": {"ephemeral_5m_input_tokens": 2500},
+                },
+                "claude-sonnet-5": {
+                    "input_tokens": 1000,
+                    "output_tokens": 5,
+                    "input_token_details": {"ephemeral_5m_input_tokens": 400},
+                },
+            }
+
+        assert tokens_from_callback(_Handler()).cache_write == 2900
+
+
 class TestTheClamp:
     """A count that flows into a price is never negative."""
 

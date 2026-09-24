@@ -42,15 +42,13 @@ from src.domains.agents.peer.summaries import format_peer_availability, format_p
 from src.domains.agents.tools.decorators import read_tool
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import get_user_preferences, validate_runtime_config
-from src.domains.connectors.clients.registry import ClientRegistry
+from src.domains.connectors.active_client import ActiveClient, open_active_client
+from src.domains.connectors.calendar_access import CalendarAccess, open_active_calendar
 from src.domains.connectors.preferences.owner_defaults import (
-    resolve_owner_calendar_id,
-    resolve_owner_task_list_id,
+    TASK_LIST,
+    resolve_owner_container_id,
 )
-from src.domains.connectors.provider_resolver import (
-    find_error_connector_type,
-    resolve_active_connector,
-)
+from src.domains.connectors.provider_resolver import find_error_connector_type
 from src.domains.connectors.service import ConnectorService
 from src.domains.peers.models import PeerShareDomain, PeerShareLevel
 from src.domains.peers.repository import PeersRepository
@@ -177,41 +175,27 @@ def _share_failure(reason: str, peer_name: str) -> UnifiedToolOutput:
 
 
 async def _peer_calendar_events(peer: User) -> list[dict[str, Any]]:
-    """List the peer's next-48h raw events (briefing fetch_agenda glue).
+    """List the peer's next-48h raw events.
+
+    Reads THE PEER's configured default calendar, not ``primary``: their
+    agenda may well live in a named one, and every other read path honours
+    this preference (reported 2026-07-30 — a peer with a 10:00 appointment was
+    reported free because only ``primary`` was read). Opened through the shared
+    door: no session held while the provider answers, the transport closed on
+    every path (it never was here) — ADR-304.
 
     Raises:
-        LookupError: when the peer has no active calendar connector.
+        LookupError: when the peer has no usable calendar connector.
     """
-    async with get_db_context() as db:
-        connector_service = ConnectorService(db)
-        resolved_type = await resolve_active_connector(peer.id, "calendar", connector_service)
-        if resolved_type is None:
+    async with open_active_calendar(peer.id) as access:
+        if not isinstance(access, CalendarAccess):
             raise LookupError("calendar_not_connected")
-        credentials: Any = (
-            await connector_service.get_apple_credentials(peer.id, resolved_type)
-            if resolved_type.is_apple
-            else await connector_service.get_connector_credentials(peer.id, resolved_type)
-        )
-        if not credentials:
-            raise LookupError("calendar_not_connected")
-        client_class = ClientRegistry.get_client_class(resolved_type)
-        if client_class is None:
-            raise LookupError("calendar_not_connected")
-        client = client_class(peer.id, credentials, connector_service)
-        # THE PEER's configured default calendar, not `primary`: their agenda
-        # may well live in a named one, and every other read path in the
-        # codebase honours this preference (briefing, calendar_tools,
-        # tasks_tools). Reported 2026-07-30 — a peer with a 10:00 appointment
-        # was reported free because only `primary` was read.
-        calendar_id = await resolve_owner_calendar_id(
-            db=db, client=client, owner_id=peer.id, connector_type=resolved_type
-        )
         now = datetime.now(UTC)
-        result = await client.list_events(
+        result = await access.client.list_events(
             time_min=now.isoformat(),
             time_max=(now + timedelta(hours=_PEER_EVENTS_LOOKAHEAD_HOURS)).isoformat(),
             max_results=_PEER_EVENTS_MAX,
-            calendar_id=calendar_id,
+            calendar_id=access.calendar_id,
             fields=["id", "summary", "start", "end"],
         )
     return result.get("items", []) or []
@@ -375,28 +359,25 @@ async def get_peer_tasks_tool(
 
 
 async def _peer_task_titles(peer: User) -> list[str]:
-    """List the peer's pending task titles (briefing _resolve_tasks_client glue).
+    """List the peer's pending task titles, from THEIR default list.
+
+    Same door and same reasoning as the calendar path (ADR-304).
 
     Raises:
-        LookupError: when the peer has no active tasks connector.
+        LookupError: when the peer has no usable tasks connector.
     """
-    async with get_db_context() as db:
-        connector_service = ConnectorService(db)
-        resolved_type = await resolve_active_connector(peer.id, "tasks", connector_service)
-        if resolved_type is None:
+    async with open_active_client("tasks", peer.id, container=TASK_LIST) as opened:
+        if not isinstance(opened, ActiveClient):
             raise LookupError("tasks_not_connected")
-        credentials = await connector_service.get_connector_credentials(peer.id, resolved_type)
-        if not credentials:
-            raise LookupError("tasks_not_connected")
-        client_class = ClientRegistry.get_client_class(resolved_type)
-        if client_class is None:
-            raise LookupError("tasks_not_connected")
-        client = client_class(peer.id, credentials, connector_service)
-        # Same reasoning as the calendar path: the peer's own default list.
-        task_list_id = await resolve_owner_task_list_id(
-            db=db, client=client, owner_id=peer.id, connector_type=resolved_type
+        task_list_id = await resolve_owner_container_id(
+            client=opened.client,
+            name=opened.preferred_name,
+            owner_id=peer.id,
+            container=TASK_LIST,
         )
-        result = await client.list_tasks(task_list_id=task_list_id, max_results=_PEER_TASKS_MAX)
+        result = await opened.client.list_tasks(
+            task_list_id=task_list_id, max_results=_PEER_TASKS_MAX
+        )
     tasks = result.get("items", []) or []
     return [
         task.get("title") or ""

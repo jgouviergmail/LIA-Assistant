@@ -2,7 +2,7 @@
 `run_python_tool` runs a short Python script in a fresh sandbox and returns what it prints. Four jobs:
 1. CALCULATE what you do badly — arithmetic over many rows, joins and deduplication on a key, dates across timezones, multi-key sorting, statistics; a plausible answer there is worse than none.
 2. DIAGNOSE a tool that failed with EXTERNAL_API_ERROR or TIMEOUT — probe the service over HTTPS, report the status code and the latency, and say which it is: the service is down (5xx, no connection), authentication refused (401/403), or the failure is ours.
-3. FILL A GAP — when no tool does what the step needs and a reachable host does, write a temporary client: one request, one parse, print the fields you need.
+3. FILL A GAP — when no tool does what the step needs and a reachable host does, write a temporary client: one request, one parse, print the fields you need. It is also the RECOVERY LADDER's rung before concluding, for a fact your tools could not deliver.
 4. TRANSFORM — parse CSV, XLSX, XML, RSS, HTML or ICS, normalise phone numbers, countries or accents, reshape a table.
 Not for what an existing tool does, a single lookup, a two-number calculation or a reformulation.
 Input: the turn's data on stdin as JSON — `json.load(sys.stdin)["items"]`, keyed by id; reference it, never re-type it. Output: print the result, not a log. Fresh container, /tmp only, {script_timeout_seconds} s, {script_memory_mb} MB, {script_stdout_kb} KB of stdout. Beyond the standard library:

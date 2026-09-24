@@ -34,6 +34,7 @@ from src.core.session_helpers import (
     set_mfa_pending_cookie,
 )
 from src.domains.auth.dependencies import rate_limit_native_callback
+from src.domains.auth.google_identity import GoogleSignInRefusedError
 from src.domains.auth.login_notification import notify_new_login_if_unknown
 from src.domains.auth.native_handoff import (
     NATIVE_CHALLENGE_METADATA_KEY,
@@ -227,7 +228,9 @@ async def google_callback(
        is never stranded in a browser the app cannot reach
     3. Exchanges the code for Google access tokens (with PKCE), which spends
        the state
-    4. Creates or updates the user in our database
+    4. Creates or updates the user in our database, or refuses the sign-in
+       when the account rules forbid it (``GoogleSignInRefusedError``): the
+       failure location then carries that bounded reason
     5. Then exactly one of:
        - native shell → a single-use handoff code on a deep link, and NO
          browser session: the app redeems it from its own WebView;
@@ -346,6 +349,17 @@ async def google_callback(
             await notify_new_login_if_unknown(db, oauth_user, known=False)
 
         return response
+
+    except GoogleSignInRefusedError as refusal:
+        # The account rules refused this sign-in. Its reason is bounded by
+        # construction, so it may label the metric and travel in the redirect;
+        # an arbitrary exception, below, still has to be classified.
+        oauth_callback_total.labels(provider="google", status="failed").inc()
+        oauth_callback_errors_total.labels(provider="google", error_type=refusal.reason).inc()
+        logger.info("google_oauth_signin_refused", reason=refusal.reason)
+        return RedirectResponse(
+            url=_oauth_failure_location(native_challenge, refusal.reason), status_code=302
+        )
 
     except Exception as e:
         # Track failed callback

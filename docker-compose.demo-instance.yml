@@ -235,7 +235,10 @@ services:
     cap_drop: [ALL]
     security_opt:
       - no-new-privileges:true
-    mem_limit: 1g
+    # The production envelope: same image, same V8 heap bound (320 MB,
+    # NODE_OPTIONS in apps/web/Dockerfile.prod), same 512m ceiling — a 1g
+    # ceiling above a 320 MB heap only reserved headroom nothing could use.
+    mem_limit: 512m
     cpus: 1
     pids_limit: 256
     networks:

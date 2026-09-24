@@ -149,6 +149,7 @@ async def track_proactive_tokens(
     db: AsyncSession | None = None,
     run_id: str | None = None,
     llm_type: str | None = None,
+    tokens_cache_write: int = 0,
 ) -> str | None:
     """
     Persist token usage from a proactive task.
@@ -180,6 +181,9 @@ async def track_proactive_tokens(
         run_id: Optional pre-generated run_id. When provided, uses it instead
             of generating a new one. Useful when the run_id must be known
             before tracking (e.g., for injection into archived message metadata).
+        tokens_cache_write: The part of ``tokens_in`` Claude wrote to its
+            prompt cache, owed the write surcharge (ADR-306). Every caller
+            passes it -- ``test_cache_write_reaches_every_price``.
 
     Returns:
         run_id if tokens were tracked, None if no tokens to track
@@ -224,6 +228,7 @@ async def track_proactive_tokens(
                 prompt_tokens=tokens_in,
                 completion_tokens=tokens_out,
                 cached_tokens=tokens_cache,
+                cache_write_tokens=tokens_cache_write,
             )
         except Exception as e:
             logger.warning(
@@ -252,6 +257,7 @@ async def track_proactive_tokens(
                 prompt_tokens=tokens_in,
                 completion_tokens=tokens_out,
                 cached_tokens=tokens_cache,
+                cache_write_tokens=tokens_cache_write,
                 cost_usd=cost_usd,
                 cost_eur=cost_eur,
             )
@@ -320,6 +326,7 @@ async def track_proactive_tokens_from_result(
         tokens_in=result.tokens_in,
         tokens_out=result.tokens_out,
         tokens_cache=result.tokens_cache,
+        tokens_cache_write=result.tokens_cache_write,
         model_name=result.model_name,
         source=source,
         db=db,
@@ -354,6 +361,7 @@ class TokenAccumulator:
         self.tokens_in = 0
         self.tokens_out = 0
         self.tokens_cache = 0
+        self.tokens_cache_write = 0
         self._call_count = 0
 
     def add(
@@ -362,6 +370,7 @@ class TokenAccumulator:
         tokens_out: int,
         tokens_cache: int = 0,
         model_name: str | None = None,
+        tokens_cache_write: int = 0,
     ) -> None:
         """
         Add token usage from an LLM call.
@@ -371,10 +380,13 @@ class TokenAccumulator:
             tokens_out: Output tokens
             tokens_cache: Cached tokens
             model_name: Model name (updates if provided)
+            tokens_cache_write: The part of ``tokens_in`` written to Claude's
+                prompt cache (ADR-306).
         """
         self.tokens_in += tokens_in
         self.tokens_out += tokens_out
         self.tokens_cache += tokens_cache
+        self.tokens_cache_write += tokens_cache_write
         self._call_count += 1
         if model_name:
             self.model_name = model_name
@@ -396,6 +408,7 @@ class TokenAccumulator:
             tokens_in=usage.prompt,
             tokens_out=usage.completion,
             tokens_cache=usage.cached,
+            tokens_cache_write=usage.cache_write,
         )
 
     def get_totals(self) -> tuple[int, int, int]:
@@ -422,11 +435,13 @@ class TokenAccumulator:
         Get dict suitable for ProactiveTaskResult.
 
         Returns:
-            Dict with tokens_in, tokens_out, tokens_cache, model_name
+            Dict with tokens_in, tokens_out, tokens_cache, tokens_cache_write,
+            model_name
         """
         return {
             "tokens_in": self.tokens_in,
             "tokens_out": self.tokens_out,
             "tokens_cache": self.tokens_cache,
+            "tokens_cache_write": self.tokens_cache_write,
             "model_name": self.model_name,
         }

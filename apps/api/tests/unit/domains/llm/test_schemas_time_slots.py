@@ -69,6 +69,22 @@ class TestCreateTimeSlots:
         with pytest.raises(ValidationError, match="overlap"):
             ModelPriceCreate(**_create_payload(time_slots=overlapping))
 
+    def test_the_same_window_on_weekdays_and_weekend_is_accepted(self) -> None:
+        """Disjoint days make the same hours two tariffs, not an overlap."""
+        weekday = {**VALID_SLOT, "weekdays": [1, 2, 3, 4, 5]}
+        weekend = {**VALID_SLOT, "input_unit_price": "0.22", "weekdays": [6, 7]}
+        data = ModelPriceCreate(**_create_payload(time_slots=[weekday, weekend]))
+        assert data.time_slots is not None
+        assert [slot.weekdays for slot in data.time_slots] == [[1, 2, 3, 4, 5], [6, 7]]
+
+    def test_rejects_the_same_window_on_a_shared_day(self) -> None:
+        clashing = [
+            {**VALID_SLOT, "weekdays": [1, 2, 3, 4, 5]},
+            {**VALID_SLOT, "weekdays": [5, 6]},
+        ]
+        with pytest.raises(ValidationError, match="overlap"):
+            ModelPriceCreate(**_create_payload(time_slots=clashing))
+
     @pytest.mark.parametrize("unit", ["per_audio_minute", "per_audio_hour"])
     def test_rejects_slots_on_an_audio_billed_unit(self, unit: str) -> None:
         """The runtime token resolver never reads slots on audio rows; a

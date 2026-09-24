@@ -33,7 +33,7 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.errors import GraphInterrupt
 
 from src.core.config import settings
-from src.core.field_names import FIELD_METADATA, FIELD_RUN_ID
+from src.core.run_config import run_id_of
 from src.domains.agents.constants import (
     STATE_KEY_AGENT_RESULTS,
     STATE_KEY_COMPLETED_STEPS,
@@ -143,7 +143,7 @@ async def task_orchestrator_node(state: MessagesState, config: RunnableConfig) -
         simple orchestration_plan for legacy routing. Full step-by-step execution
         with CONDITIONAL/REPLAN support deferred to Phase 5.2.
     """
-    run_id = config.get(FIELD_METADATA, {}).get(FIELD_RUN_ID, "unknown")
+    run_id = run_id_of(config, "unknown")
 
     # Runtime semantic guard: expose the turn's resolved person names to the
     # parallel executor via configurable. Sourced from state (survives HITL

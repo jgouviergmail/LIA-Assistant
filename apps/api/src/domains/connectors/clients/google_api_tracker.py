@@ -28,7 +28,9 @@ from src.infrastructure.observability.metrics_usage_limits import (
 logger = structlog.get_logger(__name__)
 
 
-def track_google_api_call(api_name: str, endpoint: str, cached: bool = False) -> None:
+def track_google_api_call(
+    api_name: str, endpoint: str, cached: bool = False, units: int = 1
+) -> None:
     """
     Track a Google API call in the ambient TrackingContext.
 
@@ -42,6 +44,8 @@ def track_google_api_call(api_name: str, endpoint: str, cached: bool = False) ->
         api_name: API name (e.g., "places", "routes", "geocoding")
         endpoint: Endpoint path (e.g., "/places:searchText", "/directions/v2:computeRoutes")
         cached: True if result was served from cache (zero cost)
+        units: Billable events this call is -- 1 for a request, the element
+            count for a Route Matrix, which Google bills per element returned.
 
     Example:
         >>> # In a Google client method after making an API call:
@@ -56,10 +60,11 @@ def track_google_api_call(api_name: str, endpoint: str, cached: bool = False) ->
             api_name=api_name,
             endpoint=endpoint,
             cached=cached,
+            units=units,
         )
         return
     if cached:
         # Redis answered; Google billed nothing. Nothing to file, nothing lost.
         return
-    google_api_calls_unaccounted_total.labels(api_name=api_name).inc()
-    logger.warning("google_api_call_unaccounted", api_name=api_name, endpoint=endpoint)
+    google_api_calls_unaccounted_total.labels(api_name=api_name).inc(units)
+    logger.warning("google_api_call_unaccounted", api_name=api_name, endpoint=endpoint, units=units)

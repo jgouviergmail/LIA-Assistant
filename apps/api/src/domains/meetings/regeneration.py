@@ -73,6 +73,9 @@ async def regenerate_minutes(meeting_id: UUID) -> None:
             gaps=meeting.audio_gaps,
             diarized=meeting.stt_diarized,
         )
+        # The reads end before the model is asked (ADR-304): this session is
+        # the job's own, and the synthesis can take minutes.
+        await db.commit()
         try:
             synthesis = await synthesize_minutes(turns, decision.sections, context)
         except StructuredOutputTruncatedError as exc:
@@ -107,6 +110,7 @@ async def regenerate_minutes(meeting_id: UUID) -> None:
                 tokens_in=usage.tokens_in,
                 tokens_out=usage.tokens_out,
                 tokens_cache=usage.tokens_cache,
+                tokens_cache_write=usage.tokens_cache_write,
                 model_name=usage.model_name,
                 db=db,
                 source="user",

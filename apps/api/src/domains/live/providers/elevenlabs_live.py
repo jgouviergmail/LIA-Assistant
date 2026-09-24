@@ -405,18 +405,20 @@ class ElevenLabsLiveProvider:
         expires_at: datetime,
         connect_deadline_at: datetime,
     ) -> LiveCredential:
-        """A signed URL for ONE conversation with the agent, on the person's key.
+        """A one-conversation credential for the agent, on the person's key.
 
-        The URL must be opened within the vendor's window (15 minutes) — the
-        connect deadline is the earlier of LIA's own and that one; the
-        conversation then lives to the session's cap.
+        WebSocket gets a signed URL; WebRTC gets a LiveKit token. The connect
+        deadline is bounded by LIA's own window and the signed URL's window.
         """
-        url = await self._client(api_key).signed_url(inputs.model)
+        if inputs.audio_transport == "webrtc":
+            token = await self._client(api_key).webrtc_token(inputs.model)
+        else:
+            token = await self._client(api_key).signed_url(inputs.model)
         vendor_deadline = datetime.now(UTC) + timedelta(
             seconds=ELEVENLABS_LIVE_SIGNED_URL_TTL_SECONDS
         )
         return LiveCredential(
-            name=url,
+            name=token,
             expires_at=expires_at,
             connect_deadline_at=min(connect_deadline_at, vendor_deadline),
         )

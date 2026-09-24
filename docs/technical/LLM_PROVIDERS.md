@@ -99,35 +99,65 @@ OLLAMA_BASE_URL=http://localhost:11434  # URL du serveur Ollama local (pas une c
 | `gpt-5.2` | 1M | 65K | **Reasoning** | $1.75 / $14.00 |
 | `gpt-5.4` | 1M | 65K | **Reasoning** | $2.50 / $15.00 |
 | `gpt-5.4-mini` | 1M | 16K | **Reasoning** | $0.75 / $4.50 |
+| `gpt-6-astra` | 1,05M (922K en entrée) | 128K | **Reasoning** (`low`→`max`, pas de `none`) | Voir le seed de référence |
+| `gpt-6-sol` | 1,05M (922K en entrée) | 128K | **Reasoning** (`none`→`max`) | Voir le seed de référence |
+| `gpt-6-luna` | 1,05M (922K en entrée) | 128K | **Reasoning** (`none`→`max`) | Voir le seed de référence |
 | `o4-mini` | 200K | 100K | **Reasoning** | $1.10 / $4.40 |
 | `o3` | 200K | 100K | **Reasoning** | $2.00 / $8.00 |
 | `o3-mini` | 200K | 100K | **Reasoning** | $1.10 / $4.40 |
 | `o1` | 200K | 100K | **Reasoning** | $15.00 / $60.00 |
 | `o1-mini` | 128K | 65K | **Reasoning** | $1.10 / $4.40 |
 
-**Modeles de reasoning** (detectes par regex `^(o[0-9](-.*)?|gpt-5(-.*)?)`) :
-- `temperature` est **automatiquement omis** (doit etre 1.0 ou absent)
-- `top_p`, `frequency_penalty`, `presence_penalty` sont **automatiquement retires**
-- `reasoning_effort` est supporte : `none`, `minimal`, `low`, `medium`, `high`
+**Modèles de reasoning** : le catalogue (`llm_models.is_reasoning_model`) l'emporte ; pour un modèle qu'il ne connaît pas, `REASONING_MODELS_PATTERN` (`core/constants.py`) sert de repli (`is_reasoning_model`, `model_capabilities_cache.py`) :
+- `temperature` est **automatiquement omis** (doit être 1.0 ou absent)
+- `top_p`, `frequency_penalty`, `presence_penalty` sont **automatiquement retirés**
+- `reasoning_effort` : l'échelle acceptée est celle du profil résolu par modèle (ADR-245), publiée par `/llm-config/metadata` — jamais une liste fixe
+
+**GPT-6** : passe par l'API Responses (`is_responses_api_eligible`) — en Chat Completions, l'appel de fonctions n'est accepté qu'avec `reasoning_effort=none`. Une règle de facturation d'OpenAI que LIA n'exprime pas, et qui rend la facture réelle PLUS élevée : au-delà de 272K jetons d'entrée, la requête entière est facturée 2× en entrée et en cache, 1,5× en sortie. La fenêtre d'un poste peut être ramenée à 272K (ADR-278) pour rester dans la tarification courte.
+
+**Cache de prompt de GPT-5.6 et GPT-6** (ADR-306) : ces deux générations mettent en cache par point d'arrêt et facturent une écriture 1,25× l'entrée — le `cache_write_multiplier` de tout tarif OpenAI ; les modèles antérieurs ne signalent aucune écriture et n'en facturent pas (mesuré sur douze d'entre eux). Le point d'arrêt qu'OpenAI place par défaut, à la fin du dernier message éligible, couvrait le contexte du tour : chaque appel réécrivait tout son prompt et n'en relisait rien. `providers/openai_payload.py` pose donc un point d'arrêt à la fin du préfixe statique (marqueur `DYNAMIC CONTEXT`) et garde le mode implicite, dont les boucles d'outils ont besoin — mesuré : 2 832 jetons relus à 0,1× au lieu de 2 873 réécrits à 1,25×. Seules les familles déclarées (`gpt-6`, `gpt-5.6`) le reçoivent : les modèles antérieurs refusent ce champ (400).
 
 ### Anthropic
 
-| Modele (valeur `.env`) | Context | Max Output | Prix (input/output $/1M) |
-|------------------------|---------|------------|--------------------------|
-| `claude-opus-4-6` | 200K | 32K | $5.00 / $25.00 |
-| `claude-opus-4-5` | 200K | 32K | $5.00 / $25.00 |
-| `claude-opus-4` | 200K | 32K | $15.00 / $75.00 |
-| `claude-sonnet-4-6` | 200K | 64K | $3.00 / $15.00 |
-| `claude-sonnet-4-5` ou `claude-sonnet-4-5-20250514` | 200K | 64K | $3.00 / $15.00 |
-| `claude-sonnet-4` | 200K | 64K | $3.00 / $15.00 |
-| `claude-haiku-4-5` ou `claude-haiku-4-5-20251001` | 200K | 8K | $1.00 / $5.00 |
-| `claude-3-5-sonnet-20241022` | 200K | 8K | $3.00 / $15.00 |
-| `claude-3-5-haiku-20241022` | 200K | 8K | $0.80 / $4.00 |
+Modèles du catalogue (`llm_models`, tarifs dans `llm_model_pricing` : seed de
+référence + migration `c3e7a1f5d9b2` pour les instances déjà en place) :
+`claude-fable-5-1`, `claude-fable-5`, `claude-opus-5-5`, `claude-opus-5`,
+`claude-sonnet-5`, `claude-opus-4-8`, `claude-opus-4-7`, `claude-opus-4-6`,
+`claude-sonnet-4-6`, `claude-opus-4-5`, `claude-sonnet-4-5`, `claude-haiku-4-5` — plus
+les deux `claude-3-5-*`, retirés par l'éditeur et encore actifs au catalogue (leur
+retrait passe par le flux d'ADR-244). Fenêtres, plafonds de sortie et prix vivent
+dans le catalogue et l'écran d'administration des tarifs : ce document ne les recopie
+pas.
 
-**Notes Anthropic** :
-- Prompt caching est **active automatiquement** via le header `anthropic-beta: prompt-caching-2024-07-31`
-- `top_p`, `frequency_penalty`, `presence_penalty` sont **automatiquement retires** (non supportes)
-- Extended Thinking (mode raisonnement) : via `PROVIDER_CONFIG` (voir section Configuration avancee)
+**Notes Anthropic** (ADR-306) :
+- **Ce que chaque génération accepte est déclaré UNE fois**, mesuré sur l'API :
+  `core/claude_surface.py` — forme de la réflexion (aucune, budget, adaptative,
+  adaptative à la demande avec `display`, active par défaut, toujours active), profondeur
+  appliquée quand aucun niveau n'est choisi, échantillonnage accepté ou refusé,
+  `tool_choice` forcé accepté ou refusé, blocs de réflexion liés à leur conversation.
+  L'adaptateur (`providers/anthropic_kwargs.py`), les profils de raisonnement, la sortie
+  structurée et le verrou de température de l'écran d'administration la lisent — jamais
+  un nom de modèle.
+- `top_p`, `frequency_penalty`, `presence_penalty` ne sont jamais envoyés. La
+  température n'est pas envoyée à partir d'Opus 4.7 (l'API la refuse) ni pendant une
+  réflexion.
+- **Réflexion** : par le niveau de raisonnement du poste (ADR-245), jamais par
+  `PROVIDER_CONFIG`. Elle ne se désactive pas sur Fable 5, Fable 5.1 et Opus 5.5 ; elle
+  est active quand aucun niveau n'est choisi sur Opus 5 et Sonnet 5. Ses jetons sont
+  comptés dans `max_tokens` : le garde de budget refuse un poste dont le plafond ne
+  laisse pas de place à la réponse, profondeur implicite comprise.
+- **Cache de prompt** : une politique unique (`providers/anthropic_payload.py`) — le
+  préfixe statique est marqué au marqueur `DYNAMIC CONTEXT` quelle que soit la forme du
+  système, le point d'arrêt glissant n'est posé que dans une boucle d'outils, la
+  réflexion des tours précédents n'est pas rejouée, TTL de 5 minutes seulement. Une
+  écriture est facturée 1,25× l'entrée (`cache_write_multiplier` du tarif), une lecture
+  au prix « cache » de la ligne tarifaire.
+- Sur Fable 5.1 et Opus 5.5, un bloc de réflexion est lié à la conversation qui l'a
+  produit : la requête porte l'en-tête bêta `thinking-binding-controls-2026-08-01` et
+  `prefix_mismatch_behavior: drop_block`, filet pour un historique tronqué en cours de
+  boucle.
+- Mode rapide et `inference_geo` non utilisés ; les modèles Mythos (Project Glasswing)
+  ne sont pas proposés.
 
 ### DeepSeek
 
@@ -139,7 +169,7 @@ OLLAMA_BASE_URL=http://localhost:11434  # URL du serveur Ollama local (pas une c
 | `deepseek-chat` | 128K | 8K | Standard (V3.2, legacy) | $0.28 / $0.42 | $0.028 |
 | `deepseek-reasoner` | 128K | 64K | **Thinking** (V3.2, legacy) | $0.28 / $0.42 | $0.028 |
 
-Les trois premiers forment la **famille thinking** (une seule déclaration, `DEEPSEEK_THINKING_PREFIXES` dans `reasoning/profiles.py`) : même modèle avec ou sans raisonnement, activé **par défaut** et compté **dans** `max_tokens`. Les heures de pointe sont 01:00-04:00 et 06:00-10:00 UTC en semaine (tarif par plages, ADR-223). Mapping complet et contraintes : [LLM_PROVIDER_CONSTRAINTS.md §DeepSeek](./LLM_PROVIDER_CONSTRAINTS.md).
+Les trois premiers forment la **famille thinking** (une seule déclaration, `DEEPSEEK_THINKING_PREFIXES` dans `reasoning/profiles.py`) : même modèle avec ou sans raisonnement, activé **par défaut** et compté **dans** `max_tokens`. Les heures de pointe sont 01:00-04:00 et 06:00-10:00 UTC du lundi au vendredi, le week-end entier en heures creuses (tarif par plages, ADR-223 ; les jours sont portés par les fenêtres depuis l'amendement du 2026-09-23). Mapping complet et contraintes : [LLM_PROVIDER_CONSTRAINTS.md §DeepSeek](./LLM_PROVIDER_CONSTRAINTS.md).
 
 **Distinction thinking / non-thinking** : uniquement par le **nom du modele** dans `.env` :
 ```bash
@@ -161,6 +191,7 @@ PLANNER_LLM_MODEL=deepseek-reasoner
 
 | Modele (valeur `.env`) | Context | Max Output | Prix (input/output $/1M) |
 |------------------------|---------|------------|--------------------------|
+| `gemini-3.8-flash` | 1M | 65K | Voir le seed de référence : tarif en vigueur jusqu'au 31/12/2026, doublé le 1er janvier 2027 — à modifier à cette date, rien ne bascule seul. Raisonnement `low`/`medium`/`high` seulement (`minimal` renvoie une erreur) |
 | `gemini-3.1-pro-preview` | 1M | 65K | $2.00 / $12.00 |
 | `gemini-3-pro-preview` | 1M | 65K | $2.00 / $12.00 |
 | `gemini-3-flash-preview` | 1M | 65K | $0.50 / $3.00 |
@@ -171,25 +202,33 @@ PLANNER_LLM_MODEL=deepseek-reasoner
 | `gemini-2.0-flash-lite` | 1M | 8K | $0.075 / $0.30 |
 
 **Notes Gemini** :
+- Cache de prompt : implicite et automatique, relu seulement quand une requête partage un long préfixe identique avec une requête récente. Le minimum documenté est de 4 096 jetons sur les Flash 3.x, mais mesuré le 2026-09-23 sur `gemini-3.7-flash`, aucune requête de 10,3K jetons ou moins n'a jamais rien relu (quatre formes de requête, onze essais, 3 à 15 s d'écart), tandis que des requêtes de 17,8K jetons relisaient ~12,3K ([ADR-309](../architecture/ADR-309-One-Prompt-Layout-For-Every-Cache-Mechanism.md)). LIA lit correctement ce cache (`cached_content_token_count` → `cache_read`) ; le 0 % des nœuds Gemini de production venait de la taille de leurs prompts. Le cache explicite (`cachedContents`) est une ressource facturée à l'heure, non utilisée.
 - `frequency_penalty`, `presence_penalty` sont **automatiquement retires** (non supportes)
 - `reasoning_effort` est **ignore** (parametre OpenAI uniquement)
 - Le parametre `max_tokens` est mappe vers `max_output_tokens` de l'API Gemini
 
 ### Qwen (Alibaba Cloud)
 
-| Modele (valeur config) | Context | Notes |
+| Modèle (valeur config) | Context | Notes |
 |------------------------|---------|-------|
-| `qwen3-max` | 262K | Thinking only (pas de tools, pas de vision) |
-| `qwen3.6-plus` | 1M | Tools + Vision + Thinking, latest generation |
+| `qwen3.8-max` | 1M | Tools + Vision + Thinking |
+| `qwen3.8-flash` | 1M | Tools + Vision + Thinking, coût réduit |
+| `qwen3.7-max` | 1M | Tools + Thinking, texte seul (l'alias pointe l'instantané du 2026-05-20) |
+| `qwen3.7-plus` | 1M | Tools + Vision + Thinking |
+| `qwen3.7-flash` | 1M | Tools + Vision + Thinking, coût réduit |
+| `qwen3.6-plus` | 1M | Tools + Vision + Thinking |
+| `qwen3.6-flash` | 1M | Tools + Vision + Thinking, coût réduit, sortie 64K |
+| `qwen3-max` | 262K | Pas de vision ; thinking selon le périmètre (Global : non-thinking seul, EU : les deux) |
 | `qwen3.5-plus` | 1M | Tools + Vision + Thinking |
-| `qwen3.5-flash` | 1M | Tools + Vision + Thinking, cout reduit |
+| `qwen3.5-flash` | 1M | Tools + Vision + Thinking, coût réduit |
 
 **Notes Qwen** :
 - Endpoint international : `https://dashscope-intl.aliyuncs.com/compatible-mode/v1`
 - Thinking mode : `enable_thinking` + `thinking_budget` via `extra_body`
-- Implicit cache automatique (>=256 tokens, pas de flag necessaire)
-- `frequency_penalty` non supporte (utiliser `presence_penalty`)
-- Prix (international) : qwen3.5-flash $0.10/$0.40, qwen3.5-plus $0.40/$2.40, qwen3.6-plus $0.60/$3.60, qwen3-max $1.20/$6.00
+- Cache de prompt : deux mécanismes exclusifs l'un de l'autre. Le cache IMPLICITE (préfixe commun d'au moins 1 024 jetons, taux de réussite non garanti, lecture à 20 % du prix d'entrée, sauf la famille qwen3.8 dont le taux n'est publié que dans la console) ne couvre pas tous les modèles : mesuré le 2026-09-23 sur l'endpoint de Francfort (périmètre Global), `qwen3.7-plus`, `qwen3.7-flash`, `qwen3.7-max`, `qwen3.8-flash`, `qwen3.8-max` et `qwen3-max` relisent leur préfixe, tandis que `qwen3.5-flash`, `qwen3.5-plus`, `qwen3.6-flash` et `qwen3.6-plus` n'ont AUCUN cache implicite (la table des modèles du guide DashScope le confirme, dans toutes les régions). Pour ces quatre familles, LIA pose des marqueurs EXPLICITES (`providers/qwen_chat.py`, `ChatQwenCached`, [ADR-309](../architecture/ADR-309-One-Prompt-Layout-For-Every-Cache-Mechanism.md)) : le préfixe système fixe (outils compris) et, dans une boucle d'outils, un marqueur roulant sur le dernier message ; écriture à 125 %, lecture à 10 %, 5 minutes. Mesuré le même jour : `qwen3.6-plus` écrit 5 191 jetons puis les relit, `qwen3.5-flash` 5 198. L'écriture, que DashScope rapporte dans `cache_creation_input_tokens` (champ que langchain ne lit pas), est recopiée dans le champ standard et facturée à ×1,25.
+- `frequency_penalty` non supporté (utiliser `presence_penalty`)
+- Prix : ceux du seed de référence (`infrastructure/database/seeds/llm_pricing_seed.sql`), jamais recopiés ici. Les modèles ajoutés le 2026-09-23 portent la grille **Allemagne (Francfort), périmètre de déploiement Global**. La facture réelle suit la région que l'instance appelle, et `QWEN_BASE_URL` pointe par défaut la région US. Un modèle à paliers porte son premier palier, qui est son prix pour une requête courte : `qwen3.7-flash` est facturé 3 fois plus cher au-delà de 32K jetons d'entrée par requête, ce que LIA ne sait pas exprimer.
+- Génération d'images : `qwen-image-3.0` et `qwen-image-3.0-pro` sont servis par le domaine image, pas par la fabrique de chat — voir [IMAGE_GENERATION.md](IMAGE_GENERATION.md) et [ADR-305](../architecture/ADR-305-Image-Model-Declares-Its-Offer.md). Même clé, même `QWEN_BASE_URL` ; le résultat est une URL valable 24 heures, téléchargée aussitôt.
 
 ### Ollama (local)
 
@@ -255,7 +294,7 @@ Le `ProviderAdapter` filtre automatiquement les parametres non supportes pour ev
 
 | Parametre | OpenAI standard | OpenAI reasoning | Anthropic | DeepSeek | Gemini | Ollama | Perplexity |
 |-----------|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
-| `temperature` | Oui | **Omis** (force 1.0) | Oui | Oui | Oui | Oui | Oui |
+| `temperature` | Oui | **Omis** (force 1.0) | Oui (4) | Oui | Oui | Oui | Oui |
 | `top_p` | Oui | **Retire** | **Retire** (1) | Oui | Oui | Oui | Oui |
 | `frequency_penalty` | Oui | **Retire** | **Retire** | Oui | **Retire** | Oui | Oui |
 | `presence_penalty` | Oui | **Retire** | **Retire** | Oui | **Retire** | Oui | Oui |
@@ -265,9 +304,11 @@ Le `ProviderAdapter` filtre automatiquement les parametres non supportes pour ev
 
 > **(1)** Anthropic : `top_p` est retire car Claude 4.5+ rejette `temperature` + `top_p` ensemble.
 >
-> **(2)** Anthropic : `reasoning_effort` est mappe vers le parametre natif `effort` de ChatAnthropic. Mapping : `minimal`/`low` -> `low`, `medium` -> `medium`, `high` -> `high`. Valeur `none` = ignore.
+> **(2)** Anthropic : le niveau passe par le seam unique `kwargs_for` (ADR-245) — budget de jetons (Claude 4.5), réflexion adaptative + `effort` (4.6), réflexion adaptative + `display` + `effort` porté dans `output_config` (4.7 et suivants, ADR-306) ; `none` désactive la réflexion là où la génération le permet.
 >
 > **(3)** Gemini : `reasoning_effort` est mappe vers `thinking_level` de ChatGoogleGenerativeAI. Mapping : `low`/`medium` -> `low`, `high` -> `high`. Valeurs `none`/`minimal` = ignore.
+>
+> **(4)** Anthropic : omise à partir d'Opus 4.7 (l'API la refuse) et pendant une réflexion — `core/claude_surface.py` (ADR-306).
 
 ### Caps automatiques de max_tokens
 
@@ -403,8 +444,8 @@ L'eligibilite est determinee par le pattern regex `^(gpt-4\.1|gpt-5|o[1-9])`, ce
 | Structured output | Oui | Oui | Oui | **Non** | Oui | **Non** (JSON fallback) | **Non** |
 | Streaming | Oui | Oui | Oui | Oui | Oui | Oui | Oui |
 | Vision | Oui | Oui | Non | Non | Oui | Modele-dep. | Non |
-| Prompt caching | Responses API | Beta header | Cache hit natif | Cache hit natif | Non | Non | Non |
-| Reasoning effort | Oui (o/gpt-5) | Non (via PROVIDER_CONFIG) | Non | Non | Non | Non | Non |
+| Prompt caching | Responses API | Points d'arrêt `cache_control` (ADR-306) | Cache hit natif | Cache hit natif | Non | Non | Non |
+| Reasoning effort | Oui (o/gpt-5) | Oui (ADR-245, ADR-306) | Non | Non | Non | Non | Non |
 
 ### Regles de validation automatiques
 

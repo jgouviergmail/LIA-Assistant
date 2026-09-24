@@ -13,20 +13,24 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from src.core.field_names import (
+    FIELD_ERROR,
+    FIELD_ERROR_CODE,
     FIELD_PLAN_ID,
     FIELD_RESOURCE_NAME,
     FIELD_TIMESTAMP,
     FIELD_TOOL_NAME,
 )
-from src.domains.agents.constants import make_agent_result_key
+from src.domains.agents.constants import AgentResultStatus, make_agent_result_key
 from src.domains.agents.orchestration.schemas import (
     AgentResult,
     AgentResultData,
     ContactsResultData,
     EmailsResultData,
+    FailedStep,
     MultiDomainResultData,
     PlacesResultData,
 )
+from src.domains.agents.tools.common import coerce_tool_error_code
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
@@ -537,6 +541,62 @@ def _detect_and_normalize_places_result(
     )
 
 
+def _failed_steps_of(execution_result: ExecutionResult) -> list[FailedStep]:
+    """Every step that did not succeed, with the code its payload carried.
+
+    The typed ``StepResult.error_code`` is filled by the parallel executor, but
+    NOT by the two callers that rebuild an ``ExecutionResult`` from
+    ``completed_steps`` (``task_orchestrator_node`` and ``initiative_node``),
+    which pass the raw step dict as ``result``. Reading the dict as a fallback
+    fixes BOTH paths without touching either — and without spending the three
+    lines of margin the orchestrator has left (ADR-303).
+
+    Args:
+        execution_result: The plan execution, whatever built it.
+
+    Returns:
+        One ``FailedStep`` per failed step, in plan order.
+    """
+    failed: list[FailedStep] = []
+    for step_result in execution_result.step_results:
+        if step_result.success:
+            continue
+        raw = step_result.result if isinstance(step_result.result, dict) else {}
+        code = step_result.error_code or coerce_tool_error_code(raw.get(FIELD_ERROR_CODE))
+        failed.append(
+            FailedStep(
+                step_index=getattr(step_result, "step_index", 0) or 0,
+                tool_name=str(getattr(step_result, "tool_name", "") or ""),
+                error=step_result.error or raw.get(FIELD_ERROR),
+                error_code=code.value if code else None,
+            )
+        )
+    return failed
+
+
+def _aggregate_status(execution_result: ExecutionResult, failed_count: int) -> str:
+    """ERROR only when EVERY executed step failed (ADR-303).
+
+    A plan that produced anything is a SUCCESS carrying its failed steps: the
+    FIELD states the partial, never the status. Before this rule, one failed
+    step out of five published ``failed``, and the formatter dropped the four
+    confirmations along with the error.
+
+    With NO step at all the plan failed before running anything, and its own
+    verdict is the only one there is.
+
+    Args:
+        execution_result: The plan execution.
+        failed_count: How many of its steps failed.
+
+    Returns:
+        A value of :class:`AgentResultStatus`.
+    """
+    total = len(execution_result.step_results)
+    all_failed = (failed_count == total) if total else (not execution_result.success)
+    return AgentResultStatus.ERROR.value if all_failed else AgentResultStatus.SUCCESS.value
+
+
 def map_execution_result_to_agent_result(
     execution_result: ExecutionResult,
     plan_id: str,
@@ -576,7 +636,7 @@ def map_execution_result_to_agent_result(
         {
             "{turn_id}:plan_executor": {
                 "agent_name": "plan_executor",
-                "status": "success" | "failed",
+                "status": "success" | "error",  # AgentResultStatus
                 "data": ContactsResultData | dict,  // Normalized to domain schema if detected
                 "error": str | None
             }
@@ -839,11 +899,18 @@ def map_execution_result_to_agent_result(
             total_tokens_in += step_result.result.get("tokens_in", 0)
             total_tokens_out += step_result.result.get("tokens_out", 0)
 
+    failed_steps = _failed_steps_of(execution_result)
+    status = _aggregate_status(execution_result, len(failed_steps))
     agent_result = AgentResult(
         agent_name="plan_executor",
-        status="success" if execution_result.success else "failed",
+        status=status,
         data=normalized_data,
+        # The plan's own verdict, kept EXACTLY as before this change: only the
+        # status is corrected here. A partial plan therefore carries both its
+        # failed steps and the error the plan reported, and the formatter reads
+        # `error` in the ERROR branch alone — one fact, one channel.
         error=execution_result.error if not execution_result.success else None,
+        failed_steps=failed_steps,
         tokens_in=total_tokens_in,  # Aggregated from step results
         tokens_out=total_tokens_out,
         duration_ms=execution_result.total_execution_time_ms,

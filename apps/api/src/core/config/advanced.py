@@ -52,7 +52,6 @@ from src.core.constants import (
     SUPPORTED_LANGUAGES,
     TOKEN_ENCODING_NAME_DEFAULT,
     TOOL_CONTEXT_CONFIDENCE_THRESHOLD,
-    TOOL_CONTEXT_MAX_ITEMS,
     USER_PREFERENCES_CACHE_TTL_SECONDS_DEFAULT,
     WEB_FETCH_CACHE_PREFIX,
     WEB_FETCH_CACHE_TTL_DEFAULT,
@@ -199,11 +198,6 @@ class AdvancedSettings(BaseSettings):
         ge=0.0,
         le=1.0,
         description="Minimum confidence for fuzzy reference resolution (0.0-1.0)",
-    )
-    tool_context_max_items: int = Field(
-        default=TOOL_CONTEXT_MAX_ITEMS,
-        gt=0,
-        description="Maximum number of items to store per context list",
     )
 
     # ========================================================================

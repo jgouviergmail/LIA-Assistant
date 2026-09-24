@@ -161,6 +161,9 @@ async def test_native_structured_output_openai(mock_native_llm: Mock):
 async def test_native_structured_output_anthropic(mock_native_llm: Mock):
     """Test native structured output with Anthropic provider."""
     messages = [HumanMessage(content="Analyze this request")]
+    # A Claude model that accepts a forced tool: an undeclared name (a bare Mock's)
+    # takes the auto-tool door instead (ADR-306).
+    mock_native_llm.model_name = "claude-sonnet-4-6"
 
     with patch("src.infrastructure.llm.structured_output.settings") as mock_settings:
         mock_settings.provider_supports_structured_output = {"anthropic": True}
@@ -456,6 +459,7 @@ async def test_native_structured_output_llm_api_error():
     structured_llm.ainvoke.side_effect = api_error
 
     mock_llm.with_structured_output.return_value = structured_llm
+    mock_llm.model_name = "claude-sonnet-4-6"  # the forced-tool path (ADR-306)
 
     messages = [HumanMessage(content="Test")]
 

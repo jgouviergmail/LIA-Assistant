@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, Request, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.client_ip import resolve_client_ip
 from src.core.client_metadata import parse_user_agent
 from src.core.config import settings
 from src.core.dependencies import get_db
@@ -47,12 +48,11 @@ async def _rate_limit_product_events(request: Request) -> None:
 
     try:
         limiter = await get_rate_limiter()
-        # Proxy-aware: behind cloudflared/nginx request.client is the proxy —
-        # keying on it would throttle every visitor in one shared bucket.
-        forwarded = request.headers.get("x-forwarded-for", "")
-        client_ip = forwarded.split(",")[0].strip() or (
-            request.client.host if request.client else "unknown"
-        )
+        # ADR-213: keyed on the header the visitor cannot write. The leftmost
+        # X-Forwarded-For entry this used to read is the one the visitor
+        # supplies (Cloudflare appends the real address after it), so rotating
+        # it minted a fresh budget per request.
+        client_ip = resolve_client_ip(request)
         allowed = await limiter.acquire(
             key=f"product:events:{client_ip}",
             max_calls=RATE_LIMIT_PRODUCT_EVENTS_PER_MINUTE,

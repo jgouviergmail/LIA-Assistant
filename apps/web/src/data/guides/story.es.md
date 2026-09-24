@@ -2,9 +2,9 @@
 
 > Informe de experiencia — un sistema completo, del diseño a la producción.
 
-**Versión**: 2.1
-**Fecha**: 2026-09-22
-**Aplicación**: LIA v1.47.1
+**Versión**: 2.2
+**Fecha**: 2026-09-24
+**Aplicación**: LIA v1.47.2
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -19,9 +19,9 @@ La casi totalidad del código fue escrita por una IA, bajo dirección humana: un
 | --- | --- |
 | Código escrito por una IA — dirigida, encuadrada, controlada | **≈ 100 %** |
 | Líneas de código fuente (sin tests) — 51 dominios funcionales | **720.000+** |
-| Tests automatizados, ejecutados en cada commit y entrega | **39.000+** |
-| Decisiones de arquitectura documentadas (ADR) | **301** |
-| Versiones entregadas a ritmo regular | **266** |
+| Tests automatizados, ejecutados en cada commit y entrega | **40.000+** |
+| Decisiones de arquitectura documentadas (ADR) | **309** |
+| Versiones entregadas a ritmo regular | **267** |
 | Idiomas, paridad verificada automáticamente | **6** |
 | Auditoría técnica sobre 24 perímetros | **8,3/10** |
 
@@ -50,13 +50,13 @@ Una IA que programa produce volumen; solo produce calidad bajo restricción. Cua
 
 ## 4. Los arbitrajes
 
-Tres decisiones estructurantes, entre las 301 documentadas:
+Tres decisiones estructurantes, entre las 309 documentadas:
 
 **Soberanía y reversibilidad — ninguna dependencia irreversible de proveedor.** Los modelos de IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modelos locales vía Ollama) están detrás de una abstracción única: cada uso puede cambiar de proveedor por configuración, con comparación de costes. Mismo principio del lado del negocio: Google, Apple y Microsoft son intercambiables por categoría funcional. El alojamiento está íntegramente controlado; los datos personales están cifrados y permanecen en la infraestructura.
 
-**Economía de la IA — el coste por petición es un criterio de diseño.** Dos modos de ejecución coexisten: un pipeline determinista y económico para las peticiones corrientes, un modo agente autónomo para las exploratorias — la diferencia de consumo medida va de 1 a 4-8, con servicio equivalente en los casos estándar. Cada llamada se cuenta por token, se valora en euros, se agrega por usuario y por modelo, se gobierna por cuotas. Incluso una notificación de dos frases se pide sin razonamiento, porque un modelo que razona por defecto factura su razonamiento dentro del presupuesto de la respuesta. Y el modo agente solo lleva consigo las herramientas que la pregunta reclama — elegidas por relevancia, nunca por orden de llegada —, porque ochenta esquemas de herramientas pesaban lo esencial de una primera llamada sin contarse.
+**Economía de la IA — el coste por petición es un criterio de diseño.** Dos modos de ejecución coexisten: un pipeline determinista y económico para las peticiones corrientes, un modo agente autónomo para las exploratorias — la diferencia de consumo medida va de 1 a 4-8, con servicio equivalente en los casos estándar. Cada llamada se cuenta por token, se valora en euros, se agrega por usuario y por modelo, se gobierna por cuotas. Incluso una notificación de dos frases se pide sin razonamiento, porque un modelo que razona por defecto factura su razonamiento dentro del presupuesto de la respuesta. Y el modo agente solo lleva consigo las herramientas que la pregunta reclama — elegidas por relevancia, nunca por orden de llegada —, porque ochenta esquemas de herramientas pesaban lo esencial de una primera llamada sin contarse. Y la cuenta sale exacta: cada llamada se valora al precio que el proveedor factura de verdad — tarifas releídas en sus páginas, escritura de caché a su precio, horas valle con sus días.
 
-**Control del riesgo — ninguna acción irreversible sin validación humana.** Seis niveles de control humano, graduados según la sensibilidad de la acción — de la clarificación a la confirmación de las operaciones destructivas. El comportamiento en caso de interrupción está especificado y probado: una validación pendiente sobrevive a los reinicios, sin pérdida ni doble ejecución. Varias acciones en una misma petición se presentan una a una, cada una en su tarjeta, y el informe dice qué se hizo y para quién. El teléfono sigue la misma línea: la tarjeta protege a un tercero, así que cuando LIA llama a la propia persona — a un número declarado y verificado con un código leído en voz alta — la tarjeta es la persona; al teléfono — como en una sesión de voz live del navegador, con la clave propia de Gemini, OpenAI o ElevenLabs de la persona — el modo es su elección: la voz confía cada petición al chat en cuanto se dice, con sus confirmaciones, o lee sola y no actúa sobre nada; y lo que corre con la clave propia del proveedor se factura allí, se muestra una vez, nunca se cuenta aquí. Lo que la propia plataforma paga por la persona — una consulta de mapa durante una llamada, el tiempo del briefing, una foto mostrada — llega a su libro, sea cual sea el camino. Lo que envía un desconocido — un correo, su adjunto — sigue siendo un dato que leer, nunca una instrucción que seguir. Y un script que la asistente escribe llega a la web por una sola puerta, las claves de la persona cambiadas fuera de él — un host que nadie permitió se pregunta antes: con los datos, sin ellos, o nada.
+**Control del riesgo — ninguna acción irreversible sin validación humana.** Seis niveles de control humano, graduados según la sensibilidad de la acción — de la clarificación a la confirmación de las operaciones destructivas. El comportamiento en caso de interrupción está especificado y probado: una validación pendiente sobrevive a los reinicios, sin pérdida ni doble ejecución. Varias acciones en una misma petición se presentan una a una, cada una en su tarjeta, y el informe dice qué se hizo y para quién. El teléfono sigue la misma línea: la tarjeta protege a un tercero, así que cuando LIA llama a la propia persona — a un número declarado y verificado con un código leído en voz alta — la tarjeta es la persona; al teléfono — como en una sesión de voz live del navegador, con la clave propia de Gemini, OpenAI o ElevenLabs de la persona — el modo es su elección: la voz confía cada petición al chat en cuanto se dice, con sus confirmaciones, o lee sola y no actúa sobre nada; y lo que corre con la clave propia del proveedor se factura allí, se muestra una vez, nunca se cuenta aquí. Lo que la propia plataforma paga por la persona — una consulta de mapa durante una llamada, el tiempo del briefing, una foto mostrada — llega a su libro, sea cual sea el camino. Lo que envía un desconocido — un correo, su adjunto — sigue siendo un dato que leer, nunca una instrucción que seguir. Y un script que la asistente escribe llega a la web por una sola puerta, las claves de la persona cambiadas fuera de él — un host que nadie permitió se pregunta antes: con los datos, sin ellos, o nada. Y cuando el agente autónomo no puede obtener lo que se le pide, lo dice — con lo que intentó — en lugar de rellenar el hueco.
 
 ## 5. La explotación
 

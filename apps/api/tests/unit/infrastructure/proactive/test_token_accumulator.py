@@ -126,8 +126,25 @@ class TestHandingTheTotalsOn:
             "tokens_in": 7,
             "tokens_out": 3,
             "tokens_cache": 1,
+            "tokens_cache_write": 0,
             "model_name": "gpt-test",
         }
+
+    def test_a_claude_cache_write_is_handed_on(self) -> None:
+        """The written tokens stay in ``tokens_in`` and travel apart for their
+        surcharge (ADR-306): a dict without them would bill them at 1x."""
+        accumulator = TokenAccumulator(model_name="claude-test")
+        accumulator.add_from_usage_metadata(
+            {
+                "input_tokens": 6000,
+                "output_tokens": 40,
+                "input_token_details": {"ephemeral_5m_input_tokens": 5074},
+            }
+        )
+        accumulator.add(tokens_in=100, tokens_out=1, tokens_cache_write=100)
+
+        assert accumulator.get_totals() == (6100, 41, 0)
+        assert accumulator.to_result_dict()["tokens_cache_write"] == 5174
 
     def test_an_unnamed_model_is_reported_as_unknown_not_invented(self) -> None:
         assert TokenAccumulator().to_result_dict()["model_name"] is None

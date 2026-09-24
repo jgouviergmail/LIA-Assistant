@@ -38,8 +38,12 @@ L'application utilise deux catégories d'APIs Google :
 | **Places API** | `/places/{id}` (Details) | **1,000 req** | $25.00 | Place Details Enterprise + Atmosphere |
 | **Places API** | `/places:autocomplete` | **10,000 req** | $2.83 | Autocomplete |
 | **Places API** | `/{photo}/media` | **1,000 req** | $7.00 | Place Details Photos |
-| **Routes API** | `/directions/v2:computeRoutes` | **10,000 req** | $5.00 | Compute Routes |
-| **Routes API** | `/distanceMatrix/v2:computeRouteMatrix` | **10,000 req** | $5.00 | Route Matrix |
+| **Routes API** | `/directions/v2:computeRoutes` | **10,000 req** | $5.00 | Compute Routes Essentials (à pied, vélo, transports) |
+| **Routes API** | `/directions/v2:computeRoutes:pro` | **5,000 req** | $10.00 | Compute Routes Pro (trafic temps réel) |
+| **Routes API** | `/directions/v2:computeRoutes:enterprise` | **1,000 req** | $15.00 | Compute Routes Enterprise (voiture par défaut : trafic + péages) |
+| **Routes API** | `/distanceMatrix/v2:computeRouteMatrix` | **10,000 élém.** | $5.00 | Compute Route Matrix Essentials (par élément) |
+| **Routes API** | `/distanceMatrix/v2:computeRouteMatrix:pro` | **5,000 élém.** | $10.00 | Compute Route Matrix Pro (trafic, par élément) |
+| **Routes API** | `/distanceMatrix/v2:computeRouteMatrix:enterprise` | **1,000 élém.** | $15.00 | Compute Route Matrix Enterprise (par élément) |
 | **Geocoding API** | `/geocode/json` | **10,000 req** | $5.00 | Geocoding |
 | **Static Maps API** | `/staticmap` | **10,000 req** | $2.00 | Static Maps |
 | **Web Risk API** | `/v1/uris:search` | **100,000 req** | $0.50 | Web Risk Search (filtrage URL, lot D) |
@@ -47,7 +51,7 @@ L'application utilise deux catégories d'APIs Google :
 | **Weather API** | `/v1/forecast/hours:lookup` | **10,000 req** | $0.15 | Prévisions horaires 10 j (lot E) |
 | **Air Quality API** | `/v1/currentConditions:lookup` | **10,000 req** | $5.00 | Qualité de l'air (lot E, connecteur google_environment) |
 | **Pollen API** | `/v1/forecast:lookup` | **5,000 req** | $10.00 | Prévisions polliniques 5 j (lot E) |
-| **Street View Static** | `/streetview` (+metadata gratuit) | **10,000 req** | $2.00 | Vignettes lieux/adresses (lot SV) |
+| **Street View Static** | `/streetview` (+metadata gratuit) | **10,000 req** | $7.00 | Vignettes lieux/adresses (lot SV) — Static Street View ($2 dans le seed jusqu'à l'audit du 2026-09-23) |
 
 > **Règle Places API (New)** : le SKU facturé est celui du champ de plus haut
 > tier présent dans le field mask. Les masks "full" de LIA demandent
@@ -106,17 +110,26 @@ Ces APIs utilisent la clé API globale et sont facturées au volume.
 
 **Client** : `google_routes_client.py`
 
-| Endpoint | SKU | Coût /1000 req | Gratuit/mois | Usage dans l'app |
-|----------|-----|----------------|--------------|------------------|
-| `/directions/v2:computeRoutes` | Compute Routes (Essentials) | **$5.00** | 10,000 | Calcul d'itinéraires simples |
-| `/directions/v2:computeRoutes` | Compute Routes Pro* | **$10.00** | 5,000 | Avec trafic temps réel |
-| `/distanceMatrix/v2:computeRouteMatrix` | Route Matrix (Essentials) | **$5.00** | 10,000 | Matrice de distances |
-| `/distanceMatrix/v2:computeRouteMatrix` | Route Matrix Pro* | **$10.00** | 5,000 | Avec trafic temps réel |
+| Endpoint suivi | SKU | Coût /1000 | Gratuit/mois | Déclencheurs |
+|----------------|-----|------------|--------------|--------------|
+| `/directions/v2:computeRoutes` | Compute Routes Essentials | **$5.00** | 10,000 | aucun des déclencheurs ci-dessous |
+| `/directions/v2:computeRoutes:pro` | Compute Routes Pro | **$10.00** | 5,000 | `routingPreference` `TRAFFIC_AWARE`/`TRAFFIC_AWARE_OPTIMAL`, `optimizeWaypointOrder`, 11 à 25 étapes, modificateur de position |
+| `/directions/v2:computeRoutes:enterprise` | Compute Routes Enterprise | **$15.00** | 1,000 | deux-roues (`TWO_WHEELER`), `extraComputations` `TOLLS` ou `TRAFFIC_ON_POLYLINE` |
+| `/distanceMatrix/v2:computeRouteMatrix` | Compute Route Matrix Essentials | **$5.00** / 1000 éléments | 10,000 | idem, par ÉLÉMENT renvoyé |
+| `/distanceMatrix/v2:computeRouteMatrix:pro` | Compute Route Matrix Pro | **$10.00** / 1000 éléments | 5,000 | trafic temps réel |
+| `/distanceMatrix/v2:computeRouteMatrix:enterprise` | Compute Route Matrix Enterprise | **$15.00** / 1000 éléments | 1,000 | deux-roues, péages |
 
-> *Pro = avec `routingPreference: TRAFFIC_AWARE` ou `TRAFFIC_AWARE_OPTIMAL`
+> **Le SKU facturé dépend de la REQUÊTE** (developers.google.com/maps/billing-and-pricing/sku-details,
+> lu le 2026-09-23). `routes_sku_suffix(body)` (`google_routes_client.py`) applique ces
+> déclencheurs au corps envoyé et le client range l'appel sous le point d'accès suffixé ;
+> chaque niveau a sa ligne dans `google_api_pricing`. L'itinéraire voiture par défaut de
+> LIA demande le trafic ET les péages : niveau **Enterprise** ($15), longtemps rangé à
+> $5. La matrice est facturée **par élément renvoyé** : `track_google_api_call(...,
+> units=n)`, le coût est le prix unitaire × n et `google_api_usage_logs.request_count`
+> porte n.
 
 **Estimation mensuelle** :
-- 30 itinéraires/mois × $0.005 = $0.15/utilisateur/mois
+- 30 itinéraires voiture/mois × $0.015 = $0.45/utilisateur/mois
 
 ---
 

@@ -18,12 +18,10 @@ Architecture:
 - Falls back to error message if user hasn't configured connector
 """
 
-import re
 from contextlib import suppress
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Annotated, Any
 from uuid import UUID
-from zoneinfo import ZoneInfo
 
 import structlog
 from langchain.tools import ToolRuntime
@@ -31,7 +29,6 @@ from langchain_core.tools import InjectedToolArg, tool
 from pydantic import BaseModel
 
 from src.core.config import settings
-from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.i18n import _
 from src.core.i18n_v3 import V3Messages
 from src.domains.agents.constants import AGENT_QUERY, AGENT_WEATHER, CONTEXT_DOMAIN_WEATHER
@@ -45,6 +42,11 @@ from src.domains.agents.data_registry.models import (
 )
 from src.domains.agents.tools.base import APIKeyConnectorTool
 from src.domains.agents.tools.output import UnifiedToolOutput
+from src.domains.agents.tools.weather_dates import (
+    UnreadableDateError,
+    calculate_target_date,
+    unreadable_date_result,
+)
 from src.domains.agents.tools.weather_environment_enrichment import (
     attach_environment_extras,
     environment_payload_fields,
@@ -56,6 +58,7 @@ from src.domains.agents.tools.weather_formatting import (
     _format_forecast_response,
     _format_hourly_response,
 )
+from src.domains.agents.weather.catalogue_manifests import FORECAST_DATE_DESCRIPTION
 from src.domains.connectors.clients.google_geocoding_helpers import forward_geocode
 from src.domains.connectors.clients.openweathermap_client import OpenWeatherMapClient
 from src.domains.connectors.models import ConnectorType
@@ -67,230 +70,6 @@ from src.infrastructure.observability.metrics_agents import (
 )
 
 logger = structlog.get_logger(__name__)
-
-
-# ============================================================================
-# TEMPORAL REFERENCE PARSING
-# ============================================================================
-
-
-def _get_today_in_timezone(user_timezone: str) -> datetime:
-    """
-    Get current datetime in user's timezone.
-
-    Args:
-        user_timezone: User's IANA timezone (e.g., "Europe/Paris")
-
-    Returns:
-        Current datetime in user's timezone (timezone-aware)
-    """
-    try:
-        tz = ZoneInfo(user_timezone)
-    except KeyError, ValueError:
-        tz = UTC
-    return datetime.now(tz)
-
-
-# Month name mappings for localized date parsing (FR, EN, DE, ES, IT)
-_MONTH_NAMES: dict[str, int] = {
-    # French
-    "janvier": 1,
-    "février": 2,
-    "fevrier": 2,
-    "mars": 3,
-    "avril": 4,
-    "mai": 5,
-    "juin": 6,
-    "juillet": 7,
-    "août": 8,
-    "aout": 8,
-    "septembre": 9,
-    "octobre": 10,
-    "novembre": 11,
-    "décembre": 12,
-    "decembre": 12,
-    # English
-    "january": 1,
-    "february": 2,
-    "march": 3,
-    "april": 4,
-    "may": 5,
-    "june": 6,
-    "july": 7,
-    "august": 8,
-    "september": 9,
-    "october": 10,
-    "november": 11,
-    "december": 12,
-    # German
-    "januar": 1,
-    "februar": 2,
-    "märz": 3,
-    "marz": 3,
-    "juni": 6,
-    "juli": 7,
-    "oktober": 10,
-    "dezember": 12,
-    # Spanish
-    "enero": 1,
-    "febrero": 2,
-    "marzo": 3,
-    "mayo": 5,
-    "junio": 6,
-    "julio": 7,
-    "agosto": 8,
-    "septiembre": 9,
-    "octubre": 10,
-    "noviembre": 11,
-    "diciembre": 12,
-    # Italian
-    "gennaio": 1,
-    "febbraio": 2,
-    "aprile": 4,
-    "maggio": 5,
-    "giugno": 6,
-    "luglio": 7,
-    "settembre": 9,
-    "ottobre": 10,
-    "dicembre": 12,
-}
-
-# Pattern: optional day-of-week, then DD month YYYY (e.g., "jeudi 09 avril 2026", "9 avril 2026")
-_LOCALIZED_DATE_PATTERN = re.compile(r"(?:\w+\s+)?(\d{1,2})\s+(\w+)\s+(\d{4})", re.IGNORECASE)
-
-
-def _parse_localized_date(ref: str) -> date | None:
-    """Parse localized date strings like 'jeudi 09 avril 2026' or '9 April 2026'.
-
-    Supports French, English, German, Spanish, and Italian month names.
-
-    Args:
-        ref: Date string to parse.
-
-    Returns:
-        Parsed date or None if not recognized.
-    """
-    match = _LOCALIZED_DATE_PATTERN.match(ref.strip())
-    if not match:
-        return None
-
-    day_str, month_str, year_str = match.groups()
-    month = _MONTH_NAMES.get(month_str.lower())
-    if month is None:
-        return None
-
-    try:
-        return date(int(year_str), month, int(day_str))
-    except ValueError:
-        return None
-
-
-def _calculate_target_date(
-    date_ref: str | None,
-    user_timezone: str,
-) -> tuple[str, int, bool]:
-    """
-    Calculate target date from temporal reference in user's timezone.
-
-    Calculate target date from temporal reference in user's timezone.
-
-    Queries are translated to English by the semantic pivot before reaching the
-    planner, so temporal references are expected in English. Localized date
-    strings (e.g., "jeudi 09 avril 2026") from planner output are handled as
-    a fallback via _parse_localized_date().
-
-    Args:
-        date_ref: Temporal reference (e.g., "tomorrow", "2026-01-27", "2026-01-27T11:30:00+01:00",
-                  or localized like "jeudi 09 avril 2026")
-        user_timezone: User's IANA timezone (e.g., "Europe/Paris")
-
-    Returns:
-        Tuple of:
-        - target_date: Date string in YYYY-MM-DD format
-        - offset: Number of days from today (for API request sizing)
-        - is_specific_date: True if user asked for a specific date (not a range like "this week")
-    """
-    from src.core.time_utils import parse_datetime
-
-    today_user = _get_today_in_timezone(user_timezone)
-    today_date = today_user.date()
-
-    if not date_ref:
-        return today_date.isoformat(), 0, False
-
-    ref = date_ref.strip()
-    ref_lower = ref.lower()
-
-    # Try parsing as ISO date/datetime using shared utility
-    # Handles: "2026-01-22", "2026-01-22T14:00:00+01:00", "2026-01-22T14:00:00Z"
-    parsed_dt = parse_datetime(ref)
-    if parsed_dt is not None:
-        # Convert to user's timezone to get correct date
-        try:
-            tz = ZoneInfo(user_timezone)
-            parsed_local = parsed_dt.astimezone(tz)
-        except KeyError, ValueError:
-            parsed_local = parsed_dt.astimezone(UTC)
-
-        target_date = parsed_local.date()
-        offset = max(0, (target_date - today_date).days)
-        # ISO date/datetime is always a specific date request
-        return target_date.isoformat(), offset, True
-
-    # Today references (English — queries are translated by semantic pivot)
-    if ref_lower in ("today", "now"):
-        return today_date.isoformat(), 0, True
-
-    # Tomorrow references
-    if ref_lower == "tomorrow":
-        target = today_date + timedelta(days=1)
-        return target.isoformat(), 1, True
-
-    # Day after tomorrow references
-    if ref_lower in ("after tomorrow", "day after tomorrow"):
-        target = today_date + timedelta(days=2)
-        return target.isoformat(), 2, True
-
-    # "in X days" pattern
-    days_match = re.search(r"in\s+(\d+)\s+days?", ref_lower)
-    if days_match:
-        days = int(days_match.group(1))
-        target = today_date + timedelta(days=days)
-        return target.isoformat(), days, True
-
-    # Week references - return today, NOT specific (show full week)
-    if any(w in ref_lower for w in ("week", "this week")):
-        return today_date.isoformat(), 0, False
-
-    # Localized date strings: "jeudi 09 avril 2026", "9 avril 2026", "April 9, 2026", etc.
-    # The planner may output dates in the user's language instead of ISO format.
-    parsed_localized = _parse_localized_date(ref)
-    if parsed_localized is not None:
-        offset = max(0, (parsed_localized - today_date).days)
-        return parsed_localized.isoformat(), offset, True
-
-    # Default: today, not specific
-    return today_date.isoformat(), 0, False
-
-
-# Legacy function for backward compatibility
-def _parse_date_offset(
-    date_ref: str | None, user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE
-) -> int:
-    """
-    Parse temporal reference and return offset in days from today.
-
-    DEPRECATED: Use _calculate_target_date() instead for proper timezone handling.
-
-    Args:
-        date_ref: Temporal reference or ISO date/datetime
-        user_timezone: User's timezone for "today" calculation
-
-    Returns:
-        Number of days offset from today (0 = today, 1 = tomorrow, etc.)
-    """
-    _, offset, _ = _calculate_target_date(date_ref, user_timezone)
-    return offset
 
 
 async def _geocode_with_city_fallback(
@@ -652,7 +431,12 @@ class GetWeatherForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
 
         # Calculate target date from temporal reference in user's timezone
         # Returns: (target_date: str "YYYY-MM-DD", offset: int, is_specific_date: bool)
-        target_date, date_offset, is_specific_date = _calculate_target_date(date_ref, user_timezone)
+        try:
+            target_date, date_offset, is_specific_date = calculate_target_date(
+                date_ref, user_timezone
+            )
+        except UnreadableDateError as exc:
+            return unreadable_date_result(exc.reference, user_timezone)
 
         # For specific date requests (demain, ISO datetime), reduce days to 1
         # When user asks "weather tomorrow" or "weather for my appointment", they want that day only
@@ -774,7 +558,7 @@ class GetWeatherForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
         if not result.get("success"):
             return UnifiedToolOutput.failure(
                 message=result.get("message", "Weather forecast request failed"),
-                error_code="weather_forecast_error",
+                error_code=result.get("error_code", "weather_forecast_error"),
                 metadata={"status": "error", "error": result.get("error")},
             )
 
@@ -942,7 +726,12 @@ class GetHourlyForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
         # day is asked (e.g. "tomorrow", "2026-07-25", or a calendar ISO datetime),
         # the forecast is filtered to that day's 3-hour slots instead of returning a
         # rolling window from now. Mirrors the daily tool (single source of truth).
-        target_date, date_offset, is_specific_date = _calculate_target_date(date_ref, user_timezone)
+        try:
+            target_date, date_offset, is_specific_date = calculate_target_date(
+                date_ref, user_timezone
+            )
+        except UnreadableDateError as exc:
+            return unreadable_date_result(exc.reference, user_timezone)
 
         # Fail honestly when the requested day is beyond the free-tier window, rather
         # than silently returning near-term slots (which reads to the LLM as "no data").
@@ -1070,7 +859,7 @@ class GetHourlyForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
         if not result.get("success"):
             return UnifiedToolOutput.failure(
                 message=result.get("message", "Hourly forecast request failed"),
-                error_code="hourly_forecast_error",
+                error_code=result.get("error_code", "hourly_forecast_error"),
                 metadata={"status": "error", "error": result.get("error")},
             )
 
@@ -1251,10 +1040,7 @@ async def get_weather_forecast_tool(
         str,
         "Original user message (for location phrase detection like 'chez moi', 'nearby')",
     ] = "",
-    date: Annotated[
-        str | None,
-        "Temporal reference (e.g., 'demain', 'tomorrow', 'après-demain', 'dans 2 jours') - determines forecast start date",
-    ] = None,
+    date: Annotated[str | None, FORECAST_DATE_DESCRIPTION] = None,
     days: Annotated[int, "Number of days to forecast (1-5)"] = settings.weather_forecast_max_days,
     units: Annotated[
         str, "Temperature units: 'metric' (Celsius) or 'imperial' (Fahrenheit)"
@@ -1276,6 +1062,8 @@ async def get_weather_forecast_tool(
     Args:
         location: City name (e.g., 'Paris', 'London,UK') or 'auto' for automatic location
         user_message: Original user message for location phrase detection
+        date: Target day, an ISO date or datetime (FORECAST_DATE_DESCRIPTION); a
+            value the tool cannot read is refused, never read as today (ADR-310).
         days: Number of days to forecast (1-5, default: 5)
         units: 'metric' for Celsius, 'imperial' for Fahrenheit (default: metric)
         language: Language code for descriptions (default: fr)
@@ -1322,8 +1110,8 @@ async def get_hourly_forecast_tool(
     ] = "",
     date: Annotated[
         str | None,
-        "Target day (e.g., 'tomorrow', '2026-07-25', or a calendar ISO datetime). "
-        "Returns that specific day's 3-hour slots. Omit for a rolling window from now.",
+        FORECAST_DATE_DESCRIPTION
+        + " Returns that day's 3-hour slots; omit it for a rolling window from now.",
     ] = None,
     hours: Annotated[
         int,
@@ -1353,8 +1141,8 @@ async def get_hourly_forecast_tool(
     Args:
         location: City name (e.g., 'Paris', 'London,UK') or 'auto' for automatic location
         user_message: Original user message for location phrase detection
-        date: Target day (temporal reference or ISO date/datetime); when given, only
-            that day's 3-hour slots are returned. Beyond the 5-day window an explicit
+        date: Target day, an ISO date or datetime (FORECAST_DATE_DESCRIPTION); when
+            given, only that day's 3-hour slots are returned. Beyond the 5-day window an explicit
             error is returned. Omit for a rolling near-term window.
         hours: Rolling window size in hours when no date is given (default: 24)
         units: 'metric' for Celsius, 'imperial' for Fahrenheit (default: metric)

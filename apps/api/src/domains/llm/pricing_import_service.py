@@ -26,6 +26,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domains.llm.pricing_change_plan import ChangeAction, ChangePlan, ModelChange
+from src.domains.llm.pricing_sheet import weekdays_from_codes
 from src.domains.llm.pricing_time_slots import TimeSlotPrice
 from src.domains.llm.schemas import ModelPriceCreate, ModelPriceUpdate
 from src.domains.llm.service import LLMModelService
@@ -306,6 +307,7 @@ def _windows_payload(
                 else _decimal(window.values.get("cached_input_unit_price"))
             ),
             output_unit_price=_decimal(window.values.get("output_unit_price")),
+            weekdays=weekdays_from_codes(window.values.get("weekdays")),
         )
         for window in windows
     ]

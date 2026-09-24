@@ -1597,6 +1597,8 @@ MAX_PREFERENCE_LENGTH = 100
 - [ ] Implémenter les méthodes API (search, get, create, etc.)
 - [ ] Ajouter le `ConnectorType` dans `models.py`
 - [ ] Exporter dans `clients/__init__.py`
+- [ ] **Ne jamais construire le client sur `ConnectorService(db)`** (ADR-304) : un rafraîchissement de jeton atterrirait dans `db`, qui devrait rester ouverte pendant que le fournisseur répond. Passer par `connectors/active_client.open_active_client` (une session courte, le client fermé sur tous les chemins) ou un `DetachedConnectorService` ; la garde `test_connector_client_on_session_guard.py` nomme l'argument du constructeur, sans liste d'exceptions
+- [ ] Un service qui ne demande rien à la personne (ni OAuth, ni clé personnelle) appartient à l'instance : il se déclare dans `connectors/keyless.py`, sans ligne par compte (ADR-307)
 
 ### 10.2 Nouvel Agent
 
@@ -1625,6 +1627,8 @@ MAX_PREFERENCE_LENGTH = 100
 - [ ] **Agent Builder**: Ajouter le tool dans la liste `tools`
 - [ ] **Agent Manifest**: Ajouter le nom du tool dans `tools[]`
 - [ ] **Exports**: Ajouter dans `__all__` des fichiers concernés
+- [ ] **Échec retourné, jamais levé — et lu par un seul prédicat** (ADR-303) : `ToolErrorModel.from_exception(...)` / `UnifiedToolOutput.failure(...)` avec un `ToolErrorCode` ; le succès se lit par `core/tool_outcome.explicit_success`, jamais par l'absence d'exception ; une erreur se classe par sa structure (statut HTTP via `__cause__`, code du fournisseur), jamais par les mots de son message (ratchet `test_no_message_substring_classification_guard.py`)
+- [ ] **Une valeur illisible est refusée, jamais remplacée** (ADR-310) : `INVALID_INPUT`, le format accepté et la valeur de référence (la date du jour pour une date) ; le contrat d'un paramètre est UNE constante lue par le manifeste ET par la signature `@tool` — la boucle ReAct lie le schéma `@tool`, jamais le manifeste
 
 ---
 
@@ -2331,6 +2335,8 @@ Le système utilise un container d'injection pour partager les ressources entre 
 │                                                                          │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
+
+Depuis ADR-304, chaque opération de `ConcurrencySafeConnectorService` **termine sa transaction** (commit en sortie, rollback sur erreur — coroutines atteintes par `__getattr__` comprises), et les écritures propres d'un client (rafraîchissement, invalidation) passent par une session courte à elles : la session du tour ne reste jamais ouverte pendant qu'un fournisseur répond.
 
 ### 15.2 ToolDependencies Container
 

@@ -268,18 +268,21 @@ class FCMNotificationService:
                 results=[],
             )
 
-        results = []
-        for token in tokens:
-            result = await self._send_to_token(
+        results = [
+            await self._send_to_token(
                 token=token.token,
                 title=title,
                 body=body,
                 data=data,
                 image_url=image_url,
             )
-            results.append(result)
+            for token in tokens
+        ]
 
-            # Update token status
+        # Every send first, every status write after (ADR-304): a token row
+        # updated between two sends stayed locked while the next device was
+        # being reached.
+        for token, result in zip(tokens, results, strict=True):
             if result.success:
                 await self.repository.update_last_used(token.id)
             elif result.token_invalid:

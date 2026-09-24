@@ -72,7 +72,7 @@ def _calendar(items: list[dict[str, Any]] | Exception) -> Any:
     client.close = AsyncMock()
 
     @asynccontextmanager
-    async def _open(_db: Any, _user_id: Any):
+    async def _open(_user_id: Any):
         yield CalendarAccess(client=client, calendar_id="primary", connector_type=None)
 
     return _open
@@ -82,7 +82,7 @@ def _no_calendar() -> Any:
     from contextlib import asynccontextmanager
 
     @asynccontextmanager
-    async def _open(_db: Any, _user_id: Any):
+    async def _open(_user_id: Any):
         yield CalendarUnavailable.NO_CONNECTOR
 
     return _open

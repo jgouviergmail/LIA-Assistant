@@ -30,12 +30,13 @@ SHEET = SheetSpec(
         ColumnSpec(key="price", label_key="l", kind="decimal", decimals=6, minimum=Decimal("0")),
         ColumnSpec(key="window", label_key="l", kind="time_hhmm"),
         ColumnSpec(key="note", label_key="l", kind="text"),
+        ColumnSpec(key="days", label_key="l", kind="enum_list", referential="DAY"),
         ColumnSpec(key="derived", label_key="l", kind="text", editable=False),
     ),
 )
 SPEC = WorkbookSpec(
     sheets=(SHEET,),
-    referentials={"PROVIDER": ("openai", "anthropic")},
+    referentials={"PROVIDER": ("openai", "anthropic"), "DAY": ("mon", "tue", "fri")},
     schema_version=1,
 )
 LABELS = {"boolean.true": "VRAI", "boolean.false": "FAUX"}
@@ -50,6 +51,7 @@ ROWS: list[dict[str, object]] = [
         "price": Decimal("0.400000"),
         "window": "01:00",
         "note": "tarif standard",
+        "days": ["mon", "fri"],
         "derived": "ok",
     },
     {
@@ -60,6 +62,7 @@ ROWS: list[dict[str, object]] = [
         "price": Decimal("9999.999999"),
         "window": None,
         "note": "",
+        "days": [],
         "derived": "",
     },
     {
@@ -70,6 +73,7 @@ ROWS: list[dict[str, object]] = [
         "price": None,
         "window": "23:59",
         "note": "accents: éàü — tiret cadratin",
+        "days": None,
         "derived": "aucun tarif actif",
     },
 ]
@@ -95,8 +99,9 @@ class TestRoundTrip:
                 if not column.editable:
                     continue
                 expected = original[column.key]
-                # An empty string and an absent value are the same thing.
-                if expected == "":
+                # An empty string, an empty list and an absent value are the
+                # same thing: all three are an empty cell.
+                if expected in ("", []):
                     expected = None
                 assert (
                     got.values[column.key] == expected

@@ -125,6 +125,39 @@ fails BEFORE the setup now rejects with its close code and the provider's
 reason (`closeWords`, both WebSocket transports), so the API's log names
 what the browser saw rather than a bare `live_socket_error`.
 
+### ElevenLabs over WebRTC on iPhone and iPad
+
+On iOS the raw WebSocket audio of an ElevenLabs agent played unevenly, so the
+browser asks for another audio transport there: `POST /live/sessions` carries
+`audio_transport` (`websocket` by default, `webrtc` on iPhone, iPad and iPod),
+the provider mints a LiveKit conversation token instead of a signed URL
+(`LiveSetupInputs.audio_transport`, round-tripped with the record like every
+other input), and `createLiveTransport(provider, audioTransport)` returns
+`transports/elevenlabs-webrtc.ts` — the vendor's own SDK (`@elevenlabs/client`,
+pinned) with its native audio tracks. The transport declares its audio
+`managed`: the SDK owns the microphone and the speaker, so the controller
+disposes of its PCM player and opens no PCM microphone of its own. LIA's tools
+are the SDK's client tools, each routed through the same door as on the
+WebSocket wire; a name the person's own agent declares is answered by that door
+too, which refuses what it does not know. A WebRTC connection holds no expiring
+credential, so an extension moves the cap without re-minting (the GPT-Live
+rule); the CSP gains the one host the SDK opens, `wss://livekit.rtc.elevenlabs.io`
+(`LIVE_PROVIDER_CONNECT_SRC`).
+
+Three smaller measures ride with it. The PCM player keeps a rebuffer headroom
+after an underrun (120 ms on iOS, none elsewhere) and a short attack after a
+gap, and it counts what it played — chunks, drains, the audio duration, the
+source and context rates, short and long gaps with a histogram — which the
+controller posts as `audio_diagnostics` on `POST …/end`
+(`LiveAudioDiagnostics`: counts only, never audio or text), so a stutter can be
+told apart from a network starvation. iOS may mark the page hidden while its
+microphone permission sheet is open: the hidden-page grace starts only once the
+sheet has returned a stream. And a Gemini key restricted to the API server's IP
+address mints its ephemeral token, then Google refuses the BROWSER's socket
+(1008, « API key has an IP address restriction »): `liveErrorKey` names that
+configuration (`live.error.key_ip_restricted`) instead of the generic start
+failure — the Live connector needs a key without an IP restriction.
+
 ## A DIRECT session: the phone's line, in the browser (wave 4)
 
 The header's voice menu offers a THIRD entry — « Direct live session
@@ -287,7 +320,7 @@ decisions.
 | File | Role |
 |---|---|
 | `lib/live/types.ts` | The wire contracts, mirrors of `domains/live/schemas.py` (`LiveCredential.connection`, `LiveConnectOptions.exchangeOffer`, `LiveModelCapabilities`). |
-| `lib/live/transport.ts`, `lib/live/transports/{gemini-ws,openai-webrtc,elevenlabs-ws,index}.ts` | The `LiveTransport` seam (intentions, never frames) and the three transports; `createLiveTransport(provider)`. A `LiveDelegation` carries the CALL itself (`call: {name, args}`) on a tool wire, so a direct session reads the tool's name where a delegated one reads the request. |
+| `lib/live/transport.ts`, `lib/live/transports/{gemini-ws,openai-webrtc,elevenlabs-ws,elevenlabs-webrtc,index}.ts` | The `LiveTransport` seam (intentions, never frames) and the four transports; `createLiveTransport(provider, audioTransport)` — ElevenLabs over WebRTC on iOS, its audio `managed` by the vendor SDK. A `LiveDelegation` carries the CALL itself (`call: {name, args}`) on a tool wire, so a direct session reads the tool's name where a delegated one reads the request. |
 | `lib/live/request-composer.ts` | The request of a native delegation, from the input transcript. |
 | `lib/live/providers.ts` | The providers the browser speaks: id, connector type, brand, billed account — read by the settings, the connector form and its group; held equal to the API's `PROVIDERS` by the cross-stack guard. `LIVE_PORTAL_VOICE` (`agent`), the sentinel stored for a portal-voiced model, held equal to `ELEVENLABS_LIVE_PORTAL_VOICE`. |
 | `lib/live/pcm-player.ts`, `lib/live/mic-capture.ts` | Gapless PCM playback (Gemini) through ONE `AudioWorkletNode` reading a queue of chunks continuously (linear resampling ACROSS chunk boundaries, an exact `drained` report from the render thread, a flush inside the worklet) — never one `AudioBufferSourceNode` per chunk: that shape is the one Chrome 152 (152.0.7977.83, the owner's build) sometimes renders with a 128-sample block repeated ~100 times at a chunk start, the « biiiip » heard on every session (see Measured). The microphone as PCM chunks through the shared worklet, or the bare stream a native transport carries (`pcm: false`). |

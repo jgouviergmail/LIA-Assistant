@@ -324,6 +324,7 @@ class TestProcessUserStats:
             tokens_in: int = 0
             tokens_out: int = 0
             tokens_cache: int = 0
+            tokens_cache_write: int = 0
             metadata: dict = field(default_factory=dict)
 
         mock_task = AsyncMock()
@@ -693,6 +694,7 @@ class TestTheSuccessPathIsAccountedAndRecorded:
             tokens_in: int = 120
             tokens_out: int = 30
             tokens_cache: int = 0
+            tokens_cache_write: int = 0
             metadata: dict = field(default_factory=dict)
             source_name: str = "test-source"
             total_tokens: int = 150
@@ -1003,6 +1005,41 @@ class TestTheSuccessPathIsAccountedAndRecorded:
             )
 
         assert recorded is None, "a failed ledger must report nothing, never raise"
+
+    @pytest.mark.asyncio
+    async def test_a_claude_cache_write_is_priced_and_recorded(self) -> None:
+        """The write surcharge reaches both the price and the ledger row (ADR-306).
+
+        ``record_node_tokens`` recomputes the cost when it is handed no rate,
+        so a write the price saw but the record did not would be billed once
+        and filed at the plain input price.
+        """
+        from src.infrastructure.proactive import tracking
+
+        pricer = MagicMock(return_value=(0.02, 0.018))
+        tracker = MagicMock(record_node_tokens=AsyncMock(), commit=AsyncMock())
+        context = MagicMock()
+        context.__aenter__ = AsyncMock(return_value=tracker)
+        context.__aexit__ = AsyncMock(return_value=False)
+        with (
+            patch.object(tracking, "get_cached_cost_usd_eur", pricer),
+            patch("src.domains.chat.service.TrackingContext", return_value=context),
+            patch.object(tracking, "_record_out_of_turn", AsyncMock()),
+        ):
+            await tracking.track_proactive_tokens(
+                user_id=uuid4(),
+                task_type="heartbeat",
+                target_id="hb-1",
+                conversation_id=None,
+                tokens_in=6000,
+                tokens_out=40,
+                model_name="claude-opus-5",
+                source="proactive",
+                tokens_cache_write=5074,
+            )
+
+        assert pricer.call_args.kwargs["cache_write_tokens"] == 5074
+        assert tracker.record_node_tokens.call_args.kwargs["cache_write_tokens"] == 5074
 
     @pytest.mark.asyncio
     async def test_a_model_that_cannot_be_priced_still_records_its_tokens(self) -> None:

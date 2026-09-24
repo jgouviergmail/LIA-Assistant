@@ -30,7 +30,7 @@ from typing import Any
 import pytest
 
 from src.domains.agents import models as agent_models
-from src.domains.agents.nodes import routing
+from src.domains.agents.nodes import react_recovery, routing
 from src.domains.agents.utils import react_budget
 from src.domains.agents.utils.react_budget import (
     REACT_TURN_KEYS_OWNED_BY_SETUP,
@@ -52,6 +52,8 @@ _DECIDERS = (
     react_budget.loop_compute_seconds,
     react_budget.loop_tool_seconds,
     routing.route_from_react_call_model,
+    # ADR-310: whether the turn takes a recovery pass instead of finalizing.
+    react_recovery.should_recover,
 )
 
 

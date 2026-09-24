@@ -311,17 +311,58 @@ def _validate_diagnostics_registries() -> None:
             )
 
 
+def _validate_image_clients() -> None:
+    """Refuse image families and provider clients that disagree (ADR-305, ADR-085).
+
+    A family whose provider has no client is a model offered nowhere, in silence.
+    The check also runs when the registry module is imported; this is where the
+    boot names it.
+
+    Raises:
+        RuntimeError: Naming the providers on one side only.
+    """
+    try:
+        from src.domains.image_generation.client import assert_image_clients_complete
+
+        assert_image_clients_complete()
+    except RuntimeError as exc:
+        logger.error("image_client_registry_invalid", error=str(exc), exc_info=True)
+        raise
+
+
+def _validate_react_context_placement() -> None:
+    """Refuse a provider that does not declare where a ReAct turn's context goes (ADR-308).
+
+    ADR-085 pattern: once the cross-turn cache is on, a provider added without
+    a declaration would silently take the fallback shape.
+
+    Raises:
+        RuntimeError: Naming each provider without a declaration.
+    """
+    try:
+        from src.domains.agents.nodes.react_turn_layout import (
+            assert_context_placement_completeness,
+        )
+
+        assert_context_placement_completeness()
+    except AssertionError as exc:
+        logger.error("react_context_placement_incomplete", error=str(exc), exc_info=True)
+        raise RuntimeError(f"ReAct context placement incomplete: {exc}") from exc
+
+
 def run_failfast_validations() -> None:
     """Run the fail-fast boot validations (die at boot, not at first request).
 
     Validates, in order: LLM configuration completeness, the provider
     usage-accounting registry (ADR-220), the paid-tool call ceilings, the
-    embedding configuration (ADR-242), ToolErrorCode enum
+    embedding configuration (ADR-242), the image families against their
+    provider clients (ADR-305), ToolErrorCode enum
     completeness, Draft Display Registry exhaustivity (ADR-085), Draft
     Preview Renderer exhaustivity (ADR-085 pattern), the evidence-driven
     expansion entity types (ADR-085 pattern), the HITL classifier few-shot
-    coverage (ADR-085 pattern), the registry content-trust classification
-    (ADR-085 pattern) and the PostgreSQL connection budget (F004).
+    coverage (ADR-085 pattern), the ReAct context placement of every provider
+    (ADR-308), the registry content-trust classification (ADR-085 pattern) and
+    the PostgreSQL connection budget (F004).
 
     Raises:
         RuntimeError: If any validation fails (the app must not boot).
@@ -359,6 +400,8 @@ def run_failfast_validations() -> None:
     except RuntimeError as exc:
         logger.error("embedding_configuration_invalid", error=str(exc), exc_info=True)
         raise
+
+    _validate_image_clients()
 
     # Validate ToolErrorCode enum completeness (fail-fast if codes are missing)
     try:
@@ -441,6 +484,8 @@ def run_failfast_validations() -> None:
     except AssertionError as exc:
         logger.error("semantic_issue_questions_incomplete", error=str(exc), exc_info=True)
         raise RuntimeError(f"Semantic issue clarification questions incomplete: {exc}") from exc
+
+    _validate_react_context_placement()
 
     # Validate registry content-trust classification (ADR-085 pattern: fail-fast
     # if a RegistryItemType has been added without declaring whether its payload

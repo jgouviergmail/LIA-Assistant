@@ -33,8 +33,9 @@ pytestmark = pytest.mark.unit
 
 @pytest.fixture
 def db_context(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
-    """``get_db_context`` yields one MagicMock session (nothing here awaits it)."""
+    """``get_db_context`` yields one MagicMock session; only ``commit`` is awaited."""
     db = MagicMock()
+    db.commit = AsyncMock()
 
     @asynccontextmanager
     async def _ctx():
@@ -201,7 +202,13 @@ def regenerate_world(
     )
     reindex = MagicMock()
     monkeypatch.setattr("src.domains.meetings.indexing.schedule_reindex", reindex)
-    synthesize = AsyncMock(return_value=_synthesis())
+
+    async def _synthesize(*_args: Any, **_kwargs: Any) -> SynthesisResult:
+        # ADR-304: the reads were committed before the model was asked.
+        assert db_context.commit.await_count >= 1, "the model was asked inside the reads"
+        return _synthesis()
+
+    synthesize = AsyncMock(side_effect=_synthesize)
     monkeypatch.setattr(regeneration, "synthesize_minutes", synthesize)
     tracked = AsyncMock(return_value="run-1")
     monkeypatch.setattr("src.infrastructure.proactive.tracking.track_proactive_tokens", tracked)

@@ -1,9 +1,10 @@
 """What happens to a reminder that the scheduler picks up but does not send.
 
-``get_and_lock_pending_reminders`` is a LEASE: it selects the rows whose
-``trigger_at`` has passed, flips every one of them to ``PROCESSING`` and
-flushes, so a second worker skips them. The next tick only ever selects
-``PENDING`` rows.
+``claim_next_due`` is a LEASE: it selects ONE row whose ``trigger_at`` has
+passed, flips it to ``PROCESSING`` and the claim is committed at once, so a
+second worker skips it and no row stays locked while it is notified (ADR-304).
+The next tick only ever selects ``PENDING`` rows; a claim a crash abandoned is
+released by ``recover_stale_processing``.
 
 Every path out of the processing loop must therefore either finish the work,
 delete the row, or RELEASE the lease. A path that just ``continue``s leaves the
@@ -18,6 +19,8 @@ set and assert the outcome for each exit: sent, retried, dropped, or deferred.
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from typing import Any
@@ -26,6 +29,7 @@ from uuid import uuid4
 
 import pytest
 
+from src.core.config import settings
 from src.core.recurrence import RecurrenceSpec
 from src.domains.reminders.models import ReminderStatus
 from src.infrastructure.scheduler.reminder_notification import (
@@ -100,12 +104,17 @@ class _Harness:
     """Every collaborator `process_pending_reminders` imports, stubbed."""
 
     def __init__(self, reminders: list[SimpleNamespace], user: SimpleNamespace | None) -> None:
+        self.claimed = {reminder.id: reminder for reminder in reminders}
         self.repo = MagicMock()
-        self.repo.get_and_lock_pending_reminders = AsyncMock(return_value=reminders)
+        self.repo.recover_stale_processing = AsyncMock(return_value=0)
+        self.repo.claim_next_due = AsyncMock(side_effect=[*reminders, None])
+        self.repo.get_processing_for_update = AsyncMock(side_effect=self._still_claimed)
         self.repo.delete = AsyncMock()
 
         self.db = MagicMock()
         self.db.commit = AsyncMock()
+        self.open_sessions = 0
+        self.open_at_generation: list[int] = []
 
         self.user_service = MagicMock()
         self.user_service.get_user_by_id = AsyncMock(return_value=user)
@@ -117,11 +126,37 @@ class _Harness:
 
         self.blocked = False
 
+    async def _still_claimed(self, reminder_id: Any) -> SimpleNamespace | None:
+        """The settlement's read: the row, only while its claim stands."""
+        reminder = self.claimed.get(reminder_id)
+        if reminder is None or reminder.status != ReminderStatus.PROCESSING.value:
+            return None
+        return reminder
+
     def _db_context(self) -> Any:
-        context = AsyncMock()
-        context.__aenter__ = AsyncMock(return_value=self.db)
-        context.__aexit__ = AsyncMock(return_value=None)
-        return MagicMock(return_value=context)
+        """A session helper that counts what is open and commits on exit."""
+        harness = self
+
+        @asynccontextmanager
+        async def _session() -> AsyncIterator[MagicMock]:
+            harness.open_sessions += 1
+            try:
+                yield harness.db
+                await harness.db.commit()
+            finally:
+                harness.open_sessions -= 1
+
+        return _session
+
+    async def _generate(self, **_kwargs: Any) -> SimpleNamespace:
+        self.open_at_generation.append(self.open_sessions)
+        return SimpleNamespace(
+            message="N'oublie pas le pain",
+            tokens_in=0,
+            tokens_out=0,
+            tokens_cache=0,
+            model_name="",
+        )
 
     def patches(self) -> list[Any]:
         module = "src.infrastructure.scheduler.reminder_notification"
@@ -139,18 +174,7 @@ class _Harness:
             ),
             patch("src.infrastructure.cache.redis.get_redis_cache", AsyncMock(return_value=None)),
             patch(f"{module}.get_relevant_memories", AsyncMock(return_value=[])),
-            patch(
-                f"{module}.generate_reminder_message",
-                AsyncMock(
-                    return_value=SimpleNamespace(
-                        message="N'oublie pas le pain",
-                        tokens_in=0,
-                        tokens_out=0,
-                        tokens_cache=0,
-                        model_name="",
-                    )
-                ),
-            ),
+            patch(f"{module}.generate_reminder_message", AsyncMock(side_effect=self._generate)),
         ]
 
 
@@ -374,3 +398,50 @@ class TestARecurringReminderSurvivesItsOccurrence:
         assert reminder.notification_error == "fcm down"
         # …but the counter starts again, or the next failure would be the last.
         assert reminder.retry_count == 0
+
+
+class TestNoTransactionWhileNotifying:
+    """ADR-304: the claim is committed before the reminder is notified."""
+
+    async def test_the_message_is_generated_with_no_session_open(self) -> None:
+        """The whole batch used to stay locked, in one transaction, through
+        every model call and every push."""
+        reminders = [_reminder(), _reminder()]
+        harness = _Harness(reminders, _user(id=reminders[0].user_id))
+
+        stats = await _run(harness)
+
+        assert stats["notified"] == 2
+        assert harness.open_at_generation == [0, 0]
+
+    async def test_a_claim_gone_meanwhile_is_left_to_whoever_holds_it(self) -> None:
+        """Its owner deleted the reminder while it was being notified: the
+        settlement finds no claim and writes nothing."""
+        reminder = _reminder()
+        harness = _Harness([reminder], _user(id=reminder.user_id))
+        harness.repo.get_processing_for_update = AsyncMock(return_value=None)
+
+        stats = await _run(harness)
+
+        assert stats["notified"] == 1
+        harness.repo.delete.assert_not_awaited()
+
+    async def test_abandoned_claims_are_released_before_anything_is_claimed(self) -> None:
+        harness = _Harness([], _user())
+
+        await _run(harness)
+
+        harness.repo.recover_stale_processing.assert_awaited_once_with(
+            settings.reminder_processing_stale_timeout_minutes
+        )
+
+    async def test_a_tick_stops_at_its_batch_limit(self) -> None:
+        from src.core.constants import REMINDER_NOTIFICATION_BATCH_LIMIT
+
+        reminders = [_reminder() for _ in range(REMINDER_NOTIFICATION_BATCH_LIMIT + 1)]
+        harness = _Harness(reminders, _user(id=reminders[0].user_id))
+
+        stats = await _run(harness)
+
+        assert stats["processed"] == REMINDER_NOTIFICATION_BATCH_LIMIT
+        assert harness.repo.claim_next_due.await_count == REMINDER_NOTIFICATION_BATCH_LIMIT

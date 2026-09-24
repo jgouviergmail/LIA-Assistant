@@ -16,6 +16,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.client_ip import resolve_client_ip
 from src.core.dependencies import get_db
 from src.core.exceptions import (
     raise_invalid_input,
@@ -205,7 +206,7 @@ async def create_pricing(
             "sku_name": pricing.sku_name,
             "cost_per_1000_usd": float(pricing.cost_per_1000_usd),
         },
-        ip_address=request.client.host if request.client else None,
+        ip_address=resolve_client_ip(request),
         user_agent=request.headers.get("user-agent"),
     )
     db.add(audit_entry)
@@ -320,7 +321,7 @@ async def update_pricing(
         resource_type="google_api_pricing",
         resource_id=new_pricing.id,
         details=audit_details,
-        ip_address=request.client.host if request.client else None,
+        ip_address=resolve_client_ip(request),
         user_agent=request.headers.get("user-agent"),
     )
     db.add(audit_entry)
@@ -379,7 +380,7 @@ async def deactivate_pricing(
             "sku_name": pricing.sku_name,
             "pricing_id": str(pricing_id),
         },
-        ip_address=request.client.host if request.client else None,
+        ip_address=resolve_client_ip(request),
         user_agent=request.headers.get("user-agent"),
     )
     db.add(audit_entry)
@@ -419,7 +420,7 @@ async def reload_pricing_cache(
         resource_type="google_api_pricing",
         resource_id=None,
         details={"cache_entries": len(GoogleApiPricingService._pricing_cache)},
-        ip_address=request.client.host if request.client else None,
+        ip_address=resolve_client_ip(request),
         user_agent=request.headers.get("user-agent"),
     )
     db.add(audit_entry)

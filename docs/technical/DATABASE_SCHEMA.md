@@ -1170,8 +1170,10 @@ CREATE TABLE llm_model_pricing (
     output_price_per_1m_tokens NUMERIC(10, 6) NOT NULL,
 
     -- UTC time-slot tariff (ADR-223, 2026-08-17) — optional windowed pricing
-    -- (DeepSeek peak/off-peak): list of {start_utc, end_utc, 3 unit prices},
-    -- [start,end) at minute granularity, wraps midnight, non-overlapping.
+    -- (DeepSeek peak/off-peak): list of {start_utc, end_utc, 3 unit prices,
+    -- optional weekdays}, [start,end) at minute granularity, wraps midnight,
+    -- non-overlapping on the week. weekdays = ISO days (1 = Monday) of the UTC
+    -- day a window starts on; absent = every day (ADR-223 amendment 2026-09-23).
     -- NULL/[] = flat pricing (base columns apply 24/7).
     time_slots JSONB NULL,
 
@@ -1475,19 +1477,13 @@ class GoogleApiPricing(BaseModel):
     )
 ```
 
-**Seed Data (2026 rates):**
-
-| API | Endpoint | SKU | Cost/1000 USD |
-|-----|----------|-----|---------------|
-| places | /places:searchText | Text Search Pro | $32.00 |
-| places | /places:searchNearby | Nearby Search Pro | $32.00 |
-| places | /places/{id} | Place Details Pro | $17.00 |
-| places | /places:autocomplete | Autocomplete | $2.83 |
-| places | /{photo}/media | Place Photos | $7.00 |
-| routes | /directions/v2:computeRoutes | Compute Routes | $5.00 |
-| routes | /distanceMatrix/v2:computeRouteMatrix | Route Matrix | $5.00 |
-| geocoding | /geocode/json | Geocoding | $5.00 |
-| static_maps | /staticmap | Static Maps | $2.00 |
+**Seed Data:** `infrastructure/database/seeds/google_api_pricing_seed.sql` is the
+authority (carried to upgraded instances by migration, one row per tracked endpoint
+including the SKU-tier suffixes, held by `test_google_api_pricing_seed_guard.py`); the
+rates are not restated here, since a copy drifts (the one that stood here still showed
+the Places Pro prices corrected on 2026-08-21). A billed call's cost is stored with it
+in `google_api_usage_logs`, whose `request_count` carries the billable events (a Route
+Matrix is billed per element returned).
 
 **Pricing Lookup Query:**
 
@@ -2771,7 +2767,7 @@ Per-user usage quota configuration. One record per user (1:1 relationship with `
 | `heartbeat_notifications` | `src/domains/heartbeat/models.py` | Historique des notifications proactives Heartbeat |
 | `interest_notifications` | `src/domains/interests/models.py` | Historique des notifications d'intérêts |
 | `llm_config_overrides` / `provider_api_keys` | `src/domains/llm_config/models.py` | Overrides LLM par type + clés API providers chiffrées Fernet (ADR-078) |
-| `image_generation_pricing` | `src/domains/image_generation/models.py` | Tarification génération d'images (versionnée) |
+| `image_generation_pricing` | `src/domains/image_generation/models.py` | Tarification génération d'images (versionnée) : prix par image produite, clé (modèle, qualité, taille), et `cost_per_input_image_usd` — prix de chaque image de référence d'une retouche, EXIGÉ par une famille qui la facture à l'image (Qwen), REFUSÉ par une qui la facture en tokens (OpenAI). Chaque ligne est validée contre la famille de son modèle (ADR-305) |
 | `user_usage_limits` | `src/domains/usage_limits/models.py` | Quotas par utilisateur (tokens, messages, coût — ADR-060) |
 | `relation_debriefs` | `src/domains/relations/debrief/models.py` | **Débrief quotidien par relation** (ADR-269) : une ligne par (compte, relation), portant le corps rédigé, la date LOCALE de rédaction, l'empreinte des preuves qui l'ont produit, les réglages sous lesquels il a été écrit (langue, étendue) et son coût d'affichage (`usage`, JSONB — `token_usage_logs` reste l'enregistrement qui fait foi). La construction est revendiquée par une SEULE instruction (`ON CONFLICT … WHERE … RETURNING`), `claim_owner` conditionnant chaque clôture ; `held_until` porte **deux sens qui se lisent pareil** — le bail d'un constructeur mort et le refroidissement d'un échec. Trois clôtures distinctes (prête, vide, échouée) n'écrivent QUE leurs colonnes : un échec laisse intacts le texte précédent et son coût, parce que remplacer une synthèse utilisable par un panneau vide transforme « je n'ai pas pu actualiser » en « il n'y a rien » |
 | `system_settings` | `src/domains/system_settings/models.py` | Réglages système clé/valeur (activation composants, ADR-061) |

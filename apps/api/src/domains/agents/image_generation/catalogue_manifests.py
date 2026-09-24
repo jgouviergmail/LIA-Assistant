@@ -110,7 +110,8 @@ _edit_desc = (
     "Takes an existing image (generated or uploaded attachment) and modifies it.\n"
     "**Use for**: 'Modify this image to...', 'Change the background of this image', "
     "'Add a hat to the cat in this image', 'Make this photo look like a painting'.\n"
-    "**IMPORTANT**: Requires a source_attachment_id referencing an existing image.\n"
+    "**Source**: the image named by source_attachment_id, else the user's most recent "
+    "image.\n"
     "**Output**: Edited image displayed as a card below the response."
 )
 

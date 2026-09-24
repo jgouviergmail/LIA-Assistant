@@ -9,10 +9,14 @@ the end-to-end suite does not assert directly.
 
 from unittest.mock import Mock, patch
 
+from langchain_core.language_models.fake_chat_models import FakeListChatModel
+from langchain_core.messages import AIMessage, HumanMessage
+
 from src.core.constants import STATE_KEY_INITIATIVE_SUGGESTION
 from src.domains.agents.nodes.response_node import (
     _build_response_chain,
     _build_response_system_prompt,
+    _prepare_conversational_messages,
 )
 
 _RESP = "src.domains.agents.nodes.response_node"
@@ -33,7 +37,6 @@ def _prompt(state=None, **kw):
         "user_display_mode": "markdown",
         "user_psyche_enabled": False,
         "personality_instruction": None,
-        "conversation_history": "",
         "psychological_profile": "",
         "knowledge_context": "",
         "rag_context": "",
@@ -153,6 +156,7 @@ def _chain_system_blocks(**kw):
         "state": {},
         "user_language": "fr",
         "llm": Mock(),
+        "performed_actions_block": "",
     }
     base.update(kw)
     captured = {}
@@ -189,10 +193,83 @@ def test_chain_injects_rejection_override_block():
     assert "INJECTED" in blocks  # rejection directive rendered via load_prompt
 
 
+def test_chain_states_the_performed_actions_before_the_data():
+    """ADR-263 §23: the acts precede the data they explain."""
+    blocks = _chain_system_blocks(performed_actions_block="ACTS", agent_results_summary="DATA")
+    assert blocks[1] == "ACTS"
+    assert "AUTHORITATIVE" in blocks[2]
+
+
 def test_chain_injects_skill_contract_block():
     blocks = _chain_system_blocks(skills_context="SKILL RULES")
     assert "INJECTED" in blocks  # skill contract prefix rendered via load_prompt
     assert blocks[0] == "BASE"  # base prompt always first
+
+
+# ---------------------------------------------------------------------------
+# The conversation reaches the model ONCE, whole (ADR-309)
+# ---------------------------------------------------------------------------
+
+
+def _real_chain(state, system_prompt, agent_results_summary=""):
+    return _build_response_chain(
+        base_system_prompt=system_prompt,
+        agent_results_summary=agent_results_summary,
+        skills_context="",
+        plan_rejection_reason=None,
+        state=state,
+        user_language="fr",
+        llm=FakeListChatModel(responses=["ok"]),
+        performed_actions_block="",
+    )
+
+
+async def test_an_earlier_answer_reaches_the_model_once_and_whole():
+    """The history had two channels: a <History> text in the system prompt, each
+    message cut at 500 characters, AND the message array, whole. It has one."""
+    earlier_answer = "ANSWER-START " + "x" * 800 + " ANSWER-END"
+    state = {
+        "messages": [
+            HumanMessage(content="first question"),
+            AIMessage(content=earlier_answer),
+            HumanMessage(content="second question"),
+        ]
+    }
+    with (
+        patch(f"{_RESP}._should_inject_html_directive", Mock(return_value=False)),
+        patch(f"{_RESP}.inject_tone_instruction", Mock(side_effect=lambda p: p)),
+    ):
+        system_prompt = _prompt(state=state, user_query_for_prompt="second question")
+    messages = await _prepare_conversational_messages(
+        state,
+        "r",
+        neutralize_history_formatting=False,
+        plan_rejection_reason=None,
+        current_turn_attachments=None,
+        last_user_message="second question",
+        has_vision_content=False,
+    )
+
+    rendered = _real_chain(state, system_prompt).first.format_messages(messages=messages)
+    text = "\n".join(str(message.content) for message in rendered)
+
+    assert text.count("ANSWER-START") == 1
+    assert "ANSWER-END" in text
+    assert "<History>" not in text
+
+
+def test_the_scaffolds_come_from_the_lines_file():
+    """ADR-284: the data prefix and the language reminder are prose, so they live in
+    ``response_prompt_lines.txt``; the data prefix, which PRECEDES the conversation,
+    no longer calls it « above »."""
+    rendered = _real_chain({}, "BASE", agent_results_summary="DATA-9").first.format_messages(
+        messages=[HumanMessage(content="q")]
+    )
+    data_block = next(str(m.content) for m in rendered if "DATA-9" in str(m.content))
+    assert data_block.startswith("CURRENT TURN DATA (AUTHORITATIVE")
+    assert "earlier messages of this conversation" in data_block
+    assert "above" not in data_block
+    assert "Respond ENTIRELY in French" in str(rendered[-1].content)
 
 
 # ---------------------------------------------------------------------------

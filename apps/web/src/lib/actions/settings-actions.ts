@@ -96,6 +96,9 @@ export interface TimeSlotPricePayload {
   input_unit_price: string;
   cached_input_unit_price: string | null;
   output_unit_price: string;
+  /** ISO weekdays (1 = Monday … 7 = Sunday) of the UTC day the window starts
+   *  on; absent or null = every day (DeepSeek bills its peaks Monday-Friday). */
+  weekdays?: number[] | null;
 }
 
 /** Reasoning + sampling block — Template mode (one field) OR Custom mode.
@@ -548,15 +551,20 @@ interface ImagePricingData {
   quality: string;
   size: string;
   cost_per_image_usd: string;
+  /** Price of each reference image an edit sends; required by a family that
+   * bills it per image (Qwen), refused by one that bills tokens (OpenAI). */
+  cost_per_input_image_usd?: string | null;
 }
 
 /** Partial update payload for image pricing. ``provider`` is intrinsic and
- * never sent on update (the backend rejects it on PUT). */
+ * never sent on update (the backend rejects it on PUT). An omitted or null
+ * reference-image price keeps the current one. */
 export type ImagePricingUpdateData = {
   model?: string;
   quality?: string;
   size?: string;
   cost_per_image_usd: string;
+  cost_per_input_image_usd?: string | null;
 };
 
 /**

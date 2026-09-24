@@ -148,6 +148,26 @@ class TestWhatTheLoopAskedForAndNeverGot:
         assert react["abandoned_calls"] == []
 
 
+class TestTheRecoveryIsShown:
+    """ADR-310 promised the recovery to the debug panel; the final review found
+    the section never read it."""
+
+    def test_a_turn_that_took_a_pass_says_what_it_achieved(self) -> None:
+        react = _react(
+            {
+                "react_iteration": 5,
+                "react_agent_result": {"recovery": {"passes": 1, "outcome": "partial"}},
+            }
+        )
+
+        assert react["recovery"] == {"passes": 1, "outcome": "partial"}
+
+    def test_a_turn_without_a_pass_says_none(self) -> None:
+        react = _react({"react_iteration": 3, "react_agent_result": {"iteration_count": 3}})
+
+        assert react["recovery"] is None
+
+
 class TestTheSectionStillSaysWhatItSaidBefore:
     def test_the_existing_figures_are_untouched(self) -> None:
         react = _react(

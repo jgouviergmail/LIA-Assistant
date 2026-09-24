@@ -31,6 +31,7 @@ import structlog
 
 from src.core.exceptions import ConnectorAPIError, ConnectorTokenExpiredError
 from src.domains.agents.tools.exceptions import ConnectorNotEnabledError
+from src.domains.connectors.models import ConnectorType
 from src.infrastructure.observability.metrics import connector_error_notices_total
 
 logger = structlog.get_logger(__name__)
@@ -65,6 +66,21 @@ def _get_writer() -> Any | None:
         return None
 
 
+def _is_keyless(connector_type: str) -> bool:
+    """Whether a connector type string names a keyless (instance-provided) type.
+
+    Args:
+        connector_type: The type carried by a connector exception.
+
+    Returns:
+        True for a keyless type; False for any other or unknown value.
+    """
+    try:
+        return ConnectorType(connector_type).is_keyless
+    except ValueError:
+        return False
+
+
 def classify_connector_exception(exc: BaseException) -> ConnectorNotice | None:
     """Classify an exception into an actionable connector notice.
 
@@ -82,6 +98,10 @@ def classify_connector_exception(exc: BaseException) -> ConnectorNotice | None:
         return ConnectorNotice(connector_type=exc.connector_type, action="reconnect")
     if isinstance(exc, ConnectorAPIError):
         if exc.upstream_status_code in _RECONNECT_STATUSES:
+            # A keyless service runs on the INSTANCE's key: a 401/403 is the
+            # operator's to fix, and the person has nothing to reconnect (ADR-307).
+            if _is_keyless(exc.connector_type):
+                return None
             return ConnectorNotice(connector_type=exc.connector_type, action="reconnect")
         if exc.upstream_status_code == _RATE_LIMIT_STATUS:
             return ConnectorNotice(connector_type=exc.connector_type, action="rate_limit")

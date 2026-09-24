@@ -4,6 +4,8 @@ Constants for agents domain.
 Centralizes hardcoded values to improve maintainability and reduce magic strings.
 """
 
+from enum import StrEnum
+
 from src.core.constants import (
     CONTEXT_REFERENCE_CONFIDENCE_THRESHOLD_DEFAULT,
 )
@@ -31,6 +33,8 @@ NODE_REACT_SETUP = "react_setup"
 NODE_REACT_CALL_MODEL = "react_call_model"
 NODE_REACT_EXECUTE_TOOLS = "react_execute_tools"
 NODE_REACT_FINALIZE = "react_finalize"
+# ADR-310: a declared gap re-opens the loop instead of ending the turn.
+NODE_REACT_RECOVERY = "react_recovery"
 
 # Agent nodes (NAMING: domain=entity(singular), agent=domain+"_agent")
 NODE_QUERY_AGENT = "query_agent"  # INTELLIA: LocalQueryEngine agent
@@ -508,15 +512,30 @@ EXECUTION_MODE_PARALLEL = "parallel"  # V2 (future): Parallel execution
 # AGENT STATUS VALUES (agent result states)
 # ============================================================================
 
-STATUS_SUCCESS = "success"
-STATUS_ERROR = "error"
-STATUS_CONNECTOR_DISABLED = "connector_disabled"
 
-ALL_AGENT_STATUSES = [
-    STATUS_SUCCESS,
-    STATUS_ERROR,
-    STATUS_CONNECTOR_DISABLED,
-]
+class AgentResultStatus(StrEnum):
+    """Aggregate status of an ``AgentResult`` — the ONLY vocabulary a reader compares against.
+
+    ``ERROR`` means every executed step failed; ``SUCCESS`` means at least one
+    produced something. A partial failure is ``SUCCESS`` carrying a non-empty
+    ``AgentResult.failed_steps``: the FIELD states the partial, never the
+    status (ADR-303).
+
+    Three values were retired with this enum. ``failed`` had a single writer
+    (the plan mapper) that no reader knew, so every failed plan reached the
+    response prompt as « Statut inconnu » with its error text dropped.
+    ``connector_disabled`` and ``pending`` had no writer at all, and the two
+    formatter branches handling them — the only two that restituted ``error``
+    — were therefore dead.
+    """
+
+    SUCCESS = "success"
+    ERROR = "error"
+
+
+#: Plain-string aliases for readers that compare against strings.
+STATUS_SUCCESS = AgentResultStatus.SUCCESS.value
+STATUS_ERROR = AgentResultStatus.ERROR.value
 
 
 # ============================================================================
@@ -633,6 +652,7 @@ __all__ = [
     "NODE_REACT_CALL_MODEL",
     "NODE_REACT_EXECUTE_TOOLS",
     "NODE_REACT_FINALIZE",
+    "NODE_REACT_RECOVERY",
     # Agent names (v3.2 convention: singular domain names)
     "AGENT_CONTACT",
     "AGENT_EMAIL",
@@ -772,10 +792,9 @@ __all__ = [
     "EXECUTION_MODE_SEQUENTIAL",
     "EXECUTION_MODE_PARALLEL",
     # Agent statuses
+    "AgentResultStatus",
     "STATUS_SUCCESS",
     "STATUS_ERROR",
-    "STATUS_CONNECTOR_DISABLED",
-    "ALL_AGENT_STATUSES",
     # Graph edges
     "EDGE_END",
     "EDGE_START",

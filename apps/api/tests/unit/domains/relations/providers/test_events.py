@@ -25,7 +25,7 @@ from uuid import uuid4
 
 import pytest
 
-from src.domains.relations.providers.client import CategoryClient
+from src.domains.connectors.calendar_access import CalendarAccess
 from src.domains.relations.providers.events import fetch_shared_events
 
 pytestmark = pytest.mark.unit
@@ -60,17 +60,20 @@ def _patched(events: list[dict], *, calendar_id: str = "agenda-perso"):
     import contextlib
 
     client = SimpleNamespace(list_events=AsyncMock(return_value={"items": events}))
-    resolve = AsyncMock(return_value=calendar_id)
+    opened_for: list[object] = []
 
     @contextlib.asynccontextmanager
-    async def _open(category, user_id):
-        yield CategoryClient(client=client, connector_type="google_calendar", session=object())
+    async def _open(user_id):
+        opened_for.append(user_id)
+        yield CalendarAccess(
+            client=client, calendar_id=calendar_id, connector_type="google_calendar"
+        )
 
     return (
-        patch("src.domains.relations.providers.events.open_category_client", _open),
-        patch("src.domains.relations.providers.events.resolve_owner_calendar_id", new=resolve),
+        patch("src.domains.relations.providers.events.open_active_calendar", _open),
+        contextlib.nullcontext(),
         client,
-        resolve,
+        opened_for,
     )
 
 
@@ -91,9 +94,10 @@ class TestTheRightCalendar:
     async def test_reads_the_calendar_the_owner_configured(self) -> None:
         """Not ``primary``: that shortcut once reported a peer free while he
         had a 10:00 meeting in his named calendar."""
-        _, client, resolve = await _fetch([])
+        _, client, opened_for = await _fetch([])
+        # The OWNER's calendar: the door resolves it for the owner it is handed.
         assert client.list_events.await_args.kwargs["calendar_id"] == "agenda-perso"
-        assert resolve.await_args.kwargs["owner_id"] == USER_ID
+        assert opened_for == [USER_ID]
 
     async def test_asks_the_provider_for_a_symmetric_window(self) -> None:
         _, client, _ = await _fetch([], window_days=30)
@@ -262,15 +266,13 @@ class TestOrderAndBoundaries:
         client = SimpleNamespace(list_events=AsyncMock(side_effect=TimeoutError("slow")))
 
         @contextlib.asynccontextmanager
-        async def _open(category, user_id):
-            yield CategoryClient(client=client, connector_type="google_calendar", session=object())
+        async def _open(user_id):
+            yield CalendarAccess(
+                client=client, calendar_id="primary", connector_type="google_calendar"
+            )
 
         with (
-            patch("src.domains.relations.providers.events.open_category_client", _open),
-            patch(
-                "src.domains.relations.providers.events.resolve_owner_calendar_id",
-                new=AsyncMock(return_value="primary"),
-            ),
+            patch("src.domains.relations.providers.events.open_active_calendar", _open),
             pytest.raises(TimeoutError),
         ):
             await fetch_shared_events(

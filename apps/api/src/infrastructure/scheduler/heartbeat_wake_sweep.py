@@ -21,7 +21,7 @@ couple of minutes and, for each queued user:
    checker (window, quota, cooldowns, activity) — only the "guaranteed
    minimum" smoothing is skipped, because a wake answers an event;
 6. Drive wakes are not a decision at all: they reindex the changed files of
-   linked folders (``rag_spaces/drive_ingest.py``).
+   linked folders (``rag_spaces/drive_push.py``), under bounds (ADR-304).
 
 Every wake ends in exactly one counted outcome; latency is measured from
 the push to the decision. Nothing here bypasses a gate that applies to it —
@@ -31,6 +31,7 @@ about the person's own instructions.
 
 from __future__ import annotations
 
+import asyncio
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -47,7 +48,7 @@ from src.domains.feature_switches.registry import PlatformCapability, is_capabil
 from src.domains.push_channels.models import PushChannelProvider
 from src.domains.push_channels.wake import (
     WakePayload,
-    pop_wakes,
+    pop_next_wake,
     try_acquire_wake_cooldown,
 )
 from src.domains.shared.consultation_surfaces import record_surface_consultations
@@ -66,6 +67,8 @@ logger = structlog.get_logger(__name__)
 MailDelta = tuple[list[dict[str, Any]], str | None]
 
 _PROVIDERS: tuple[str, ...] = tuple(p.value for p in PushChannelProvider)
+#: The wake outcomes that produced something; every other one is a skip.
+_SERVED_OUTCOMES: frozenset[str] = frozenset({"notified", "reindexed", "rebased"})
 _SOURCE_OF_PROVIDER: dict[str, str] = {
     PushChannelProvider.GOOGLE_GMAIL.value: "emails",
     PushChannelProvider.GOOGLE_CALENDAR.value: "calendar",
@@ -127,10 +130,9 @@ async def _gmail_delta(payload: WakePayload) -> MailDelta | None:
     """
     from src.domains.connectors.clients.google_gmail_client import GoogleGmailClient
     from src.domains.connectors.models import ConnectorType
-    from src.domains.connectors.service import ConnectorService
+    from src.domains.connectors.session_scope import DetachedConnectorService
     from src.domains.heartbeat.gmail_delta import _anchor_key
     from src.domains.heartbeat.wake_context import fetch_mail_metadata, gmail_delta_preview
-    from src.infrastructure.database.session import get_db_context
 
     redis = await get_redis_cache()
     anchor = await redis.get(_anchor_key(payload.user_id))
@@ -139,24 +141,26 @@ async def _gmail_delta(payload: WakePayload) -> MailDelta | None:
         return None
     anchor_str = anchor.decode() if isinstance(anchor, bytes) else str(anchor)
 
-    async with get_db_context() as db:
-        connector_service = ConnectorService(db)
-        credentials = await connector_service.get_connector_credentials(
+    # The credentials are read in a session of their own, closed before the
+    # mailbox is opened: nothing is held while Gmail answers (ADR-304).
+    connectors = DetachedConnectorService()
+    async with connectors.unit_of_work() as service:
+        credentials = await service.get_connector_credentials(
             payload.user_id, ConnectorType.GOOGLE_GMAIL
         )
-        if credentials is None:
-            return None
-        client = GoogleGmailClient(payload.user_id, credentials, connector_service)
-        try:
-            # ONE row per wake and per source probed, never one per message:
-            # the register names the capability, never the mail.
-            async with _wake_read(payload.user_id, "emails"):
-                ids, new_history_id = await gmail_delta_preview(client, anchor_str)
-                if not ids:
-                    return None
-                messages = await fetch_mail_metadata(client, ids)
-        finally:
-            await client.close()
+    if credentials is None:
+        return None
+    client = GoogleGmailClient(payload.user_id, credentials, connectors)
+    try:
+        # ONE row per wake and per source probed, never one per message:
+        # the register names the capability, never the mail.
+        async with _wake_read(payload.user_id, "emails"):
+            ids, new_history_id = await gmail_delta_preview(client, anchor_str)
+            if not ids:
+                return None
+            messages = await fetch_mail_metadata(client, ids)
+    finally:
+        await client.close()
     return messages, new_history_id
 
 
@@ -238,38 +242,47 @@ async def _gmail_signal(
 async def _calendar_signal(payload: WakePayload, user: Any) -> tuple[str, WakePayload]:
     from src.domains.connectors.clients.google_calendar_client import GoogleCalendarClient
     from src.domains.connectors.models import ConnectorType
-    from src.domains.connectors.preferences.owner_defaults import resolve_owner_calendar_id
-    from src.domains.connectors.service import ConnectorService
+    from src.domains.connectors.preferences.owner_defaults import (
+        CALENDAR,
+        read_owner_container_name,
+        resolve_owner_container_id,
+    )
+    from src.domains.connectors.session_scope import DetachedConnectorService
     from src.domains.heartbeat.wake_context import calendar_verdict, fetch_calendar_changes
     from src.domains.push_channels.wake_filter import calendar_rules_from_settings
-    from src.infrastructure.database.session import get_db_context
 
     rules = calendar_rules_from_settings(settings)
-    async with get_db_context() as db:
-        connector_service = ConnectorService(db)
-        credentials = await connector_service.get_connector_credentials(
+    # Credentials AND the configured calendar name in one short session,
+    # closed before any calendar call: nothing is held while Google answers.
+    connectors = DetachedConnectorService()
+    async with connectors.unit_of_work() as service:
+        credentials = await service.get_connector_credentials(
             payload.user_id, ConnectorType.GOOGLE_CALENDAR
         )
-        if credentials is None:
-            return "source_disabled", payload
-        client = GoogleCalendarClient(payload.user_id, credentials, connector_service)
-        try:
-            async with _wake_read(payload.user_id, "calendar"):
-                calendar_id = await resolve_owner_calendar_id(
-                    db=db,
-                    client=client,
-                    owner_id=payload.user_id,
-                    connector_type=ConnectorType.GOOGLE_CALENDAR,
-                )
-                since = payload.enqueued_at - timedelta(minutes=rules.recent_update_minutes)
-                events = await fetch_calendar_changes(
-                    client,
-                    calendar_id=calendar_id,
-                    since=since,
-                    lookahead_hours=rules.lookahead_hours,
-                )
-        finally:
-            await client.close()
+        calendar_name = (
+            await read_owner_container_name(
+                service.db, payload.user_id, ConnectorType.GOOGLE_CALENDAR, CALENDAR
+            )
+            if credentials is not None
+            else None
+        )
+    if credentials is None:
+        return "source_disabled", payload
+    client = GoogleCalendarClient(payload.user_id, credentials, connectors)
+    try:
+        async with _wake_read(payload.user_id, "calendar"):
+            calendar_id = await resolve_owner_container_id(
+                client=client, name=calendar_name, owner_id=payload.user_id, container=CALENDAR
+            )
+            since = payload.enqueued_at - timedelta(minutes=rules.recent_update_minutes)
+            events = await fetch_calendar_changes(
+                client,
+                calendar_id=calendar_id,
+                since=since,
+                lookahead_hours=rules.lookahead_hours,
+            )
+    finally:
+        await client.close()
     verdict = calendar_verdict(events, user_email=str(getattr(user, "email", "")), rules=rules)
     if not verdict.passes:
         logger.debug("push_wake_calendar_refused", reason=verdict.reason)
@@ -322,9 +335,9 @@ async def _serve_mail_sources(payload: WakePayload) -> None:
 
 
 async def _serve_drive(payload: WakePayload) -> str:
-    from src.domains.rag_spaces.drive_ingest import reindex_from_push
+    from src.domains.rag_spaces.drive_push import reindex_from_push
 
-    return await reindex_from_push(payload.user_id, payload.page_token)
+    return await reindex_from_push(payload.user_id)
 
 
 async def _serve_one(redis: Any, payload: WakePayload) -> str:
@@ -361,8 +374,56 @@ async def _serve_one(redis: Any, payload: WakePayload) -> str:
     return await _serve_heartbeat(enriched)
 
 
+async def _serve_counted(redis: Any, payload: WakePayload) -> bool:
+    """Serve one wake under the ceiling; count and log its one outcome.
+
+    Returns:
+        True when the wake produced something (a notification, a reindex).
+    """
+    started = time.monotonic()
+    try:
+        outcome = await asyncio.wait_for(
+            _serve_one(redis, payload), timeout=settings.push_wake_serve_timeout_seconds
+        )
+    except TimeoutError:
+        # A wake that stopped moving: cut, so the next account is served.
+        outcome = "timeout"
+        logger.warning(
+            "push_wake_timed_out",
+            provider=payload.provider,
+            user_id=str(payload.user_id),
+            timeout_seconds=settings.push_wake_serve_timeout_seconds,
+        )
+    except Exception as exc:  # noqa: BLE001 — one wake must not kill the sweep
+        outcome = "error"
+        logger.warning(
+            "push_wake_failed",
+            provider=payload.provider,
+            user_id=str(payload.user_id),
+            error=str(exc),
+            error_type=type(exc).__name__,
+        )
+    push_wakes_total.labels(provider=payload.provider, outcome=outcome).inc()
+    served = outcome in _SERVED_OUTCOMES
+    if served:
+        push_wake_latency_seconds.observe((datetime.now(UTC) - payload.enqueued_at).total_seconds())
+    logger.info(
+        "push_wake_served",
+        provider=payload.provider,
+        outcome=outcome,
+        duration_ms=int((time.monotonic() - started) * 1000),
+    )
+    return served
+
+
 async def run_heartbeat_wake_sweep() -> dict[str, int]:
-    """Scheduler job body: serve the queued wakes (leader-elected, bounded)."""
+    """Scheduler job body: serve the queued wakes (leader-elected, bounded).
+
+    Accounts are popped ONE at a time (``pop_next_wake``) and every wake runs
+    under ``push_wake_serve_timeout_seconds``: a wake that stops moving is cut
+    and holds nobody else's — the sweep used to pop ten accounts at once and
+    serve them behind a 22-minute Drive drain (ADR-304).
+    """
     if not (
         settings.push_channels_enabled
         and settings.push_wake_enabled
@@ -382,31 +443,13 @@ async def run_heartbeat_wake_sweep() -> dict[str, int]:
         if not lock.acquired:
             return {"served": 0, "skipped": 0, "lock_busy": 1}
         served = skipped = 0
-        for payload in await pop_wakes(redis, settings.push_wake_max_users_per_sweep, _PROVIDERS):
-            started = time.monotonic()
-            try:
-                outcome = await _serve_one(redis, payload)
-            except Exception as exc:  # noqa: BLE001 — one wake must not kill the sweep
-                outcome = "error"
-                logger.warning(
-                    "push_wake_failed",
-                    provider=payload.provider,
-                    user_id=str(payload.user_id),
-                    error=str(exc),
-                    error_type=type(exc).__name__,
-                )
-            push_wakes_total.labels(provider=payload.provider, outcome=outcome).inc()
-            if outcome in {"notified", "reindexed"}:
-                served += 1
-                push_wake_latency_seconds.observe(
-                    (datetime.now(UTC) - payload.enqueued_at).total_seconds()
-                )
-            else:
-                skipped += 1
-            logger.info(
-                "push_wake_served",
-                provider=payload.provider,
-                outcome=outcome,
-                duration_ms=int((time.monotonic() - started) * 1000),
-            )
+        for _ in range(settings.push_wake_max_users_per_sweep):
+            payloads = await pop_next_wake(redis, _PROVIDERS)
+            if payloads is None:
+                break
+            for payload in payloads:
+                if await _serve_counted(redis, payload):
+                    served += 1
+                else:
+                    skipped += 1
         return {"served": served, "skipped": skipped}

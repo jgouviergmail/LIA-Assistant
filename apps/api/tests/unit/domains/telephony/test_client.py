@@ -13,6 +13,19 @@ def _client(handler) -> ElevenLabsAgentsClient:
 
 
 @pytest.mark.unit
+async def test_webrtc_token_uses_the_private_key_and_requires_a_token() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/v1/convai/conversation/token"
+        assert request.url.params["agent_id"] == "agent_1"
+        assert request.headers["xi-api-key"] == "sk-test"
+        return httpx.Response(200, json={"token": "livekit-token", "conversation_id": "conv_1"})
+
+    assert await _client(handler).webrtc_token("agent_1") == "livekit-token"
+    with pytest.raises(ElevenLabsAgentsError, match="no token"):
+        await _client(lambda _request: httpx.Response(200, json={})).webrtc_token("agent_1")
+
+
+@pytest.mark.unit
 async def test_initiate_outbound_call_disables_recording_and_passes_call_id():
     captured: dict = {}
 

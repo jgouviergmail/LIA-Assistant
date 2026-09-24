@@ -16,19 +16,18 @@ export const GOOGLE_CONNECTOR_TYPES = [
   'google_calendar',
   'google_drive',
   'google_tasks',
-  // Note: google_places moved to API_KEY_CONNECTOR_TYPES (uses global API key)
+  // Note: google_places is provided by the instance, not connected (ADR-307)
 ] as const;
 
-export const API_KEY_CONNECTOR_TYPES = [
-  'openweathermap',
-  'wikipedia',
-  'perplexity',
-  'brave_search',
-  'google_places', // Uses global API key, simple toggle activation
-  'google_weather', // Uses global API key, simple toggle activation (lot E)
-  'google_environment', // Air quality + pollen, global API key (lot E)
-  'browser', // No API key required, headless browser automation
-] as const;
+/**
+ * Connectors the person activates with their OWN API key.
+ *
+ * The keyless ones (Wikipedia, the browser, Google Places / Weather /
+ * Environment) are deliberately absent: the instance provides them to every
+ * account, so « My connectors » neither lists nor offers them (ADR-307).
+ * A backend test refuses any keyless type here.
+ */
+export const API_KEY_CONNECTOR_TYPES = ['openweathermap', 'perplexity', 'brave_search'] as const;
 
 export const APPLE_CONNECTOR_TYPES = ['apple_email', 'apple_calendar', 'apple_contacts'] as const;
 
@@ -104,7 +103,6 @@ export const GOOGLE_AUTH_ENDPOINTS: Record<string, string> = {
   google_calendar: '/connectors/google-calendar/authorize',
   google_drive: '/connectors/google-drive/authorize',
   google_tasks: '/connectors/google-tasks/authorize',
-  // Note: google_places removed - now uses API key activation endpoint
 };
 
 export const MICROSOFT_AUTH_ENDPOINTS: Record<string, string> = {
@@ -188,7 +186,6 @@ export interface ApiKeyConnectorConfig {
   type: string;
   icon: LucideIcon;
   color: string;
-  requiresKey: boolean;
 }
 
 export const API_KEY_CONNECTORS: readonly ApiKeyConnectorConfig[] = [
@@ -196,49 +193,16 @@ export const API_KEY_CONNECTORS: readonly ApiKeyConnectorConfig[] = [
     type: 'openweathermap',
     icon: Cloud,
     color: 'orange',
-    requiresKey: true,
-  },
-  {
-    type: 'wikipedia',
-    icon: Book,
-    color: 'slate',
-    requiresKey: false, // Wikipedia doesn't require an API key
   },
   {
     type: 'perplexity',
     icon: Search,
     color: 'indigo',
-    requiresKey: true,
   },
   {
     type: 'brave_search',
     icon: Search,
     color: 'violet',
-    requiresKey: true,
-  },
-  {
-    type: 'google_places',
-    icon: MapPin,
-    color: 'emerald',
-    requiresKey: false, // Uses global API key configured on server
-  },
-  {
-    type: 'google_weather',
-    icon: Cloud,
-    color: 'sky',
-    requiresKey: false, // Uses global API key configured on server (lot E)
-  },
-  {
-    type: 'google_environment',
-    icon: Wind,
-    color: 'teal',
-    requiresKey: false, // Air quality + pollen, global API key (lot E)
-  },
-  {
-    type: 'browser',
-    icon: Globe,
-    color: 'blue',
-    requiresKey: false, // No API key — uses local Playwright/Chromium
   },
 ] as const;
 
@@ -307,7 +271,7 @@ export const GOOGLE_CONNECTORS_METADATA: readonly GoogleConnectorMetadata[] = [
     labelKey: 'settings.connectors.google.tasks',
     descriptionKey: 'settings.connectors.google.tasks_description',
   },
-  // Note: google_places moved to API_KEY_CONNECTORS (uses global API key)
+  // Note: google_places is provided by the instance, not connected (ADR-307)
 ] as const;
 
 // ============================================================================

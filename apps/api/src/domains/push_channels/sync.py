@@ -10,6 +10,9 @@ is polling with TTL-bounded staleness.
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from typing import Any
 from uuid import UUID
 
 import structlog
@@ -17,6 +20,7 @@ from sqlalchemy import select
 
 from src.core.config import settings
 from src.domains.connectors.models import Connector, ConnectorStatus, ConnectorType
+from src.domains.connectors.session_scope import DetachedConnectorService
 from src.domains.push_channels.repository import PushChannelRepository
 from src.domains.push_channels.service import PushChannelService
 from src.infrastructure.database.session import get_db_context
@@ -37,36 +41,47 @@ async def _list_user_ids(connector_type: ConnectorType) -> list[UUID]:
         return list(result.scalars().all())
 
 
+@asynccontextmanager
+async def _google_client(
+    user_id: UUID, connector_type: ConnectorType, client_class: type[Any]
+) -> AsyncIterator[Any | None]:
+    """A Google client on a detached service, closed on every path (ADR-304).
+
+    The credentials are read in a session of their own, closed before Google
+    is called; a token refresh writes through the detached service. None when
+    the account holds no usable credentials.
+    """
+    connectors = DetachedConnectorService()
+    async with connectors.unit_of_work() as service:
+        credentials = await service.get_connector_credentials(user_id, connector_type)
+    if credentials is None:
+        yield None
+        return
+    client = client_class(user_id, credentials, connectors)
+    try:
+        yield client
+    finally:
+        await client.close()
+
+
 async def _ensure_user_calendar(user_id: UUID) -> None:
     """Ensure the user's calendar events.watch channel."""
     from src.domains.connectors.clients.google_calendar_client import GoogleCalendarClient
-    from src.domains.connectors.service import ConnectorService
 
-    async with get_db_context() as db:
-        connector_service = ConnectorService(db)
-        credentials = await connector_service.get_connector_credentials(
-            user_id, ConnectorType.GOOGLE_CALENDAR
-        )
-        if credentials is None:
-            return
-        client = GoogleCalendarClient(user_id, credentials, connector_service)
-        await PushChannelService(db).ensure_calendar_watch(user_id, client)
+    async with _google_client(user_id, ConnectorType.GOOGLE_CALENDAR, GoogleCalendarClient) as c:
+        if c is not None:
+            async with get_db_context() as db:
+                await PushChannelService(db).ensure_calendar_watch(user_id, c)
 
 
 async def _ensure_user_drive(user_id: UUID) -> None:
     """Ensure the user's Drive changes.watch channel."""
     from src.domains.connectors.clients.google_drive_client import GoogleDriveClient
-    from src.domains.connectors.service import ConnectorService
 
-    async with get_db_context() as db:
-        connector_service = ConnectorService(db)
-        credentials = await connector_service.get_connector_credentials(
-            user_id, ConnectorType.GOOGLE_DRIVE
-        )
-        if credentials is None:
-            return
-        client = GoogleDriveClient(user_id, credentials, connector_service)
-        await PushChannelService(db).ensure_drive_watch(user_id, client)
+    async with _google_client(user_id, ConnectorType.GOOGLE_DRIVE, GoogleDriveClient) as client:
+        if client is not None:
+            async with get_db_context() as db:
+                await PushChannelService(db).ensure_drive_watch(user_id, client)
 
 
 async def _ensure_user_gmail(user_id: UUID) -> None:
@@ -75,22 +90,21 @@ async def _ensure_user_gmail(user_id: UUID) -> None:
     from src.domains.connectors.clients.google_gmail_settings_client import (
         GoogleGmailSettingsClient,
     )
-    from src.domains.connectors.service import ConnectorService
 
-    async with get_db_context() as db:
-        connector_service = ConnectorService(db)
-        credentials = await connector_service.get_connector_credentials(
-            user_id, ConnectorType.GOOGLE_GMAIL
-        )
-        if credentials is None:
+    # The mailbox address keys the Pub/Sub event → channel resolution.
+    async with _google_client(user_id, ConnectorType.GOOGLE_GMAIL, GoogleGmailClient) as mail:
+        if mail is None:
             return
-        # The mailbox address keys the Pub/Sub event → channel resolution.
-        profile = await GoogleGmailClient(user_id, credentials, connector_service).get_profile()
-        email_address = profile.get("emailAddress", "")
-        if not email_address:
-            return
-        client = GoogleGmailSettingsClient(user_id, credentials, connector_service)
-        await PushChannelService(db).ensure_gmail_watch(user_id, client, email_address)
+        profile = await mail.get_profile()
+    email_address = profile.get("emailAddress", "")
+    if not email_address:
+        return
+    async with _google_client(
+        user_id, ConnectorType.GOOGLE_GMAIL, GoogleGmailSettingsClient
+    ) as client:
+        if client is not None:
+            async with get_db_context() as db:
+                await PushChannelService(db).ensure_gmail_watch(user_id, client, email_address)
 
 
 async def _purge_orphan_channels(active_users_by_provider: dict[str, set[UUID]]) -> int:

@@ -37,6 +37,10 @@ You are NOT a completionist. Default to restraint: generic curiosity enrichment 
    - High-Precision Target: Only trigger Maps/Routing with an exact street address,
      station, or verified venue name or at least city name.
    - If required parameters are missing or ambiguous, fallback to should_act=false.
+   - Absolute Dates: Resolve every relative date or time expression, in any language, against
+     the Current Date and Timezone of the dynamic context into ISO 8601 before writing a
+     parameter. The day to check is the day the executed action targets — never a date a
+     result merely carries.
 
 4. STEP 3: DUAL-VOICE ENFORCEMENT & DEDUPLICATION:
    - "suggestion" (Assistant Voice): If a write action is obviously needed to resolve
@@ -65,14 +69,18 @@ When multiple cross-domain checks qualify, prioritize strictly:
 
 --- DYNAMIC CONTEXT (all variable data below) ---
 
-<UserContext purpose="decision-filter">
-<MemoryFacts>
-{memory_facts}
-</MemoryFacts>
+<AvailableReadOnlyTools>
+{available_tools}
+</AvailableReadOnlyTools>
 
+<UserContext purpose="decision-filter">
 <UserInterests>
 {user_interests}
 </UserInterests>
+
+<MemoryFacts>
+{memory_facts}
+</MemoryFacts>
 
 Timezone: {user_timezone} | Language: {user_language} | Current Date: {current_datetime}
 </UserContext>
@@ -90,7 +98,3 @@ Dependency graph hints:
 Candidate matches:
 {connection_candidates}
 </SemanticBridges>
-
-<AvailableReadOnlyTools>
-{available_tools}
-</AvailableReadOnlyTools>

@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 45 |
-| ADRs | 301 ADR files (ADR-302 latest — ADR-008 n'a pas de fichier séparé, d'où le numéro un cran au-dessus du décompte) |
+| ADRs | 309 ADR files (ADR-310 latest — ADR-008 n'a pas de fichier séparé, d'où le numéro un cran au-dessus du décompte) |
 | Fiches knowledge (RAG système) | 40 |
 
 ---
@@ -51,7 +51,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [PROVENANCE_AND_CAPABILITIES.md](./technical/PROVENANCE_AND_CAPABILITIES.md) | Provenance bornée des conclusions et carte des capacités (ADR-201, ADR-204) |
 | [DEMO_INSTANCE.md](./technical/DEMO_INSTANCE.md) | Démonstrateur libre : image standard isolée, plafond, capacités, purge nocturne, surface vérifiée (ADR-216→218) |
 | [DEBUG_PANEL.md](./technical/DEBUG_PANEL.md) | Panneau de debug : trace en ordre d'exécution, chronologie ancrée au run, waterfall LLM (ADR-209) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (301 ADR files) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (309 ADR files) |
 
 ### Pour les Product Managers
 
@@ -104,10 +104,10 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [MESSAGE_WINDOWING_STRATEGY.md](./technical/MESSAGE_WINDOWING_STRATEGY.md) | Windowing par node, truncation, compaction intelligente (F4), performance | ✅ |
 | [COMPACTION_v2.md](./technical/COMPACTION_v2.md) | Compaction v2 — hardening (timeouts, retry, truncation fallback), SSE events, keepalive concurrent, sonner toast UX, runbook (2026-05) | ✅ |
 | [CONVERSATION_HISTORY_PAGINATION.md](./technical/CONVERSATION_HISTORY_PAGINATION.md) | Keyset (scroll-up) pagination on `/conversations/me/messages` — has_more/next_cursor contract, frontend sentinel + scroll-preservation, env-tunable bounds (2026-05) | ✅ |
-| [TOKEN_TRACKING_AND_COUNTING.md](./technical/TOKEN_TRACKING_AND_COUNTING.md) | Token tracking, alignment DB/Prometheus | ✅ |
+| [TOKEN_TRACKING_AND_COUNTING.md](./technical/TOKEN_TRACKING_AND_COUNTING.md) | Token tracking, alignment DB/Prometheus ; une écriture de cache facturée à son prix sur tous les chemins (ADR-306) | ✅ |
 | [DATABASE_SCHEMA.md](./technical/DATABASE_SCHEMA.md) | Schema PostgreSQL complet, migrations Alembic | ✅ |
 | [STACK_TECHNIQUE.md](./technical/STACK_TECHNIQUE.md) | Référence complète versions technologies | ✅ |
-| [REACT_EXECUTION_MODE.md](./technical/REACT_EXECUTION_MODE.md) | ReAct execution mode — 4-node loop, pipeline vs ReAct, tools, HITL, skills, mémoire à parité pipeline et budget gagné à la progression (ADR-248), scripts Python éphémères dans le bac à sable des skills (ADR-249), sortie réseau par un seul proxy avec question à trois réponses réglée dans la boucle (ADR-298) | ✅ |
+| [REACT_EXECUTION_MODE.md](./technical/REACT_EXECUTION_MODE.md) | ReAct execution mode — 5-node loop (dont `react_recovery` : un tour jugé sur son résultat, un écart déclaré qui achète une passe de reprise bornée, ADR-310), cache de prompt inter-tours sous drapeau (ADR-308), verdict d'échec structurel (ADR-303), pipeline vs ReAct, tools, HITL, skills, mémoire à parité pipeline et budget gagné à la progression (ADR-248), scripts Python éphémères dans le bac à sable des skills (ADR-249), sortie réseau par un seul proxy avec question à trois réponses réglée dans la boucle (ADR-298) | ✅ |
 | [Plan latence/TTFT](./superpowers/plans/2026-07-10-latency-optimization-plan.md) | Instrumentation par étage (`langgraph_stage_duration_seconds`), protocole reproductible (`scripts/perf/measure_ttft.py`), shortlist chiffrée & avant/après | 🚧 |
 | [BACKGROUND_RUNS.md](./technical/BACKGROUND_RUNS.md) | Exécution détachée du chat (ADR-117) — producteur + Redis Streams, archive-first, drain shutdown, flag `BACKGROUND_RUNS_ENABLED` | ✅ |
 | [BRIEFING_DOMAIN.md](./technical/BRIEFING_DOMAIN.md) | Today Briefing — bounded context autonome sans LangGraph (ADR-077) : fetchers `asyncio.gather`, cache Redis par section, endpoints split cards/synthesis | ✅ |
@@ -124,7 +124,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [AGENT_MANIFEST.md](./technical/AGENT_MANIFEST.md) | ToolManifest, catalogue, domain taxonomy | ✅ |
 | [GOOGLE_CONTACTS_INTEGRATION.md](./technical/GOOGLE_CONTACTS_INTEGRATION.md) | Intégration Google Contacts | ✅ |
 | [EMAIL_FORMATTER.md](./technical/EMAIL_FORMATTER.md) | E-mails : vocabulaire `EmailMessage`, niveaux de détail, condensés (ADR-287), formatage et dates | ✅ |
-| [CONNECTORS_PATTERNS.md](./technical/CONNECTORS_PATTERNS.md) | Patterns connecteurs OAuth/API Key | ✅ |
+| [CONNECTORS_PATTERNS.md](./technical/CONNECTORS_PATTERNS.md) | Patterns connecteurs OAuth/API Key ; les connecteurs sans clé appartiennent à l'instance, sans ligne par compte ([ADR-307](./architecture/ADR-307-Keyless-Connectors-Belong-To-The-Instance.md)) | ✅ |
 | [CONNECTOR_PHILIPS_HUE.md](./technical/CONNECTOR_PHILIPS_HUE.md) | Philips Hue smart lighting connector (local + remote) | ✅ |
 | [APPLE_ICLOUD_INTEGRATION.md](./technical/APPLE_ICLOUD_INTEGRATION.md) | Intégration Apple iCloud (Mail, Calendar, Contacts — app-specific password) | ✅ |
 | [GOOGLE_API.md](./technical/GOOGLE_API.md) | APIs Google utilisées — documentation et tarification (refacturation utilisateurs) | ✅ |
@@ -138,7 +138,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [MCP_INTEGRATION.md](./technical/MCP_INTEGRATION.md) | MCP (Model Context Protocol) — Serveurs d'outils externes, MCP Apps, Excalidraw | ✅ |
 | [CHANNELS_INTEGRATION.md](./technical/CHANNELS_INTEGRATION.md) | Canaux de messagerie externes (Telegram) — evolution F3 | ✅ |
 | [ATTACHMENTS_INTEGRATION.md](./technical/ATTACHMENTS_INTEGRATION.md) | Pièces jointes (images, PDF) avec analyse vision LLM — evolution F4 | ✅ |
-| [IMAGE_GENERATION.md](./technical/IMAGE_GENERATION.md) | AI Image Generation — multi-provider, cost tracking, attachment storage | ✅ |
+| [IMAGE_GENERATION.md](./technical/IMAGE_GENERATION.md) | AI Image Generation — multi-provider (OpenAI GPT Image, Qwen Image 3.0) : une famille déclare l'offre d'un modèle, un client par fournisseur la sert, la préférence résolue comme intention, l'image de référence tarifée (ADR-305) ; cost tracking, attachment storage | ✅ |
 | [DOCUMENT_GENERATION.md](./technical/DOCUMENT_GENERATION.md) | AI Document Generation (ADR-226, ADR-274) — dedicated LLM slot, crafted renderers (csv/xlsx/docx/pptx/pdf/md/txt), TTL attachment cards | ✅ |
 | [TABULAR_ADMIN_IO.md](./technical/TABULAR_ADMIN_IO.md) | Import/export tabulaire des administrations (ADR-228) — socle déclaratif, classeur Excel, aperçu obligatoire, verrou optimiste par ligne | ✅ |
 | [HEARTBEAT_AUTONOME.md](./technical/HEARTBEAT_AUTONOME.md) | Notifications proactives LLM-driven (Heartbeat) — evolution F5 | ✅ |
@@ -165,13 +165,13 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | Document | Description | Statut |
 |----------|-------------|--------|
-| [LLM_PROVIDERS.md](./technical/LLM_PROVIDERS.md) | Providers LLM, modèles, configuration (Admin UI + .env fallback), compatibilité ; Ollama en client natif aux capacités lues sur le serveur (ADR-267) | ✅ |
+| [LLM_PROVIDERS.md](./technical/LLM_PROVIDERS.md) | Providers LLM, modèles, configuration (Admin UI + .env fallback), compatibilité ; Ollama en client natif aux capacités lues sur le serveur (ADR-267) ; la surface de requête Claude déclarée une fois et le cache de prompt façonné pour payer (ADR-306) | ✅ |
 | [LLM_PROVIDER_CONSTRAINTS.md](./technical/LLM_PROVIDER_CONSTRAINTS.md) | Contraintes de paramétrage LLM par provider et par modèle (matrice complète) | ✅ |
-| [PROMPTS.md](./technical/PROMPTS.md) | Système prompts, versioning, unified planner, memory extraction prompt | ✅ |
+| [PROMPTS.md](./technical/PROMPTS.md) | Système prompts, versioning, unified planner, memory extraction prompt ; une mise en page pour tous les mécanismes de cache — le stable avant le volatil, une frontière lue une fois (ADR-309) | ✅ |
 | [PLANNER.md](./technical/PLANNER.md) | Planner node, ExecutionPlan DSL, FOR_EACH | ✅ |
 | [PLAN_PATTERN_LEARNER.md](./technical/PLAN_PATTERN_LEARNER.md) | Apprentissage patterns, Bayesian | ✅ |
 | [PATTERN_LEARNER_TRAINING.md](./technical/PATTERN_LEARNER_TRAINING.md) | Training automatisé, Golden Patterns | ✅ |
-| [RESPONSE.md](./technical/RESPONSE.md) | Response node, anti-hallucination | ✅ |
+| [RESPONSE.md](./technical/RESPONSE.md) | Response node, anti-hallucination ; un échec d'outil dit par un seul canal (ADR-303), les actes réussis d'un tour dits comme les siens (ADR-263 §23) | ✅ |
 | [ROUTER.md](./technical/ROUTER.md) | Router node, binary routing | ✅ |
 | [SMART_SERVICES.md](./technical/SMART_SERVICES.md) | QueryAnalyzer, SmartPlanner, SmartCatalogue | ✅ |
 | [SEMANTIC_ROUTER.md](./technical/SEMANTIC_ROUTER.md) | Semantic Tool Router, max-pooling | ✅ |
@@ -233,7 +233,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Document | Description | Statut |
 |----------|-------------|--------|
 | [OAUTH.md](./technical/OAUTH.md) | OAuth Google/Microsoft : PKCE, grants par compte, connexion et reconnexion groupées (ADR-302) | ✅ |
-| [AUTHENTICATION.md](./technical/AUTHENTICATION.md) | BFF Pattern, sessions Redis | ✅ |
+| [AUTHENTICATION.md](./technical/AUTHENTICATION.md) | BFF Pattern, sessions Redis ; une identité fédérée ne donne aucun droit, « qui appelle ? » lu par un seul résolveur (amendements ADR-002, ADR-213) | ✅ |
 | [SECURITY.md](./technical/SECURITY.md) | Sécurité globale, encryption, compliance | ✅ |
 | [PII_LOGGING_SECURITY.md](./technical/PII_LOGGING_SECURITY.md) | PII filtering, GDPR | ✅ |
 | [RATE_LIMITING.md](./technical/RATE_LIMITING.md) | Rate limiting Redis distribué | ✅ |
@@ -286,7 +286,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [GUIDE_MIGRATION.md](./guides/GUIDE_MIGRATION.md) | Guide migrations Alembic | ✅ |
 | [GUIDE_PERFORMANCE_TUNING.md](./guides/GUIDE_PERFORMANCE_TUNING.md) | Optimisation performance LLM | ✅ |
 | [GUIDE_MCP_INTEGRATION.md](./guides/GUIDE_MCP_INTEGRATION.md) | Guide pratique MCP (admin + per-user + MCP Apps + Excalidraw) | ✅ |
-| [GUIDE_TELEGRAM_INTEGRATION.md](./guides/GUIDE_TELEGRAM_INTEGRATION.md) | Guide pratique Telegram (bot, webhook, OTP, HITL) | ✅ |
+| [GUIDE_TELEGRAM_INTEGRATION.md](./guides/GUIDE_TELEGRAM_INTEGRATION.md) | Guide pratique Telegram (bot, webhook posé par le leader seul — ADR-304, OTP, HITL) | ✅ |
 | [GUIDE_HEARTBEAT_PROACTIVE_NOTIFICATIONS.md](./guides/GUIDE_HEARTBEAT_PROACTIVE_NOTIFICATIONS.md) | Guide pratique Heartbeat (ProactiveTask, ContextAggregator) | ✅ |
 | [GUIDE_IPHONE_SHORTCUTS_HEALTH.md](./guides/GUIDE_IPHONE_SHORTCUTS_HEALTH.md) | Guide pas-à-pas — configurer l'automatisation iPhone pour pousser FC + pas vers LIA | ✅ |
 | [GUIDE_SCHEDULED_ACTIONS.md](./guides/GUIDE_SCHEDULED_ACTIONS.md) | Guide pratique Actions Planifiees (recurrentes, timezone, retry) | ✅ |
@@ -436,6 +436,7 @@ Les ADR-001 à ADR-008 n'ont pas de fichier dédié : ils sont documentés inlin
 | [GlobalRateLimitDegraded.md](./runbooks/alerts/GlobalRateLimitDegraded.md) | Plafond de requêtes global inopérant (fail-open Redis) |
 | [LLMCallsWithoutUsage.md](./runbooks/alerts/LLMCallsWithoutUsage.md) | Appels LLM payants sans comptage de jetons (ADR-220) |
 | [GoogleApiCallsUnaccounted.md](./runbooks/alerts/GoogleApiCallsUnaccounted.md) | Appels Google Maps Platform payants faits sans contexte de comptabilité (ADR-272) |
+| [PushWakeSweepStalled.md](./runbooks/alerts/PushWakeSweepStalled.md) | Réveils poussés mis en file et jamais servis — le balayage ne rend plus la main (ADR-304) |
 | [CriticalLatencyP99.md](./runbooks/alerts/CriticalLatencyP99.md) | Latence P99 critique |
 | [ServiceDown.md](./runbooks/alerts/ServiceDown.md) | Service indisponible |
 | [DatabaseDown.md](./runbooks/alerts/DatabaseDown.md) | Base de données indisponible |

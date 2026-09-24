@@ -1652,7 +1652,7 @@
       ]
     },
     {
-      "id": 511,
+      "id": 519,
       "title": "Drive push → targeted reindex (24h)",
       "type": "timeseries",
       "datasource": "$datasource",
@@ -1691,6 +1691,47 @@
         }
       },
       "description": "Drive change notifications turned into targeted reindexations of linked folders (ADR-261 P2). 'no_linked_folder' means the change touched nothing a space follows."
+    },
+    {
+      "id": 518,
+      "title": "Drive push — drains of the changes feed (24h)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 84
+      },
+      "targets": [
+        {
+          "expr": "sum by (end) (increase(rag_drive_push_drains_total[24h])) or vector(0)",
+          "legendFormat": "{{end}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 60
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "How each bounded drain of a Drive changes feed ended (ADR-304). 'truncated': the feed was longer than one wake reads — it kept its place and continues on the next sweep. 'rebased': a streak of truncated drains; the feed was rebased and the linked trees re-synchronised in full. A sustained 'truncated' share is a Drive busier than the published bounds (RAG_DRIVE_PUSH_MAX_PAGES, RAG_DRIVE_PUSH_DRAIN_DEADLINE_SECONDS)."
     },
     {
       "id": 513,

@@ -2684,6 +2684,44 @@ class APIMessages:
         return messages.get(language, messages["en"])
 
     @staticmethod
+    def agent_error_line(
+        agent_name: str, error: str | None, language: SupportedLanguage = "fr"
+    ) -> str:
+        """One prompt line for an agent whose whole work failed (ADR-303).
+
+        Args:
+            agent_name: The agent that failed, as the result names it.
+            error: What it returned, or None when it said nothing.
+            language: Backend-canonical language code.
+
+        Returns:
+            The line injected into the response prompt.
+        """
+        detail = error or APIMessages.agent_error_unspecified(language)
+        messages = {
+            "fr": f"❌ {agent_name} : échec — {detail}",
+            "en": f"❌ {agent_name}: failed — {detail}",
+            "es": f"❌ {agent_name}: fallo — {detail}",
+            "de": f"❌ {agent_name}: fehlgeschlagen — {detail}",
+            "it": f"❌ {agent_name}: errore — {detail}",
+            "zh-CN": f"❌ {agent_name}：失败 — {detail}",
+        }
+        return messages.get(language, messages["en"])
+
+    @staticmethod
+    def agent_error_unspecified(language: SupportedLanguage = "fr") -> str:
+        """Fallback detail when a failed agent carried no message (ADR-303)."""
+        messages = {
+            "fr": "erreur non précisée",
+            "en": "unspecified error",
+            "es": "error no especificado",
+            "de": "nicht näher bezeichneter Fehler",
+            "it": "errore non specificato",
+            "zh-CN": "未说明的错误",
+        }
+        return messages.get(language, messages["en"])
+
+    @staticmethod
     def planner_explanation(language: SupportedLanguage = "fr") -> str:
         """Planner error explanation for users."""
         messages = {
@@ -2975,6 +3013,42 @@ class APIMessages:
                 ),
                 "zh-CN": f"{name} 服务未启用。请前往 设置 > 连接器 启用它。",
             }
+        return messages.get(language, messages["en"])
+
+    @staticmethod
+    def connector_unavailable_on_instance(name: str, language: SupportedLanguage = "fr") -> str:
+        """A keyless service this instance does not provide (LLM-facing, ADR-307).
+
+        The person has nothing to enable: the administrator switched the
+        service off, or the instance lacks what it needs to run it.
+
+        Args:
+            name: Human-facing service name (e.g. "Google Places").
+            language: Target language code.
+        """
+        messages = {
+            "fr": (
+                f"Le service {name} n'est pas disponible sur cette instance. "
+                "Seul son administrateur peut le rendre disponible."
+            ),
+            "en": (
+                f"The {name} service is not available on this instance. "
+                "Only its administrator can make it available."
+            ),
+            "es": (
+                f"El servicio {name} no está disponible en esta instancia. "
+                "Solo su administrador puede habilitarlo."
+            ),
+            "de": (
+                f"Der Dienst {name} ist auf dieser Instanz nicht verfügbar. "
+                "Nur ihr Administrator kann ihn bereitstellen."
+            ),
+            "it": (
+                f"Il servizio {name} non è disponibile su questa istanza. "
+                "Solo il suo amministratore può renderlo disponibile."
+            ),
+            "zh-CN": f"{name} 服务在此实例上不可用。只有实例管理员可以启用它。",
+        }
         return messages.get(language, messages["en"])
 
     @staticmethod

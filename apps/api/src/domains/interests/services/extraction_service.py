@@ -56,6 +56,7 @@ from src.core.constants import (
 )
 from src.core.i18n import get_language_name
 from src.core.llm_config_helper import get_llm_config_for_agent
+from src.core.prompt_layout import single_call_messages
 from src.core.prompt_store import parse_prompt_sections, read_prompt_file
 from src.domains.agents.prompts import load_prompt
 from src.domains.agents.utils.json_parser import extract_json_from_llm_response
@@ -72,10 +73,7 @@ from src.domains.shared.extraction_targets import (
 from src.infrastructure.database import get_db_context
 from src.infrastructure.llm import get_llm
 from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
-from src.infrastructure.llm.usage_metadata import (
-    tokens_from_response,
-    tokens_from_usage_metadata,
-)
+from src.infrastructure.llm.usage_metadata import UsageTokens, tokens_from_response
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -115,6 +113,9 @@ class InterestAnalysisResult:
     llm_input_tokens: int = 0
     llm_output_tokens: int = 0
     llm_cached_tokens: int = 0
+    #: The part of ``llm_input_tokens`` Claude wrote to its prompt cache: a
+    #: cache hit replays the bill, so it must replay the write surcharge too.
+    llm_cache_write_tokens: int = 0
     llm_temperature: float = 0.0
 
     # Context info
@@ -146,6 +147,7 @@ class InterestAnalysisResult:
             "llm_input_tokens": self.llm_input_tokens,
             "llm_output_tokens": self.llm_output_tokens,
             "llm_cached_tokens": self.llm_cached_tokens,
+            "llm_cache_write_tokens": self.llm_cache_write_tokens,
             "llm_temperature": self.llm_temperature,
             "analyzed_message": self.analyzed_message,
             "context_messages_count": self.context_messages_count,
@@ -169,6 +171,7 @@ class InterestAnalysisResult:
             llm_input_tokens=data.get("llm_input_tokens", 0),
             llm_output_tokens=data.get("llm_output_tokens", 0),
             llm_cached_tokens=data.get("llm_cached_tokens", 0),
+            llm_cache_write_tokens=data.get("llm_cache_write_tokens", 0),
             llm_temperature=data.get("llm_temperature", 0.0),
             analyzed_message=data.get("analyzed_message"),
             context_messages_count=data.get("context_messages_count", 0),
@@ -254,57 +257,45 @@ async def _persist_interest_tokens(
     user_id: str,
     session_id: str,
     conversation_id: str | None,
-    result: AIMessage,
+    usage: UsageTokens,
     model_name: str,
+    *,
+    replayed: bool,
     parent_run_id: str | None = None,
     duration_ms: float = 0.0,
 ) -> None:
     """
-    Persist token usage from interest extraction LLM call to database.
+    Persist what the interest extraction's model call consumed.
 
-    Uses TrackingContext to reuse existing persistence infrastructure:
-    - TokenUsageLog (detailed node breakdown)
-    - MessageTokenSummary (aggregated per run)
-    - UserStatistics (cumulative per user)
+    Two sources, one record: a fresh call, and a replay from the analysis cache
+    when the debug panel ran the same analysis first — that call was paid once
+    and must still be accounted. Uses TrackingContext to reuse the existing
+    persistence (TokenUsageLog, MessageTokenSummary, UserStatistics).
 
     Args:
         user_id: User ID for statistics
         session_id: Session/thread ID
         conversation_id: Conversation UUID (optional, for linking)
-        result: AIMessage with usage_metadata
+        usage: The call's counts in the one reader's buckets, Claude cache
+            writes included (ADR-306)
         model_name: LLM model used for extraction
+        replayed: True when the counts come from the analysis cache (no call
+            was made now, so its duration is unknown)
         parent_run_id: If provided, UPSERT tokens into the parent message's
             MessageTokenSummary instead of creating an orphan record.
+        duration_ms: The call's duration (0.0 on a replay)
     """
     from src.domains.chat.service import TrackingContext
 
+    if usage.prompt == 0 and usage.completion == 0:
+        logger.debug("interest_tokens_zero_usage", user_id=user_id, replayed=replayed)
+        return
     try:
-        # Extract token usage from AIMessage.usage_metadata
-        usage_metadata = getattr(result, "usage_metadata", None)
-        if not usage_metadata:
-            logger.debug(
-                "interest_tokens_no_usage_metadata",
-                user_id=user_id,
-                session_id=session_id,
-            )
-            return
-
-        # One implementation for both provider spellings, cache subtracted and
-        # clamped (``infrastructure/llm/usage_metadata``).
-        input_tokens, output_tokens, cached_tokens = tokens_from_usage_metadata(usage_metadata)
-
-        if input_tokens == 0 and output_tokens == 0:
-            logger.debug(
-                "interest_tokens_zero_usage",
-                user_id=user_id,
-            )
-            return
-
         # Use parent_run_id to UPSERT into the originating message's summary,
         # or generate a standalone run_id for backward compatibility
-        run_id = parent_run_id or f"interest_extract_{uuid.uuid4().hex[:12]}"
+        prefix = "interest_extract_cached" if replayed else "interest_extract"
+        run_id = parent_run_id or f"{prefix}_{uuid.uuid4().hex[:12]}"
 
-        # Parse conversation_id if provided
         conv_uuid: UUID | None = None
         if conversation_id:
             try:
@@ -315,7 +306,6 @@ async def _persist_interest_tokens(
                     conversation_id=conversation_id,
                 )
 
-        # Create TrackingContext for persistence
         async with TrackingContext(
             run_id=run_id,
             user_id=UUID(user_id),
@@ -326,9 +316,10 @@ async def _persist_interest_tokens(
             await tracker.record_node_tokens(
                 node_name="interest_extraction",
                 model_name=model_name,
-                prompt_tokens=input_tokens,
-                completion_tokens=output_tokens,
-                cached_tokens=cached_tokens,
+                prompt_tokens=usage.prompt,
+                completion_tokens=usage.completion,
+                cached_tokens=usage.cached,
+                cache_write_tokens=usage.cache_write,
                 duration_ms=duration_ms,
             )
             await tracker.commit()
@@ -338,10 +329,11 @@ async def _persist_interest_tokens(
             user_id=user_id,
             session_id=session_id,
             run_id=run_id,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
-            cached_tokens=cached_tokens,
+            input_tokens=usage.prompt,
+            output_tokens=usage.completion,
+            cached_tokens=usage.cached,
             model_name=model_name,
+            replayed=replayed,
         )
 
     except Exception as e:
@@ -350,99 +342,7 @@ async def _persist_interest_tokens(
             "interest_tokens_persistence_failed",
             user_id=user_id,
             session_id=session_id,
-            error=str(e),
-            exc_info=True,
-        )
-
-
-async def _persist_interest_tokens_from_metadata(
-    user_id: str,
-    session_id: str,
-    conversation_id: str | None,
-    input_tokens: int,
-    output_tokens: int,
-    cached_tokens: int,
-    model_name: str,
-    parent_run_id: str | None = None,
-) -> None:
-    """
-    Persist token usage from cached metadata (when cache hit occurs).
-
-    This is used when extract_interests_background() reads from cache
-    (because analyze_interests_for_debug() already ran). The tokens
-    must still be persisted for accurate cost tracking.
-
-    Args:
-        user_id: User ID for statistics
-        session_id: Session/thread ID
-        conversation_id: Conversation UUID (optional, for linking)
-        input_tokens: Number of input tokens
-        output_tokens: Number of output tokens
-        cached_tokens: Number of cached tokens
-        model_name: LLM model used for extraction
-        parent_run_id: If provided, UPSERT tokens into the parent message's
-            MessageTokenSummary instead of creating an orphan record.
-    """
-    from src.domains.chat.service import TrackingContext
-
-    try:
-        if input_tokens == 0 and output_tokens == 0:
-            logger.debug(
-                "interest_tokens_from_cache_zero_usage",
-                user_id=user_id,
-            )
-            return
-
-        # Use parent_run_id to UPSERT into the originating message's summary,
-        # or generate a standalone run_id for backward compatibility
-        run_id = parent_run_id or f"interest_extract_cached_{uuid.uuid4().hex[:12]}"
-
-        # Parse conversation_id if provided
-        conv_uuid: UUID | None = None
-        if conversation_id:
-            try:
-                conv_uuid = UUID(conversation_id)
-            except ValueError:
-                logger.warning(
-                    "interest_tokens_invalid_conversation_id",
-                    conversation_id=conversation_id,
-                )
-
-        # Create TrackingContext for persistence
-        async with TrackingContext(
-            run_id=run_id,
-            user_id=UUID(user_id),
-            session_id=session_id,
-            conversation_id=conv_uuid,
-            auto_commit=False,
-        ) as tracker:
-            await tracker.record_node_tokens(
-                node_name="interest_extraction",
-                model_name=model_name,
-                prompt_tokens=input_tokens,
-                completion_tokens=output_tokens,
-                cached_tokens=cached_tokens,
-                # Cache hit: no LLM call, duration unknown
-            )
-            await tracker.commit()
-
-        logger.info(
-            "interest_tokens_persisted_from_cache",
-            user_id=user_id,
-            session_id=session_id,
-            run_id=run_id,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
-            cached_tokens=cached_tokens,
-            model_name=model_name,
-        )
-
-    except Exception as e:
-        # Graceful degradation
-        logger.error(
-            "interest_tokens_from_cache_persistence_failed",
-            user_id=user_id,
-            session_id=session_id,
+            replayed=replayed,
             error=str(e),
             exc_info=True,
         )
@@ -645,107 +545,104 @@ async def _analyze_interests_core(
 
     user_uuid = UUID(user_id)
 
-    # Use database context for interest operations
+    # Existing interests for deduplication, read in a session closed before the
+    # model is asked (ADR-304): the extraction holds no transaction while it waits.
     async with get_db_context() as db:
-        repo = InterestRepository(db)
-
-        # Retrieve existing interests for deduplication
-        existing_interests = await repo.get_active_for_user(
+        existing_interests = await InterestRepository(db).get_active_for_user(
             user_uuid, limit=settings.interest_dedup_search_limit
         )
 
-        existing_texts = [
-            f"- [id={interest.id}] {interest.topic} ({interest.category})"
-            for interest in existing_interests
-        ]
+    existing_texts = [
+        f"- [id={interest.id}] {interest.topic} ({interest.category})"
+        for interest in existing_interests
+    ]
 
-        # Format conversation with context
-        conversation = _format_messages_for_extraction(context_messages)
+    # Format conversation with context
+    conversation = _format_messages_for_extraction(context_messages)
 
-        # Build prompt from external file
-        current_datetime = datetime.now(tz=UTC).strftime("%d/%m/%Y %H:%M")
-        prompt = _get_extraction_prompt().format(
-            conversation=conversation,
-            existing_interests=(
-                "\n".join(existing_texts) if existing_texts else _no_known_interest()
-            ),
-            current_datetime=current_datetime,
-            user_language=get_language_name(user_language),
-        )
+    # Build prompt from external file
+    current_datetime = datetime.now(tz=UTC).strftime("%d/%m/%Y %H:%M")
+    prompt = _get_extraction_prompt().format(
+        conversation=conversation,
+        existing_interests=("\n".join(existing_texts) if existing_texts else _no_known_interest()),
+        current_datetime=current_datetime,
+        user_language=get_language_name(user_language),
+    )
 
-        # Get extraction LLM from unified config (LLM_DEFAULTS + admin overrides)
-        llm = get_llm("interest_extraction")
+    # Get extraction LLM from unified config (LLM_DEFAULTS + admin overrides)
+    llm = get_llm("interest_extraction")
 
-        # DEBUG: Log what we're sending to LLM
-        logger.info(
-            "interest_extraction_llm_input",
-            user_id=user_id,
-            session_id=session_id,
-            conversation_preview=conversation[:500] if conversation else "EMPTY",
-            existing_interests_preview=(
-                "\n".join(existing_texts)[:200] if existing_texts else "(none)"
-            ),
-            user_language=user_language,
-        )
+    # DEBUG: Log what we're sending to LLM
+    logger.info(
+        "interest_extraction_llm_input",
+        user_id=user_id,
+        session_id=session_id,
+        conversation_preview=conversation[:500] if conversation else "EMPTY",
+        existing_interests_preview=(
+            "\n".join(existing_texts)[:200] if existing_texts else "(none)"
+        ),
+        user_language=user_language,
+    )
 
-        # Invoke LLM with instrumentation for token tracking
-        import time as _time
+    # Invoke LLM with instrumentation for token tracking
+    import time as _time
 
-        _llm_start = _time.time()
-        result = await invoke_with_instrumentation(
-            llm=llm,
-            llm_type="interest_extraction",
-            messages=prompt,
-            session_id=session_id,
-            user_id=user_id,
-        )
-        _llm_duration_ms = (_time.time() - _llm_start) * 1000
-        result_content = result.text
+    _llm_start = _time.time()
+    result = await invoke_with_instrumentation(
+        llm=llm,
+        llm_type="interest_extraction",
+        messages=single_call_messages(prompt),
+        session_id=session_id,
+        user_id=user_id,
+    )
+    _llm_duration_ms = (_time.time() - _llm_start) * 1000
+    result_content = result.text
 
-        # DEBUG: Log LLM response
-        logger.info(
-            "interest_extraction_llm_output",
-            user_id=user_id,
-            session_id=session_id,
-            result_content=result_content[:500] if result_content else "EMPTY",
-        )
+    # DEBUG: Log LLM response
+    logger.info(
+        "interest_extraction_llm_output",
+        user_id=user_id,
+        session_id=session_id,
+        result_content=result_content[:500] if result_content else "EMPTY",
+    )
 
-        # Extract LLM metadata
-        input_tokens, output_tokens, cached_tokens = tokens_from_response(result)
+    # Extract LLM metadata
+    usage = tokens_from_response(result)
 
-        # Parse extraction result
-        extracted_interests = _parse_extraction_result(result_content)
+    # Parse extraction result
+    extracted_interests = _parse_extraction_result(result_content)
 
-        # Build result
-        analysis_result = InterestAnalysisResult(
-            analyzed=True,
-            extracted_interests=extracted_interests,
-            llm_model=get_llm_config_for_agent(settings, "interest_extraction").model,
-            llm_input_tokens=input_tokens,
-            llm_output_tokens=output_tokens,
-            llm_cached_tokens=cached_tokens,
-            llm_temperature=get_llm_config_for_agent(settings, "interest_extraction").temperature,
-            analyzed_message=(
-                message_content[:200] + "..." if len(message_content) > 200 else message_content
-            ),
-            context_messages_count=len(context_messages),
-            llm_duration_ms=_llm_duration_ms,
-            _raw_result=result,
-        )
+    # Build result
+    analysis_result = InterestAnalysisResult(
+        analyzed=True,
+        extracted_interests=extracted_interests,
+        llm_model=get_llm_config_for_agent(settings, "interest_extraction").model,
+        llm_input_tokens=usage.prompt,
+        llm_output_tokens=usage.completion,
+        llm_cached_tokens=usage.cached,
+        llm_cache_write_tokens=usage.cache_write,
+        llm_temperature=get_llm_config_for_agent(settings, "interest_extraction").temperature,
+        analyzed_message=(
+            message_content[:200] + "..." if len(message_content) > 200 else message_content
+        ),
+        context_messages_count=len(context_messages),
+        llm_duration_ms=_llm_duration_ms,
+        _raw_result=result,
+    )
 
-        # Store in cache
-        if use_cache:
-            await _set_cached_analysis(cache_key, analysis_result)
+    # Store in cache
+    if use_cache:
+        await _set_cached_analysis(cache_key, analysis_result)
 
-        logger.debug(
-            "interest_analysis_completed",
-            user_id=user_id,
-            session_id=session_id,
-            extracted_count=len(extracted_interests),
-            from_cache=False,
-        )
+    logger.debug(
+        "interest_analysis_completed",
+        user_id=user_id,
+        session_id=session_id,
+        extracted_count=len(extracted_interests),
+        from_cache=False,
+    )
 
-        return analysis_result
+    return analysis_result
 
 
 # ============================================================================
@@ -815,33 +712,24 @@ async def extract_interests_background(
             )
             return 0
 
-        # Persist tokens - use raw result if available, otherwise use cached metadata
-        # This ensures tokens are always persisted even if debug panel ran first
-        if analysis._raw_result:
-            # Fresh LLM call - persist using AIMessage
-            await _persist_interest_tokens(
-                user_id=user_id,
-                session_id=session_id,
-                conversation_id=conversation_id,
-                result=analysis._raw_result,
-                model_name=analysis.llm_model
-                or get_llm_config_for_agent(settings, "interest_extraction").model,
-                parent_run_id=parent_run_id,
-                duration_ms=analysis.llm_duration_ms,
-            )
-        elif analysis.llm_input_tokens > 0 or analysis.llm_output_tokens > 0:
-            # From cache - persist using stored metadata
-            await _persist_interest_tokens_from_metadata(
-                user_id=user_id,
-                session_id=session_id,
-                conversation_id=conversation_id,
-                input_tokens=analysis.llm_input_tokens,
-                output_tokens=analysis.llm_output_tokens,
-                cached_tokens=analysis.llm_cached_tokens,
-                model_name=analysis.llm_model
-                or get_llm_config_for_agent(settings, "interest_extraction").model,
-                parent_run_id=parent_run_id,
-            )
+        # Persist tokens — a fresh call and a replay from the analysis cache
+        # (the debug panel ran first) carry the same counts on the analysis.
+        await _persist_interest_tokens(
+            user_id=user_id,
+            session_id=session_id,
+            conversation_id=conversation_id,
+            usage=UsageTokens(
+                prompt=analysis.llm_input_tokens,
+                completion=analysis.llm_output_tokens,
+                cached=analysis.llm_cached_tokens,
+                cache_write=analysis.llm_cache_write_tokens,
+            ),
+            model_name=analysis.llm_model
+            or get_llm_config_for_agent(settings, "interest_extraction").model,
+            replayed=analysis._raw_result is None,
+            parent_run_id=parent_run_id,
+            duration_ms=analysis.llm_duration_ms,
+        )
 
         if not analysis.extracted_interests:
             logger.debug(

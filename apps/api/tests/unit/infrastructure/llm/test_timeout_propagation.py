@@ -88,9 +88,12 @@ class TestAdapterAppliesTimeout:
                 "src.infrastructure.llm.providers.adapter.ProviderAdapter._create_gemini_llm"
             ) as mock_gemini,
             patch("src.infrastructure.llm.providers.ollama_chat.ChatOllamaTraced") as mock_ollama,
+            # Qwen is built on its own ChatOpenAI subclass (ADR-309).
+            patch("src.infrastructure.llm.providers.adapter.ChatQwenCached") as mock_qwen,
         ):
             mock_gemini.return_value = MagicMock(spec=BaseChatModel)
             mock_ollama.return_value = MagicMock(spec=BaseChatModel)
+            mock_qwen.return_value = MagicMock(spec=BaseChatModel)
             ProviderAdapter.create_llm(
                 provider=provider,  # type: ignore[arg-type]
                 model=model,
@@ -104,7 +107,7 @@ class TestAdapterAppliesTimeout:
                 # ADR-267: the native client carries it to both httpx clients.
                 assert mock_ollama.call_args.kwargs["client_kwargs"]["timeout"] == 45.0
                 return
-            target = mock_gemini if provider == "gemini" else mock_init
+            target = {"gemini": mock_gemini, "qwen": mock_qwen}.get(provider, mock_init)
 
         assert target.call_args.kwargs["timeout"] == 45.0
 

@@ -37,6 +37,7 @@ import { useLiveStore } from '@/stores/liveStore';
 import { ActivityClock } from './activity-clock';
 import { DelegationBridge, type ReadAnswer } from './delegation';
 import type { MicCapture, MicCaptureOptions } from './mic-capture';
+import type { PcmPlayerDiagnostics } from './pcm-player';
 import {
   LIVE_END_DETAIL_MAX_CHARS,
   closeDecision,
@@ -84,6 +85,7 @@ export interface LivePlayer {
   flush(): void;
   dispose(): void;
   onSpeakingChange(listener: (speaking: boolean) => void): void;
+  diagnostics?(): PcmPlayerDiagnostics | null;
 }
 
 export interface LiveApi {
@@ -93,7 +95,7 @@ export interface LiveApi {
 
 export interface LiveControllerDeps {
   api: LiveApi;
-  createTransport: (provider: string) => LiveTransport;
+  createTransport: (provider: string, audioTransport?: 'websocket' | 'webrtc') => LiveTransport;
   createPlayer: () => LivePlayer;
   startMic: (options: MicCaptureOptions) => Promise<MicCapture>;
   /** Whether this browser can hold a session — asked before anything is minted. */
@@ -111,6 +113,8 @@ interface TurnBuffer {
 
 const LIVE_TURN_TYPE = 'live_turn';
 const LIVE_SUMMARY_TYPE = 'live_session_summary';
+/** Leave the browser time to complete a WebSocket handshake before a token's opening deadline. */
+const LIVE_CONNECT_MARGIN_MS = 15_000;
 
 /** The API no longer holds this session (404): superseded, or past its cap and grace. */
 function isGone(error: unknown): boolean {
@@ -168,6 +172,8 @@ export class LiveSessionController {
     Record<'hidden' | 'expiry' | 'extension' | 'goAway' | 'budget', ReturnType<typeof setTimeout>>
   > = {};
   private ending = false;
+  private awaitingMicrophone = false;
+  private pageIsHidden = false;
 
   constructor(private readonly deps: LiveControllerDeps) {
     this.chat = deps.chat;
@@ -204,6 +210,7 @@ export class LiveSessionController {
       this.store.getState().setExtensionMinutes(this.config.extension_minutes);
       session = await this.deps.api.post<LiveSessionStart>('/live/sessions', {
         mode,
+        audio_transport: /iPhone|iPad|iPod/.test(navigator.userAgent) ? 'webrtc' : 'websocket',
       });
       this.session = session;
       this.store.getState().begin(session.session_id, session.mode);
@@ -213,7 +220,11 @@ export class LiveSessionController {
       this.bindPlayer(player);
       // A direct session delegates nothing: no bridge, the chat's doors unused.
       this.bridge = session.mode === 'direct' ? null : this.buildBridge(session);
-      this.transport = this.deps.createTransport(session.provider);
+      this.transport = this.deps.createTransport(session.provider, session.audio_transport);
+      if (this.transport.audio.ownership === 'managed') {
+        player.dispose();
+        this.player = null;
+      }
     } catch (error) {
       // Before the mint nothing exists server-side; after it, the record is
       // claimed and must be closed — with the reason named.
@@ -221,14 +232,29 @@ export class LiveSessionController {
       else this.failStart(error);
       return;
     }
+    await this.establishInitialConnection(session);
+  }
+
+  /** Prepare the provider's audio, then open its first credentialed connection. */
+  private async establishInitialConnection(session: LiveSessionStart): Promise<void> {
+    const transport = this.transport;
+    if (!transport) return;
     // The microphone BEFORE the connection: a native transport carries the
     // track in its offer, and a refused microphone must open no socket.
-    if (!(await this.openMicrophone())) return;
+    if (transport.audio.ownership !== 'managed' && !(await this.openMicrophoneAfterPrompt())) {
+      return;
+    }
     try {
-      await this.connect(session);
+      this.awaitingMicrophone = transport.audio.ownership === 'managed';
+      await this.connect(await this.firstCredential(session));
+      this.awaitingMicrophone = false;
     } catch (error) {
+      this.awaitingMicrophone = false;
       // Minted and claimed server-side: close the books, name the reason.
-      await this.end('error', getApiErrorCode(error) ?? String(error));
+      const denied =
+        error instanceof Error &&
+        (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError');
+      await this.end(denied ? 'mic_denied' : 'error', getApiErrorCode(error) ?? String(error));
       return;
     }
     this.armExpiry(session.expires_at, 0);
@@ -291,9 +317,10 @@ export class LiveSessionController {
     await this.transport?.close().catch(() => undefined);
     // A microphone that refuses to close must not keep the books open.
     await this.mic?.stop().catch(() => undefined);
+    const audioDiagnostics = this.player?.diagnostics?.() ?? null;
     this.player?.dispose();
     await this.archiveTurn();
-    await this.closeBooks(session, outcome, detail ?? error);
+    await this.closeBooks(session, outcome, detail ?? error, audioDiagnostics ?? null);
     this.store.getState().finish(outcome, error, detail);
     this.release();
   }
@@ -304,8 +331,11 @@ export class LiveSessionController {
 
   /** The page went hidden (or came back): a hidden page past the grace ends the session. */
   pageHidden(hidden: boolean): void {
+    this.pageIsHidden = hidden;
     this.clearTimer('hidden');
-    if (!hidden || !this.config) return;
+    // iOS may mark the page hidden while its system microphone permission
+    // sheet is open. The grace starts after that sheet has returned a stream.
+    if (!hidden || !this.config || this.awaitingMicrophone) return;
     this.timers.hidden = setTimeout(() => {
       if (isSessionOpen(this.store.getState().status)) void this.end('hidden');
     }, this.config.hidden_grace_seconds * 1000);
@@ -323,6 +353,32 @@ export class LiveSessionController {
     this.release();
   }
 
+  /** A system permission sheet is part of opening the mic, not a hidden live session. */
+  private async openMicrophoneAfterPrompt(): Promise<boolean> {
+    this.awaitingMicrophone = true;
+    const micReady = await this.openMicrophone();
+    this.awaitingMicrophone = false;
+    if (!micReady) return false;
+    if (this.ending || !this.session) {
+      await this.mic?.stop().catch(() => undefined);
+      this.mic = null;
+      return false;
+    }
+    if (this.pageIsHidden) this.pageHidden(true);
+    return true;
+  }
+
+  /** Refresh a credential whose opening window was spent on the permission sheet. */
+  private async firstCredential(session: LiveSessionStart): Promise<LiveCredential> {
+    if (Date.now() + LIVE_CONNECT_MARGIN_MS < Date.parse(session.connect_deadline_at)) {
+      return session;
+    }
+    return this.deps.api.post<LiveCredential>(
+      `/live/sessions/${session.session_id}/credential`,
+      {}
+    );
+  }
+
   /** Open the microphone as the transport wants it; false when the person refused it. */
   private async openMicrophone(): Promise<boolean> {
     const audio = this.transport?.audio;
@@ -335,8 +391,12 @@ export class LiveSessionController {
         onChunk: pcm => this.transport?.sendAudio(pcm),
       });
       return true;
-    } catch {
-      await this.end('mic_denied');
+    } catch (error) {
+      const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+      const denied =
+        error instanceof Error &&
+        (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError');
+      await this.end(denied ? 'mic_denied' : 'error', null, detail);
       return false;
     }
   }
@@ -421,6 +481,7 @@ export class LiveSessionController {
       {
         credential: credential.credential,
         setup: credential.setup,
+        toolNames: session.tool_names,
         resumptionHandle: this.handle,
         capabilities: session.capabilities,
         microphone: transport.audio.ownership === 'native' ? (this.mic?.stream ?? null) : null,
@@ -518,7 +579,11 @@ export class LiveSessionController {
     this.attempts += 1;
     this.store.getState().apply('socket_closed');
     this.generation += 1;
-    void this.transport?.close().catch(() => undefined);
+    if (this.transport?.audio.ownership === 'managed') {
+      await this.transport.close().catch(() => undefined);
+    } else {
+      void this.transport?.close().catch(() => undefined);
+    }
     try {
       const credential =
         minted ??
@@ -728,7 +793,8 @@ export class LiveSessionController {
   private async closeBooks(
     session: LiveSessionStart,
     outcome: LiveOutcome,
-    detail: string | null
+    detail: string | null,
+    audioDiagnostics: PcmPlayerDiagnostics | null
   ): Promise<void> {
     try {
       // The figures of the card are the server's (exact, ADR-185): the
@@ -738,6 +804,7 @@ export class LiveSessionController {
         {
           outcome,
           detail: detail ? detail.slice(0, LIVE_END_DETAIL_MAX_CHARS) : null,
+          ...(audioDiagnostics ? { audio_diagnostics: audioDiagnostics } : {}),
           provider_conversation_id: this.providerConversationId,
         }
       );

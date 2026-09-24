@@ -486,6 +486,11 @@ async def process_document(
                 # change-detection actually writes the reset on completion.
                 await db.refresh(document)
 
+            # The reads (and the claim) end here: extraction and embedding take
+            # seconds to minutes, and no transaction may wait on them (ADR-304).
+            # The chunk swap below opens its own, committed with the status.
+            await db.commit()
+
             # 1. Extract text
             file_path = (
                 Path(settings.rag_spaces_storage_path) / str(user_id) / str(space_id) / filename

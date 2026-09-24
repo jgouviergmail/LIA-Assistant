@@ -163,6 +163,29 @@ function LoopBounds({
   );
 }
 
+/**
+ * What the recovery passes bought (ADR-310).
+ *
+ * A final answer that declares a gap re-opens the loop, bounded by
+ * `REACT_RECOVERY_PASSES_MAX`; the outcome says whether the pass recovered the
+ * facts, part of them, none, or was cut by a budget. Absent when the turn took
+ * no pass — its own component so the loop rows keep their complexity.
+ *
+ * @param props.recovery - The passes and their outcome, or nothing.
+ * @returns The row, or null.
+ */
+function RecoveryRow({ recovery }: { recovery: ReactExecutionMetrics['recovery'] }) {
+  if (!recovery) return null;
+  return (
+    <MetricRow
+      label="Recovery"
+      value={`${recovery.passes} ${recovery.passes === 1 ? 'pass' : 'passes'} · ${recovery.outcome}`}
+      mono
+      valueClassName={recovery.outcome === 'resolved' ? TONE_TEXT.success : TONE_TEXT.warning}
+    />
+  );
+}
+
 export const ReactExecutionSection = React.memo(function ReactExecutionSection({
   data,
 }: ReactExecutionSectionProps) {
@@ -198,6 +221,7 @@ export const ReactExecutionSection = React.memo(function ReactExecutionSection({
         <SubSectionHeader label="Loop" />
         <MetricRow label="Iterations" value={`${data.iterations}/${budget}`} highlight />
         <LoopBounds data={data} budget={budget} ceiling={ceiling} narrowed={narrowed} />
+        <RecoveryRow recovery={data.recovery} />
         <MetricRow label="Reasoning" value={`${data.elapsed_seconds.toFixed(1)}s`} mono />
         {hasToolTime && (
           <MetricRow

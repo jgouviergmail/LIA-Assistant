@@ -28,8 +28,7 @@ import structlog
 from pydantic import BaseModel, ConfigDict, Field
 
 from src.domains.connectors.models import ConnectorType
-from src.domains.connectors.service import ConnectorService
-from src.infrastructure.database.session import get_db_context
+from src.domains.connectors.session_scope import DetachedConnectorService
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -163,8 +162,11 @@ async def fetch_upcoming_birthdays(
 ) -> list[BirthdayItem] | None:
     """Full-scan Google Contacts and compute upcoming birthdays.
 
-    Opens its own DB session (background/fetcher context). Neutral outcome
-    contract so every consumer maps it to its own semantics:
+    Reads the credentials in a session of its own and closes it BEFORE the
+    scan: up to ``BIRTHDAY_PAGINATION_MAX_PAGES`` provider round trips must
+    never hold a transaction (ADR-304). The client refreshes its token through
+    the same detached service. Neutral outcome contract so every consumer maps
+    it to its own semantics:
 
     Returns:
         - ``None`` when the Google Contacts connector is not configured.
@@ -173,57 +175,55 @@ async def fetch_upcoming_birthdays(
     Raises:
         BirthdayFetchError: On timeout or HTTP failure while scanning.
     """
-    async with get_db_context() as db:
-        connector_service = ConnectorService(db)
-        credentials = await connector_service.get_connector_credentials(
+    connectors = DetachedConnectorService()
+    async with connectors.unit_of_work() as service:
+        credentials = await service.get_connector_credentials(
             user_id, ConnectorType.GOOGLE_CONTACTS
         )
-        if not credentials:
-            return None
+    if not credentials:
+        return None
 
-        client = GooglePeopleClient(user_id, credentials, connector_service)
-        all_connections: list[dict[str, Any]] = []
-        page_token: str | None = None
+    client = GooglePeopleClient(user_id, credentials, connectors)
+    all_connections: list[dict[str, Any]] = []
+    page_token: str | None = None
 
-        try:
-            for _ in range(BIRTHDAY_PAGINATION_MAX_PAGES):
-                params: dict[str, Any] = {
-                    "personFields": "names,birthdays",
-                    "pageSize": BIRTHDAY_PAGE_SIZE,
-                }
-                if page_token:
-                    params["pageToken"] = page_token
+    try:
+        for _ in range(BIRTHDAY_PAGINATION_MAX_PAGES):
+            params: dict[str, Any] = {
+                "personFields": "names,birthdays",
+                "pageSize": BIRTHDAY_PAGE_SIZE,
+            }
+            if page_token:
+                params["pageToken"] = page_token
 
-                # Direct API call — bypasses apply_max_items_limit on purpose
-                # (see module docstring for justification).
-                response = await client._make_request(
-                    "GET", "/people/me/connections", params=params
-                )
-                all_connections.extend(response.get("connections", []) or [])
-                page_token = response.get("nextPageToken")
-                if not page_token:
-                    break
-            else:
-                logger.info(
-                    "birthdays_pagination_cap_reached",
-                    user_id=str(user_id),
-                    pages=BIRTHDAY_PAGINATION_MAX_PAGES,
-                    contacts=len(all_connections),
-                )
-        except TimeoutError as exc:
-            raise BirthdayFetchError("timeout", str(exc)) from exc
-        except httpx.HTTPError as exc:
-            raise BirthdayFetchError("http_error", str(exc)) from exc
-        finally:
-            # Deterministic close of the per-instance httpx transport on every
-            # path (same doctrine as briefing/fetchers.py weather).
-            await client.close()
+            # Direct API call — bypasses apply_max_items_limit on purpose
+            # (see module docstring for justification).
+            response = await client._make_request("GET", "/people/me/connections", params=params)
+            all_connections.extend(response.get("connections", []) or [])
+            page_token = response.get("nextPageToken")
+            if not page_token:
+                break
+        else:
+            logger.info(
+                "birthdays_pagination_cap_reached",
+                user_id=str(user_id),
+                pages=BIRTHDAY_PAGINATION_MAX_PAGES,
+                contacts=len(all_connections),
+            )
+    except TimeoutError as exc:
+        raise BirthdayFetchError("timeout", str(exc)) from exc
+    except httpx.HTTPError as exc:
+        raise BirthdayFetchError("http_error", str(exc)) from exc
+    finally:
+        # Deterministic close of the per-instance httpx transport on every
+        # path (same doctrine as briefing/fetchers.py weather).
+        await client.close()
 
-        logger.info(
-            "birthdays_fetched",
-            user_id=str(user_id),
-            total_contacts=len(all_connections),
-        )
+    logger.info(
+        "birthdays_fetched",
+        user_id=str(user_id),
+        total_contacts=len(all_connections),
+    )
 
     # `today` MUST be the user's local date (not the server's UTC date) — at
     # 01:00 in Paris (= 23:00 UTC the previous day), date.today() would still

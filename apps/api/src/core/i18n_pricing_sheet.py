@@ -57,6 +57,7 @@ _COLUMNS: dict[Language, dict[str, str]] = {
         "row_fingerprint": "Empreinte",
         "start_utc": "Début UTC",
         "end_utc": "Fin UTC",
+        "weekdays": "Jours UTC (mon…sun)",
     },
     "en": {
         "model_name": "Model name",
@@ -91,6 +92,7 @@ _COLUMNS: dict[Language, dict[str, str]] = {
         "row_fingerprint": "Fingerprint",
         "start_utc": "Start UTC",
         "end_utc": "End UTC",
+        "weekdays": "Days UTC (mon…sun)",
     },
     "es": {
         "model_name": "Nombre del modelo",
@@ -125,6 +127,7 @@ _COLUMNS: dict[Language, dict[str, str]] = {
         "row_fingerprint": "Huella",
         "start_utc": "Inicio UTC",
         "end_utc": "Fin UTC",
+        "weekdays": "Días UTC (mon…sun)",
     },
     "de": {
         "model_name": "Modellname",
@@ -159,6 +162,7 @@ _COLUMNS: dict[Language, dict[str, str]] = {
         "row_fingerprint": "Prüfsumme",
         "start_utc": "Beginn UTC",
         "end_utc": "Ende UTC",
+        "weekdays": "Tage UTC (mon…sun)",
     },
     "it": {
         "model_name": "Nome del modello",
@@ -193,6 +197,7 @@ _COLUMNS: dict[Language, dict[str, str]] = {
         "row_fingerprint": "Impronta",
         "start_utc": "Inizio UTC",
         "end_utc": "Fine UTC",
+        "weekdays": "Giorni UTC (mon…sun)",
     },
     "zh-CN": {
         "model_name": "模型名称",
@@ -227,6 +232,7 @@ _COLUMNS: dict[Language, dict[str, str]] = {
         "row_fingerprint": "指纹",
         "start_utc": "开始（UTC）",
         "end_utc": "结束（UTC）",
+        "weekdays": "星期（UTC，mon…sun）",
     },
 }
 
@@ -343,6 +349,7 @@ _NOTICE: dict[Language, tuple[str, ...]] = {
         "Une formule dans une cellule est refusée : saisissez la valeur, pas le calcul.",
         "Plages horaires : « flat » supprime les fenêtres, « windows » applique l'onglet dédié,",
         "« inherit » les laisse inchangées.",
+        "Jours d'une fenêtre : les codes mon, tue, wed, thu, fri, sat, sun, séparés par des virgules — le jour UTC où la fenêtre commence ; vide = tous les jours.",
         "Un import est intégral ou nul : une seule anomalie et rien n'est écrit.",
     ),
     "en": (
@@ -356,6 +363,7 @@ _NOTICE: dict[Language, tuple[str, ...]] = {
         "A formula in a cell is refused: enter the value, not the calculation.",
         "Time slots: 'flat' clears the windows, 'windows' applies the dedicated sheet,",
         "'inherit' leaves them untouched.",
+        "Days of a window: the codes mon, tue, wed, thu, fri, sat, sun, comma-separated — the UTC day the window starts on; empty = every day.",
         "An import is all or nothing: a single problem and nothing is written.",
     ),
     "es": (
@@ -369,6 +377,7 @@ _NOTICE: dict[Language, tuple[str, ...]] = {
         "Una fórmula en una celda se rechaza: introduzca el valor, no el cálculo.",
         "Franjas horarias: «flat» borra las ventanas, «windows» aplica la pestaña dedicada,",
         "«inherit» las deja sin cambios.",
+        "Días de una ventana: los códigos mon, tue, wed, thu, fri, sat, sun, separados por comas — el día UTC en que empieza la ventana; vacío = todos los días.",
         "Una importación es total o nula: un solo problema y no se escribe nada.",
     ),
     "de": (
@@ -382,6 +391,7 @@ _NOTICE: dict[Language, tuple[str, ...]] = {
         "Eine Formel in einer Zelle wird abgelehnt: tragen Sie den Wert ein, nicht die Rechnung.",
         "Zeitfenster: „flat“ löscht die Fenster, „windows“ wendet das eigene Blatt an,",
         "„inherit“ lässt sie unverändert.",
+        "Tage eines Fensters: die Kürzel mon, tue, wed, thu, fri, sat, sun, durch Kommas getrennt – der UTC-Tag, an dem das Fenster beginnt; leer = jeden Tag.",
         "Ein Import ist ganz oder gar nicht: ein einziges Problem und nichts wird geschrieben.",
     ),
     "it": (
@@ -395,6 +405,7 @@ _NOTICE: dict[Language, tuple[str, ...]] = {
         "Una formula in una cella viene rifiutata: inserisca il valore, non il calcolo.",
         "Fasce orarie: «flat» cancella le finestre, «windows» applica il foglio dedicato,",
         "«inherit» le lascia invariate.",
+        "Giorni di una finestra: i codici mon, tue, wed, thu, fri, sat, sun, separati da virgole — il giorno UTC in cui inizia la finestra; vuoto = tutti i giorni.",
         "Un'importazione è totale o nulla: un solo problema e non viene scritto nulla.",
     ),
     "zh-CN": (
@@ -407,6 +418,7 @@ _NOTICE: dict[Language, tuple[str, ...]] = {
         "价格以美元计，最多 6 位小数；精度更高的数值会被拒绝。",
         "单元格中的公式会被拒绝：请填写数值，而不是算式。",
         "时段：「flat」清除窗口，「windows」应用专用工作表，「inherit」保持不变。",
+        "窗口的星期：填写代码 mon、tue、wed、thu、fri、sat、sun，以英文逗号分隔——即窗口开始时的 UTC 日期；留空表示每天。",
         "导入要么全部生效，要么完全不生效：只要有一处问题，就不会写入任何内容。",
     ),
 }

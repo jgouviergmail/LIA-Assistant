@@ -70,7 +70,6 @@ class TestReactSynthesisRendering:
 
         summary = format_agent_results_for_prompt(agent_results, current_turn_id=4)
 
-        # Empty synthesis is not surfaced; the entry has no status so it does not
-        # masquerade as a real answer — the important invariant is no crash and no
-        # leaked synthesis text.
-        assert summary == "" or "Statut inconnu" in summary
+        # A ReAct entry is recognised by its key, answer or not: nothing is
+        # surfaced and nothing masquerades as a status.
+        assert summary == ""

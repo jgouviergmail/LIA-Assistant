@@ -18,6 +18,10 @@ from uuid import UUID
 
 import structlog
 
+from src.core.constants import (
+    RAG_DRIVE_CHANGES_PAGE_SIZE_DEFAULT,
+    RAG_DRIVE_CHANGES_PAGE_SIZE_MAX,
+)
 from src.domains.connectors.clients.base_google_client import (
     BaseGoogleClient,
     apply_max_items_limit,
@@ -417,13 +421,21 @@ class GoogleDriveClient(BaseGoogleClient):
         response = await self._make_request("GET", "/changes/startPageToken")
         return str(response.get("startPageToken", ""))
 
-    async def list_changes(self, page_token: str, page_size: int = 100) -> dict[str, Any]:
-        """One page of the changes feed since ``page_token`` (ADR-261, P2).
+    async def list_changes(
+        self, page_token: str, page_size: int = RAG_DRIVE_CHANGES_PAGE_SIZE_DEFAULT
+    ) -> dict[str, Any]:
+        """One page of the changes feed since ``page_token`` (ADR-261 P2, ADR-304).
+
+        An INTERNAL pagination: the feed is drained by the push reindex, never
+        handed to an agent, so the agent-facing item ceiling
+        (``apply_max_items_limit``, 25) does not apply — applied here it made the
+        feed 40 times chattier (measured 2026-09-22). The size is clamped to
+        Google's own maximum instead.
 
         Args:
             page_token: The token stored with the watch channel (or the
                 ``nextPageToken`` of the previous page).
-            page_size: Changes per page (Google caps at 1000).
+            page_size: Changes per page, at most Google's 1000.
 
         Returns:
             ``{"changes": [...], "nextPageToken"?: ..., "newStartPageToken"?: ...}``
@@ -435,7 +447,7 @@ class GoogleDriveClient(BaseGoogleClient):
             "/changes",
             params={
                 "pageToken": page_token,
-                "pageSize": apply_max_items_limit(page_size),
+                "pageSize": max(1, min(page_size, RAG_DRIVE_CHANGES_PAGE_SIZE_MAX)),
                 "fields": (
                     "nextPageToken,newStartPageToken,"
                     "changes(fileId,removed,changeType,"

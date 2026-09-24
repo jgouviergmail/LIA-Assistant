@@ -838,10 +838,10 @@ async def get_connector_preference(
         ...     calendar_id = await resolve_calendar_by_name(client, default_calendar)
     """
     try:
-        from src.domains.agents.dependencies import get_dependencies
         from src.domains.connectors.models import ConnectorType
         from src.domains.connectors.preferences import ConnectorPreferencesService
         from src.domains.connectors.repository import ConnectorRepository
+        from src.infrastructure.database.session import get_db_context
 
         # Get user_id from runtime config
         user_id_raw = tool_user_id_str(runtime)
@@ -849,12 +849,6 @@ async def get_connector_preference(
             return default
 
         user_id = parse_user_id(user_id_raw)
-
-        # Get ToolDependencies from runtime
-        deps = get_dependencies(runtime)
-
-        # Get connector by user and type
-        repository = ConnectorRepository(deps.db)
 
         # Convert string to ConnectorType enum
         try:
@@ -866,7 +860,13 @@ async def get_connector_preference(
             )
             return default
 
-        connector = await repository.get_by_user_and_type(user_id, connector_type_enum)
+        # A short session of its own: this read ran on the turn's shared
+        # session, outside the tools' lock, and left its transaction open
+        # while the tool that asked went on to call its provider (ADR-304).
+        async with get_db_context() as db:
+            connector = await ConnectorRepository(db).get_by_user_and_type(
+                user_id, connector_type_enum
+            )
         if not connector:
             return default
 

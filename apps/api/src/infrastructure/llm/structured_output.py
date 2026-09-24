@@ -57,6 +57,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, ValidationError
 
+from src.core.claude_surface import claude_surface, requests_thinking
 from src.core.config import settings
 from src.core.constants import CAPABILITY_PROVENANCE_VERIFIED
 from src.infrastructure.llm.invoke_helpers import (
@@ -455,16 +456,19 @@ async def get_structured_output[T: BaseModel](
         raise
 
 
-def _anthropic_thinking_on(llm: BaseChatModel) -> bool:
-    """True when an Anthropic LLM has extended thinking enabled at construction.
+def _anthropic_refuses_forced_tool(llm: BaseChatModel) -> bool:
+    """True when a forced ``tool_choice`` would be refused for this Claude client.
 
-    Anthropic rejects a forced ``tool_choice`` while thinking is enabled
-    ("Thinking may not be enabled when tool_choice forces tool use" — HTTP 400),
-    and ``with_structured_output`` forces the tool. So structured output on a
-    thinking-enabled Claude must go through the auto-tool path instead.
+    ``with_structured_output`` forces the schema tool, and two conditions make
+    that a 400 (ADR-306): thinking switched on at construction (« Thinking may
+    not be enabled when tool_choice forces tool use » on the 4.x generations),
+    and a generation that refuses a forced tool outright, whatever its thinking
+    (Fable 5.1, Opus 5.5; an undeclared generation is treated the same way,
+    since the auto-tool door works on every one of them).
     """
-    thinking = getattr(llm, "thinking", None)
-    return isinstance(thinking, dict) and thinking.get("type") in ("enabled", "adaptive")
+    if requests_thinking(getattr(llm, "thinking", None)):
+        return True
+    return not claude_surface(_llm_model_id(llm)).accepts_forced_tool_choice
 
 
 async def _structured_via_auto_tool[T: BaseModel](
@@ -613,11 +617,11 @@ async def _get_native_structured_output[T: BaseModel](
     #   reasoning summary and the streaming json_schema path rejects non-strict
     #   schemas (400). Auto-tool preserves live reasoning; on miss we fall back to
     #   the buffered (non-streaming) path below.
-    # - Anthropic with extended thinking ON: a forced tool is REJECTED (400) —
-    #   auto-tool is the ONLY way to do structured output on a thinking-enabled
-    #   Claude, so it applies regardless of reasoning_emit and there is no
-    #   forced-tool fallback (it would 400).
-    anthropic_thinking = provider == "anthropic" and _anthropic_thinking_on(llm)
+    # - Anthropic when a forced tool is REJECTED (400) -- thinking on, or a
+    #   generation that refuses forcing outright (ADR-306): auto-tool is then the
+    #   ONLY way to structured output, so it applies regardless of
+    #   reasoning_emit and there is no forced-tool fallback (it would 400).
+    anthropic_thinking = provider == "anthropic" and _anthropic_refuses_forced_tool(llm)
     if (provider == "openai" and reasoning_emit is not None) or anthropic_thinking:
         auto_result = await _structured_via_auto_tool(
             llm=llm,
@@ -631,11 +635,11 @@ async def _get_native_structured_output[T: BaseModel](
             logger.info("structured_auto_tool_success", provider=provider, schema=schema_name)
             return auto_result
         if anthropic_thinking:
-            # The buffered with_structured_output path forces a tool → 400 with
-            # thinking enabled. No safe fallback: fail with a clear error.
+            # The buffered with_structured_output path forces a tool: a certain
+            # 400 here. No safe fallback: fail with a clear error.
             raise StructuredOutputError(
                 f"Anthropic auto-tool structured output produced no valid tool call "
-                f"for {schema_name} (thinking enabled, forced-tool fallback unavailable)",
+                f"for {schema_name} (forced-tool fallback refused by this model)",
                 provider=provider,
                 schema_name=schema_name,
             )

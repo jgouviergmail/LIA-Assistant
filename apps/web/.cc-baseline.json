@@ -106,7 +106,7 @@
     },
     "src/components/settings/ImageGenerationSettings.tsx": {
       "count": 1,
-      "max": 32
+      "max": 28
     },
     "src/components/settings/InterestsSettings.tsx": {
       "count": 1,

@@ -6,11 +6,12 @@ On a turn where no tool produced registry updates, ``current_turn_registry`` is
 empty **by design**: ``registry_filtering.filter_registry_by_current_turn``
 returns ``{}`` to prevent cross-turn contamination (a stale photo leaking into
 an unrelated answer). ``data_for_filtering`` is derived from that registry, so
-it is empty too. Meanwhile ``<History>`` deliberately drops ``ToolMessage`` (see
-``message_filters.filter_conversational_messages``), so the authoritative values
-never reach the model from there either — it can only echo whatever prose a
-previous answer happened to contain. That is how an appointment stated at 11:15
-came back as "16h".
+it is empty too. Meanwhile the earlier turns reach the model as the answers'
+prose (a card answer reduced to its leading text, see
+``message_filters.filter_for_llm_context``), so the authoritative values never
+reach the model from there either — it can only echo whatever prose a previous
+answer happened to contain. That is how an appointment stated at 11:15 came back
+as "16h".
 
 The entities themselves are still available: the merged ``state["registry"]``
 keeps every item produced by previous turns (the ``merge_registry`` reducer),
@@ -37,7 +38,8 @@ Safety properties
 - **REFERENCE turns are excluded** (see ``should_ground_from_recent_entities``):
   an empty registry there is a data-leak fail-safe, not a grounding gap.
 - **Bounded**: only the last ``response_recent_entities_max_turn_age`` turns, and
-  at most ``tool_context_max_items`` entities; any drop is logged.
+  at most ``response_recent_entities_max_items`` entities (a prompt budget of
+  its own, independent of what the context store keeps); any drop is logged.
 - **Fail-safe**: malformed state yields ``""``; never raises into the response path.
 """
 
@@ -157,7 +159,7 @@ def build_recent_entities_context(
         logger.debug("recent_entities_scan_failed", error=str(exc))
         return ""
 
-    max_total = settings.tool_context_max_items
+    max_total = settings.response_recent_entities_max_items
     selected: dict[str, Any] = {}
     for item_id in item_ids:
         if len(selected) >= max_total:

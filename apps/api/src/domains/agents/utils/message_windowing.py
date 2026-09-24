@@ -18,6 +18,8 @@ is deferred to the latency-optimization effort (with routing-quality benchmarks)
 All functions preserve immutability - input lists are never modified.
 """
 
+import math
+
 from langchain_core.messages import BaseMessage, HumanMessage
 
 from src.core.config import settings
@@ -30,10 +32,26 @@ from src.infrastructure.observability.logging import get_logger
 logger = get_logger(__name__)
 
 
+def history_block_turns(window_size: int) -> int:
+    """How many turns a block-windowed history drops at once (ADR-309).
+
+    The configured share of the window (``react_cross_turn_history_block_fraction``),
+    rounded up, and never under one turn.
+
+    Args:
+        window_size: The history window, in turns.
+
+    Returns:
+        The block size, in turns.
+    """
+    return max(1, math.ceil(window_size * settings.react_cross_turn_history_block_fraction))
+
+
 def get_windowed_messages(
     messages: list[BaseMessage],
     window_size: int | None = None,
     include_system: bool = True,
+    block_size: int | None = None,
 ) -> list[BaseMessage]:
     """
     Create a windowed view of messages - keeping system messages + recent N turns.
@@ -54,6 +72,10 @@ def get_windowed_messages(
                      Set to 0 or negative to return only system messages.
         include_system: Whether to include SystemMessages in output (default: True).
                         SystemMessages are always kept regardless of window size.
+        block_size: Drop the oldest turns by blocks of this many turns instead of one
+                    at a time (ADR-309): the window then holds between ``window_size``
+                    and ``window_size + block_size - 1`` turns, and its first message
+                    only moves when a whole block goes. None or 1 slides as before.
 
     Returns:
         Windowed message list: SystemMessages (if included) + last N turns.
@@ -111,9 +133,16 @@ def get_windowed_messages(
     # So we use a simpler heuristic: keep last (window_size * 2) conversational messages
     max_conversational_messages = window_size * 2
 
-    # Step 4: Keep last N conversational messages
+    # Step 4: Keep last N conversational messages -- or, by blocks, everything from
+    # the last block boundary: a step function of the length, so the first kept
+    # message stays put between two drops and each history extends the previous.
     if len(conversational) > max_conversational_messages:
-        recent_conversational = conversational[-max_conversational_messages:]
+        if block_size and block_size > 1:
+            block_messages = block_size * 2
+            overflow = len(conversational) - max_conversational_messages
+            recent_conversational = conversational[block_messages * (overflow // block_messages) :]
+        else:
+            recent_conversational = conversational[-max_conversational_messages:]
         logger.debug(
             "windowing_applied",
             original_count=len(messages),

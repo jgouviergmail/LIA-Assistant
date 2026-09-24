@@ -24,6 +24,7 @@ from src.core.exceptions import BaseAPIException
 from src.domains.connectors.clients.google_gmail_client import GoogleGmailClient
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.service import ConnectorService
+from src.domains.connectors.session_scope import DetachedConnectorService
 from src.domains.rag_spaces.consultations import SECTION_MAIL, space_read
 from src.domains.rag_spaces.drive_ingest import discard_document
 from src.domains.rag_spaces.models import RAGMailSource, RAGSourceSyncStatus
@@ -44,14 +45,17 @@ _USER_LABEL_PREFIX = "Label_"
 
 
 async def gmail_client_or_none(db: AsyncSession, user_id: UUID) -> GoogleGmailClient | None:
-    """An authenticated Gmail client, or None when the connector is not active."""
-    connector_service = ConnectorService(db)
-    credentials = await connector_service.get_connector_credentials(
+    """An authenticated Gmail client, or None when the connector is not active.
+
+    The credentials are read on ``db``; the client's own writes (a refreshed
+    token) run on a session of their own, never on the caller's (ADR-304).
+    """
+    credentials = await ConnectorService(db).get_connector_credentials(
         user_id, ConnectorType.GOOGLE_GMAIL
     )
     if credentials is None:
         return None
-    return GoogleGmailClient(user_id, credentials, connector_service)
+    return GoogleGmailClient(user_id, credentials, DetachedConnectorService())
 
 
 def _raise_mail_source_not_found(source_id: UUID, space_id: UUID) -> NoReturn:

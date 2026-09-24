@@ -35,8 +35,7 @@ from src.core.i18n_telephony import get_availability_phrases
 from src.core.time_utils import format_datetime_for_display
 
 if TYPE_CHECKING:
-    from src.domains.connectors.models import ConnectorType
-    from src.domains.connectors.service import ConnectorService
+    from src.domains.connectors.calendar_access import CalendarAccess
 
 logger = structlog.get_logger(__name__)
 
@@ -99,25 +98,36 @@ def summarize_busy_periods(
     return phrases["header"] + "\n" + "\n".join(lines)
 
 
-async def _resolve_calendar_id(
-    user_id: UUID,
-    resolved_type: ConnectorType,
-    client: Any,
-    connector_service: ConnectorService,
-) -> str:
-    """Resolve the user's preferred default calendar id (falls back to primary).
-
-    Delegates to the shared owner-default resolver so availability reflects the
-    user's real calendar (a non-primary default would otherwise read empty).
-    """
-    from src.domains.connectors.preferences.owner_defaults import resolve_owner_calendar_id
-
-    return await resolve_owner_calendar_id(
-        db=connector_service.db,
-        client=client,
-        owner_id=user_id,
-        connector_type=resolved_type,
+async def _busy_events(
+    access: CalendarAccess, window_start: datetime, window_end: datetime
+) -> list[dict[str, Any]]:
+    """The busy blocks of the open calendar, in the Google event shape."""
+    client = access.client
+    calendar_id = access.calendar_id
+    if hasattr(client, "query_freebusy"):
+        # Lot B (2026-08): the freeBusy endpoint returns busy ranges only —
+        # even less data than the start/end projection, so it wins when
+        # the provider offers it. Projected to the Google event shape so
+        # summarize_busy_periods stays the single rendering path.
+        freebusy = await client.query_freebusy(
+            time_min=window_start.isoformat(),
+            time_max=window_end.isoformat(),
+            calendar_ids=[calendar_id],
+        )
+        return [
+            {"start": {"dateTime": block.get("start")}, "end": {"dateTime": block.get("end")}}
+            for calendar in (freebusy.get("calendars") or {}).values()
+            for block in calendar.get("busy", [])
+        ]
+    result = await client.list_events(
+        time_min=window_start.isoformat(),
+        time_max=window_end.isoformat(),
+        max_results=_MAX_EVENTS,
+        calendar_id=calendar_id,
+        # Minimization by capability: never fetch titles/attendees/locations.
+        fields=["start", "end"],
     )
+    return list(result.get("items", []) or [])
 
 
 @dataclass(frozen=True)
@@ -139,30 +149,10 @@ class AvailabilityRead:
     failed: bool
 
 
-async def build_availability_summary(
-    user_id: UUID,
-    window_start: datetime,
-    window_end: datetime,
-    connector_service: ConnectorService,
-    user_timezone: str,
-    user_language: str = "en",
-) -> str:
-    """The free/busy summary alone — see :func:`build_availability`.
-
-    Kept for callers that only want the text; the dial path reads the
-    structured door so it can record the consultation.
-    """
-    read = await build_availability(
-        user_id, window_start, window_end, connector_service, user_timezone, user_language
-    )
-    return read.summary
-
-
 async def build_availability(
     user_id: UUID,
     window_start: datetime,
     window_end: datetime,
-    connector_service: ConnectorService,
     user_timezone: str,
     user_language: str = "en",
 ) -> AvailabilityRead:
@@ -177,7 +167,6 @@ async def build_availability(
         user_id: Owner of the calendar.
         window_start: Inclusive lower bound of the pre-fetch window (UTC-aware).
         window_end: Exclusive upper bound of the pre-fetch window (UTC-aware).
-        connector_service: Service used to resolve the active calendar + creds.
         user_timezone: IANA timezone the busy ranges are rendered in.
         user_language: Language for phrases + date formatting (app code, e.g.
             ``"fr"``, ``"zh-CN"``).
@@ -189,52 +178,14 @@ async def build_availability(
     phrases = get_availability_phrases(user_language)
     not_opened = AvailabilityRead(summary=phrases["unavailable"], opened=False, failed=False)
     try:
-        from src.domains.connectors.clients.registry import ClientRegistry
-        from src.domains.connectors.provider_resolver import resolve_active_connector
+        from src.domains.connectors.calendar_access import CalendarAccess, open_active_calendar
 
-        resolved_type = await resolve_active_connector(user_id, "calendar", connector_service)
-        if resolved_type is None:
-            return not_opened
-
-        credentials = (
-            await connector_service.get_apple_credentials(user_id, resolved_type)
-            if resolved_type.is_apple
-            else await connector_service.get_connector_credentials(user_id, resolved_type)
-        )
-        if not credentials:
-            return not_opened
-
-        client_class = ClientRegistry.get_client_class(resolved_type)
-        if client_class is None:
-            return not_opened
-        client = client_class(user_id, credentials, connector_service)
-
-        calendar_id = await _resolve_calendar_id(user_id, resolved_type, client, connector_service)
-        if hasattr(client, "query_freebusy"):
-            # Lot B (2026-08): the freeBusy endpoint returns busy ranges only —
-            # even less data than the start/end projection, so it wins when
-            # the provider offers it. Projected to the Google event shape so
-            # summarize_busy_periods stays the single rendering path.
-            freebusy = await client.query_freebusy(
-                time_min=window_start.isoformat(),
-                time_max=window_end.isoformat(),
-                calendar_ids=[calendar_id],
-            )
-            events = [
-                {"start": {"dateTime": block.get("start")}, "end": {"dateTime": block.get("end")}}
-                for calendar in (freebusy.get("calendars") or {}).values()
-                for block in calendar.get("busy", [])
-            ]
-        else:
-            result = await client.list_events(
-                time_min=window_start.isoformat(),
-                time_max=window_end.isoformat(),
-                max_results=_MAX_EVENTS,
-                calendar_id=calendar_id,
-                # Minimization by capability: never fetch titles/attendees/locations.
-                fields=["start", "end"],
-            )
-            events = result.get("items", []) or []
+        # The shared door (ADR-304): no session held while the calendar
+        # answers, the client closed on every path — it never was here.
+        async with open_active_calendar(user_id) as access:
+            if not isinstance(access, CalendarAccess):
+                return not_opened
+            events = await _busy_events(access, window_start, window_end)
     except (TimeoutError, httpx.HTTPError, ValueError, KeyError, AttributeError) as exc:
         logger.warning(
             "telephony_availability_prefetch_failed", user_id=str(user_id), error=str(exc)

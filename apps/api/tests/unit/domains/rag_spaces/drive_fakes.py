@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+from collections.abc import AsyncIterator
 from typing import Any
 
 from src.core.constants import GOOGLE_DRIVE_FOLDER_MIME
@@ -18,6 +20,22 @@ def drive_file(file_id: str, mime: str = PDF, **extra: Any) -> dict[str, Any]:
         "modifiedTime": "2026-09-17T10:00:00Z",
         **extra,
     }
+
+
+class FakeDetachedConnectors:
+    """A ``DetachedConnectorService`` whose units hand out one given service."""
+
+    def __init__(self, service: Any) -> None:
+        self.service = service
+        self.open = 0
+
+    @contextlib.asynccontextmanager
+    async def unit_of_work(self) -> AsyncIterator[Any]:
+        self.open += 1
+        try:
+            yield self.service
+        finally:
+            self.open -= 1
 
 
 class FakeDriveClient:

@@ -200,6 +200,7 @@ async def persist_embedding_tokens(
                 prompt_tokens=token_count,
                 completion_tokens=0,
                 cached_tokens=0,
+                cache_write_tokens=0,
                 duration_ms=duration_ms,
                 call_type="embedding",
             )
@@ -301,6 +302,7 @@ async def persist_embedding_tokens(
                 prompt_tokens=token_count,  # Embeddings use "input" tokens
                 completion_tokens=0,  # No output tokens for embeddings
                 cached_tokens=0,  # No caching for embeddings
+                cache_write_tokens=0,
             )
 
             await tracker.commit()

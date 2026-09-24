@@ -16,26 +16,43 @@ fields inconsistently.
 That is what a duplicated rule costs: not the extra lines, but the six versions
 that stopped being the same rule. This module is the one implementation; the
 tests pin both spellings and the clamp.
+
+A prompt-cache WRITE is the fourth number (ADR-306): it stays inside the
+prompt count -- a written token is a prompt token -- and is reported apart
+because a vendor may bill it above the input price. The count is the same fact
+whoever reports it (langchain-anthropic and langchain-openai both fill the
+generic ``cache_creation``); what a write COSTS is the tariff's to say
+(``CachedModelPrice.cache_write_multiplier``), never this module's.
 """
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from typing import Any, NamedTuple
+
+#: Where the written tokens are reported. langchain-anthropic fills the TTL
+#: breakdown when the response carries one, and then sets the generic key to 0;
+#: on the path LIA runs it reports the generic key alone (measured on Sonnet 5,
+#: 2026-09-23). Summing the three counts each write once in either shape.
+_CACHE_WRITE_KEYS = ("cache_creation", "ephemeral_5m_input_tokens", "ephemeral_1h_input_tokens")
 
 
 class UsageTokens(NamedTuple):
     """One call's token counts, normalised across providers.
 
     Attributes:
-        prompt: Billable prompt tokens, cache EXCLUDED.
+        prompt: Billable prompt tokens, cache reads EXCLUDED.
         completion: Tokens the model produced.
         cached: Prompt tokens served from the provider's cache, priced apart.
+        cache_write: The subset of ``prompt`` the provider wrote to its prompt
+            cache. Its tariff says whether it owes more than the input price
+            (Claude: the 5-minute write at 1.25x — LIA sets no ``ttl``, ADR-306).
     """
 
     prompt: int
     completion: int
     cached: int
+    cache_write: int = 0
 
     @property
     def is_empty(self) -> bool:
@@ -59,7 +76,9 @@ def tokens_from_usage_metadata(usage_metadata: Mapping[str, Any] | None) -> Usag
     completion = _as_int(usage_metadata.get("output_tokens"))
 
     details = usage_metadata.get("input_token_details")
-    detailed_cache = _as_int(details.get("cache_read")) if isinstance(details, Mapping) else 0
+    if not isinstance(details, Mapping):
+        details = {}
+    detailed_cache = _as_int(details.get("cache_read"))
     # Anthropic publishes the same count at the top level. Reading only the
     # OpenAI spelling is what made six of the seven previous copies attribute
     # cached tokens to full price on every Anthropic model.
@@ -67,7 +86,11 @@ def tokens_from_usage_metadata(usage_metadata: Mapping[str, Any] | None) -> Usag
 
     # Clamped: a provider reporting the two fields inconsistently must not
     # produce a negative prompt count that then flows into a price.
-    return UsageTokens(prompt=max(raw_input - cached, 0), completion=completion, cached=cached)
+    prompt = max(raw_input - cached, 0)
+    written = sum(_as_int(details.get(key)) for key in _CACHE_WRITE_KEYS)
+    return UsageTokens(
+        prompt=prompt, completion=completion, cached=cached, cache_write=min(written, prompt)
+    )
 
 
 def tokens_from_response(response: object) -> UsageTokens:
@@ -104,15 +127,28 @@ def tokens_from_callback(handler: object) -> UsageTokens:
     collected = getattr(handler, "usage_metadata", None)
     if not isinstance(collected, Mapping):
         return UsageTokens(0, 0, 0)
-    prompt = completion = cached = 0
-    for entry in collected.values():
-        if not isinstance(entry, Mapping):
-            continue
-        usage = tokens_from_usage_metadata(entry)
-        prompt += usage.prompt
-        completion += usage.completion
-        cached += usage.cached
-    return UsageTokens(prompt, completion, cached)
+    readings = [tokens_from_usage_metadata(e) for e in collected.values() if isinstance(e, Mapping)]
+    return sum_usage(readings)
+
+
+def sum_usage(readings: Iterable[UsageTokens]) -> UsageTokens:
+    """Add up the usage of several calls, field by field.
+
+    Args:
+        readings: One normalised reading per call.
+
+    Returns:
+        Their sum; all zero for no reading.
+    """
+    total = UsageTokens(0, 0, 0)
+    for usage in readings:
+        total = UsageTokens(
+            prompt=total.prompt + usage.prompt,
+            completion=total.completion + usage.completion,
+            cached=total.cached + usage.cached,
+            cache_write=total.cache_write + usage.cache_write,
+        )
+    return total
 
 
 def reasoning_tokens_of(response: object) -> int:

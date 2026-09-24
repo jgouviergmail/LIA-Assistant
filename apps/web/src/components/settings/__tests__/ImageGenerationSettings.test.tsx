@@ -25,13 +25,46 @@ vi.mock('sonner', () => ({ toast }));
 import { ImageGenerationSettings } from '../ImageGenerationSettings';
 
 const OPTIONS: ImageGenerationOptions = {
-  active_model: 'gpt-image-1',
+  active_model: 'gpt-image-2',
   provider: 'openai',
   qualities: [
     { value: 'low', min_cost_usd: 0.01, max_cost_usd: 0.02 },
     { value: 'high', min_cost_usd: 0.05, max_cost_usd: 0.08 },
   ],
-  sizes: [{ value: '1024x1024', label_key: 'settings.image_generation.size_square' }],
+  sizes: [
+    {
+      value: '1024x1024',
+      orientation: 'square',
+      tier: null,
+      label_key: 'settings.image_generation.size_square',
+    },
+  ],
+  effective_quality: 'low',
+  effective_size: '1024x1024',
+};
+
+// A Qwen offer: one quality, 1K and 2K sizes. The server has mapped the
+// person's stored OpenAI quality onto the one Qwen offers.
+const QWEN_OPTIONS: ImageGenerationOptions = {
+  active_model: 'qwen-image-3.0-pro',
+  provider: 'qwen',
+  qualities: [{ value: 'standard', min_cost_usd: 0.034, max_cost_usd: 0.069 }],
+  sizes: [
+    {
+      value: '1024x1536',
+      orientation: 'portrait',
+      tier: '1k',
+      label_key: 'settings.image_generation.size_portrait',
+    },
+    {
+      value: '1632x2448',
+      orientation: 'portrait',
+      tier: '2k',
+      label_key: 'settings.image_generation.size_portrait',
+    },
+  ],
+  effective_quality: 'standard',
+  effective_size: '1632x2448',
 };
 
 function authed(over: Partial<User> = {}) {
@@ -63,6 +96,30 @@ describe('ImageGenerationSettings — options states', () => {
     useImageGenerationOptions.mockReturnValue(dataQuery(OPTIONS));
     renderWithProviders(<ImageGenerationSettings lng="en" />);
     expect(screen.getAllByRole('combobox')).toHaveLength(3);
+  });
+});
+
+describe('ImageGenerationSettings — what the next image uses', () => {
+  it('shows the server mapping of a stored value the model does not offer', () => {
+    useAuth.mockReturnValue(
+      authed({
+        image_generation_default_quality: 'high',
+        image_generation_default_size: '1632x2448',
+      })
+    );
+    useImageGenerationOptions.mockReturnValue(dataQuery(QWEN_OPTIONS));
+    renderWithProviders(<ImageGenerationSettings lng="en" />);
+    const [quality, size] = screen.getAllByRole('combobox');
+    expect(quality).toHaveTextContent('settings.image_generation.quality_standard');
+    // A size carries its tier, so two portraits of two resolutions read apart.
+    expect(size).toHaveTextContent('2K (1632x2448)');
+  });
+
+  it('shows a stored value the model offers, even before the options refresh', () => {
+    useAuth.mockReturnValue(authed({ image_generation_default_size: '1024x1536' }));
+    useImageGenerationOptions.mockReturnValue(dataQuery(QWEN_OPTIONS));
+    renderWithProviders(<ImageGenerationSettings lng="en" />);
+    expect(screen.getAllByRole('combobox')[1]).toHaveTextContent('1K (1024x1536)');
   });
 });
 

@@ -17,8 +17,9 @@
 • Visibility
 • Sunrise/sunset times
 
-**🌿 Air quality and pollen (Google Environment connector):**
-With that connector on, a plain weather question also brings the air-quality
+**🌿 Air quality and pollen (Google Environment):**
+Google Environment is always active, so a plain weather question also brings
+the air-quality
 index and in-season pollen — on the chat card, on the forecast and on the home
 page. The category shown is the one the service itself publishes, and the index
 is your country's when one exists.
@@ -26,15 +27,21 @@ is your country's when one exists.
 • "*What's the pollen forecast this week?*"
 
 **💡 Tip:**
-Two ways to get weather: the **OpenWeatherMap** connector (free, needs your own
-API key) or **Google Weather** (a single toggle, no key to obtain). Both render
-identically. Add either in Settings > Connectors.
+Weather works from your first conversation: **Google Weather** is always
+active, with no key to obtain. If you prefer **OpenWeatherMap** (free, needs
+your own API key), add it in Settings > Connectors: it then answers instead.
+Both render identically.
 
 ## Which services work without configuration?
 Some services are **immediately available**, others require configuration:
 
-**✅ Available without configuration:**
+**✅ Available without configuration (provided by your instance):**
 • 📚 **Wikipedia**: Free encyclopedic search
+• 🌐 **Page browsing**: open and navigate web pages
+• 📍 **Google Places**: search for places
+• 🗺️ **Google Routes**: directions
+• 🌤️ **Google Weather**: weather and forecasts
+• 🌿 **Google Environment**: air quality and pollen
 • 🌐 **Web Page Reader**: Web page reading (URL → content)
 • 💬 **Conversation**: LIA answers your general questions
 
@@ -44,8 +51,6 @@ Some services are **immediately available**, others require configuration:
 • 👥 Google Contacts
 • 📁 Google Drive
 • ✅ Google Tasks
-• 📍 Google Places
-• 🗺️ Google Routes (Directions)
 
 **🔑 Require an API key:**
 • 🌤️ **OpenWeatherMap**: Free, signup at openweathermap.org
@@ -55,7 +60,7 @@ Some services are **immediately available**, others require configuration:
 • 💡 **Philips Hue**: Connect your Hue bridge in Settings > Connectors
 
 **💡 Getting started tip:**
-Start by connecting your Google services (one authorization for all), then add OpenWeatherMap for free weather.
+Start by connecting your Google services (one authorization for all). Weather already works through Google Weather; add OpenWeatherMap only if you prefer it.
 
 ## How do I get directions?
 **Google Routes** - Route calculation:
@@ -277,6 +282,11 @@ Useful for planning activities: "*What's the best day for a picnic this week?*"
 • Weather summaries follow your interface language (6 supported)
 • Asking beyond the provider's range gets a clear answer about how far the forecast actually reaches, instead of a silent approximation
 • Asking about several appointments at once returns one forecast per appointment, even when they share a place and a day
+
+**📆 Dates in your own words:**
+• « tomorrow », « Saturday », « this weekend » become an exact date before the service is queried, whatever your language
+• An unreadable date is refused with the accepted format — the forecast is never silently replaced by today's
+• Forecasts come from Google Weather, or from OpenWeatherMap when you added your own key
 
 ## What is the difference between Browser Control and Web Fetch?
 Web Fetch: static HTML, read-only, fast (1-3s), cheap. Browser Control: full JS execution, click/fill/search, slower (15-60s), more expensive but handles dynamic pages and interaction.

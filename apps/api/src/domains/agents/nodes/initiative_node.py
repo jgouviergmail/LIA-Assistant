@@ -45,11 +45,14 @@ from src.core.constants import (
     STATE_KEY_INITIATIVE_SUGGESTION,
 )
 from src.core.llm_config_helper import get_llm_config_for_agent
+from src.core.prompt_layout import single_call_messages
+from src.core.run_config import run_id_of
 from src.core.time_utils import get_prompt_datetime_formatted
 from src.domains.agents.constants import (
     STATE_KEY_AGENT_RESULTS,
     STATE_KEY_CURRENT_TURN_ID,
     STATE_KEY_EXECUTION_PLAN,
+    AgentResultStatus,
 )
 from src.domains.agents.context.runtime_context import runtime_user_id_str
 from src.domains.agents.models import MessagesState
@@ -151,9 +154,8 @@ def _handoff_motivation(decision: InitiativeDecision, followups: list[str], run_
 
 
 def _extract_run_id(config: RunnableConfig) -> str:
-    """Extract run_id from RunnableConfig metadata."""
-    metadata = config.get("metadata") or {}
-    return metadata.get("run_id", "unknown")
+    """The turn's run id (``unknown`` when the config carries none)."""
+    return run_id_of(config, "unknown")
 
 
 def _extract_domains(state: MessagesState) -> list[str]:
@@ -483,7 +485,7 @@ def _format_execution_summary(
             status = result_data.get("status", "unknown")
             agent_name = result_data.get("agent_name", "agent")
 
-            if status == "success":
+            if status == AgentResultStatus.SUCCESS.value:
                 data = result_data.get("data", {})
                 if isinstance(data, dict):
                     step_results = data.get("step_results") or data.get("aggregated_results") or []
@@ -501,7 +503,7 @@ def _format_execution_summary(
                                 summary = str(sr_result)[:200]
                             if summary:
                                 sections.append(f"[{tool}] {summary}")
-            elif status in ("failed", "error"):
+            elif status == AgentResultStatus.ERROR.value:
                 error = result_data.get("error", "Unknown error")
                 sections.append(f"[{agent_name}] ERROR: {error}")
 
@@ -690,7 +692,7 @@ async def _initiative_core(
         decision = await asyncio.wait_for(
             get_structured_output(
                 llm=llm,
-                messages=[HumanMessage(content=prompt)],
+                messages=single_call_messages(prompt),
                 schema=InitiativeDecision,
                 provider=provider,
                 node_name=NODE_INITIATIVE,

@@ -76,6 +76,7 @@ from src.domains.agents.data_registry.models import (
     RegistryItemType,
     generate_registry_id,
 )
+from src.domains.agents.tools.common import http_status_to_error_code
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import validate_runtime_config
 from src.domains.agents.tools.url_screening import web_risk_gate
@@ -457,10 +458,17 @@ async def fetch_web_page_tool(
         )
     except httpx.HTTPStatusError as e:
         status_code = e.response.status_code
-        error_code = "NOT_FOUND" if status_code == 404 else "EXTERNAL_API_ERROR"
+        code = http_status_to_error_code(status_code)
+        logger.warning(
+            "web_fetch_failed",
+            domain=urlparse(safe_url).netloc,
+            status=status_code,
+            error_code=code.value,
+            user_id=user_id_str[:8],
+        )
         return UnifiedToolOutput.failure(
             message=f"HTTP error {status_code} fetching {safe_url}",
-            error_code=error_code,
+            error_code=code.value,
         )
     except httpx.RequestError as e:
         return UnifiedToolOutput.failure(

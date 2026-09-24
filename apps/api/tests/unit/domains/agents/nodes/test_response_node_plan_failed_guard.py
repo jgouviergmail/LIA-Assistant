@@ -26,7 +26,7 @@ class TestPlanExecutionFailed:
         return {STATE_KEY_CURRENT_TURN_ID: turn_id, STATE_KEY_AGENT_RESULTS: results}
 
     def test_failed_plan_returns_true(self):
-        assert _plan_execution_failed(self._state(3, "failed")) is True
+        assert _plan_execution_failed(self._state(3, "error")) is True
 
     def test_successful_plan_returns_false(self):
         assert _plan_execution_failed(self._state(3, "success")) is False
@@ -43,7 +43,7 @@ class TestPlanExecutionFailed:
         state = {
             STATE_KEY_CURRENT_TURN_ID: 5,
             STATE_KEY_AGENT_RESULTS: {
-                make_agent_result_key(4, "plan_executor"): {"status": "failed"},
+                make_agent_result_key(4, "plan_executor"): {"status": "error"},
             },
         }
         assert _plan_execution_failed(state) is False

@@ -1096,12 +1096,15 @@ class TestSecondPassMemories:
         calendar_events = [{"summary": "Standup", "start": "09:00", "end": "09:15"}]
 
         async def _fake_fresh_session(fetch, *args):
-            if fetch == aggregator._fetch_calendar:
-                return calendar_events
             return None
 
         with (
             patch.object(aggregator, "_with_fresh_session", side_effect=_fake_fresh_session),
+            # The connector fetchers hold no session (ADR-304): stubbed directly.
+            patch.object(aggregator, "_fetch_calendar", AsyncMock(return_value=calendar_events)),
+            patch.object(aggregator, "_fetch_tasks", AsyncMock(return_value=None)),
+            patch.object(aggregator, "_fetch_emails", AsyncMock(return_value=None)),
+            patch.object(aggregator, "_fetch_birthdays", AsyncMock(return_value=None)),
             patch(
                 "src.domains.heartbeat.context_aggregator.fetch_health_signals",
                 AsyncMock(return_value=None),
@@ -1140,6 +1143,11 @@ class TestSecondPassMemories:
 
         with (
             patch.object(aggregator, "_with_fresh_session", side_effect=_fake_fresh_session),
+            # The connector fetchers hold no session (ADR-304): stubbed directly.
+            patch.object(aggregator, "_fetch_calendar", AsyncMock(return_value=None)),
+            patch.object(aggregator, "_fetch_tasks", AsyncMock(return_value=None)),
+            patch.object(aggregator, "_fetch_emails", AsyncMock(return_value=None)),
+            patch.object(aggregator, "_fetch_birthdays", AsyncMock(return_value=None)),
             patch(
                 "src.domains.heartbeat.context_aggregator.fetch_health_signals",
                 AsyncMock(return_value=None),
@@ -1414,8 +1422,11 @@ class TestProviderClientLifecycle:
         return client
 
     async def _run(self, fetcher_name, client):
+        import contextlib
         from unittest.mock import AsyncMock, patch
         from uuid import uuid4
+
+        from src.domains.connectors import active_client
 
         aggregator = ContextAggregator(MagicMock())
         user = MagicMock()
@@ -1425,50 +1436,42 @@ class TestProviderClientLifecycle:
             heartbeat_context_tasks_days=2,
             heartbeat_context_emails_max=5,
         )
-        repo = MagicMock()
-        repo.get_by_user_and_type = AsyncMock(return_value=None)
-        connector_service = MagicMock()
-        connector_service.get_connector_credentials = AsyncMock(return_value=MagicMock())
-        connector_service.get_apple_credentials = AsyncMock(return_value=MagicMock())
+        service = MagicMock()
+        service.get_connector_credentials = AsyncMock(return_value=MagicMock())
+        service.get_apple_credentials = AsyncMock(return_value=MagicMock())
+        open_sessions: list[int] = []
+        units = {"open": 0}
 
+        class _Detached:
+            @contextlib.asynccontextmanager
+            async def unit_of_work(self):
+                units["open"] += 1
+                try:
+                    yield service
+                finally:
+                    units["open"] -= 1
+
+        def _build(*_args, **_kwargs):
+            open_sessions.append(units["open"])
+            return client
+
+        # The three connector fetchers open through the shared door
+        # (``connectors.active_client``, ADR-304): its seams are patched where
+        # it imports them, and the fetchers take no session any more.
         with (
-            patch(
-                "src.domains.heartbeat.context_aggregator.ConnectorService",
-                return_value=connector_service,
-            ),
-            patch(
-                "src.domains.connectors.provider_resolver.resolve_active_connector",
+            patch.object(active_client, "DetachedConnectorService", _Detached),
+            patch.object(
+                active_client,
+                "resolve_active_connector",
                 AsyncMock(return_value=MagicMock(value="google", is_apple=False)),
             ),
-            patch(
-                "src.domains.connectors.clients.registry.ClientRegistry.get_client_class",
-                return_value=lambda *a, **k: client,
-            ),
-            patch(
-                "src.domains.connectors.repository.ConnectorRepository",
-                return_value=repo,
-            ),
-            # The calendar path resolves its provider through the shared door
-            # (``connectors.calendar_access``), which imports these at module
-            # level — so patching them at their source would not reach it. The
-            # other two fetchers keep their own resolution; these patches are
-            # inert for them.
-            patch(
-                "src.domains.connectors.calendar_access.ConnectorService",
-                return_value=connector_service,
-            ),
-            patch(
-                "src.domains.connectors.calendar_access.resolve_active_connector",
-                AsyncMock(return_value=MagicMock(value="google", is_apple=False)),
-            ),
-            patch(
-                "src.domains.connectors.calendar_access.resolve_owner_calendar_id",
-                AsyncMock(return_value="primary"),
-            ),
+            patch.object(active_client.ClientRegistry, "get_client_class", return_value=_build),
+            patch.object(active_client, "read_owner_container_name", AsyncMock(return_value=None)),
         ):
             fetcher = getattr(aggregator, fetcher_name)
-            await fetcher(MagicMock(), uuid4(), user, settings_view)
+            await fetcher(uuid4(), user, settings_view)
         client.close.assert_awaited_once()
+        assert open_sessions == [0], "a session was open while the provider was called"
 
     async def test_calendar_client_closed(self):
         from unittest.mock import AsyncMock

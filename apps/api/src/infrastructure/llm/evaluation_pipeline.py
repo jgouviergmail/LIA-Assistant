@@ -83,6 +83,7 @@ async def _scored_with_accounting[T: BaseModel](
         tokens_in=usage.prompt,
         tokens_out=usage.completion,
         tokens_cache=usage.cached,
+        tokens_cache_write=usage.cache_write,
     )
     return result
 

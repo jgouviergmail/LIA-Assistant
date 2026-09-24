@@ -31,7 +31,7 @@ Re-ground the response prompt from state when, and only when, the turn produced 
 ## Consequences
 
 - Text-only by construction: the HTML/photo/widget path keeps reading the empty current-turn registry, so the 2025-12-26 contamination fix stays intact.
-- Bounded cost: at most `TOOL_CONTEXT_MAX_ITEMS` entities, no store round-trip, no extra LLM call.
+- Bounded cost: at most `RESPONSE_RECENT_ENTITIES_MAX_ITEMS` entities, no store round-trip, no extra LLM call. (Until 2026-09-23 the bound borrowed the context store's list ceiling `TOOL_CONTEXT_MAX_ITEMS`; widening what the store keeps for « the 4th » would have widened this prompt block too, so it has its own budget and the store follows `API_MAX_ITEMS_PER_REQUEST`.)
 - `RESPONSE_RECENT_ENTITIES_MAX_TURN_AGE=0` disables the feature outright.
 - Residual: end-to-end efficacy depends on the entity payloads a connector actually returns; the chain is proven by tests and in-container runtime checks, but real-conversation validation remains an observation task.
 

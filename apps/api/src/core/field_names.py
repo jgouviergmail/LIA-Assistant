@@ -79,6 +79,17 @@ FIELD_MODEL_NAME = "model_name"
 FIELD_STATUS = "status"
 FIELD_ROLE = "role"
 FIELD_ERROR_CODE = "error_code"
+
+# ADR-303: the shape a failed step takes in ``completed_steps`` is WRITTEN and
+# READ through these names. The reader that once looked for ``status`` found
+# nothing for the whole life of the pipeline — writer and reader must share the
+# constant, not a convention.
+FIELD_SUCCESS = "success"
+FIELD_ERROR = "error"
+FIELD_FAILED_STEPS = "failed_steps"
+#: Stamped by the FOR_EACH aggregator on the entry it writes under the original
+#: step id: a reader listing failures skips it — its items are listed one by one.
+FIELD_FOR_EACH_AGGREGATE = "_for_each_aggregate"
 FIELD_ERROR_MESSAGE = "error_message"
 FIELD_ERROR_TYPE = "error_type"
 FIELD_IS_ACTIVE = "is_active"

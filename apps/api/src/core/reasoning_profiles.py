@@ -29,10 +29,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 
+from src.core.claude_surface import CLAUDE_SURFACES, ClaudeSurface
+
 FAMILIES: frozenset[str] = frozenset(
     {
         "openai",
         "anthropic_adaptive",
+        "anthropic_adaptive_display",
         "anthropic_budget",
         "gemini_level",
         "gemini_budget",
@@ -69,6 +72,12 @@ class ReasoningProfile:
             Without a declared ladder such a model resolves to the unknown
             family -- no kwarg, no claim -- instead of inheriting depths the
             rule table cannot vouch for.
+        implicit_level: The depth the provider applies when the request names
+            none, for a model that reasons unasked -- what ``provider_default``
+            actually costs. ``None`` asserts nothing: declared only where it
+            was read on the vendor's own documentation (the Claude generations
+            of ADR-306), so a reader that treats it as heavy changes no other
+            family.
     """
 
     family: str
@@ -79,6 +88,7 @@ class ReasoningProfile:
     default_enabled: bool | None
     source: str = "family"
     ladder_from_catalogue: bool = False
+    implicit_level: str | None = None
 
 
 #: A rule matched and says this model does not reason. Positive knowledge.
@@ -108,6 +118,65 @@ _OLLAMA_PROFILE = ReasoningProfile(
     None,
     ladder_from_catalogue=True,
 )
+
+#: The Claude 4.6 pair: adaptive thinking, off unless asked, no ``xhigh`` (the
+#: Models API declares low/medium/high/max). Its renderer sends no visibility
+#: control -- the golden file froze what it emits.
+_CLAUDE_ADAPTIVE = ReasoningProfile(
+    "anthropic_adaptive", ("none", "low", "medium", "high", "max"), False, None, True, False
+)
+
+#: The Claude 4.5 generation: a token budget (``adaptive`` and ``effort`` are 400s).
+_CLAUDE_BUDGET = ReasoningProfile(
+    "anthropic_budget",
+    ("none", "minimal", "low", "medium", "high", "xhigh"),
+    True,
+    (1024, 128000),
+    True,
+    False,
+)
+
+#: Every effort level the Claude API accepts from Opus 4.7 on (Models API).
+_CLAUDE_EFFORTS: tuple[str, ...] = ("low", "medium", "high", "xhigh", "max")
+
+
+def _claude_profile(surface: ClaudeSurface) -> ReasoningProfile:
+    """The reasoning profile a Claude generation's thinking shape implies.
+
+    From Opus 4.7 on one translation serves every shape -- adaptive thinking
+    with a visibility control and an EXPLICIT off switch, because omitting
+    ``thinking`` means « think » on Opus 5 and Sonnet 5. What differs is the
+    ladder: an always-on generation has no ``none`` (``disabled`` is a 400
+    there), so an explicit off is coerced up to the cheapest depth instead of
+    being sent and refused.
+
+    Args:
+        surface: One declared row of :data:`CLAUDE_SURFACES`.
+
+    Returns:
+        The profile the rule table serves for the row's prefixes.
+    """
+    match surface.thinking:
+        case None:
+            return _UNKNOWN_FAMILY
+        case "none":
+            return _NO_REASONING
+        case "budget":
+            return _CLAUDE_BUDGET
+        case "adaptive":
+            return _CLAUDE_ADAPTIVE
+        case "opt_in" | "default_on" | "always_on":
+            can_disable = surface.thinking != "always_on"
+            return ReasoningProfile(
+                "anthropic_adaptive_display",
+                ("none", *_CLAUDE_EFFORTS) if can_disable else _CLAUDE_EFFORTS,
+                False,
+                None,
+                can_disable,
+                surface.thinking != "opt_in",
+                implicit_level=surface.implicit_effort,
+            )
+
 
 #: DeepSeek's thinking-toggle family, declared ONCE. The vendor renamed its
 #: flagship: the API model is ``deepseek-flash`` (DeepSeek-V4.1-Flash) and the
@@ -167,34 +236,25 @@ _RULES: list[tuple[str, tuple[str, ...], ReasoningProfile]] = [
         ),
         _NO_REASONING,
     ),
-    ("anthropic", ("claude-3-5",), _NO_REASONING),
+    # Claude: one row per generation, derived from the ONE declaration of what
+    # the Claude API accepts (``core/claude_surface.py``, ADR-306). The order of
+    # that table is what keeps ``claude-opus-4-8`` out of the budget family its
+    # ``claude-opus-4`` prefix used to hand it (a 400 on every thinking call).
+    *(("anthropic", surface.prefixes, _claude_profile(surface)) for surface in CLAUDE_SURFACES),
+    # GPT-6 (model pages, 2026-09-23). Astra accepts « low, medium, high,
+    # xhigh, and max » and nothing else: it has no off switch, so an explicit
+    # ``none`` is coerced upward instead of being sent and refused. Sol and
+    # Luna add ``none`` to the same ladder. The narrower name comes first.
     (
-        "anthropic",
-        ("claude-opus-4-6", "claude-sonnet-4-6"),
+        "openai",
+        ("gpt-6-astra",),
         ReasoningProfile(
-            "anthropic_adaptive",
-            ("none", "low", "medium", "high", "max"),
-            False,
-            None,
-            True,
-            True,
-        ),
-    ),
-    (
-        "anthropic",
-        ("claude-opus-4-5", "claude-haiku-4-5", "claude-opus-4", "claude-sonnet-4"),
-        ReasoningProfile(
-            "anthropic_budget",
-            ("none", "minimal", "low", "medium", "high", "xhigh"),
-            True,
-            (1024, 128000),
-            True,
-            True,
+            "openai", ("low", "medium", "high", "xhigh", "max"), False, None, False, True
         ),
     ),
     (
         "openai",
-        ("gpt-5.6",),
+        ("gpt-6", "gpt-5.6"),
         ReasoningProfile(
             "openai", ("none", "low", "medium", "high", "xhigh", "max"), False, None, True, None
         ),

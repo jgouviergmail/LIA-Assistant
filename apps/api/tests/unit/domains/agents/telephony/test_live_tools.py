@@ -1024,3 +1024,34 @@ async def test_run_refuses_a_native_lookup_without_its_required_argument(
     monkeypatch.setattr(mod, "build_psychological_profile", lambda *a, **k: pytest.fail("ran"))
     text = await _run("recall_memories")
     assert text == mod.result_lines()["failed"].format(tool="recall_memories")
+
+
+@pytest.mark.unit
+async def test_a_returned_failure_is_told_to_BOTH_authorities(
+    _execution: dict, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The register and Prometheus cannot disagree about the same call (ADR-303).
+
+    ``succeeded`` was read and handed to the consultation register, while the
+    Prometheus ``outcome`` stayed "ok" because only an exception ever changed
+    it. The same function said « failed » to one authority and « ok » to the
+    other — and the metric is what an operator watches.
+    """
+    monkeypatch.setattr(mod, "get_tool", lambda _n: _fake_tool("failure"))
+    seen: list[tuple[str, str]] = []
+
+    class _Counter:
+        def labels(self, **kwargs: Any):  # noqa: ANN202
+            seen.append((kwargs["tool"], kwargs["outcome"]))
+            return self
+
+        def inc(self) -> None:
+            return None
+
+    monkeypatch.setattr(mod, "telephony_live_tool_calls_total", _Counter())
+    await _run()
+
+    # The register was told the section failed…
+    assert _execution["consultations"][-1]["failed"] == ["event"]
+    # …and so was Prometheus.
+    assert seen == [("get_events_tool", "failed")]

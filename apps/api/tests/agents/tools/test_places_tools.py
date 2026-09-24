@@ -18,6 +18,7 @@ from uuid import uuid4
 import pytest
 from langgraph.prebuilt.tool_node import ToolRuntime
 
+from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.connectors.schemas import ConnectorCredentials
 from tests.helpers.runtime_context import make_tool_runtime
@@ -259,11 +260,12 @@ class TestSearchPlacesTool:
             assert data["error_code"] == "INTERNAL_ERROR"
 
     @pytest.mark.asyncio
-    async def test_search_connector_not_activated(self, user_id):
-        """Test handling when connector is not activated."""
+    async def test_search_withheld_by_the_instance(self, user_id):
+        """Places is keyless (ADR-307): when the instance withholds it, say so —
+        a configuration error, never « activate it in the settings »."""
         from src.domains.agents.tools.places_tools import _search_places_tool_instance
 
-        # No credentials = connector not activated
+        # is_connector_active -> False: the instance does not provide Places
         mock_deps = create_mock_oauth_dependencies(credentials=None)
         runtime = create_mock_runtime(user_id)
 
@@ -278,8 +280,9 @@ class TestSearchPlacesTool:
 
             assert isinstance(result, UnifiedToolOutput)
             assert result.success is False
-            assert result.error_code == "connector_not_activated"
+            assert result.error_code == ToolErrorCode.CONFIGURATION_ERROR
             assert "places" in result.message.lower()
+            assert "instance" in result.message.lower()
 
 
 class TestGetPlaceDetailsTool:
@@ -366,11 +369,12 @@ class TestGetPlaceDetailsTool:
             assert registry_item.payload["open_now"] is True
 
     @pytest.mark.asyncio
-    async def test_get_details_connector_not_activated(self, user_id):
-        """Test handling when connector is not activated."""
+    async def test_get_details_withheld_by_the_instance(self, user_id):
+        """Places is keyless (ADR-307): when the instance withholds it, say so —
+        a configuration error, never « activate it in the settings »."""
         from src.domains.agents.tools.places_tools import _get_place_details_tool_instance
 
-        # No credentials = connector not activated
+        # is_connector_active -> False: the instance does not provide Places
         mock_deps = create_mock_oauth_dependencies(credentials=None)
         runtime = create_mock_runtime(user_id)
 
@@ -385,8 +389,9 @@ class TestGetPlaceDetailsTool:
 
             assert isinstance(result, UnifiedToolOutput)
             assert result.success is False
-            assert result.error_code == "connector_not_activated"
+            assert result.error_code == ToolErrorCode.CONFIGURATION_ERROR
             assert "places" in result.message.lower()
+            assert "instance" in result.message.lower()
 
 
 class TestListModeNoSearchCriteria:

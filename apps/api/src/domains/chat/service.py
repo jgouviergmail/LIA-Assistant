@@ -259,6 +259,7 @@ class TrackingContext:
         status: str | None = None,
         failure_kind: str | None = None,
         params: InferenceParams | None = None,
+        cache_write_tokens: int = 0,
     ) -> None:
         """
         Record token usage for a single LLM node call.
@@ -282,6 +283,8 @@ class TrackingContext:
             started_at: Epoch seconds when the call started (v3.4 waterfall).
                 When absent, the offset is derived as now − duration — exact
                 enough for sequential background calls that lack a start stamp.
+            cache_write_tokens: The part of ``prompt_tokens`` Claude wrote to
+                its prompt cache, priced with its write surcharge (ADR-306).
         """
         # Auto-calculate costs if not provided (modern callback path)
         # Use sync-safe pricing cache to avoid event loop issues in LangChain callbacks
@@ -301,6 +304,7 @@ class TrackingContext:
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
                 cached_tokens=cached_tokens,
+                cache_write_tokens=cache_write_tokens,
             )
 
             # Get USD/EUR rate from cache (with built-in fallback to settings)
@@ -375,6 +379,7 @@ class TrackingContext:
         api_name: str,
         endpoint: str,
         cached: bool = False,
+        units: int = 1,
     ) -> None:
         """
         Record a Google API call (synchronous - uses pre-loaded pricing cache).
@@ -386,32 +391,28 @@ class TrackingContext:
             api_name: API identifier (places, routes, geocoding, static_maps)
             endpoint: Endpoint path (e.g., /places:searchText)
             cached: Whether result was served from cache (no cost if True)
+            units: Billable events the call is (a Route Matrix bills per
+                element returned); the cost is the unit price times this.
         """
         from src.domains.google_api.pricing_service import GoogleApiPricingService
 
         if cached:
             # Cache hit - record for stats but zero cost
-            record = GoogleApiRecord(
-                api_name=api_name,
-                endpoint=endpoint,
-                cost_usd=Decimal("0"),
-                cost_eur=Decimal("0"),
-                usd_to_eur_rate=GoogleApiPricingService.get_usd_eur_rate(),
-                cached=True,
-            )
+            unit_usd = unit_eur = Decimal("0")
+            usd_to_eur_rate = GoogleApiPricingService.get_usd_eur_rate()
         else:
-            # Real API call - calculate cost
-            cost_usd, cost_eur, usd_to_eur_rate = GoogleApiPricingService.get_cost_per_request(
+            unit_usd, unit_eur, usd_to_eur_rate = GoogleApiPricingService.get_cost_per_request(
                 api_name, endpoint
             )
-            record = GoogleApiRecord(
-                api_name=api_name,
-                endpoint=endpoint,
-                cost_usd=cost_usd,
-                cost_eur=cost_eur,
-                usd_to_eur_rate=usd_to_eur_rate,
-                cached=False,
-            )
+        record = GoogleApiRecord(
+            api_name=api_name,
+            endpoint=endpoint,
+            cost_usd=unit_usd * units,
+            cost_eur=unit_eur * units,
+            usd_to_eur_rate=usd_to_eur_rate,
+            cached=cached,
+            units=units,
+        )
 
         # Thread-safe append (sync method, but list is protected)
         # Note: This is synchronous as called from sync clients using cached pricing
@@ -434,6 +435,7 @@ class TrackingContext:
         image_count: int,
         prompt_preview: str,
         duration_ms: float = 0.0,
+        input_image_count: int = 0,
     ) -> None:
         """Record an image generation call (synchronous - uses pre-loaded pricing cache).
 
@@ -441,32 +443,36 @@ class TrackingContext:
         Uses ContextVar for implicit access via tracker helper.
 
         Args:
-            model: Image generation model (e.g., "gpt-image-1").
-            quality: Quality level (e.g., "medium").
-            size: Image dimensions (e.g., "1024x1024").
+            model: Image generation model that ran (the configured one).
+            quality: Quality level, in the model family's vocabulary.
+            size: Output dimensions (e.g., "1024x1024").
             image_count: Number of images generated.
             prompt_preview: Prompt text (truncated to 200 chars for audit).
             duration_ms: API call duration in milliseconds (for debug panel).
+            input_image_count: Reference images sent to an edit, billed per image
+                by families that price them (ADR-305).
         """
         from src.domains.image_generation.pricing_service import ImageGenerationPricingService
 
-        cost_usd, cost_eur, usd_to_eur_rate = ImageGenerationPricingService.get_cost_per_image(
-            model, quality, size
+        cost_usd, cost_eur, usd_to_eur_rate = ImageGenerationPricingService.cost_of_call(
+            model=model,
+            quality=quality,
+            size=size,
+            image_count=image_count,
+            input_image_count=input_image_count,
         )
-        total_cost_usd = cost_usd * image_count
-        total_cost_eur = cost_eur * image_count
-
         record = ImageGenerationRecord(
             model=model,
             quality=quality,
             size=size,
             image_count=image_count,
-            cost_usd=total_cost_usd,
-            cost_eur=total_cost_eur,
+            cost_usd=cost_usd,
+            cost_eur=cost_eur,
             usd_to_eur_rate=usd_to_eur_rate,
             prompt_preview=prompt_preview[:200],
             duration_ms=duration_ms,
             started_offset_ms=self._run_offset_ms(None, duration_ms),
+            input_image_count=input_image_count,
         )
         self._image_generation_records.append(record)
 
@@ -477,7 +483,8 @@ class TrackingContext:
             quality=quality,
             size=size,
             image_count=image_count,
-            cost_eur=float(total_cost_eur),
+            input_image_count=input_image_count,
+            cost_eur=float(cost_eur),
         )
 
     def record_tts_call(
@@ -518,6 +525,7 @@ class TrackingContext:
             prompt_tokens=characters,
             completion_tokens=0,
             cached_tokens=0,
+            cache_write_tokens=0,
         )
         usd_to_eur_rate = Decimal(str(get_cached_usd_eur_rate()))
 
@@ -603,7 +611,7 @@ class TrackingContext:
         message_count_for_commit = 0 if self._message_count_committed else self._message_count
 
         # Google API: count only non-cached calls for requests, sum all costs (0 for cached)
-        google_api_requests = len([r for r in self._google_api_records if not r.cached])
+        google_api_requests = sum(r.units for r in self._google_api_records if not r.cached)
         google_api_cost_eur = sum(float(r.cost_eur) for r in self._google_api_records)
 
         # Image Generation: sum all image counts and costs
@@ -773,6 +781,7 @@ class TrackingContext:
                 - quality: Quality level
                 - size: Image dimensions
                 - image_count: Number of images generated
+                - input_image_count: Reference images sent (edit)
                 - cost_usd: Cost in USD
                 - cost_eur: Cost in EUR
                 - prompt_preview: Truncated prompt text
@@ -786,6 +795,7 @@ class TrackingContext:
                 "quality": r.quality,
                 "size": r.size,
                 "image_count": r.image_count,
+                "input_image_count": r.input_image_count,
                 "cost_usd": float(r.cost_usd),
                 "cost_eur": float(r.cost_eur),
                 "duration_ms": r.duration_ms,
@@ -1098,6 +1108,7 @@ class TrackingContext:
                     "cost_eur": float(record.cost_eur),
                     "usd_to_eur_rate": float(record.usd_to_eur_rate),
                     "cached": False,
+                    "request_count": record.units,
                 }
                 for record in google_api_billable
             ]

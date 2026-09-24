@@ -29,10 +29,10 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 from src.core.exceptions import raise_structured_validation_error
 from src.core.reasoning_intent import ReasoningIntent
+from src.core.reasoning_profiles import ReasoningProfile, resolve_reasoning_profile
 
 if TYPE_CHECKING:
     from src.core.llm_agent_config import LLMAgentConfig
-    from src.infrastructure.llm.reasoning.profiles import ReasoningProfile
 
 #: Levels whose reasoning is measured negligible against the completion budget.
 #: OpenAI ``minimal``/``low`` sit here; DeepSeek V4 never stores them (its
@@ -72,8 +72,6 @@ def _profile_for(caps: _CapsLike, provider: str | None) -> ReasoningProfile:
         The resolved profile — the same one the runtime translator uses, which
         is what keeps this validator from becoming a second authority.
     """
-    from src.infrastructure.llm.reasoning.profiles import resolve_reasoning_profile
-
     declared = getattr(caps, "reasoning_enum_values", None)
     return resolve_reasoning_profile(
         provider or "",
@@ -187,19 +185,44 @@ def validate_reasoning_effort(
         )
 
 
-def _reasoning_consumes_completion_budget(value: ReasoningIntent | None) -> bool:
+def _implicit_level(effective: LLMAgentConfig, value: ReasoningIntent | None) -> str | None:
+    """The depth the vendor applies because the intent names none, if it declares one.
+
+    An unset level (``None`` or ``provider_default``) is not "no reasoning" on a
+    model that reasons unasked: Fable 5, Fable 5.1 and Opus 5.5 cannot switch
+    thinking off, Opus 5 and Sonnet 5 think unless told not to (ADR-306). Only a
+    profile that declares ``implicit_level`` says so; every other family keeps
+    reading an unset level as light, exactly as before.
+
+    Args:
+        effective: The effective config (provider and model resolve the profile).
+        value: The effective intent.
+
+    Returns:
+        The implicit depth when the intent leaves the level unset AND the model
+        declares one, else ``None``.
+    """
+    if value is not None and value.level != "provider_default":
+        return None
+    return resolve_reasoning_profile(effective.provider, effective.model).implicit_level
+
+
+def _reasoning_consumes_completion_budget(value: ReasoningIntent | None, depth: str) -> bool:
     """True when the intent enables reasoning heavy enough to eat the completion cap.
 
     One shape, so one rule: everything above the light band is heavy. An
     explicit token budget is heavy whatever its size — the caller asked for
     thinking, and the whole point of the guard below is that thinking is billed
     inside ``max_tokens``.
+
+    Args:
+        value: The effective intent.
+        depth: The level the request runs at -- the intent's own, or the
+            model's implicit one when the intent names none.
     """
-    if value is None:
-        return False
-    if value.budget_tokens is not None and value.budget_tokens > 0:
+    if value is not None and value.budget_tokens is not None and value.budget_tokens > 0:
         return True
-    return value.level not in _LIGHT_LEVELS
+    return depth not in _LIGHT_LEVELS
 
 
 def validate_thinking_token_budget(
@@ -220,7 +243,8 @@ def validate_thinking_token_budget(
     could not warn: nothing related the two fields. This validator is that
     missing relation, evaluated on the EFFECTIVE config (override merged onto
     code defaults — leaving ``max_tokens`` empty inherits the default, which is
-    exactly how the incident happened).
+    exactly how the incident happened). An unset level is read as the depth
+    the model applies unasked, where its profile declares one (ADR-306).
 
     Args:
         llm_type: The LLM type being saved (error context only).
@@ -234,22 +258,29 @@ def validate_thinking_token_budget(
             a machine-readable ``ctx`` (``thinking_budget_below_floor``) the
             frontend maps to a localized toast.
     """
-    if not _reasoning_consumes_completion_budget(effective.reasoning_effort):
+    value = effective.reasoning_effort
+    implicit = _implicit_level(effective, value)
+    depth = implicit or (value.level if value is not None else "provider_default")
+    if not _reasoning_consumes_completion_budget(value, depth):
         return
     max_tokens = effective.max_tokens
     if max_tokens is None or max_tokens >= floor:
         return
+    unasked = f", which reasons at {implicit!r} when no level is set" if implicit else ""
+    # A model that reasons unasked may not have an off switch; a light level
+    # is on every such ladder.
+    remedy = "set a light reasoning level explicitly" if implicit else "turn reasoning off"
     raise_structured_validation_error(
         error_type="thinking_budget_below_floor",
         loc=["body", "max_tokens"],
         msg=(
             f"Reasoning is enabled for {llm_type} ({effective.provider}/"
-            f"{effective.model}) but the effective max_tokens is {max_tokens}, "
+            f"{effective.model}{unasked}) but the effective max_tokens is {max_tokens}, "
             f"below the safe floor of {floor}. Reasoning tokens consume the "
             "completion budget: with a cap this small the final answer is "
             "truncated or empty (in production this silently degraded every "
             "telephony call report to an unusable raw summary). Raise "
-            f"max_tokens to at least {floor}, or turn reasoning off. Note: "
+            f"max_tokens to at least {floor}, or {remedy}. Note: "
             "leaving max_tokens empty inherits the code default, which may be "
             "calibrated for a non-thinking model."
         ),
@@ -260,7 +291,8 @@ def validate_thinking_token_budget(
             "model": effective.model,
             "effective_max_tokens": max_tokens,
             "floor": floor,
-            "reasoning_effort": _serialize(effective.reasoning_effort),
+            "reasoning_effort": _serialize(value),
+            "implicit_level": implicit,
         },
     )
 

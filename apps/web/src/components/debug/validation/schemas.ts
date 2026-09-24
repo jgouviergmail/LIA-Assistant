@@ -457,6 +457,11 @@ export const ReactExecutionSchema = z.object({
   productive_iterations: z.number().min(0).optional(),
   exit_reason: z.string().nullable().optional(),
   abandoned_calls: z.array(z.string()).optional(),
+  // ADR-310 — the passes a declared gap bought, and what they achieved.
+  recovery: z
+    .object({ passes: z.number().min(0), outcome: z.string() })
+    .nullable()
+    .optional(),
 });
 
 /** Schema for the human-in-the-loop trace */
@@ -529,6 +534,7 @@ const ImageGenerationCallSchema = z.object({
   quality: z.string(),
   size: z.string(),
   image_count: z.number().min(0),
+  input_image_count: z.number().min(0).optional(),
   cost_usd: z.number().min(0),
   cost_eur: z.number().min(0),
   duration_ms: z.number().min(0),

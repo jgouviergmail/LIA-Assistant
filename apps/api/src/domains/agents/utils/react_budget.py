@@ -94,6 +94,7 @@ class ReactTurnReset(TypedDict):
     react_productive_iterations: int
     react_call_digests: dict[str, int]
     react_scripts: list[dict[str, Any]]
+    react_recovery_passes: list[dict[str, Any]]
 
 
 def react_turn_reset() -> ReactTurnReset:
@@ -129,6 +130,9 @@ def react_turn_reset() -> ReactTurnReset:
         # the conversation, so without this line one turn's panel showed the
         # scripts of every earlier turn (measured 2026-09-18).
         react_scripts=[],
+        # ADR-310: a turn starts with no recovery pass — the recovery predicate
+        # counts them, so a stale list would forbid the next turn's pass.
+        react_recovery_passes=[],
     )
 
 

@@ -21,7 +21,7 @@ from typing import Any
 
 import pytest
 
-from src.domains.llm.pricing_change_plan import ChangeAction, build_change_plan
+from src.domains.llm.pricing_change_plan import ChangeAction, ChangePlan, build_change_plan
 from src.domains.llm.pricing_sheet import FINGERPRINT_COLUMN
 from src.domains.llm.pricing_sheet_rows import fingerprint_row
 from src.infrastructure.tabular_io.report import IssueCode, ParsedRow
@@ -317,7 +317,9 @@ class TestWindowedModelsAreNotRewrittenForNothing:
     """
 
     @staticmethod
-    def _window(model: str, start: str, end: str, price: str) -> ParsedRow:
+    def _window(
+        model: str, start: str, end: str, price: str, weekdays: list[str] | None = None
+    ) -> ParsedRow:
         return ParsedRow(
             row_number=3,
             key=model,
@@ -328,8 +330,80 @@ class TestWindowedModelsAreNotRewrittenForNothing:
                 "input_unit_price": Decimal(price),
                 "cached_input_unit_price": None,
                 "output_unit_price": Decimal("9"),
+                "weekdays": weekdays,
             },
         )
+
+    def _plan_for(self, stored: list[ParsedRow], supplied: list[ParsedRow]) -> ChangePlan:
+        db_row = _db_row(time_slots_mode="windows")
+        return build_change_plan(
+            db_rows=[db_row],
+            sheet_rows=[_sheet_row(db_row, time_slots_mode="windows")],
+            sheet_slots=supplied,
+            db_slots=stored,
+        )
+
+    def test_a_change_of_days_alone_is_a_change(self) -> None:
+        """Hours and prices untouched, Monday-Friday typed in: the tariff
+        changes on every weekend, so the plan must say so — and write it."""
+        plan = self._plan_for(
+            stored=[self._window("gpt-x", "01:00", "04:00", "2")],
+            supplied=[self._window("gpt-x", "01:00", "04:00", "2", ["wed", "mon", "tue"])],
+        )
+
+        change = plan.changes[0]
+        assert change.action is ChangeAction.UPDATE
+        assert plan.pricing_changes == ("gpt-x",)
+        (line,) = [f for f in change.fields if f.field == "time_slots"]
+        assert (line.before, line.after) == ("01:00-04:00 2/—/9", "01:00-04:00 2/—/9 (mon,tue,wed)")
+
+    def test_a_price_inside_a_window_is_shown_and_supersedes_the_tariff(self) -> None:
+        """Same count before and after, so the count said nothing: the preview
+        showed an update with no line under it."""
+        plan = self._plan_for(
+            stored=[self._window("gpt-x", "01:00", "04:00", "2")],
+            supplied=[self._window("gpt-x", "01:00", "04:00", "5")],
+        )
+
+        assert plan.pricing_changes == ("gpt-x",)
+        (line,) = [f for f in plan.changes[0].fields if f.field == "time_slots"]
+        assert line.after == "01:00-04:00 5/—/9"
+
+    def test_two_different_rewrites_do_not_share_a_fingerprint(self) -> None:
+        """The apply step refuses a plan other than the one reviewed; a
+        fingerprint blind to the windows would let a different rewrite through."""
+        stored = [self._window("gpt-x", "01:00", "04:00", "2")]
+        weekdays = self._plan_for(
+            stored, [self._window("gpt-x", "01:00", "04:00", "2", ["mon", "tue"])]
+        )
+        weekend = self._plan_for(
+            stored, [self._window("gpt-x", "01:00", "04:00", "2", ["sat", "sun"])]
+        )
+
+        assert weekdays.fingerprint() != weekend.fingerprint()
+
+    def test_an_untouched_windowed_model_gets_no_windows_line(self) -> None:
+        windows = [self._window("gpt-x", "01:00", "04:00", "2", ["mon"])]
+        plan = self._plan_for(stored=windows, supplied=windows)
+
+        assert plan.changes[0].fields == ()
+
+    def test_the_same_days_typed_in_another_order_are_not_a_change(self) -> None:
+        plan = self._plan_for(
+            stored=[self._window("gpt-x", "01:00", "04:00", "2", ["mon", "tue", "wed"])],
+            supplied=[self._window("gpt-x", "01:00", "04:00", "2", ["wed", "mon", "tue", "tue"])],
+        )
+
+        assert plan.changes[0].action is ChangeAction.UNCHANGED
+
+    def test_the_whole_week_typed_out_is_every_day(self) -> None:
+        week = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+        plan = self._plan_for(
+            stored=[self._window("gpt-x", "01:00", "04:00", "2")],
+            supplied=[self._window("gpt-x", "01:00", "04:00", "2", week)],
+        )
+
+        assert plan.changes[0].action is ChangeAction.UNCHANGED
 
     def test_identical_windows_are_not_a_change(self) -> None:
         db_row = _db_row(time_slots_mode="windows")

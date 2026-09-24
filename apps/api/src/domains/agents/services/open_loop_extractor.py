@@ -305,6 +305,9 @@ async def _run_extraction(
         existing = await repo.list_open_for_user(
             owner_id, limit=settings.open_loops_max_open_per_user
         )
+        # The read ends before the model is asked (ADR-304): this session is
+        # the extraction's own, and the writes below open their transaction.
+        await db.commit()
 
         system_prompt = load_prompt("open_loop_extraction_prompt").format(
             current_datetime=get_prompt_datetime_formatted(),
@@ -342,6 +345,7 @@ async def _run_extraction(
                 tokens_in=token_capture.tokens_in,
                 tokens_out=token_capture.tokens_out,
                 tokens_cache=token_capture.tokens_cache,
+                tokens_cache_write=token_capture.tokens_cache_write,
                 model_name=config.model,
                 source="user",
             )

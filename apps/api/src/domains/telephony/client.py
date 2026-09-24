@@ -226,6 +226,14 @@ class ElevenLabsAgentsClient:
             raise ElevenLabsAgentsError(resp.status_code, "no signed_url in the answer")
         return url
 
+    async def webrtc_token(self, agent_id: str) -> str:
+        """A one-conversation LiveKit token; the browser never receives the API key."""
+        resp = await self._request("GET", "/conversation/token", params={"agent_id": agent_id})
+        token = resp.json().get("token")
+        if not isinstance(token, str) or not token:
+            raise ElevenLabsAgentsError(resp.status_code, "no token in the answer")
+        return token
+
     async def patch_agent(self, agent_id: str, body: dict[str, Any]) -> None:
         """One PATCH of the agent, MERGED by the vendor with what it stores."""
         await self._request("PATCH", f"/agents/{agent_id}", json=body)

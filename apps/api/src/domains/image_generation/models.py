@@ -27,20 +27,26 @@ class ImageGenerationPricing(BaseModel):
     Stores cost per image for each (model, quality, size) combination.
     Supports temporal versioning via effective_from and is_active flags.
 
-    Application-level invariant (enforced at the service layer): all rows
-    sharing the same ``model`` must carry the same ``provider``.
+    Application-level invariants (enforced by the admin router): all rows
+    sharing the same ``model`` carry the same ``provider``, and a row is
+    accepted only when the model's family (``families.py``, ADR-305) accepts its
+    quality and size — and requires, or refuses, a reference-image price.
 
     Attributes:
         provider: Provider that hosts this image-generation model.
-        model: Image generation model identifier (e.g., "gpt-image-1").
-        quality: Quality level (e.g., "low", "medium", "high").
-        size: Image dimensions (e.g., "1024x1024", "1536x1024").
+        model: Image generation model identifier (e.g., "gpt-image-2").
+        quality: Quality level, in the family's vocabulary.
+        size: Image dimensions (``WIDTHxHEIGHT``).
         cost_per_image_usd: Cost per generated image in USD.
+        cost_per_input_image_usd: Cost per reference image sent to an edit, in
+            USD, for a family that bills them per image; NULL otherwise.
         effective_from: Date when this pricing became effective.
         is_active: Whether this pricing entry is currently active.
 
     Example:
-        openai, gpt-image-1, medium, 1024x1024 → $0.042 per image
+        openai, gpt-image-2, medium, 1024x1024 → $0.042 per image
+        qwen, qwen-image-3.0-pro, standard, 2048x2048 → $0.068761 per image,
+        plus $0.00275 per reference image
     """
 
     __tablename__ = "image_generation_pricing"
@@ -84,6 +90,14 @@ class ImageGenerationPricing(BaseModel):
         Numeric(10, 6),
         nullable=False,
         comment="Cost per generated image in USD",
+    )
+    cost_per_input_image_usd: Mapped[Decimal | None] = mapped_column(
+        Numeric(10, 6),
+        nullable=True,
+        comment=(
+            "Cost per reference image sent to an edit, in USD; NULL when the "
+            "vendor does not bill reference images per image"
+        ),
     )
 
     # Versioning

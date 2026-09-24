@@ -84,9 +84,7 @@ async def _resolve_calendar_id(
         else:
             calendar_id = await resolve_calendar_name(client, draft_calendar_id, fallback="primary")
     else:
-        connector_service = await deps.get_connector_service()
         calendar_id = await resolve_owner_calendar_id(
-            db=connector_service.db,
             client=client,
             owner_id=user_id,
             connector_type=resolved_type,

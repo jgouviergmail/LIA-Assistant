@@ -40,6 +40,7 @@ from src.core.constants import (
     MEMORY_RELATIONSHIP_SEARCH_LIMIT,
 )
 from src.core.llm_config_helper import get_llm_config_for_agent
+from src.core.prompt_layout import single_call_messages
 from src.domains.agents.prompts import load_prompt
 from src.domains.agents.services.memory_extraction_parsing import (
     parse_extraction_result,
@@ -107,7 +108,7 @@ async def _persist_memory_tokens(
             return
 
         usage = tokens_from_usage_metadata(usage_metadata)
-        input_tokens, output_tokens, cached_tokens = usage
+        input_tokens, output_tokens = usage.prompt, usage.completion
         if usage.is_empty:
             return
 
@@ -135,7 +136,8 @@ async def _persist_memory_tokens(
                 model_name=model_name,
                 prompt_tokens=input_tokens,
                 completion_tokens=output_tokens,
-                cached_tokens=cached_tokens,
+                cached_tokens=usage.cached,
+                cache_write_tokens=usage.cache_write,
                 duration_ms=duration_ms,
             )
             await tracker.commit()
@@ -480,11 +482,10 @@ async def extract_memories_background(
         health_context = await _maybe_build_health_context(user_id)
 
         # Build prompt
-        current_datetime = datetime.now(tz=UTC).strftime("%d/%m/%Y %H:%M")
         prompt = _get_psychoanalysis_prompt().format(
             conversation=conversation,
             existing_memories=existing_memories_text,
-            current_datetime=current_datetime,
+            current_datetime=datetime.now(tz=UTC).strftime("%d/%m/%Y %H:%M"),
             known_relationships=(
                 "\n".join(f"- {r}" for r in known_relationships)
                 if known_relationships
@@ -504,7 +505,7 @@ async def extract_memories_background(
         result = await invoke_with_instrumentation(
             llm=llm,
             llm_type="memory_extraction",
-            messages=prompt,
+            messages=single_call_messages(prompt),
             session_id=session_id,
             user_id=user_id,
         )

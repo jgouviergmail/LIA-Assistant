@@ -1,85 +1,73 @@
-"""Image generation pricing calculation service.
+"""Image generation pricing: what one call costs (ADR-305).
 
-Provides cached pricing lookups and cost calculations for AI image generation.
-Pricing data is loaded from the database at startup and cached in memory.
+Prices are loaded from ``image_generation_pricing`` at startup, reloaded by the
+admin routes, and invalidated cross-worker (ADR-063). A call costs its output
+images at the row's per-image price PLUS every reference image of an edit at the
+row's reference-image price, when the vendor bills them per image.
 
-Follows the GoogleApiPricingService pattern exactly:
-- Class-level in-memory cache (no Redis lookup at runtime)
-- Loaded at startup via load_pricing_cache()
-- Cross-worker invalidation via Redis Pub/Sub (ADR-063)
-- Synchronous get_cost_per_image() for use in TrackingContext
-
-Phase: evolution — AI Image Generation
-Created: 2026-03-25
+The EUR figure uses the pricing cache's rate (``get_cached_usd_eur_rate``) — the
+one rate every token, voice and live cost reads, refreshed daily and published to
+every worker. This service used to fetch a second rate from a currency API at load
+time, so an image and the tokens around it were converted at two different rates.
 """
 
+from __future__ import annotations
+
+from dataclasses import dataclass
 from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.config import settings
 from src.domains.image_generation.repository import ImageGenerationPricingRepository
-from src.infrastructure.external.currency_api import CurrencyRateService
+from src.infrastructure.cache.pricing_cache import get_cached_usd_eur_rate
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
 
 
-class ImageGenerationPricingService:
-    """Calculate costs for AI image generation calls.
+@dataclass(frozen=True)
+class ImagePrice:
+    """The prices of one (model, quality, size) key.
 
-    Uses in-memory cache for fast lookups during request processing.
-    Cache is populated at application startup from the database.
-
-    Class Attributes:
-        _pricing_cache: Dict mapping "model:quality:size" to cost_per_image_usd.
-        _usd_eur_rate: Cached USD to EUR exchange rate.
-
-    Example:
-        >>> cost_usd, cost_eur, rate = ImageGenerationPricingService.get_cost_per_image(
-        ...     "gpt-image-1", "medium", "1024x1024"
-        ... )
-        >>> print(f"Cost: ${cost_usd} = {cost_eur} EUR")
+    Attributes:
+        output_usd: Per generated image.
+        input_usd: Per reference image sent to an edit; ``None`` when the vendor
+            does not bill reference images per image.
     """
 
-    _pricing_cache: dict[str, Decimal] = {}
-    _usd_eur_rate: Decimal = Decimal(str(settings.default_usd_eur_rate))
+    output_usd: Decimal
+    input_usd: Decimal | None
+
+
+class ImageGenerationPricingService:
+    """In-memory image prices, read synchronously by the ``TrackingContext``.
+
+    Class Attributes:
+        _pricing_cache: ``"model:quality:size"`` → :class:`ImagePrice`.
+    """
+
+    _pricing_cache: dict[str, ImagePrice] = {}
+
+    @staticmethod
+    def _key(model: str, quality: str, size: str) -> str:
+        return f"{model}:{quality}:{size}"
 
     @classmethod
     async def load_pricing_cache(cls, db: AsyncSession) -> None:
-        """Load pricing from database into memory cache.
-
-        Should be called at application startup (lifespan context).
+        """Load the active prices into memory (startup and reload).
 
         Args:
             db: Database session for querying pricing data.
         """
-        repo = ImageGenerationPricingRepository(db)
-        pricing_entries = await repo.get_active_pricing()
-
+        entries = await ImageGenerationPricingRepository(db).get_active_pricing()
         cls._pricing_cache = {
-            f"{p.model}:{p.quality}:{p.size}": p.cost_per_image_usd for p in pricing_entries
-        }
-
-        # Fetch current USD/EUR rate
-        currency_service = CurrencyRateService()
-        try:
-            rate = await currency_service.get_rate("USD", "EUR")
-            if rate is not None:
-                cls._usd_eur_rate = rate
-        except Exception as e:
-            logger.warning(
-                "image_generation_pricing_currency_rate_fallback",
-                error=str(e),
-                fallback_rate=float(settings.default_usd_eur_rate),
+            cls._key(entry.model, entry.quality, entry.size): ImagePrice(
+                output_usd=entry.cost_per_image_usd,
+                input_usd=entry.cost_per_input_image_usd,
             )
-            cls._usd_eur_rate = Decimal(str(settings.default_usd_eur_rate))
-
-        logger.info(
-            "image_generation_pricing_loaded",
-            entries=len(cls._pricing_cache),
-            usd_eur_rate=float(cls._usd_eur_rate),
-        )
+            for entry in entries
+        }
+        logger.info("image_generation_pricing_loaded", entries=len(cls._pricing_cache))
 
     @classmethod
     async def invalidate_and_reload(cls, db: AsyncSession) -> None:
@@ -98,56 +86,50 @@ class ImageGenerationPricingService:
         await publish_cache_invalidation(CACHE_NAME_IMAGE_GENERATION_PRICING)
 
     @classmethod
-    def get_cost_per_image(
+    def get_price(cls, model: str, quality: str, size: str) -> ImagePrice | None:
+        """The prices of a key, or ``None`` when no active row prices it."""
+        return cls._pricing_cache.get(cls._key(model, quality, size))
+
+    @classmethod
+    def cost_of_call(
         cls,
+        *,
         model: str,
         quality: str,
         size: str,
+        image_count: int,
+        input_image_count: int,
     ) -> tuple[Decimal, Decimal, Decimal]:
-        """Get cost in USD, EUR, and the exchange rate for a single image.
-
-        This is a synchronous method that uses the pre-loaded cache.
-        Safe to call from anywhere without database access.
+        """What one call costs, in USD and EUR, and the rate used.
 
         Args:
-            model: Image generation model (e.g., "gpt-image-1").
-            quality: Quality level (e.g., "medium").
-            size: Image dimensions (e.g., "1024x1024").
+            model: The model that ran (the configured one).
+            quality: The quality it ran at.
+            size: The output size.
+            image_count: Images produced.
+            input_image_count: Reference images sent (an edit's source).
 
         Returns:
-            Tuple of (cost_usd, cost_eur, usd_to_eur_rate).
-            Returns (0, 0, rate) if pricing not found in cache.
+            ``(cost_usd, cost_eur, usd_to_eur_rate)``; zero cost when no active row
+            prices the key, which is logged.
         """
-        key = f"{model}:{quality}:{size}"
-        cost_usd = cls._pricing_cache.get(key, Decimal("0"))
-
-        if cost_usd == Decimal("0"):
+        rate = Decimal(str(get_cached_usd_eur_rate()))
+        price = cls.get_price(model, quality, size)
+        if price is None:
             logger.warning(
                 "image_generation_pricing_not_found",
                 model=model,
                 quality=quality,
                 size=size,
-                cache_keys=list(cls._pricing_cache.keys()),
+                priced_keys=len(cls._pricing_cache),
             )
-
-        cost_eur = cost_usd * cls._usd_eur_rate
-
-        return cost_usd, cost_eur, cls._usd_eur_rate
-
-    @classmethod
-    def get_usd_eur_rate(cls) -> Decimal:
-        """Get the current cached USD to EUR exchange rate.
-
-        Returns:
-            USD to EUR exchange rate as Decimal.
-        """
-        return cls._usd_eur_rate
+            return Decimal("0"), Decimal("0"), rate
+        cost_usd = price.output_usd * image_count + (price.input_usd or Decimal("0")) * (
+            input_image_count
+        )
+        return cost_usd, cost_usd * rate, rate
 
     @classmethod
     def is_cache_loaded(cls) -> bool:
-        """Check if pricing cache has been loaded.
-
-        Returns:
-            True if cache contains pricing data.
-        """
+        """Whether the cache holds any price."""
         return len(cls._pricing_cache) > 0

@@ -1678,15 +1678,14 @@ class SmartPlannerService:
         """
         from src.domains.agents.nodes.utils import extract_session_id_from_config
         from src.domains.agents.orchestration.plan_schemas import ExecutionPlan
-
-        configurable = config.get("configurable", {})
+        from src.domains.agents.services.planner.planner_utils import smart_plan_id
 
         # Validate execution_mode (LLM may produce unexpected values)
         if execution_mode not in ("sequential", "parallel"):
             execution_mode = "sequential"
 
         return ExecutionPlan(
-            plan_id=f"smart_{configurable.get('run_id', 'unknown')}",
+            plan_id=smart_plan_id(config),
             user_id=str(runtime_user_id_str() or ""),
             session_id=extract_session_id_from_config(config, required=False) or "",
             steps=steps,

@@ -43,15 +43,21 @@ _LANG_PARAM = ParameterSchema(
     description="Lang code (e.g. 'fr', 'en'). Def: 'fr'.",
     semantic_type="language_code",
 )
+#: The one wording of the forecast tools' ``date`` contract (ADR-310), read by the
+#: planner through this manifest AND by the ReAct loop through the tools' own
+#: schemas (``tools/weather_tools.py``). Two wordings had drifted: the ReAct schema
+#: offered « 'demain', 'après-demain', 'dans 2 jours' », words the implementation
+#: never read, and « demain » came back as today's forecast (2026-09-23).
+FORECAST_DATE_DESCRIPTION = (
+    "Target date: an ISO date (YYYY-MM-DD) or an ISO datetime — for weather at a "
+    "CALENDAR EVENT, the event's start_datetime. Resolve a relative expression "
+    "yourself from the current date before passing it."
+)
 _DATE_PARAM = ParameterSchema(
     name="date",
     type="string",
     required=False,
-    description=(
-        "Target date for forecast. Accepts: temporal reference ('today', 'tomorrow'), "
-        "ISO date ('2026-01-22'), or ISO datetime from calendar events. "
-        "For weather at a CALENDAR EVENT, use the event's start_datetime."
-    ),
+    description=FORECAST_DATE_DESCRIPTION,
     semantic_type="event_start_datetime",  # Cross-domain: weather for a calendar event
 )
 

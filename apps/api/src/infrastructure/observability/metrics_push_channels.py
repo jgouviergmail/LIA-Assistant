@@ -38,7 +38,18 @@ push_wakes_total = Counter(
     "Push-driven heartbeat wakes served by the sweep, per provider and outcome.",
     ["provider", "outcome"],
     # outcome: cooldown | source_disabled | stale | no_signal | ineligible
-    #          | no_target | notified | reindexed | no_linked_folder | error
+    #          | no_target | notified | reindexed | locked | rebased
+    #          | no_linked_folder | timeout | error
+)
+
+# ADR-304 — what the webhook path QUEUED, beside what the sweep SERVED
+# (push_wakes_total): wakes queued and none served is a sweep that does not
+# run (PushWakeSweepStalled). Counted once per NEW payload — a notification
+# storm on one account coalesces into one queued wake.
+push_wakes_enqueued_total = Counter(
+    "push_wakes_enqueued_total",
+    "Push-driven heartbeat wakes queued for the sweep, per provider.",
+    ["provider"],
 )
 
 push_wake_latency_seconds = Histogram(
@@ -51,5 +62,20 @@ rag_drive_push_reindex_total = Counter(
     "rag_drive_push_reindex_total",
     "Drive push notifications turned into targeted reindexations of linked folders.",
     ["outcome"],
-    # outcome: reindexed | no_linked_folder | locked | error
+    # outcome: reindexed (a touched tree's window was handed to its
+    #          synchronisation, which runs under the source's lease) | locked
+    #          (a tree was syncing: the token was held, the wake re-queued)
+    #          | no_linked_folder | rebased | error
+)
+
+# ADR-304 — how each bounded drain of the Drive changes feed ended. A sustained
+# "truncated" share is a feed busier than one wake reads (it keeps its place and
+# continues); "held": a linked tree was still syncing, so the token stayed and
+# the window replays next sweep; "rebased" is the breaker giving up on
+# replaying a backlog.
+rag_drive_push_drains_total = Counter(
+    "rag_drive_push_drains_total",
+    "Bounded drains of the Drive changes feed, by how they ended.",
+    ["end"],
+    # end: drained | truncated | held | rebased
 )

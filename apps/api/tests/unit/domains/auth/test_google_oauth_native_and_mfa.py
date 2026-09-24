@@ -31,6 +31,7 @@ import pytest
 from fastapi import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.domains.auth.google_identity import GoogleSignInRefusal, GoogleSignInRefusedError
 from src.domains.auth.schemas import UserResponse
 from src.domains.users.models import User
 from src.infrastructure.database.registry import import_all_models
@@ -394,3 +395,56 @@ class TestProviderErrorIsBounded:
         result, _ = await self._refused("x" * 400, native=True)
 
         assert result.headers["location"] == "lia://auth-callback?error=provider_error"
+
+
+class TestRefusedSignInNamesItsReason:
+    """A sign-in the account rules refuse says why, on the surface that started it.
+
+    The generic failure path classifies an exception by its MESSAGE, which is
+    exactly the shape that must not grow: the refusal is a typed exception whose
+    reason is bounded by construction, so it is safe to label and to reflect.
+    """
+
+    @staticmethod
+    async def _refused_callback(native_challenge: str | None, reason: GoogleSignInRefusal):
+        from src.domains.auth.oauth_router import google_callback
+
+        auth_service = MagicMock()
+        auth_service.handle_google_callback = AsyncMock(
+            side_effect=GoogleSignInRefusedError(reason)
+        )
+
+        with (
+            patch(f"{ROUTER}.settings") as fake_settings,
+            patch(f"{ROUTER}.AuthService", return_value=auth_service),
+            patch(f"{ROUTER}.peek_native_challenge", AsyncMock(return_value=native_challenge)),
+            patch(f"{ROUTER}.oauth_callback_errors_total") as errors,
+            patch(f"{ROUTER}.create_authenticated_session_with_cookie") as session_cookie,
+        ):
+            fake_settings.mfa_enabled = True
+            fake_settings.frontend_url = "https://lia.example.com"
+            fake_settings.native_app_scheme = "lia"
+            result = await google_callback(
+                http_request=_fake_request(),
+                code="auth-code",
+                state="state-token",
+                db=AsyncMock(spec=AsyncSession),
+            )
+        return result, errors, session_cookie
+
+    async def test_the_web_flow_lands_on_the_error_page_with_the_reason(self) -> None:
+        result, errors, session_cookie = await self._refused_callback(None, "account_deleted")
+
+        assert result.status_code == 302
+        assert (
+            result.headers["location"]
+            == "https://lia.example.com/oauth-callback?error=account_deleted"
+        )
+        assert errors.labels.call_args.kwargs["error_type"] == "account_deleted"
+        session_cookie.assert_not_awaited()
+
+    async def test_the_native_flow_returns_the_reason_through_the_deep_link(self) -> None:
+        result, _, session_cookie = await self._refused_callback(_CHALLENGE, "email_not_verified")
+
+        assert result.headers["location"] == "lia://auth-callback?error=email_not_verified"
+        session_cookie.assert_not_awaited()

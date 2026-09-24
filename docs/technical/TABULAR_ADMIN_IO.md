@@ -43,7 +43,7 @@ Le socle ignore tout du domaine ; le domaine ignore tout du format.
 |---|---|
 | **Notice** | Mode d'emploi traduit dans la langue de l'administrateur |
 | **Modeles** | 27 colonnes, une ligne par modèle |
-| **Plages horaires** | Une ligne par fenêtre UTC (clé de regroupement, pas d'identité) |
+| **Plages horaires** | Une ligne par fenêtre UTC (clé de regroupement, pas d'identité) : heures, trois prix, et les jours où elle s'applique (`weekdays`, codes `mon`…`sun`, vide = tous les jours — format v4) |
 | **Référentiels** | Masqué et verrouillé ; alimente les listes déroulantes |
 | **Métadonnées** | Version de schéma, auteur, horodatage |
 
@@ -77,7 +77,10 @@ de langue entre l'export et l'import ne change rien.
    import de 124 lignes créerait 124 versions inutiles.
 5. **Une cellule de prix de cache vidée signifie NULL**, exprimé explicitement.
 6. **Plages horaires** : `windows` (l'onglet fait autorité), `flat` (effacement),
-   `inherit` (inchangé) — le contrat d'ADR-223 rendu lisible dans le fichier.
+   `inherit` (inchangé) — le contrat d'ADR-223 rendu lisible dans le fichier. Une
+   réécriture des fenêtres est une ligne `time_slots` du plan (avant / après),
+   même quand leur nombre ne change pas — les jours seuls, par exemple. Un
+   fichier d'un format antérieur (v3, sans jours) est refusé par sa version.
 7. **Intégral ou nul.** La moindre anomalie non résolue n'écrit rien.
 8. **Aperçu obligatoire**, et l'application re-dérive le plan : celui qui a été
    relu est celui qui est écrit.

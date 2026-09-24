@@ -5,8 +5,12 @@ implementation downloads or exports a Drive file, writes it under the
 space's storage tree and creates the PENDING ``RAGDocument`` the durable
 processing pipeline claims — whether the caller walked a whole folder
 (``sync_folder_background``) or received the changed file ids from a push
-notification (``reindex_from_push``, ADR-261 P2). Two readings of "how a
-Drive file becomes a document" would diverge (ADR-255).
+notification (``drive_push.reindex_from_push``, ADR-261 P2). Two readings of
+"how a Drive file becomes a document" would diverge (ADR-255).
+
+A download is a network call and never runs inside a transaction: the reads
+that decide it end first (ADR-304 — a pooled connection held while Google
+answers is the ``idle in transaction`` measured in production).
 
 The two source-agnostic steps — storing bytes as a PENDING document
 (``create_pending_document``) and discarding a synced document with its file
@@ -20,7 +24,7 @@ from __future__ import annotations
 import asyncio
 import uuid as uuid_mod
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 from uuid import UUID
@@ -31,7 +35,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.constants import (
-    GOOGLE_DRIVE_FOLDER_MIME,
     RAG_DRIVE_GOOGLE_EXPORT_MAP,
     RAG_DRIVE_REGULAR_FILE_MAP,
 )
@@ -40,17 +43,13 @@ from src.domains.rag_spaces.models import (
     RAGDocument,
     RAGDocumentSourceType,
     RAGDocumentStatus,
-    RAGDriveSource,
-    RAGDriveSyncStatus,
 )
 from src.domains.rag_spaces.processing import process_document
 from src.domains.rag_spaces.repository import (
     RAGChunkRepository,
     RAGDocumentRepository,
-    RAGDriveSourceRepository,
 )
 from src.infrastructure.observability.logging import get_logger
-from src.infrastructure.observability.metrics_push_channels import rag_drive_push_reindex_total
 from src.infrastructure.observability.metrics_rag_spaces import rag_drive_sync_files_total
 
 logger = get_logger(__name__)
@@ -313,6 +312,9 @@ async def ingest_drive_file(
             logger.warning("rag_drive_sync_doc_limit", space_id=str(space_id))
             return IngestResult("skipped")
 
+        # The reads above decided; end their transaction before the network
+        # call, so no pooled connection waits on Google (ADR-304).
+        await db.commit()
         content_bytes, ext, content_type = await _download(client, file_id, mime_type)
         if not content_bytes:
             logger.warning("rag_drive_sync_empty_content", file_id=file_id, name=original_name)
@@ -363,291 +365,3 @@ async def remove_drive_document(
     except Exception:
         logger.exception("rag_drive_sync_delete_error", file_id=file_id)
         return False
-
-
-# ============================================================================
-# Push-driven targeted reindex (ADR-261 P2)
-# ============================================================================
-
-
-async def _drain_changes(client: Any, page_token: str) -> tuple[list[dict[str, Any]], str | None]:
-    """Every change since ``page_token`` and the new baseline token."""
-    changes: list[dict[str, Any]] = []
-    token: str | None = page_token
-    while token:
-        page = await client.list_changes(token)
-        changes.extend(page.get("changes", []))
-        new_start = page.get("newStartPageToken")
-        token = page.get("nextPageToken")
-        if not token:
-            return changes, str(new_start) if new_start else None
-    return changes, None
-
-
-def routed_folder_ids(source: RAGDriveSource) -> list[str]:
-    """The folders a push change is routed on: the walked tree, the root alone before it."""
-    walked = list(source.folder_ids or [])
-    return walked if source.folder_id in walked else [source.folder_id, *walked]
-
-
-def _is_folder(file: dict[str, Any]) -> bool:
-    return file.get("mimeType") == GOOGLE_DRIVE_FOLDER_MIME
-
-
-@dataclass(slots=True)
-class TouchedSource:
-    """One linked tree a drained feed touched, and what it must apply."""
-
-    source: RAGDriveSource
-    changes: list[dict[str, Any]]
-    #: The routing set after the feed: sub-folders created under the tree
-    #: joined it, trashed ones left it. Persisted with the completion.
-    folder_ids: list[str]
-
-
-def _route_folder_change(
-    entry: TouchedSource, *, file_id: str, parents: set[str], gone: bool
-) -> None:
-    """A folder joins the tree when created under it, leaves it when trashed."""
-    known = entry.folder_ids
-    if gone:
-        if file_id in known and file_id != entry.source.folder_id:
-            entry.folder_ids = [f for f in known if f != file_id]
-        return
-    if file_id not in known and parents & set(known):
-        entry.folder_ids = [*known, file_id]
-
-
-@dataclass(frozen=True, slots=True)
-class _FeedChange:
-    """One entry of the Drive changes feed, read once for every source."""
-
-    file_id: str
-    parents: frozenset[str]
-    gone: bool
-    is_folder: bool
-    raw: dict[str, Any]
-
-
-def _read_change(change: dict[str, Any]) -> _FeedChange:
-    """The routing facts of a feed entry: id, parents, removal, kind."""
-    file = change.get("file") or {}
-    return _FeedChange(
-        file_id=str(change.get("fileId") or file.get("id") or ""),
-        parents=frozenset(file.get("parents") or []),
-        gone=bool(change.get("removed") or file.get("trashed")),
-        is_folder=_is_folder(file),
-        raw=change,
-    )
-
-
-def _route_change(entry: TouchedSource, change: _FeedChange) -> None:
-    """Route one feed entry on a source: a folder moves the set, a file is applied."""
-    if change.is_folder or (change.gone and change.file_id in entry.folder_ids):
-        _route_folder_change(
-            entry, file_id=change.file_id, parents=set(change.parents), gone=change.gone
-        )
-    elif change.parents & set(entry.folder_ids):
-        entry.changes.append(change.raw)
-
-
-def _touched_sources(
-    changes: list[dict[str, Any]], sources: list[RAGDriveSource]
-) -> dict[UUID, TouchedSource]:
-    """Group the changes by the linked TREE their file sits in.
-
-    A change is routed on its file's parents against each source's walked
-    folder set (``routed_folder_ids``). The set grows as the feed is read: a
-    folder created under the tree joins it so the files created inside it,
-    later in the same feed, route too; a trashed or removed sub-folder leaves
-    it (its documents are pruned by the next full synchronisation — Drive
-    reports the folder, not each descendant). Only a source whose set changed
-    or that has a file change to apply is returned.
-    """
-    entries: dict[UUID, TouchedSource] = {
-        s.id: TouchedSource(s, [], routed_folder_ids(s)) for s in sources
-    }
-    initial = {s.id: list(routed_folder_ids(s)) for s in sources}
-    for change in map(_read_change, changes):
-        for entry in entries.values():
-            _route_change(entry, change)
-    return {
-        source_id: entry
-        for source_id, entry in entries.items()
-        if entry.changes or entry.folder_ids != initial[source_id]
-    }
-
-
-async def _apply_change(
-    db: AsyncSession,
-    client: Any,
-    jobs: Any,
-    *,
-    source: RAGDriveSource,
-    change: dict[str, Any],
-    user_id: UUID,
-) -> dict[str, Any] | None:
-    """One change → a removal, a queued ingestion (its kwargs) or nothing."""
-    file = change.get("file") or {}
-    file_id = str(change.get("fileId") or file.get("id") or "")
-    if not file_id:
-        return None
-    if change.get("removed") or file.get("trashed"):
-        await remove_drive_document(
-            db, space_id=source.space_id, source_id=source.id, user_id=user_id, file_id=file_id
-        )
-        return None
-    if not is_supported_drive_file(file):
-        return None
-    await jobs.heartbeat_source(source.id, settings.rag_job_lease_ttl_seconds)
-    result = await ingest_drive_file(
-        db, client, space_id=source.space_id, source_id=source.id, user_id=user_id, drive_file=file
-    )
-    return result.process_kwargs if result.outcome == "queued" else None
-
-
-async def _reindex_source(
-    db: AsyncSession,
-    client: Any,
-    *,
-    touched: TouchedSource,
-    user_id: UUID,
-) -> str:
-    """Apply one source's changes under its sync lock; embed; complete.
-
-    Returns:
-        ``reindexed`` | ``locked`` (a sync already holds the source) | ``error``
-        (the source is set to ERROR and released — it never stays locked).
-    """
-    from src.domains.rag_spaces.drive_sync import RAGDriveSyncService
-    from src.domains.rag_spaces.jobs_repository import RAGJobsRepository
-
-    source = touched.source
-    if not await RAGDriveSyncService(db).try_acquire_sync_lock(source.id):
-        return "locked"
-    source_repo = RAGDriveSourceRepository(db)
-    jobs = RAGJobsRepository(db)
-    try:
-        queued: list[dict[str, Any]] = []
-        for change in touched.changes:
-            kwargs = await _apply_change(
-                db, client, jobs, source=source, change=change, user_id=user_id
-            )
-            if kwargs is not None:
-                queued.append(kwargs)
-        synced, _failed = await process_queued(queued)
-        await source_repo.update(
-            source,
-            {
-                "sync_status": RAGDriveSyncStatus.COMPLETED,
-                "last_sync_at": datetime.now(UTC),
-                "synced_file_count": (source.synced_file_count or 0) + synced,
-                # A NEW list: the routing set the feed left behind.
-                "folder_ids": list(touched.folder_ids),
-                "error_message": None,
-                "lease_expires_at": None,
-                "worker_id": None,
-                "attempts": 0,
-                "heartbeat_at": None,
-            },
-        )
-        await db.commit()
-        return "reindexed"
-    except Exception as exc:  # noqa: BLE001 — the source must not stay locked
-        await source_repo.update(
-            source,
-            {
-                "sync_status": RAGDriveSyncStatus.ERROR,
-                "error_message": str(exc)[:500],
-                "lease_expires_at": None,
-                "worker_id": None,
-            },
-        )
-        await db.commit()
-        logger.exception("rag_drive_push_reindex_source_failed", source_id=str(source.id))
-        return "error"
-
-
-def _aggregate(outcomes: list[str]) -> str:
-    """The sweep's single outcome over the touched sources (work done first)."""
-    for outcome in ("reindexed", "error", "locked"):
-        if outcome in outcomes:
-            return outcome
-    return "no_linked_folder"
-
-
-async def reindex_from_push(user_id: UUID, page_token: str | None) -> str:
-    """Turn a Drive change notification into targeted reindexations (ADR-261 P2).
-
-    Drains the changes feed from the channel's token, keeps the changes whose
-    file sits under a linked TREE (the folder set the last walk persisted), and — per linked source, under
-    the same sync lock the manual sync uses — ingests the changed files and
-    removes the trashed ones. The channel's token advances to the new
-    baseline only after the feed was drained.
-
-    Args:
-        user_id: The channel owner.
-        page_token: The changes token stored with the Drive channel.
-
-    Returns:
-        A bounded outcome: ``reindexed`` | ``no_linked_folder`` | ``locked``
-        | ``error``.
-    """
-    from src.domains.connectors.clients.google_drive_client import GoogleDriveClient
-    from src.domains.connectors.models import ConnectorType
-    from src.domains.connectors.service import ConnectorService
-    from src.domains.push_channels.models import PushChannelProvider
-    from src.domains.push_channels.repository import PushChannelRepository
-    from src.domains.push_channels.service import DRIVE_WATCH_TARGET
-    from src.domains.rag_spaces.consultations import SECTION_DRIVE, space_read
-    from src.infrastructure.database.session import get_db_context
-
-    outcome = "error"
-    try:
-        async with get_db_context() as db:
-            sources = await RAGDriveSourceRepository(db).get_all_for_user(user_id)
-            connector_service = ConnectorService(db)
-            credentials = (
-                await connector_service.get_connector_credentials(
-                    user_id, ConnectorType.GOOGLE_DRIVE
-                )
-                if sources
-                else None
-            )
-            channel = (
-                await PushChannelRepository(db).get_for_user(
-                    user_id, PushChannelProvider.GOOGLE_DRIVE.value, DRIVE_WATCH_TARGET
-                )
-                if credentials is not None
-                else None
-            )
-            token = page_token or (channel.page_token if channel is not None else None)
-            if not sources or credentials is None or not token:
-                outcome = "no_linked_folder"
-                return outcome
-
-            client = GoogleDriveClient(user_id, credentials, connector_service)
-            try:
-                # A Google push can trigger this at four in the morning; before
-                # it was recorded, the person had no way to learn their Drive
-                # had been opened.
-                async with space_read(user_id=user_id, section=SECTION_DRIVE):
-                    changes, new_start = await _drain_changes(client, token)
-                touched = _touched_sources(changes, sources)
-                if channel is not None and new_start:
-                    channel.page_token = new_start
-                    await db.commit()
-                outcomes = [
-                    await _reindex_source(db, client, touched=entry, user_id=user_id)
-                    for entry in touched.values()
-                ]
-                outcome = _aggregate(outcomes)
-                return outcome
-            finally:
-                await client.close()
-    except Exception:
-        logger.exception("rag_drive_push_reindex_failed", user_id=str(user_id))
-        outcome = "error"
-        return outcome
-    finally:
-        rag_drive_push_reindex_total.labels(outcome=outcome).inc()

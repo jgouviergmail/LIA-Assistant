@@ -109,7 +109,7 @@ groups:
           tier: core
         annotations:
           summary: "Container {{ $labels.name }} near its memory limit"
-          description: "{{ $labels.name }} holds {{ $value | humanize }}% of its compose memory limit as working set for 10 minutes (threshold: <<<ALERT_CORE_CONTAINER_MEMORY_PERCENT>>>%). Working set excludes reclaimable page cache, so this is the figure the kernel uses to OOM-kill at 100%."
+          description: "{{ $labels.name }} holds {{ $value | humanize }}% of its compose memory limit as working set for 10 minutes (threshold: <<<ALERT_CORE_CONTAINER_MEMORY_PERCENT>>>%). Working set is usage minus INACTIVE page cache — the cache the kernel drops first; it still counts active file pages, so it is the closest cAdvisor figure to what the kernel cannot reclaim before an OOM kill, not that figure itself."
           runbook: "docs/runbooks/alerts/ContainerMemoryNearLimit.md"
 
       - alert: ContainerRestartLoop
@@ -577,3 +577,29 @@ groups:
           summary: "Sandbox egress proxy is down while network runs are enabled"
           description: "This deployment offers network sandbox runs (ADR-298) but the egress proxy's /healthz has not answered for <<<ALERT_CORE_SANDBOX_EGRESS_DOWN_FOR>>>. Every run that declares a host is refused (python_sandbox_egress_runs_total{outcome=\"proxy_unavailable\"}) and the model is told to answer with what it has: the capability is silently gone for every account. Check `docker compose ps egress` and its log (the CA is minted at start; a missing management.token means the config volume is not shared)."
           runbook: "docs/runbooks/alerts/SandboxEgressProxyDown.md"
+
+  # ===== PUSH WAKES — a queued wake nobody serves (ADR-261, ADR-304) =====
+  - name: core_push
+    interval: 1m
+    rules:
+      # push_wakes_enqueued_total counts what the webhook path QUEUED,
+      # push_wakes_total every wake the sweep SERVED whatever its outcome
+      # (cooldown and stale included). Wakes queued and none served is a
+      # sweep that does not run: blocked (one transaction held for 22 minutes
+      # on 2026-09-22), skipped by APScheduler, or leaderless. The served side
+      # reads `or vector(0)`: a counter that never fired exposes no series,
+      # and « nothing served since boot » was precisely that incident.
+      - alert: PushWakeSweepStalled
+        expr: |
+          (sum(increase(push_wakes_enqueued_total[<<<ALERT_CORE_PUSH_WAKE_STALL_WINDOW>>>])) > 0)
+          and on()
+          ((sum(increase(push_wakes_total[<<<ALERT_CORE_PUSH_WAKE_STALL_WINDOW>>>])) or vector(0)) == 0)
+        for: 5m
+        labels:
+          severity: warning
+          component: push
+          tier: core
+        annotations:
+          summary: "Push wakes are queued and none is served"
+          description: "{{ $value | humanize }} wake(s) were queued over <<<ALERT_CORE_PUSH_WAKE_STALL_WINDOW>>> and the heartbeat wake sweep served none. The sweep is not running — blocked on a call that does not return, skipped by APScheduler (max_instances), or with no scheduler leader. Queued wakes expire with their payload; mail watches and push-driven indexing wait for the next pass."
+          runbook: "docs/runbooks/alerts/PushWakeSweepStalled.md"

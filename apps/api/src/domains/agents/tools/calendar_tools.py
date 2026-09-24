@@ -34,7 +34,6 @@ Migration (2025-12-30):
     - Draft functions delegated to drafts module (to be migrated separately)
 """
 
-import re
 import time
 from contextlib import suppress
 from datetime import timedelta
@@ -49,7 +48,12 @@ from pydantic import BaseModel
 from src.core.config import get_settings, settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.time_utils import normalize_to_rfc3339, now_utc
-from src.core.validators import validate_email
+from src.domains.agents.calendar.event_search import (
+    QUERY_CONTRACT,
+    SEARCHED_FIELDS,
+    describe_search,
+    filter_events,
+)
 from src.domains.agents.constants import (
     AGENT_EVENT,
     CONTEXT_DOMAIN_CALENDARS,
@@ -91,55 +95,6 @@ from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.preferences.resolver import resolve_calendar_name
 
 logger = structlog.get_logger(__name__)
-
-
-# ============================================================================
-# QUERY RESOLUTION (attendee email vs free-text)
-# ============================================================================
-
-
-async def _resolve_calendar_query_param(
-    runtime: ToolRuntime[LiaRuntimeContext, Any] | None, query: str | None
-) -> str | None:
-    """Resolve the calendar ``query`` param to a reliable filter, or drop it.
-
-    Google Calendar ``q`` is a weak full-text "contains" match: it fails on
-    semantic categories ("médical" never matches an event titled "Dentiste")
-    and on accents / paraphrase ("hotel" vs "hôtel"). The only reliable,
-    structured use is an attendee EMAIL, so a PERSON name is resolved to their
-    email; everything else (title, concept, unresolved name) is dropped and the
-    tool lists by the time window instead — the Response LLM filters the concept
-    downstream (the same list-and-filter model Tasks uses and ReAct succeeds by).
-
-    Args:
-        runtime: ToolRuntime used to resolve a contact name to an email.
-        query: The raw planner-provided query, if any.
-
-    Returns:
-        An attendee email to pass as ``q``, or ``None`` to list-and-filter.
-    """
-    if not query or not query.strip():
-        return None
-
-    resolved_query = query.strip()
-    # A person name (not already an email) → resolve to their attendee email.
-    if "@" not in resolved_query and not validate_email(resolved_query):
-        resolved = await resolve_recipients_to_emails(runtime, resolved_query, "calendar_search")
-        if resolved and resolved != resolved_query:
-            # Extract the email from an RFC 5322 "Name <email>" form if present.
-            match = re.search(r"<([^>]+)>", resolved)
-            resolved_query = match.group(1) if match else resolved
-            # No PII (name / email) at INFO — event only (rule #18).
-            logger.info("calendar_search_person_resolved_to_email")
-
-    # Keep only a reliable attendee email; drop any remaining free-text.
-    if "@" not in resolved_query:
-        logger.info(
-            "calendar_search_freetext_delegated_to_response",
-            reason="weak_fulltext_match_use_list_and_filter",
-        )
-        return None
-    return resolved_query
 
 
 # ============================================================================
@@ -276,10 +231,13 @@ class SearchEventsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
             CALENDAR_PREFERENCE,
             read_owner_preference_name,
         )
+        from src.infrastructure.database.session import get_db_context
 
-        # Resolve the query to a reliable attendee email or drop it (free-text
-        # title/concept is list-and-filtered downstream — see helper).
-        query: str | None = await _resolve_calendar_query_param(self.runtime, kwargs.get("query"))
+        # The provider never receives the query: what a server-side query covers
+        # differs by provider (Google everything, Microsoft the subject, Apple the
+        # title and description), so the window is read and searched HERE, by one
+        # matcher (event_search.py) — no contacts lookup, nothing dropped unsaid.
+        query: str | None = (kwargs.get("query") or "").strip() or None
 
         time_min: str | None = kwargs.get("time_min")
         time_max: str | None = kwargs.get("time_max")
@@ -344,12 +302,12 @@ class SearchEventsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
             # resolution a few lines below, so resolving here would do the
             # work twice. Hence the preference READER, not the full resolver.
             try:
-                default_name = await read_owner_preference_name(
-                    client.connector_service.db,
-                    user_id,
-                    client.connector_type,
-                    CALENDAR_PREFERENCE,
-                )
+                # A short session of its own: the turn's shared one must
+                # not stay open while the calendar answers (ADR-304).
+                async with get_db_context() as db:
+                    default_name = await read_owner_preference_name(
+                        db, user_id, client.connector_type, CALENDAR_PREFERENCE
+                    )
                 if default_name:
                     calendar_id_input = default_name
                     logger.debug(
@@ -375,23 +333,36 @@ class SearchEventsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
             resolved=calendar_id,
         )
 
-        # Execute API call with field projection
+        # A search reads as much of the window as one call may (the connectors'
+        # per-request ceiling), then keeps what matches.
+        read_limit = settings.api_max_items_per_request if query else max_results
         result = await client.list_events(
-            query=query,
+            query=None,
             time_min=time_min,
             time_max=time_max,
-            max_results=max_results,
+            max_results=read_limit,
             calendar_id=calendar_id,
             fields=fields_to_use,
         )
+        window: list[dict[str, Any]] = result.get("items", [])
 
-        events = result.get("items", [])
-
-        # Truncation signal: when the result fills the (capped) window, more
-        # events may exist beyond it. Surfaced downstream so the Response can
-        # state the searched period and invite the user to narrow it — the
-        # transparent alternative to silently dropping matches past the cap.
-        truncated = len(events) >= max_results
+        # Truncation signal: when a read fills its limit, more events may exist
+        # beyond it — stated downstream, never dropped in silence.
+        search: dict[str, Any] | None = None
+        if query:
+            matched = filter_events(window, query)
+            events = matched[:max_results]
+            search = {
+                "query": query,
+                "fields": list(SEARCHED_FIELDS),
+                "matched": len(matched),
+                "searched": len(window),
+                "window_complete": len(window) < read_limit,
+            }
+            truncated = not search["window_complete"] or len(matched) > max_results
+        else:
+            events = window
+            truncated = len(events) >= max_results
 
         logger.info(
             "search_events_success",
@@ -416,6 +387,7 @@ class SearchEventsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
             "user_timezone": user_timezone,
             "locale": locale,
             "truncated": truncated,
+            "search": search,
         }
 
     def format_registry_response(self, result: dict[str, Any]) -> UnifiedToolOutput:
@@ -440,7 +412,7 @@ class SearchEventsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
         calendar_id = result.get("calendar_id")  # Pass calendar_id for update/delete
         truncated = bool(result.get("truncated", False))
 
-        return self.build_events_output(
+        output = self.build_events_output(
             events=events,
             query=query,
             time_min=time_min,
@@ -450,6 +422,20 @@ class SearchEventsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
             locale=locale,
             calendar_id=calendar_id,
             truncated=truncated,
+        )
+        search = result.get("search")
+        if not search:
+            return output
+        # What was searched is the first thing the model reads, and it travels
+        # with the data: a match, none, or a window read only in part.
+        preview = self._build_item_preview(
+            [event.get("summary") or event.get("id", "") for event in events]
+        )
+        return output.model_copy(
+            update={
+                "message": describe_search(search, shown=len(events), preview=preview),
+                "structured_data": {**(output.structured_data or {}), "search": search},
+            }
         )
 
 
@@ -464,9 +450,7 @@ _search_events_tool_instance = SearchEventsTool()
     category="read",
 )
 async def search_events_tool(
-    query: Annotated[
-        str | None, "Free text search query for event titles/descriptions (optional)"
-    ] = None,
+    query: Annotated[str | None, QUERY_CONTRACT] = None,
     time_min: Annotated[
         str | None,
         "Start of time range in ISO format with timezone, e.g. '2025-01-15T00:00:00Z' (optional, defaults to NOW)",
@@ -496,7 +480,7 @@ async def search_events_tool(
     Past events are never returned unless explicitly requesting a past time range.
 
     Supports filtering by:
-    - Free text query (matches event title, description)
+    - Words found in the title, location, organizer or attendees (QUERY_CONTRACT)
     - Time range (time_min, time_max)
     - Specific calendar (calendar_id)
 
@@ -520,7 +504,7 @@ async def search_events_tool(
     - Optimized search: fields=["summary", "start", "end"]
 
     Args:
-        query: Free text search query (optional)
+        query: Words searched in the window (see ``QUERY_CONTRACT``).
         time_min: Start of time range in ISO format (optional, defaults to NOW)
         time_max: End of time range in ISO format (optional, defaults to the configured window)
         max_results: Maximum number of events (default 10, max 100)
@@ -649,7 +633,6 @@ class GetEventDetailsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
 
         # Resolve default calendar from user preferences
         calendar_id = await resolve_owner_calendar_id(
-            db=client.connector_service.db,
             client=client,
             owner_id=user_id,
             connector_type=client.connector_type,
@@ -707,7 +690,6 @@ class GetEventDetailsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
 
         # Resolve default calendar from user preferences
         calendar_id = await resolve_owner_calendar_id(
-            db=client.connector_service.db,
             client=client,
             owner_id=user_id,
             connector_type=client.connector_type,
@@ -1835,7 +1817,7 @@ async def list_calendars_tool(
 )
 async def get_events_tool(
     runtime: Annotated[ToolRuntime[LiaRuntimeContext, Any], InjectedToolArg],
-    query: Annotated[str | None, "Search term (optional); triggers search mode"] = None,
+    query: Annotated[str | None, QUERY_CONTRACT] = None,
     event_id: Annotated[str | None, "Single event ID for direct fetch"] = None,
     event_ids: Annotated[list[str] | None, "Multiple event IDs for batch fetch"] = None,
     time_min: Annotated[str | None, "Start of time range (ISO 8601; defaults to now)"] = None,
@@ -1865,7 +1847,8 @@ async def get_events_tool(
     - Supports query mode (search) OR ID mode (direct fetch)
 
     Modes:
-    - Query mode: get_events_tool(query="meeting") → search + return full details
+    - Query mode: get_events_tool(query="Alex") → the window's events whose title,
+      location, organizer or attendees contain the word(s), full details
     - ID mode: get_events_tool(event_id="abc123") → fetch specific event
     - Batch mode: get_events_tool(event_ids=["abc", "def"]) → fetch multiple
     - Time range: get_events_tool(time_min="...", time_max="...") → range search
@@ -1874,7 +1857,7 @@ async def get_events_tool(
 
     Args:
         runtime: Runtime dependencies injected automatically.
-        query: Search term - triggers search mode.
+        query: Words searched in the window (see ``QUERY_CONTRACT``).
         event_id: Single event ID for direct fetch.
         event_ids: Multiple event IDs for batch fetch.
         time_min: Start of time range (ISO 8601; defaults to now).

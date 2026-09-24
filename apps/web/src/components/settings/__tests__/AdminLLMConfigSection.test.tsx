@@ -505,6 +505,34 @@ describe('dialog save (structured 422 surfacing)', () => {
     );
   });
 
+  it('names the depth a model reasons at unasked (ADR-306)', async () => {
+    // A Claude generation that thinks with no level set: "turn reasoning off"
+    // is not advice the admin can follow, so the toast names the implicit
+    // depth and the light level to pick instead.
+    const { toast } = await import('sonner');
+    updateConfig.mockRejectedValueOnce(
+      Object.assign(new Error('422'), {
+        data: {
+          detail: {
+            type: 'thinking_budget_below_floor',
+            msg: 'raw backend msg',
+            ctx: { floor: 4000, effective_max_tokens: 600, implicit_level: 'high' },
+          },
+        },
+      })
+    );
+    renderSection([typeConfig('router', 'Router')]);
+    await openDialog('Router');
+
+    fireEvent.click(screen.getByText('common.save'));
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        'settings.admin.llmConfig.config.thinkingBudgetImplicitBelowFloor'
+      )
+    );
+  });
+
   it('surfaces other structured msgs as the description of the generic toast', async () => {
     const { toast } = await import('sonner');
     updateConfig.mockRejectedValueOnce(

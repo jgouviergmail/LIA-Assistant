@@ -96,7 +96,7 @@ class PushChannelService:
         channel.last_notification_at = datetime.now(UTC)
         await self.db.commit()
         await invalidate_for_provider(channel.provider, channel.user_id)
-        await self._enqueue_wake(channel.user_id, channel.provider, page_token=channel.page_token)
+        await self._enqueue_wake(channel.user_id, channel.provider)
         logger.info(
             "push_notification_processed",
             provider=channel.provider,
@@ -152,7 +152,6 @@ class PushChannelService:
         provider: str,
         *,
         history_id: int | None = None,
-        page_token: str | None = None,
     ) -> None:
         """Queue a heartbeat wake for a processed notification (ADR-261).
 
@@ -170,7 +169,6 @@ class PushChannelService:
                 provider,
                 ttl_seconds=settings.push_wake_payload_ttl_seconds,
                 history_id=history_id,
-                page_token=page_token,
             )
         except Exception as exc:  # noqa: BLE001 — a lost wake is a tick, never a failed webhook
             logger.debug("push_wake_enqueue_skipped", provider=provider, error=str(exc))
@@ -278,6 +276,9 @@ class PushChannelService:
         existing = await self.repo.get_for_user(user_id, provider, email_address)
         if existing is not None and not self._needs_renewal(existing):
             return existing
+        # The read ends before Google is asked (ADR-304); the row is written
+        # and committed below, once the answer is in.
+        await self.db.commit()
 
         response = await client.watch_mailbox(topic)
         expiration = self._parse_expiration_ms(response.get("expiration"))
@@ -324,6 +325,9 @@ class PushChannelService:
         existing = await self.repo.get_for_user(user_id, provider, watch_target)
         if existing is not None and not self._needs_renewal(existing):
             return existing
+        # The read ends before Google is asked to open (and stop) a channel
+        # (ADR-304); the row is written and committed below.
+        await self.db.commit()
 
         channel_id = uuid.uuid4().hex
         token = secrets.token_urlsafe(32)

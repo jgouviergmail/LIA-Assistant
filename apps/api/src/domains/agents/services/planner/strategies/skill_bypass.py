@@ -179,10 +179,10 @@ class SkillBypassStrategy:
             # complete BEFORE the model_validator runs.
             from src.domains.agents.nodes.utils import extract_session_id_from_config
             from src.domains.agents.orchestration.plan_schemas import ExecutionPlan
+            from src.domains.agents.services.planner.planner_utils import smart_plan_id
 
-            configurable = config.get("configurable", {})
             plan = ExecutionPlan(
-                plan_id=f"smart_{configurable.get('run_id', 'unknown')}",
+                plan_id=smart_plan_id(config),
                 user_id=runtime_user_id_str() or "",
                 session_id=extract_session_id_from_config(config, required=False) or "",
                 steps=[],

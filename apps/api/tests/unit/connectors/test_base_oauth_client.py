@@ -33,23 +33,17 @@ def _make_connector(metadata: dict | None) -> Connector:
     )
 
 
-class _SessionCM:
-    """Async context manager wrapping a mock db session."""
-
-    def __init__(self, db: AsyncMock) -> None:
-        self._db = db
-
-    async def __aenter__(self) -> AsyncMock:
-        return self._db
-
-    async def __aexit__(self, *args: object) -> bool:
-        return False
-
-
 def _make_client(db: AsyncMock) -> BaseOAuthClient:
-    """Build a BaseOAuthClient wired to a mock connector service/session."""
+    """Build a BaseOAuthClient wired to a mock connector service/session.
+
+    ``connector_service.db`` IS the caller's session, as in production — the
+    harness used to hand a context manager here, and so froze the defect it
+    should have caught: the client ENTERING its caller's session, which closes
+    it (ADR-304, proved on PostgreSQL in
+    tests/integration/domains/connectors/test_client_session_ownership.py).
+    """
     connector_service = MagicMock()
-    connector_service.db = _SessionCM(db)
+    connector_service.db = db
     connector_service._invalidate_user_connectors_cache = AsyncMock()
     client = BaseOAuthClient(
         user_id=uuid.uuid4(),
@@ -86,6 +80,9 @@ class TestInvalidateConnectorOnAuthFailure:
         assert "error_type" not in original_metadata
         db.flush.assert_awaited_once()
         db.commit.assert_awaited_once()
+        # The caller's session is used, never entered nor closed.
+        db.__aexit__.assert_not_called()
+        db.close.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_metadata_set_when_previously_empty(self):

@@ -16,7 +16,9 @@ across all connectors and domains.
 INDEXABLE — a value that exists AS-IS in a structured field of the store:
   dates, IDs, sender/recipient, label or category id, status, calendar id,
   location, has_attachment, language, etc.
-  → pass to the corresponding tool parameter.
+  → pass to the corresponding tool parameter. A relative date or time expression,
+    in any language, is first resolved against the current datetime (dynamic
+    context below) into ISO 8601.
 
 SEMANTIC — an adjective, category, or quality-judgment qualifying *what kind*
 of item the user wants, with NO literal counterpart in any structured field.

@@ -58,6 +58,7 @@ function pricing(over: Partial<ImagePricing> = {}): ImagePricing {
     quality: 'high',
     size: '1024x1024',
     cost_per_image_usd: '0.08',
+    cost_per_input_image_usd: null,
     effective_from: '2026-01-01T00:00:00Z',
     is_active: true,
     ...over,
@@ -98,6 +99,17 @@ const EDITED = {
   size: '512x512',
   cost_per_image_usd: '4.5',
 };
+
+// A Qwen row: the vendor bills every reference image of an edit per image.
+const QWEN_ROW = pricing({
+  id: 'q1',
+  provider: 'qwen',
+  model: 'qwen-image-3.0-pro',
+  quality: 'standard',
+  size: '2448x1632',
+  cost_per_image_usd: '0.068761',
+  cost_per_input_image_usd: '0.00275',
+});
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -203,8 +215,14 @@ describe('AdminImagePricingSection — mutations', () => {
     await fillModal(user);
     await user.click(screen.getByRole('button', { name: SUBMIT_EDIT }));
     await answerConfirmDialog(user);
-    // Exact payload: `provider` must be absent (the backend rejects it).
-    await waitFor(() => expect(updateImagePricing).toHaveBeenCalledWith('p1', EDITED));
+    // Exact payload: `provider` must be absent (the backend rejects it); an
+    // empty reference-image price travels as null (the backend keeps the row's).
+    await waitFor(() =>
+      expect(updateImagePricing).toHaveBeenCalledWith('p1', {
+        ...EDITED,
+        cost_per_input_image_usd: null,
+      })
+    );
   });
 
   it('does not edit when the confirmation is dismissed', async () => {
@@ -239,5 +257,39 @@ describe('AdminImagePricingSection — mutations', () => {
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('in use'));
     expect(await screen.findByText('gpt-image-1')).toBeInTheDocument();
     expect(invalidateCatalogue).not.toHaveBeenCalled();
+  });
+});
+
+describe('AdminImagePricingSection — reference-image price', () => {
+  it('lists it where the vendor bills it and a dash elsewhere', async () => {
+    await renderLoaded([pricing(), QWEN_ROW]);
+    expect(screen.getByText('$0.002750')).toBeInTheDocument();
+    expect(screen.getByText('—')).toBeInTheDocument();
+  });
+
+  it('sends the price typed when creating a row', async () => {
+    const { user } = await renderLoaded();
+    await user.click(screen.getByRole('button', { name: ADD }));
+    await fillModal(user);
+    await user.type(screen.getByLabelText(`${I18N}.modal.input_cost_label`), '0.00275');
+    await user.click(screen.getByRole('button', { name: SUBMIT_CREATE }));
+    await waitFor(() =>
+      expect(createImagePricing).toHaveBeenCalledWith(
+        expect.objectContaining({ ...EDITED, cost_per_input_image_usd: '0.00275' })
+      )
+    );
+  });
+
+  it('keeps the row price when an edit leaves it untouched', async () => {
+    const { user } = await renderLoaded([QWEN_ROW]);
+    await user.click(screen.getByRole('button', { name: EDIT }));
+    await user.click(screen.getByRole('button', { name: SUBMIT_EDIT }));
+    await answerConfirmDialog(user);
+    await waitFor(() =>
+      expect(updateImagePricing).toHaveBeenCalledWith(
+        'q1',
+        expect.objectContaining({ cost_per_input_image_usd: '0.00275' })
+      )
+    );
   });
 });

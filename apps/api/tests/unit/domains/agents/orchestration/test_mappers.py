@@ -825,7 +825,9 @@ class TestMapExecutionResultBasic:
 
         assert result is not None
         agent_result = result["1:plan_executor"]
-        assert agent_result["status"] == "failed"
+        # ADR-303: no step at all — the plan failed before running anything,
+        # so its own verdict is the only one there is.
+        assert agent_result["status"] == "error"
         assert agent_result["error"] == "Tool execution failed"
 
     def test_generates_correct_composite_key(self):

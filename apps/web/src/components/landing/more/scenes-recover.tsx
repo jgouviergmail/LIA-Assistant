@@ -1,7 +1,8 @@
 /**
  * Scenes of section 03 — "When things go wrong": actionable errors, one-click
- * retry, early quota warning, image expiry notice, named attachment limits,
- * correcting a commitment the extractor misheard.
+ * retry, an answer that names what it could not obtain, early quota warning,
+ * image expiry notice, named attachment limits, correcting a commitment the
+ * extractor misheard.
  * Timer-driven micro-demos; last phase = resting frame.
  */
 
@@ -15,7 +16,9 @@ import {
   Clock,
   Disc,
   FileWarning,
+  Globe,
   Image as ImageIcon,
+  ListChecks,
   Package,
   PencilLine,
   Play,
@@ -23,6 +26,7 @@ import {
   RotateCcw,
   RotateCw,
   ScrollText,
+  SearchX,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -279,6 +283,55 @@ function HonestFreshnessScene({ active, labels }: SceneProps) {
   );
 }
 
+type GapsPhase = 'obtained' | 'fallback' | 'missing' | 'tried';
+const GAPS_STEPS: readonly TimelineStep<GapsPhase>[] = [
+  { at: 0, state: 'obtained' },
+  { at: 900, state: 'fallback' },
+  { at: 1800, state: 'missing' },
+  { at: 2600, state: 'tried' },
+];
+const GAPS_ORDER: readonly GapsPhase[] = ['obtained', 'fallback', 'missing', 'tried'];
+
+/** An answer that ends by naming what it could not obtain, and what it tried. */
+function HonestGapsScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(GAPS_STEPS, { active });
+  const reached = (step: GapsPhase) => GAPS_ORDER.indexOf(phase) >= GAPS_ORDER.indexOf(step);
+  const row = (visible: boolean) =>
+    cn(
+      'flex items-center gap-1.5 transition-all duration-300',
+      visible ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
+    );
+  return (
+    <div className={cn(STAGE, 'items-stretch justify-center')}>
+      <MiniBubble side="assistant" className="w-[88%] space-y-1.5">
+        <div className={row(true)}>
+          <Check className="h-3 w-3 shrink-0 text-primary" />
+          <span className="truncate font-medium text-foreground">{labels.obtained}</span>
+        </div>
+        <div className={row(reached('fallback'))}>
+          <Globe className="h-3 w-3 shrink-0 text-muted-foreground" />
+          <span className="truncate text-muted-foreground">{labels.fallback}</span>
+        </div>
+        <div
+          className={cn(
+            'space-y-1 border-t border-border/60 pt-1.5 transition-opacity duration-300',
+            reached('missing') ? 'opacity-100' : 'opacity-0'
+          )}
+        >
+          <div className="flex items-center gap-1.5">
+            <SearchX className="h-3 w-3 shrink-0 text-warning" />
+            <span className="truncate font-medium text-warning">{labels.missing}</span>
+          </div>
+          <div className={row(reached('tried'))}>
+            <ListChecks className="h-3 w-3 shrink-0 text-muted-foreground" />
+            <span className="truncate text-muted-foreground">{labels.tried}</span>
+          </div>
+        </div>
+      </MiniBubble>
+    </div>
+  );
+}
+
 type FixPhase = 'wrong' | 'editing' | 'fixed' | 'settle';
 const FIX_STEPS: readonly TimelineStep<FixPhase>[] = [
   { at: 0, state: 'wrong' },
@@ -423,6 +476,7 @@ export const RECOVER_SCENES: Readonly<Record<string, SceneComponent>> = {
   actionable_errors: ActionableErrorsScene,
   retry_turn: RetryTurnScene,
   honest_freshness: HonestFreshnessScene,
+  honest_gaps: HonestGapsScene,
   quota_warning: QuotaWarningScene,
   image_expiry: ImageExpiryScene,
   attachment_limits: AttachmentLimitsScene,

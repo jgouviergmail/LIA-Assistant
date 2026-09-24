@@ -25,6 +25,7 @@ from src.core.constants import LLM_INSTANCE_CACHE_MAX_SIZE
 from src.core.llm_agent_config import LLMAgentConfig
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.infrastructure.llm.providers.adapter import ProviderAdapter
+from src.infrastructure.llm.providers.anthropic_payload import shape_claude_payload
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
@@ -408,116 +409,21 @@ def get_llm(
 
     llm.callbacks = callbacks
 
-    # 6. Anthropic prompt caching: split system prompt into static + dynamic blocks
-    #
-    # Anthropic's prompt caching is PREFIX-based with EXACT byte matching:
-    #   - The cache key = all content blocks up to and including the one with cache_control
-    #   - If ANY byte differs in that prefix, it's a cache miss
-    #
-    # Problem: Our system prompts contain both static instructions AND dynamic context
-    # (datetime, user_query, history) in a SINGLE text block. Putting cache_control on
-    # this block means the entire text (including changing dynamic parts) is the cache
-    # key → cache miss every time.
-    #
-    # Solution: Split system prompt at "--- DYNAMIC CONTEXT" marker into TWO blocks:
-    #   Block 1: Static instructions (with cache_control) → CACHED across requests
-    #   Block 2: Dynamic context (no cache_control) → fresh each request
-    #
-    # All 11 major prompts (query_analyzer, planner, response, hitl, router, etc.)
-    # use this marker. Static portions are 67-90% of the prompt (well above the
-    # 1024-token minimum for Anthropic caching).
-    #
-    # Instance-level patching survives .with_structured_output() because it reuses
-    # the same ChatAnthropic instance internally.
-    #
-    # Cost: cache reads at 10% of input price, writes at 125% (amortized quickly).
-    from src.core.constants import ANTHROPIC_CACHE_MIN_TOKENS_TYPICAL, DYNAMIC_CONTEXT_MARKER
-
+    # 6. Claude request payload policy (ADR-306): the static-prefix breakpoint
+    # whatever the shape of the system prompt, the rolling breakpoint only in a
+    # tool loop, no earlier turn's thinking replayed. The Claude API never
+    # caches unasked, so where the breakpoints sit decides the bill -- see
+    # ``providers/anthropic_payload.py`` for the three measurements behind it.
+    # Instance-level wiring survives ``.with_structured_output()`` and
+    # ``.bind_tools()``: both reuse this ChatAnthropic instance.
     if provider == "anthropic" and hasattr(llm, "_get_request_payload"):
         _original_get_request_payload = llm._get_request_payload
 
         def _get_request_payload_with_cache(input_: Any, stop: Any = None, **kwargs: Any) -> dict:
-            # Remove cache_control from kwargs to prevent it going to last message
+            # An invoke-time ``cache_control`` would land on the last message:
+            # the policy owns every breakpoint.
             kwargs.pop("cache_control", None)
-            payload = _original_get_request_payload(input_, stop=stop, **kwargs)
-
-            system = payload.get("system")
-            if not system:
-                return payload
-
-            cache_ctrl = {"type": "ephemeral"}
-
-            if isinstance(system, str):
-                # Split at dynamic marker to separate cacheable static prefix
-                marker_pos = system.find(DYNAMIC_CONTEXT_MARKER)
-                if marker_pos > 0:
-                    static_part = system[:marker_pos].rstrip()
-                    dynamic_part = system[marker_pos:]
-                    # Estimate tokens (~3.5 chars/token for mixed content).
-                    # The minimum cacheable length VARIES BY MODEL (512 on
-                    # Opus 5, 1024 on Sonnet 5, 4096 on Opus 4.5/Haiku 4.5 —
-                    # provider doc, read 2026-09-02); 1024 is the common case,
-                    # so this debug stays a heads-up, never a per-model claim.
-                    estimated_tokens = len(static_part) // 3
-                    if estimated_tokens < ANTHROPIC_CACHE_MIN_TOKENS_TYPICAL:
-                        logger.debug(
-                            "anthropic_cache_prefix_small",
-                            estimated_tokens=estimated_tokens,
-                            chars=len(static_part),
-                            min_typical=ANTHROPIC_CACHE_MIN_TOKENS_TYPICAL,
-                            msg="Static prefix likely below the model's minimum "
-                            "cacheable length (512-4096 by model) — cache_control "
-                            "may be ignored",
-                        )
-                    payload["system"] = [
-                        {"type": "text", "text": static_part, "cache_control": cache_ctrl},
-                        {"type": "text", "text": dynamic_part},
-                    ]
-                else:
-                    # No marker: leave the system prompt untouched (NO cache_control).
-                    # Without the marker we cannot know whether the prompt embeds
-                    # per-request dynamic content (datetime, user data). Best-effort
-                    # caching such a prompt pays the 125% cache-write premium on
-                    # every call and never hits. Fully static prompts opt in by
-                    # ENDING with the marker (static prefix = whole prompt); see
-                    # compaction_prompt.txt / semantic_validator_prompt.txt.
-                    pass
-            elif isinstance(system, list):
-                # Already structured as blocks: add cache_control to last block
-                for block in reversed(system):
-                    if isinstance(block, dict):
-                        block["cache_control"] = cache_ctrl
-                        break
-
-            # Lot F (2026-09): ROOT-level cache_control — the documented mode
-            # for multi-turn/agentic conversations. The breakpoint auto-moves
-            # to the last cacheable block as the history grows, so the ReAct
-            # loop's accumulated tool results are read from cache instead of
-            # re-billed at full price on every iteration (before this, ONLY
-            # the static system block was cached: measured 2026-09-02, zero
-            # message blocks marked). Withheld when four explicit block-level
-            # breakpoints already exist — automatic + 4 explicit is a
-            # documented API 400.
-            explicit_breakpoints = 0
-            marked_system = payload.get("system")
-            if isinstance(marked_system, list):
-                explicit_breakpoints += sum(
-                    1
-                    for block in marked_system
-                    if isinstance(block, dict) and "cache_control" in block
-                )
-            for message in payload.get("messages") or []:
-                content = message.get("content") if isinstance(message, dict) else None
-                if isinstance(content, list):
-                    explicit_breakpoints += sum(
-                        1
-                        for block in content
-                        if isinstance(block, dict) and "cache_control" in block
-                    )
-            if explicit_breakpoints < 4:
-                payload["cache_control"] = dict(cache_ctrl)
-
-            return payload
+            return shape_claude_payload(_original_get_request_payload(input_, stop=stop, **kwargs))
 
         llm._get_request_payload = _get_request_payload_with_cache  # type: ignore[method-assign]
 

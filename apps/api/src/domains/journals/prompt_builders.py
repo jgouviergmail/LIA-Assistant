@@ -10,8 +10,12 @@ prompt sent at runtime has a single, importable definition. Two layers:
 - ``build_*`` — thin wrappers that load the shipped templates via
   ``load_prompt`` and delegate to the ``render_*`` layer.
 
-The analyst persona is appended to BOTH prompts (it is independent of the
-conversational personality, which only defines how the assistant *talks*).
+Both prompts carry the analyst persona (it is independent of the
+conversational personality, which only defines how the assistant *talks*). The
+extraction prompt places it at ``{analyst_persona}``, above its dynamic-context
+boundary, because the extraction runs on every turn and its fixed part is read
+again from a provider's prompt cache (ADR-309); the nightly consolidation
+appends it.
 """
 
 from __future__ import annotations
@@ -19,8 +23,10 @@ from __future__ import annotations
 from src.core.config import settings
 from src.domains.agents.prompts.prompt_loader import load_prompt
 
-# The persona is appended after the main template, separated by a blank line.
+# The persona is appended after the consolidation template, separated by a blank line.
 _PERSONA_SEPARATOR = "\n\n"
+# Where the extraction template places the persona: in its fixed part.
+_PERSONA_SLOT = "{analyst_persona}"
 
 
 def _render_persona(persona_template: str, personality_code: str | None) -> str:
@@ -58,7 +64,8 @@ def render_introspection_prompt(
     file can be rendered exactly the way production renders the shipped one.
 
     Args:
-        template: Raw ``journal_introspection_prompt`` template.
+        template: Raw ``journal_introspection_prompt`` template; it must place
+            the persona with ``{analyst_persona}``.
         persona_template: Raw ``journal_analyst_persona`` template.
         conversation: Formatted conversation excerpt.
         existing_entries: Formatted pre-filtered existing entries.
@@ -75,8 +82,15 @@ def render_introspection_prompt(
 
     Returns:
         The complete prompt string sent to the extraction LLM.
+
+    Raises:
+        ValueError: When the template does not place the persona — ``str.format``
+            would silently drop it, and a measurement would run without it.
     """
-    prompt = template.format(
+    if _PERSONA_SLOT not in template:
+        raise ValueError(f"the extraction template must place the persona with {_PERSONA_SLOT}")
+    return template.format(
+        analyst_persona=_render_persona(persona_template, personality_code),
         conversation=conversation,
         existing_entries=existing_entries,
         current_chars=current_chars,
@@ -88,7 +102,6 @@ def render_introspection_prompt(
         inner_state_section=inner_state_section,
         previous_turn_directives_section=previous_turn_directives_section,
     )
-    return prompt + _PERSONA_SEPARATOR + _render_persona(persona_template, personality_code)
 
 
 def build_introspection_prompt(

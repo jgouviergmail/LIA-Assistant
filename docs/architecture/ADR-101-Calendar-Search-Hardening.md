@@ -136,3 +136,48 @@ when that fewshot is added.
   resolved person → kept (7 tests).
 - Cap guard green after fixing 5 bypasses + 4 allow-listed metadata methods.
 - Round-trip preserves `has_temporal_reference`. Full unit suite green.
+
+## Amendment 2026-09-23 — the tool searches the window itself, the same way on every provider
+
+**What the free-text decision above produced in practice.** `query` became a
+PERSON: the tool looked any non-address word up in the contacts, searched the
+provider for that person's e-mail and silently dropped everything else. Measured
+on a real ReAct turn (« Thursday I'm having lunch on a terrace with <a contact> »): the
+model passed `query="déjeuner"`, the tool looked « déjeuner » up in the contacts
+(a People API call, a `recipient_resolution_failed` WARNING), dropped it, and
+returned the 23-26 September window as if it were the result of the search — the
+model was never told its word had been ignored. On the person path, the contact's
+name matched three contacts and the tool kept the first e-mail without saying so, and
+a « Déjeuner avec <name> » written without inviting that person cannot be
+found by an e-mail at all. The model had followed its contract: the planner catalogue said
+« person only », while the tool the ReAct loop binds said « Search term » with
+the example `query="meeting"`, and the manifest's own parameter said « Free text
+search query ». The providers also disagreed on what a query covers: Google
+searches everything, the Microsoft client the subject only, the Apple client the
+title and description.
+
+**Decision.**
+
+- **The provider never receives the query.** The tool reads the window at the
+  connectors' per-request ceiling (`API_MAX_ITEMS_PER_REQUEST`, the cap every
+  client applies) and keeps the events a query finds, through ONE matcher
+  (`agents/calendar/event_search.py`) over the events every client already
+  normalises to one shape: title, location, organizer and attendees (names and
+  e-mail addresses), case and accents ignored (the shared `fold_name`), each word
+  matching the start of a word, words shorter than three letters not required.
+  Identical on Google, Microsoft and Apple by construction; the location costs
+  nothing more.
+- **No contacts lookup.** A name is matched where it is written — an attendee's
+  name, an address's local part, the title — so no silent first-pick among
+  homonyms and no People API call per search.
+- **The search is stated.** The result carries `search` (query, fields, matched,
+  searched, whether the window was read whole) and its first line says it: a
+  match, no match, or a window holding more events than one read covers — narrow
+  or move it. A theme or a category (« medical ») is still listed without a
+  query and judged by the model, as before.
+- **One contract, published on both surfaces.** `QUERY_CONTRACT` is the
+  description of `query` in the planner manifest AND on the tool the ReAct loop
+  binds (pinned by a test). The same pass removed two other manifest statements
+  the code contradicted (« Next 7 days » while the window is the setting,
+  « def: 10 » while the default is the cap) and the query the two calendar
+  clients logged at INFO — a name or an e-mail address.

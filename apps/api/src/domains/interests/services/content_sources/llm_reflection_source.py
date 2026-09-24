@@ -206,7 +206,7 @@ class LLMReflectionContentSource:
 
         try:
             usage = tokens_from_response(result)
-            input_tokens, output_tokens, cached_tokens = usage
+            input_tokens, output_tokens = usage.prompt, usage.completion
             if usage.is_empty:
                 return
 
@@ -224,7 +224,8 @@ class LLMReflectionContentSource:
                     model_name=model_name,
                     prompt_tokens=input_tokens,
                     completion_tokens=output_tokens,
-                    cached_tokens=cached_tokens,
+                    cached_tokens=usage.cached,
+                    cache_write_tokens=usage.cache_write,
                 )
                 await tracker.commit()
 

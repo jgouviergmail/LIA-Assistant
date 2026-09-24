@@ -31,8 +31,12 @@ from src.domains.llm.pricing_sheet import (
     MODELS_SHEET,
     PRICING_SOURCE_COLUMNS,
     SLOTS_SHEET,
+    WEEKDAY_CODES,
     build_pricing_workbook_spec,
+    weekday_codes,
+    weekdays_from_codes,
 )
+from src.domains.llm.pricing_time_slots import TimeSlotPrice
 
 
 @pytest.mark.unit
@@ -110,7 +114,53 @@ class TestReferentialsComeFromTheEnums:
         spec = build_pricing_workbook_spec()
 
         assert "TEMPLATE" not in spec.referentials
-        assert set(spec.referentials) == {"PROVIDER", "KIND", "UNIT", "SLOTMODE"}
+        assert set(spec.referentials) == {"PROVIDER", "KIND", "UNIT", "SLOTMODE", "WEEKDAY"}
+
+    def test_the_weekday_referential_is_the_iso_week_monday_first(self) -> None:
+        spec = build_pricing_workbook_spec()
+        assert tuple(spec.referentials["WEEKDAY"]) == WEEKDAY_CODES
+        assert WEEKDAY_CODES == ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+
+
+@pytest.mark.unit
+class TestTheSlotSheetCarriesEveryField:
+    def test_every_field_a_window_carries_is_an_editable_column(self) -> None:
+        """A window field the sheet does not carry is DROPPED by the next import:
+        the export cannot write it, and the import rebuilds the window without
+        it. The days nearly shipped that way — the API knew them, the workbook
+        did not."""
+        editable = set(SLOTS_SHEET.editable_keys) - {SLOTS_SHEET.key_column}
+        assert editable == set(TimeSlotPrice.model_fields)
+
+    def test_the_days_column_holds_several_days(self) -> None:
+        column = SLOTS_SHEET.column("weekdays")
+        assert column.kind == "enum_list"
+        assert column.referential == "WEEKDAY"
+
+
+@pytest.mark.unit
+class TestWeekdayCells:
+    """ISO numbers in the database, codes a person can read in the workbook."""
+
+    def test_days_are_written_as_codes_in_week_order(self) -> None:
+        assert weekday_codes([1, 2, 3, 4, 5]) == ["mon", "tue", "wed", "thu", "fri"]
+        assert weekday_codes([6, 7]) == ["sat", "sun"]
+
+    def test_an_every_day_window_is_an_empty_cell(self) -> None:
+        assert weekday_codes(None) is None
+
+    def test_a_stored_day_outside_the_week_is_written_as_itself(self) -> None:
+        """A corrupt row must come back REFUSED by the import, not silently
+        repaired into a different set of days."""
+        assert weekday_codes([1, 9]) == ["mon", "9"]
+
+    def test_codes_read_back_as_the_canonical_days(self) -> None:
+        assert weekdays_from_codes(["fri", "mon", "mon"]) == [1, 5]
+
+    def test_every_code_and_no_code_both_mean_every_day(self) -> None:
+        assert weekdays_from_codes(list(WEEKDAY_CODES)) is None
+        assert weekdays_from_codes([]) is None
+        assert weekdays_from_codes(None) is None
 
 
 @pytest.mark.unit
@@ -145,6 +195,7 @@ class TestSheetShape:
     def test_the_slots_sheet_carries_utc_window_bounds(self) -> None:
         assert SLOTS_SHEET.column("start_utc").kind == "time_hhmm"
         assert SLOTS_SHEET.column("end_utc").kind == "time_hhmm"
+        assert SLOTS_SHEET.column("weekdays").editable is True
 
     def test_columns_are_grouped_into_readable_blocks(self) -> None:
         """27 columns without collapsible groups (protection disables them):

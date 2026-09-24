@@ -89,13 +89,15 @@ class TestEmbeddingCost:
             cost = ge._embedding_cost_usd("gemini-embedding-001", 1_000_000)
 
         assert cost == 0.25
-        priced.assert_called_once_with("gemini-embedding-001", 1_000_000, 0)
+        priced.assert_called_once_with("gemini-embedding-001", 1_000_000, 0, cache_write_tokens=0)
 
     def test_a_different_model_gets_that_model_s_price(self) -> None:
         """The frozen constant made every model cost 0.15/1M forever."""
         prices = {"gemini-embedding-001": (0.15, 0.14), "gemini-embedding-2": (0.20, 0.18)}
 
-        with patch(f"{_MODULE}.get_cached_cost_usd_eur", side_effect=lambda m, *_a: prices[m]):
+        with patch(
+            f"{_MODULE}.get_cached_cost_usd_eur", side_effect=lambda m, *_a, **_k: prices[m]
+        ):
             assert ge._embedding_cost_usd("gemini-embedding-001", 1) == 0.15
             assert ge._embedding_cost_usd("gemini-embedding-2", 1) == 0.20
 

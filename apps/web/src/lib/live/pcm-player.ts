@@ -36,12 +36,34 @@ export const PCM_PLAYER_PROCESSOR_NAME = 'lia-pcm-stream-player';
 /** What the main thread posts to the worklet. */
 export type PcmPlayerCommand =
   | { type: 'chunk'; seq: number; rate: number; samples: Float32Array }
+  | { type: 'buffer'; frames: number }
   | { type: 'flush' };
 
 /** What the worklet posts back: the queue ran dry after chunk `seq`. */
 export interface PcmPlayerDrained {
   type: 'drained';
   seq: number;
+}
+
+/** Actual silent frames rendered between two runs of provider audio. */
+export interface PcmPlayerGap {
+  type: 'gap';
+  frames: number;
+  at_frames: number;
+}
+
+/** Counts only: enough to distinguish network starvation from rendering distortion. */
+export interface PcmPlayerDiagnostics {
+  chunks: number;
+  drains: number;
+  audio_ms: number;
+  source_rate: number;
+  context_rate: number;
+  short_gap_count: number;
+  short_gap_ms: number;
+  short_gap_bins: number[];
+  long_gap_count: number;
+  max_gap_ms: number;
 }
 
 /**
@@ -59,14 +81,51 @@ export function buildPcmPlayerWorkletSource(): string {
         this.position = 0;
         this.lastSeq = -1;
         this.playing = false;
+        this.attack = 0;
+        this.attackFrom = 0;
+        this.lastOutput = 0;
+        this.wasEmpty = true;
+        this.tailFrames = 16;
+        this.tailStart = 0;
+        this.bufferFrames = 0;
+        this.waitFrames = 0;
+        this.renderedFrames = 0;
+        this.firstChunkFrame = null;
+        this.playingEver = false;
+        this.gapFrames = 0;
         this.port.onmessage = (event) => {
           const message = event.data;
           if (message.type === 'chunk') {
+            if (this.firstChunkFrame === null) this.firstChunkFrame = this.renderedFrames;
+            // The queue can drain exactly at a render-block boundary without
+            // playing any silence. Rebuffer only after silence was rendered.
+            if (this.queue.length === 0 && this.wasEmpty) {
+              if (this.gapFrames > 0) {
+                this.port.postMessage({
+                  type: 'gap',
+                  frames: this.gapFrames,
+                  at_frames: this.renderedFrames - this.firstChunkFrame,
+                });
+                this.gapFrames = 0;
+              }
+              this.waitFrames = this.bufferFrames;
+            }
             this.queue.push({ samples: message.samples, rate: message.rate, seq: message.seq });
+          } else if (message.type === 'buffer') {
+            this.bufferFrames = message.frames;
           } else if (message.type === 'flush') {
             this.queue.length = 0;
             this.position = 0;
             this.playing = false;
+            this.attack = 0;
+            this.attackFrom = 0;
+            this.lastOutput = 0;
+            this.wasEmpty = true;
+            this.tailFrames = 16;
+            this.tailStart = 0;
+            this.waitFrames = 0;
+            this.playingEver = false;
+            this.gapFrames = 0;
           }
         };
       }
@@ -84,9 +143,27 @@ export function buildPcmPlayerWorkletSource(): string {
         if (!output) return true;
         for (let i = 0; i < output.length; i++) {
           this.dropConsumed();
-          if (this.queue.length === 0) {
+          if (this.waitFrames > 0 && this.queue.length > 0) {
+            this.waitFrames -= 1;
             output[i] = 0;
             continue;
+          }
+          if (this.queue.length === 0) {
+            if (!this.wasEmpty) {
+              this.wasEmpty = true;
+              this.tailStart = this.lastOutput;
+              this.tailFrames = 0;
+            }
+            this.tailFrames = Math.min(16, this.tailFrames + 1);
+            output[i] = this.tailStart * (1 - this.tailFrames / 16);
+            this.lastOutput = output[i];
+            if (this.playingEver) this.gapFrames += 1;
+            continue;
+          }
+          if (this.wasEmpty) {
+            this.wasEmpty = false;
+            this.attack = 0;
+            this.attackFrom = this.lastOutput;
           }
           const head = this.queue[0];
           const index = Math.floor(this.position);
@@ -96,10 +173,22 @@ export function buildPcmPlayerWorkletSource(): string {
           if (index + 1 < head.samples.length) b = head.samples[index + 1];
           else if (this.queue.length > 1) b = this.queue[1].samples[0];
           else b = a;
-          output[i] = a + (b - a) * fraction;
+          // Keep adjacent chunks untouched. Only an ACTUAL empty queue gets
+          // a short tail; a later chunk fades from the last rendered sample.
+          const raw = a + (b - a) * fraction;
+          if (this.attack < 16) {
+            this.attack += 1;
+            const gain = this.attack / 16;
+            output[i] = this.attackFrom * (1 - gain) + raw * gain;
+          } else {
+            output[i] = raw;
+          }
+          this.lastOutput = output[i];
           this.position += head.rate / sampleRate;
           this.playing = true;
+          this.playingEver = true;
         }
+        this.renderedFrames += output.length;
         this.dropConsumed();
         if (this.playing && this.queue.length === 0) {
           this.playing = false;
@@ -130,6 +219,16 @@ export class PcmStreamPlayer {
   private speaking = false;
   private listener: SpeakingListener | null = null;
   private seq = 0;
+  private drains = 0;
+  private audioMs = 0;
+  private sourceRate = 0;
+  private shortGapCount = 0;
+  private shortGapMs = 0;
+  private shortGapBins = new Array<number>(12).fill(0);
+  private longGapCount = 0;
+  private maxGapMs = 0;
+
+  constructor(private readonly bufferMs = 0) {}
 
   get isSpeaking(): boolean {
     return this.speaking;
@@ -154,11 +253,34 @@ export class PcmStreamPlayer {
       numberOfOutputs: 1,
       outputChannelCount: [1],
     });
-    node.port.onmessage = (event: MessageEvent<PcmPlayerDrained>) => {
+    node.port.onmessage = (event: MessageEvent<PcmPlayerDrained | PcmPlayerGap>) => {
+      if (event.data?.type === 'gap') {
+        const gapMs = Math.round((event.data.frames / context.sampleRate) * 1000);
+        this.maxGapMs = Math.max(this.maxGapMs, gapMs);
+        if (gapMs > 250) {
+          this.longGapCount += 1;
+        } else if (gapMs > 0) {
+          this.shortGapCount += 1;
+          this.shortGapMs += gapMs;
+          const bin = Math.min(
+            this.shortGapBins.length - 1,
+            Math.floor(event.data.at_frames / context.sampleRate / 10)
+          );
+          this.shortGapBins[bin] += 1;
+        }
+      }
+      if (event.data?.type === 'drained') this.drains += 1;
       // A report about an older chunk is stale: a newer one is on its way.
       if (event.data?.type === 'drained' && event.data.seq === this.seq) this.setSpeaking(false);
     };
     node.connect(context.destination);
+    if (this.bufferMs > 0) {
+      const command: PcmPlayerCommand = {
+        type: 'buffer',
+        frames: Math.round((context.sampleRate * this.bufferMs) / 1000),
+      };
+      node.port.postMessage(command);
+    }
     this.node = node;
   }
 
@@ -171,9 +293,29 @@ export class PcmStreamPlayer {
     const samples = new Float32Array(source.length);
     for (let i = 0; i < source.length; i++) samples[i] = source[i] / 0x8000;
     this.seq += 1;
+    if (Number.isFinite(sampleRate) && sampleRate > 0) {
+      this.audioMs += (source.length / sampleRate) * 1000;
+      this.sourceRate = sampleRate;
+    }
     const command: PcmPlayerCommand = { type: 'chunk', seq: this.seq, rate: sampleRate, samples };
     node.port.postMessage(command, [samples.buffer]);
     this.setSpeaking(true);
+  }
+
+  diagnostics(): PcmPlayerDiagnostics | null {
+    if (this.seq === 0) return null;
+    return {
+      chunks: this.seq,
+      drains: this.drains,
+      audio_ms: Math.round(this.audioMs),
+      source_rate: this.sourceRate,
+      context_rate: this.context?.sampleRate ?? 0,
+      short_gap_count: this.shortGapCount,
+      short_gap_ms: this.shortGapMs,
+      short_gap_bins: this.shortGapBins,
+      long_gap_count: this.longGapCount,
+      max_gap_ms: this.maxGapMs,
+    };
   }
 
   /** The provider interrupted: the worklet drops everything it holds, now. */

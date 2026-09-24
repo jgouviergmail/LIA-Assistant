@@ -1180,6 +1180,58 @@
             }
           },
           "description": "Tool rejection rate (user_rejected outcome) by tool (1h window) Identify tools users don't trust (high rejection) High rejection rate indicates poor tool suggestions."
+        },
+        {
+          "id": 4208,
+          "type": "timeseries",
+          "title": "Tool failures (returned, per tool)",
+          "description": "Tools that FAILED by returning a failure payload — a 403 from a site, an expired token, a rate limit. Counted since ADR-303: before, any return without an exception was counted a success, so this series was empty by construction and business:tool_success_rate:5m_by_tool was 1.0 whatever happened. `or vector(0)` keeps a green 0 when nothing has failed yet.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 68
+          },
+          "targets": [
+            {
+              "expr": "sum by (tool_name) (increase(agent_tool_invocations_total{success=\"false\"}[$__rate_interval])) or vector(0)",
+              "legendFormat": "{{tool_name}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "noValue": "0",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 1
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
         }
       ]
     },

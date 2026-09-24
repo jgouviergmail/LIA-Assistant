@@ -159,7 +159,6 @@ READ_ONLY_ROUTES: dict[str, str] = {
         "/api/v1/connectors/api-key/validate",
         "/api/v1/connectors/api-key/{connector_id}/rotate",
         "/api/v1/connectors/google-contacts/activate",
-        "/api/v1/connectors/google-places/activate",
         # Local-network pairing and discovery: a visitor has no bridge here,
         # and the demonstrator's egress is search-only (owner arbitration 2).
         "/api/v1/connectors/philips-hue/pair",

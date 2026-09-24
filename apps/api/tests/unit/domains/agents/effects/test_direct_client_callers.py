@@ -36,7 +36,14 @@ _SRC = Path(__file__).resolve().parents[5] / "src"
 #: client layer. Everything else must declare itself.
 _EXEMPT_PREFIXES = ("domains/agents/tools/", "domains/connectors/")
 
-_IMPORT = re.compile(r"from src\.domains\.connectors\.clients\.(\w+) import")
+#: A client import — or the DOOR that opens one (ADR-304): ``active_client`` and
+#: ``calendar_access`` live in the exempt connector layer and hand back a live
+#: client, so a module going through them calls a client all the same. Walking
+#: ``clients.*`` alone let every caller of the door leave this table in silence
+#: (``calendar_access`` had done so since the moments lot).
+_IMPORT = re.compile(
+    r"from src\.domains\.connectors\.(?:clients\.(\w+)|(active_client|calendar_access)) import"
+)
 
 #: What a recorder names when the read happens INSIDE a turn: the authorship
 #: comes from the runtime context, so there is no fixed-source surface.
@@ -50,7 +57,8 @@ def _callers() -> dict[str, set[str]]:
         relative = path.relative_to(_SRC).as_posix()
         if any(relative.startswith(prefix) for prefix in _EXEMPT_PREFIXES):
             continue
-        clients = set(_IMPORT.findall(path.read_text(encoding="utf-8", errors="ignore")))
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        clients = {client or door for client, door in _IMPORT.findall(text)}
         if clients:
             found[relative] = clients
     return found

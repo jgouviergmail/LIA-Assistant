@@ -5,7 +5,7 @@ import { type Language } from '@/i18n/settings';
 import { OnboardingPageLayout } from '../OnboardingPageLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Search, BookOpen, MapPin, Cloud, Globe, Info, Plug } from 'lucide-react';
+import { Search, Cloud, Info, Plug } from 'lucide-react';
 
 interface Page2ConnectorsProps {
   lng: Language;
@@ -18,6 +18,8 @@ interface Page2ConnectorsProps {
   isLoading?: boolean;
 }
 
+// Only what takes the person's own key: Wikipedia, page browsing and the
+// platform Google services are provided by the instance (ADR-307).
 const externalConnectors = [
   {
     icon: Search,
@@ -27,32 +29,11 @@ const externalConnectors = [
     bgColor: 'bg-orange-500/10',
   },
   {
-    icon: BookOpen,
-    nameKey: 'onboarding.page2.options.wikipedia_name',
-    descKey: 'onboarding.page2.options.wikipedia_desc',
-    color: 'text-slate-600 dark:text-slate-400',
-    bgColor: 'bg-slate-500/10',
-  },
-  {
-    icon: MapPin,
-    nameKey: 'onboarding.page2.options.places_name',
-    descKey: 'onboarding.page2.options.places_desc',
-    color: 'text-red-600 dark:text-red-400',
-    bgColor: 'bg-red-500/10',
-  },
-  {
     icon: Cloud,
     nameKey: 'onboarding.page2.options.weather_name',
     descKey: 'onboarding.page2.options.weather_desc',
     color: 'text-sky-600 dark:text-sky-400',
     bgColor: 'bg-sky-500/10',
-  },
-  {
-    icon: Globe,
-    nameKey: 'onboarding.page2.options.browser_name',
-    descKey: 'onboarding.page2.options.browser_desc',
-    color: 'text-indigo-600 dark:text-indigo-400',
-    bgColor: 'bg-indigo-500/10',
   },
 ];
 

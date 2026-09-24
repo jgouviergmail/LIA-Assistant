@@ -1282,11 +1282,20 @@ function LLMConfigDialog({
     } catch (err) {
       const detail = structuredErrorDetail(err);
       if (detail?.type === 'thinking_budget_below_floor') {
+        // A model that reasons with no level set (ADR-306) cannot be told to
+        // "turn reasoning off": name the depth it applies unasked instead.
+        const implicitLevel = detail.ctx?.implicit_level;
+        const budget = {
+          maxTokens: String(detail.ctx?.effective_max_tokens ?? '?'),
+          floor: String(detail.ctx?.floor ?? '?'),
+        };
         toast.error(
-          t('settings.admin.llmConfig.config.thinkingBudgetBelowFloor', {
-            maxTokens: String(detail.ctx?.effective_max_tokens ?? '?'),
-            floor: String(detail.ctx?.floor ?? '?'),
-          })
+          typeof implicitLevel === 'string'
+            ? t('settings.admin.llmConfig.config.thinkingBudgetImplicitBelowFloor', {
+                ...budget,
+                level: t(`settings.admin.llmConfig.reasoningLevels.${implicitLevel}`),
+              })
+            : t('settings.admin.llmConfig.config.thinkingBudgetBelowFloor', budget)
         );
       } else if (detail?.msg) {
         // Other structured 422s (reasoning matrix): surface the backend's

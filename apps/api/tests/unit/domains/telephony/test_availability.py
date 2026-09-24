@@ -8,18 +8,17 @@ guarantee is verifiable in isolation on the pure projector.
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
-from types import SimpleNamespace
 from uuid import uuid4
 
 import httpx
 import pytest
 
-import src.domains.telephony.availability as availability
-from src.domains.telephony.availability import (
-    build_availability_summary,
-    summarize_busy_periods,
-)
+from src.domains.connectors.active_client import ClientUnavailable
+from src.domains.connectors.calendar_access import CalendarAccess
+from src.domains.telephony.availability import build_availability, summarize_busy_periods
 
 # A timed event and an all-day event, each carrying detail fields that MUST NOT
 # leak into the projected summary.
@@ -83,7 +82,7 @@ def test_event_without_start_is_skipped() -> None:
 class _FakeCalendarClient:
     """Minimal calendar client: records the list_events kwargs, returns _EVENTS."""
 
-    def __init__(self, *args: object, **kwargs: object) -> None:
+    def __init__(self) -> None:
         self.last_kwargs: dict = {}
 
     async def list_events(self, **kwargs: object) -> dict:
@@ -91,99 +90,10 @@ class _FakeCalendarClient:
         return {"items": _EVENTS}
 
 
-def _fake_connector_service() -> SimpleNamespace:
-    async def _get_connector_credentials(user_id: object, resolved_type: object) -> object:
-        return {"token": "x"}
-
-    return SimpleNamespace(db=None, get_connector_credentials=_get_connector_credentials)
-
-
-@pytest.mark.unit
-async def test_build_summary_requests_only_start_end_and_projects(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """The wrapper asks the provider for start/end only and projects busy blocks."""
-    resolved = SimpleNamespace(is_apple=False, value="google_calendar")
-
-    async def _resolve(*args: object, **kwargs: object) -> object:
-        return resolved
-
-    fake_client = _FakeCalendarClient()
-    monkeypatch.setattr(
-        "src.domains.connectors.provider_resolver.resolve_active_connector", _resolve
-    )
-    monkeypatch.setattr(
-        "src.domains.connectors.clients.registry.ClientRegistry.get_client_class",
-        staticmethod(lambda _t: (lambda *a, **k: fake_client)),
-    )
-
-    # Keep the calendar-id resolution off the DB in this unit test.
-    async def _primary(*args: object, **kwargs: object) -> str:
-        return "primary"
-
-    monkeypatch.setattr(availability, "_resolve_calendar_id", _primary)
-
-    out = await build_availability_summary(
-        uuid4(),
-        datetime(2026, 7, 14, tzinfo=UTC),
-        datetime(2026, 7, 21, tzinfo=UTC),
-        _fake_connector_service(),  # type: ignore[arg-type]
-        "Europe/Paris",
-        "fr",
-    )
-
-    assert fake_client.last_kwargs.get("fields") == ["start", "end"]
-    assert "09:00" in out and _SECRET_TITLE not in out
-
-
-@pytest.mark.unit
-async def test_build_summary_unavailable_when_no_connector(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """No active calendar connector → localized 'unavailable' line, never raises."""
-
-    async def _resolve(*args: object, **kwargs: object) -> None:
-        return None
-
-    monkeypatch.setattr(
-        "src.domains.connectors.provider_resolver.resolve_active_connector", _resolve
-    )
-    out = await build_availability_summary(
-        uuid4(),
-        datetime(2026, 7, 14, tzinfo=UTC),
-        datetime(2026, 7, 21, tzinfo=UTC),
-        _fake_connector_service(),  # type: ignore[arg-type]
-        "Europe/Paris",
-        "fr",
-    )
-    assert out.startswith("Disponibilités indisponibles")
-
-
-@pytest.mark.unit
-async def test_build_summary_swallows_http_error(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """A provider HTTP error is swallowed → 'unavailable', the call is not blocked."""
-
-    async def _boom(*args: object, **kwargs: object) -> object:
-        raise httpx.HTTPError("boom")
-
-    monkeypatch.setattr("src.domains.connectors.provider_resolver.resolve_active_connector", _boom)
-    out = await build_availability_summary(
-        uuid4(),
-        datetime(2026, 7, 14, tzinfo=UTC),
-        datetime(2026, 7, 21, tzinfo=UTC),
-        _fake_connector_service(),  # type: ignore[arg-type]
-        "Europe/Paris",
-        "en",
-    )
-    assert out.startswith("Availability unavailable")
-
-
 class _FakeFreeBusyClient:
     """Calendar client exposing freeBusy: the fast-path must be preferred."""
 
-    def __init__(self, *args: object, **kwargs: object) -> None:
+    def __init__(self) -> None:
         self.freebusy_called = False
         self.list_events_called = False
 
@@ -207,40 +117,72 @@ class _FakeFreeBusyClient:
         return {"items": []}
 
 
-@pytest.mark.unit
-async def test_build_summary_prefers_freebusy_when_available(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Google-path (lot B): freeBusy returns busy ranges only — even less data
-    than the start/end projection, so it wins when the client offers it."""
-    resolved = SimpleNamespace(is_apple=False, value="google_calendar")
+def _door(opened: object) -> object:
+    """The calendar door, answering ``opened`` (an access, a refusal, or an error)."""
 
-    async def _resolve(*args: object, **kwargs: object) -> object:
-        return resolved
+    @asynccontextmanager
+    async def _open(_user_id: object) -> AsyncIterator[object]:
+        if isinstance(opened, Exception):
+            raise opened
+        yield opened
 
-    fake_client = _FakeFreeBusyClient()
+    return _open
+
+
+def _access(client: object) -> CalendarAccess:
+    return CalendarAccess(client=client, calendar_id="primary", connector_type="google_calendar")
+
+
+async def _read(monkeypatch: pytest.MonkeyPatch, opened: object, language: str = "fr"):
     monkeypatch.setattr(
-        "src.domains.connectors.provider_resolver.resolve_active_connector", _resolve
+        "src.domains.connectors.calendar_access.open_active_calendar", _door(opened)
     )
-    monkeypatch.setattr(
-        "src.domains.connectors.clients.registry.ClientRegistry.get_client_class",
-        staticmethod(lambda _t: (lambda *a, **k: fake_client)),
-    )
-
-    async def _primary(*args: object, **kwargs: object) -> str:
-        return "primary"
-
-    monkeypatch.setattr(availability, "_resolve_calendar_id", _primary)
-
-    out = await build_availability_summary(
+    return await build_availability(
         uuid4(),
         datetime(2026, 7, 14, tzinfo=UTC),
         datetime(2026, 7, 21, tzinfo=UTC),
-        _fake_connector_service(),  # type: ignore[arg-type]
         "Europe/Paris",
-        "fr",
+        language,
     )
+
+
+@pytest.mark.unit
+async def test_build_requests_only_start_end_and_projects(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The read asks the provider for start/end only and projects busy blocks."""
+    fake_client = _FakeCalendarClient()
+    read = await _read(monkeypatch, _access(fake_client))
+
+    assert fake_client.last_kwargs.get("fields") == ["start", "end"]
+    assert fake_client.last_kwargs.get("calendar_id") == "primary"
+    assert "09:00" in read.summary and _SECRET_TITLE not in read.summary
+    assert (read.opened, read.failed) == (True, False)
+
+
+@pytest.mark.unit
+async def test_build_unavailable_when_no_connector(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No active calendar connector → the 'unavailable' line; nothing was opened."""
+    read = await _read(monkeypatch, ClientUnavailable.NO_CONNECTOR)
+    assert read.summary.startswith("Disponibilités indisponibles")
+    assert (read.opened, read.failed) == (False, False)
+
+
+@pytest.mark.unit
+async def test_build_swallows_http_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A provider HTTP error is swallowed → 'unavailable', the call is not blocked."""
+    read = await _read(monkeypatch, httpx.HTTPError("boom"), language="en")
+    assert read.summary.startswith("Availability unavailable")
+    assert (read.opened, read.failed) == (True, True)
+
+
+@pytest.mark.unit
+async def test_build_prefers_freebusy_when_available(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Google-path (lot B): freeBusy returns busy ranges only — even less data
+    than the start/end projection, so it wins when the client offers it."""
+    fake_client = _FakeFreeBusyClient()
+    read = await _read(monkeypatch, _access(fake_client))
 
     assert fake_client.freebusy_called is True
     assert fake_client.list_events_called is False
-    assert "09:00" in out
+    assert "09:00" in read.summary

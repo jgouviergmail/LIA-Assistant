@@ -88,8 +88,9 @@ describe('buildConnectSrc', () => {
   // constant would make a typo in that constant pass its own pinning test.
   const FIREBASE_HOSTS =
     'https://firebaseinstallations.googleapis.com https://fcmregistrations.googleapis.com';
-  // Two live hosts, one per WebSocket provider (Gemini, ElevenLabs — ADR-300 wave 4).
-  const LIVE_HOSTS = 'wss://generativelanguage.googleapis.com wss://api.elevenlabs.io';
+  // Provider signaling hosts, including ElevenLabs' WebRTC LiveKit signaling.
+  const LIVE_HOSTS =
+    'wss://generativelanguage.googleapis.com wss://api.elevenlabs.io wss://livekit.rtc.elevenlabs.io';
 
   it('includes the API origin and its websocket variant in prod', () => {
     expect(buildConnectSrc(false, 'https://api.example.com')).toBe(
@@ -150,7 +151,10 @@ describe('buildConnectSrc', () => {
     expect(sources).not.toContain('https:');
     expect(sources).not.toContain('*');
     // The ElevenLabs host is exact too: the API host, never the whole domain.
-    expect(sources.filter(s => s.includes('elevenlabs'))).toEqual(['wss://api.elevenlabs.io']);
+    expect(sources.filter(s => s.includes('elevenlabs'))).toEqual([
+      'wss://api.elevenlabs.io',
+      'wss://livekit.rtc.elevenlabs.io',
+    ]);
   });
 });
 

@@ -1210,6 +1210,7 @@ export interface ReactExecutionMetrics {
   productive_iterations?: number; // What bought the extensions
   exit_reason?: string | null; // Why it stopped; null on an interrupted turn
   abandoned_calls?: string[]; // Asked for and never got — is the budget calibrated?
+  recovery?: { passes: number; outcome: string } | null; // ADR-310: what a declared gap bought
   elapsed_seconds: number; // REASONING only — tools are counted apart (ADR-256)
   tool_seconds?: number; // Time spent inside tools (absent before ADR-256)
   tool_budget_seconds?: number; // Published enforced bound for the above
@@ -1280,6 +1281,8 @@ export interface ImageGenerationCall {
   quality: string;
   size: string;
   image_count: number;
+  /** Reference images an edit sent; part of the cost where the model bills them (ADR-305). */
+  input_image_count?: number;
   cost_usd: number;
   cost_eur: number;
   duration_ms: number;

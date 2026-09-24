@@ -8,16 +8,19 @@ Created: 2026-03-26
 """
 
 import uuid
+from decimal import Decimal
 
 import structlog
 from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.client_ip import resolve_client_ip
 from src.core.dependencies import get_db
 from src.core.exceptions import raise_invalid_input, raise_pricing_not_found
 from src.core.i18n_api_messages import APIMessages
 from src.core.session_dependencies import get_current_superuser_session
+from src.domains.image_generation.families import resolve_image_family
 from src.domains.image_generation.models import ImageGenerationPricing
 from src.domains.image_generation.schemas import (
     ImagePricingCreate,
@@ -37,6 +40,29 @@ router = APIRouter(
 )
 
 
+def _refuse_unservable_row(
+    provider: str, model: str, quality: str, size: str, input_price: Decimal | None
+) -> None:
+    """Refuse a row no client could serve or no family could bill (ADR-305).
+
+    A row for a model without a family, or outside the family's vocabulary, would
+    be offered to people and fail at the first generation; a missing or extra
+    reference-image price would bill an edit wrong every time.
+
+    Raises:
+        HTTPException: 400 naming the rule the row breaks.
+    """
+    family = resolve_image_family(provider, model)
+    if family is None:
+        raise_invalid_input(
+            f"No image client serves {model!r} on provider {provider!r}: "
+            "declare its family and client before pricing it (ADR-305)."
+        )
+    refusal = family.pricing_refusal(quality, size, has_input_price=input_price is not None)
+    if refusal is not None:
+        raise_invalid_input(refusal)
+
+
 async def _invalidate_image_caches(db: AsyncSession) -> None:
     """Invalidate the cost-pricing cache and the options cache cross-worker.
 
@@ -52,6 +78,11 @@ async def _invalidate_image_caches(db: AsyncSession) -> None:
 
     await ImageGenerationPricingService.invalidate_and_reload(db)
     await ImageOptionsCache.invalidate_and_reload(db)
+
+
+def _as_float(value: Decimal | None) -> float | None:
+    """An optional price, as the audit log's JSON stores it."""
+    return float(value) if value is not None else None
 
 
 @router.get("/pricing", response_model=ImagePricingListResponse)
@@ -102,6 +133,7 @@ async def list_active_pricing(
         "quality",
         "size",
         "cost_per_image_usd",
+        "cost_per_input_image_usd",
     }
     if sort_by not in allowed_sort_columns:
         raise_invalid_input(
@@ -168,6 +200,10 @@ async def create_pricing(
     Raises:
         HTTPException: 409 if active pricing already exists for this combination.
     """
+    _refuse_unservable_row(
+        data.provider, data.model, data.quality, data.size, data.cost_per_input_image_usd
+    )
+
     # Check uniqueness among active entries
     stmt = select(ImageGenerationPricing).where(
         and_(
@@ -205,6 +241,7 @@ async def create_pricing(
         quality=data.quality,
         size=data.size,
         cost_per_image_usd=data.cost_per_image_usd,
+        cost_per_input_image_usd=data.cost_per_input_image_usd,
         is_active=True,
     )
     db.add(pricing)
@@ -223,8 +260,9 @@ async def create_pricing(
             "quality": pricing.quality,
             "size": pricing.size,
             "cost_per_image_usd": float(pricing.cost_per_image_usd),
+            "cost_per_input_image_usd": _as_float(pricing.cost_per_input_image_usd),
         },
-        ip_address=request.client.host if request.client else None,
+        ip_address=resolve_client_ip(request),
         user_agent=request.headers.get("user-agent"),
     )
     db.add(audit_entry)
@@ -280,6 +318,14 @@ async def update_pricing(
     new_model = data.model if data.model is not None else current_pricing.model
     new_quality = data.quality if data.quality is not None else current_pricing.quality
     new_size = data.size if data.size is not None else current_pricing.size
+    new_input_price = (
+        data.cost_per_input_image_usd
+        if data.cost_per_input_image_usd is not None
+        else current_pricing.cost_per_input_image_usd
+    )
+    _refuse_unservable_row(
+        current_pricing.provider.value, new_model, new_quality, new_size, new_input_price
+    )
 
     # If key changed, check uniqueness
     key_changed = (
@@ -314,6 +360,7 @@ async def update_pricing(
         quality=new_quality,
         size=new_size,
         cost_per_image_usd=data.cost_per_image_usd,
+        cost_per_input_image_usd=new_input_price,
         is_active=True,
     )
     db.add(new_pricing)
@@ -333,9 +380,11 @@ async def update_pricing(
             "size": new_pricing.size,
             "old_cost": float(current_pricing.cost_per_image_usd),
             "new_cost": float(new_pricing.cost_per_image_usd),
+            "old_input_cost": _as_float(current_pricing.cost_per_input_image_usd),
+            "new_input_cost": _as_float(new_pricing.cost_per_input_image_usd),
             "key_changed": key_changed,
         },
-        ip_address=request.client.host if request.client else None,
+        ip_address=resolve_client_ip(request),
         user_agent=request.headers.get("user-agent"),
     )
     db.add(audit_entry)
@@ -392,7 +441,7 @@ async def deactivate_pricing(
             "quality": pricing.quality,
             "size": pricing.size,
         },
-        ip_address=request.client.host if request.client else None,
+        ip_address=resolve_client_ip(request),
         user_agent=request.headers.get("user-agent"),
     )
     db.add(audit_entry)
@@ -437,7 +486,7 @@ async def reload_pricing_cache(
         resource_type="image_generation_pricing",
         resource_id=None,
         details={"cache_size": cache_size},
-        ip_address=request.client.host if request.client else None,
+        ip_address=resolve_client_ip(request),
         user_agent=request.headers.get("user-agent"),
     )
     db.add(audit_entry)

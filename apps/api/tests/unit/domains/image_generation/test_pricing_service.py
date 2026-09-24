@@ -1,106 +1,119 @@
-"""Unit tests for ImageGenerationPricingService.
-
-Tests the in-memory pricing cache: loading, cost lookups, and edge cases.
-"""
+"""Unit tests for ImageGenerationPricingService: what one call costs (ADR-305)."""
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from decimal import Decimal
-from unittest.mock import AsyncMock, MagicMock, patch
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from src.domains.image_generation.pricing_service import ImageGenerationPricingService
+from src.domains.image_generation.pricing_service import (
+    ImageGenerationPricingService,
+    ImagePrice,
+)
+
+_RATE = "src.domains.image_generation.pricing_service.get_cached_usd_eur_rate"
+
+
+@pytest.fixture(autouse=True)
+def _prices() -> Iterator[None]:
+    ImageGenerationPricingService._pricing_cache = {
+        "gpt-image-2:low:1024x1024": ImagePrice(Decimal("0.011"), None),
+        "qwen-image-3.0-pro:standard:2448x1632": ImagePrice(
+            Decimal("0.068761"), Decimal("0.00275")
+        ),
+    }
+    yield
+    ImageGenerationPricingService._pricing_cache = {}
 
 
 @pytest.mark.unit
-class TestGetCostPerImage:
-    """Tests for ImageGenerationPricingService.get_cost_per_image()."""
+class TestCostOfCall:
+    """Output images, plus reference images where the family bills them."""
 
-    def setup_method(self) -> None:
-        """Seed the cache with known pricing for tests."""
-        ImageGenerationPricingService._pricing_cache = {
-            "gpt-image-1:low:1024x1024": Decimal("0.011"),
-            "gpt-image-1:medium:1024x1024": Decimal("0.042"),
-            "gpt-image-1:high:1536x1024": Decimal("0.250"),
-        }
-        ImageGenerationPricingService._usd_eur_rate = Decimal("0.85")
-
-    def teardown_method(self) -> None:
-        """Clear cache after tests."""
-        ImageGenerationPricingService._pricing_cache = {}
-
-    def test_known_pricing_returns_correct_costs(self) -> None:
-        """Known model/quality/size returns correct USD and EUR costs."""
-        cost_usd, cost_eur, rate = ImageGenerationPricingService.get_cost_per_image(
-            "gpt-image-1", "low", "1024x1024"
+    def test_a_generation_costs_its_output_at_the_shared_rate(self) -> None:
+        with patch(_RATE, return_value=0.85):
+            usd, eur, rate = ImageGenerationPricingService.cost_of_call(
+                model="gpt-image-2",
+                quality="low",
+                size="1024x1024",
+                image_count=1,
+                input_image_count=0,
+            )
+        assert (usd, eur, rate) == (
+            Decimal("0.011"),
+            Decimal("0.011") * Decimal("0.85"),
+            Decimal("0.85"),
         )
-        assert cost_usd == Decimal("0.011")
-        assert cost_eur == Decimal("0.011") * Decimal("0.85")
-        assert rate == Decimal("0.85")
 
-    def test_unknown_pricing_returns_zero(self) -> None:
-        """Unknown model/quality/size returns zero cost."""
-        cost_usd, cost_eur, rate = ImageGenerationPricingService.get_cost_per_image(
-            "unknown-model", "low", "1024x1024"
-        )
-        assert cost_usd == Decimal("0")
-        assert cost_eur == Decimal("0")
-        assert rate == Decimal("0.85")
+    def test_a_qwen_edit_adds_its_reference_image(self) -> None:
+        with patch(_RATE, return_value=1.0):
+            usd, _, _ = ImageGenerationPricingService.cost_of_call(
+                model="qwen-image-3.0-pro",
+                quality="standard",
+                size="2448x1632",
+                image_count=1,
+                input_image_count=1,
+            )
+        assert usd == Decimal("0.068761") + Decimal("0.00275")
 
-    def test_high_quality_large_size(self) -> None:
-        """High quality + large size returns higher cost."""
-        cost_usd, _, _ = ImageGenerationPricingService.get_cost_per_image(
-            "gpt-image-1", "high", "1536x1024"
-        )
-        assert cost_usd == Decimal("0.250")
+    def test_an_openai_edit_prices_no_reference_image(self) -> None:
+        """OpenAI bills an edit's input as tokens: the row declares no per-image price."""
+        with patch(_RATE, return_value=1.0):
+            usd, _, _ = ImageGenerationPricingService.cost_of_call(
+                model="gpt-image-2",
+                quality="low",
+                size="1024x1024",
+                image_count=1,
+                input_image_count=1,
+            )
+        assert usd == Decimal("0.011")
 
-    def test_is_cache_loaded(self) -> None:
-        """is_cache_loaded returns True when cache has entries."""
-        assert ImageGenerationPricingService.is_cache_loaded() is True
-
-    def test_is_cache_loaded_empty(self) -> None:
-        """is_cache_loaded returns False when cache is empty."""
-        ImageGenerationPricingService._pricing_cache = {}
-        assert ImageGenerationPricingService.is_cache_loaded() is False
-
-    def test_get_usd_eur_rate(self) -> None:
-        """get_usd_eur_rate returns cached rate."""
-        assert ImageGenerationPricingService.get_usd_eur_rate() == Decimal("0.85")
+    def test_an_unpriced_key_costs_zero_and_says_so(self) -> None:
+        with patch(_RATE, return_value=0.9):
+            usd, eur, rate = ImageGenerationPricingService.cost_of_call(
+                model="unknown-model",
+                quality="low",
+                size="1024x1024",
+                image_count=1,
+                input_image_count=0,
+            )
+        assert (usd, eur, rate) == (Decimal("0"), Decimal("0"), Decimal("0.9"))
 
 
 @pytest.mark.unit
 class TestLoadPricingCache:
-    """Tests for ImageGenerationPricingService.load_pricing_cache()."""
+    """The cache reads both prices and no currency API."""
 
-    def teardown_method(self) -> None:
-        """Clear cache after tests."""
-        ImageGenerationPricingService._pricing_cache = {}
+    async def test_load_reads_the_output_and_the_reference_image_price(self) -> None:
+        rows = [
+            SimpleNamespace(
+                model="qwen-image-3.0",
+                quality="standard",
+                size="1024x1024",
+                cost_per_image_usd=Decimal("0.024754"),
+                cost_per_input_image_usd=Decimal("0.00275"),
+            ),
+            SimpleNamespace(
+                model="gpt-image-2",
+                quality="high",
+                size="1024x1536",
+                cost_per_image_usd=Decimal("0.25"),
+                cost_per_input_image_usd=None,
+            ),
+        ]
+        with patch(
+            "src.domains.image_generation.pricing_service.ImageGenerationPricingRepository"
+        ) as repo_cls:
+            repo_cls.return_value.get_active_pricing = AsyncMock(return_value=rows)
+            await ImageGenerationPricingService.load_pricing_cache(AsyncMock())
 
-    async def test_load_populates_cache(self) -> None:
-        """load_pricing_cache populates the cache from DB entries."""
-        mock_entry = MagicMock()
-        mock_entry.model = "gpt-image-1"
-        mock_entry.quality = "low"
-        mock_entry.size = "1024x1024"
-        mock_entry.cost_per_image_usd = Decimal("0.011")
-
-        mock_db = AsyncMock()
-        with (
-            patch(
-                "src.domains.image_generation.pricing_service.ImageGenerationPricingRepository"
-            ) as mock_repo_cls,
-            patch(
-                "src.domains.image_generation.pricing_service.CurrencyRateService"
-            ) as mock_currency_cls,
-        ):
-            mock_repo_cls.return_value.get_active_pricing = AsyncMock(return_value=[mock_entry])
-            mock_currency_cls.return_value.get_rate = AsyncMock(return_value=Decimal("0.90"))
-
-            await ImageGenerationPricingService.load_pricing_cache(mock_db)
-
-        assert len(ImageGenerationPricingService._pricing_cache) == 1
-        assert ImageGenerationPricingService._pricing_cache["gpt-image-1:low:1024x1024"] == Decimal(
-            "0.011"
-        )
-        assert ImageGenerationPricingService._usd_eur_rate == Decimal("0.90")
+        assert ImageGenerationPricingService.get_price(
+            "qwen-image-3.0", "standard", "1024x1024"
+        ) == ImagePrice(Decimal("0.024754"), Decimal("0.00275"))
+        assert ImageGenerationPricingService.get_price(
+            "gpt-image-2", "high", "1024x1536"
+        ) == ImagePrice(Decimal("0.25"), None)
+        assert ImageGenerationPricingService.is_cache_loaded()

@@ -1,0 +1,8 @@
+{
+  "src/domains/agents/tools/browser_tools.py": 6,
+  "src/domains/conversations/instrumented_checkpointer.py": 14,
+  "src/domains/interests/services/content_sources/perplexity_source.py": 1,
+  "src/domains/voice/client.py": 1,
+  "src/domains/voice/openai_tts_client.py": 6,
+  "src/infrastructure/channels/telegram/sender.py": 1
+}

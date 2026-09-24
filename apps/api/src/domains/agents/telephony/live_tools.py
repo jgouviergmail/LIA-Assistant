@@ -65,6 +65,7 @@ from src.core.constants import (
     TELEPHONY_LIVE_TOOL_PROVISIONING_CONCURRENCY,
 )
 from src.core.prompt_store import parse_prompt_sections, read_prompt_file
+from src.core.tool_outcome import explicit_success
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.context.store import get_tool_context_store
 from src.domains.agents.dependencies import ToolDependencies
@@ -894,8 +895,10 @@ async def run_live_tool(
     """
     lines = result_lines()
     tool = None if spec.native else get_tool(spec.name)
-    coroutine = getattr(tool, "coroutine", None) if tool is not None else None
-    if not spec.native and (tool is None or coroutine is None):
+    # ``getattr`` already answers None for a missing tool, so the extra
+    # ``if tool is not None`` it used to carry tested nothing.
+    coroutine = getattr(tool, "coroutine", None)
+    if not spec.native and coroutine is None:
         telephony_live_tool_calls_total.labels(
             tool=spec.name, outcome="failed", surface=host.surface
         ).inc()
@@ -913,7 +916,6 @@ async def run_live_tool(
         1.0, settings.telephony_live_tool_timeout_seconds - TELEPHONY_LIVE_TOOL_INNER_MARGIN_SECONDS
     )
     started = time.monotonic()
-    outcome = "ok"
     succeeded = False
     run_id = host.spend_run_id
     async with (
@@ -945,8 +947,13 @@ async def run_live_tool(
                     db=db,
                     callbacks=callbacks,
                 )
-                succeeded = bool(getattr(result, "success", True))
+                succeeded = explicit_success(result)
                 text = _project(result, spec.name, lines)
+            # ADR-303: ONE verdict for both authorities. ``succeeded`` fed the
+            # consultation register while ``outcome`` stayed "ok" unless an
+            # exception fired — so a tool that failed by RETURNING was « failed »
+            # in the register and « ok » on the dashboard an operator watches.
+            outcome = "ok" if succeeded else "failed"
         except TimeoutError:
             outcome = "timeout"
             text = lines["timeout"].format(tool=spec.name)

@@ -19,7 +19,7 @@ Two rules govern the content, both learned the hard way:
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from decimal import Decimal
 
 from src.domains.llm.models import (
@@ -27,6 +27,7 @@ from src.domains.llm.models import (
     LLMProviderEnum,
     PricingUnitEnum,
 )
+from src.domains.llm.pricing_time_slots import canonical_weekdays
 from src.infrastructure.tabular_io.spec import ColumnSpec, SheetSpec, WorkbookSpec
 
 #: Bumped whenever the columns change in a way an older file cannot satisfy.
@@ -35,8 +36,14 @@ from src.infrastructure.tabular_io.spec import ColumnSpec, SheetSpec, WorkbookSp
 #: a file written against v1 names a column that no longer exists and offers no
 #: way to express the ladder, so it cannot be read back. v3 added the audio
 #: pair (ADR-300): two EDITABLE columns a v2 file lacks, which the reader
-#: refuses as ``COLUMN_MISSING`` — the version says why before it does.
-SCHEMA_VERSION = 3
+#: refuses as ``COLUMN_MISSING`` — the version says why before it does. v4 gave
+#: every window its weekdays (ADR-223 amendment): a v3 file, read as "every
+#: day", would put every DeepSeek weekend back at peak on re-import.
+SCHEMA_VERSION = 4
+
+#: How a person types an ISO weekday in the workbook, Monday first: the
+#: database stores the ISO number (``pricing_time_slots``), the cell the code.
+WEEKDAY_CODES: tuple[str, ...] = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
 
 #: Hidden column carrying each row's fingerprint, for the per-row optimistic lock.
 FINGERPRINT_COLUMN = "row_fingerprint"
@@ -194,6 +201,8 @@ _SLOT_COLUMNS: tuple[ColumnSpec, ...] = (
     _column(
         "output_unit_price", "decimal", "pricing", decimals=_PRICE_SCALE, minimum=_ZERO, width=15
     ),
+    # The UTC days a window STARTS on; an empty cell means every day.
+    _column("weekdays", "enum_list", "slots", referential="WEEKDAY", width=30),
 )
 
 SLOTS_SHEET = SheetSpec(
@@ -297,6 +306,49 @@ def build_pricing_workbook_spec() -> WorkbookSpec:
             "KIND": tuple(member.value for member in LLMModelKindEnum),
             "UNIT": tuple(member.value for member in PricingUnitEnum),
             "SLOTMODE": TIME_SLOT_MODES,
+            "WEEKDAY": WEEKDAY_CODES,
         },
         schema_version=SCHEMA_VERSION,
     )
+
+
+def weekday_codes(weekdays: Sequence[object] | None) -> list[str] | None:
+    """Write a window's stored days as the codes of its workbook cell.
+
+    A value outside the ISO week is written AS ITSELF: the import then refuses
+    it and names the cell, where translating what can be translated would
+    quietly re-import a different set of days.
+
+    Args:
+        weekdays: The ``weekdays`` of a stored slot; ``None`` = every day.
+
+    Returns:
+        The codes, or ``None`` for an every-day window (an empty cell).
+    """
+    if not weekdays:
+        return None
+    return [
+        (
+            WEEKDAY_CODES[day - 1]
+            if isinstance(day, int) and not isinstance(day, bool) and 1 <= day <= 7
+            else str(day)
+        )
+        for day in weekdays
+    ]
+
+
+def weekdays_from_codes(codes: Sequence[str] | None) -> list[int] | None:
+    """Read a days cell back into the canonical ISO weekdays.
+
+    The reader already matched every code against the ``WEEKDAY`` referential,
+    in its spelling. An empty cell and the whole week both mean every day.
+
+    Args:
+        codes: The parsed cell, or ``None`` when it was empty.
+
+    Returns:
+        The sorted ISO weekdays, or ``None`` for every day.
+    """
+    if not codes:
+        return None
+    return canonical_weekdays(WEEKDAY_CODES.index(code) + 1 for code in codes)

@@ -65,6 +65,7 @@ class TestJournalAnalystPersona:
         # .format() raises KeyError/ValueError on a missing/renamed placeholder or a
         # stray single brace — so a clean return is the core guarantee here.
         formatted = prompt.format(
+            analyst_persona="## ANALYST PERSONA",
             conversation="USER: hi",
             health_context="",
             inner_state_section="",

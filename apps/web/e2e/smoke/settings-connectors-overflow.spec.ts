@@ -9,8 +9,9 @@
  * `truncate`/`min-w-0` armor could not compensate, because the min-content
  * floor lives on the flex ITEM itself (`ui/accordion.tsx`).
  *
- * Hermetic: a realistic connectors payload (5 Google + 6 external, all
- * active) drives the exact rows from the owner's report; the deep link opens
+ * Hermetic: a realistic connectors payload (5 Google + 3 external, all
+ * active — the keyless services have no row since ADR-307) drives the exact
+ * rows from the owner's report; the deep link opens
  * the section for real (a collapsed section would make the sweep vacuously
  * green, hence the visibility assertion first).
  */
@@ -24,11 +25,8 @@ const CONNECTORS = [
   'google_drive',
   'google_tasks',
   'openweathermap',
-  'wikipedia',
   'perplexity',
   'brave_search',
-  'google_places',
-  'browser',
 ].map((connector_type, i) => ({
   id: `00000000-0000-4000-8000-0000000000${String(i).padStart(2, '0')}`,
   connector_type,

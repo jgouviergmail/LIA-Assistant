@@ -12,7 +12,7 @@ import hmac
 import uuid
 from dataclasses import asdict, replace
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, Literal
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -219,6 +219,9 @@ class LiveService:
             # An offer connection's setup is posted by the API in the exchange; the
             # browser replays nothing and is handed nothing.
             setup=provider.build_setup(inputs) if provider.connection == "token" else {},
+            audio_transport=(
+                "webrtc" if provider.connection == "offer" else inputs.audio_transport
+            ),
         )
 
     @staticmethod
@@ -290,6 +293,7 @@ class LiveService:
         timezone: str,
         display_name: str,
         mode: LiveSessionMode = "delegated",
+        audio_transport: Literal["websocket", "webrtc"] = "websocket",
     ) -> LiveSessionStartResponse:
         """Refuse in order, then claim, mint and hand the browser its setup.
 
@@ -338,6 +342,8 @@ class LiveService:
                 personality=personality,
                 psyche_block=psyche_block,
             )
+        if provider.provider_id == "elevenlabs" and audio_transport == "webrtc":
+            inputs = replace(inputs, audio_transport="webrtc")
         api_key = await self.connectors.api_key_of(user.id, connector_type)
         # A provider whose sessions run on the person's AGENT prepares it for
         # THIS setup (the tools of the mode, the prompt permission) before
@@ -421,6 +427,14 @@ class LiveService:
             preferences=prefs,
             capabilities=LiveModelCapabilitiesResponse(**asdict(capabilities)),
             delegation_tool_name=LIVE_DELEGATION_TOOL_NAME,
+            tool_names=[
+                str(tool["name"])
+                for tool in (
+                    [inputs.tool_declaration]
+                    if inputs.tool_declaration is not None
+                    else inputs.direct_tools
+                )
+            ],
             delegation_timeout_seconds=settings.live_delegation_timeout_seconds,
             delegation_result_max_tokens=settings.live_delegation_result_max_tokens,
             turn_text_max_chars=LIVE_TURN_TEXT_MAX_CHARS,
@@ -562,15 +576,19 @@ class LiveService:
         the same day: Gemini closes an OPEN connection at its credential's
         expiry (1011 « auth token has expired »), so on a ``token`` connection
         a fresh credential is minted to the new cap and handed back for an
-        immediate reconnection on the resumption handle. An ``offer``
-        connection (GPT-Live) holds no expiring credential — the WebRTC
+        immediate reconnection on the resumption handle. A WebRTC
+        connection (GPT-Live or ElevenLabs) holds no expiring credential — the
         session outlives the cap on its own — so nothing is minted and the
         browser keeps its connection (measured 2026-09-19: a reconnection
         there would be a NEW provider session, its context lost).
         """
         record = await self._owned_record(user, session_id, language=language)
         provider = provider_by_id(record.provider)
-        reconnects = provider is not None and provider.connection == "token"
+        reconnects = (
+            provider is not None
+            and provider.connection == "token"
+            and record.setup_inputs.get("audio_transport") != "webrtc"
+        )
         now = datetime.now(UTC)
         if now >= record.expires_at:
             raise_live_session_expired(language)
@@ -723,6 +741,9 @@ class LiveService:
             session_id=session_id,
             outcome=payload.outcome,
             detail=payload.detail,
+            audio_diagnostics=(
+                payload.audio_diagnostics.model_dump() if payload.audio_diagnostics else None
+            ),
             duration_seconds=duration,
             delegations=closed.delegations,
             voice_turns=closed.voice_turns,

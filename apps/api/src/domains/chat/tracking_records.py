@@ -72,6 +72,8 @@ class ImageGenerationRecord(NamedTuple):
         cost_eur: Total cost in EUR for this call.
         usd_to_eur_rate: Exchange rate used.
         prompt_preview: First 200 characters of the prompt (for audit).
+        input_image_count: Reference images sent to an edit; their per-image
+            price is part of ``cost_usd`` when the family bills them (ADR-305).
     """
 
     model: str
@@ -85,6 +87,7 @@ class ImageGenerationRecord(NamedTuple):
     duration_ms: float = 0.0
     # Start position on the run timeline in ms (debug-panel waterfall).
     started_offset_ms: float = 0.0
+    input_image_count: int = 0
 
 
 class GoogleApiRecord(NamedTuple):
@@ -101,6 +104,9 @@ class GoogleApiRecord(NamedTuple):
     cost_eur: Decimal
     usd_to_eur_rate: Decimal
     cached: bool = False
+    #: Billable events the call is: 1 for a request, the element count for a
+    #: Route Matrix (Google bills it per element returned).
+    units: int = 1
 
 
 class TTSUsageRecord(NamedTuple):

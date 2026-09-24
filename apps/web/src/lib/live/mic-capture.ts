@@ -63,15 +63,16 @@ function nativeCapture(stream: MediaStream): MicCapture {
 }
 
 export async function startMicCapture(options: MicCaptureOptions): Promise<MicCapture> {
-  const stream = await openStream(options.sampleRate);
-  if (options.pcm === false) return nativeCapture(stream);
-  let context: AudioContext;
+  if (options.pcm === false) return nativeCapture(await openStream(options.sampleRate));
+  // Open the context BEFORE getUserMedia. Creating a second AudioContext after
+  // capture begins matches a documented iOS WebKit distortion sequence; both
+  // Gemini and ElevenLabs use this PCM path, while WebRTC owns its own media.
+  const context = new AudioContext({ sampleRate: options.sampleRate });
+  let stream: MediaStream;
   try {
-    // A context can refuse the rate itself (NotSupportedError): the stream is
-    // already open and must not be left behind.
-    context = new AudioContext({ sampleRate: options.sampleRate });
+    stream = await openStream(options.sampleRate);
   } catch (error) {
-    await releaseStream(stream);
+    await context.close();
     throw error;
   }
   let node: AudioWorkletNode;
@@ -83,13 +84,23 @@ export async function startMicCapture(options: MicCaptureOptions): Promise<MicCa
     await context.close();
     throw error;
   }
-  const source = context.createMediaStreamSource(stream);
+  let source: MediaStreamAudioSourceNode;
   let muted = false;
   let stopped = false;
   node.port.onmessage = (event: MessageEvent<ArrayBuffer>) => {
     if (!muted && !stopped) options.onChunk(event.data);
   };
-  source.connect(node);
+  try {
+    source = context.createMediaStreamSource(stream);
+    source.connect(node);
+    if (context.state === 'suspended') await context.resume();
+  } catch (error) {
+    node.port.onmessage = null;
+    node.disconnect();
+    await releaseStream(stream);
+    await context.close();
+    throw error;
+  }
   return {
     stream,
     mute(on: boolean) {

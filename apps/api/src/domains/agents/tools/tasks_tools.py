@@ -137,7 +137,6 @@ async def _resolve_default_task_list(
         resolved_type = await resolve_active_connector(user_id, "tasks", connector_service)
         if resolved_type:
             resolved_id = await resolve_owner_task_list_id(
-                db=connector_service.db,
                 client=client,
                 owner_id=user_id,
                 connector_type=resolved_type,

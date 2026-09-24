@@ -32,8 +32,10 @@ Usage in graph execution (ADR-231):
 """
 
 import asyncio
+import functools
 import inspect
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from typing import Any, TypeVar
 from uuid import UUID
 
@@ -45,6 +47,10 @@ from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import APIKeyCredentials, ConnectorCredentials
 from src.domains.connectors.service import ConnectorService
+from src.domains.connectors.session_scope import (
+    ConnectorUnitOfWork,
+    DetachedConnectorService,
+)
 from src.infrastructure.observability.metrics_agents import (
     contacts_cache_hits,
     contacts_cache_misses,
@@ -55,7 +61,7 @@ logger = structlog.get_logger(__name__)
 T = TypeVar("T")
 
 
-class ConcurrencySafeConnectorService:
+class ConcurrencySafeConnectorService(ConnectorUnitOfWork):
     """
     Thread-safe wrapper for ConnectorService.
 
@@ -63,9 +69,16 @@ class ConcurrencySafeConnectorService:
     serializes DB access using asyncio.Lock to prevent SQLAlchemy
     concurrent operations errors.
 
-    This wrapper is transparent to tools - they call methods normally,
-    but all DB operations are automatically serialized.
+    Since ADR-304 no operation leaves a transaction open behind it: each one
+    ends its transaction — committed, or rolled back when it raised — before
+    the tool it serves calls its provider. A credential read used to keep the
+    turn's transaction open for the rest of the turn, every tool's network
+    calls included. A client's own writes (a refreshed token, an invalidated
+    connector) run on a short session of their own (``unit_of_work``): they
+    no longer take the lock, nor wait on the token endpoint inside it.
     """
+
+    owns_units = True
 
     def __init__(self, service: ConnectorService, lock: asyncio.Lock) -> None:
         """
@@ -78,18 +91,29 @@ class ConcurrencySafeConnectorService:
         self._service = service
         self._lock = lock
 
+    @asynccontextmanager
+    async def _operation(self) -> AsyncIterator[None]:
+        """One serialized operation, its transaction ended on the way out."""
+        async with self._lock:
+            try:
+                yield
+            except Exception:
+                await self._service.db.rollback()
+                raise
+            await self._service.db.commit()
+
     async def get_connector_credentials(
         self, user_id: UUID, connector_type: ConnectorType
     ) -> ConnectorCredentials | None:
         """Thread-safe wrapper for get_connector_credentials (OAuth connectors)."""
-        async with self._lock:
+        async with self._operation():
             return await self._service.get_connector_credentials(user_id, connector_type)
 
     async def get_api_key_credentials(
         self, user_id: UUID, connector_type: ConnectorType
     ) -> APIKeyCredentials | None:
         """Thread-safe wrapper for get_api_key_credentials (API key connectors)."""
-        async with self._lock:
+        async with self._operation():
             return await self._service.get_api_key_credentials(user_id, connector_type)
 
     async def is_connector_active(self, user_id: UUID, connector_type: ConnectorType) -> bool:
@@ -99,17 +123,35 @@ class ConcurrencySafeConnectorService:
         cause 'concurrent operations are not permitted' errors because
         is_connector_active performs a DB query through the repository.
         """
-        async with self._lock:
+        async with self._operation():
             return await self._service.is_connector_active(user_id, connector_type)
+
+    def unit_of_work(self) -> AbstractAsyncContextManager[ConnectorService]:
+        """A client's own writes, on a session of their own (ADR-304).
+
+        Returns:
+            A detached unit: its session is committed and released at the end.
+        """
+        return DetachedConnectorService().unit_of_work()
 
     def __getattr__(self, name: str) -> Any:
         """
         Fallback for any other methods.
 
-        For methods not explicitly wrapped, delegate directly to service.
-        This maintains backward compatibility while protecting critical paths.
+        A coroutine method is serialized and ends its transaction like the
+        explicit ones — before ADR-304 it reached the shared session unguarded
+        and left its transaction open. Other attributes are returned as is.
         """
-        return getattr(self._service, name)
+        attribute = getattr(self._service, name)
+        if not inspect.iscoroutinefunction(attribute):
+            return attribute
+
+        @functools.wraps(attribute)
+        async def _serialized(*args: Any, **kwargs: Any) -> Any:
+            async with self._operation():
+                return await attribute(*args, **kwargs)
+
+        return _serialized
 
 
 class ToolDependencies:

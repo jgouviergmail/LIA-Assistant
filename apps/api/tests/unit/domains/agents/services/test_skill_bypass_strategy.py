@@ -118,16 +118,17 @@ NON_DETERMINISTIC_NO_SCRIPTS_SKILL = {
 def _make_config(oauth_scopes: list[str] | None = None) -> dict:
     """A RunnableConfig carrying only what still lives in the bag.
 
-    ``run_id``/``session_id`` are node-local plumbing and ``oauth_scopes`` is a
-    value the caller writes for its own callee; the acting user moved to the
-    typed run context (ADR-231) — install it with :func:`_acting_user`.
+    ``session_id`` is node-local plumbing, ``oauth_scopes`` a value the caller
+    writes for its own callee, and the run id travels in ``metadata`` like the
+    orchestration service writes it; the acting user moved to the typed run
+    context (ADR-231) — install it with :func:`_acting_user`.
     """
     return {
         "configurable": {
-            "run_id": "test-run",
             "session_id": "test-session",
             "oauth_scopes": oauth_scopes or [],
-        }
+        },
+        "metadata": {"run_id": "test-run"},
     }
 
 
@@ -494,7 +495,10 @@ class TestPlan:
         """Config without oauth_scopes key → scope-requiring steps filtered out."""
         strategy = SkillBypassStrategy()
         intel = _make_intelligence(detected_skill_name="briefing-quotidien")
-        config = {"configurable": {"run_id": "test-run", "session_id": "test-session"}}
+        config = {
+            "configurable": {"session_id": "test-session"},
+            "metadata": {"run_id": "test-run"},
+        }
 
         result = await strategy.plan(intelligence=intel, config=config)
 

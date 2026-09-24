@@ -1,6 +1,6 @@
 # ADR-228: Import/export tabulaire des administrations — le classeur est le formulaire
 
-**Statut**: ✅ IMPLEMENTED (2026-08-19)
+**Statut**: ✅ IMPLEMENTED (2026-08-19) — amendé le 2026-09-23 (format v4, voir la fin)
 **Date**: 2026-08-19
 **Décideurs**: Propriétaire (arbitrages sur périmètre, sémantique de suppression, portée du socle) + Équipe LIA
 
@@ -199,3 +199,33 @@ Sur le catalogue réel de 124 modèles, via le code de production :
 - Documentation technique : `docs/technical/TABULAR_ADMIN_IO.md`
 - ADR-223 (plages horaires UTC), ADR-085 (asserts de complétude), ADR-208
   (barre de section), ADR-207 (altitudes d'action)
+
+## Amendement 2026-09-23 — format v4 : les jours des fenêtres
+
+Les fenêtres tarifaires portent désormais leurs jours (amendement d'ADR-223).
+Trois conséquences pour le classeur, chacune mesurée :
+
+- **Format v4.** L'onglet des plages gagne une colonne modifiable `weekdays`
+  (codes `mon`…`sun`, liste de référence `WEEKDAY`, cellule vide = tous les
+  jours). Un fichier v3 est refusé par sa version : lu comme « tous les jours »,
+  il remettrait chaque week-end DeepSeek au tarif plein. Un garde exige
+  désormais que chaque champ de `TimeSlotPrice` soit une colonne de l'onglet —
+  un champ que l'onglet ne porte pas est effacé par le prochain import.
+- **`enum_list` devient utilisable.** Le type existait dans la fondation sans
+  qu'aucune colonne ne s'en serve, et il ne tenait pas l'aller-retour : l'écriture
+  ne savait pas écrire une liste, et la validation Excel posée sur la colonne
+  refusait toute combinaison (« mon, fri » n'est pas UNE valeur de la liste).
+  L'écriture joint les valeurs comme la lecture les sépare, et la liste
+  déroulante d'une colonne multiple propose sans refuser — c'est la lecture qui
+  contrôle chaque valeur.
+- **Le plan nomme la réécriture des fenêtres.** Un changement qui garde le
+  nombre de fenêtres (les jours seuls, un prix à l'intérieur d'une fenêtre)
+  apparaissait comme une mise à jour vide : l'aperçu ne montrait rien, le tarif
+  remplacé n'était pas compté, et deux réécritures différentes partageaient la
+  même empreinte de plan. Le plan porte désormais une ligne `time_slots` (les
+  fenêtres avant et après), comptée parmi les changements de tarif et couverte
+  par l'empreinte.
+
+Preuve : le classeur réel du catalogue dev (136 modèles) est écrit, relu sans
+anomalie et réimporté tel quel sans aucun changement ; les fenêtres DeepSeek
+reviennent avec `mon`…`fri`.

@@ -41,6 +41,8 @@ IMAGE_ARGV = [
     "*",
     "--timeout-graceful-shutdown",
     "20",
+    "--ws",
+    "websockets-sansio",
 ]
 
 
@@ -88,6 +90,10 @@ class TestTheFlagsTheImagePasses:
         assert config.proxy_headers is True
         assert config.forwarded_allow_ips == "*"
         assert config.timeout_graceful_shutdown == 20
+        assert config.ws == "websockets-sansio"
+
+    def test_the_websocket_implementation_defaults_like_the_cli(self) -> None:
+        assert serve.build_config(["src.main:app"]).ws == "auto"
 
     def test_workers_follow_web_concurrency_like_the_cli(
         self, monkeypatch: pytest.MonkeyPatch
@@ -189,3 +195,45 @@ class TestTheImageUsesIt:
         assert tokens[3] == "src.main:app"
         assert "--workers" not in tokens, "WEB_CONCURRENCY governs the worker count"
         assert "--timeout-graceful-shutdown" in tokens
+
+
+class TestEveryLaunchServesWebSocketsSansIO:
+    """One WebSocket implementation for every way the API is launched.
+
+    The legacy ``websockets`` implementation's keepalive ping awaits a SHIELDED
+    pong future; when a peer vanishes nobody retrieves its exception, and a
+    normal Live-session close was logged at ERROR as « keepalive ping timeout »
+    (production, 2026-09-22). A launch left on the old implementation would
+    bring the noise back for that environment alone.
+    """
+
+    @staticmethod
+    def _read(*parts: str) -> str:
+        path = repo_root_or_skip().joinpath(*parts)
+        if not path.is_file():
+            pytest.skip(f"guard needs the full repository checkout ({path.name}).")
+        return path.read_text(encoding="utf-8")
+
+    def test_the_production_image(self) -> None:
+        text = self._read("apps", "api", "Dockerfile.prod")
+        match = re.search(r"^CMD\s+(\[.+?\])\s*$", text, re.MULTILINE | re.DOTALL)
+        assert match
+        tokens = re.findall(r'"([^"]*)"', match.group(1))
+        assert tokens[tokens.index("--ws") + 1] == "websockets-sansio", tokens
+
+    def test_the_development_image(self) -> None:
+        text = self._read("apps", "api", "Dockerfile.dev")
+        match = re.search(r"^CMD\s+(\[.+?\])\s*$", text, re.MULTILINE)
+        assert match
+        tokens = re.findall(r'"([^"]*)"', match.group(1))
+        assert tokens[tokens.index("--ws") + 1] == "websockets-sansio", tokens
+
+    def test_the_development_compose_command(self) -> None:
+        text = self._read("docker-compose.dev.yml")
+        commands = [
+            line
+            for line in text.splitlines()
+            if "uvicorn src.main:app" in line and "command:" in line
+        ]
+        assert commands, "the dev API command was not found"
+        assert all("--ws websockets-sansio" in line for line in commands), commands

@@ -526,6 +526,23 @@ Service temporarily unavailable.
 
 ## 🔧 Format Agent Results
 
+> **ADR-303 — un fait, un canal.** Le formateur ne porte plus les échecs de
+> steps : ils atteignent le prompt par la **directive d'honnêteté**
+> (`runtime_failures_directive`), qui lit `completed_steps` dans la forme que
+> l'executor écrit, nomme l'outil et publie le **total exact**. Le formateur
+> garde deux choses : ce que les outils ont **dit** quand ils ont réussi
+> (confirmations d'action, analyses de sous-agent) et l'erreur d'un **agent**
+> dont tout le travail a échoué, en une ligne localisée. Un statut hors
+> vocabulaire est journalisé, jamais narré — la branche « Statut inconnu » qui
+> jetait le champ `error` a disparu avec les trois valeurs mortes du `Literal`.
+
+### Le vocabulaire des statuts
+
+`AgentResultStatus` a **deux** valeurs : `SUCCESS` et `ERROR`. `ERROR` ne vaut
+que si **tous** les steps exécutés ont échoué ; un plan partiellement réussi est
+un `SUCCESS` qui porte ses échecs dans `AgentResult.failed_steps`. Le champ dit
+le partiel, jamais le statut. Garde : `test_agent_status_vocabulary_guard.py`.
+
 ### format_agent_results_for_prompt Function
 
 **Objectif**: Convertir les résultats agents (dict) en texte structuré pour injection dans le prompt LLM.

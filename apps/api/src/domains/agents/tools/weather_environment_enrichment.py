@@ -103,21 +103,57 @@ async def environment_extras_or_none(
         language: User language (labels come localized from the API).
 
     Returns:
-        ``{"aqi", "aqi_category", "aqi_label", "has_air_quality",
-        "pollen": [{name, category, index}]}`` when the Google Environment
-        connector is active and the data is available; None otherwise — the
-        caller simply skips the enrichment. ``has_air_quality`` is the flag
-        consumers render on: ``aqi`` is legitimately None for national
-        indexes that publish a category and no number.
+        What :func:`fetch_environment_extras` returns when the Google
+        Environment connector is active; None otherwise.
     """
     try:
-        if not settings.google_api_key:
+        if not await environment_enrichment_active(user_id, connector_service):
             return None
-        if not await connector_service.is_connector_active(
-            user_id, ConnectorType.GOOGLE_ENVIRONMENT
-        ):
-            return None
+    except Exception as exc:
+        # Best-effort by contract: the weather answer never breaks on this.
+        logger.warning("environment_enrichment_failed", error=str(exc))
+        return None
+    return await fetch_environment_extras(user_id, lat, lon, language)
 
+
+async def environment_enrichment_active(user_id: UUID, connector_service: Any) -> bool:
+    """The DATABASE half: whether the account runs the enrichment at all.
+
+    Split from the fetch so a caller holding a session reads it there and
+    calls the provider only after that session closed (ADR-304).
+
+    Args:
+        user_id: Owner of the connectors.
+        connector_service: ConnectorService for the activation check.
+
+    Returns:
+        True when the platform key is set and the connector is active.
+    """
+    return bool(settings.google_api_key) and await connector_service.is_connector_active(
+        user_id, ConnectorType.GOOGLE_ENVIRONMENT
+    )
+
+
+async def fetch_environment_extras(
+    user_id: UUID, lat: float, lon: float, language: str
+) -> dict[str, Any] | None:
+    """The NETWORK half: air quality + in-season pollen for a point (fail-quiet).
+
+    Args:
+        user_id: Owner of the connectors (billing attribution).
+        lat: Latitude of the weather query point.
+        lon: Longitude of the weather query point.
+        language: User language (labels come localized from the API).
+
+    Returns:
+        ``{"aqi", "aqi_category", "aqi_label", "has_air_quality",
+        "pollen": [{name, category, index}]}`` when the data is available;
+        None otherwise — the caller simply skips the enrichment.
+        ``has_air_quality`` is the flag consumers render on: ``aqi`` is
+        legitimately None for national indexes that publish a category and
+        no number.
+    """
+    try:
         redis = None
         cache_key = _cache_key(lat, lon, language)
         try:

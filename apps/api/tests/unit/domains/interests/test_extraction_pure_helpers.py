@@ -99,6 +99,7 @@ def make_result(**overrides: Any) -> InterestAnalysisResult:
         "llm_input_tokens": 1234,
         "llm_output_tokens": 56,
         "llm_cached_tokens": 78,
+        "llm_cache_write_tokens": 910,
         "llm_temperature": 0.3,
         "analyzed_message": "je me suis mis à l'escalade",
         "context_messages_count": 4,

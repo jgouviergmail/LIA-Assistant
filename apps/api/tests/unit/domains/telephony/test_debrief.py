@@ -116,9 +116,12 @@ def _install(monkeypatch, *, proposal: ReturnProposal) -> dict:
     async def _get_user(_model, _pk):
         return SimpleNamespace(language="fr", timezone="Europe/Paris")
 
+    async def _commit() -> None:
+        captured["commits"] = captured.get("commits", 0) + 1
+
     @contextlib.asynccontextmanager
     async def _ctx():
-        yield SimpleNamespace(get=_get_user)
+        yield SimpleNamespace(get=_get_user, commit=_commit)
 
     class _FakeDispatcher:
         async def dispatch(self, **kwargs):

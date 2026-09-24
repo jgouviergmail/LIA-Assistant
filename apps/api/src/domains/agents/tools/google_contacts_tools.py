@@ -1956,6 +1956,7 @@ async def _fetch_single_contact_details(
             resolve_active_connector,
         )
         from src.domains.connectors.service import ConnectorService
+        from src.domains.connectors.session_scope import DetachedConnectorService
         from src.infrastructure.database import get_db_context
 
         async with get_db_context() as db:
@@ -1996,14 +1997,19 @@ async def _fetch_single_contact_details(
                     f"No client registered for {resolved_type.value}",
                     connector_name=resolved_type.value,
                 )
-            client = client_class(user_uuid, credentials, connector_service)
 
-            # === EXECUTE SAME TOOL LOGIC ===
+        # Outside the session (ADR-304): nothing held while People answers,
+        # the client's own writes on a session of their own, and the
+        # transport closed — it never was on this path.
+        client = client_class(user_uuid, credentials, DetachedConnectorService())
+        try:
             api_start = time.time()
             person = await client.get_person(
                 resource_name, fields=normalized_fields, use_cache=not force_refresh
             )
             api_duration = time.time() - api_start
+        finally:
+            await client.close()
 
     # Track API metrics
     contacts_api_calls.labels(

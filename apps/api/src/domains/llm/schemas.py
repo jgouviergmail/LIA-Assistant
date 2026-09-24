@@ -295,7 +295,8 @@ class ModelPriceCreate(BaseModel):
         description=(
             "Optional UTC windowed tariff (ADR-223): non-overlapping "
             "[start,end) windows, each overriding the three unit prices "
-            "while active; outside every window the base prices apply. "
+            "while active, optionally on some ISO weekdays only (the UTC day "
+            "a window starts on); outside every window the base prices apply. "
             "Only accepted with pricing_unit='per_1m_tokens'. None/[] = "
             "flat pricing."
         ),

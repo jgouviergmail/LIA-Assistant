@@ -48,6 +48,9 @@ CONSULTATION_RECORDERS: Final[dict[str, str]] = {
     # session are filed on the ``live_session`` surface by the shared runner.
     "live_session": "domains/agents/telephony/live_tools.py",
     "moment": "infrastructure/scheduler/moment_sweep.py",
+    # The calendar lookup that hints the minutes (the upload itself is the
+    # person's own; the calendar is a source LIA opened).
+    "meeting": "domains/meetings/enrichment.py",
 }
 
 #: Surfaces that spend out of turn WITHOUT opening the person's sources, and
@@ -61,10 +64,6 @@ NOT_A_READER: Final[dict[str, str]] = {
     "open_loop_extraction": (
         "Reads the conversation that has just happened, inside the turn that "
         "produced it; the turn's own tools recorded what they consulted."
-    ),
-    "meeting": (
-        "Transcribes and structures a recording the person uploaded. The "
-        "upload is the read, and it is theirs."
     ),
     "psyche_summary": (
         "Summarises the psychological profile the assistant already keeps; it "

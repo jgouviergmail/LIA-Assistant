@@ -863,9 +863,9 @@ async def extract_interests_background(
     # 1. Run core analysis (uses cache if available)
     analysis = await _analyze_interests_core(user_id, messages, session_id, user_language)
 
-    # 2. Persist tokens
-    if analysis._raw_result:
-        await _persist_interest_tokens(...)
+    # 2. Persist tokens — a fresh call and a replay from the analysis cache
+    #    alike (cache writes included, ADR-306)
+    await _persist_interest_tokens(...)
 
     # 3. Process each extracted interest
     for extracted in analysis.extracted_interests:

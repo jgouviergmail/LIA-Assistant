@@ -100,11 +100,37 @@ def test_a_family_with_no_ladder_falls_back_to_the_identity() -> None:
     assert coerce("high", profile) == ("provider_default", True)
 
 
+@pytest.mark.parametrize("model", ["gpt-6-sol", "gpt-6-luna"])
+def test_gpt6_sol_and_luna_can_be_switched_off_and_reach_max(model: str) -> None:
+    """Model pages, 2026-09-23: « none, low, medium (default), high, xhigh,
+    and max » — an unknown family would send no effort at all."""
+    profile = resolve_reasoning_profile("openai", model)
+    assert profile.family == "openai"
+    assert profile.can_disable is True
+    assert {"none", "max"} <= set(profile.levels)
+    assert coerce("none", profile) == ("none", False)
+
+
+def test_gpt6_astra_never_gets_a_disabling_level() -> None:
+    """GPT-6 Astra accepts « low, medium, high, xhigh, and max » only: an
+    explicit ``none`` reaching the API is a refused request."""
+    profile = resolve_reasoning_profile("openai", "gpt-6-astra")
+    assert profile.family == "openai"
+    assert profile.can_disable is False
+    assert "none" not in profile.levels
+    assert "max" in profile.levels
+    coerced, was_coerced = coerce("none", profile)
+    assert coerced != "none"
+    assert was_coerced is True
+
+
 @pytest.mark.parametrize(
     ("provider", "model"),
     [
         ("openai", "gpt-5.2"),
         ("openai", "gpt-5.6-luna"),
+        ("openai", "gpt-6-sol"),
+        ("openai", "gpt-6-astra"),
         ("anthropic", "claude-opus-4-6"),
         ("anthropic", "claude-opus-4-5"),
         ("deepseek", "deepseek-v4-flash"),

@@ -526,6 +526,8 @@ class HeartbeatTarget:
     decision_tokens_in: int = 0
     decision_tokens_out: int = 0
     decision_tokens_cache: int = 0
+    #: The part of ``decision_tokens_in`` Claude wrote to its prompt cache.
+    decision_tokens_cache_write: int = 0
 
 
 # ---------------------------------------------------------------------------

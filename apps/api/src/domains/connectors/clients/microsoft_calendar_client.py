@@ -172,7 +172,8 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
             "microsoft_calendar_events_listed",
             user_id=str(self.user_id),
             count=len(items),
-            query=query,
+            # A query is a name, a subject or an address: content, never INFO.
+            has_query=bool(query),
         )
 
         return {"items": items}

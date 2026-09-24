@@ -1292,7 +1292,7 @@
     },
     {
       "id": 29,
-      "title": "Push wakes by outcome (24h)",
+      "title": "Push wakes queued and served (24h)",
       "type": "timeseries",
       "datasource": "$datasource",
       "gridPos": {
@@ -1306,6 +1306,11 @@
           "expr": "sum by (provider, outcome) (increase(push_wakes_total[24h])) or vector(0)",
           "legendFormat": "{{provider}} {{outcome}}",
           "refId": "A"
+        },
+        {
+          "expr": "sum by (provider) (increase(push_wakes_enqueued_total[24h])) or vector(0)",
+          "legendFormat": "{{provider}} queued",
+          "refId": "B"
         }
       ],
       "fieldConfig": {
@@ -1329,7 +1334,7 @@
           "mode": "multi"
         }
       },
-      "description": "Every queued wake ends in exactly one outcome. A sustained 'ineligible' share is the eligibility checker doing its job; a sustained 'error' share is a defect."
+      "description": "Every queued wake ends in exactly one outcome. A sustained 'ineligible' share is the eligibility checker doing its job; a sustained 'error' share is a defect. 'queued' is what the webhook path put in the queue (ADR-304): wakes queued and none served is a sweep that does not run — PushWakeSweepStalled."
     },
     {
       "id": 30,

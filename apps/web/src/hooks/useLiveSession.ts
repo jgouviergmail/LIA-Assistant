@@ -48,7 +48,10 @@ export function useLiveSession(bindings: LiveChatBindings): UseLiveSessionReturn
       new LiveSessionController({
         api: apiClient,
         createTransport: createLiveTransport,
-        createPlayer: () => new PcmStreamPlayer(),
+        // Give iOS PCM playback headroom for uneven WebSocket arrivals; WebRTC
+        // transports own their audio and never use this player.
+        createPlayer: () =>
+          new PcmStreamPlayer(/iPhone|iPad|iPod/.test(navigator.userAgent) ? 120 : 0),
         startMic: startMicCapture,
         isSupported: isLiveSupported,
         chat: bindings,

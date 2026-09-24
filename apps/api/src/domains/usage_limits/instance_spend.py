@@ -64,6 +64,7 @@ async def record_instance_llm_spend(
     tokens_in: int,
     tokens_out: int,
     tokens_cache: int = 0,
+    tokens_cache_write: int = 0,
 ) -> None:
     """Add one account-less model call to the instance's daily ledger.
 
@@ -73,6 +74,8 @@ async def record_instance_llm_spend(
         tokens_in: Prompt tokens consumed.
         tokens_out: Completion tokens produced.
         tokens_cache: Cached prompt tokens, priced separately.
+        tokens_cache_write: The part of ``tokens_in`` Claude wrote to its
+            prompt cache, owed the write surcharge (ADR-306).
     """
     if tokens_in <= 0 and tokens_out <= 0:
         return
@@ -83,6 +86,7 @@ async def record_instance_llm_spend(
         tokens_in=tokens_in,
         tokens_out=tokens_out,
         tokens_cache=tokens_cache,
+        tokens_cache_write=tokens_cache_write,
     )
     if cost_eur <= 0:
         return
@@ -138,6 +142,7 @@ async def record_instance_llm_call(
         tokens_in=usage.prompt,
         tokens_out=usage.completion,
         tokens_cache=usage.cached,
+        tokens_cache_write=usage.cache_write,
     )
 
 
@@ -148,6 +153,7 @@ def _price(
     tokens_in: int,
     tokens_out: int,
     tokens_cache: int,
+    tokens_cache_write: int,
 ) -> Decimal:
     """Cost of one call in euros, or zero when it cannot be priced.
 
@@ -161,6 +167,8 @@ def _price(
         tokens_in: Prompt tokens consumed.
         tokens_out: Completion tokens produced.
         tokens_cache: Cached prompt tokens.
+        tokens_cache_write: The part of ``tokens_in`` written to Claude's
+            prompt cache.
 
     Returns:
         The cost in euros, or ``Decimal("0")``.
@@ -180,6 +188,7 @@ def _price(
             prompt_tokens=tokens_in,
             completion_tokens=tokens_out,
             cached_tokens=tokens_cache,
+            cache_write_tokens=tokens_cache_write,
         )
     except Exception as exc:  # noqa: BLE001 — an unpriced call is still a call
         logger.warning(

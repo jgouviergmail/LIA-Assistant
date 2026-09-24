@@ -651,6 +651,7 @@ class RelationDebriefService:
             tokens_in=usage.tokens_in,
             tokens_out=usage.tokens_out,
             tokens_cache=usage.tokens_cache,
+            tokens_cache_write=usage.tokens_cache_write,
             model_name=usage.model_name,
             # The SLOT, not only the task: an operator reading the usage log can
             # then attribute a cost to the configuration that produced it, and

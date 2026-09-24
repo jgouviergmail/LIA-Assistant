@@ -50,7 +50,7 @@ async def _fetch(messages: list[dict]) -> list:
 
     @contextlib.asynccontextmanager
     async def _open(category: str, user_id: object):
-        yield CategoryClient(client=client, connector_type=None, session=None)
+        yield CategoryClient(client=client, connector_type=None)
 
     with patch("src.domains.relations.providers.emails.open_category_client", _open):
         return await fetch_exchanged_emails(

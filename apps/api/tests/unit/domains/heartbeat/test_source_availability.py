@@ -185,3 +185,49 @@ class TestTheFiveSourcesThatWereNeverAvailable:
                 _user(memory_enabled=True, journals_enabled=True), MagicMock()
             )
         assert available == [s for s in HEARTBEAT_SOURCE_ORDER if s in available]
+
+
+class TestWeatherReadsTheCategoryNotOneProvider:
+    """ADR-307: Google Weather is the instance's default, so reading OpenWeatherMap
+    alone marked the weather source « not connected » on every account it served."""
+
+    async def _weather_available(self, repo: Any, *, instance_provides: bool, **user: Any) -> bool:
+        with (
+            patch(f"{_MODULE}.ConnectorRepository", return_value=repo),
+            patch(f"{_MODULE}.settings", _settings()),
+            patch(f"{_MODULE}._has_habit_profile", AsyncMock(return_value=False)),
+            patch(
+                f"{_MODULE}.is_keyless_available", AsyncMock(return_value=instance_provides)
+            ) as keyless,
+        ):
+            available = "weather" in await compute_available_sources(_user(**user), MagicMock())
+        self.keyless = keyless
+        return available
+
+    async def test_the_instance_default_makes_weather_available(self) -> None:
+        assert await self._weather_available(
+            _no_connectors(), instance_provides=True, home_location_encrypted="enc"
+        )
+
+    async def test_the_persons_own_provider_is_enough(self) -> None:
+        from src.domains.connectors.models import ConnectorType
+
+        repo = MagicMock()
+
+        async def _get(user_id: Any, ct: Any) -> Any:
+            if ct == ConnectorType.OPENWEATHERMAP:
+                return SimpleNamespace(status=SimpleNamespace(value="active"))
+            return None
+
+        repo.get_by_user_and_type = _get
+        assert await self._weather_available(
+            repo, instance_provides=False, home_location_encrypted="enc"
+        )
+        self.keyless.assert_not_awaited()
+
+    async def test_no_place_or_no_provider_means_unavailable(self) -> None:
+        assert not await self._weather_available(_no_connectors(), instance_provides=True)
+        self.keyless.assert_not_awaited()
+        assert not await self._weather_available(
+            _no_connectors(), instance_provides=False, home_location_encrypted="enc"
+        )

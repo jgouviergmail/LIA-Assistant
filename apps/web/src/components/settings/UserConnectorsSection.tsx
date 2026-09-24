@@ -231,10 +231,12 @@ export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
     }
   };
 
-  const handleActivateApiKeyConnector = async (connectorType: string, requiresKey: boolean) => {
+  // Every connector activated here takes the person's own key: the keyless
+  // ones are provided by the instance and never listed (ADR-307).
+  const handleActivateApiKeyConnector = async (connectorType: string) => {
     const apiKey = apiKeyInputs[connectorType];
 
-    if (requiresKey && !apiKey?.trim()) {
+    if (!apiKey?.trim()) {
       toast.error(t('settings.connectors.api_key.invalid_key'));
       return;
     }
@@ -242,18 +244,11 @@ export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
     setActivatingConnector(connectorType);
 
     try {
-      let result: Connector;
-
-      // Google Places uses a dedicated activation endpoint (global API key on server)
-      if (connectorType === 'google_places') {
-        result = await apiClient.post<Connector>('/connectors/google-places/activate', {});
-      } else {
-        result = await apiClient.post<Connector>('/connectors/api-key/activate', {
-          connector_type: connectorType,
-          api_key: requiresKey ? apiKey.trim() : 'not_required',
-          key_name: `${connectorType}_key`,
-        });
-      }
+      const result = await apiClient.post<Connector>('/connectors/api-key/activate', {
+        connector_type: connectorType,
+        api_key: apiKey.trim(),
+        key_name: `${connectorType}_key`,
+      });
 
       setApiKeyInputs(prev => ({ ...prev, [connectorType]: '' }));
       if (result) {
@@ -989,64 +984,40 @@ export default function UserConnectorsSection({ lng }: BaseSettingsProps) {
                         </div>
                       </div>
 
-                      {connector.requiresKey ? (
-                        <div className="flex gap-2">
-                          <Input
-                            type="password"
-                            aria-label={t('settings.connectors.api_key.key_placeholder')}
-                            placeholder={t('settings.connectors.api_key.key_placeholder')}
-                            value={apiKeyInputs[connector.type] || ''}
-                            onChange={e =>
-                              setApiKeyInputs(prev => ({
-                                ...prev,
-                                [connector.type]: e.target.value,
-                              }))
-                            }
-                            className="flex-1"
-                            disabled={isActivating}
-                          />
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleActivateApiKeyConnector(connector.type, true)}
-                            disabled={isActivating || !apiKeyInputs[connector.type]?.trim()}
-                            className="text-primary hover:text-primary hover:bg-primary/10"
-                            title={t('settings.connectors.api_key.activate')}
-                          >
-                            {isActivating ? (
-                              <LoadingSpinner size="default" />
-                            ) : (
-                              <Save className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-muted-foreground italic">
-                            {t(`settings.connectors.${connector.type}.no_key_required`)}
-                          </span>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleActivateApiKeyConnector(connector.type, false)}
-                            disabled={isActivating}
-                            className="text-green-600 hover:text-green-700 hover:bg-green-500/10 dark:text-green-500 dark:hover:text-green-400"
-                            title={t('settings.connectors.api_key.activate')}
-                          >
-                            {isActivating ? (
-                              <LoadingSpinner size="default" />
-                            ) : (
-                              <Plug className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-                      )}
+                      <div className="flex gap-2">
+                        <Input
+                          type="password"
+                          aria-label={t('settings.connectors.api_key.key_placeholder')}
+                          placeholder={t('settings.connectors.api_key.key_placeholder')}
+                          value={apiKeyInputs[connector.type] || ''}
+                          onChange={e =>
+                            setApiKeyInputs(prev => ({
+                              ...prev,
+                              [connector.type]: e.target.value,
+                            }))
+                          }
+                          className="flex-1"
+                          disabled={isActivating}
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleActivateApiKeyConnector(connector.type)}
+                          disabled={isActivating || !apiKeyInputs[connector.type]?.trim()}
+                          className="text-primary hover:text-primary hover:bg-primary/10"
+                          title={t('settings.connectors.api_key.activate')}
+                        >
+                          {isActivating ? (
+                            <LoadingSpinner size="default" />
+                          ) : (
+                            <Save className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
 
-                      {connector.requiresKey && (
-                        <p className="text-xs text-muted-foreground">
-                          {t(`settings.connectors.${connector.type}.get_key`)}
-                        </p>
-                      )}
+                      <p className="text-xs text-muted-foreground">
+                        {t(`settings.connectors.${connector.type}.get_key`)}
+                      </p>
                     </div>
                   );
                 })}

@@ -184,7 +184,12 @@ class TestWakeEnqueue:
         assert enqueue.await_args.kwargs["history_id"] == 11
         assert enqueue.await_args.kwargs["ttl_seconds"] == 3600
 
-    async def test_processed_channel_notification_queues_a_wake_with_the_page_token(self) -> None:
+    async def test_a_drive_notification_queues_a_wake_that_carries_no_token(self) -> None:
+        """The channel row is the authority on where the feed resumes (ADR-304).
+
+        A token copied into the queue here was read DURING the previous drain,
+        and made every drain replay the one before it (production, 2026-09-22).
+        """
         channel = _channel(provider=PushChannelProvider.GOOGLE_DRIVE.value, page_token="pt-9")
         service = _service(channel)
         with (
@@ -198,7 +203,8 @@ class TestWakeEnqueue:
             settings_mock.push_wake_payload_ttl_seconds = 3600
             outcome = await service.handle_channel_notification(_notif())
         assert outcome is NotificationOutcome.PROCESSED
-        assert enqueue.await_args.kwargs["page_token"] == "pt-9"
+        enqueue.assert_awaited_once()
+        assert "page_token" not in enqueue.await_args.kwargs
 
     async def test_debounced_or_flag_off_never_queues(self) -> None:
         channel = _channel()

@@ -301,8 +301,52 @@ describe('time-slot tariffs (ADR-223)', () => {
         input_unit_price: '0.44',
         cached_input_unit_price: '',
         output_unit_price: '1.32',
+        // A new window applies every day until the admin says otherwise.
+        weekdays: [1, 2, 3, 4, 5, 6, 7],
       },
     ]);
+  });
+
+  it('restricts a window to the working week in one press', () => {
+    // DeepSeek bills its peaks Monday to Friday: the weekend is off-peak.
+    const { onSubmit } = renderModal(null);
+    fillBasePrices();
+    toggleSlots();
+    fillSlotRow(0);
+    fireEvent.click(screen.getByRole('button', { name: 'recurrence.weekday_set.workdays' }));
+    submit();
+
+    expect(onSubmit.mock.calls[0][0].time_slots[0].weekdays).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it("shows an existing window's days, the weekend unpressed", () => {
+    renderModal(
+      editModel({
+        time_slots: [
+          {
+            start_utc: '01:00',
+            end_utc: '04:00',
+            input_unit_price: '0.3',
+            cached_input_unit_price: '0.006',
+            output_unit_price: '1.2',
+            weekdays: [1, 2, 3, 4, 5],
+          },
+        ],
+      })
+    );
+
+    const group = screen.getByRole('group', {
+      name: 'settings.admin.llm.modal.time_slots_days_label',
+    });
+    expect(group).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'scheduled_actions.days.d1' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    expect(screen.getByRole('button', { name: 'scheduled_actions.days.d6' })).toHaveAttribute(
+      'aria-pressed',
+      'false'
+    );
   });
 
   it('blocks submit and announces the error when every row was removed', () => {
@@ -453,9 +497,7 @@ describe('the audio pair (ADR-300)', () => {
     const { onSubmit } = renderModal(
       editModel({ audio_input_unit_price: '3.000000', audio_output_unit_price: '12.000000' })
     );
-    expect((screen.getByLabelText(/audio_input_label/) as HTMLInputElement).value).toBe(
-      '3.000000'
-    );
+    expect((screen.getByLabelText(/audio_input_label/) as HTMLInputElement).value).toBe('3.000000');
     submitEdit();
     expect(onSubmit.mock.calls[0][0].audio_output_unit_price).toBe('12.000000');
   });

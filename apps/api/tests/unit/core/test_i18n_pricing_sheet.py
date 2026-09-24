@@ -94,5 +94,12 @@ class TestNotice:
         assert "row_fingerprint" not in joined, "an internal column must not be advertised"
         assert len(joined) > 200
 
+    @pytest.mark.parametrize("language", LANGUAGES)
+    def test_the_notice_gives_the_day_codes(self, language: str) -> None:
+        """The days column takes codes nobody can guess: the notice spells them."""
+        joined = " ".join(build_sheet_notice(language))
+        for code in ("mon", "tue", "wed", "thu", "fri", "sat", "sun"):
+            assert code in joined, (language, code)
+
     def test_the_notice_differs_between_languages(self) -> None:
         assert build_sheet_notice("fr") != build_sheet_notice("en")

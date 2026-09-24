@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.repository import BaseRepository
@@ -54,6 +54,30 @@ class PushChannelRepository(BaseRepository[WebhookChannel]):
             )
         )
         return result.scalar_one_or_none()
+
+    async def advance_page_token(self, channel_id: UUID, *, expected: str, new: str) -> bool:
+        """Move a Drive channel's changes token forward, if nobody moved it first.
+
+        Compare-and-set on the token the caller drained FROM: a channel the sync
+        job re-opened meanwhile carries a fresh baseline, and a drain that
+        started earlier must never write an older token over it (ADR-304).
+
+        Args:
+            channel_id: The channel row.
+            expected: The token the drain started from.
+            new: Where the feed continues after what the drain handed over.
+
+        Returns:
+            True when the token moved; False when the row changed or vanished.
+        """
+        result = await self.db.execute(
+            update(WebhookChannel)
+            .where(WebhookChannel.id == channel_id, WebhookChannel.page_token == expected)
+            .values(page_token=new)
+        )
+        # CursorResult.rowcount is exact for an UPDATE; the base Result type
+        # simply does not declare it.
+        return int(getattr(result, "rowcount", 0) or 0) == 1
 
     async def list_expiring(self, before: datetime) -> list[WebhookChannel]:
         """Channels whose expiry falls before ``before`` (renewal candidates)."""

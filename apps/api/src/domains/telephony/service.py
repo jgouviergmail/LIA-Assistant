@@ -319,9 +319,7 @@ class TelephonyService:
         opened nothing and files nothing.
         """
         started = time.monotonic()
-        read = await build_availability(
-            user_id, window_start, window_end, ConnectorService(self.db), user_tz, user_language
-        )
+        read = await build_availability(user_id, window_start, window_end, user_tz, user_language)
         if read.opened:
             record_surface_consultations(
                 surface=_SURFACE,
@@ -394,6 +392,13 @@ class TelephonyService:
         # or the stale threshold elapsed.
         repo = TelephonyRepository(self.db)
         existing = await repo.get_active_for_user(user_id)
+        user = await self.db.get(User, user_id)
+        personality = await self._personality_for(user_id)
+        # Every read of the dial ends HERE (ADR-304): the zombie probe, the
+        # agent sync, the tools attach and the calendar read below are vendor
+        # calls, and none of them may hold this transaction. Each write below
+        # commits its own.
+        await self.db.commit()
         if existing is not None:
             cleared = await self._resolve_zombie_call(existing, repo, active.api_key)
             if not cleared:
@@ -402,8 +407,6 @@ class TelephonyService:
         now = datetime.now(UTC)
         window_start = now
         window_end = now + timedelta(days=settings.telephony_prefetch_window_days)
-
-        user = await self.db.get(User, user_id)
         user_name = resolve_user_display_name(user.full_name, user.email) if user else ""
         user_tz = user.timezone if user and user.timezone else DEFAULT_USER_DISPLAY_TIMEZONE
 
@@ -439,7 +442,6 @@ class TelephonyService:
             call_mode = "direct"
             mandate = mandate_for(kind, mode=call_mode)
 
-        personality = await self._personality_for(user_id)
         availability_summary = ""
         if mandate.prefetch_availability:
             read = await self._read_availability(

@@ -35,16 +35,17 @@ from src.core.constants import (
     RESPONSE_DISPLAY_MODE_HTML,
 )
 from src.core.field_names import (
-    FIELD_METADATA,
     FIELD_PLAN_ID,
     FIELD_REACT_SYNTHESIS,
-    FIELD_RUN_ID,
+    FIELD_STATUS,
 )
 from src.core.i18n import _
 from src.core.i18n_api_messages import (
     NO_EXTERNAL_AGENT_MESSAGES,
     APIMessages,
 )
+from src.core.prompt_store import parse_prompt_sections, read_prompt_file
+from src.core.run_config import run_id_of
 from src.domains.agents.analysis.query_intelligence_helpers import get_qi_attr
 from src.domains.agents.constants import (
     DATA_FILTERING_GENERATION_ERROR_MARKER,
@@ -64,6 +65,7 @@ from src.domains.agents.constants import (
     STATE_KEY_TURN_TYPE,
     STATE_KEY_VALIDATION_RESULT,
     TURN_TYPE_ACTION,
+    AgentResultStatus,
     make_agent_result_key,
 )
 from src.domains.agents.context.recent_entities import (
@@ -119,6 +121,9 @@ from src.domains.agents.prompts import (
     get_response_prompt,
 )
 from src.domains.agents.prompts.prompt_loader import inject_before_final_reminder, load_prompt
+from src.domains.agents.services.performed_actions_directive import (
+    build_performed_actions_block,
+)
 from src.domains.agents.services.plan_blockers import (
     executed_tool_names,
     format_plan_blockers,
@@ -180,17 +185,19 @@ def _plan_execution_failed(state: dict[str, Any]) -> bool:
     failure the response should reflect it (or fall back to the authoritative
     QueryAnalyzer detection) instead of masking it.
 
-    Only the ``plan_executor`` aggregate is inspected: its ``status`` is
-    "failed" only when EVERY step failed (see
+    Only the ``plan_executor`` aggregate is inspected: its status is ERROR
+    only when EVERY executed step failed (see
     ``map_execution_result_to_agent_result``). A partially successful plan is
-    not treated as a failure here.
+    not treated as a failure here — and since ADR-303 that is true of the
+    CODE too: the aggregate used to publish "failed" on a single failed step,
+    so this docstring described a rule the reader did not have.
 
     Args:
         state: The LangGraph message state.
 
     Returns:
         True only when a ``plan_executor`` result exists for the current turn
-        and its status is "failed".
+        and its status is ``AgentResultStatus.ERROR``.
     """
     agent_results = state.get(STATE_KEY_AGENT_RESULTS) or {}
     turn_id = state.get(STATE_KEY_CURRENT_TURN_ID, 0)
@@ -198,7 +205,7 @@ def _plan_execution_failed(state: dict[str, Any]) -> bool:
     entry = agent_results.get(key)
     if not isinstance(entry, dict):
         return False
-    return entry.get("status") == "failed"
+    return entry.get(FIELD_STATUS) == AgentResultStatus.ERROR.value
 
 
 def _should_inject_html_directive(
@@ -1859,7 +1866,6 @@ def _build_response_system_prompt(
     user_display_mode: str,
     user_psyche_enabled: bool,
     personality_instruction: str | None,
-    conversation_history: str,
     psychological_profile: Any,
     knowledge_context: str,
     rag_context: Any,
@@ -1889,7 +1895,6 @@ def _build_response_system_prompt(
         user_timezone=user_timezone,
         user_language=user_language,
         personality_instruction=personality_instruction,
-        conversation_history=conversation_history,
         window_size=settings.response_message_window_size,
         psychological_profile=psychological_profile,
         knowledge_context=knowledge_context,  # Brave Search enrichment
@@ -2306,13 +2311,14 @@ def _build_response_chain(
     state: MessagesState,
     user_language: str,
     llm: Any,
+    performed_actions_block: str,
 ) -> Any:
     """Build the response ChatPromptTemplate + LLM chain (dynamic system blocks).
 
     Extracted verbatim from ``response_node``: assembles only non-empty system
-    blocks (base prompt, skill contract, rejection/cancel directive, authoritative
-    data), a MessagesPlaceholder and a trailing language-reinforcement human message,
-    then returns ``prompt | llm``.
+    blocks (base prompt, skill contract, rejection/cancel directive, the acts the
+    turn performed, authoritative data), a MessagesPlaceholder and a trailing
+    language-reinforcement human message, then returns ``prompt | llm``.
     """
     # CRITICAL: Build SYSTEM-level anti-hallucination directive for rejected plans
     # Response directives are injected as SYSTEM messages to enforce behavior
@@ -2366,14 +2372,14 @@ def _build_response_chain(
     safe_rejection_override = escape_braces(rejection_override)
     safe_agent_results = escape_braces(agent_results_summary)
     safe_skills_context = escape_braces(skills_context) if skills_context else ""
-    # base_system_prompt embeds the conversation history (get_response_prompt
-    # conversation_history=...), which can contain literal curly braces from
-    # the user or assistant (LaTeX like \frac{d}{2}, MCP/HTML payloads).
-    # ChatPromptTemplate re-processes each system string as an f-string, so
-    # a stray "{2}" raised ValueError ("Invalid variable name '2'") and
-    # crashed every follow-up turn. Escape it like the other injected blocks
-    # (the prompt is already fully rendered — no template vars remain; the
-    # actual messages flow through MessagesPlaceholder, not this string).
+    # base_system_prompt embeds the user's query and the injected contexts
+    # (RAG, memories, entities), which can contain literal curly braces
+    # (LaTeX like \frac{d}{2}, MCP/HTML payloads). ChatPromptTemplate
+    # re-processes each system string as an f-string, so a stray "{2}" raised
+    # ValueError ("Invalid variable name '2'") and crashed the turn. Escape it
+    # like the other injected blocks (the prompt is already fully rendered — no
+    # template vars remain; the conversation flows through MessagesPlaceholder,
+    # not this string).
     safe_base_system_prompt = escape_braces(base_system_prompt)
     prompt_messages: list[Any] = [("system", safe_base_system_prompt)]
     # Skill instructions are injected as a DEDICATED high-priority system
@@ -2397,13 +2403,13 @@ def _build_response_chain(
         prompt_messages.append(("system", skill_contract_prefix))
     if safe_rejection_override:
         prompt_messages.append(("system", safe_rejection_override))
+    if performed_actions_block:
+        # ADR-263 §23: the acts precede the data they explain.
+        prompt_messages.append(("system", escape_braces(performed_actions_block)))
+    lines = dict(parse_prompt_sections(read_prompt_file("response_prompt_lines"), 2))
     if safe_agent_results:
         # Prefix data with authority reminder to override contradictory history
-        data_prefix = (
-            "CURRENT TURN DATA (AUTHORITATIVE — overrides any contradictory "
-            "information from conversation history above):\n\n"
-        )
-        prompt_messages.append(("system", data_prefix + safe_agent_results))
+        prompt_messages.append(("system", lines["current_turn_data"] + "\n\n" + safe_agent_results))
     prompt_messages.append(MessagesPlaceholder(variable_name="messages"))
     # Language reinforcement: inject a final human message AFTER conversation history.
     # When the user switches language mid-conversation, the history (in the previous
@@ -2412,15 +2418,8 @@ def _build_response_chain(
     # NOTE: Uses "human" role because Anthropic API rejects non-consecutive system messages.
     from src.core.i18n import get_language_name
 
-    _lang_name = get_language_name(user_language)
-    prompt_messages.append(
-        (
-            "human",
-            f"[INSTRUCTION] Respond ENTIRELY in {_lang_name}. "
-            f"The conversation above may be in another language — "
-            f"ignore that and write your response in {_lang_name} only.",
-        )
-    )
+    language = get_language_name(user_language)
+    prompt_messages.append(("human", lines["respond_in_language"].format(language=language)))
     prompt = ChatPromptTemplate.from_messages(prompt_messages)
     # Create chain
     chain = prompt | llm
@@ -2690,14 +2689,14 @@ def _extract_qi_response_hints(
 def _build_conversation_history(
     state: MessagesState, run_id: str, neutralize_history_formatting: bool
 ) -> tuple[str, str, str | None]:
-    """Window + filter the history and format it for prompt injection.
+    """Window + filter the history and format it as text for the skill runner.
 
     Extracted verbatim from ``response_node``. Returns (conversation_history,
     last_user_message, user_query_for_prompt); the current query is excluded from
-    the formatted history (it is passed separately via {user_query}).
+    the formatted history. The response model never reads this text: it reads the
+    conversation once, as the message array (ADR-309) — only a script skill's
+    sub-agent, which runs outside that array, receives the text.
     """
-    # Format conversation history for prompt injection
-    # Architecture (2025-12-07): Uses explicit placeholder {conversation_history} in prompt
     from src.domains.agents.utils.conversation_context import format_conversation_history
     from src.domains.agents.utils.message_windowing import get_response_windowed_messages
 
@@ -2758,6 +2757,8 @@ def _apply_react_passthrough(state: MessagesState, run_id: str) -> tuple[Any, bo
     message under ``{turn}:react_agent`` so all post-processing applies. Mutates
     ``state[agent_results]`` and returns (react_result, react_passthrough_merged);
     the merged agent_results is also persisted by contract via the state_update.
+    What the turn DID is not merged here: it has its own directive
+    (``services/performed_actions_directive``, ADR-263 §23).
     """
     _react_passthrough_merged = False  # F5: gate for the explicit state return
     react_result = state.get("react_agent_result")
@@ -3071,7 +3072,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         - Basic metrics (duration, success/error counters) are tracked automatically
           by @track_metrics decorator. Only business logic error handling remains here.
     """
-    run_id = config.get(FIELD_METADATA, {}).get(FIELD_RUN_ID, "unknown")
+    run_id = run_id_of(config, "unknown")
 
     logger.info(
         "response_node_started",
@@ -3208,14 +3209,15 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         # by the next extraction (ADR-079).
         previous_journal_injected_ids: list[str] = list(state.get("injected_journal_ids") or [])
 
-        # Get timezone-aware prompt with personality, history, and memory injection
+        # Get timezone-aware prompt with personality and memory injection
         # V3 Architecture: LLM generates conversational response only
         # Data formatting handled by HTML components, injected post-LLM via HtmlRenderer
         # Intelligent Filtering: Pass user_query and data_for_filtering for semantic filtering
         #
         # Grounding fallback: when THIS turn produced no structured data,
         # current_turn_registry (and therefore data_for_filtering) is empty by
-        # design, and <History> drops ToolMessages — so the model could only
+        # design, and earlier turns reach the model as the answers' prose (a
+        # card answer reduced to its leading text) — so the model could only
         # recall entity values from prose ("16h" for an 11:15 appointment).
         # Surface the Tool-Context entities still in focus instead. REFERENCE
         # turns are deliberately excluded: their empty registry is a data-leak
@@ -3246,7 +3248,6 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             user_display_mode=user_display_mode,
             user_psyche_enabled=user_psyche_enabled,
             personality_instruction=personality_instruction,
-            conversation_history=conversation_history,
             psychological_profile=psychological_profile,
             knowledge_context=knowledge_context,
             rag_context=rag_context,
@@ -3310,6 +3311,12 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             state=state,
             user_language=user_language,
             llm=llm,
+            # Read under the TRUE run id: ``run_id`` above carries a logging
+            # placeholder when absent, and the register files rows under its
+            # own placeholder too — the two must never meet.
+            performed_actions_block=await build_performed_actions_block(
+                state, run_id_of(config), user_language
+            ),
         )
 
         # Enrich config with node metadata for observability (Prometheus metrics)

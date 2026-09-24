@@ -276,7 +276,7 @@ async def detect(user: Any, now: datetime) -> list[MomentCandidate]:
     user_tz = resolve_user_timezone(user)
 
     try:
-        async with get_db_context() as db, open_active_calendar(db, user_id) as access:
+        async with open_active_calendar(user_id) as access:
             if not isinstance(access, CalendarAccess):
                 return []
             result = await access.client.list_events(
@@ -404,7 +404,7 @@ async def revalidate(user: Any, source_ref: str, payload: Mapping[str, Any]) -> 
     title = str(payload.get("title") or "a meeting")
 
     try:
-        async with get_db_context() as db, open_active_calendar(db, user_id) as access:
+        async with open_active_calendar(user_id) as access:
             if not isinstance(access, CalendarAccess):
                 return MomentFacts(still_valid=False)
             event = await access.client.get_event(

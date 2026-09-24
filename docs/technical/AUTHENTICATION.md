@@ -1262,6 +1262,12 @@ sequenceDiagram
    - Browser reçoit cookie avec Max-Age=0
 4. **Immediate effect** : next request → 401 (session deleted)
 
+Mettre fin à sa propre session n'exige aucun statut : un compte en attente
+d'approbation ou bloqué se déconnecte aussi (`get_current_session`, pas la
+variante ACTIVE). La page « compte inactif » n'offre que cette action, et la
+route lui répondait 403 : la page annonçait la déconnexion alors que la session
+restait valide (production, 2026-09-18).
+
 ---
 
 ### Flow 5: Logout All Devices
@@ -1310,6 +1316,44 @@ sequenceDiagram
 4. **Performance** :
    - Sans index : O(N) scan de toutes les sessions (~1200ms pour 100k sessions)
    - Avec index : O(1) lookup (~15ms) → **80× plus rapide**
+
+---
+
+### Flow 6: Connexion Google — résolution du compte
+
+Google renvoie deux choses qui ne méritent pas la même confiance. L'`id` du
+compte Google **est** l'identité : stable, propre à Google, comparé tel quel.
+L'`email` est une **affirmation** sur une adresse. Il décide si la connexion
+atteint un compte que quelqu'un d'autre a inscrit, et n'est donc cru que si
+Google s'en porte garant (`google_email_is_verified`, dans
+`apps/api/src/domains/auth/google_identity.py`). Même alors, il n'accorde rien.
+
+`AuthService._find_or_create_google_user` suit trois branches :
+
+| Le compte est trouvé… | Ce qui se passe |
+|---|---|
+| par l'`id` Google | connexion, rien d'autre ne change |
+| par l'adresse (`_link_google_identity`) | l'identité Google est rattachée ; **l'activation reste celle qu'un admin a décidée** |
+| nulle part | création, **inactive** jusqu'à l'approbation d'un admin, qui est prévenu |
+
+Règles de la liaison par adresse (incident du 2026-09-18 : une inscription par
+e-mail en attente s'est activée seule en se connectant avec Google, car la
+liaison écrivait `is_active=True`, et personne n'en fut informé) :
+
+- la liaison ne touche **jamais** `is_active`. Un compte en attente reste en
+  attente, un compte bloqué reste bloqué ;
+- si personne n'avait encore prouvé l'adresse (`is_verified=False`), c'est
+  Google qui la prouve, et le compte passe à celui qui l'a prouvée : le mot de
+  passe et les sessions du déclarant sont **révoqués** (pré-détournement de
+  compte), et l'inscription attend l'approbation comme après une vérification
+  d'e-mail (les admins sont notifiés, la personne est prévenue) ;
+- un compte supprimé (ligne gardée pour la facturation) n'est jamais ranimé.
+
+Refus : `GoogleSignInRefusedError` porte un motif **borné** (`email_not_verified`,
+`account_deleted`). Le callback le transmet tel quel, en paramètre `error`, à
+`/oauth-callback` (ou au lien profond de l'app native) et en libellé de
+`oauth_callback_errors_total`. Le schéma userinfo v2 déclare `verified_email`
+avec une valeur par défaut `true` : seul un `false` explicite refuse.
 
 ---
 

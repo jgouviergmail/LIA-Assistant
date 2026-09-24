@@ -23,6 +23,7 @@ def track_image_generation_call(
     image_count: int,
     prompt: str,
     duration_ms: float = 0.0,
+    input_image_count: int = 0,
 ) -> None:
     """Record an image generation call in the current TrackingContext.
 
@@ -39,6 +40,7 @@ def track_image_generation_call(
         image_count: Number of images generated.
         prompt: Original prompt text (truncated for audit).
         duration_ms: API call duration in milliseconds.
+        input_image_count: Reference images sent to an edit (ADR-305).
     """
     tracker = current_tracker.get()
     if tracker is not None:
@@ -49,6 +51,7 @@ def track_image_generation_call(
             image_count=image_count,
             prompt_preview=prompt,
             duration_ms=duration_ms,
+            input_image_count=input_image_count,
         )
     else:
         logger.debug(
@@ -57,4 +60,5 @@ def track_image_generation_call(
             quality=quality,
             size=size,
             image_count=image_count,
+            input_image_count=input_image_count,
         )

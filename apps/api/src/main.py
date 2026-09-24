@@ -13,6 +13,12 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+# Logging is configured by this import, before any application module below is
+# imported: what a module logs at import time would otherwise escape the
+# configuration (see the bootstrap's docstring).
+from src.infrastructure.observability import logging_bootstrap  # noqa: F401
+
+# isort: split
 from src.api.health import health_router
 from src.api.v1.routes import api_router
 
@@ -25,7 +31,6 @@ from src.core.config import settings
 from src.core.constants import API_VERSION
 from src.core.field_names import FIELD_STATUS
 from src.core.middleware import setup_middleware
-from src.infrastructure.observability.logging import configure_logging
 from src.infrastructure.observability.metrics import (
     PrometheusMiddleware,
     metrics_endpoint,
@@ -41,8 +46,6 @@ from src.infrastructure.startup import (
     shutdown,
 )
 
-# Configure logging before anything else
-configure_logging()
 logger = structlog.get_logger(__name__)
 
 

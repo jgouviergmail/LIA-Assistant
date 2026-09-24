@@ -760,6 +760,30 @@ Why order matters:
 """
 ```
 
+### 1bis. La configuration précède l'import de l'application
+
+La chaîne ci-dessus ne protège que ce qui est journalisé **après** `configure_logging()`.
+Tout ce qui écrit avant, ou tout logger lié avant, garde les valeurs par défaut de
+structlog : rendu console (que Promtail ne sait pas parser), **aucun filtre de niveau,
+aucun `add_pii_filter`**. Mesuré le 2026-09-23 : `main.py` importait toutes les routes
+avant d'appeler `configure_logging()`, et les outils (singletons construits à l'import)
+liaient leur logger dans `__init__` — des lignes DEBUG `tool_execution_started` avec les
+paramètres d'appel partaient dans les logs de production à `LOG_LEVEL=INFO`.
+
+Deux règles, chacune tenue par un test :
+
+- **La configuration est le premier import applicatif de `main.py`** :
+  `infrastructure/observability/logging_bootstrap.py` appelle `configure_logging()` à
+  l'import (garde `tests/unit/test_logging_configured_first_guard.py`).
+- **Un logger est lié au moment où il écrit, jamais stocké à la construction d'un
+  singleton** : les deux classes de base des outils exposent `logger` comme une propriété
+  (`_ToolLoggerMixin`, test `test_tool_logger_follows_configuration.py`).
+
+Limite connue : l'étape `alembic upgrade head` de l'entrypoint est un processus séparé
+qui importe les modèles sans configurer structlog ; elle imprime une fois par démarrage
+de conteneur une trentaine de lignes d'enregistrement (types de contexte, outils) au
+format console, sans donnée personnelle.
+
 ### 2. OpenTelemetry Correlation
 
 ```python

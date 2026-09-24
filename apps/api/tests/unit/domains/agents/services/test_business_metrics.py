@@ -390,18 +390,65 @@ def test_infer_conversation_outcome_abandoned_short():
 
 
 def test_infer_conversation_outcome_partial_success():
-    """Test outcome inference for partial success (mixed results)."""
+    """A plan that produced AND failed is a partial success (ADR-303).
+
+    The fixture is the REAL shape — ``agent_results`` holds the output of
+    ``AgentResult.model_dump()``, a dict. It used to build attribute-only
+    objects carrying ``status="failure"``, a value no producer writes: on real
+    dicts ``hasattr(result, "status")`` is always False, so every pipeline
+    turn, failed ones included, was counted a success.
+    """
     state = {
-        "agent_results": [
-            type("Result", (), {"status": "success"})(),
-            type("Result", (), {"status": "failure"})(),
-        ],
+        "agent_results": {
+            "9:plan_executor": {
+                "agent_name": "plan_executor",
+                "status": "success",
+                "data": {},
+                "failed_steps": [
+                    {
+                        "step_index": 1,
+                        "tool_name": "fetch_web_page_tool",
+                        "error": "HTTP error 403",
+                        "error_code": "FORBIDDEN",
+                    }
+                ],
+            }
+        },
         "messages": [HumanMessage(content="Search"), AIMessage(content="Found")],
     }
 
     outcome = infer_conversation_outcome(state)
 
     assert outcome == "partial_success"
+
+
+def test_infer_conversation_outcome_reads_a_failed_dict_as_a_failure():
+    """A totally failed plan is a failure, not « results exist, assume success »."""
+    state = {
+        "agent_results": {
+            "9:plan_executor": {
+                "agent_name": "plan_executor",
+                "status": "error",
+                "data": None,
+                "error": "HTTP error 403",
+                "failed_steps": [
+                    {
+                        "step_index": 0,
+                        "tool_name": "fetch_web_page_tool",
+                        "error": "HTTP error 403",
+                        "error_code": "FORBIDDEN",
+                    }
+                ],
+            }
+        },
+        "messages": [
+            HumanMessage(content="Read this"),
+            AIMessage(content="I could not"),
+            HumanMessage(content="ok"),
+        ],
+    }
+
+    assert infer_conversation_outcome(state) == "failure"
 
 
 def test_infer_conversation_outcome_results_with_data():

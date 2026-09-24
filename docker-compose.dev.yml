@@ -239,7 +239,7 @@ services:
     # regenerates .pyc by the hundred (observed: `122 changes detected`, all
     # __pycache__). The reloader then restarts the worker in the middle of an
     # import, which is the other way this container reaches SIGSEGV.
-    command: python -Xfrozen_modules=off ${DEV_API_DEBUGPY:-} -m uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir src --reload-exclude=*.pyc --reload-exclude=*/__pycache__/* --ssl-keyfile=/certs/key.pem --ssl-certfile=/certs/cert.pem
+    command: python -Xfrozen_modules=off ${DEV_API_DEBUGPY:-} -m uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir src --reload-exclude=*.pyc --reload-exclude=*/__pycache__/* --ssl-keyfile=/certs/key.pem --ssl-certfile=/certs/cert.pem --ws websockets-sansio
     depends_on:
       postgres:
         condition: service_healthy

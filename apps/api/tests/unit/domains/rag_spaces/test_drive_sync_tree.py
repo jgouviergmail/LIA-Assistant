@@ -16,7 +16,11 @@ import pytest
 from src.core.constants import GOOGLE_DRIVE_FOLDER_MIME
 from src.domains.rag_spaces import drive_ingest, drive_sync
 from src.domains.rag_spaces.models import RAGDriveSyncStatus
-from tests.unit.domains.rag_spaces.drive_fakes import FakeDriveClient, drive_file
+from tests.unit.domains.rag_spaces.drive_fakes import (
+    FakeDetachedConnectors,
+    FakeDriveClient,
+    drive_file,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -76,7 +80,11 @@ async def _run_sync(tmp_path, client: FakeDriveClient) -> tuple[list[dict], list
         patch.object(drive_sync, "RAGJobsRepository", return_value=AsyncMock()),
         patch.object(drive_ingest, "RAGDocumentRepository", return_value=doc_repo),
         patch.object(drive_ingest, "RAGChunkRepository", return_value=AsyncMock()),
-        patch.object(drive_sync, "ConnectorService", return_value=connector_service),
+        patch.object(
+            drive_sync,
+            "DetachedConnectorService",
+            return_value=FakeDetachedConnectors(connector_service),
+        ),
         patch.object(drive_sync, "GoogleDriveClient", return_value=client),
         patch.object(drive_sync, "process_document", side_effect=fake_process),
         patch.object(drive_sync, "settings", settings_mock),
@@ -144,7 +152,11 @@ async def test_sync_prunes_a_document_whose_file_left_the_tree(tmp_path) -> None
         patch.object(drive_ingest, "RAGDocumentRepository", return_value=doc_repo),
         patch.object(drive_ingest, "RAGChunkRepository", return_value=AsyncMock()),
         patch.object(drive_sync, "remove_drive_document", side_effect=fake_remove),
-        patch.object(drive_sync, "ConnectorService", return_value=connector_service),
+        patch.object(
+            drive_sync,
+            "DetachedConnectorService",
+            return_value=FakeDetachedConnectors(connector_service),
+        ),
         patch.object(drive_sync, "GoogleDriveClient", return_value=client),
         patch.object(drive_sync, "process_document", side_effect=fake_process),
         patch.object(drive_sync, "settings", settings_mock),

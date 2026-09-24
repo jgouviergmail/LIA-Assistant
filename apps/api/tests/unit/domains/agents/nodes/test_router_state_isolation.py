@@ -84,7 +84,7 @@ def _state(*messages: Any) -> dict[str, Any]:
 
 
 def _config() -> dict[str, Any]:
-    return {"configurable": {"run_id": "run-test"}, "metadata": {"run_id": "run-test"}}
+    return {"configurable": {}, "metadata": {"run_id": "run-test"}}
 
 
 class TestRouterDoesNotTouchMessages:
@@ -192,6 +192,8 @@ class TestRouterResetsTheReactTurn:
             "react_productive_iterations": 40,
             "react_call_digests": {"digest": 3},
             "react_scripts": [{"purpose": "last turn's script", "code": "print(1)"}],
+            # ADR-310: a pass of the previous turn would forbid this turn's own.
+            "react_recovery_passes": [{"anchor_id": "t9", "draft": "old", "unresolved": ["A"]}],
         }
         state = _state(HumanMessage(content="cherche jean"))
         state.update(stale)

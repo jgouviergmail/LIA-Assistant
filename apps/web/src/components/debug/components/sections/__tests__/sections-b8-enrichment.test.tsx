@@ -65,9 +65,7 @@ describe('the ReAct loop draws the bound that stopped it', () => {
   it('shows the EFFECTIVE budget, not the ceiling', () => {
     open(
       ['react_execution'],
-      <ReactExecutionSection
-        data={{ ...REACT_BASE, iteration_budget: 4, iteration_ceiling: 25 }}
-      />
+      <ReactExecutionSection data={{ ...REACT_BASE, iteration_budget: 4, iteration_ceiling: 25 }} />
     );
 
     // « 4/25 » on a turn narrowed to four iterations reads as a model that
@@ -80,9 +78,7 @@ describe('the ReAct loop draws the bound that stopped it', () => {
   it('names the ceiling beside the budget when the two differ', () => {
     open(
       ['react_execution'],
-      <ReactExecutionSection
-        data={{ ...REACT_BASE, iteration_budget: 4, iteration_ceiling: 25 }}
-      />
+      <ReactExecutionSection data={{ ...REACT_BASE, iteration_budget: 4, iteration_ceiling: 25 }} />
     );
 
     expect(screen.getByText(/^Ceiling:/)).toBeInTheDocument();
@@ -122,6 +118,20 @@ describe('the ReAct loop draws the bound that stopped it', () => {
     expect(screen.getByText('get_emails_tool')).toBeInTheDocument();
   });
 
+  it('says what the recovery pass achieved (ADR-310)', () => {
+    // The ADR promised it to this panel, and the section never read it: an
+    // operator could not tell a turn that recovered from one that did not try.
+    open(
+      ['react_execution'],
+      <ReactExecutionSection
+        data={{ ...REACT_BASE, recovery: { passes: 1, outcome: 'partial' } }}
+      />
+    );
+
+    expect(screen.getByText(/^Recovery:/)).toBeInTheDocument();
+    expect(screen.getByText('1 pass · partial')).toBeInTheDocument();
+  });
+
   it('renders a payload persisted before this lot, minus the new rows', () => {
     // An older turn carries none of the new keys: it must still render on the
     // ceiling it did publish, rather than break.
@@ -129,6 +139,7 @@ describe('the ReAct loop draws the bound that stopped it', () => {
 
     expect(screen.getAllByText('4/25').length).toBeGreaterThan(0);
     expect(screen.queryByText(/^Stopped because:/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Recovery:/)).not.toBeInTheDocument();
   });
 });
 
@@ -256,7 +267,12 @@ describe('the two deferred registers', () => {
     treatments: {
       entries: [
         { tool_name: 'get_emails_tool', mutation_policy: 'read', outcome: 'ok', duration_ms: 87 },
-        { tool_name: 'get_events_tool', mutation_policy: 'read', outcome: 'failed', duration_ms: 12 },
+        {
+          tool_name: 'get_events_tool',
+          mutation_policy: 'read',
+          outcome: 'failed',
+          duration_ms: 12,
+        },
       ],
       count: 2,
       failed_count: 1,
@@ -281,7 +297,10 @@ describe('the two deferred registers', () => {
     open(
       ['registers'],
       <RegistersSection
-        data={{ decision: REGISTERS.decision, treatments: { entries: [], count: 0, failed_count: 0 } }}
+        data={{
+          decision: REGISTERS.decision,
+          treatments: { entries: [], count: 0, failed_count: 0 },
+        }}
       />
     );
 

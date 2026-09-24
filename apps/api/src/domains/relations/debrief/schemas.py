@@ -32,6 +32,7 @@ from src.core.constants import (
     RELATION_DEBRIEF_MAX_OPEN_POINTS_DEFAULT,
 )
 from src.core.llm_usage import LLMUsage
+from src.core.text_clip import clip_on_word
 
 
 class DebriefStatus(str, Enum):
@@ -61,9 +62,8 @@ _NEXT_STEP_MAX = 400
 def _clip(value: str | None, limit: int) -> str | None:
     """Cut one prose field to its bound, on a word boundary when it can.
 
-    The ellipsis is counted IN the bound: a clip that returned ``limit + 1``
-    characters would need the stored contract to be one character looser than
-    the published one, and two nearly-equal numbers is how they drift.
+    The cut itself is the shared one (``core.text_clip``): the ellipsis counts
+    in the bound, so the stored contract equals the published one.
 
     Args:
         value: The model's prose, or None.
@@ -72,13 +72,7 @@ def _clip(value: str | None, limit: int) -> str | None:
     Returns:
         The text within its bound, or None.
     """
-    if value is None:
-        return None
-    text = value.strip()
-    if len(text) <= limit:
-        return text
-    head = text[: limit - 1]
-    return f"{head.rsplit(' ', 1)[0] or head}…"
+    return None if value is None else clip_on_word(value.strip(), limit)
 
 
 # ``DebriefDraft`` carries no bound at all, and its DOCSTRING is deliberately

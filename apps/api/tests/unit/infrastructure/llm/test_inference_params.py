@@ -173,6 +173,28 @@ class TestReasoningSpeaksADR245sVocabulary:
 
         assert captured.reasoning_budget_tokens == 4096
 
+    def test_the_anthropic_effort_is_read_where_the_client_publishes_it(self) -> None:
+        """``ChatAnthropic`` publishes ``output_config`` but never its ``effort``
+        field (ADR-306): the depth is read from the former, which the adapter
+        now fills, or it is lost for every Claude call."""
+        captured = capture_inference_params(
+            {
+                "_type": "anthropic-chat",
+                "thinking": {"type": "adaptive", "display": "summarized"},
+                "output_config": {"effort": "xhigh"},
+            }
+        )
+
+        assert captured.reasoning_level == "xhigh"
+
+    def test_an_anthropic_off_switch_reads_as_the_ladders_none(self) -> None:
+        """``disabled`` is how Opus 5 and Sonnet 5 are told not to think."""
+        captured = capture_inference_params(
+            {"_type": "anthropic-chat", "thinking": {"type": "disabled"}}
+        )
+
+        assert captured.reasoning_level == "none"
+
     def test_a_model_that_was_not_asked_to_think_says_nothing(self) -> None:
         captured = capture_inference_params({"_type": "anthropic-chat", "thinking": None})
 

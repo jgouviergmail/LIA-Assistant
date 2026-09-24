@@ -56,10 +56,12 @@ graph TB
 
 | Provider | Models | Pricing Source |
 |----------|--------|----------------|
-| OpenAI | gpt-4.1-mini, gpt-4.1-mini-mini, gpt-4.1-nano, o1, o1-mini | Seeded in DB |
+| OpenAI | gpt-6-astra, gpt-6-sol, gpt-6-luna, gpt-5.6-terra, gpt-5.6-sol, gpt-5.6-luna, gpt-4.1-mini, gpt-4.1-nano, o1, o1-mini | Seeded in DB (the 2026-09-23 additions — gpt-6-*, gemini-3.8-flash and four Qwen models — also by migration `f6c2a8e4b0d7`, since production never replays the seed) |
 | Anthropic | claude-sonnet-4, claude-opus-4 | Seeded in DB |
 | DeepSeek | deepseek-flash, deepseek-v4-pro, deepseek-v4-flash (retired alias), deepseek-chat, deepseek-reasoner | Seeded in DB (deepseek-flash also by migration `e9b5d7f3a2c4`) |
 | Perplexity | sonar-pro, sonar-reasoning | Seeded in DB |
+| Gemini | gemini-3.8-flash, gemini-3.7-flash, gemini-3.6-flash, gemini-3.5-flash, gemini-3.1-pro-preview | Seeded in DB (gemini-3.8-flash carries the price valid through 2026-12-31; it doubles on 2027-01-01 and must be edited then) |
+| Qwen | qwen3.8-max, qwen3.8-flash, qwen3.7-max, qwen3.7-plus, qwen3.7-flash, qwen3.6-plus, qwen3.6-flash, qwen3.5-plus, qwen3.5-flash, qwen3-max | Seeded in DB (Germany (Frankfurt) grid, Global deployment scope, for the models added 2026-09-23 — see [LLM_PROVIDERS.md](./LLM_PROVIDERS.md)) |
 | Ollama | * (local models) | Free (0.00) |
 
 ---
@@ -343,73 +345,48 @@ service asynchrone.
 
 **Pre-v1.19.0** : la table `llm_model_pricing` portait directement une colonne `model_name` (libre, sans FK). La migration `2026_05_05_0001/2/3` introduit la FK et supprime `model_name` après backfill.
 
-### Seed Data (Exemples)
+### Seed Data
 
-**Fichier source**: [apps/api/alembic/versions/2025_11_05_1500-seed_openai_pricing.py](../../apps/api/alembic/versions/2025_11_05_1500-seed_openai_pricing.py)
+Les tarifs ne sont pas recopiés ici : une copie dérive (l'exemple qui se tenait à cet
+endroit prêtait 2,50 / 10 $ à `gpt-4.1-mini`, qui coûte 0,40 / 1,60 $). La référence est
+le bundle `infrastructure/database/seeds/llm_pricing_seed.sql` ; une instance existante
+le reçoit par migration, puisque la production ne rejoue jamais le seed, et chaque
+migration de tarifs a une garde qui tient les deux sources égales.
 
-```python
-# OpenAI Models
-openai_pricing = [
-    {
-        "model_name": "gpt-4.1-mini",
-        "input_price_per_million": Decimal("2.50"),
-        "output_price_per_million": Decimal("10.00"),
-        "effective_from": datetime(2025, 11, 5)
-    },
-    {
-        "model_name": "gpt-4.1-mini-mini",
-        "input_price_per_million": Decimal("0.150"),
-        "output_price_per_million": Decimal("0.600"),
-        "effective_from": datetime(2025, 11, 5)
-    },
-    {
-        "model_name": "o1",
-        "input_price_per_million": Decimal("15.00"),
-        "output_price_per_million": Decimal("60.00"),
-        "effective_from": datetime(2025, 11, 5)
-    },
-    {
-        "model_name": "o1-mini",
-        "input_price_per_million": Decimal("3.00"),
-        "output_price_per_million": Decimal("12.00"),
-        "effective_from": datetime(2025, 11, 5)
-    }
-]
+**Audit des prix du 2026-09-23** (migration `d5f8b2a6c9e3`, garde
+`test_published_price_corrections_guard.py`). Chaque tarif actif des trois tables
+(`llm_model_pricing`, `image_generation_pricing`, `google_api_pricing`) a été relu sur la
+page de son éditeur. Corrigés :
 
-# Anthropic Models (with cached tokens support)
-anthropic_pricing = [
-    {
-        "model_name": "claude-sonnet-4",
-        "input_price_per_million": Decimal("3.00"),
-        "cached_input_price_per_million": Decimal("0.30"),  # 10x cheaper
-        "output_price_per_million": Decimal("15.00"),
-        "effective_from": datetime(2025, 11, 5)
-    },
-    {
-        "model_name": "claude-opus-4",
-        "input_price_per_million": Decimal("15.00"),
-        "cached_input_price_per_million": Decimal("1.50"),
-        "output_price_per_million": Decimal("75.00"),
-        "effective_from": datetime(2025, 11, 5)
-    }
-]
+- `gpt-5.6-sol` portait le prix de `gpt-5.5` (5 / 30 au lieu de 4 / 20) ;
+- `deepseek-v4-flash`, nom retiré servi par DeepSeek-V4.1-Flash, est « facturé au prix
+  Flash » (même grille, mêmes fenêtres que `deepseek-flash`) ;
+- `gemini-3.7-flash` portait son prix Batch, `gemini-3.6-flash` son prix de 2027 : les
+  deux valent 0,75 / 0,075 / 3,75 jusqu'au 2026-12-31 ;
+- les deux modèles vocaux Gemini facturent le texte en entrée et l'AUDIO en sortie
+  (0,50 / 10,00 et 1,00 / 20,00), pas un prix de modèle texte ;
+- cinq tarifs de cache Qwen, selon le mode de cache du modèle sur le périmètre Global de
+  Francfort : une lecture implicite coûte 20 % du prix d'entrée (`qwen3.7-plus`,
+  `qwen3-max`) ; `qwen3.5-flash`, `qwen3.5-plus` et `qwen3.6-plus` n'y ont pas de cache
+  implicite (mesuré : aucun jeton en cache sur deux requêtes identiques), leur seule
+  lecture possible est explicite, à 10 %. La famille qwen3.8, dont le taux n'est publié
+  que dans la console, garde les valeurs du propriétaire ;
+- les neuf prix par image de `gpt-image-2` étaient ceux de `gpt-image-1` ;
+- Static Street View coûte 7 $ les 1 000, pas 2 $ ; et le SKU Routes dépend de la
+  requête (voir [GOOGLE_API.md](./GOOGLE_API.md)).
 
-# DeepSeek Models
-deepseek_pricing = [
-    {
-        "model_name": "deepseek-chat",
-        "input_price_per_million": Decimal("0.14"),
-        "output_price_per_million": Decimal("0.28"),
-        "effective_from": datetime(2025, 11, 5)
-    },
-    {
-        "model_name": "deepseek-reasoner",
-        "input_price_per_million": Decimal("0.55"),
-        "output_price_per_million": Decimal("2.19"),
-        "effective_from": datetime(2025, 11, 5)
-    }
-]
-```
+La migration ne remplace un tarif que s'il porte encore une valeur livrée par LIA : un
+prix saisi par un administrateur reste. **Non exprimés, et donc non facturés à leur juste
+prix** : les paliers long contexte (OpenAI au-delà de 272K, Gemini au-delà de 200K, les
+tranches Qwen), les frais par requête de Perplexity (5 à 14 $ les 1 000 selon la
+profondeur de recherche) et les quotas gratuits mensuels de Google Maps. Gemini 3.6, 3.7
+et 3.8 Flash doublent le 2027-01-01 : rien ne bascule seul, les tarifs sont à éditer ce
+jour-là. Ne figurent plus sur les pages des éditeurs, donc invérifiables et laissés tels
+quels : les préversions `gpt-4o-*`, les `codex` et `chat-latest` versionnés, `o1-mini`,
+`o3-deep-research`, `o4-mini-deep-research`, `computer-use-preview`, la famille
+`gemini-2.0-*`, les préversions Gemini `09-2025`, `gemini-3-pro-preview`,
+`gemini-embedding-001` (toujours servi), `text-embedding-004`, `embedding-001` et
+`scribe_v1`.
 
 ### Table: currency_rates
 
@@ -614,49 +591,24 @@ async def calculate_conversation_cost(
 
 ## 💱 Currency Conversion
 
-### Scheduled Sync (Hourly)
+### Scheduled sync (daily)
 
-```python
-# Celery task (hourly)
-from celery import shared_task
-import httpx
+The USD→EUR rate is synced once a day by the scheduler leader, at
+`CURRENCY_SYNC_HOUR`:`CURRENCY_SYNC_MINUTE` UTC (`core/constants.py`), through
+[`sync_currency_rates`](../../apps/api/src/infrastructure/scheduler/currency_sync.py):
 
-@shared_task
-async def sync_currency_rates():
-    """Sync currency rates from external API (hourly)."""
-
-    async with httpx.AsyncClient() as client:
-        # Fetch from currency API (e.g., exchangerate-api.com)
-        response = await client.get(
-            "https://api.exchangerate-api.com/v4/latest/USD"
-        )
-        data = response.json()
-
-        # Update database
-        async with AsyncSessionLocal() as db:
-            # Deactivate old rate
-            await db.execute(
-                update(CurrencyExchangeRate)
-                .where(
-                    CurrencyExchangeRate.from_currency == "USD",
-                    CurrencyExchangeRate.to_currency == "EUR"
-                )
-                .values(is_active=False)
-            )
-
-            # Insert new rate
-            new_rate = CurrencyExchangeRate(
-                from_currency="USD",
-                to_currency="EUR",
-                rate=Decimal(str(data["rates"]["EUR"])),
-                effective_from=datetime.now(UTC),
-                is_active=True
-            )
-            db.add(new_rate)
-            await db.commit()
-
-    logger.info("currency_rates_synced", usd_to_eur=data["rates"]["EUR"])
-```
+1. `CurrencyRateService` fetches the live rate (`currency_api_url`, an ECB
+   source by default). Nothing is written when it gives none.
+2. Only once it has answered, ONE short transaction retires the pair's active
+   row and inserts the new one — `replace_active_rate`
+   (`domains/llm/currency_rates.py`), shared with `POST /admin/llm/currencies`
+   so « exactly one active rate per pair » has one implementation, and no
+   transaction stays open across the API call (ADR-304).
+3. Committed, `refresh_and_publish_pricing_cache()` rebuilds the pricing cache
+   and publishes the ADR-063 invalidation — the admin route does the same.
+   The cache converts every cost to euros with the rate it read at its last
+   rebuild, and each worker keeps it for its whole life: until 2026-09-23 a
+   synced rate reached no worker's costs before that worker restarted.
 
 ### CurrencyRateService Resilience (v1.12.1)
 
@@ -693,6 +645,40 @@ columns apply. Admins manage the windows in the LLM pricing dialog
 (toggle « time-based pricing (UTC) », visible for `per_1m_tokens` rows
 only); on update, an omitted `time_slots` field inherits the current
 row's windows onto the new temporal version and `[]` clears them.
+
+**A window may apply on some days only** (ADR-223 amendment, 2026-09-23):
+DeepSeek bills its peak windows Monday to Friday, weekends being off-peak
+all day. `weekdays` lists the ISO weekdays (1 = Monday … 7 = Sunday) of the
+UTC day the window STARTS on — a window running past midnight belongs to the
+day it opened, Sunday's into Monday. No `weekdays` means every day, the shape
+of every row stored before days existed (the key is not written). Resolution
+and the overlap check run on the 10 080-minute week, so the same hours on
+disjoint days are two tariffs, not an overlap. The dialog gives each window
+the shared weekday toggles (every day / weekdays / weekend in one press), and
+the pricing workbook carries a `weekdays` column (format v4). Chinese public
+holidays are not expressed: they stay priced at peak, an overestimate.
+
+**A worker rebuilds its prices from the database at startup.** It keeps them
+in memory for its whole life, and the Redis blob it used to start from could
+predate a deploy's pricing migration (measured 2026-09-23: after the weekday
+migration, a restarted dev API kept billing Saturday peak hours at double
+from a 47-minute-old blob). Only the cross-worker invalidation (ADR-063)
+adopts the blob, which the writing worker has just republished. A startup
+whose database read fails adopts the published blob rather than nothing: an
+older tariff prices better than zero for the worker's whole life.
+
+**Every tariff writer tells every worker.** Creating, updating or
+deactivating a tariff, importing the workbook, the explicit cache reload and
+both writers of the USD→EUR rate (the admin route and the daily sync — the
+cache converts every cost to euros with it) call
+`refresh_and_publish_pricing_cache()` once committed: rebuild from the
+database, then publish the ADR-063 invalidation — never after a failed
+rebuild, which would make the other workers adopt a blob that says nothing
+new. Until 2026-09-23 these writers only rebuilt their OWN worker: under
+`WEB_CONCURRENCY=4` an edited tariff reached one worker in four, and the
+three others billed the old prices until they restarted. The reload no longer
+empties the local copy first, so a rebuild that fails leaves the worker on
+its previous prices instead of billing every call at zero.
 
 ### Exemples
 
@@ -745,21 +731,11 @@ conversation_cost = await calculate_conversation_cost(state, pricing_service)
 
 ### Provider Pricing Matrix
 
-| Provider | Model | Input ($/1M) | Output ($/1M) | Cached ($/1M) |
-|----------|-------|--------------|---------------|---------------|
-| **OpenAI** | gpt-4.1-mini | $2.50 | $10.00 | - |
-| | gpt-4.1-mini-mini | $0.15 | $0.60 | - |
-| | gpt-5.4 | $2.50 | $15.00 | $0.25 |
-| | gpt-5.4-mini | $0.75 | $4.50 | $0.075 |
-| | o1 | $15.00 | $60.00 | - |
-| | o1-mini | $3.00 | $12.00 | - |
-| **Anthropic** | claude-sonnet-4 | $3.00 | $15.00 | $0.30 |
-| | claude-opus-4 | $15.00 | $75.00 | $1.50 |
-| **DeepSeek** | deepseek-chat | $0.14 | $0.28 | - |
-| | deepseek-reasoner | $0.55 | $2.19 | - |
-| **Perplexity** | sonar-pro | $1.00 | $1.00 | - |
-| | sonar-reasoning | $5.00 | $5.00 | - |
-| **Ollama** | * (local) | $0.00 | $0.00 | - |
+Pas de copie des prix ici (voir [Seed Data](#seed-data)) : la grille de chaque fournisseur
+est dans le bundle de référence et dans l'écran d'administration des tarifs, où chaque
+ligne dit sa date d'effet. Les règles qui NE sont PAS des prix vivent dans le code : le
+supplément d'écriture de cache (`CachedModelPrice.cache_write_multiplier`, ADR-306), les
+fenêtres horaires (ADR-223) et les prix audio des modèles live (ADR-300).
 
 ### Model Selection Strategy
 

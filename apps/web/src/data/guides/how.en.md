@@ -4,9 +4,9 @@
 >
 > Technical presentation documentation for architects, engineers and technical experts.
 
-**Version**: 5.0
-**Date**: 2026-09-22
-**Application**: LIA v1.47.1
+**Version**: 5.1
+**Date**: 2026-09-24
+**Application**: LIA v1.47.2
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -70,8 +70,8 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | ARM64 self-hosting | Multi-arch Docker, semantic embeddings (multilingual), Playwright chromium cross-platform |
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
-| Full transparency | 583 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 301 ADRs, ~30,855 pytest-collected tests across 1,852 files, native observability, 6-level HITL |
+| Full transparency | 587 Prometheus metrics, embedded debug panel, token-by-token tracking |
+| Production reliability | 309 ADRs, ~30,855 pytest-collected tests across 1,852 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -92,7 +92,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Tests | 30,855 collected by pytest across 1,852 test files + 8,906 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
 | pytest fixtures | 969, 46 of them shared through conftest |
 | Documentation documents | 647 |
-| ADRs (Architecture Decision Records) | 301 |
+| ADRs (Architecture Decision Records) | 309 |
 | Prometheus metrics | 553 definitions |
 | Grafana dashboards | 30 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
@@ -135,15 +135,15 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Provider | Models | Specifics |
 |----------|--------|-----------|
-| OpenAI | GPT-5.4, GPT-5.4-mini, GPT-5.2, GPT-5.1, GPT-5 (+ mini/nano), GPT-4.1, GPT-4o, o3/o4-mini | Native prompt caching, Responses API, reasoning_effort |
-| Anthropic | Claude Opus 4.6/4.5, Claude Sonnet 4.6, Claude Haiku 4.5 | Extended thinking, prompt caching |
-| Google | Gemini 3.1/3 Pro, Gemini 3.1/3 Flash, Gemini 2.5 Pro/Flash | Multimodal, dual-vector embeddings |
-| DeepSeek | deepseek-v4-flash, deepseek-v4-pro (V4), deepseek-chat (V3), deepseek-reasoner (R1) | Reduced cost, native reasoning |
+| OpenAI | GPT-6 (astra, sol, luna), GPT-5.6 (terra, sol, luna), GPT-5.5, GPT-5.4 (+ mini), GPT-5.x (+ mini/nano), GPT-4.1, GPT-4o, o3/o4-mini | Native prompt caching, Responses API, reasoning_effort |
+| Anthropic | Claude Fable 5.1/5, Claude Opus 5.5/5/4.8/4.7/4.6/4.5, Claude Sonnet 5/4.6/4.5, Claude Haiku 4.5 | Extended thinking, prompt caching |
+| Google | Gemini 3.8/3.7/3.6/3.5 Flash, Gemini 3.1 Pro, Gemini 2.5 Pro/Flash | Multimodal, dual-vector embeddings |
+| DeepSeek | deepseek-flash (V4.1), deepseek-v4-pro (V4), deepseek-chat (V3), deepseek-reasoner (R1) | Reduced cost, native reasoning |
 | Perplexity | Sonar, Sonar Pro | Search-augmented generation |
-| Qwen | qwen3.5-plus, qwen3.5-flash, qwen3-max | Thinking mode, tools + vision (Alibaba Cloud) |
+| Qwen | Qwen 3.8 (Max, Flash), 3.7 (Max, Plus, Flash), 3.6 (Plus, Flash), 3.5 (Plus, Flash), qwen3-max | Thinking mode, tools + vision (Alibaba Cloud) |
 | Ollama | Any local model (capabilities read from the server) | Native client: controlled thinking, context window, constrained JSON. Zero API cost, self-hosted |
 
-**Why 7 providers?** The choice is not collection for its own sake. It is a resilience strategy: each pipeline node can be assigned to a different provider. If OpenAI raises its prices, the router switches to DeepSeek. If Anthropic has an outage, the response falls back to Gemini. The LLM abstraction (`src/infrastructure/llm/factory.py`) uses the Factory pattern with `init_chat_model()`, overridden by specific adapters (`ResponsesLLM` for the OpenAI Responses API, eligibility by regex `^(gpt-4\.1|gpt-5|o[1-9])`).
+**Why 7 providers?** The choice is not collection for its own sake. It is a resilience strategy: each pipeline node can be assigned to a different provider. If OpenAI raises its prices, the router switches to DeepSeek. If Anthropic has an outage, the response falls back to Gemini. The LLM abstraction (`src/infrastructure/llm/factory.py`) uses the Factory pattern with `init_chat_model()`, overridden by specific adapters (`ResponsesLLM` for the OpenAI Responses API, eligibility by regex `^(gpt-4\.1|gpt-5|gpt-6|o[1-9])`).
 
 **The special case of local models.** Six providers speak a remote API; the seventh runs on your machine, and LIA talks to it through its **native API** (`langchain-ollama`) rather than its OpenAI compatibility layer. The distinction is not cosmetic: the compatibility layer cannot express `think` (switching off the thinking of a model that thinks, or choosing its depth), nor `num_ctx` (the context window, which a local server otherwise picks from its video memory and which silently trims the start of an oversized prompt), nor separate the thinking trace from the answer. And because a model name says nothing about its capabilities, they are **read from the server** (`/api/show`: tools, vision, thinking, context length) and feed both the runtime and the administration screen — so a thinking depth never reaches a model that does not think, which the server would refuse.
 
@@ -324,10 +324,12 @@ This approach maintains per-request isolation in an asyncio context without poll
 
 LIA offers a second execution mode: **ReAct** (Reasoning + Acting). Instead of planning upfront, the LLM iteratively calls tools, observes results, and decides the next step autonomously.
 
-**Architecture**: 4 custom nodes in the parent LangGraph graph (not a subgraph):
+**Architecture**: 5 custom nodes in the parent LangGraph graph (not a subgraph):
 
 ```
 Router → react_setup → react_call_model ↔ react_execute_tools → react_finalize → Response
+                              ↕ <unresolved>
+                       react_recovery
 ```
 
 **Pipeline vs ReAct — engineering trade-offs**:
@@ -353,6 +355,10 @@ What a tool returns is **projected into the loop's context item by item, under a
 A turn also owes itself a working memory that outlives it. State is bounded by a message window, and a ReAct turn appends two messages per iteration — so a long enough turn pushes **its own question** out of that window, after which the windowing that splits history from the current loop no longer finds a split point at all. The reducer therefore re-pins the turn's question when truncation evicts it, on both of its branches, and the coupling between the iteration budget and the window size carries a name rather than living as an unstated arithmetic relation. What a turn actually delivers to the model is measured too — the prompt size per iteration and its share of the model's context window — because a loop that measured its iterations and its duration was measuring everything except the thing that grows.
 
 The tools the loop receives are **bound by relevance, never by registration order** (ADR-293). The router already computes an embedding of the question to score the domains; from the same vector it orders every available manifest — native tools and the person's MCP servers alike — into a global ranking the loop reads. The selection composes without any tool name written anywhere: the detected domains' tools, then the best of every other family so that each stays reachable, then the head of the ranking up to a published budget; the cap is only a safety net by stable sort. A hand-declared "core" list was written and rejected, because it encoded one account's usage into a multi-user product — family coverage says the same thing structurally. The loop also mounts the knowledge-spaces block the pipeline injects, read from the bundle the router prefetched without consuming it: what the pipeline knows, the loop knows. The number of bound tools and their schema tokens are measured, because that prefix weighed most of the first call while going uncounted.
+
+A loop is **judged on its result** (ADR-310). It used to stop as soon as the model called no more tools, so persistence depended on how a configured model read one sentence. Every fact the loop set out to obtain — the person's request and each cross-check it started — now ends obtained or declared in an `<unresolved>` block that closes the draft, with the rungs tried: the corrected call, then another source named `(fallback)`, then the declaration. One predicate, `should_recover`, reads the declaration and calls the one that decides the stop (`react_exit_reason`) instead of copying it; it routes to `react_recovery`, a fifth node that calls no model: it removes the draft from the thread at the very moment of the pass, and each later call of the turn receives, transiently — never written to `messages` —, the draft and a directive placed right after it. Passes are bounded (`REACT_RECOVERY_PASSES_MAX`), counted by outcome, and a pass that would end with no usable answer hands the draft back rather than trade it for nothing. Upstream, a tool never replaces a value it cannot read: the weather refuses an unreadable date with the accepted format and today's date, under a contract published by one constant that both the manifest and the tool's schema read — the loop binds the schema, never the manifest.
+
+A tool failure is read **structurally** there (ADR-303): a `ToolMessage` body carries the tool's prose, so the only honest verdict is a marker the message carries itself — `status="error"`, measured to survive the checkpoint. One success predicate, `core/tool_outcome.explicit_success`, serves the loop, the consultation register and the metrics: a declared failure, like an empty result, no longer buys an iteration. And under `REACT_CROSS_TURN_CACHE_ENABLED` (ADR-308, off by default), the loop binds every tool in registration order and places the turn's context after the question — in the shape each provider accepts, declared and checked at startup —, so that one turn's prefix is the next one's: measured on 396 real turns, 18 to 42 % saved per turn depending on the cache mechanism, an extra cost on a model with no cache, and a fallback to the relevance selection, counted, when the catalogue exceeds the cap or the window.
 
 ### 5.4. Detached executions: generation survives the connection (ADR-117)
 
@@ -381,6 +387,8 @@ Three design decisions carry the feature. First, honesty of the artifact: spread
 **The craft belongs to the renderer, the meaning to the model (ADR-274).** The schema the writer slot fills is *semantic*: it names what a thing is — a heading, an ordered sequence, a quote, a callout, a part opener, a two-column comparison, a captioned table — and never how to draw it. The layout decision belongs to the renderer, which expresses it through each format's native mechanisms rather than imitating them: named styles, `PAGE`/`NUMPAGES` fields and a multilevel numbering definition in Word, so the contents and the numbers are recomputed by Word itself; the template's own layouts and placeholders in PowerPoint, on a 16:9 stage; a named Table over typed columns in Excel, so filtering and sorting come for free; bookmarks, links and exact page numbers in the PDF, obtained by paginating the body once and concatenating the front matter ahead of it. This split avoids handing the model a catalogue of templates to choose from — a drawing decision it cannot judge — and lets the renderer improve without touching the schema.
 
 **Text is measured before it is placed.** PowerPoint computes no autofit when a file is opened, and the library's own fit is wrong by a factor of two: the renderer therefore measures itself, with an estimator calibrated against PowerPoint — a full-width glyph counting one whole em, a Latin glyph a measured fraction. What does not fit is first shrunk to a readability floor, then split into “Title (2/3)” slides; an over-long bullet is cut at a sentence end. Nothing is ever clipped, because text cut off on screen is information lost without warning. The same principle governs the model call: an answer the provider reports as truncated is refused with its budget named (ADR-275), never closed up to look like a complete document.
+
+Image generation follows the same declared-offer rule (ADR-305). A **family** — OpenAI GPT Image, Qwen Image 3.0 — declares what a model accepts: its qualities, its sizes (a fixed list or an area envelope), its billing tiers, and whether an edit's reference image is billed per image. Every surface reads that one answer: a model no family declares is neither priced, offered, selected nor run. One client per provider runs the configured model — the OpenAI edit goes through `images.edit` on that model, where a detour through the Responses API ran the SDK's default model and a text model nobody counted —, a result delivered as a URL is downloaded at once under a host allowlist, bounded and checked, and the person's preference is an intent resolved at run time to the model's offer (the cheapest offered quality, the size of the same orientation and nearest area), then published as the effective value. The chosen format is applied once for every provider, by converting the image before it is stored.
 
 ### 5.6. What the person keeps: produced files and kept answers (ADR-279, ADR-282)
 
@@ -733,7 +741,9 @@ The `TrackingContext` tracks each LLM call with `call_type` ("chat"/"embedding")
 
 The counting itself is **contractual, not incidental**: an OpenAI-compatible provider only emits the `usage` object on a streamed response when the request asks for it. Every chat provider therefore declares its accounting mode in a registry — explicit `stream_usage` request, native SDK accounting, or a deliberate exclusion (free local models, end-user-owned keys) — whose completeness is verified at startup: the application refuses to boot on an undeclared provider (ADR-220, ADR-085 doctrine). A paid call completing without usage increments a dedicated counter, logs a warning and fires a zero-threshold alert: the whole class of silent accounting holes becomes a signal. The same doctrine applies to timeouts: the administrable per-slot `timeout_seconds` is passed to each provider's client as the per-attempt transport bound — the nodes' `asyncio.wait_for` barriers remain the user-experience bound — and no default was applied without confrontation with real production latencies (ADR-221).
 
-Pricing itself follows the provider's clock: some providers bill text models by UTC time of day, with peak windows at a multiple of the off-peak rate. Each pricing row can therefore carry optional, non-overlapping UTC time windows — midnight wrap included — that override the unit prices while active, the base columns remaining the default tariff. One single implementation resolves the active window for both cost chokepoints: every call is valued at its own instant, the one the provider invoices, and a historical message keeps the tariff of its original hour when recomputed. The windows travel with the temporally-versioned pricing rows, are administered in the LLM pricing dialog, and the reference data ships DeepSeek's official windowed tariff (ADR-223).
+Pricing itself follows the provider's clock: some providers bill text models by UTC time of day, with peak windows at a multiple of the off-peak rate. Each pricing row can therefore carry optional, non-overlapping UTC time windows — midnight wrap included — that override the unit prices while active, the base columns remaining the default tariff. A window may also name the days it applies on — those of the UTC day it opens, so a window running past midnight belongs to the day it started — because peak hours can be a weekday matter: DeepSeek bills its weekends off-peak all day. One single implementation resolves the active window for both cost chokepoints: every call is valued at its own instant, the one the provider invoices, and a historical message keeps the tariff of its original hour when recomputed. The windows travel with the temporally-versioned pricing rows, are administered in the LLM pricing dialog, and the reference data ships DeepSeek's official windowed tariff (ADR-223).
+
+A tariff is only worth anything if it is **the one the provider bills**. A write to the prompt cache is billed at its price — 1.25 times the input at Anthropic and at OpenAI for the generations that report it —, counted as the fourth quantity of the single usage reader, and an AST guard refuses any pricing door that would forget it (ADR-306). The prices themselves are re-read on the providers' pages, and a correction migration replaces only a value LIA shipped, never one an administrator entered; a Google Maps call is filed at the SKU its request triggers — a route with traffic or tolls is not a plain route, a matrix is billed per element. And the pricing cache is a table **shared by every worker**: each rebuilds it from the database at startup — never from a blob older than the last migration — and every writer, tariff or exchange rate, publishes the invalidation after its commit, so an edited price reaches every worker at once rather than one in four (ADR-063).
 
 ### 12.4. DB-source-of-truth admin catalogue
 
@@ -746,6 +756,8 @@ The Pricing LLM admin screen writes that ladder **directly**: it renders the dep
 ### 12.5. Provider-agnostic prompt caching
 
 Every provider bills less (and answers faster) when the beginning of a prompt is byte-identical across requests — but each with its own mechanism: Anthropic's `cache_control` blocks, OpenAI's `prompt_cache_key` routing, implicit prefix caches on DeepSeek/Qwen/Gemini. LIA separates the concerns: every versioned system prompt places its static content (role, rules, examples, output format) first, then a canonical `--- DYNAMIC CONTEXT ---` marker, then all per-request content (datetime, query, context, tool catalogue). Templates stay model-neutral; the infrastructure layer translates the marker into each provider's dialect — the `cache_control` split for Anthropic, the cache-routing key for OpenAI, nothing at all for the implicit caches, which benefit from the stable prefix as-is. The planner prompt — the pipeline's most expensive — exposes a ~77% byte-stable cacheable prefix across any two requests. Shrink-only CI guards lock the convention: every dynamic prompt must carry the marker, no placeholder may precede it without a justified exception, and the planner prefix's byte stability is asserted on every build.
+
+The convention became **one layout for every cache mechanism** (ADR-309): stable before volatile, one reading of the boundary (`core/prompt_layout.split_at_marker`), and no cache write nobody will read. A single call — the analyzer, the initiative, the memory, interest and journal extractions — sends its fixed part as a system message, where each adapter can mark it; providers with breakpoints get theirs at the end of the static prefix whatever the system's shape (a list-shaped system put the breakpoint on the turn's data: nothing read, everything rewritten at 1.25x); those with an explicit cache only are marked explicitly; a request no tool loop will extend writes its declared breakpoints only; and the response sends the conversation once, as whole messages. What each model generation accepts — sampling, a forced tool choice, six shapes of thinking, an implicit depth, thinking blocks bound to their conversation — is measured on the API and declared in one table (`core/claude_surface.py` for Claude) that the reasoning rules, the adapter, structured output and the administration read. A model with no cache pays exactly what it paid: the optimisation aims at the average over mechanisms, never at one model.
 
 ---
 
@@ -775,13 +787,15 @@ For e-mail that unified model is measured, not assumed: the three normalizers pr
 
 For Google and Microsoft, the person's consent is grouped by provider account rather than repeated for each service. A single grant owns the approved scopes and refresh lifecycle; Gmail, Calendar, Drive or their Microsoft counterparts remain separate capabilities that the person can enable or disconnect. The callback binds the grant to the expected identity and issuer, verifies state and PKCE, and never silently substitutes another account.
 
+**No transaction stays open across a network call** (ADR-304). A connector client built on its caller's session forced that session — and its transaction — to stay open while the provider answered: measured in production, up to 863 seconds `idle in transaction` on the push wake sweep, 11 to 330 seconds in the briefing, the heartbeat or the relations lens. So a client is never built on `ConnectorService(db)` — a guard names the constructor argument, with no allowlist —; one door opens a category's active client in a short session and closes it on every path; a job that keeps its session commits its reads before every wait; each connector operation of the chat turn ends its transaction, and an API key's usage stamp is an atomic JSONB merge of its own, under a bounded lock timeout. Background work follows the same rule: a reminder is claimed alone, committed, then notified with no transaction open; the Drive push feed advances by compare-and-set, in pages bounded in number and in time; and only the leader worker sets the Telegram webhook.
+
 ### 13.4. Two credential paths
 
-Not every connector asks for an account. An **OAuth connector** holds the user's personal credentials: Gmail, Calendar, Contacts, Drive. A **platform-key service** holds no per-user data — the user simply switches it on, and the key belongs to the installation: Routes, Places, Weather, Environment. `ConnectorType.uses_global_api_key` carries the distinction, and the tool base picks the credentials path from the **resolved** type. One functional category can therefore mix both: weather accepts a personal-key provider as readily as a platform service, without the caller knowing which one answered.
+Not every connector asks for an account. An **OAuth connector** holds the user's personal credentials: Gmail, Calendar, Contacts, Drive. A **platform-key service** holds no per-user data — there is nothing for the user to switch on, and the key belongs to the installation: Routes, Places, Weather, Environment. `ConnectorType.uses_global_api_key` carries the distinction, and the tool base picks the credentials path from the **resolved** type. One functional category can therefore mix both: weather accepts a personal-key provider as readily as a platform service, without the caller knowing which one answered.
 
 A third case exists: a client that **borrows a sibling connector's token**. Spreadsheets and documents read and write with Drive's token; Gmail settings with Gmail's. No extra connector appears in the settings, and that is deliberate — the user authorized a workspace, not an API. The consequence was measured: the client cache was keyed on the user and the connector type, so two classes sharing a token served each other. The key now carries the class name as well.
 
-The distinction also decides what a **new account** starts with. Five connectors ask nothing of the person — Wikipedia, page browsing, Places, Weather, Environment — and they are activated at sign-up from a list the backend declares (`ConnectorType.get_keyless_types()`) and the frontend mirrors, a parity a test pins. The provisioning step never blocks a sign-up and refuses in writing: a type the administrator switched off, a platform key the instance lacks, page browsing disabled. Existing accounts are never touched.
+The distinction also decides what belongs to an **account** at all. Five connectors ask nothing of the person — Wikipedia, page browsing, Places, Weather, Environment — so they belong to the instance: no per-account row, nothing in the settings, and one predicate (`connectors/keyless.py`) decides whether they serve everyone — a type the administrator switched off, a platform key the instance lacks or page browsing disabled withholds it for all. In the weather category the person's own provider wins and Google's is the default; a test keeps the five off the settings' activation list (ADR-307).
 
 ### 13.5. Agentic telephony (ADR-127)
 
@@ -965,6 +979,8 @@ Autonomous ReAct agent (headless Playwright Chromium). Redis-backed session pool
 
 **Strong authentication (ADR-143/144).** Beyond password and Google OAuth, the account can be protected by **WebAuthn passkeys** (discoverable credentials, conditional UI on the email field, single-use Redis challenges, clone detection via signature counters, zero enumeration on the anonymous path) and a **TOTP second factor** (two-step login via an ephemeral pending token, explicit matched-timestep anti-replay, 10 single-use hashed backup codes). Sensitive actions — credential management, export, device revocation, password disabling — go through a **step-up re-authentication**: a 5-minute window opened by any full sign-in (sudo semantics), with a **typed 403** contract (`step_up_required`, never a plain 401 that would redirect to /login). **My devices** lists every BFF session under an opaque `display_id` with deliberately bounded metadata (UA/OS families, /24-truncated IP), revokes one device or all others, and cuts a revoked session's SSE stream within one keepalive tick; a push notification flags any sign-in from a device not attested by a valid FCM token.
 
+**A federated identity grants no right.** Linking a Google identity never changes an account's status: a registration awaiting approval stays pending, a blocked account stays blocked. The announced address is believed only when Google vouches for it; when it had never been proven, the link proves it, revokes the registrant's password and sessions and notifies the administrators as an email verification would; a deleted account is never revived, and a refusal carries a bounded reason. “Who is calling?” has one answer, `resolve_client_ip`, which the administration audits, the session address and the rate limits all read — an AST guard refuses any other reading of the header the visitor writes, and the web server forwards the address Cloudflare vouches for. Finally, the logging configuration is the application's first import, and a tool binds its logger when it logs: a logger bound earlier kept structlog's defaults, with no level filter and no personal-data filter.
+
 ### 19.2. Usage Limits: 5-layer defence in depth
 
 | Layer | Interception point | Why this layer |
@@ -1022,7 +1038,7 @@ Provenance is therefore a property of the **data**: the registry's 24 types are 
 
 | Technology | Role |
 |------------|------|
-| Prometheus | 583 custom metrics (RED pattern) |
+| Prometheus | 587 custom metrics (RED pattern) |
 | Grafana | 30 production-ready dashboards |
 | Loki | Aggregated structured JSON logs |
 | Tempo | Cross-service distributed traces (OTLP gRPC) |
@@ -1030,7 +1046,7 @@ Provenance is therefore a property of the **data**: the registry's 24 types are 
 | Alertmanager | 14-alert vital core delivered by email (linked runbooks, per-environment thresholds) + webhook to LIA: every alert becomes an in-product incident (ADR-247) |
 | structlog | Structured logging with PII filtering |
 
-**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 583 defined; the 44 that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. The price of not having had this: a heartbeat source failing open dropped the health signals on 46.5 % of ticks for a week, with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
+**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 587 defined; the 44 that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. The price of not having had this: a heartbeat source failing open dropped the health signals on 46.5 % of ticks for a week, with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
 
 ### 20.2. Embedded Debug Panel
 
@@ -1430,7 +1446,7 @@ One CSS rule governs the design system's spacing: vertical margins on an `inline
 
 ## 24. Architecture Decision Records (ADR)
 
-301 ADRs in MADR format document the major architectural decisions. Some representative examples:
+309 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1761,8 +1777,8 @@ The same two modes then reached the phone (ADR-301). The owner call relayed the 
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 301 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~30,855 tests across 1,852 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 309 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~30,855 tests across 1,852 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (680+ documents), 301 ADRs, and the changelog (v1.0 to v1.47.1). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (680+ documents), 309 ADRs, and the changelog (v1.0 to v1.47.2). All metrics, versions, and patterns cited are verifiable in the codebase.*

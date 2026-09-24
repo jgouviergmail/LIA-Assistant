@@ -66,6 +66,7 @@ from src.domains.connectors.schemas import (
     TaskListResponse,
 )
 from src.domains.connectors.service import ConnectorService
+from src.domains.connectors.session_scope import DetachedConnectorService
 from src.domains.users.models import User
 
 logger = structlog.get_logger(__name__)
@@ -181,7 +182,8 @@ async def proxy_gmail_attachment(
         if not credentials:
             raise_connector_not_found(user_id)
 
-        client = GoogleGmailClient(user_id, credentials, service)
+        # The client's own writes run on a session of their own (ADR-304).
+        client = GoogleGmailClient(user_id, credentials, DetachedConnectorService())
         data = await client.get_attachment(message_id, attachment_id)
 
         # Determine MIME type from filename
@@ -1149,29 +1151,6 @@ async def microsoft_tasks_oauth_callback(
         return handle_oauth_callback_error_redirect(e, "microsoft_tasks", is_native=is_native)
 
 
-# ========== GOOGLE PLACES CONNECTOR (API Key based) ==========
-
-
-@router.post(
-    "/google-places/activate",
-    response_model=ConnectorResponse,
-    status_code=status.HTTP_201_CREATED,
-    summary="Activate Google Places connector",
-    description=(
-        "Enable Google Places connector for the user. "
-        "Places uses a global API key, no user credentials needed. "
-        "The user simply activates the connector to enable Places features."
-    ),
-)
-async def activate_google_places_connector(
-    current_user: User = Depends(get_current_active_session),
-    db: AsyncSession = Depends(get_db),
-) -> ConnectorResponse:
-    """Activate Google Places connector (toggle-based, uses global API key)."""
-    service = ConnectorService(db)
-    return await service.activate_places_connector(current_user.id)
-
-
 # ========== GOOGLE DRIVE THUMBNAIL PROXY ==========
 
 
@@ -1875,7 +1854,7 @@ async def test_hue_connection(
     if not credentials:
         raise_connector_not_found(connector_id=current_user.id)
 
-    client = PhilipsHueClient(current_user.id, credentials, service)
+    client = PhilipsHueClient(current_user.id, credentials, DetachedConnectorService())
     bridge_info = await client.test_connection()
     data = bridge_info.get("data", [{}])
     return {"success": True, "bridge": data[0] if data else {}}

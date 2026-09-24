@@ -42,6 +42,7 @@ from src.domains.skills.exceptions import (
     raise_url_import_not_skill_content,
     raise_url_import_too_large,
 )
+from src.infrastructure.utils.bounded_read import BodyTooLargeError, read_bounded
 
 logger = structlog.get_logger(__name__)
 
@@ -70,29 +71,6 @@ def _infer_filename(url: str, content: bytes) -> str:
     if content.lstrip()[:3] == b"---":
         return "SKILL.md"
     raise_url_import_not_skill_content()
-
-
-async def _read_bounded(response: httpx.Response, max_bytes: int) -> bytes:
-    """Stream the body under the byte cap, aborting mid-transfer.
-
-    Args:
-        response: The open streaming response.
-        max_bytes: Hard ceiling on the received size.
-
-    Returns:
-        The complete body bytes.
-
-    Raises:
-        HTTPException: 413 via raiser when the cap is exceeded.
-    """
-    chunks: list[bytes] = []
-    received = 0
-    async for chunk in response.aiter_bytes():
-        received += len(chunk)
-        if received > max_bytes:
-            raise_url_import_too_large(max_bytes)
-        chunks.append(chunk)
-    return b"".join(chunks)
 
 
 async def _fetch_bytes(active: httpx.AsyncClient, url: str) -> bytes:
@@ -126,7 +104,10 @@ async def _fetch_bytes(active: httpx.AsyncClient, url: str) -> bytes:
                 raise_url_import_blocked("redirects are not followed for skill imports")
             if response.status_code != 200:
                 raise_url_import_fetch_failed(f"HTTP {response.status_code}")
-            return await _read_bounded(response, settings.skills_url_import_max_bytes)
+            try:
+                return await read_bounded(response, settings.skills_url_import_max_bytes)
+            except BodyTooLargeError as exc:
+                raise_url_import_too_large(exc.max_bytes)
 
 
 async def fetch_skill_from_url(

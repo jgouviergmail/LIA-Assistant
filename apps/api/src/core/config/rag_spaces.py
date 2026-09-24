@@ -19,7 +19,12 @@ from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
 
 from src.core.constants import (
+    RAG_DRIVE_CHANGES_PAGE_SIZE_DEFAULT,
+    RAG_DRIVE_CHANGES_PAGE_SIZE_MAX,
     RAG_DRIVE_MAX_SOURCES_PER_SPACE_DEFAULT,
+    RAG_DRIVE_PUSH_DRAIN_DEADLINE_SECONDS_DEFAULT,
+    RAG_DRIVE_PUSH_MAX_CONSECUTIVE_TRUNCATIONS_DEFAULT,
+    RAG_DRIVE_PUSH_MAX_PAGES_DEFAULT,
     RAG_DRIVE_SYNC_CONFIRM_THRESHOLD_DEFAULT,
     RAG_JOB_HEARTBEAT_INTERVAL_SECONDS_DEFAULT,
     RAG_JOB_LEASE_TTL_SECONDS_DEFAULT,
@@ -330,6 +335,43 @@ class RAGSpacesSettings(BaseSettings):
             "Files a Drive synchronisation may index before the person is asked to "
             "confirm with the exact count (a courtesy against over-indexing; published "
             "by the preflight endpoint)."
+        ),
+    )
+
+    # Push-driven reindex (ADR-261 P2, bounded by ADR-304): how much of the
+    # Drive changes feed one wake may read before it hands over and re-queues.
+    rag_drive_changes_page_size: int = Field(
+        default=RAG_DRIVE_CHANGES_PAGE_SIZE_DEFAULT,
+        ge=1,
+        le=RAG_DRIVE_CHANGES_PAGE_SIZE_MAX,
+        description=(
+            "Changes per page when a push drains the Drive changes feed (Google's "
+            "maximum is 1000). An internal pagination, deliberately NOT bounded by "
+            "API_MAX_ITEMS_PER_REQUEST, which bounds what an agent receives."
+        ),
+    )
+    rag_drive_push_max_pages: int = Field(
+        default=RAG_DRIVE_PUSH_MAX_PAGES_DEFAULT,
+        ge=1,
+        le=500,
+        description=("Pages one push wake may drain; a longer feed keeps its place and re-queues."),
+    )
+    rag_drive_push_drain_deadline_seconds: int = Field(
+        default=RAG_DRIVE_PUSH_DRAIN_DEADLINE_SECONDS_DEFAULT,
+        ge=5,
+        le=600,
+        description=(
+            "Wall-clock budget of one drain; kept under the wake sweep interval so a "
+            "busy Drive never holds the sweep that serves every other account."
+        ),
+    )
+    rag_drive_push_max_consecutive_truncations: int = Field(
+        default=RAG_DRIVE_PUSH_MAX_CONSECUTIVE_TRUNCATIONS_DEFAULT,
+        ge=1,
+        le=100,
+        description=(
+            "Truncated drains in a row after which the feed is rebased and the linked "
+            "folders are re-synchronised in full instead of replaying the backlog."
         ),
     )
 

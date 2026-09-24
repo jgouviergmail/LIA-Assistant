@@ -36,18 +36,16 @@ class FakeAnthropic:
 
     callbacks = None
 
-    def __init__(self, system: Any = STATIC_SYSTEM) -> None:
+    def __init__(self, system: Any = STATIC_SYSTEM, messages: list[dict] | None = None) -> None:
         self._system = system
+        self._messages = messages or [
+            {"role": "user", "content": [{"type": "text", "text": "Prepare ma journee."}]},
+            {"role": "assistant", "content": [{"type": "tool_use", "name": "t1"}]},
+            {"role": "user", "content": [{"type": "tool_result", "content": "A" * 4000}]},
+        ]
 
     def _get_request_payload(self, input_: Any, stop: Any = None, **kwargs: Any) -> dict:
-        return {
-            "system": self._system,
-            "messages": [
-                {"role": "user", "content": [{"type": "text", "text": "Prepare ma journee."}]},
-                {"role": "assistant", "content": [{"type": "tool_use", "name": "t1"}]},
-                {"role": "user", "content": [{"type": "tool_result", "content": "A" * 4000}]},
-            ],
-        }
+        return {"system": self._system, "messages": list(self._messages)}
 
 
 @pytest.fixture
@@ -90,6 +88,34 @@ class TestAnthropicCachePayload:
         payload = patched_llm._get_request_payload(None, cache_control={"type": "custom"})
         # The root field is OURS, never the caller's raw kwarg.
         assert payload.get("cache_control") == {"type": "ephemeral"}
+
+    def test_a_single_call_carries_no_rolling_entry(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """ADR-306: the rolling breakpoint is written only where a later call reads it.
+
+        A single call's tail is unique; the root field used to write it at 1.25x
+        on every planner, analyser and response call.
+        """
+        import src.infrastructure.llm.factory as factory
+
+        fake = FakeAnthropic(
+            messages=[{"role": "user", "content": [{"type": "text", "text": "Hi"}]}]
+        )
+
+        class _Adapter:
+            @staticmethod
+            def create_llm(**_kwargs: Any) -> FakeAnthropic:
+                return fake
+
+        cfg = LLM_DEFAULTS["planner"].model_copy(
+            update={"provider": "anthropic", "model": "claude-opus-5"}
+        )
+        monkeypatch.setattr(factory, "ProviderAdapter", _Adapter)
+        monkeypatch.setattr(factory, "get_llm_config_for_agent", lambda *_a, **_k: cfg)
+        monkeypatch.setattr(factory, "_llm_instance_cache", {})
+
+        payload = factory.get_llm("planner")._get_request_payload(None)
+        assert "cache_control" not in payload
+        assert "cache_control" in payload["system"][0]
 
     def test_root_field_withheld_at_four_explicit_breakpoints(
         self, monkeypatch: pytest.MonkeyPatch

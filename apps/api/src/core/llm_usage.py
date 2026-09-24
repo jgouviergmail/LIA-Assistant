@@ -32,6 +32,14 @@ class LLMUsage(BaseModel):
     tokens_in: int = Field(0, ge=0, description="Input/prompt tokens (excluding cached).")
     tokens_out: int = Field(0, ge=0, description="Output/completion tokens.")
     tokens_cache: int = Field(0, ge=0, description="Cached input tokens (when supported).")
+    tokens_cache_write: int = Field(
+        0,
+        ge=0,
+        description=(
+            "The part of tokens_in Claude wrote to its prompt cache, billed above "
+            "the input price (ADR-306); already inside cost_eur."
+        ),
+    )
     cost_eur: float = Field(
         0.0,
         ge=0.0,

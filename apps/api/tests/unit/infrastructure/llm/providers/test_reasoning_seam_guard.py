@@ -44,6 +44,11 @@ _MATRIX: list[tuple[str, str]] = [
     ("openai", "gpt-4.1-mini"),
     ("openai", "gpt-5.6-luna"),
     ("anthropic", "claude-sonnet-4-5"),
+    # One per Claude request surface since ADR-306: the binding control and the
+    # display field are dicts of their own, and must stay plain JSON too.
+    ("anthropic", "claude-opus-4-8"),
+    ("anthropic", "claude-opus-5"),
+    ("anthropic", "claude-opus-5-5"),
     ("deepseek", "deepseek-v4-flash"),
     ("gemini", "gemini-3.7-flash"),
     ("qwen", "qwen3.5-plus"),
@@ -100,6 +105,9 @@ def _constructor_kwargs(provider: str, model: str, **passed: Any) -> dict[str, A
             return_value=mock_llm,
         ) as ollama,
         patch(
+            "src.infrastructure.llm.providers.adapter.ChatQwenCached", return_value=mock_llm
+        ) as qwen,
+        patch(
             "src.domains.llm_config.cache.LLMConfigOverrideCache.get_api_key",
             return_value="http://ollama.local:11434" if provider == "ollama" else "sk-test",
         ),
@@ -117,7 +125,7 @@ def _constructor_kwargs(provider: str, model: str, **passed: Any) -> dict[str, A
             llm_type="response",
             **passed,
         )
-        called = [m for m in (init_chat, responses, deepseek, gemini, ollama) if m.called]
+        called = [m for m in (init_chat, responses, deepseek, gemini, ollama, qwen) if m.called]
     assert len(called) == 1, f"{provider}/{model}: exactly one constructor must be called"
     return dict(called[0].call_args.kwargs)
 

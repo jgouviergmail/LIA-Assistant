@@ -44,8 +44,11 @@ async def resolve_active_connector(
     """
     Resolve the active connector type for a functional category.
 
-    Uses get_user_connectors() which is already cached in Redis (TTL 5min).
-    No additional DB query.
+    The provider the PERSON configured wins: it is read from
+    get_user_connectors(), already cached in Redis (TTL 5min). A keyless member
+    of the category (Google Weather for "weather") has no per-account row — it
+    is the instance's default, answered only when the person configured none
+    and the instance provides it (ADR-307).
 
     Args:
         user_id: User UUID.
@@ -71,11 +74,16 @@ async def resolve_active_connector(
         ct = connector.connector_type
         # Resolve legacy aliases (e.g., GMAIL → GOOGLE_GMAIL)
         canonical_ct = _LEGACY_CONNECTOR_ALIASES.get(ct, ct)
-        if canonical_ct in category_types and connector.status == ConnectorStatus.ACTIVE:
+        # A keyless type is never read from a row: the instance decides it below.
+        if (
+            canonical_ct in category_types
+            and not canonical_ct.is_keyless
+            and connector.status == ConnectorStatus.ACTIVE
+        ):
             active_connectors.append(connector)
 
     if not active_connectors:
-        return None
+        return await _instance_default(user_id, category_types, connector_service)
 
     if len(active_connectors) == 1:
         return ConnectorType(active_connectors[0].connector_type)
@@ -90,6 +98,28 @@ async def resolve_active_connector(
     )
     active_connectors.sort(key=lambda c: c.updated_at, reverse=True)
     return ConnectorType(active_connectors[0].connector_type)
+
+
+async def _instance_default(
+    user_id: UUID,
+    category_types: frozenset[ConnectorType],
+    connector_service: Any,
+) -> ConnectorType | None:
+    """The category's keyless member the instance provides, if any (ADR-307).
+
+    Args:
+        user_id: User UUID.
+        category_types: Members of the functional category.
+        connector_service: ConnectorService instance (answers for keyless types
+            from the instance, never from a row).
+
+    Returns:
+        The keyless provider serving the account, or None.
+    """
+    for connector_type in sorted(category_types & ConnectorType.get_keyless_types()):
+        if await connector_service.is_connector_active(user_id, connector_type):
+            return connector_type
+    return None
 
 
 async def find_error_connector_type(

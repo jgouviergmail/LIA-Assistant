@@ -43,7 +43,7 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     category: 'architecture',
     icon: 'Repeat',
     date: '2026-04-08',
-    readTime: 7,
+    readTime: 8,
     tags: ['react', 'pipeline', 'execution-mode', 'langgraph', 'iteration', 'agent-loop'],
   },
   {

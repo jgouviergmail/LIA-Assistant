@@ -69,7 +69,7 @@ def _heartbeat_lines() -> dict[str, str]:
 async def get_heartbeat_decision(
     context: HeartbeatContext,
     user_language: str,
-) -> tuple[HeartbeatDecision, int, int, int]:
+) -> tuple[HeartbeatDecision, int, int, int, int]:
     """Execute the LLM decision phase (structured output).
 
     Uses a cheap/fast model to evaluate context and decide skip/notify.
@@ -81,7 +81,9 @@ async def get_heartbeat_decision(
         user_language: User's language code (e.g., "fr", "en").
 
     Returns:
-        Tuple of (decision, tokens_in, tokens_out, tokens_cache).
+        Tuple of (decision, tokens_in, tokens_out, tokens_cache,
+        tokens_cache_write) — the last the part of ``tokens_in`` Claude wrote
+        to its prompt cache (ADR-306).
     """
     from langchain_core.runnables import RunnableConfig
 
@@ -120,6 +122,7 @@ async def get_heartbeat_decision(
     tokens_in = token_capture.tokens_in
     tokens_out = token_capture.tokens_out
     tokens_cache = token_capture.tokens_cache
+    tokens_cache_write = token_capture.tokens_cache_write
 
     logger.info(
         "heartbeat_decision_result",
@@ -131,7 +134,7 @@ async def get_heartbeat_decision(
         tokens_out=tokens_out,
     )
 
-    return decision, tokens_in, tokens_out, tokens_cache
+    return decision, tokens_in, tokens_out, tokens_cache, tokens_cache_write
 
 
 def message_clock(context: HeartbeatContext) -> tuple[str, str | None]:
@@ -163,7 +166,7 @@ async def generate_heartbeat_message(
     personality_instruction: str | None = None,
     user_id: str | UUID | None = None,
     facts_block: str | None = None,
-) -> tuple[str, int, int, int]:
+) -> tuple[str, int, int, int, int]:
     """Generate the final notification message (Phase 2).
 
     Rewrites the decision's message_draft with the user's personality
@@ -180,7 +183,9 @@ async def generate_heartbeat_message(
             from it instead of staying vague.
 
     Returns:
-        Tuple of (message, tokens_in, tokens_out, tokens_cache).
+        Tuple of (message, tokens_in, tokens_out, tokens_cache,
+        tokens_cache_write) — the last the part of ``tokens_in`` Claude wrote
+        to its prompt cache (ADR-306).
     """
     from src.domains.personalities.constants import DEFAULT_PERSONALITY_PROMPT
     from src.infrastructure.llm import get_llm
@@ -254,4 +259,4 @@ async def generate_heartbeat_message(
         tokens_out=tokens_out,
     )
 
-    return message.strip(), tokens_in, tokens_out, tokens_cache
+    return message.strip(), tokens_in, tokens_out, tokens_cache, tokens.cache_write

@@ -1171,6 +1171,46 @@ class TestUpdateUserActivation:
             assert call_args.kwargs["user_agent"] == "Mozilla/5.0"
 
     @pytest.mark.asyncio
+    async def test_the_audit_names_the_caller_not_the_proxy_in_front(self):
+        """ADR-213: the audit records the address Cloudflare vouches for.
+
+        Admin actions arrive through a Next.js server action, so the connection
+        peer is the web container: the 2026-09-22 deactivation was audited from
+        172.18.0.19, the address of lia-web-prod.
+        """
+        from starlette.requests import Request
+
+        mock_db = MagicMock(spec=AsyncSession)
+        mock_db.commit = AsyncMock()
+        mock_db.refresh = AsyncMock()
+        service = UserService(mock_db)
+        user_id = uuid.uuid4()
+        mock_user = create_mock_user(user_id=user_id, email="user@example.com")
+        service.repository.get_by_id = AsyncMock(return_value=mock_user)
+        service.repository.update = AsyncMock(return_value=mock_user)
+        service.repository.create_audit_log = AsyncMock()
+        request = Request(
+            {
+                "type": "http",
+                "method": "PATCH",
+                "path": f"/api/v1/users/admin/{user_id}/activation",
+                "headers": [(b"user-agent", b"Mozilla/5.0"), (b"cf-connecting-ip", b"203.0.113.9")],
+                "client": ("172.18.0.19", 41000),
+            }
+        )
+
+        with patch("src.domains.users.service.get_email_service") as mock_get_email:
+            mock_get_email.return_value.send_user_activated_notification = AsyncMock(
+                return_value=True
+            )
+            await service.update_user_activation(
+                user_id, UserActivationUpdate(is_active=True), uuid.uuid4(), request=request
+            )
+
+        audit = service.repository.create_audit_log.call_args.kwargs
+        assert audit["ip_address"] == "203.0.113.9"
+
+    @pytest.mark.asyncio
     async def test_update_user_activation_not_found_raises(self):
         """Test updating activation for non-existent user raises exception."""
         # Arrange

@@ -61,7 +61,7 @@ def _patched(results: list[dict] | Exception):
 
     @contextlib.asynccontextmanager
     async def _open(category, user_id):
-        yield CategoryClient(client=client, connector_type=None, session=None)
+        yield CategoryClient(client=client, connector_type=None)
 
     return patch("src.domains.relations.providers.contacts.open_category_client", _open), client
 

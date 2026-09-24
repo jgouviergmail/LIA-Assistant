@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from contextlib import asynccontextmanager
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
@@ -93,7 +94,23 @@ def fake_service(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
     service.resolve = AsyncMock(side_effect=_resolve)
     service.candidates = AsyncMock(return_value=[DEFAULT, MEDICAL, MINE])
     monkeypatch.setattr(module, "MeetingTemplateService", MagicMock(return_value=service))
+    monkeypatch.setattr(module, "get_db_context", _sessions)
     return service
+
+
+class _Sessions:
+    """The library's short sessions, counted: one must never wait on the model."""
+
+    open = 0
+
+
+@asynccontextmanager
+async def _sessions():
+    _Sessions.open += 1
+    try:
+        yield MagicMock()
+    finally:
+        _Sessions.open -= 1
 
 
 @pytest.fixture
@@ -121,7 +138,6 @@ def _outcome(outcome: str) -> float:
 
 async def _decide(meeting, preference=None, capture=None):
     return await decide_template(
-        MagicMock(),
         meeting=meeting,
         preference=preference,
         turns=_turns(),
@@ -201,6 +217,23 @@ async def test_automatic_selection_keeps_a_confident_candidate_and_counts_it(
     assert "CANDIDATES:" in human and str(MEDICAL.ref) in human and "Point projet" in human
     assert "EXCERPT:" in human and "turn 0" in human
     assert fake_llm.await_args.kwargs["config"]["callbacks"] == [capture]
+
+
+async def test_the_library_session_is_closed_before_the_model_chooses(
+    fake_service: MagicMock, fake_llm: AsyncMock
+) -> None:
+    """ADR-304: the choice is a model call, and no transaction waits on it."""
+    open_while_asked: list[int] = []
+
+    async def _choose(*_args: object, **_kwargs: object) -> TemplateChoice:
+        open_while_asked.append(_Sessions.open)
+        return TemplateChoice(template_ref=str(MEDICAL.ref), confidence=0.9, reason="r")
+
+    fake_llm.side_effect = _choose
+    decision = await _decide(_meeting())
+    assert str(decision.ref) == str(MEDICAL.ref)
+    assert open_while_asked == [0]
+    fake_service.candidates.assert_awaited_once()
 
 
 async def test_a_hesitant_model_falls_back_to_the_default_and_says_why(

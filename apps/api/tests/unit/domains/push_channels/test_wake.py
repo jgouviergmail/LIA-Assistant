@@ -17,7 +17,7 @@ from src.domains.push_channels.wake import (
     cooldown_key,
     enqueue_wake,
     payload_key,
-    pop_wakes,
+    pop_next_wake,
     try_acquire_wake_cooldown,
 )
 
@@ -52,10 +52,9 @@ class _FakeRedis:
         self.sets.setdefault(key, set()).update(members)
         return len(members)
 
-    async def spop(self, key: str, count: int) -> list[bytes]:
+    async def spop(self, key: str) -> bytes | None:
         members = self.sets.get(key, set())
-        popped = [members.pop() for _ in range(min(count, len(members)))]
-        return [m.encode() for m in popped]
+        return members.pop().encode() if members else None
 
 
 async def test_enqueue_stores_one_payload_per_pair_dated_by_the_first() -> None:
@@ -69,40 +68,57 @@ async def test_enqueue_stores_one_payload_per_pair_dated_by_the_first() -> None:
     assert redis.sets[REDIS_KEY_WAKE_PENDING] == {str(uid)}
 
 
-async def test_pop_returns_payloads_oldest_first_and_deletes_them() -> None:
+async def test_one_pop_takes_one_account_with_all_its_payloads_oldest_first() -> None:
     redis = _FakeRedis()
-    uid_a, uid_b = uuid.uuid4(), uuid.uuid4()
-    await enqueue_wake(redis, uid_a, "google_gmail", ttl_seconds=60)
-    await enqueue_wake(redis, uid_b, "google_calendar", ttl_seconds=60)
-    await enqueue_wake(redis, uid_b, "google_drive", ttl_seconds=60, page_token="tok")
+    uid = uuid.uuid4()
+    await enqueue_wake(redis, uid, "google_calendar", ttl_seconds=60)
+    await enqueue_wake(redis, uid, "google_drive", ttl_seconds=60)
 
-    payloads = await pop_wakes(redis, 10, PROVIDERS)
+    payloads = await pop_next_wake(redis, PROVIDERS)
 
+    assert payloads is not None
     assert {(p.user_id, p.provider) for p in payloads} == {
-        (uid_a, "google_gmail"),
-        (uid_b, "google_calendar"),
-        (uid_b, "google_drive"),
+        (uid, "google_calendar"),
+        (uid, "google_drive"),
     }
     assert payloads == sorted(payloads, key=lambda p: p.enqueued_at)
     assert not [k for k in redis.data if k.startswith("heartbeat:wake:payload:")]
-    assert next(p for p in payloads if p.provider == "google_drive").page_token == "tok"
 
 
-async def test_pop_respects_the_limit_and_leaves_the_rest_queued() -> None:
+def test_a_payload_queued_before_adr_304_still_parses() -> None:
+    """Payloads in the queue at deploy time carried a Drive token; it is ignored, not fatal."""
+    uid = uuid.uuid4()
+    legacy = (
+        f'{{"user_id": "{uid}", "provider": "google_drive", '
+        '"enqueued_at": "2026-09-22T20:01:46+00:00", "history_id": null, "page_token": "5912677"}'
+    )
+    payload = WakePayload.from_json(legacy)
+    assert payload is not None
+    assert (payload.user_id, payload.provider) == (uid, "google_drive")
+    assert "page_token" not in payload.to_json()
+
+
+async def test_one_pop_leaves_every_other_account_queued() -> None:
+    """A wake that stops moving holds nobody else's: the others are still in Redis (ADR-304)."""
     redis = _FakeRedis()
     ids = [uuid.uuid4() for _ in range(5)]
     for uid in ids:
         await enqueue_wake(redis, uid, "google_gmail", ttl_seconds=60)
-    first = await pop_wakes(redis, 2, PROVIDERS)
-    assert len(first) == 2
-    assert len(redis.sets[REDIS_KEY_WAKE_PENDING]) == 3
+    first = await pop_next_wake(redis, PROVIDERS)
+    assert first is not None and len(first) == 1
+    assert len(redis.sets[REDIS_KEY_WAKE_PENDING]) == 4
+    assert len([k for k in redis.data if k.startswith("heartbeat:wake:payload:")]) == 4
+
+
+async def test_an_empty_queue_says_so() -> None:
+    assert await pop_next_wake(_FakeRedis(), PROVIDERS) is None
 
 
 async def test_expired_payload_yields_nothing() -> None:
     redis = _FakeRedis()
     uid = uuid.uuid4()
     await redis.sadd(REDIS_KEY_WAKE_PENDING, str(uid))  # member without payload (TTL gone)
-    assert await pop_wakes(redis, 10, PROVIDERS) == []
+    assert await pop_next_wake(redis, PROVIDERS) == []
 
 
 async def test_redis_failure_is_best_effort() -> None:
@@ -157,3 +173,17 @@ def test_staleness_is_measured_from_the_first_notification() -> None:
 
 def _unused(_: Any) -> None:  # pragma: no cover
     return None
+
+
+async def test_only_a_new_payload_counts_as_a_queued_wake() -> None:
+    """PushWakeSweepStalled compares what was QUEUED with what was served: a
+    storm on one account is ONE wake to serve, so it counts once (ADR-304)."""
+    from src.infrastructure.observability.metrics_push_channels import push_wakes_enqueued_total
+
+    counter = push_wakes_enqueued_total.labels(provider="google_drive")
+    before = counter._value.get()
+    redis = _FakeRedis()
+    uid = uuid.uuid4()
+    await enqueue_wake(redis, uid, "google_drive", ttl_seconds=60)
+    await enqueue_wake(redis, uid, "google_drive", ttl_seconds=60)
+    assert counter._value.get() == before + 1

@@ -391,7 +391,8 @@ class GoogleCalendarClient(BaseGoogleClient):
             "calendar_events_listed",
             user_id=str(self.user_id),
             count=len(response.get("items", [])),
-            query=query,
+            # A query is a name, a subject or an address: content, never INFO.
+            has_query=bool(query),
             fields_projected=bool(fields),
         )
 

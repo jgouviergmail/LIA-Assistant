@@ -79,8 +79,9 @@ describe('the worklet source', () => {
     processor.port.onmessage?.({ data: { type: 'chunk', seq: 1, rate: 24000, samples: first } });
     processor.port.onmessage?.({ data: { type: 'chunk', seq: 2, rate: 24000, samples: second } });
     const out = render(processor, 256);
-    // Every output step is half an input step: linear interpolation at 2×.
-    for (let i = 1; i < 255; i++) expect(out[i] - out[i - 1]).toBeCloseTo(0.005, 6);
+    // Away from the run's short fade-in, every output step is half an input
+    // step, including the boundary between the two queued chunks.
+    for (let i = 17; i < 255; i++) expect(out[i] - out[i - 1]).toBeCloseTo(0.005, 6);
     // The boundary (input sample 64 = output 128) is on the same line.
     expect(out[128]).toBeCloseTo(0.64, 6);
     expect(out[127]).toBeCloseTo(0.635, 6);
@@ -95,12 +96,74 @@ describe('the worklet source', () => {
     });
     // 32 samples at 24 kHz = 64 frames at 48 kHz: the first block holds them all.
     const block = render(processor, 128);
-    expect(block[0]).toBeCloseTo(0.5, 6);
+    expect(block[0]).toBeCloseTo(0.5 / 16, 6);
+    expect(block[32]).toBeCloseTo(0.5, 6);
     expect(block[63]).toBeCloseTo(0.5, 6);
-    expect(block[64]).toBe(0);
+    expect(block[64]).toBeCloseTo(0.5 * (15 / 16), 6);
+    expect(block[79]).toBe(0);
+    expect(block[80]).toBe(0);
     expect(posted).toEqual([{ type: 'drained', seq: 7 }]);
     render(processor, 128);
     expect(posted).toHaveLength(1);
+  });
+
+  it('ramps into and out of an isolated chunk instead of clicking at a network gap', () => {
+    const { processor } = instantiate(48000);
+    processor.port.onmessage?.({
+      data: { type: 'chunk', seq: 1, rate: 48000, samples: ramp(0.75, 64, 0) },
+    });
+    const output = render(processor, 128);
+    expect(Math.abs(output[0])).toBeLessThan(0.1);
+    expect(output[32]).toBeCloseTo(0.75, 5);
+    expect(output[63]).toBeCloseTo(0.75, 5);
+    expect(Math.abs(output[63] - output[64])).toBeLessThan(0.1);
+    processor.port.onmessage?.({
+      data: { type: 'chunk', seq: 2, rate: 48000, samples: ramp(0.75, 64, 0) },
+    });
+    const next = render(processor, 128);
+    expect(Math.abs(next[0])).toBeLessThan(0.1);
+    expect(next[32]).toBeCloseTo(0.75, 5);
+  });
+
+  it('buffers at startup and after audible starvation, but not at a seamless block boundary', () => {
+    const { processor, posted } = instantiate(48000);
+    processor.port.onmessage?.({ data: { type: 'buffer', frames: 4 } });
+    processor.port.onmessage?.({
+      data: { type: 'chunk', seq: 1, rate: 48000, samples: ramp(0.5, 8, 0) },
+    });
+    expect(Array.from(render(processor, 4))).toEqual([0, 0, 0, 0]);
+    expect(render(processor, 8)[0]).toBeGreaterThan(0);
+    expect(posted).toEqual([{ type: 'drained', seq: 1 }]);
+    processor.port.onmessage?.({
+      data: { type: 'chunk', seq: 2, rate: 48000, samples: ramp(0.5, 8, 0) },
+    });
+    // The previous chunk drained exactly at the block boundary. No silence
+    // reached the speaker, so this next chunk must start without another wait.
+    expect(render(processor, 8)[0]).toBeGreaterThan(0);
+    expect(posted).toEqual([
+      { type: 'drained', seq: 1 },
+      { type: 'drained', seq: 2 },
+    ]);
+    // Now the render thread actually runs empty before the next chunk.
+    render(processor, 16);
+    processor.port.onmessage?.({
+      data: { type: 'chunk', seq: 3, rate: 48000, samples: ramp(0.5, 8, 0) },
+    });
+    expect(Array.from(render(processor, 4))).toEqual([0, 0, 0, 0]);
+    expect(render(processor, 8)[0]).toBeGreaterThan(0);
+  });
+
+  it('reports only silence that the render thread actually played between chunks', () => {
+    const { processor, posted } = instantiate(48000);
+    processor.port.onmessage?.({
+      data: { type: 'chunk', seq: 1, rate: 48000, samples: ramp(0.5, 8, 0) },
+    });
+    render(processor, 8);
+    render(processor, 16);
+    processor.port.onmessage?.({
+      data: { type: 'chunk', seq: 2, rate: 48000, samples: ramp(0.5, 8, 0) },
+    });
+    expect(posted).toContainEqual({ type: 'gap', frames: 16, at_frames: 24 });
   });
 
   it('a flush drops everything handed over, at once', () => {
@@ -121,9 +184,8 @@ describe('the worklet source', () => {
       data: { type: 'chunk', seq: 1, rate: 16000, samples: ramp(0, 32, 0.03) },
     });
     const out = render(processor, 48);
-    expect(out[3]).toBeCloseTo(0.06, 6); // frame 3 → input position 2.0
-    expect(out[46]).toBeCloseTo((0.03 * (46 * 2)) / 3, 6); // position 30.667, between two samples
-    // Past the last sample with no chunk behind it, the tail is HELD, never extrapolated.
+    expect(out[20]).toBeCloseTo((0.03 * (20 * 2)) / 3, 6); // position 13.333
+    // Past the last sample with no chunk behind it, the source sample is held.
     expect(out[47]).toBeCloseTo(0.93, 6);
   });
 });
@@ -139,6 +201,11 @@ class FakePort {
   /** What the worklet would say once its queue ran dry after chunk `seq`. */
   drain(seq: number) {
     this.onmessage?.({ data: { type: 'drained', seq } } as MessageEvent<unknown>);
+  }
+  gap(frames: number, atFrames: number) {
+    this.onmessage?.({
+      data: { type: 'gap', frames, at_frames: atFrames },
+    } as MessageEvent<unknown>);
   }
 }
 
@@ -217,6 +284,16 @@ describe('PcmStreamPlayer', () => {
     expect(FakeAudioContext.instances).toHaveLength(1);
     expect(FakeWorkletNode.instances).toHaveLength(1);
     expect(context.modules).toHaveLength(1);
+    expect(player.diagnostics()).toBeNull();
+  });
+
+  it('configures 120 ms of headroom at the actual output context rate', async () => {
+    const player = new PcmStreamPlayer(120);
+    await player.warmup();
+    expect(FakeWorkletNode.instances[0].port.posted[0].message).toEqual({
+      type: 'buffer',
+      frames: 5760,
+    });
   });
 
   it('hands each chunk over as transferred floats with a sequence number, and flushes through the port', async () => {
@@ -257,7 +334,22 @@ describe('PcmStreamPlayer', () => {
     port.drain(1);
     expect(player.isSpeaking).toBe(true);
     port.drain(2);
+    port.gap(480, 48000 * 5);
+    port.gap(960, 48000 * 25);
+    port.gap(48000, 48000 * 30); // A pause between turns, not short crackling.
     expect(player.isSpeaking).toBe(false);
+    expect(player.diagnostics()).toEqual({
+      chunks: 2,
+      drains: 2,
+      audio_ms: 200,
+      source_rate: 24000,
+      context_rate: 48000,
+      short_gap_count: 2,
+      short_gap_ms: 30,
+      short_gap_bins: [1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      long_gap_count: 1,
+      max_gap_ms: 1000,
+    });
     expect(edges).toHaveBeenLastCalledWith(false);
     expect(edges).toHaveBeenCalledTimes(2);
     // A flush ends the speech at once, without waiting for any report.

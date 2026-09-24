@@ -73,7 +73,7 @@ export function liveSummaryOf(metadata: Metadata): LiveSummaryFigures {
 
 /**
  * The refusals a start can name: the API's codes (`domains/live/errors.py`,
- * read by its guard) plus the one the browser raises itself.
+ * read by its guard) plus the browser's own classifications.
  */
 export const LIVE_ERROR_CODES = [
   'connector_missing',
@@ -89,6 +89,7 @@ export const LIVE_ERROR_CODES = [
   'session_expired',
   'credential_invalid',
   'unsupported_browser',
+  'key_ip_restricted',
 ] as const;
 
 export type LiveErrorCode = (typeof LIVE_ERROR_CODES)[number];
@@ -97,5 +98,14 @@ const CODED_ERRORS: ReadonlySet<string> = new Set(LIVE_ERROR_CODES);
 
 /** The i18n key of a start failure: its code when the API named one, else the generic line. */
 export function liveErrorKey(error: string | null): string {
+  // Gemini's ephemeral token is used by the browser itself. A key restricted
+  // to the API server's IP can mint the token, then Google rejects the phone's
+  // WebSocket with 1008. Name the configuration issue instead of "start failed".
+  if (
+    error?.includes('live_socket_closed_1008') &&
+    error.toLowerCase().includes('api key has an ip address restriction')
+  ) {
+    return 'live.error.key_ip_restricted';
+  }
   return error && CODED_ERRORS.has(error) ? `live.error.${error}` : 'live.error.start';
 }

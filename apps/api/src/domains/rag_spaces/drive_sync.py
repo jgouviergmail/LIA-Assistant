@@ -34,6 +34,7 @@ from src.core.exceptions import BaseAPIException
 from src.domains.connectors.clients.google_drive_client import GoogleDriveClient
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.service import ConnectorService
+from src.domains.connectors.session_scope import DetachedConnectorService
 from src.domains.rag_spaces.consultations import SECTION_DRIVE, space_read
 from src.domains.rag_spaces.drive_ingest import (
     ingest_drive_file,
@@ -565,8 +566,7 @@ class RAGDriveSyncService:
         Raises:
             BaseAPIException: If Drive connector is not active.
         """
-        connector_service = ConnectorService(self.db)
-        credentials = await connector_service.get_connector_credentials(
+        credentials = await ConnectorService(self.db).get_connector_credentials(
             user_id, ConnectorType.GOOGLE_DRIVE
         )
         if not credentials:
@@ -576,7 +576,8 @@ class RAGDriveSyncService:
                 log_event="rag_drive_connector_not_active",
                 user_id=str(user_id),
             )
-        return GoogleDriveClient(user_id, credentials, connector_service)
+        # The client's own writes run on a session of their own (ADR-304).
+        return GoogleDriveClient(user_id, credentials, DetachedConnectorService())
 
 
 # ============================================================================
@@ -618,11 +619,13 @@ async def sync_folder_background(
                 )
                 return
 
-            # Get drive client
-            connector_service = ConnectorService(db)
-            credentials = await connector_service.get_connector_credentials(
-                user_id, ConnectorType.GOOGLE_DRIVE
-            )
+            # Get drive client: its credentials read in a session of their
+            # own, its token refreshes written through it (ADR-304).
+            connectors = DetachedConnectorService()
+            async with connectors.unit_of_work() as connector_service:
+                credentials = await connector_service.get_connector_credentials(
+                    user_id, ConnectorType.GOOGLE_DRIVE
+                )
             if not credentials:
                 await source_repo.update(
                     source,
@@ -635,7 +638,10 @@ async def sync_folder_background(
                 rag_drive_sync_runs_total.labels(status="error").inc()
                 return
 
-            client = GoogleDriveClient(user_id, credentials, connector_service)
+            client = GoogleDriveClient(user_id, credentials, connectors)
+            # The reads end before the walk: a tree of hundreds of folders is
+            # hundreds of Drive calls, and no transaction waits on them.
+            await db.commit()
             try:
                 # The whole tree under the linked folder, bounded (drive_walk).
                 # ONE consultation for the act: the person asked for this
@@ -714,6 +720,11 @@ async def sync_folder_background(
                         user_id=user_id,
                         file_id=removed_file_id,
                     )
+
+                # Every read and write of the loop ends before the documents
+                # embed (ADR-304): the embeddings run for minutes, each on a
+                # session of its own, and this one must not wait on them.
+                await db.commit()
 
                 # Launch processing with throttle
                 sem = asyncio.Semaphore(5)

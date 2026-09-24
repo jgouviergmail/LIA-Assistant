@@ -27,8 +27,6 @@ from .invalidation import (
 from .llm_cache import cache_llm_response, invalidate_llm_cache
 from .places_cache import PlacesCache
 from .pricing_cache import (
-    TokenUsageRecord,
-    calculate_total_cost_from_logs,
     get_cached_cost,
     is_cache_initialized,
     refresh_pricing_cache,
@@ -58,9 +56,7 @@ __all__ = [
     "RoutesCache",
     "WebSearchCache",
     "SessionService",
-    "TokenUsageRecord",
     "cache_llm_response",
-    "calculate_total_cost_from_logs",
     "get_cached_cost",
     "get_conversation_id_cached",
     "get_redis_cache",

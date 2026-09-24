@@ -98,7 +98,7 @@ def _calendar(items: list[dict[str, Any]]) -> Any:
     client.close = AsyncMock()
 
     @asynccontextmanager
-    async def _open(_db: Any, _user_id: Any):
+    async def _open(_user_id: Any):
         yield CalendarAccess(client=client, calendar_id="primary", connector_type=None)
 
     return _open
@@ -155,7 +155,7 @@ class TestWhatTheRegisterIsTold:
         client.list_events = AsyncMock(side_effect=RuntimeError("provider down"))
 
         @asynccontextmanager
-        async def _broken(_db: Any, _user_id: Any):
+        async def _broken(_user_id: Any):
             yield CalendarAccess(client=client, calendar_id="primary", connector_type=None)
 
         recorded = await self._run(calendar=_broken)
@@ -167,7 +167,7 @@ class TestWhatTheRegisterIsTold:
         from src.domains.connectors.calendar_access import CalendarUnavailable
 
         @asynccontextmanager
-        async def _none(_db: Any, _user_id: Any):
+        async def _none(_user_id: Any):
             yield CalendarUnavailable.NO_CONNECTOR
 
         recorded = await self._run(calendar=_none)

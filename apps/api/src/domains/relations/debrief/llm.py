@@ -180,6 +180,7 @@ def _usage_of(capture: TokenCaptureHandler, model_name: str) -> LLMUsage:
             prompt_tokens=capture.tokens_in,
             completion_tokens=capture.tokens_out,
             cached_tokens=capture.tokens_cache,
+            cache_write_tokens=capture.tokens_cache_write,
         )
     except Exception as exc:  # noqa: BLE001 — a price is a nicety, never a blocker
         logger.warning("relation_debrief_pricing_failed", error_type=type(exc).__name__)
@@ -187,6 +188,7 @@ def _usage_of(capture: TokenCaptureHandler, model_name: str) -> LLMUsage:
         tokens_in=capture.tokens_in,
         tokens_out=capture.tokens_out,
         tokens_cache=capture.tokens_cache,
+        tokens_cache_write=capture.tokens_cache_write,
         cost_eur=cost_eur,
         model_name=model_name,
     )

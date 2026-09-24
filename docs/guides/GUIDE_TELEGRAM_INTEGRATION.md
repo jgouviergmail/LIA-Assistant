@@ -217,12 +217,10 @@ Le choix est automatique dans `bot.py` :
 ```python
 # apps/api/src/infrastructure/channels/telegram/bot.py
 if webhook_url:
-    # Production : set webhook with secret token
-    await _bot.set_webhook(
-        url=webhook_url,
-        secret_token=webhook_secret,
-        allowed_updates=["message", "callback_query"],
-    )
+    # Production : chaque worker construit le bot (il envoie, la route webhook
+    # reçoit) ; le webhook lui-même, global au bot, est posé UNE fois par le
+    # leader du scheduler (ensure_telegram_webhook, tâche ponctuelle — ADR-304)
+    logger.info("telegram_bot_initialized_webhook", ...)
 else:
     # Development : long polling
     _application.add_handler(MessageHandler(filters.ALL, _polling_handler))
@@ -243,8 +241,10 @@ await initialize_telegram_bot()  # Retourne Bot | None
 
 # Shutdown
 from src.infrastructure.channels.telegram.bot import shutdown_telegram_bot
-await shutdown_telegram_bot()  # Supprime webhook ou arrete polling
+await shutdown_telegram_bot()  # Arrête le polling ; le webhook reste en place
 ```
+
+**Le webhook est un état global au bot, pas au worker** (ADR-304). En production, les N workers posaient le même webhook ensemble à chaque démarrage (`Conflict: terminated by other setWebhook`, puis des `RetryAfter` en rafale), et un worker qui s'arrêtait — l'un des N, ou l'ancien conteneur d'un déploiement — le supprimait pour tous les autres. Désormais seul le **leader du scheduler** le pose, par une tâche ponctuelle (`SCHEDULER_JOB_TELEGRAM_WEBHOOK`, sans fenêtre de ratage : un leader élu tard la joue quand même, et une bascule de leader le réaffirme) ; `ensure_telegram_webhook()` attend une seule fois un `RetryAfter` hérité, et un webhook qui n'a pas pu être posé est une ERROR — Telegram ne livre rien tant qu'il ne l'est pas. L'arrêt ne supprime plus le webhook : pendant qu'une API redémarre, Telegram réessaie ses livraisons, et un retour au polling n'a besoin d'aucune suppression (l'amorçage du polling retire lui-même un webhook existant). Le logger `telegram` est bridé à INFO, parce que la bibliothèque journalise le jeton et le secret en DEBUG.
 
 Le username du bot est **auto-decouvert** via `getMe()` au demarrage -- plus besoin de le configurer manuellement.
 

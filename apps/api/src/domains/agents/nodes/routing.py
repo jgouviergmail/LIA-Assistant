@@ -814,7 +814,7 @@ def route_from_initiative(state: MessagesState) -> Literal["initiative", "respon
 
 def route_from_react_call_model(
     state: MessagesState,
-) -> Literal["react_execute_tools", "react_finalize"]:
+) -> Literal["react_execute_tools", "react_finalize", "react_recovery"]:
     """Route after ReAct LLM call: continue loop if tool_calls, else finalize.
 
     Enforces two safety limits:
@@ -842,7 +842,11 @@ def route_from_react_call_model(
     from langchain_core.messages import AIMessage
 
     from src.core.config import settings
-    from src.domains.agents.constants import NODE_REACT_EXECUTE_TOOLS, NODE_REACT_FINALIZE
+    from src.domains.agents.constants import (
+        NODE_REACT_EXECUTE_TOOLS,
+        NODE_REACT_FINALIZE,
+        NODE_REACT_RECOVERY,
+    )
 
     last_message = state["messages"][-1] if state.get("messages") else None
     iteration = state.get("react_iteration", 0)
@@ -917,6 +921,17 @@ def route_from_react_call_model(
             decision=NODE_REACT_EXECUTE_TOOLS,
         ).inc()
         return NODE_REACT_EXECUTE_TOOLS
+
+    # ADR-310: a final answer that declares facts it could not obtain buys a
+    # bounded recovery pass instead of ending the turn — ONE predicate decides.
+    from src.domains.agents.nodes.react_recovery import should_recover
+
+    if should_recover(state):
+        langgraph_conditional_edges_total.labels(
+            edge_name="route_from_react_call_model",
+            decision=NODE_REACT_RECOVERY,
+        ).inc()
+        return NODE_REACT_RECOVERY
 
     # No tool_calls = LLM is done reasoning → finalize
     langgraph_conditional_edges_total.labels(

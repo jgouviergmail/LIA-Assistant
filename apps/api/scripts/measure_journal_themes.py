@@ -55,6 +55,8 @@ from typing import Any
 # Add project root to path for imports (idempotent; harmless under pytest)
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+from src.core.i18n import get_language_name
+from src.core.prompt_layout import single_call_messages
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.journals.extraction_service import (
     _parse_consolidation_result,
@@ -418,7 +420,8 @@ async def _run_extraction(llm: Any, prompt: str) -> list[tuple[str, str]]:
     Also accumulates output tokens into ``_TOKEN_TALLY`` so the report can
     price a reasoning-effort change instead of asserting it is cheap.
     """
-    result = await llm.ainvoke(prompt)
+    # The messages production sends (ADR-309): the fixed part as the system message.
+    result = await llm.ainvoke(single_call_messages(prompt))
     usage = getattr(result, "usage_metadata", None) or {}
     _TOKEN_TALLY["calls"] += 1
     _TOKEN_TALLY["input"] += int(usage.get("input_tokens", 0))
@@ -482,7 +485,7 @@ async def _measure_extraction(
             current_chars=420,
             max_chars=30000,
             size_warning="",
-            user_language="fr",
+            user_language=get_language_name("fr"),
             max_entry_chars=500,
             health_context="",
             inner_state_section=INNER_STATE,

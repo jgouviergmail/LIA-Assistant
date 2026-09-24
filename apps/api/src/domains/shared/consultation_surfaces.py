@@ -201,6 +201,19 @@ CONSULTATION_SURFACES: Final[Mapping[str, ConsultationSurface]] = {
             "event_followup": "event",
         },
     ),
+    # A meeting the person RECORDED is matched to their calendar — the event
+    # that overlaps the recording, its title and attendees — to hint the
+    # minutes. Filed as « not a read » until 2026-09-22 (ADR-304 found it by
+    # making the calendar door count as a client import): the geocoding half
+    # was the only one anybody had looked at.
+    "meeting": ConsultationSurface(
+        key="meeting",
+        prefix="meeting:",
+        source="user",
+        domains={
+            "calendar": "event",
+        },
+    ),
     # A phone call the person asked for opens their CALENDAR before dialling
     # — the free/busy projection the voice agent may share — from the draft
     # executor, through a client, never through a tool: the gate never saw it,

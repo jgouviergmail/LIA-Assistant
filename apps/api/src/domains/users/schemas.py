@@ -8,6 +8,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic_core.core_schema import ValidationInfo
 
+from src.core.constants import IMAGE_GENERATION_OUTPUT_FORMAT_DEFAULT
 from src.core.field_names import FIELD_IS_ACTIVE
 from src.domains.shared.schemas import (
     FontFamilyValidatorMixin,
@@ -75,13 +76,14 @@ class UserUpdate(
         None, description="Enable AI image generation feature"
     )
     image_generation_default_quality: str | None = Field(
-        None, description="Default image quality: 'low', 'medium', 'high'"
+        None, description="Preferred image quality, in the configured model's vocabulary"
     )
     image_generation_default_size: str | None = Field(
-        None, description="Default image size: '1024x1024', '1536x1024', '1024x1536'"
+        None, description="Preferred image size (WIDTHxHEIGHT)"
     )
     image_generation_output_format: str | None = Field(
-        None, description="Default output format: 'png', 'jpeg', 'webp'"
+        None,
+        description="Format generated and edited images are delivered in: 'png', 'jpeg', 'webp'",
     )
 
     model_config = {"from_attributes": True}
@@ -107,7 +109,10 @@ class UserProfile(UserBase, LanguageValidatorMixin):
     image_generation_default_size: str = Field(
         default="1024x1024", description="Default image size"
     )
-    image_generation_output_format: str = Field(default="png", description="Default output format")
+    image_generation_output_format: str = Field(
+        default=IMAGE_GENERATION_OUTPUT_FORMAT_DEFAULT,
+        description="Format generated and edited images are delivered in",
+    )
 
 
 class UserListResponse(BaseModel):

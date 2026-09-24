@@ -7,12 +7,11 @@
  * - Enable/disable image generation (per-user opt-in)
  * - Default quality selection (driven by /image-generation/options)
  * - Default size selection (driven by /image-generation/options)
- * - Default output format (PNG/JPEG/WebP — purely client-side, unrelated to pricing)
+ * - Default output format (PNG/JPEG/WebP — the server converts every image into it)
  *
- * The qualities and sizes are NOT hardcoded anymore — they come from the
- * ``image_generation_pricing`` table via the ``/image-generation/options``
- * endpoint, so adding a new pricing row in admin Tarification LLM Image
- * makes the new options available immediately.
+ * The qualities and sizes come from what the configured model offers (ADR-305):
+ * each vendor has its own vocabulary, and a size carries its orientation and,
+ * for a vendor that bills by resolution, its tier (1K/2K).
  */
 
 import { useState } from 'react';
@@ -29,7 +28,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { useTranslation } from '@/i18n/client';
 import { useAuth } from '@/hooks/useAuth';
-import { useImageGenerationOptions } from '@/hooks/useImageGenerationOptions';
+import { useImageGenerationOptions, type SizeOption } from '@/hooks/useImageGenerationOptions';
 import apiClient from '@/lib/api-client';
 import { toast } from 'sonner';
 import type { BaseSettingsProps } from '@/types/settings';
@@ -56,21 +55,22 @@ export function ImageGenerationSettings({ lng }: BaseSettingsProps) {
     }
   };
 
-  // Resolve the user's saved defaults against the currently-available options.
-  // If a stored value is no longer available (e.g. admin removed the pricing
-  // row for that quality/size combination), silently fall back to the first
-  // available option. The next user change will persist the new value.
+  // The server maps a stored preference onto what the configured model offers
+  // (ADR-305) and publishes the result as ``effective_*``. A stored value the
+  // model offers is exactly what the server keeps, so it is shown at once after
+  // a change; one it does not offer is shown as the server's mapping of it.
   const userQuality = user?.image_generation_default_quality ?? null;
-  const validQuality =
-    options?.qualities.find(q => q.value === userQuality)?.value ??
-    options?.qualities[0]?.value ??
-    'medium';
+  const shownQuality =
+    options?.qualities.find(q => q.value === userQuality)?.value ?? options?.effective_quality;
 
   const userSize = user?.image_generation_default_size ?? null;
-  const validSize =
-    options?.sizes.find(s => s.value === userSize)?.value ??
-    options?.sizes[0]?.value ??
-    '1024x1024';
+  const shownSize =
+    options?.sizes.find(s => s.value === userSize)?.value ?? options?.effective_size;
+
+  const sizeLabel = (s: SizeOption) => {
+    const name = t(s.label_key, { defaultValue: s.value });
+    return s.tier ? `${name} · ${s.tier.toUpperCase()} (${s.value})` : `${name} (${s.value})`;
+  };
 
   const formatPrice = (q: { min_cost_usd: number; max_cost_usd: number }) => {
     if (q.min_cost_usd === q.max_cost_usd) {
@@ -110,7 +110,7 @@ export function ImageGenerationSettings({ lng }: BaseSettingsProps) {
         </>
       )}
 
-      {/* Error state — no active pricing for the configured model */}
+      {/* Error state — the configured model is not served (no family or no active price) */}
       {!loading && error && (
         <div className="p-3 rounded-lg border border-destructive/40 bg-destructive/10 text-sm text-destructive">
           {t('settings.image_generation.options_unavailable')}
@@ -122,7 +122,7 @@ export function ImageGenerationSettings({ lng }: BaseSettingsProps) {
         <div className="p-3 rounded-lg border bg-card space-y-2">
           <p className="text-sm font-medium">{t('settings.image_generation.quality')}</p>
           <Select
-            value={validQuality}
+            value={shownQuality}
             onValueChange={value => updatePreference('image_generation_default_quality', value)}
             disabled={updating}
           >
@@ -146,7 +146,7 @@ export function ImageGenerationSettings({ lng }: BaseSettingsProps) {
         <div className="p-3 rounded-lg border bg-card space-y-2">
           <p className="text-sm font-medium">{t('settings.image_generation.size')}</p>
           <Select
-            value={validSize}
+            value={shownSize}
             onValueChange={value => updatePreference('image_generation_default_size', value)}
             disabled={updating}
           >
@@ -156,7 +156,7 @@ export function ImageGenerationSettings({ lng }: BaseSettingsProps) {
             <SelectContent>
               {options.sizes.map(s => (
                 <SelectItem key={s.value} value={s.value}>
-                  {t(s.label_key, { defaultValue: s.value })} ({s.value})
+                  {sizeLabel(s)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -164,7 +164,7 @@ export function ImageGenerationSettings({ lng }: BaseSettingsProps) {
         </div>
       )}
 
-      {/* Format selector — purely client-side, unrelated to pricing */}
+      {/* Format selector — every generated or edited image is delivered in it */}
       <div className="p-3 rounded-lg border bg-card space-y-2">
         <p className="text-sm font-medium">{t('settings.image_generation.format')}</p>
         <Select

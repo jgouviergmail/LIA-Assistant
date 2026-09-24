@@ -10,13 +10,14 @@ import time
 from unittest.mock import patch
 
 import pytest
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, HumanMessage
 
 from src.domains.agents.constants import (
     NODE_DRAFT_CRITIQUE,
     NODE_REACT_CALL_MODEL,
     NODE_REACT_EXECUTE_TOOLS,
     NODE_REACT_FINALIZE,
+    NODE_REACT_RECOVERY,
 )
 from src.domains.agents.nodes.routing import (
     route_from_react_call_model,
@@ -46,6 +47,16 @@ class TestRouteFromReactCallModel:
         ai_msg = AIMessage(content="Here is your answer.")
         state: dict = {"messages": [ai_msg], "react_iteration": 1}
         assert route_from_react_call_model(state) == NODE_REACT_FINALIZE
+
+    def test_a_declared_gap_routes_to_the_recovery_pass(self) -> None:
+        """ADR-310: a final answer declaring a gap re-opens the loop instead of ending it."""
+        ai_msg = AIMessage(content="x <unresolved>forecast</unresolved>", id="d1")
+        state: dict = {
+            "messages": [HumanMessage(content="q", id="h1"), ai_msg],
+            "react_iteration": 2,
+            "react_max_iterations_effective": 70,
+        }
+        assert route_from_react_call_model(state) == NODE_REACT_RECOVERY
 
     @patch("src.core.config.settings")
     def test_max_iterations_routes_to_finalize(self, mock_settings: object) -> None:

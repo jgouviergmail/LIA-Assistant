@@ -1,151 +1,122 @@
-"""Image resizing utility for AI image editing.
+"""Preparation of an edit's source image (ADR-305).
 
-Resizes source images to the nearest supported dimension template
-while preserving aspect ratio. This reduces API costs since larger
-images cost more to process.
+The source is read in the orientation the person SEES — a phone photo is stored
+sideways with an EXIF tag, and without applying it an edit would choose a
+landscape frame for a portrait photo and send the vendor a rotated picture.
 
-Supported templates: 1024x1024, 1536x1024, 1024x1536.
+It is then fitted within the box its family declares (``ImageFamily.source_box``:
+the output size for OpenAI, whose input tokens grow with the area; 2048 px for
+Qwen, its documented input ceiling), flattened onto white when it carries
+transparency, and encoded as PNG — or JPEG, at the operator's
+``IMAGE_GENERATION_ENCODING_QUALITY``, when the PNG exceeds the vendor's byte
+limit. The image is never enlarged. Flattening and encoding are the ones the
+delivered image uses (``encoding.py``).
 
-Phase: evolution — AI Image Generation (Edit)
-Created: 2026-03-25
+Pillow's decode, LANCZOS resampling and encode are CPU-heavy (hundreds of ms on a
+multi-megapixel photo): async paths use the ``*_async`` wrappers.
 """
 
 from __future__ import annotations
 
 import asyncio
-import base64
 import io
 
-from PIL import Image
+from PIL import ExifTags, Image, ImageOps
 
-from src.core.constants import IMAGE_GENERATION_VALID_SIZES
+from src.core.config import settings
+from src.domains.image_generation.encoding import (
+    UNREADABLE_IMAGE_ERRORS,
+    encode_image,
+    flatten_to_rgb,
+)
+from src.domains.image_generation.providers.base import SourceImage
+from src.domains.image_generation.sizing import ImageSize
 from src.infrastructure.media.heif import ensure_heif_support
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
 
-# Supported dimension templates as (width, height) tuples
-_SIZE_TEMPLATES: list[tuple[int, int]] = [
-    (int(s.split("x")[0]), int(s.split("x")[1])) for s in IMAGE_GENERATION_VALID_SIZES
-]
+# EXIF orientations that turn the stored pixels by a quarter turn.
+_QUARTER_TURNS = frozenset({5, 6, 7, 8})
+_UNREADABLE_MESSAGE = "The source is not a readable image"
 
 
-def _best_template(width: int, height: int) -> tuple[int, int]:
-    """Select the template that best matches the source aspect ratio.
+def read_oriented_size(image_bytes: bytes) -> ImageSize:
+    """The image's size as displayed, EXIF orientation applied.
 
-    Args:
-        width: Source image width.
-        height: Source image height.
-
-    Returns:
-        (target_width, target_height) from the supported templates.
-    """
-    src_ratio = width / height if height > 0 else 1.0
-    best: tuple[int, int] = _SIZE_TEMPLATES[0]
-    best_diff = float("inf")
-
-    for tw, th in _SIZE_TEMPLATES:
-        template_ratio = tw / th
-        diff = abs(src_ratio - template_ratio)
-        if diff < best_diff:
-            best_diff = diff
-            best = (tw, th)
-
-    return best
-
-
-def resize_image_b64(
-    image_b64: str,
-    *,
-    max_size: str | None = None,
-) -> tuple[str, str]:
-    """Resize a base64-encoded image to the nearest supported dimension.
-
-    Opens the image, selects the best-matching template based on aspect
-    ratio (or uses ``max_size`` if provided), resizes with LANCZOS
-    resampling, and re-encodes as PNG base64.
+    Only the header is read; the pixels are not decoded.
 
     Args:
-        image_b64: Base64-encoded source image (any PIL-supported format).
-        max_size: If provided, force this size (e.g., "1024x1536").
-            Otherwise auto-detect from aspect ratio.
+        image_bytes: The stored image.
 
     Returns:
-        Tuple of (resized_b64, selected_size_str).
-        ``selected_size_str`` is e.g. "1024x1536".
+        Width and height as the person sees them.
 
     Raises:
-        ValueError: If the image cannot be decoded.
+        ValueError: When the bytes are not an image.
     """
-    image_bytes = base64.b64decode(image_b64)
     ensure_heif_support()
-    img = Image.open(io.BytesIO(image_bytes))
+    try:
+        with Image.open(io.BytesIO(image_bytes)) as img:
+            width, height = img.size
+            if img.getexif().get(ExifTags.Base.Orientation) in _QUARTER_TURNS:
+                width, height = height, width
+    except UNREADABLE_IMAGE_ERRORS as exc:
+        raise ValueError(_UNREADABLE_MESSAGE) from exc
+    return ImageSize(width, height)
 
-    original_w, original_h = img.size
 
-    if max_size:
-        tw, th = (int(d) for d in max_size.split("x"))
-    else:
-        tw, th = _best_template(original_w, original_h)
+def prepare_source_image(image_bytes: bytes, *, box: ImageSize, max_bytes: int) -> SourceImage:
+    """Orient, fit, flatten and encode an edit's source image.
 
-    size_str = f"{tw}x{th}"
+    Args:
+        image_bytes: The stored image (any Pillow-supported format).
+        box: The family's source box for this edit.
+        max_bytes: The vendor's limit on an input image.
 
-    # Skip resize if already at or below target
-    if original_w <= tw and original_h <= th:
-        logger.debug(
-            "image_resize_skipped",
-            original=f"{original_w}x{original_h}",
-            target=size_str,
-            reason="already_within_bounds",
+    Returns:
+        The encoded source: PNG, or JPEG when the PNG exceeds ``max_bytes``.
+
+    Raises:
+        ValueError: When the bytes are not an image, or the image exceeds
+            ``max_bytes`` even as JPEG.
+    """
+    ensure_heif_support()
+    try:
+        with Image.open(io.BytesIO(image_bytes)) as opened:
+            original = opened.size
+            img = flatten_to_rgb(ImageOps.exif_transpose(opened))
+    except UNREADABLE_IMAGE_ERRORS as exc:
+        raise ValueError(_UNREADABLE_MESSAGE) from exc
+    img.thumbnail((box.width, box.height), Image.Resampling.LANCZOS)
+
+    source = SourceImage(data=encode_image(img, "PNG"), mime_type="image/png")
+    if len(source.data) > max_bytes:
+        quality = settings.image_generation_encoding_quality
+        source = SourceImage(
+            data=encode_image(img, "JPEG", quality=quality), mime_type="image/jpeg"
         )
-        return image_b64, size_str
-
-    # Resize preserving aspect ratio (fit within target box)
-    img.thumbnail((tw, th), Image.Resampling.LANCZOS)
-
-    # Convert RGBA to RGB if needed (avoids issues with some APIs)
-    if img.mode == "RGBA":
-        background = Image.new("RGB", img.size, (255, 255, 255))
-        background.paste(img, mask=img.split()[3])
-        img = background  # type: ignore[assignment]
-
-    # Re-encode as PNG
-    buf = io.BytesIO()
-    img.save(buf, format="PNG")
-    resized_b64 = base64.b64encode(buf.getvalue()).decode("ascii")
+    if len(source.data) > max_bytes:
+        raise ValueError(f"The source image exceeds {max_bytes} bytes even as JPEG")
 
     logger.info(
-        "image_resized",
-        original=f"{original_w}x{original_h}",
-        resized=f"{img.size[0]}x{img.size[1]}",
-        target_template=size_str,
-        original_size_kb=len(image_bytes) // 1024,
-        resized_size_kb=len(buf.getvalue()) // 1024,
+        "image_source_prepared",
+        original=f"{original[0]}x{original[1]}",
+        prepared=f"{img.size[0]}x{img.size[1]}",
+        box=str(box),
+        mime_type=source.mime_type,
+        size_kb=len(source.data) // 1024,
     )
+    return source
 
-    return resized_b64, size_str
+
+async def read_oriented_size_async(image_bytes: bytes) -> ImageSize:
+    """Off-loop :func:`read_oriented_size` (HEIC headers can be costly to parse)."""
+    return await asyncio.to_thread(read_oriented_size, image_bytes)
 
 
-async def resize_image_b64_async(
-    image_b64: str,
-    *,
-    max_size: str | None = None,
-) -> tuple[str, str]:
-    """Async wrapper for :func:`resize_image_b64`.
-
-    Pillow decode + LANCZOS resample + PNG encode are CPU-heavy (hundreds
-    of ms on multi-megapixel images) and would freeze the event loop if run
-    inline. Always use this wrapper on async paths.
-
-    Args:
-        image_b64: Base64-encoded source image (any PIL-supported format).
-        max_size: If provided, force this size (e.g., "1024x1536").
-            Otherwise auto-detect from aspect ratio.
-
-    Returns:
-        Tuple of (resized_b64, selected_size_str).
-
-    Raises:
-        ValueError: If the image cannot be decoded.
-    """
-    return await asyncio.to_thread(resize_image_b64, image_b64, max_size=max_size)
+async def prepare_source_image_async(
+    image_bytes: bytes, *, box: ImageSize, max_bytes: int
+) -> SourceImage:
+    """Off-loop :func:`prepare_source_image`; always use it on async paths."""
+    return await asyncio.to_thread(prepare_source_image, image_bytes, box=box, max_bytes=max_bytes)

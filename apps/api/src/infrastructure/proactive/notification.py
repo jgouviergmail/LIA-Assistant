@@ -116,13 +116,15 @@ async def send_notification_to_channels(
     body: str,
     task_type: str,
     target_id: str,
-    db: AsyncSession,
 ) -> int:
     """
     Send notification to all active external channels (Telegram, etc.) for a user.
 
     This is the single entry point for channel dispatch, used by both
-    NotificationDispatcher (proactive tasks) and reminder_notification.
+    NotificationDispatcher (proactive tasks) and reminder_notification. The
+    bindings are read in a session of their own, closed before any channel is
+    called (ADR-304): it used to read them on its caller's session and keep
+    that transaction open for every message sent.
 
     Args:
         user_id: User UUID
@@ -130,15 +132,15 @@ async def send_notification_to_channels(
         body: Full notification body (channel senders handle splitting)
         task_type: Task type for data payload (e.g., "interest", "reminder")
         target_id: Target ID for tracking
-        db: Database session
 
     Returns:
         Number of successfully sent channel messages
     """
     from src.domains.channels.repository import UserChannelBindingRepository
+    from src.infrastructure.database.session import get_db_context
 
-    repo = UserChannelBindingRepository(db)
-    bindings = await repo.get_active_for_user(user_id)
+    async with get_db_context() as db:
+        bindings = await UserChannelBindingRepository(db).get_active_for_user(user_id)
 
     if not bindings:
         return 0
@@ -397,7 +399,6 @@ class NotificationDispatcher:
                     body=markdown_links_to_plain(content),
                     task_type=f"{PROACTIVE_MESSAGE_TYPE_PREFIX}{task_type}",
                     target_id=target_id,
-                    db=db,
                 )
                 result.channel_sent = channel_result
             except Exception as e:
@@ -553,7 +554,6 @@ class NotificationDispatcher:
         body: str,
         task_type: str,
         target_id: str,
-        db: AsyncSession,
     ) -> int:
         """Delegate to module-level send_notification_to_channels()."""
         return await send_notification_to_channels(
@@ -562,7 +562,6 @@ class NotificationDispatcher:
             body=body,
             task_type=task_type,
             target_id=target_id,
-            db=db,
         )
 
     async def _archive_message(

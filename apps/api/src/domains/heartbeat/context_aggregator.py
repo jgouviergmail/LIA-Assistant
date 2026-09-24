@@ -216,13 +216,14 @@ class ContextAggregator:
         # call. The names NOT in the registry (activity, the anti-redundancy
         # windows) are never gated — they say what was already sent.
         # `scoped=True` means the fetcher expects a DB session as its first
-        # argument (`_with_fresh_session` provides one); the other two manage
-        # their own session internally.
+        # argument (`_with_fresh_session` provides one); the others manage
+        # their own — the connector fetchers open through the shared door, which
+        # holds no session while the provider answers (ADR-304).
         common = (user_id, user, settings)
         specs: tuple[tuple[str, Any, tuple[Any, ...], bool], ...] = (
-            ("calendar", self._fetch_calendar, common, True),
-            ("tasks", self._fetch_tasks, common, True),
-            ("emails", self._fetch_emails, common, True),
+            ("calendar", self._fetch_calendar, common, False),
+            ("tasks", self._fetch_tasks, common, False),
+            ("emails", self._fetch_emails, common, False),
             ("weather", self._fetch_weather_with_changes, common, True),
             ("interests", self._fetch_interests, (user_id,), True),
             ("activity", self._fetch_activity, (user_id,), True),
@@ -455,7 +456,6 @@ class ContextAggregator:
 
     async def _fetch_calendar(
         self,
-        db: AsyncSession,
         user_id: UUID,
         user: Any,
         settings: Any,
@@ -477,7 +477,7 @@ class ContextAggregator:
         # Provider resolution, credentials, client and the deterministic
         # transport close all live in ``open_active_calendar`` (C8 leak class):
         # this surface, the briefing and the moment detector share one door.
-        async with open_active_calendar(db, user_id) as access:
+        async with open_active_calendar(user_id) as access:
             if not isinstance(access, CalendarAccess):
                 return None
 
@@ -523,81 +523,59 @@ class ContextAggregator:
 
     async def _fetch_tasks(
         self,
-        db: AsyncSession,
         user_id: UUID,
         user: Any,
         settings: Any,
     ) -> list[dict[str, Any]] | None:
         """Fetch pending and overdue tasks from the active provider.
 
-        Uses dynamic provider resolution to support both Google Tasks and
-        Microsoft To Do. Resolves the user's preferred default task list
-        from connector preferences.
+        Opens through the shared door (Google Tasks or Microsoft To Do), with
+        the owner's preferred task list read in the same short session.
 
         Returns:
             List of task dicts or None if unavailable.
         """
-        from src.domains.connectors.clients.registry import ClientRegistry
-        from src.domains.connectors.preferences.owner_defaults import resolve_owner_task_list_id
-        from src.domains.connectors.provider_resolver import resolve_active_connector
+        from src.domains.connectors.active_client import ActiveClient, open_active_client
+        from src.domains.connectors.preferences.owner_defaults import (
+            TASK_LIST,
+            resolve_owner_container_id,
+        )
 
-        connector_service = ConnectorService(db)
-
-        # Dynamically resolve the active tasks provider (Google or Microsoft)
-        resolved_type = await resolve_active_connector(user_id, "tasks", connector_service)
-        if resolved_type is None:
-            return None
-
-        # Get credentials
-        credentials = await connector_service.get_connector_credentials(user_id, resolved_type)
-        if not credentials:
-            return None
-
-        # Instantiate the appropriate client
-        client_class = ClientRegistry.get_client_class(resolved_type)
-        if client_class is None:
-            return None
-        client = client_class(user_id, credentials, connector_service)
-        try:
-
-            # Same shared resolver for the user's preferred task list.
-            task_list_id = await resolve_owner_task_list_id(
-                db=db, client=client, owner_id=user_id, connector_type=resolved_type
+        async with open_active_client("tasks", user_id, container=TASK_LIST) as opened:
+            if not isinstance(opened, ActiveClient):
+                return None
+            task_list_id = await resolve_owner_container_id(
+                client=opened.client,
+                name=opened.preferred_name,
+                owner_id=user_id,
+                container=TASK_LIST,
             )
-
-            days = settings.heartbeat_context_tasks_days
             now = datetime.now(UTC)
             # RFC 3339 timestamp for due_max filter.
-            due_max = (now + timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
-
-            result = await client.list_tasks(
+            due_max = (now + timedelta(days=settings.heartbeat_context_tasks_days)).strftime(
+                "%Y-%m-%dT%H:%M:%SZ"
+            )
+            result = await opened.client.list_tasks(
                 task_list_id=task_list_id,
                 max_results=10,
                 show_completed=False,
                 due_max=due_max,
             )
-
-            tasks = result.get("items", [])
-            if not tasks:
-                return None
-
-            # Extract minimal task data for the prompt, flag overdue tasks.
-            # Both Google Tasks and Microsoft To Do normalizers return "due" as
-            # RFC 3339 and "status" as "needsAction"/"completed" (normalized).
-            # Due dates are conceptually dates (not datetimes) — extract date only.
-            return [
-                {
-                    "title": t.get("title", "Untitled"),
-                    "due": _extract_due_date(t.get("due")),
-                    "overdue": self._is_task_overdue(t, now),
-                }
-                for t in tasks
-                if t.get("status") == "needsAction"
-            ]
-        finally:
-            # Deterministic transport close every cycle (C8 leak class;
-            # same doctrine as briefing/fetchers and person_tools).
-            await client.close()
+        tasks = result.get("items", [])
+        if not tasks:
+            return None
+        # Minimal task data for the prompt, overdue flagged. Both providers'
+        # normalizers return "due" as RFC 3339 and "status" as
+        # "needsAction"/"completed"; a due date is a date — date part only.
+        return [
+            {
+                "title": t.get("title", "Untitled"),
+                "due": _extract_due_date(t.get("due")),
+                "overdue": self._is_task_overdue(t, now),
+            }
+            for t in tasks
+            if t.get("status") == "needsAction"
+        ]
 
     @staticmethod
     def _is_task_overdue(task: dict[str, Any], now: datetime) -> bool:
@@ -675,6 +653,9 @@ class ContextAggregator:
         # Fetch current + forecast + city (reverse geocode) in parallel
         from src.domains.heartbeat.geocoding import resolve_city_name
 
+        # The key and the location are read; end their transaction before the
+        # three provider calls, so no pooled connection waits on them (ADR-304).
+        await db.commit()
         try:
             results = await asyncio.gather(
                 client.get_current_weather(lat=lat, lon=lon, units="metric"),
@@ -723,17 +704,15 @@ class ContextAggregator:
 
     async def _fetch_emails(
         self,
-        db: AsyncSession,
         user_id: UUID,
         user: Any,
         settings: Any,
     ) -> list[dict[str, str]] | None:
         """Fetch today's unread inbox emails from the active provider.
 
-        Uses dynamic provider resolution to support Google Gmail,
-        Apple Email, and Microsoft Outlook. Only returns emails received
-        today (user's local date). Returns minimal metadata (from,
-        subject, date, snippet) for the LLM decision prompt.
+        Opens through the shared door (Google Gmail, Apple Email, Microsoft
+        Outlook). Only returns emails received today (user's local date), as
+        minimal metadata (from, subject, date, snippet) for the decision prompt.
 
         All three providers return normalized messages with top-level
         from/subject/snippet/internalDate fields. Apple's search_emails
@@ -743,104 +722,85 @@ class ContextAggregator:
         Returns:
             List of email summary dicts or None if unavailable.
         """
-        from src.domains.connectors.clients.registry import ClientRegistry
-        from src.domains.connectors.provider_resolver import resolve_active_connector
+        from src.domains.connectors.active_client import ActiveClient, open_active_client
 
-        connector_service = ConnectorService(db)
-
-        # Dynamically resolve the active email provider
-        resolved_type = await resolve_active_connector(user_id, "email", connector_service)
-        if resolved_type is None:
-            return None
-
-        # Get credentials based on provider type
-        credentials: Any = None
-        if resolved_type.is_apple:
-            credentials = await connector_service.get_apple_credentials(user_id, resolved_type)
-        else:
-            credentials = await connector_service.get_connector_credentials(user_id, resolved_type)
-        if not credentials:
-            return None
-
-        # Instantiate the appropriate client
-        client_class = ClientRegistry.get_client_class(resolved_type)
-        if client_class is None:
-            return None
-        client = client_class(user_id, credentials, connector_service)
-        try:
-
-            max_emails = settings.heartbeat_context_emails_max
-
-            # Delta fast-path (lot G, 2026-08): Gmail's history.list gives the
-            # EXACT new INBOX mail since the last tick (anchored in Redis).
-            # None => legacy query path (first run, other provider, expired
-            # anchor, Redis down) — always fail-open. Id-only entries: the
-            # fetch loop below resolves full messages.
-            from src.domains.heartbeat.wake_context import wake_or_delta_messages
-
-            user_tz = _resolve_user_tz(user)
-            # ADR-261: a push wake carries the delta the sweep already read.
-            messages = await wake_or_delta_messages(self._wake, client, user_id, max_emails)
-            if messages is None:
-                # Filter to today's unread emails only (user's local date).
-                # Gmail-style `after:` uses the date as a lower bound (inclusive).
-                today_str = datetime.now(user_tz).strftime("%Y/%m/%d")
-
-                # All providers accept Gmail-style query syntax (normalized internally)
-                result = await client.search_emails(
-                    query=f"is:unread after:{today_str}",
-                    max_results=max_emails,
-                    use_cache=True,
-                )
-                messages = result.get("messages", [])
-            if not messages:
+        async with open_active_client("email", user_id) as opened:
+            if not isinstance(opened, ActiveClient):
                 return None
+            return await self._email_summaries(opened.client, user_id, user, settings)
 
-            # For providers that return only IDs (Apple), fetch full messages.
-            # Apple's search_emails caches full messages in Redis, so get_message
-            # is a cache hit — no extra IMAP round-trips.
-            full_messages = []
-            for msg in messages:
-                if set(msg.keys()) <= {"id", "threadId"}:
-                    try:
-                        full_msg = await client.get_message(
-                            msg["id"], format=GMAIL_FORMAT_METADATA, use_cache=True
-                        )
-                        if full_msg:
-                            full_messages.append(full_msg)
-                    except Exception:
-                        logger.debug(
-                            "heartbeat_email_fetch_message_failed",
-                            message_id=msg.get("id"),
-                            user_id=str(user_id),
-                        )
-                else:
-                    full_messages.append(msg)
+    async def _email_summaries(
+        self, client: Any, user_id: UUID, user: Any, settings: Any
+    ) -> list[dict[str, str]] | None:
+        """Today's unread mail of an open client, as prompt-sized summaries."""
+        max_emails = settings.heartbeat_context_emails_max
 
-            if not full_messages:
-                return None
+        # Delta fast-path (lot G, 2026-08): Gmail's history.list gives the
+        # EXACT new INBOX mail since the last tick (anchored in Redis).
+        # None => legacy query path (first run, other provider, expired
+        # anchor, Redis down) — always fail-open. Id-only entries: the
+        # fetch loop below resolves full messages.
+        from src.domains.heartbeat.wake_context import wake_or_delta_messages
 
-            # Extract minimal email data for the prompt.
-            # All providers now return top-level from/subject/snippet/internalDate:
-            # - Google: normalized in GoogleGmailClient._normalize_message_fields()
-            # - Apple: normalized in normalize_imap_message()
-            # - Microsoft: normalized in normalize_graph_message()
-            emails = []
-            for msg in full_messages:
-                emails.append(
-                    {
-                        "from": msg.get("from", ""),
-                        "subject": msg.get("subject", ""),
-                        "date": self._format_email_date(msg.get("internalDate"), user_tz),
-                        "snippet": msg.get("snippet", ""),
-                    }
-                )
+        user_tz = _resolve_user_tz(user)
+        # ADR-261: a push wake carries the delta the sweep already read.
+        messages = await wake_or_delta_messages(self._wake, client, user_id, max_emails)
+        if messages is None:
+            # Filter to today's unread emails only (user's local date).
+            # Gmail-style `after:` uses the date as a lower bound (inclusive).
+            today_str = datetime.now(user_tz).strftime("%Y/%m/%d")
 
-            return emails if emails else None
-        finally:
-            # Deterministic transport close every cycle (C8 leak class;
-            # same doctrine as briefing/fetchers and person_tools).
-            await client.close()
+            # All providers accept Gmail-style query syntax (normalized internally)
+            result = await client.search_emails(
+                query=f"is:unread after:{today_str}",
+                max_results=max_emails,
+                use_cache=True,
+            )
+            messages = result.get("messages", [])
+        if not messages:
+            return None
+
+        # For providers that return only IDs (Apple), fetch full messages.
+        # Apple's search_emails caches full messages in Redis, so get_message
+        # is a cache hit — no extra IMAP round-trips.
+        full_messages = []
+        for msg in messages:
+            if set(msg.keys()) <= {"id", "threadId"}:
+                try:
+                    full_msg = await client.get_message(
+                        msg["id"], format=GMAIL_FORMAT_METADATA, use_cache=True
+                    )
+                    if full_msg:
+                        full_messages.append(full_msg)
+                except Exception:
+                    logger.debug(
+                        "heartbeat_email_fetch_message_failed",
+                        message_id=msg.get("id"),
+                        user_id=str(user_id),
+                    )
+            else:
+                full_messages.append(msg)
+
+        if not full_messages:
+            return None
+
+        # Extract minimal email data for the prompt.
+        # All providers now return top-level from/subject/snippet/internalDate:
+        # - Google: normalized in GoogleGmailClient._normalize_message_fields()
+        # - Apple: normalized in normalize_imap_message()
+        # - Microsoft: normalized in normalize_graph_message()
+        emails = []
+        for msg in full_messages:
+            emails.append(
+                {
+                    "from": msg.get("from", ""),
+                    "subject": msg.get("subject", ""),
+                    "date": self._format_email_date(msg.get("internalDate"), user_tz),
+                    "snippet": msg.get("snippet", ""),
+                }
+            )
+
+        return emails if emails else None
 
     @staticmethod
     def _format_email_date(

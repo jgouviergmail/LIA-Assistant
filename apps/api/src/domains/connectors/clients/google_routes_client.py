@@ -21,6 +21,7 @@ Features:
 """
 
 import json
+from collections.abc import Mapping
 from enum import Enum
 from typing import Any
 from uuid import UUID
@@ -181,6 +182,77 @@ def _normalize_departure_time(departure_time: str | None) -> str | None:
             departure_time = departure_time + "Z"
 
     return departure_time
+
+
+# =============================================================================
+# BILLING SKU
+# =============================================================================
+
+#: The SKU tier a Routes request -- or a Route Matrix element -- is billed at,
+#: as the suffix of the endpoint the call is filed under: each tier has its own
+#: ``google_api_pricing`` row. Essentials is the bare endpoint.
+ROUTES_SKU_ESSENTIALS = ""
+ROUTES_SKU_PRO = ":pro"
+ROUTES_SKU_ENTERPRISE = ":enterprise"
+ROUTES_SKU_SUFFIXES: tuple[str, ...] = (
+    ROUTES_SKU_ESSENTIALS,
+    ROUTES_SKU_PRO,
+    ROUTES_SKU_ENTERPRISE,
+)
+
+#: The triggers of developers.google.com/maps/billing-and-pricing/sku-details
+#: (read 2026-09-23). Enterprise: two-wheeler routing, toll calculation, traffic
+#: on polylines. Pro: a traffic-aware preference, an optimised waypoint order,
+#: more than 10 intermediate waypoints, a location modifier.
+_ENTERPRISE_COMPUTATIONS = frozenset({"TOLLS", "TRAFFIC_ON_POLYLINE"})
+_TRAFFIC_AWARE_PREFERENCES = frozenset(
+    {RoutingPreference.TRAFFIC_AWARE.value, RoutingPreference.TRAFFIC_AWARE_OPTIMAL.value}
+)
+_ESSENTIALS_MAX_INTERMEDIATES = 10
+_LOCATION_MODIFIERS = ("vehicleStopover", "sideOfRoad")
+
+
+def _request_waypoints(body: Mapping[str, Any]) -> list[Mapping[str, Any]]:
+    """Every waypoint of a route or matrix request, wherever the request puts it."""
+    waypoints = [body.get("origin"), body.get("destination"), *(body.get("intermediates") or ())]
+    for side in ("origins", "destinations"):
+        waypoints.extend(entry.get("waypoint") for entry in body.get(side) or ())
+    return [waypoint for waypoint in waypoints if isinstance(waypoint, Mapping)]
+
+
+def _has_location_modifier(waypoint: Mapping[str, Any]) -> bool:
+    """Whether a waypoint asks for a stopover, a side of road or a heading."""
+    location = waypoint.get("location")
+    heading = location.get("heading") if isinstance(location, Mapping) else None
+    return heading is not None or any(waypoint.get(key) for key in _LOCATION_MODIFIERS)
+
+
+def routes_sku_suffix(body: Mapping[str, Any]) -> str:
+    """The SKU Google bills a Routes request at, as its tracked endpoint suffix.
+
+    Filed at the bare endpoint, every request cost the Essentials price: LIA's
+    default drive route asks for traffic-aware routing AND tolls, the
+    Enterprise tier at three times that price.
+
+    Args:
+        body: The JSON body sent to ``computeRoutes`` or ``computeRouteMatrix``.
+
+    Returns:
+        One of :data:`ROUTES_SKU_SUFFIXES`.
+    """
+    computations = set(body.get("extraComputations") or ())
+    if body.get("travelMode") == TravelMode.TWO_WHEELER.value or (
+        computations & _ENTERPRISE_COMPUTATIONS
+    ):
+        return ROUTES_SKU_ENTERPRISE
+    if (
+        body.get("routingPreference") in _TRAFFIC_AWARE_PREFERENCES
+        or body.get("optimizeWaypointOrder")
+        or len(body.get("intermediates") or ()) > _ESSENTIALS_MAX_INTERMEDIATES
+        or any(_has_location_modifier(waypoint) for waypoint in _request_waypoints(body))
+    ):
+        return ROUTES_SKU_PRO
+    return ROUTES_SKU_ESSENTIALS
 
 
 # =============================================================================
@@ -470,8 +542,11 @@ class GoogleRoutesClient:
 
             data = response.json()
 
-            # Track API call (always non-cached for Routes API)
-            track_google_api_call("routes", "/directions/v2:computeRoutes", cached=False)
+            # Track API call (always non-cached for Routes API), at the SKU
+            # the request's features trigger.
+            track_google_api_call(
+                "routes", f"/directions/v2:computeRoutes{routes_sku_suffix(body)}", cached=False
+            )
 
             # Check for empty routes (no route found)
             if not data.get("routes"):
@@ -603,9 +678,6 @@ class GoogleRoutesClient:
                     detail=f"Google Routes Matrix API error: {error_detail[:200]}",
                 )
 
-            # Track API call (always non-cached for Routes Matrix API)
-            track_google_api_call("routes", "/distanceMatrix/v2:computeRouteMatrix", cached=False)
-
             # Matrix API may return JSON array or streaming NDJSON
             response_text = response.text.strip()
             try:
@@ -625,6 +697,16 @@ class GoogleRoutesClient:
                                 "routes_matrix_ndjson_line_parse_failed",
                                 line_preview=line[:100],
                             )
+
+            # Google bills a matrix per element RETURNED, at the SKU the request
+            # triggers (always non-cached): filed once, it cost one element.
+            if results:
+                track_google_api_call(
+                    "routes",
+                    f"/distanceMatrix/v2:computeRouteMatrix{routes_sku_suffix(body)}",
+                    cached=False,
+                    units=len(results),
+                )
 
             logger.info(
                 "routes_matrix_api_success",

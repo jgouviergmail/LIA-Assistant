@@ -182,4 +182,10 @@ EXPOSE 8000 9091
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
 
 # Run with hot reload
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# --ws websockets-sansio: the legacy `websockets` implementation's keepalive
+# ping awaits a SHIELDED pong future; when a peer vanishes (a Live session
+# closed by the browser) nobody retrieves that future's exception and Python
+# logs « ConnectionClosedError: keepalive ping timeout » at ERROR for a normal
+# close. The sans-I/O implementation has no such future. One choice for every
+# launch (dev, dev image, prod image), held by tests/unit/test_serve_launcher.py.
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--ws", "websockets-sansio"]

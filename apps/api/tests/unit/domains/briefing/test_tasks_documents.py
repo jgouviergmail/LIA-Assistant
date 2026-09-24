@@ -6,9 +6,13 @@
 - Documents: latest modified Google Drive files (user arbitration: Drive
   source), pre-formatted local modification time + external link.
 
-Both fetchers own their provider client and must close it on every path.
+Tasks open through the shared door (``open_active_client``, whose own tests
+hold the no-session and always-closed contract); Documents read Drive's
+credentials in a session of their own and call Drive only once it is closed
+(ADR-304), closing the client on every path.
 """
 
+from contextlib import ExitStack, asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -23,6 +27,8 @@ from src.domains.briefing.exceptions import (
 )
 from src.domains.briefing.fetchers import fetch_documents, fetch_tasks
 from src.domains.briefing.schemas import DocumentsData, TasksData
+from src.domains.connectors.active_client import ActiveClient, ClientUnavailable
+from src.domains.connectors.preferences.owner_defaults import TASK_LIST
 
 TZ = ZoneInfo("Europe/Paris")
 
@@ -31,14 +37,20 @@ def _user():
     return SimpleNamespace(id=uuid4())
 
 
-def _db_ctx():
-    from contextlib import asynccontextmanager
+class _Units:
+    """A detached connector service counting the sessions it holds open."""
+
+    def __init__(self, service):
+        self.service = service
+        self.open = 0
 
     @asynccontextmanager
-    async def _ctx():
-        yield MagicMock()
-
-    return _ctx
+    async def unit_of_work(self):
+        self.open += 1
+        try:
+            yield self.service
+        finally:
+            self.open -= 1
 
 
 def _task(title: str, due_days_offset: int | None):
@@ -61,40 +73,36 @@ def _settings(**overrides):
 
 
 def _tasks_env(tasks, *, resolved=True):
-    """Patch context for fetch_tasks: provider resolution + client."""
+    """Patch context for fetch_tasks: the shared door + the list resolution."""
     client = MagicMock()
-    client.close = AsyncMock()
     client.list_tasks = AsyncMock(return_value={"items": tasks})
+    asked: list[tuple[str, object]] = []
 
-    connector_service = MagicMock()
-    connector_service.get_connector_credentials = AsyncMock(return_value=MagicMock())
+    @asynccontextmanager
+    async def _door(category, user_id, *, container=None):
+        asked.append((category, container))
+        yield (
+            ActiveClient(client=client, connector_type=MagicMock(), preferred_name="Perso")
+            if resolved
+            else ClientUnavailable.NO_CONNECTOR
+        )
 
-    repo = MagicMock()
-    repo.get_by_user_and_type = AsyncMock(return_value=None)
-
+    resolve = AsyncMock(return_value="list-perso")
     patches = [
-        patch("src.domains.briefing.fetchers.get_db_context", new=_db_ctx()),
-        patch("src.domains.briefing.fetchers.ConnectorService", return_value=connector_service),
+        patch("src.domains.connectors.active_client.open_active_client", _door),
         patch(
-            "src.domains.briefing.fetchers.resolve_active_connector",
-            AsyncMock(return_value=MagicMock(value="google_tasks") if resolved else None),
+            "src.domains.connectors.preferences.owner_defaults.resolve_owner_container_id",
+            resolve,
         ),
-        patch(
-            "src.domains.briefing.fetchers.ClientRegistry.get_client_class",
-            return_value=lambda *a, **k: client,
-        ),
-        patch("src.domains.connectors.repository.ConnectorRepository", return_value=repo),
         patch("src.domains.briefing.fetchers.settings", _settings()),
     ]
-    return client, patches
+    return SimpleNamespace(client=client, asked=asked, resolve=resolve), patches
 
 
 @pytest.mark.unit
 class TestFetchTasks:
     async def test_not_configured_without_provider(self):
         _, patches = _tasks_env([], resolved=False)
-        from contextlib import ExitStack
-
         with ExitStack() as stack:
             for p in patches:
                 stack.enter_context(p)
@@ -106,8 +114,6 @@ class TestFetchTasks:
         TIME (never 'overdue' just because 00:00 UTC passed)."""
         tasks = [_task("aujourd'hui", 0), _task("hier", -1), _task("demain", 1)]
         _, patches = _tasks_env(tasks)
-        from contextlib import ExitStack
-
         with ExitStack() as stack:
             for p in patches:
                 stack.enter_context(p)
@@ -125,8 +131,6 @@ class TestFetchTasks:
     async def test_sorted_overdue_first_then_due_ascending(self):
         tasks = [_task("j+2", 2), _task("j-3", -3), _task("j+1", 1), _task("j-1", -1)]
         _, patches = _tasks_env(tasks)
-        from contextlib import ExitStack
-
         with ExitStack() as stack:
             for p in patches:
                 stack.enter_context(p)
@@ -137,8 +141,6 @@ class TestFetchTasks:
     async def test_capped_to_settings_limit(self):
         tasks = [_task(f"t{i}", i) for i in range(8)]
         _, patches = _tasks_env(tasks)
-        from contextlib import ExitStack
-
         with ExitStack() as stack:
             for p in patches:
                 stack.enter_context(p)
@@ -146,24 +148,31 @@ class TestFetchTasks:
 
         assert len(data.items) == 5
 
-    async def test_client_closed_on_success_and_error(self):
-        client, patches = _tasks_env([_task("x", 1)])
-        from contextlib import ExitStack
-
+    async def test_reads_the_owners_preferred_list(self):
+        """The door is asked for the TASK LIST container, and the list read is
+        the one resolved from the owner's preferred name."""
+        env, patches = _tasks_env([_task("x", 1)])
+        user = _user()
         with ExitStack() as stack:
             for p in patches:
                 stack.enter_context(p)
-            await fetch_tasks(user=_user(), user_tz=TZ)
-        client.close.assert_awaited_once()
+            await fetch_tasks(user=user, user_tz=TZ)
 
-        client2, patches2 = _tasks_env([])
-        client2.list_tasks = AsyncMock(side_effect=RuntimeError("api down"))
+        assert env.asked == [("tasks", TASK_LIST)]
+        assert env.resolve.await_args.kwargs["name"] == "Perso"
+        assert env.resolve.await_args.kwargs["owner_id"] == user.id
+        assert env.client.list_tasks.await_args.kwargs["task_list_id"] == "list-perso"
+
+    async def test_http_failure_is_a_classified_access_error(self):
+        import httpx
+
+        env, patches = _tasks_env([])
+        env.client.list_tasks = AsyncMock(side_effect=httpx.ConnectError("boom"))
         with ExitStack() as stack:
-            for p in patches2:
+            for p in patches:
                 stack.enter_context(p)
-            with pytest.raises(RuntimeError):
+            with pytest.raises(ConnectorAccessError):
                 await fetch_tasks(user=_user(), user_tz=TZ)
-        client2.close.assert_awaited_once()
 
 
 def _documents_env(files, *, credentials=True):
@@ -175,10 +184,16 @@ def _documents_env(files, *, credentials=True):
     connector_service.get_connector_credentials = AsyncMock(
         return_value=MagicMock() if credentials else None
     )
+    units = _Units(connector_service)
 
+    async def _search(**_kwargs):
+        # The property ADR-304 is about: nothing held while Drive answers.
+        assert units.open == 0, "a session was still open while Drive was called"
+        return {"files": files}
+
+    client.search_files = AsyncMock(side_effect=_search)
     patches = [
-        patch("src.domains.briefing.fetchers.get_db_context", new=_db_ctx()),
-        patch("src.domains.briefing.fetchers.ConnectorService", return_value=connector_service),
+        patch("src.domains.briefing.fetchers.DetachedConnectorService", return_value=units),
         patch("src.domains.briefing.fetchers.GoogleDriveClient", return_value=client),
         patch("src.domains.briefing.fetchers.settings", _settings()),
     ]
@@ -189,8 +204,6 @@ def _documents_env(files, *, credentials=True):
 class TestFetchDocuments:
     async def test_not_configured_without_drive_credentials(self):
         _, patches = _documents_env([], credentials=False)
-        from contextlib import ExitStack
-
         with ExitStack() as stack:
             for p in patches:
                 stack.enter_context(p)
@@ -209,8 +222,6 @@ class TestFetchDocuments:
             }
         ]
         _, patches = _documents_env(files)
-        from contextlib import ExitStack
-
         with ExitStack() as stack:
             for p in patches:
                 stack.enter_context(p)
@@ -230,8 +241,6 @@ class TestFetchDocuments:
 
         client, patches = _documents_env([])
         client.search_files = AsyncMock(side_effect=httpx.ConnectError("boom"))
-        from contextlib import ExitStack
-
         with ExitStack() as stack:
             for p in patches:
                 stack.enter_context(p)

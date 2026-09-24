@@ -28,6 +28,7 @@ class _Result:
         self.tokens_in = tokens_in
         self.tokens_out = tokens_out
         self.tokens_cache = 0
+        self.tokens_cache_write = 0
         self.model_name = "gpt-5.6-luna"
 
 

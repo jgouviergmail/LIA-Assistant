@@ -44,6 +44,7 @@ from src.core.constants import (
 from src.core.security import encrypt_data
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import HueBridgeCredentials, HueConnectionMode
+from src.domains.connectors.session_scope import connector_unit_of_work
 from src.infrastructure.rate_limiting import RedisRateLimiter, get_rate_limiter
 from src.infrastructure.resilience import CircuitBreaker, CircuitBreakerError, get_circuit_breaker
 
@@ -164,7 +165,9 @@ class PhilipsHueClient:
         Args:
             user_id: User ID for logging and tracking.
             credentials: Hue credentials (decrypted HueBridgeCredentials).
-            connector_service: ConnectorService for token refresh (remote mode).
+            connector_service: Where the refreshed remote token is persisted:
+                the caller's ``ConnectorService`` or a ``DetachedConnectorService``
+                (``connectors/session_scope.py``, ADR-304).
         """
         self.user_id = user_id
         self.credentials = credentials
@@ -267,6 +270,17 @@ class PhilipsHueClient:
             )
         return self._http_client
 
+    async def close(self) -> None:
+        """Close the pooled transport, if one was opened.
+
+        Every other registered client closes its transport; this one had no
+        ``close`` at all, so each instance left its pooled httpx client open
+        (found by ``test_every_registered_client_can_be_closed``, ADR-304).
+        """
+        if self._http_client is not None:
+            await self._http_client.aclose()
+            self._http_client = None
+
     # =========================================================================
     # TOKEN REFRESH (Remote mode only)
     # =========================================================================
@@ -318,19 +332,22 @@ class PhilipsHueClient:
         # 3. Persist updated HueBridgeCredentials (all Hue-specific fields preserved)
         if self.connector_service:
             try:
-                connector = await self.connector_service.repository.get_by_user_and_type(
-                    self.user_id, ConnectorType.PHILIPS_HUE
-                )
-                if connector:
-                    connector.credentials_encrypted = encrypt_data(
-                        self.credentials.model_dump_json()
+                # Through the one seam that never closes a caller's session and
+                # can own one when the caller holds none (ADR-304).
+                async with connector_unit_of_work(self.connector_service) as service:
+                    connector = await service.repository.get_by_user_and_type(
+                        self.user_id, ConnectorType.PHILIPS_HUE
                     )
-                    await self.connector_service.db.commit()
-                    logger.info(
-                        "hue_remote_token_refresh_success",
-                        user_id=str(self.user_id),
-                        new_expires_at=str(self.credentials.expires_at),
-                    )
+                    if connector:
+                        connector.credentials_encrypted = encrypt_data(
+                            self.credentials.model_dump_json()
+                        )
+                        await service.db.commit()
+                        logger.info(
+                            "hue_remote_token_refresh_success",
+                            user_id=str(self.user_id),
+                            new_expires_at=str(self.credentials.expires_at),
+                        )
             except Exception as e:
                 logger.error(
                     "hue_remote_token_persist_failed",

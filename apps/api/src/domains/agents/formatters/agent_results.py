@@ -13,10 +13,20 @@ Usage:
     )
 """
 
+from collections.abc import Iterable
 from typing import Any
 
-from src.core.field_names import FIELD_REACT_SYNTHESIS, FIELD_STATUS
+from src.core.field_names import (
+    FIELD_FAILED_STEPS,
+    FIELD_REACT_SYNTHESIS,
+    FIELD_STATUS,
+    FIELD_SUCCESS,
+)
+from src.core.i18n import normalize_language
+from src.core.i18n_api_messages import APIMessages
 from src.core.i18n_hitl import HitlMessages
+from src.core.i18n_types import Language
+from src.domains.agents.constants import AgentResultStatus
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.profiling import profile_performance
 
@@ -67,101 +77,168 @@ def format_agent_results_for_prompt(
     return status_messages
 
 
+def _agent_name_for(composite_key: str, current_turn_id: int | None) -> str | None:
+    """The agent behind a composite key, or None when the entry is another turn's.
+
+    Args:
+        composite_key: ``"<turn_id>:<agent_name>"``, or a bare agent name.
+        current_turn_id: Keep only this turn's entries when given.
+
+    Returns:
+        The agent name, or None when the entry must be skipped. An unparseable
+        turn id is KEPT and logged: dropping an entry because its key is
+        malformed would lose what the tools said.
+    """
+    if ":" not in composite_key:
+        return composite_key
+    turn_id_str, agent_name = composite_key.split(":", 1)
+    if current_turn_id is None:
+        return agent_name
+    try:
+        belongs = int(turn_id_str) == current_turn_id
+    except ValueError:
+        logger.warning("invalid_turn_id_in_key", composite_key=composite_key)
+        return agent_name
+    return agent_name if belongs else None
+
+
+def _react_lines_of(result: dict[str, Any]) -> list[str] | None:
+    """What a ReAct entry states: the loop's answer, authoritative.
+
+    The loop hands its final answer through ``data["react_synthesis"]`` rather
+    than a status payload: the response model reformulates it instead of
+    rebuilding an answer from the raw registry. What the turn DID is stated by
+    its own directive, never here (ADR-263 §23): an act written as a data line
+    beside the answer read as somebody else's caption.
+
+    Args:
+        result: One agent result entry.
+
+    Returns:
+        The answer as one line (none when it is empty), or None when the entry
+        is not a ReAct one.
+    """
+    data = result.get("data")
+    if not isinstance(data, dict) or FIELD_REACT_SYNTHESIS not in data:
+        return None
+    synthesis = data.get(FIELD_REACT_SYNTHESIS)
+    return [str(synthesis)] if synthesis else []
+
+
+def _success_summaries(
+    *, agent_name: str, result: dict[str, Any], language: Language, composite_key: str
+) -> list[str]:
+    """What a SUCCESSFUL entry contributes to the response prompt.
+
+    A refusal the person expressed through HITL is reported as their decision;
+    otherwise the action confirmations are extracted, which a multi-step plan
+    needs even when some of its steps failed — those speak through the runtime
+    failures directive, never here (ADR-303).
+
+    Args:
+        agent_name: The agent behind the entry.
+        result: The entry.
+        language: Backend-canonical language for the fallback wording.
+        composite_key: For the debug trace only.
+
+    Returns:
+        Zero or more lines.
+    """
+    data = result.get("data")
+    if not isinstance(data, dict) or not data:
+        return []
+    if data.get("user_rejected"):
+        message = data.get("message", HitlMessages.get_user_refused_action(language))
+        return [f"🚫 {agent_name}: {message}"]
+    action_messages = _extract_action_success_messages(data)
+    if action_messages:
+        logger.debug(
+            "action_success_messages_extracted",
+            composite_key=composite_key,
+            messages_count=len(action_messages),
+        )
+    return action_messages
+
+
+def _error_summaries(*, agent_name: str, result: dict[str, Any], language: Language) -> list[str]:
+    """What a FAILED entry contributes — nothing when the directive states it.
+
+    A plan aggregate carrying ``failed_steps`` is stated by the runtime
+    failures directive, with each code and the exact total. One fact, one
+    channel (ADR-303).
+
+    Args:
+        agent_name: The agent behind the entry.
+        result: The entry.
+        language: Backend-canonical language.
+
+    Returns:
+        Zero or one line.
+    """
+    if result.get(FIELD_FAILED_STEPS):
+        return []
+    return [APIMessages.agent_error_line(agent_name, result.get("error"), language)]
+
+
 def _format_status_messages(
     agent_results: dict[str, Any],
     current_turn_id: int | None = None,
     user_language: str = "en",
 ) -> str:
-    """
-    Format status messages for agent results.
+    """Format status messages for agent results.
 
-    Handles:
-    - connector_disabled, error statuses → error messages
-    - user_rejected (HITL) → rejection messages
-    - action success (no registry data) → confirmation messages
-
-    NOTE: Data query successes (contacts, emails) are handled by {data_for_filtering},
-    but ACTION successes (reminders, send email) need their confirmation message
-    injected here so the LLM knows the action was completed.
+    Data query successes (contacts, emails) are handled by
+    ``{data_for_filtering}``; ACTION successes (reminders, sent mail) need
+    their confirmation injected here so the model knows what was done.
 
     Args:
-        agent_results: Dictionary of composite_key → AgentResult
-        current_turn_id: Filter by turn ID if specified
-        user_language: User's language code for the localized rejection
-            fallback message. Default: "en".
+        agent_results: Dictionary of composite_key → AgentResult.
+        current_turn_id: Filter by turn ID if specified.
+        user_language: The person's language code; normalised once here
+            because every i18n table below is keyed on the backend-canonical
+            spelling (CLAUDE.md, one chokepoint).
 
     Returns:
-        Formatted status messages string (or empty string if none)
+        Formatted status messages string (empty when there is nothing to say).
     """
     summaries: list[str] = []
+    language = normalize_language(user_language)
 
     for composite_key, result in agent_results.items():
-        # Parse composite key "turn_id:agent_name"
-        if ":" in composite_key:
-            turn_id_str, agent_name = composite_key.split(":", 1)
-
-            # Filter by turn if specified
-            if current_turn_id is not None:
-                try:
-                    if int(turn_id_str) != current_turn_id:
-                        continue
-                except ValueError:
-                    logger.warning("invalid_turn_id_in_key", composite_key=composite_key)
-        else:
-            agent_name = composite_key
-
-        # ADR-070 (ReAct mode): the autonomous ReAct loop hands its final answer to the
-        # response synthesizer via ``data["react_synthesis"]`` instead of a status/registry
-        # payload. Surface it here as the authoritative answer text so the response LLM
-        # reformulates it (with personality) rather than reconstructing one from the raw
-        # registry + conversation history — which leaks the agent's internal reasoning
-        # structure into the user-facing reply. Without this branch the entry has no
-        # ``status`` and falls through to the "Statut inconnu" message below, silently
-        # dropping the answer.
-        react_synthesis = None
-        react_data = result.get("data")
-        if isinstance(react_data, dict):
-            react_synthesis = react_data.get(FIELD_REACT_SYNTHESIS)
-        if react_synthesis:
-            summaries.append(str(react_synthesis))
+        agent_name = _agent_name_for(composite_key, current_turn_id)
+        if agent_name is None:
             continue
 
-        status = result.get(FIELD_STATUS, "unknown")
+        react_lines = _react_lines_of(result)
+        if react_lines is not None:
+            summaries.extend(react_lines)
+            continue
 
-        if status == "success":
-            # Check for user rejection (HITL)
-            data = result.get("data")
-            if data and isinstance(data, dict) and data.get("user_rejected"):
-                message = data.get("message", HitlMessages.get_user_refused_action(user_language))
-                summaries.append(f"🚫 {agent_name}: {message}")
-            # Check for ACTION success messages (reminders, send email, etc.)
-            # These have no registry_updates but contain a confirmation message
-            # that must be communicated to the LLM to avoid misleading responses.
-            #
-            # BugFix 2026-01-20: ALWAYS extract step messages, even when registry has items.
-            # In multi-step plans, some steps may succeed with registry (calendar)
-            # while others may fail (weather beyond forecast limit). The error messages
-            # from failing steps must be communicated to the LLM regardless of registry.
-            elif data and isinstance(data, dict):
-                action_messages = _extract_action_success_messages(data)
-                if action_messages:
-                    summaries.extend(action_messages)
-                    logger.debug(
-                        "action_success_messages_extracted",
-                        composite_key=composite_key,
-                        messages_count=len(action_messages),
-                    )
-
-        elif status == "connector_disabled":
-            error_msg = result.get("error", "Service non activé")
-            summaries.append(f"⚠️ {agent_name}: {error_msg}")
-
-        elif status == "error":
-            error_msg = result.get("error", "Erreur inconnue")
-            summaries.append(f"❌ {agent_name}: {error_msg}")
-
+        status = result.get(FIELD_STATUS)
+        if status == AgentResultStatus.SUCCESS.value:
+            summaries.extend(
+                _success_summaries(
+                    agent_name=agent_name,
+                    result=result,
+                    language=language,
+                    composite_key=composite_key,
+                )
+            )
+        elif status == AgentResultStatus.ERROR.value:
+            summaries.extend(
+                _error_summaries(agent_name=agent_name, result=result, language=language)
+            )
         else:
-            summaries.append(f"❓ {agent_name}: Statut inconnu ({status})")
+            # Unreachable by construction: AgentResult validates the Literal and
+            # the vocabulary guard pins every reader. Never a sentence the model
+            # could repeat to the person — an invented diagnosis is worse than
+            # silence (measured in production, 2026-09-17 and every other
+            # morning since 2026-09-10).
+            logger.warning(
+                "agent_result_status_unknown",
+                composite_key=composite_key,
+                status=str(status),
+            )
 
     return "\n".join(summaries)
 
@@ -193,81 +270,114 @@ def _wrap_subagent_analysis(*, analysis_text: str, expertise: str) -> str:
     )
 
 
-def _extract_action_success_messages(data: dict[str, Any]) -> list[str]:
-    """
-    Extract action success confirmation messages from result data.
+def _step_payload(item: dict[str, Any]) -> dict[str, Any]:
+    """The tool's own fields of one step result, whichever shape it arrived in.
 
-    Action tools (reminders, send email, etc.) return UnifiedToolOutput.action_success()
-    with a confirmation message that must be communicated to the LLM.
+    ``parallel_executor`` writes the whole ``UnifiedToolOutput`` envelope —
+    ``{"success", "data": <structured_data>, "message", …}`` — while a FOR_EACH
+    aggregate and the legacy paths hand the structured fields FLAT. Readers
+    looked only at the flat shape, so on the real pipeline payload every
+    action confirmation and every sub-agent analysis was dropped: measured
+    2026-09-22, a plan that created a reminder reached the response prompt
+    EMPTY (ADR-303).
 
-    The message can be in:
-    - data["step_results"][i]["result"] - from plan executor (str or list[str])
-    - data["aggregated_results"][i]["result"] - aggregated format (str or list[str])
-    - data["message"] - direct message field
-
-    Special case: ``delegate_to_sub_agent_tool`` results carry
-    ``type == "sub_agent_analysis"`` and an ``analysis`` field with the FULL
-    expert text (the ``result``/``message`` field is the 200-char truncated
-    summary). For these, this function wraps the full ``analysis`` with a
-    deterministic ``<SubAgentAnalysis>`` tag (see ``_wrap_subagent_analysis``)
-    so the response_node can detect it without an LLM heuristic.
-
-    BugFix 2026-01-22: FOR_EACH aggregation now collects all "result" strings into a list.
-    This function handles both str and list[str] for the "result" field.
+    The envelope's ``message`` is merged in as ``result`` when the structured
+    data names none, because that is the only place an action's words live for
+    a tool that returns no ``result`` key.
 
     Args:
-        data: Result data dict from agent execution
+        item: One entry of ``step_results`` / ``aggregated_results``.
 
     Returns:
-        List of action confirmation messages (e.g., ["🔔 Rappel créé pour..."]).
-        Sub-agent analyses are returned wrapped in ``<SubAgentAnalysis>`` tags.
+        The tool's fields, flat. Never the envelope's bookkeeping keys.
+    """
+    nested = item.get("data")
+    if not isinstance(nested, dict):
+        return item
+    payload = {**nested}
+    if "result" not in payload and item.get("message"):
+        payload["result"] = item["message"]
+    return payload
+
+
+def _append_unique(messages: list[str], candidates: Iterable[str]) -> None:
+    """Append what is not already there, order preserved.
+
+    Args:
+        messages: The accumulator, mutated in place.
+        candidates: Words to add; empty ones and duplicates are dropped.
+    """
+    for candidate in candidates:
+        if candidate and candidate not in messages:
+            messages.append(candidate)
+
+
+def _step_messages(item: dict[str, Any]) -> list[str]:
+    """The words ONE step contributes to the response prompt.
+
+    A sub-agent analysis REPLACES the regular extraction rather than adding to
+    it: its ``result`` is a 200-character summary of the very text being
+    wrapped, so appending both would say the same thing twice. The wrapping is
+    a deterministic tag (``<SubAgentAnalysis>``) set from a signal the tool
+    itself publishes, never a heuristic over length or markdown.
+
+    Args:
+        item: One step payload, already flattened by ``_step_payload``.
+
+    Returns:
+        Zero, one or several confirmation messages, in the order the tool
+        produced them (a FOR_EACH aggregation carries a list).
+    """
+    if item.get("type") == "sub_agent_analysis" and item.get("analysis"):
+        return [
+            _wrap_subagent_analysis(
+                analysis_text=str(item["analysis"]),
+                expertise=str(item.get("expertise") or "expert"),
+            )
+        ]
+    # UnifiedToolOutput.action_success stores the confirmation under "result";
+    # a FOR_EACH aggregation stores one per iteration.
+    result_msg = item.get("result")
+    if isinstance(result_msg, str):
+        return [result_msg]
+    if isinstance(result_msg, list):
+        return [msg for msg in result_msg if isinstance(msg, str)]
+    return []
+
+
+def _extract_action_success_messages(data: dict[str, Any]) -> list[str]:
+    """Action confirmation messages carried by a result payload.
+
+    Action tools (reminders, send email, …) return
+    ``UnifiedToolOutput.action_success()`` with a confirmation the model must
+    be able to restitute. It can live in ``step_results``/``aggregated_results``
+    entries or directly under ``message``.
+
+    Args:
+        data: Result data dict from agent execution.
+
+    Returns:
+        The confirmations, deduplicated, in encounter order. Sub-agent
+        analyses come back wrapped in ``<SubAgentAnalysis>`` tags.
     """
     messages: list[str] = []
 
-    # Check step_results and aggregated_results (from plan_executor mapping)
     for key in ("step_results", "aggregated_results"):
         results_list = data.get(key, [])
         if not isinstance(results_list, list):
             continue
-        for item in results_list:
-            if not isinstance(item, dict):
+        for raw_item in results_list:
+            if not isinstance(raw_item, dict):
                 continue
-
-            # Sub-agent analysis detection (deterministic signal — set by
-            # `delegate_to_sub_agent_tool` via `UnifiedToolOutput.action_success(
-            # structured_data={"type": "sub_agent_analysis", "analysis": ...,
-            # "expertise": ...})`). Wrapping with a dedicated tag lets the
-            # response_node restitute the full analysis verbatim without
-            # relying on heuristics over length / markdown structure / voice.
-            if item.get("type") == "sub_agent_analysis" and item.get("analysis"):
-                wrapped = _wrap_subagent_analysis(
-                    analysis_text=str(item["analysis"]),
-                    expertise=str(item.get("expertise") or "expert"),
-                )
-                if wrapped not in messages:
-                    messages.append(wrapped)
-                # Skip the regular `result` extraction below — the truncated
-                # summary would otherwise be appended in addition to the full
-                # wrapped analysis (duplication).
+            if raw_item.get(FIELD_SUCCESS) is False:
+                # A failed step speaks through the runtime failures directive,
+                # never here: its ``message`` is the error text, and reading it
+                # as a confirmation is how « échec » became « fait » (ADR-303).
                 continue
+            _append_unique(messages, _step_messages(_step_payload(raw_item)))
 
-            # UnifiedToolOutput.action_success stores message in "result" key
-            # BugFix 2026-01-22: FOR_EACH aggregation may return list[str]
-            result_msg = item.get("result")
-            if result_msg:
-                if isinstance(result_msg, str):
-                    # Single message (non-FOR_EACH or single iteration)
-                    if result_msg not in messages:
-                        messages.append(result_msg)
-                elif isinstance(result_msg, list):
-                    # Multiple messages from FOR_EACH aggregation
-                    for msg in result_msg:
-                        if isinstance(msg, str) and msg not in messages:
-                            messages.append(msg)
-
-    # Check direct message field (fallback)
     direct_msg = data.get("message")
-    if direct_msg and isinstance(direct_msg, str) and direct_msg not in messages:
-        messages.append(direct_msg)
+    if isinstance(direct_msg, str):
+        _append_unique(messages, [direct_msg])
 
     return messages

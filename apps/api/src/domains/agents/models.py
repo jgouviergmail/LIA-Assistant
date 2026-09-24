@@ -579,6 +579,9 @@ class MessagesState(TypedDict):
     # ADR-170: HMAC digest → count of identical tool requests within the turn.
     # Only the digest is stored: never the tool name, never the arguments.
     react_call_digests: dict[str, int]
+    # ADR-310: the recovery passes of this turn, one record per pass — the id of
+    # the draft's predecessor, the draft (removed from the thread) and its gaps.
+    react_recovery_passes: list[dict[str, Any]]
 
 
 class AgentMessagesState(TypedDict):

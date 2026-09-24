@@ -31,6 +31,7 @@ import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.client_ip import resolve_client_ip
 from src.domains.system_settings.models import SystemSetting, SystemSettingKey
 from src.domains.system_settings.registry import (
     get_setting_spec,
@@ -138,7 +139,7 @@ async def write_setting(
                 "new_value": new_value,
                 "change_reason": change_reason,
             },
-            ip_address=request.client.host if request.client else None,
+            ip_address=resolve_client_ip(request),
             user_agent=request.headers.get("user-agent"),
         )
     )

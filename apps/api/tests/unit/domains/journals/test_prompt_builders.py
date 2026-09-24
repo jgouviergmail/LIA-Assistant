@@ -6,8 +6,9 @@ the runtime renders. These tests pin the two properties that guarantee it:
 1. Every placeholder of the shipped templates is filled — a leftover ``{name}``
    reaches the model as literal text, and a missing key raises at runtime, in a
    fire-and-forget background task where it degrades into a silent no-op.
-2. The persona is appended to both prompts, with the personality code
-   substituted and a safe fallback when there is none.
+2. The persona reaches both prompts, with the personality code substituted and
+   a safe fallback when there is none — in the extraction prompt's FIXED part,
+   above its dynamic-context boundary (ADR-309).
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ import re
 
 import pytest
 
+from src.core.prompt_layout import single_call_messages, split_at_marker
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.journals.prompt_builders import (
     build_consolidation_prompt,
@@ -85,8 +87,8 @@ class TestIntrospectionPrompt:
         assert "USER: bonjour" in prompt
         assert "fr" in prompt
 
-    def test_appends_the_persona_with_the_personality_code(self) -> None:
-        """The analyst persona is appended and carries the active code."""
+    def test_carries_the_persona_with_the_personality_code(self) -> None:
+        """The analyst persona is there and carries the active code."""
         prompt = build_introspection_prompt(personality_code="cynic", **INTROSPECTION_FIELDS)  # type: ignore[arg-type]
         assert "ANALYST PERSONA" in prompt
         assert "cynic" in prompt
@@ -106,13 +108,60 @@ class TestIntrospectionPrompt:
         prompt = render_introspection_prompt(
             "CANDIDATE {conversation} / {user_language} / {current_chars} / {max_chars} / "
             "{size_warning}{existing_entries}{max_entry_chars}{health_context}"
-            "{inner_state_section}{previous_turn_directives_section}",
+            "{inner_state_section}{previous_turn_directives_section}{analyst_persona}",
             str(load_prompt("journal_analyst_persona")),
             personality_code=None,
             **INTROSPECTION_FIELDS,  # type: ignore[arg-type]
         )
         assert prompt.startswith("CANDIDATE USER: bonjour")
         assert "ANALYST PERSONA" in prompt
+
+    def test_a_template_that_does_not_place_the_persona_is_refused(self) -> None:
+        """``str.format`` would drop the persona in silence, and a harness run would
+        measure a prompt production never sends."""
+        with pytest.raises(ValueError, match="analyst_persona"):
+            render_introspection_prompt(
+                "CANDIDATE {conversation}",
+                str(load_prompt("journal_analyst_persona")),
+                personality_code=None,
+                **INTROSPECTION_FIELDS,  # type: ignore[arg-type]
+            )
+
+
+class TestIntrospectionLayout:
+    """ADR-309: the extraction runs on every turn, so its rules and persona are
+    one fixed part a provider's prompt cache reads again, and the turn's data
+    follows the boundary."""
+
+    def _prompt(self, **overrides: object) -> str:
+        return build_introspection_prompt(  # type: ignore[arg-type]
+            personality_code="cynic", **{**INTROSPECTION_FIELDS, **overrides}
+        )
+
+    def test_the_rules_and_the_persona_precede_the_boundary(self) -> None:
+        split = split_at_marker(self._prompt())
+        assert split is not None
+        assert "SECTION 1" in split.static and "OUTPUT FORMAT" in split.static
+        assert "ANALYST PERSONA" in split.static and "cynic" in split.static
+
+    def test_the_turn_data_follows_the_boundary(self) -> None:
+        split = split_at_marker(self._prompt(size_warning="SIZE-WARNING-7"))
+        assert split is not None
+        assert "USER: bonjour" in split.dynamic and "No existing entries yet." in split.dynamic
+        assert "SIZE-WARNING-7" in split.dynamic and "USER: bonjour" not in split.static
+
+    def test_two_turns_share_the_fixed_part(self) -> None:
+        first = split_at_marker(self._prompt())
+        second = split_at_marker(
+            self._prompt(conversation="USER: autre chose", current_chars=999, user_language="en")
+        )
+        assert first is not None and second is not None
+        assert first.static == second.static
+
+    def test_the_call_sends_the_fixed_part_as_the_system_message(self) -> None:
+        system, question = single_call_messages(self._prompt())
+        assert system.type == "system" and "ANALYST PERSONA" in str(system.content)
+        assert question.type == "human" and "USER: bonjour" in str(question.content)
 
 
 class TestConsolidationPrompt:

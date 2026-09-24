@@ -23,6 +23,7 @@ from src.core.exceptions import (
 )
 from src.core.session_dependencies import get_current_active_session
 from src.domains.users.models import User
+from src.infrastructure.utils.bounded_read import BodyTooLargeError, read_bounded
 
 logger = structlog.get_logger(__name__)
 
@@ -54,33 +55,6 @@ def _is_allowed_image_url(candidate: str) -> bool:
     """
     parsed = urlparse(candidate)
     return parsed.scheme == "https" and parsed.hostname in ALLOWED_IMAGE_DOMAINS
-
-
-async def _read_bounded(response: httpx.Response) -> bytes:
-    """Read a streamed response, refusing to exceed ``PROFILE_IMAGE_MAX_BYTES``.
-
-    ``response.content`` would buffer whatever the remote sends. The host is
-    allowlisted, but "trusted not to be malicious" is not "trusted to be
-    finite" — a mis-served endpoint answering with a huge body would otherwise
-    land entirely in the API's memory.
-
-    Args:
-        response: An open streaming response.
-
-    Returns:
-        The body bytes.
-
-    Raises:
-        BaseAPIException: 400 when the body exceeds the ceiling.
-    """
-    chunks: list[bytes] = []
-    total = 0
-    async for chunk in response.aiter_bytes():
-        total += len(chunk)
-        if total > PROFILE_IMAGE_MAX_BYTES:
-            raise_invalid_input("Image too large", max_bytes=PROFILE_IMAGE_MAX_BYTES)
-        chunks.append(chunk)
-    return b"".join(chunks)
 
 
 async def _fetch_image_following_redirects(
@@ -146,7 +120,10 @@ async def _fetch_image_following_redirects(
                     "google_profile_image", "image", response.status_code
                 )
 
-            return response, await _read_bounded(response)
+            try:
+                return response, await read_bounded(response, PROFILE_IMAGE_MAX_BYTES)
+            except BodyTooLargeError:
+                raise_invalid_input("Image too large", max_bytes=PROFILE_IMAGE_MAX_BYTES)
 
     logger.warning(
         "profile_image_proxy_too_many_redirects",

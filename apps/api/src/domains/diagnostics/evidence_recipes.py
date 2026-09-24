@@ -213,6 +213,16 @@ EVIDENCE_RECIPES: dict[str, EvidenceRecipe] = {
                 events=("recurrence_record_scheduling_failed", "recurrence_record_failed"),
             ),
         ),
+        # ---- push wakes (ADR-261, ADR-304) ------------------------------
+        # Wakes queued and none served: the sweep does not run. Its own log
+        # says whether a wake timed out, failed, or was never served at all.
+        EvidenceRecipe(
+            "PushWakeSweepStalled",
+            prom_queries=("push_wakes_queued_and_served", "background_job_errors"),
+            logs=LogRecipe(
+                events=("push_wake_timed_out", "push_wake_failed", "push_wake_served"),
+            ),
+        ),
         # ---- sandbox egress (ADR-298) -----------------------------------
         # The proxy is the only door a network sandbox run has: down, every
         # such run is refused (counted proxy_unavailable) and the model is told

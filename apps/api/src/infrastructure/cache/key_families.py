@@ -88,6 +88,9 @@ KEY_FAMILIES: dict[str, KeyScope] = {
     # let every other worker start the same work again — the opposite of
     # what the claim is for. It expires on its own.
     "shared_flight": KeyScope.USER_RUNTIME,
+    # ADR-304: consecutive truncated Drive push drains — a circuit breaker's
+    # state, not a cache (``rag`` is): a reset must not re-arm the breaker.
+    "rag:drive_push": KeyScope.USER_RUNTIME,
     # ADR-298: the live network sandbox runs and the ruleset writer's claim —
     # keyed by run id, shared by every worker, never a person's data.
     "sandbox_egress": KeyScope.GLOBAL,

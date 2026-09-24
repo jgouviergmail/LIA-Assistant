@@ -18,6 +18,7 @@ import pytest
 from langchain.tools import ToolRuntime
 
 from src.domains.agents.tools.base import APIKeyConnectorTool, ConnectorTool
+from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import ConnectorCredentials
 from tests.helpers.runtime_context import make_tool_runtime
@@ -207,3 +208,55 @@ class TestGlobalKeyMix:
 
         assert "_FakeOwmClient" in str(result)
         service.get_connector_credentials.assert_awaited_once()
+
+
+class _PlacesProbeTool(ConnectorTool[Any]):
+    """A keyless platform-key tool (the Places shape)."""
+
+    connector_type = ConnectorType.GOOGLE_PLACES
+    client_class = _FakeGoogleWeatherClient
+    uses_global_api_key = True
+
+    def __init__(self) -> None:
+        super().__init__(tool_name="places_probe_tool", operation="read")
+
+    async def execute_api_call(self, client: Any, user_id: UUID, **kwargs: Any) -> dict[str, Any]:
+        return {"client": type(client).__name__}
+
+    def format_response(self, result: dict[str, Any]) -> str:
+        return json.dumps(result)
+
+
+class TestKeylessServiceWithheldByTheInstance:
+    """ADR-307: a keyless service has no switch in the settings, so the error
+    must not send the person there — the instance withholds it."""
+
+    def _assert_instance_error(self, result: Any) -> None:
+        assert result.success is False
+        assert result.error_code == ToolErrorCode.CONFIGURATION_ERROR
+        assert "instance" in result.message
+        assert "Settings" not in result.message
+
+    async def test_a_keyless_connector_tool_reports_the_instance(self) -> None:
+        service = MagicMock()
+        service.is_connector_active = AsyncMock(return_value=False)
+
+        with patch("src.domains.agents.tools.base.get_dependencies", return_value=_deps(service)):
+            result = await _PlacesProbeTool().execute(_runtime(str(uuid4())))
+
+        self._assert_instance_error(result)
+
+    async def test_the_weather_default_withheld_reports_the_instance(self) -> None:
+        service = MagicMock()
+        service.is_connector_active = AsyncMock(return_value=False)
+
+        with (
+            patch(
+                "src.domains.connectors.provider_resolver.resolve_active_connector",
+                new=AsyncMock(return_value=ConnectorType.GOOGLE_WEATHER),
+            ),
+            patch("src.domains.agents.tools.base.get_dependencies", return_value=_deps(service)),
+        ):
+            result = await _WeatherApiKeyProbeTool().execute(_runtime(str(uuid4())))
+
+        self._assert_instance_error(result)

@@ -364,6 +364,36 @@ the seam reads, never through a branch on its name:
     disconnect — and the reader hands the revision to its query's `deps`.
     Measured by a journey on one page (red without the bump).
 
+## Amendment — 2026-09-24: the audio transport is a property of the session, and iOS takes WebRTC
+
+The wire a provider declares (`connection`, `delegation_wire`) says how a
+session is credentialed and how it delegates; it did not say how the AUDIO
+travels, and on iPhone and iPad the raw WebSocket PCM of an ElevenLabs agent
+arrived unevenly enough to be heard. The start now names the audio transport
+(`LiveSessionStartRequest.audio_transport`: `websocket` by default, `webrtc`
+from an iOS browser), the setup inputs carry it and round-trip it with the
+record, and the provider mints what that transport opens — a signed URL for the
+WebSocket, a LiveKit conversation token for WebRTC. The browser's
+`createLiveTransport(provider, audioTransport)` returns
+`transports/elevenlabs-webrtc.ts`, which drives the vendor's own SDK
+(`@elevenlabs/client`, pinned) and declares its audio `managed`: the SDK holds
+the microphone and the speaker, so the controller disposes of its PCM player
+and opens no PCM microphone. LIA's tools are the SDK's client tools, all routed
+through the same tool door; a name only the person's agent declares reaches that
+door too, which refuses what it does not know. A WebRTC session holds no
+expiring credential, so an extension moves the cap without re-minting — the rule
+GPT-Live already followed — and the CSP names the one host the SDK opens
+(`wss://livekit.rtc.elevenlabs.io`).
+
+Three measures travel with it: the PCM player keeps a rebuffer headroom after an
+underrun (120 ms on iOS) and a short attack after a gap, and reports aggregate
+counts at the session's end (`LiveAudioDiagnostics` on `POST …/end`: chunks,
+drains, gaps, rates — never audio, never text); the hidden-page grace starts
+only once iOS's microphone permission sheet has returned a stream; and a Gemini
+key restricted to the API server's IP address — which mints the token, then
+sees the browser's socket refused (1008) — is named as such
+(`live.error.key_ip_restricted`) instead of a generic start failure.
+
 ## References
 
 - Spec: `docs/superpowers/specs/2026-09-19-live-wave2-design.md` (A1–A11, § 6 measured)

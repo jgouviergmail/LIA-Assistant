@@ -127,33 +127,17 @@ async def _search_contacts_raw(
         The provider payload, or an empty result when no contacts connector is
         usable (no connector, no credentials, no client class).
     """
-    from src.domains.connectors.clients.registry import ClientRegistry
-    from src.domains.connectors.provider_resolver import resolve_active_connector
-    from src.domains.connectors.service import ConnectorService
-    from src.infrastructure.database.session import get_db_context
+    from src.domains.connectors.active_client import ActiveClient, open_active_client
 
-    empty: dict[str, Any] = {"results": []}
-    async with get_db_context() as db:
-        connector_service = ConnectorService(db)
-        resolved_type = await resolve_active_connector(user_id, "contacts", connector_service)
-        if resolved_type is None:
-            return empty
-
-        credentials = (
-            await connector_service.get_apple_credentials(user_id, resolved_type)
-            if resolved_type.is_apple
-            else await connector_service.get_connector_credentials(user_id, resolved_type)
-        )
-        if not credentials:
-            return empty
-
-        client_class = ClientRegistry.get_client_class(resolved_type)
-        if client_class is None:
-            return empty
-        client = client_class(user_id, credentials, connector_service)
-        return await client.search_contacts(
+    # The shared door (ADR-304): no session held while the provider answers,
+    # and the client closed on every path — it never was here.
+    async with open_active_client("contacts", user_id) as opened:
+        if not isinstance(opened, ActiveClient):
+            return {"results": []}
+        result: dict[str, Any] = await opened.client.search_contacts(
             query, max_results=max_results, fields=fields or ["names", "phoneNumbers"]
         )
+        return result
 
 
 async def _search_contacts_with_phones(

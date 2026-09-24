@@ -43,11 +43,9 @@ from src.infrastructure.mcp.user_tool_adapter import UserMCPToolAdapter
 from src.infrastructure.mcp.utils import is_app_only
 
 if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
 
     from src.domains.agents.registry.catalogue import ToolManifest
     from src.domains.user_mcp.models import UserMCPServer
-    from src.domains.user_mcp.repository import UserMCPServerRepository
 
 logger = structlog.get_logger(__name__)
 
@@ -58,18 +56,18 @@ logger = structlog.get_logger(__name__)
 
 
 async def _usable_tool_embeddings(
-    server: UserMCPServer, tools: list[dict[str, Any]], repo: UserMCPServerRepository
+    server: UserMCPServer, tools: list[dict[str, Any]]
 ) -> dict[str, Any]:
     """The server's persisted vectors when this model wrote them; else recomputed and saved.
 
     Best-effort in both halves: a recompute that fails leaves the tools
     unranked for the turn (they still bind through their family's coverage)
-    and never fails the request.
+    and never fails the request. The new envelope is written in a short
+    transaction of its own, once the embeddings are computed (ADR-304).
 
     Args:
-        server: The ``UserMCPServer`` row.
+        server: The ``UserMCPServer`` row, read in a session already closed.
         tools: The tools the pool just discovered on the server.
-        repo: The repository the row came from, to persist the new envelope.
 
     Returns:
         Vectors by raw MCP tool name, possibly empty.
@@ -88,7 +86,14 @@ async def _usable_tool_embeddings(
         recomputed = await compute_tool_embeddings(tool_metadata=tools, server_name=server.name)
         if not recomputed:
             return {}
-        await repo.update(server, {"tool_embeddings_cache": wrap_server_cache(recomputed)})
+        from src.domains.user_mcp.repository import UserMCPServerRepository
+        from src.infrastructure.database.session import get_db_context
+
+        async with get_db_context() as db:
+            repo = UserMCPServerRepository(db)
+            row = await repo.get_by_id(server.id)
+            if row is not None:
+                await repo.update(row, {"tool_embeddings_cache": wrap_server_cache(recomputed)})
         logger.info(
             "user_mcp_tool_embeddings_refreshed",
             server_id=str(server.id),
@@ -107,15 +112,15 @@ async def _usable_tool_embeddings(
         return {}
 
 
-async def setup_user_mcp_tools(
-    user_id: UUID,
-    db: AsyncSession,
-) -> Token | None:
+async def setup_user_mcp_tools(user_id: UUID) -> Token | None:
     """
     Setup user MCP tools for a chat request.
 
     Queries enabled+active servers, connects via the pool, builds tool
-    adapters and manifests, sets the ContextVar.
+    adapters and manifests, sets the ContextVar. The servers are read in a
+    session of their own, closed before any server is connected: it used to
+    run on the turn's session, which then waited on every MCP handshake —
+    and on the embedding refresh it wrote there (ADR-304).
 
     Returns:
         ContextVar token for cleanup (None if nothing was set).
@@ -127,9 +132,10 @@ async def setup_user_mcp_tools(
 
     # Query enabled + active servers from DB
     from src.domains.user_mcp.repository import UserMCPServerRepository
+    from src.infrastructure.database.session import get_db_context
 
-    repo = UserMCPServerRepository(db)
-    servers = await repo.get_enabled_active_for_user(user_id)
+    async with get_db_context() as db:
+        servers = await UserMCPServerRepository(db).get_enabled_active_for_user(user_id)
 
     if not servers:
         logger.debug(
@@ -188,7 +194,7 @@ async def setup_user_mcp_tools(
             # tools just fetched and persisted, so the row heals on the
             # person's next turn (measured 2026-09-20: 384-dimension rows
             # scored 0 against 1 536-dimension queries, in silence).
-            embeddings_cache = await _usable_tool_embeddings(server, entry.tools, repo)
+            embeddings_cache = await _usable_tool_embeddings(server, entry.tools)
 
             # ADR-062: Iterative mode — delegate to ReAct sub-agent
             is_iterative = react_enabled and getattr(server, "iterative_mode", False)
@@ -317,10 +323,7 @@ def cleanup_user_mcp_tools(token: Token | None) -> None:
 
 
 @asynccontextmanager
-async def user_mcp_session(
-    user_id: UUID,
-    db: AsyncSession,
-) -> AsyncGenerator[None]:
+async def user_mcp_session(user_id: UUID) -> AsyncGenerator[None]:
     """
     Setup user MCP tools for a chat request (context manager variant).
 
@@ -328,12 +331,11 @@ async def user_mcp_session(
 
     Args:
         user_id: Current authenticated user
-        db: Request-scoped database session
 
     Yields:
         None — tools are accessible via user_mcp_tools_ctx ContextVar
     """
-    token = await setup_user_mcp_tools(user_id, db)
+    token = await setup_user_mcp_tools(user_id)
     try:
         yield
     finally:

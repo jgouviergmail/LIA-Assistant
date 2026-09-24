@@ -154,21 +154,23 @@ async def _read_calendar(user_id: UUID, now: datetime) -> _CalendarRead:
     try:
         from src.domains.users.models import User
 
+        # The account is read in a session closed before the calendar is
+        # opened: nothing is held while the provider answers (ADR-304).
         async with get_db_context() as db:
             user = await db.get(User, user_id)
-            if user is None:
-                return _CalendarRead(None, None, int((perf_counter() - started) * 1000), False)
-            async with open_active_calendar(db, user_id) as access:
-                if not isinstance(access, CalendarAccess):
-                    return _CalendarRead(None, user, int((perf_counter() - started) * 1000), False)
-                asked = True
-                result = await access.client.list_events(
-                    time_min=(now - window).isoformat(),
-                    time_max=(now + window).isoformat(),
-                    max_results=20,
-                    calendar_id=access.calendar_id,
-                    fields=_FIELDS,
-                )
+        if user is None:
+            return _CalendarRead(None, None, int((perf_counter() - started) * 1000), False)
+        async with open_active_calendar(user_id) as access:
+            if not isinstance(access, CalendarAccess):
+                return _CalendarRead(None, user, int((perf_counter() - started) * 1000), False)
+            asked = True
+            result = await access.client.list_events(
+                time_min=(now - window).isoformat(),
+                time_max=(now + window).isoformat(),
+                max_results=20,
+                calendar_id=access.calendar_id,
+                fields=_FIELDS,
+            )
     except Exception as exc:  # noqa: BLE001 — fail open
         logger.info(
             "moment_busy_calendar_unreadable",

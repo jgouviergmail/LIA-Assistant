@@ -1483,20 +1483,10 @@
         "description": "当前天气和预报",
         "get_key": "在openweathermap.org获取免费密钥"
       },
-      "wikipedia": {
-        "label": "维基百科",
-        "description": "百科全书搜索（无需密钥）",
-        "no_key_required": "此服务不需要API密钥"
-      },
       "perplexity": {
         "label": "Perplexity",
         "description": "AI驱动的网络搜索",
         "get_key": "在perplexity.ai获取密钥"
-      },
-      "google_places": {
-        "label": "Google Places",
-        "description": "地点搜索和详细信息",
-        "no_key_required": "此服务不需要API密钥"
       },
       "preferences": {
         "title": "偏好设置",
@@ -1519,11 +1509,6 @@
         "description": "网络和新闻增强",
         "get_key": "在 api.search.brave.com 获取密钥",
         "label": "Brave搜索"
-      },
-      "browser": {
-        "label": "浏览器",
-        "description": "交互式网页浏览（无需密钥）",
-        "no_key_required": "此服务不需要 API 密钥"
       },
       "hue": {
         "label": "Philips Hue",
@@ -1571,16 +1556,6 @@
       "disconnect": "断开连接",
       "disconnect_title": "断开 {{name}} 的连接？",
       "disconnect_description": "LIA 将无法再读取您的 {{name}} 数据或对其执行操作。{{name}} 侧不会删除任何内容，您可以随时重新连接。",
-      "google_weather": {
-        "label": "Google 天气",
-        "description": "天气状况与10天预报（Google）",
-        "no_key_required": "此服务无需 API 密钥"
-      },
-      "google_environment": {
-        "label": "Google 环境",
-        "description": "空气质量与花粉预报",
-        "no_key_required": "此服务无需 API 密钥"
-      },
       "connected_live": "已连接的 Live",
       "available_live": "可用的 Live",
       "live": {
@@ -1777,6 +1752,7 @@
           "time_slots_slot_title": "时段 {{index}}",
           "time_slots_start_label": "开始（UTC）",
           "time_slots_end_label": "结束（UTC）",
+          "time_slots_days_label": "适用的星期（窗口开始时的 UTC 日期）",
           "time_slots_add": "添加时段",
           "time_slots_remove": "删除时段 {{index}}",
           "time_slots_error_incomplete": "每个时段都需要有效的时间和 ≥ 0 的价格。",
@@ -2267,7 +2243,7 @@
           "initiative": "执行后主动丰富（只读检查）",
           "mcp_react_agent": "MCP迭代模式：先读取服务器文档，然后逐步执行工具",
           "react_agent": "ReAct 模式：自主循环，逐步推理并调用工具，直到能够作答",
-          "image_generation": "从文本描述生成AI图像（gpt-image-1等）",
+          "image_generation": "根据文本描述进行 AI 图像生成与编辑",
           "document_generation": "以结构化输出为 generate_document 工具撰写完整文档（CSV、Excel、Word、PowerPoint、PDF 等）",
           "email_digest": "将一封邮件浓缩为摘要（要点、关键信息、待办）用于 detail=summary - 每封新邮件一次简短调用，随后缓存",
           "meeting_synthesis": "会议纪要：对录音转写文本进行结构化综合",
@@ -2360,6 +2336,7 @@
           "reset": "配置已重置为默认值",
           "error": "保存配置时出错",
           "thinkingBudgetBelowFloor": "已启用推理，但生效的最大 token 数（{{maxTokens}}）低于安全下限 {{floor}}。推理会消耗回复预算：回复将被截断或为空。请将最大 token 数提高到至少 {{floor}}，或关闭推理。注意：最大 token 数留空将继承代码默认值。",
+          "thinkingBudgetImplicitBelowFloor": "即使未设置级别，此模型也会进行推理（深度：{{level}}），而推理会消耗回复预算：生效的最大 token 数（{{maxTokens}}）低于安全下限 {{floor}}，回复将被截断或为空。请将最大 token 数提高到至少 {{floor}}，或明确设置一个较低的推理级别。注意：最大 token 数留空将继承代码默认值。",
           "resetButton": "重置"
         },
         "reasoningLevels": {
@@ -2387,6 +2364,7 @@
           "quality": "质量",
           "size": "尺寸",
           "cost_usd": "每张费用 (USD)",
+          "input_cost_usd": "参考图像 (USD)",
           "actions": "操作",
           "provider": "提供方"
         },
@@ -2397,6 +2375,8 @@
           "quality_label": "质量",
           "size_label": "尺寸",
           "cost_label": "每张图像费用 (USD)",
+          "input_cost_label": "每张参考图像费用 (USD)",
+          "input_cost_hint": "按每张编辑所基于的原始图像计费。当提供方按张计价时必填（Qwen）；按 token 计费时请留空（OpenAI）。",
           "cancel": "取消",
           "submit_create": "创建",
           "submit_edit": "保存",
@@ -2592,13 +2572,13 @@
       "quality_low": "低",
       "quality_medium": "中",
       "quality_high": "高",
+      "quality_standard": "标准",
       "size": "默认尺寸",
       "size_square": "正方形",
       "size_landscape": "横向",
       "size_portrait": "纵向",
       "format": "输出格式",
-      "options_unavailable": "图像生成不可用 — 当前模型未配置任何定价。请管理员在 Tarification LLM Image 中添加至少一行（模型、质量、尺寸）。",
-      "size_custom": "自定义"
+      "options_unavailable": "图像生成不可用 — 所配置的图像模型未被提供（没有任何提供方能够生成的有效价格）。请管理员在「LLM图像定价」中添加一条。"
     },
     "admin_mcp": {
       "title": "应用MCP",
@@ -3791,8 +3771,8 @@
         "security-devices": "会话, 登出, 注销, 撤销, 浏览器, 设备, 安全",
         "security-export": "GDPR, 数据导出, 归档, 下载, 可携带性, 备份, 个人数据, 隐私",
         "voice-mode": "麦克风, 语音, 听写, STT, TTS, 唤醒词, 音频, 说话",
-        "image-generation": "图像, 图片, 绘画, 插图, 生成, 艺术",
-        "connectors": "Google, Gmail, 日历, 联系人, Apple, Microsoft, Outlook, 集成, 账户, OAuth, 组合授权, 一次连接多个服务, 重新连接, 已断开, 服务, 位置, 定位, 地理位置, 家庭地址, 地址, 位置记忆, 天气, 空气质量, 花粉, 环境, 电子表格, 文档, 自动回复, 外出, 过滤器",
+        "image-generation": "图像, 图片, 绘画, 插图, 生成, 艺术, 质量, 尺寸, 格式, PNG, JPEG, WebP, 修改, GPT Image, Qwen Image",
+        "connectors": "Google, Gmail, 日历, 联系人, Apple, Microsoft, Outlook, 集成, 账户, OAuth, 组合授权, 一次连接多个服务, 重新连接, 已断开, 服务, 位置, 定位, 地理位置, 家庭地址, 地址, 位置记忆, 天气, 电子表格, 文档, 自动回复, 外出, 过滤器",
         "telephony-calls": "电话, 通话, 通话记录, 拨号",
         "telephony-identity": "电话, 号码, 身份, 验证, 验证码, 来电, 打给我, 通话模式, Live, 直接 Live, 上下文, 领域, 记忆, 邮件, 日历, 查询, 个性",
         "admin-mcp-servers": "MCP, 模型上下文协议, 应用服务器, 内置工具，连接，集成，服务器",
@@ -3816,10 +3796,10 @@
         "admin-usage-limits": "配额, 限制, 上限, 预算, 令牌, 消耗上限, 实例, 每日支出, 全局上限",
         "admin-consumption-export": "导出, CSV, 消耗, 使用, 成本, 所有账户",
         "admin-broadcast": "广播, 消息, 公告, 通知所有人",
-        "admin-connectors": "连接器, 提供商, Google, Apple, Microsoft, 启用服务, Google 天气, Google 环境, 空气质量, 花粉, 推送通知",
-        "admin-llm-pricing": "定价, 价格, 费率, 令牌, 文本模型, 每令牌成本, Excel, 电子表格, 导入, 导出, 批量更新, 工作簿, 推理, 接受的深度, 等级, 能力来源, 公共登记表, 目录",
+        "admin-connectors": "连接器, 提供商, Google, Apple, Microsoft, 启用服务, Google 天气, Google 环境, 空气质量, 花粉, 推送通知, Wikipedia, 网页阅读, 浏览器, Google Places, 免密钥, 环境",
+        "admin-llm-pricing": "定价, 价格, 费率, 令牌, 文本模型, 每令牌成本, Excel, 电子表格, 导入, 导出, 批量更新, 工作簿, 推理, 接受的深度, 等级, 能力来源, 公共登记表, 目录, 时段, 闲时, 高峰, 星期, 周末, 缓存写入",
         "admin-google-api-pricing": "定价, Google API, 地图, 地点, 路线, 地理编码成本",
-        "admin-image-pricing": "定价, 图片, 图片生成, 每张图片成本",
+        "admin-image-pricing": "定价, 图片, 图片生成, 每张图片成本, 参考图, 修改, 档位, OpenAI, Qwen",
         "admin-llm-config": "LLM, 模型, 提供方, 配置, 温度, 推理, API 密钥, Ollama, 本地模型, 上下文窗口, 邮件摘要, 输出 token",
         "admin-personalities": "个性, 风格, 语气, 系统提示词, 助手角色",
         "admin-skills": "技能, 系统技能, 导入, 重新加载, 能力目录",
@@ -4778,7 +4758,7 @@
         },
         "query": {
           "title": "🔍 查询分析",
-          "description": "意图、命名实体、时间与地点约束、动作类型（读取、创建、修改、删除）。请求仍有歧义时，LIA 会提问，而不是猜。"
+          "description": "意图、命名实体、时间与地点约束、操作类型（读取、创建、修改、删除）。「明天」「下周六」这类相对日期，会在到达工具之前变成确切日期，适用于所有语言。当请求仍然含糊时，LIA 会提出澄清问题，而不是去猜。"
         },
         "planning": {
           "title": "📋 智能规划与 FOR_EACH",
@@ -4794,7 +4774,7 @@
         },
         "semantic": {
           "title": "🎯 语义验证与转换",
-          "description": "计划在运行前会被检查逻辑矛盾；失败的查询会自动改写——换同义词、放宽条件、拆解成子问题——而不是原样丢回一个死胡同。"
+          "description": "计划在运行前会检查逻辑矛盾；失败的查询会自动重新表述——同义词、放宽条件、拆分——而不是作为死路返回。持续存在的失败会如实说明：哪个工具、它的回答，以及仍然成功的部分。"
         },
         "context": {
           "title": "🧠 高级上下文管理",
@@ -4814,7 +4794,7 @@
         },
         "summarization": {
           "title": "📝 自动摘要",
-          "description": "长对话会边聊边摘要，让上下文既不断线又不撞上 token 上限：抽出关键事实，其余压缩，摘要再注入提示词。"
+          "description": "长对话会随进行随时摘要，让上下文保持连贯而不触及 token 上限：提取关键事实、压缩其余内容、将摘要重新注入提示词。历史记录只发送一次，以完整消息的形式，绝不被截断后复制进指令里。"
         },
         "hitl": {
           "title": "👤 高级人机协同",
@@ -4822,7 +4802,7 @@
         },
         "connectors": {
           "title": "🔌 连接器与注册表",
-          "description": "连接 Gmail、日历、联系人、任务和 Drive，也可选择 Apple iCloud 与 Microsoft 365。天气、维基百科和网页搜索提供补充。Google 或 Microsoft 的选定服务可在已验证的同一账户上一次授权，之后仍能分别断开。LIA 以统一、易读的格式呈现结果。"
+          "description": "连接 Gmail、日历、联系人、任务和 Drive，或选择 Apple iCloud 和 Microsoft 365。使用 Google 或 Microsoft 时，可在一个已验证账户上一次授权所选服务，之后逐项断开。无需你提供任何东西的服务——Wikipedia、网页阅读、地点、路线、天气、空气质量——由你的实例提供：始终开启，无需配置。"
         },
         "streaming": {
           "title": "⚡ 流式传输与实时",
@@ -4834,19 +4814,19 @@
         },
         "llm": {
           "title": "🤖 多供应商 LLM 与模式学习",
-          "description": "LIA 对接七家提供方——OpenAI、Anthropic、Google、DeepSeek、Qwen、Perplexity 和 Ollama——每个角色都有自己的模型。跑在你机器上的模型与其他模型一视同仁：LIA 以原生方式与 Ollama 对话，询问每个模型的能力——工具、视觉、思考、上下文——并只提供这些。思考深度绝不会发给不会思考的模型。"
+          "description": "LIA 可与七家服务商对话——OpenAI、Anthropic、Google、DeepSeek、Qwen、Perplexity、Ollama——每个角色都有自己的模型。每一代模型接受什么，只声明一次，并在其 API 上实测；每个提示词都遵循同一种布局——稳定内容在前、易变内容在后——让各服务商的缓存可以复用。使用 Ollama 时，LIA 会询问服务器每个模型能做什么——工具、视觉、思考、上下文——并只提供这些。"
         },
         "security": {
           "title": "🔐 多层安全",
-          "description": "纵深防御：通行密钥、带备用码的 TOTP、敏感操作的二次强认证，每个会话都可见可吊销。底层还有带 PKCE 的 OAuth 2.1、日志中过滤个人信息、用户间隔离、静态数据加密、机密在结构上不可导出的 GDPR 导出。技能在没有 socket、没有网络的一次性容器中运行；LIA 写的脚本只能经由持有密钥的代理访问网络。而任何第三方写的文本——邮件、邀请、网页、MCP 服务器——送到模型时都是「待分析的数据」，绝不是指令。"
+          "description": "纵深防御：通行密钥、带备用码的 TOTP、敏感操作前重新验证，每个会话都可见、可撤销。Google 登录证明的是地址，而不是权限：它既不能激活也不能解封账户。底层有带 PKCE 的 OAuth 2.1、日志中过滤的个人信息、静态加密，以及不含可导出密钥的 GDPR 导出。技能在无网络的一次性容器中运行；LIA 编写的脚本只能通过唯一的代理访问网络。第三方撰写的文本只作为数据到达模型，绝不作为指令。"
         },
         "resilience": {
           "title": "🛡️ 性能与 Token 优化",
-          "description": "文本压缩按实体节省约 97 %，消息窗口再省 93 %。断路器守护外部 API，多级 Redis 缓存吸收重复请求，OAuth 令牌在过期前后台续期，限流为分布式并配指数退避重试。后台任务改为错峰启动而非同时涌出——共享公约数的周期会永远对齐；对向量服务的调用会短暂等待名额而不是被直接拒绝，且这种等待总是超时放行。"
+          "description": "文本压缩使每个实体约减少 97%，消息窗口化再减少 93%。熔断器保护外部 API，多级 Redis 缓存吸收重复请求，OAuth 令牌在过期前续期。服务商应答期间不保持任何数据库事务；后台任务错开启动，因为有公约数的周期会永远对齐。调用向量服务商时会短暂等待空位，而不是被拒绝。"
         },
         "voice": {
           "title": "🎙️ 完整语音模式",
-          "description": "既能说，也能听。语音识别默认免费且在服务器本地完成（Whisper，99 种以上语言，音频从不离开服务器）；也可以自行选用远端的 ElevenLabs Scribe，对口语的准确率更高。预置三家语音服务，逐句流式播报，第一段声音约一秒内响起；付费合成只对真正送达的句子计费，每条消息带成本徽章。唤醒词或麦克风按钮均可，语音结束自动检测——朗读的文本会剥掉标记，让声音只念句子本身。"
+          "description": "说话，并被倾听。语音识别默认免费且在服务器本地运行（Whisper，支持 99+ 种语言，音频从不离开服务器）；如需更高准确度，可选用远程 ElevenLabs Scribe。三家语音服务商，逐句流式输出：约一秒即可听到第一声；付费语音合成只对实际播放的句子计费，每条消息附费用徽章。唤醒词或麦克风按钮，自动检测说话结束，朗读文本会去除标记。"
         },
         "reminders": {
           "title": "🔔 提醒与推送通知",
@@ -4874,7 +4854,7 @@
         },
         "costTransparency": {
           "title": "💰 成本透明度",
-          "description": "可选的实时显示：输入、输出与缓存 token，按消息和整段对话计的欧元成本。配额不再像一堵墙：最先触顶的那条限制——token、消息数或金额——到 80 % 时就会预警，点名是哪一条并给出重置日期。上限也可以是整个实例级的，平台为你支付的一切都受其约束，无论经由何路径：通话中的地图查询、简报的天气、展示的照片——每一项都按其确切时刻的费率计价。"
+          "description": "可选的实时显示：输入、输出和缓存 token，每条消息及整段对话的欧元成本。当最先触及的限额——token、消息或费用——达到 80% 时会出现提醒，注明是哪一项及重置日期。平台为你支付的一切都计入其中，无论通过哪条路径，并按服务商实际收费计价：价格按其页面核对，缓存写入按其价格，闲时带有适用日期，路线按请求触发的档位。"
         },
         "scheduledActions": {
           "title": "📅 计划操作",
@@ -4966,7 +4946,7 @@
         },
         "imageGeneration": {
           "title": "🎨 图像生成与编辑",
-          "description": "按描述生成图片，或用自然语言修改已有图片，支持多家服务商，可设置自己的质量、尺寸和格式偏好，并按张记账。生成的图片是一份有寿命的附件：卡片显示的是服务器返回的到期时间——绝不是界面里写死的时长——并在最后几小时转为警示配色，保证你还来得及下载。允许的生成时间跟随模型的真实耗时，按质量和格式分别测得，所以一张精细的图不会在快出结果时被掐断。"
+          "description": "根据描述生成图片，或用自然语言修改照片，可使用 OpenAI（GPT Image）或 Qwen（Qwen Image 3.0）。每个模型声明自己的能力——质量、尺寸、分辨率——LIA 只提供它能做到的：你的偏好是一种意图，会被解析为最接近的选项，绝不更贵。所选格式应用于每张图片；服务商对原图收费时，费用也会计入。生成的图片有有效期：卡片显示真实截止时间，最后几小时转为提醒色。"
         },
         "documentGeneration": {
           "title": "文档生成",
@@ -4974,7 +4954,7 @@
         },
         "reactMode": {
           "title": "⚡ ReAct执行模式",
-          "description": "流水线之外的另一条路：助手逐步推理——调用工具、读取结果、决定下一步——通过四个专用节点完成，审批也包含在内。流水线仍是默认模式，token 消耗少 4 到 8 倍；在聊天页眉切换。循环按与问题的相关性绑定工具，保证每个家族可达，并读取与流水线相同的知识空间。工具结果按条目在 token 预算内送达，绝不在条目中间截断。"
+          "description": "流水线之外的另一种方式：助手逐步推理——调用工具、读取结果、决定下一步——审批同样适用。流水线仍是默认模式，token 消耗少得多；可在聊天标题栏切换。循环以结果评判：它核对每个工具结果是否回答了问题——对的日期、对的地点、完整的列表——遇到障碍时换来源，并声明没能获得的内容及尝试过的方法；声明的缺口可换来一次有限的补救回合。"
         },
         "proactiveInitiative": {
           "title": "🎯 主动倡议",
@@ -5034,7 +5014,7 @@
         },
         "selfDiagnostics": {
           "title": "🩺 自我诊断与事件记忆",
-          "description": "LIA 通过从不让请求失败的客户端读取自身遥测：任何故障都变成类型化的「不可用」结果。周期性自检评估黄金信号并直接探测依赖；告警与严重判定汇聚为每个问题一个事件，由预算受限的模型诊断——它先读取一份有界的证据包（指标细分、脱敏的日志摘录、正在运行的版本）和该告警的运行手册，再在结论下方展示它读到的内容。已知故障会影响回答：规划时绕开受损能力，失败步骤用类型化错误码解释，绝不用原始日志。"
+          "description": "LIA 通过永不让请求失败的客户端读取自身遥测：任何故障都变成类型化的「不可用」结果。周期性自检评估黄金指标；告警与严重判定汇聚为每个问题一个事件，由预算受限的模型依据有界的证据包——指标、脱敏日志摘录、当前版本、运行手册——进行诊断，并在结论下方展示所读内容。已知故障在规划阶段即被绕开。"
         },
         "ephemeralScripts": {
           "title": "🧮 算出来的答案，而不是猜出来的",
@@ -7533,6 +7513,19 @@
           },
           "count": "4"
         },
+        "v1_47_2": {
+          "title": "v1.47.2 — 🎯 LIA 要找的，要么找到，要么告诉你缺了什么——每一分钱都按真实价格",
+          "date": "2026 年 9 月 24 日 05:18（CEST）",
+          "count": "6",
+          "items": {
+            "i1": "<b>🎯 以结果评判的回答</b> — 在 ReAct 模式下，LIA 会核对每个结果是否真正回答了你的问题（对的日期、对的地点、完整的列表），遇到障碍时换一个来源，最后说明它没能获得什么、尝试过什么；从别处找到的信息会注明来源。「明天」「周六」会在查询服务之前变成确切日期，无论你用哪种语言。",
+            "i2": "<b>🧾 失败会被说明，绝不猜测</b> — 当某个服务失败时，LIA 会说明是哪一个、它返回了什么，而不是编造「服务未配置」；只成功了一半的计划会把成功的部分交还给你。它真正执行过的操作——一张图片、一条提醒——显示在回答下方，它也不再否认这些操作。",
+            "i3": "<b>🎨 图片：两家服务商</b> — 管理员可以选择 OpenAI 的 GPT Image 或 Qwen Image 3.0，生成和修改都支持。你对质量和尺寸的偏好会适配模型的能力（绝不换成更贵的选项），所选格式——PNG、JPEG 或 WebP——会应用到每张图片。",
+            "i4": "<b>🔌 免密钥服务无需启用</b> — Wikipedia、网页阅读、Google Places、Google Weather 和空气质量由你的实例提供：始终开启，它们不再出现在「我的连接器」里。你添加的 OpenWeatherMap 密钥在天气方面依然优先。",
+            "i5": "<b>💶 每次调用都按服务商实际收费计价</b> — 价格按服务商页面重新核对，DeepSeek 周末按闲时计价，写入模型缓存按其真实价格计费，路线按请求触发的档位计费；管理员修改的价格会立即到达每台服务器。目录新增模型：Claude（Fable、Opus、Sonnet）、GPT-6、Qwen 3.6 至 3.8、Gemini 3.8 Flash。",
+            "i6": "<b>🔐 更安全、更平稳</b> — 通过 Google 登录不再能激活待审核的注册，也不能解封账户；每次调用的真实地址都会被记录。服务应答期间不再保持任何数据库事务：主动通知、提醒和 Drive 同步保持平稳。在 Live 会话中，ElevenLabs 智能体在 iPhone 和 iPad 上通过 WebRTC 连接；按 IP 地址受限的 Gemini 密钥会得到提示。"
+          }
+        },
         "v1_47_1": {
           "title": "v1.47.1 — 🔗 一次授权连接所选 Google 或 Microsoft 服务，伙伴也能回应真实进展",
           "date": "2026 年 9 月 22 日 06:48（CEST）",
@@ -7650,7 +7643,7 @@
           },
           "q10": {
             "question": "Pipeline模式（🔀）和ReAct模式（⚡）有什么区别？",
-            "answer": "LIA提供两种执行模式，可通过聊天标题中的🔀/⚡切换按钮选择：<br><br><strong>🔀 Pipeline模式（默认）</strong><br>LIA提前规划所有步骤，验证后并行执行工具。这是<strong>最快、最经济</strong>的模式：比ReAct模式消耗少4至8倍的token。<br><br><strong>⚡ ReAct模式</strong><br>LIA逐步推理：调用工具、分析结果，然后自主决定下一步。更<strong>灵活和自主</strong>，但消耗显著更多token。<br><br><strong>💡 何时使用哪种模式？</strong><br>• <strong>Pipeline（🔀）</strong>：适用于大多数请求——邮件、日历、天气、联系人、任务...<br>• <strong>ReAct（⚡）</strong>：适用于探索性研究、复杂的多步骤问题，或需要LIA实时适应结果时。<br><br><strong>⚠️ 成本提醒：</strong>ReAct模式消耗4至8倍更多的token。仅在附加价值足以证明额外成本时使用。"
+            "answer": "LIA提供两种执行模式，可通过聊天标题中的🔀/⚡切换按钮选择：<br><br><strong>🔀 Pipeline模式（默认）</strong><br>LIA提前规划所有步骤，验证后并行执行工具。这是<strong>最快、最经济</strong>的模式：比ReAct模式消耗少4至8倍的token。<br><br><strong>⚡ ReAct模式</strong><br>LIA逐步推理：调用工具、分析结果，然后自主决定下一步。更<strong>灵活和自主</strong>，但消耗显著更多token。<br><br><strong>💡 何时使用哪种模式？</strong><br>• <strong>Pipeline（🔀）</strong>：适用于大多数请求——邮件、日历、天气、联系人、任务...<br>• <strong>ReAct（⚡）</strong>：适用于探索性研究、复杂的多步骤问题，或需要LIA实时适应结果时。<br><br><strong>⚠️ 成本提醒：</strong>ReAct模式消耗4至8倍更多的token。仅在附加价值足以证明额外成本时使用。<br><br><strong>🎯 以结果评判：</strong>在 ReAct 模式下，LIA 会核对每个结果是否真正回答了问题——对的日期、对的地点、完整的列表——遇到障碍时换一个来源，然后告诉你它没能获得什么、尝试过什么。来自其他来源的信息会注明该来源。"
           },
           "q11": {
             "question": "如何复制消息或代码?数学公式能正确显示吗?",
@@ -7706,7 +7699,7 @@
           },
           "q24": {
             "question": "如果 LIA 无法执行我的请求，会发生什么？",
-            "answer": "<p>LIA 会先制定计划，再在执行前重新检查一遍。当这个计划要<strong>写入</strong>什么内容时 — 发送邮件、创建约会、拨打电话 — 而它又无法自行修正，它会<strong>拒绝执行</strong>并向你提问。写入错误数据的代价，比多问一句要大得多。</p><p>这个问题会用你的语言写成，并明确指出缺少什么：哪位收件人、哪个日期、对哪些条目执行。它绝不会包含技术行话、代码路径或示例地址 — LIA 展示给你的是一个问题，而不是它的内部诊断。</p><p>你可以回答、换一种说法，或者干脆放弃：在你做出决定之前，什么都不会发出。</p>"
+            "answer": "<p>LIA 会先制定计划，再在执行前重新检查一遍。当这个计划要<strong>写入</strong>什么内容时 — 发送邮件、创建约会、拨打电话 — 而它又无法自行修正，它会<strong>拒绝执行</strong>并向你提问。写入错误数据的代价，比多问一句要大得多。</p><p>这个问题会用你的语言写成，并明确指出缺少什么：哪位收件人、哪个日期、对哪些条目执行。它绝不会包含技术行话、代码路径或示例地址 — LIA 展示给你的是一个问题，而不是它的内部诊断。</p><p>你可以回答、换一种说法，或者干脆放弃：在你做出决定之前，什么都不会发出。</p><p><strong>当某个服务中途失败时</strong>——日历不可用、网页拒绝访问——LIA 会直接说明：是哪个工具、它返回了什么、哪些部分仍然成功。它绝不会编造「服务未配置」来填补空白。在 ReAct 模式下，它会先尝试另一条路（修正参数、换一个来源）；没能获得的内容会列在回答末尾，并附上它尝试过的方法。</p>"
           },
           "q25": {
             "question": "聊天页上的小动画眼睛是什么？",
@@ -7817,11 +7810,11 @@
           },
           "q21": {
             "question": "管理员如何批量更新 LLM 模型价格？",
-            "answer": "在<b>设置 → 管理 → LLM 定价</b>中，整个目录 —— 每个模型、每项特征、每份价目 —— 都可下载为结构化的 Excel 工作簿，编辑好的文件也沿同一条路回传。<br><br><b>工作簿包含什么：</b>一份翻译成你所用语言的使用说明；每个模型一行，附下拉列表与单元格校验；一张为这些列表供数的参照表；一张列出 UTC 时间窗的工作表，用于按高峰/低谷计费的供应商；以及一列<b>状态</b>，说明实际会发生什么 —— 没有生效价目（按零计费）、存在多份生效价目，或是按另一个模型的名称计费。<br><br><b>回传分两步进行。</b>系统先分析文件，逐字段展示全部差异 —— 新建、修改、重新启用、下架 —— 此时尚未写入任何数据；只有随后才能应用，而且只针对你读过的那份预览。<br><br><b>导入永远做不到的事：</b>文件中缺失的行<b>永远不会删除任何东西</b>（忘记取消的 Excel 筛选无法清空目录 —— 下架必须通过把 <b>is_active</b> 列置为假来显式声明，重新置为真则会把模型找回来）；任何无法读取或自相矛盾的内容都会<b>连同需要修正的工作表与单元格</b>一并指出，此时导入什么都不会写入；价目只有在确实发生变化时才会重写，因此重新导入一份未改动的文件会让价目历史保持原样；而如果他人在预览与确认之间改动了某个模型，被拒绝的只是相关的行，而不是整个文件。<br><br><b>推理设置直接写在工作簿里。</b>两列承载它：该模型是否推理，以及它接受的深度（以逗号分隔）。第三列为只读，说明 LIA 识别出的系列及将要应用的等级。重新导入时，该系列不提供的深度会被拒绝，<b>并列出本可接受的深度</b>——电子表格无法渲染复选框，因此检查发生在导入环节。"
+            "answer": "在<b>设置 → 管理 → LLM 定价</b>中，整个目录 —— 每个模型、每项特征、每份价目 —— 都可下载为结构化的 Excel 工作簿，编辑好的文件也沿同一条路回传。<br><br><b>工作簿包含什么：</b>一份翻译成你所用语言的使用说明；每个模型一行，附下拉列表与单元格校验；一张为这些列表供数的参照表；一张列出 UTC 时间窗的工作表，用于按高峰/低谷计费的供应商；以及一列<b>状态</b>，说明实际会发生什么 —— 没有生效价目（按零计费）、存在多份生效价目，或是按另一个模型的名称计费。<br><br><b>回传分两步进行。</b>系统先分析文件，逐字段展示全部差异 —— 新建、修改、重新启用、下架 —— 此时尚未写入任何数据；只有随后才能应用，而且只针对你读过的那份预览。<br><br><b>导入永远做不到的事：</b>文件中缺失的行<b>永远不会删除任何东西</b>（忘记取消的 Excel 筛选无法清空目录 —— 下架必须通过把 <b>is_active</b> 列置为假来显式声明，重新置为真则会把模型找回来）；任何无法读取或自相矛盾的内容都会<b>连同需要修正的工作表与单元格</b>一并指出，此时导入什么都不会写入；价目只有在确实发生变化时才会重写，因此重新导入一份未改动的文件会让价目历史保持原样；而如果他人在预览与确认之间改动了某个模型，被拒绝的只是相关的行，而不是整个文件。<br><br><b>推理设置直接写在工作簿里。</b>两列承载它：该模型是否推理，以及它接受的深度（以逗号分隔）。第三列为只读，说明 LIA 识别出的系列及将要应用的等级。重新导入时，该系列不提供的深度会被拒绝，<b>并列出本可接受的深度</b>——电子表格无法渲染复选框，因此检查发生在导入环节。<br><br><b>时段可以指定适用的日子</b>：有些服务商只在工作日按高峰计费。时段页签带有一列「日期」，旧格式的工作簿会被拒绝，而不是被当作「每天适用」来读取——那样会让每个周末重新按全价计费。"
           },
           "q22": {
             "question": "如何选择模型的思考深度？",
-            "answer": "在<b>设置 → 管理 → LLM 定价</b>中打开一个模型：LIA 会显示该模型真正接受的深度——从\"不思考\"到\"最大\"——你<b>取消勾选</b>它拒绝的那些。全部保持勾选表示\"不作限制\"：其系列的完整等级生效。<br><br>因此你从不手动输入等级，也无法写出并不存在的等级。该列表与服务端校验所用的来源完全相同：界面提供什么，模型 API 就接受什么。<br><br>如果没有任何已知系列与该模型匹配，LIA 会明确说明，而不是显示一个空列表：此时不会为它发送任何推理参数，而要让 LIA 认识一个新系列则需要修改代码。<br><br>每个角色（路由、规划、回答……）实际使用的深度在 <b>LLM 配置</b>中设置，那里提供同一份解析后的列表。<br><br>关于默认会思考的模型，有一点需要了解：它们的思考会计入回答的预算。因此，只要模型支持关闭思考，LIA 写短通知（例如一条提醒）时都不会思考；而一条回来是空的或被截断的回复，会被替换为简单版的句子，而不是原样发送。"
+            "answer": "在<b>设置 → 管理 → LLM 定价</b>中打开一个模型：LIA 会显示该模型真正接受的深度——从\"不思考\"到\"最大\"——你<b>取消勾选</b>它拒绝的那些。全部保持勾选表示\"不作限制\"：其系列的完整等级生效。<br><br>因此你从不手动输入等级，也无法写出并不存在的等级。该列表与服务端校验所用的来源完全相同：界面提供什么，模型 API 就接受什么。<br><br>如果没有任何已知系列与该模型匹配，LIA 会明确说明，而不是显示一个空列表：此时不会为它发送任何推理参数，而要让 LIA 认识一个新系列则需要修改代码。<br><br>每个角色（路由、规划、回答……）实际使用的深度在 <b>LLM 配置</b>中设置，那里提供同一份解析后的列表。<br><br>关于默认会思考的模型，有一点需要了解：它们的思考会计入回答的预算。因此，只要模型支持关闭思考，LIA 写短通知（例如一条提醒）时都不会思考；而一条回来是空的或被截断的回复，会被替换为简单版的句子，而不是原样发送。<br><br>有些模型即使没有选择级别也会思考，深度由其服务商决定：LIA 了解这一点，如果回复预算不足以支撑这种隐式思考，会提醒你。"
           },
           "q23": {
             "question": "阅读 LIA 会计入它学习的作息吗？（v1.40.0）",
@@ -7860,7 +7853,7 @@
         "questions": {
           "q1": {
             "question": "什么是连接器？",
-            "answer": "连接器允许LIA<strong>访问你的外部服务</strong>以帮助你完成任务。有四种类型：<br><br><strong>🔐 OAuth连接器（Google）：</strong><br>• Gmail、日历、联系人、云端硬盘、任务、地点、路线（Routes）<br>• 通过Google安全授权<br>• 你的凭据永远不会存储<br><br><strong>🔑 API密钥连接器：</strong><br>• OpenWeatherMap（天气）<br>• Perplexity（AI搜索）<br>• Brave Search（网络搜索）<br>• 维基百科（无需密钥）<br>• 需要你自己的API密钥<br><br><strong>🍎 Apple iCloud 服务（应用专用密码）：</strong><br>• 📮 <strong>Apple Mail</strong>：读取、发送、回复邮件（IMAP/SMTP）<br>• 🗓️ <strong>Apple Calendar</strong>：管理 iCloud 日程（CalDAV）<br>• 📇 <strong>Apple Contacts</strong>：搜索和创建 iCloud 联系人（CardDAV）<br><br><strong>🪟 Microsoft 365 服务（OAuth）：</strong><br>• 📧 <strong>Outlook</strong>：阅读、发送、回复邮件<br>• 📅 <strong>Microsoft Calendar</strong>：管理日程<br>• 👥 <strong>Microsoft Contacts</strong>：搜索和管理联系人<br>• ✅ <strong>Microsoft To Do</strong>：管理任务和列表<br><br><strong>Smart Home (hybrid auth):</strong><br>• 💡 <strong>Philips Hue</strong>: 控制灯光、房间和场景<br><br><strong>电话（自有账户）：</strong><br>• 📞 <strong>ElevenLabs 电话</strong>：LIA 代你拨打外呼电话 —— 见专门的「电话呼叫」板块<br><br><strong>⚡ 互斥规则：</strong><br>对于邮件、日历和联系人，同一时间只能有一个供应商处于活动状态（Google 或 Apple 或 Microsoft，不能同时使用多个）。任务通过 Google Tasks 或 Microsoft To Do 提供。"
+            "answer": "连接器允许LIA<strong>访问你的外部服务</strong>以帮助你完成任务。有四种类型：<br><br><strong>🔐 OAuth连接器（Google）：</strong><br>• Gmail、日历、联系人、云端硬盘、任务<br>• 通过Google安全授权<br>• 你的凭据永远不会存储<br><br><strong>🔑 API密钥连接器：</strong><br>• OpenWeatherMap（天气）<br>• Perplexity（AI搜索）<br>• Brave Search（网络搜索）<br>• 需要你自己的API密钥<br><br><strong>🍎 Apple iCloud 服务（应用专用密码）：</strong><br>• 📮 <strong>Apple Mail</strong>：读取、发送、回复邮件（IMAP/SMTP）<br>• 🗓️ <strong>Apple Calendar</strong>：管理 iCloud 日程（CalDAV）<br>• 📇 <strong>Apple Contacts</strong>：搜索和创建 iCloud 联系人（CardDAV）<br><br><strong>🪟 Microsoft 365 服务（OAuth）：</strong><br>• 📧 <strong>Outlook</strong>：阅读、发送、回复邮件<br>• 📅 <strong>Microsoft Calendar</strong>：管理日程<br>• 👥 <strong>Microsoft Contacts</strong>：搜索和管理联系人<br>• ✅ <strong>Microsoft To Do</strong>：管理任务和列表<br><br><strong>Smart Home (hybrid auth):</strong><br>• 💡 <strong>Philips Hue</strong>: 控制灯光、房间和场景<br><br><strong>电话（自有账户）：</strong><br>• 📞 <strong>ElevenLabs 电话</strong>：LIA 代你拨打外呼电话 —— 见专门的「电话呼叫」板块<br><br><strong>✅ 始终启用，无需配置（由你的实例提供）：</strong><br>• 📚 <strong>维基百科</strong>：百科搜索<br>• 🌐 <strong>网页浏览</strong>：打开并阅读网页<br>• 📍 <strong>Google 地点</strong>：搜索地点<br>• 🗺️ <strong>Google 路线</strong>：计算路线<br>• 🌤️ <strong>Google 天气</strong>：天气与预报<br>• 🌿 <strong>Google 环境</strong>：空气质量与花粉<br><br><strong>⚡ 互斥规则：</strong><br>对于邮件、日历和联系人，同一时间只能有一个供应商处于活动状态（Google 或 Apple 或 Microsoft，不能同时使用多个）。任务通过 Google Tasks 或 Microsoft To Do 提供。"
           },
           "q2": {
             "question": "如何连接Google服务？",
@@ -7868,7 +7861,7 @@
           },
           "q3": {
             "question": "如何配置API密钥连接器？",
-            "answer": "对于<strong>外部服务</strong>（天气、Perplexity），你需要自己的API密钥：<br><br>1. 转到<strong>设置 > 连接器</strong><br>2. 找到所需的服务（OpenWeatherMap、Perplexity）<br>3. 点击<strong>获取密钥</strong>链接以创建供应商账户<br>4. 复制你的API密钥<br>5. 在LIA中粘贴并点击<strong>验证</strong><br><br><strong>维基百科</strong>不需要API密钥，默认可用。"
+            "answer": "对于<strong>外部服务</strong>（天气、Perplexity），你需要自己的API密钥：<br><br>1. 转到<strong>设置 > 连接器</strong><br>2. 找到所需的服务（OpenWeatherMap、Perplexity）<br>3. 点击<strong>获取密钥</strong>链接以创建供应商账户<br>4. 复制你的API密钥<br>5. 在LIA中粘贴并点击<strong>验证</strong><br><br><strong>维基百科</strong>、<strong>网页浏览</strong>以及实例提供的 Google 服务（地点、天气、环境）始终启用，无需任何操作。"
           },
           "q4": {
             "question": "如何断开服务？",
@@ -7884,7 +7877,7 @@
           },
           "q7": {
             "question": "LIA可以使用哪些Google服务？",
-            "answer": "LIA集成了<strong>7项Google服务</strong>：<br><br><strong>📧 Gmail</strong><br>• 搜索所有邮件<br>• 阅读消息内容<br>• 发送、回复、转发<br>• 查看附件<br><br><strong>📅 Google Calendar</strong><br>• 查看日程<br>• 创建事件<br>• 修改或删除<br>• 邀请参与者<br><br><strong>👥 Google Contacts</strong><br>• 按姓名、邮箱、公司搜索<br>• 创建新联系人<br>• 更新信息<br><br><strong>📁 Google Drive</strong><br>• 搜索文件<br>• 阅读文档内容<br>• 浏览文件夹<br><br><strong>✅ Google Tasks</strong><br>• 列出任务<br>• 创建新任务<br>• 标记为完成<br><br><strong>📍 Google Places</strong><br>• 搜索地点<br>• 获取地址和营业时间<br>• 查看评价<br><br><strong>🗺️ Google Routes</strong><br>• 计算路线<br>• 比较交通方式<br>• 估算旅行时间"
+            "answer": "LIA集成了<strong>7项Google服务</strong>：<br><br><strong>📧 Gmail</strong><br>• 搜索所有邮件<br>• 阅读消息内容<br>• 发送、回复、转发<br>• 查看附件<br><br><strong>📅 Google Calendar</strong><br>• 查看日程<br>• 创建事件<br>• 修改或删除<br>• 邀请参与者<br><br><strong>👥 Google Contacts</strong><br>• 按姓名、邮箱、公司搜索<br>• 创建新联系人<br>• 更新信息<br><br><strong>📁 Google Drive</strong><br>• 搜索文件<br>• 阅读文档内容<br>• 浏览文件夹<br><br><strong>✅ Google Tasks</strong><br>• 列出任务<br>• 创建新任务<br>• 标记为完成<br><br><strong>📍 Google Places</strong><br>• 搜索地点<br>• 获取地址和营业时间<br>• 查看评价<br><br><strong>🗺️ Google Routes</strong><br>• 计算路线<br>• 比较交通方式<br>• 估算旅行时间<br><br><strong>ℹ️ 地点和路线无需连接：</strong><br>它们使用你所在实例的 Google 密钥，始终启用，与 Google 天气和 Google 环境一样。"
           },
           "q8": {
             "question": "如果管理员禁用了连接器会怎样？",
@@ -7915,8 +7908,8 @@
             "answer": "Philips Hue使用<strong>混合认证</strong>（本地按键配对或远程OAuth2）：<br><br><strong>🏠 本地模式（推荐 — 同一网络）：</strong><br>1. 前往 <strong>设置 > 智能家居 > Philips Hue</strong><br>2. 点击 <strong>本地连接</strong><br>3. 点击 <strong>搜索网桥</strong><br>4. 选择你的网桥<br>5. <strong>按下</strong>Hue网桥上的物理按钮<br>6. 在30秒内点击 <strong>配对</strong><br>7. LIA验证连接并激活连接器<br><br><strong>💡 你可以做什么：</strong><br>• \"打开客厅的灯\"<br>• \"将卧室调暗到30%\"<br>• \"将厨房灯设为蓝色\"<br>• \"激活电影模式\""
           },
           "q15": {
-            "question": "注册后哪些连接器会立即启用？",
-            "answer": "那些不需要你提供任何东西的：<strong>维基百科</strong>、<strong>网页浏览</strong>、<strong>Google 地点</strong>、<strong>Google 天气</strong>和 <strong>Google 环境</strong>（空气质量与花粉）——无需绑定账户，无需粘贴密钥。新账户一开始就全部启用，让助手从第一次对话起就能查找地点或天气。<br><br>三种情况下某个连接器不会被启用：管理员在实例上关闭了它、实例没有平台 Google 密钥、或网页浏览已被禁用。你可以在<strong>设置 > 连接器</strong>中关闭任意一个。已有账户不受影响：你的选择保持原样。"
+            "question": "哪些连接器始终启用？",
+            "answer": "那些不需要你提供任何东西的：<strong>维基百科</strong>、<strong>网页浏览</strong>、<strong>Google 地点</strong>、<strong>Google 天气</strong>和 <strong>Google 环境</strong>（空气质量与花粉）——无需绑定账户，无需粘贴密钥。你的实例从第一次对话起就为每个账户提供它们，因此它们不会出现在<strong>设置 > 连接器</strong>中，也没有什么需要开启或关闭。<br><br>如果缺少其中某一个，是实例没有提供：管理员为所有人关闭了它、实例没有平台 Google 密钥、或实例禁用了网页浏览。天气方面，你在设置中添加的个人 <strong>OpenWeatherMap</strong> 密钥优先于 Google 天气。"
           },
           "q16": {
             "question": "可以只授权一次就连接多项 Google 或 Microsoft 服务吗？",
@@ -8183,11 +8176,11 @@
         "questions": {
           "q1": {
             "question": "如何获取当前天气？",
-            "answer": "<strong>OpenWeatherMap</strong> - 询问天气：<br><br>• \"<em>北京天气怎么样？</em>\"<br>• \"<em>纽约当前温度</em>\"<br>• \"<em>伦敦在下雨吗？</em>\"<br>• \"<em>这里天气如何？</em>\"（使用你配置的位置）<br><br>LIA显示温度、天气状况、湿度、风力等详细信息。<br><br><strong>🌿 空气质量与花粉：</strong><br>启用 Google 环境连接器后，一个简单的天气问题还会带来空气质量指数和当季花粉——聊天卡片和主页都会显示。显示的指数优先采用你所在国家的标准，类别文字直接来自服务本身。<br><br><strong>💡 提示：</strong><br>获取天气有两种方式：<strong>OpenWeatherMap</strong>连接器（免费，需要你自己的 API 密钥）或 <strong>Google 天气</strong>（一个开关，无需申请密钥）。两者显示效果相同。在设置 > 连接器中添加任意一个。"
+            "answer": "<strong>OpenWeatherMap</strong> - 询问天气：<br><br>• \"<em>北京天气怎么样？</em>\"<br>• \"<em>纽约当前温度</em>\"<br>• \"<em>伦敦在下雨吗？</em>\"<br>• \"<em>这里天气如何？</em>\"（使用你配置的位置）<br><br>LIA显示温度、天气状况、湿度、风力等详细信息。<br><br><strong>🌿 空气质量与花粉：</strong><br>Google 环境始终启用，因此一个简单的天气问题还会带来空气质量指数和当季花粉——聊天卡片和主页都会显示。显示的指数优先采用你所在国家的标准，类别文字直接来自服务本身。<br><br><strong>💡 提示：</strong><br>从第一次对话起即可查询天气：<strong>Google 天气</strong>始终启用，无需申请密钥。如果你更喜欢 <strong>OpenWeatherMap</strong>（免费，需要你自己的 API 密钥），请在设置 > 连接器中添加它：之后将由它来回答。两者显示效果相同。"
           },
           "q2": {
             "question": "如何获取天气预报？",
-            "answer": "<strong>OpenWeatherMap</strong> - 请求预报：<br><br>• \"<em>上海明天天气如何？</em>\"<br>• \"<em>广州5天天气预报</em>\"<br>• \"<em>周末会下雨吗？</em>\"<br>• \"<em>今天的逐小时预报</em>\"<br><br>LIA提供详细的预报，包括温度、天气状况和降水概率。"
+            "answer": "<strong>Google Weather / OpenWeatherMap</strong> - 请求预报：<br><br>• \"<em>上海明天天气如何？</em>\"<br>• \"<em>广州5天天气预报</em>\"<br>• \"<em>周末会下雨吗？</em>\"<br>• \"<em>今天的逐小时预报</em>\"<br><br>LIA提供详细的预报，包括温度、天气状况和降水概率。<br><br><strong>📆 用你自己的话说日期：</strong><br>「明天」「周六」「这个周末」会在查询服务之前变成确切日期，无论你用哪种语言——无法识别的日期会被拒绝，而不会被替换成今天。"
           },
           "q3": {
             "question": "如何获取维基百科信息？",
@@ -8219,7 +8212,7 @@
           },
           "q10": {
             "question": "哪些服务无需配置即可使用？",
-            "answer": "一些服务<strong>立即可用</strong>，其他需要配置：<br><br><strong>✅ 无需配置即可使用：</strong><br>• 📚 <strong>维基百科</strong>：免费百科搜索<br>• 🌐 <strong>网页阅读</strong>：提取网页内容（URL → 文本）<br>• 💬 <strong>对话</strong>：LIA回答你的一般问题<br><br><strong>🔐 需要Google连接：</strong><br>• 📧 Gmail<br>• 📅 Google日历<br>• 👥 Google联系人<br>• 📁 Google云端硬盘<br>• ✅ Google任务<br>• 📍 Google地点<br>• 🗺️ Google Routes（路线导航）<br><br><strong>🔑 需要API密钥：</strong><br>• 🌤️ <strong>OpenWeatherMap</strong>：免费，在openweathermap.org注册<br>• 🔍 <strong>Perplexity</strong>：付费，在perplexity.ai注册<br><br><strong>💡 入门建议：</strong><br>首先连接你的Google服务（一次授权即可访问所有服务），然后添加OpenWeatherMap获取免费天气。"
+            "answer": "许多服务<strong>从第一天起即可使用</strong>：<br><br><strong>✅ 由你的实例提供，始终开启：</strong><br>• 📚 <strong>Wikipedia</strong>：百科搜索<br>• 🌐 <strong>网页阅读</strong>：内容提取（URL → 文本）<br>• 📍 <strong>Google Places</strong> 和 🗺️ <strong>路线</strong><br>• 🌤️ <strong>Google Weather</strong>、🌿 <strong>空气质量与花粉</strong><br>• 💬 <strong>对话</strong>：LIA 回答你的一般性问题<br><br><strong>🔐 需要连接（Google、Apple 或 Microsoft）：</strong><br>• 📧 邮件 · 📅 日历 · 👥 联系人 · ✅ 任务 · 📁 Drive（Google）<br><br><strong>🔑 需要你自己的 API 密钥：</strong><br>• 🌤️ <strong>OpenWeatherMap</strong>：免费；启用后将代替 Google Weather 回答<br>• 🔍 <strong>Perplexity</strong> 和 🦁 <strong>Brave Search</strong>：网页搜索<br><br><strong>💡 入门建议：</strong><br>用一次授权连接你的 Google 服务：天气、地点和路线已经可以使用。第一类中缺少某项服务？那是管理员把它从实例中移除了。"
           },
           "q11": {
             "question": "如何获取路线导航？",
@@ -8703,7 +8696,7 @@
       "privacy": {
         "title": "安全和隐私",
         "description": "保护你的数据",
-        "count": "16",
+        "count": "17",
         "questions": {
           "q1": {
             "question": "我的对话是私密的吗？",
@@ -8768,6 +8761,10 @@
           "q16": {
             "question": "在 Live 会话中，服务商看到什么？LIA 保留什么？",
             "answer": "<strong>🔑 服务商，在你的密钥上：</strong><br>你的声音和 LIA 的回答直接在你的浏览器与你用自己密钥连接的实时服务商之间传输——音频从不经过 LIA 服务器。服务商收到 LIA 为会话生成的委任书（如何表现、把什么交出去），在直接会话中还会收到工具声明和它为你读取的结果。它自己的用量和账单属于你，只显示给你一次；平台不记录其中任何内容。<br><br><strong>🧾 LIA，在你的账户上：</strong><br>你委托的每个请求都是普通的聊天回合——像文字消息一样被保存、确认、计数并记入登记簿。Live 会话中仅语音的交流以可见行归档；直接会话中你说话时不归档任何内容，你的话在结束时作为你的消息转达。登记簿记录会话和读取过的能力，绝不记录音频或其转写。删除账户会清除所有这些。"
+          },
+          "q17": {
+            "question": "用 Google 登录能激活或解封账户吗？",
+            "answer": "<p>不能。用 Google 登录只证明一个邮箱地址，仅此而已：账户状态绝不会因此改变。等待审批的注册依然等待审批，被管理员封禁的账户依然被封禁。</p><p>只有在 Google 为该地址担保时，LIA 才会采信。如果有人曾用你的地址注册账户却从未验证，你的 Google 登录就证明了这个地址属于你：那个人的密码和会话会被撤销，管理员也会像邮箱验证之后一样收到通知。已删除的账户绝不会被恢复。</p><p>即使是未激活的账户，也始终可以退出登录。</p>"
           }
         }
       },
@@ -8849,7 +8846,7 @@
           },
           "q12": {
             "question": "平台为我支付的一切都会被计入吗——即使在聊天之外？",
-            "answer": "是的——这是一条规则，而不只针对模型的 token。平台用自己的密钥为你支付的一切都会进入你的用量、费用磁贴和限制：电话或直接 Live 会话中的地图或地点查询、早间简报的天气和空气质量调用、你个人资料地址的地理编码、LIA 给你看的地点照片（在真正显示时计入，绝不预先计入）、语音合成（只对真正送达的句子计入）。每张电话账单和每张 Live 会话卡片都显示一次运行的单一费用数字，含 Maps 欧元。只有你用<b>自己的</b>连接器密钥支付的部分——实时模型、电话代理、用你密钥进行的网页搜索——不在其中：它在发生处显示给你，但不记录在任何地方。管理员监控一条必须保持为零的告警：未进入任何账簿的付费调用。"
+            "answer": "是的——这是一条规则，而不只针对模型的 token。平台用自己的密钥为你支付的一切都会进入你的用量、费用磁贴和限制：电话或直接 Live 会话中的地图或地点查询、早间简报的天气和空气质量调用、你个人资料地址的地理编码、LIA 给你看的地点照片（在真正显示时计入，绝不预先计入）、语音合成（只对真正送达的句子计入）。每张电话账单和每张 Live 会话卡片都显示一次运行的单一费用数字，含 Maps 欧元。只有你用<b>自己的</b>连接器密钥支付的部分——实时模型、电话代理、用你密钥进行的网页搜索——不在其中：它在发生处显示给你，但不记录在任何地方。管理员监控一条必须保持为零的告警：未进入任何账簿的付费调用。<br><br>每次调用都按服务商实际收取的价格计价：写入模型缓存按其自身价格，时段带有适用日期（服务商周末按闲时计费时即如此），路线按请求触发的档位计费。"
           }
         }
       },
@@ -8888,7 +8885,7 @@
           },
           "q8": {
             "question": "什么是 Live 模式？如何开始一次会话？",
-            "answer": "一场与 LIA <b>语音对语音、实时进行</b>的对话：你说，她边听边答，你随时可以打断。它运行在你用<b>自己的密钥</b>连接的实时模型上——Gemini Live、GPT-Live 或 ElevenLabs 代理——在<b>设置 → 连接器</b>中配置（「Live」家族是叠加的：你可以同时持有多个）。连接器激活后，聊天顶栏的语音图标会变成菜单：<b>Live 会话（品牌）</b>即可开启。对话上方的横条显示字幕、剩余时间和参考计数器；延长对话框会在到达上限前询问你，长时间静默后会话自动结束。<br><br><strong>🧠 两个智能，一道接缝：</strong><br>语音负责对话；每一次数据或操作请求都交给 LIA，由她作为普通聊天回合执行——同样的确认、登记和配额——在你说话时绘制在对话中。LIA 需要问你的问题，就是语音接下来说的话。"
+            "answer": "一场与 LIA <b>语音对语音、实时进行</b>的对话：你说，她边听边答，你随时可以打断。它运行在你用<b>自己的密钥</b>连接的实时模型上——Gemini Live、GPT-Live 或 ElevenLabs 代理——在<b>设置 → 连接器</b>中配置（「Live」家族是叠加的：你可以同时持有多个）。连接器激活后，聊天顶栏的语音图标会变成菜单：<b>Live 会话（品牌）</b>即可开启。对话上方的横条显示字幕、剩余时间和参考计数器；延长对话框会在到达上限前询问你，长时间静默后会话自动结束。<br><br><strong>🧠 两个智能，一道接缝：</strong><br>语音负责对话；每一次数据或操作请求都交给 LIA，由她作为普通聊天回合执行——同样的确认、登记和配额——在你说话时绘制在对话中。LIA 需要问你的问题，就是语音接下来说的话。<br><br><strong>📱 在 iPhone 和 iPad 上：</strong>ElevenLabs 智能体会使用其服务商的原生音频连接（WebRTC），更加稳定。如果 Google 因为你的 Gemini Live 密钥按 IP 地址受限而拒绝连接，LIA 会告诉你：请为这个连接器换用一个没有 IP 限制的密钥。"
           },
           "q9": {
             "question": "「Live 会话」与「直接 Live 会话」有什么区别？",
@@ -8907,7 +8904,7 @@
       "image_generation": {
         "title": "AI图像生成",
         "description": "使用AI生成和编辑图像",
-        "count": "8",
+        "count": "9",
         "questions": {
           "q1": {
             "question": "如何生成图像？",
@@ -8919,11 +8916,11 @@
           },
           "q3": {
             "question": "如何配置质量和尺寸？",
-            "answer": "<p>前往<strong>设置 > 偏好 > AI图像生成</strong>。选择质量、尺寸和格式。</p>"
+            "answer": "<p>前往<strong>设置 > 偏好设置 > AI 图像生成</strong>。选择质量、尺寸（正方形、纵向或横向——模型同时提供时还可选 1K 或 2K 分辨率）和格式（PNG/WebP）。可选项取决于管理员配置的图像模型；已保存的选择若不再提供，会替换为最接近的可选项，但绝不会换成更贵的质量。</p>"
           },
           "q4": {
             "question": "费用是多少？",
-            "answer": "<p>gpt-image-1：低$0.011-$0.016，中$0.042-$0.063，高$0.167-$0.250每张。</p>"
+            "answer": "<p>取决于管理员配置的图像模型：<strong>设置 > 偏好设置 > AI 图像生成</strong>中每种质量都会显示每张图像的价格区间。当模型按张计价时，编辑还可能对其所基于的原始图像计费。每张图像的确切费用显示在调试面板中。</p>"
           },
           "q5": {
             "question": "如何下载生成的图像？",
@@ -8940,6 +8937,10 @@
           "q8": {
             "question": "在哪里能找到 LIA 生成过的所有图片？",
             "answer": "在<strong>设置 › 我生成的文件 › 图片</strong>里：你所有的图片，跨越全部对话，支持按名称搜索、两个日期筛选和四种排序。<br><br>图库不会延长保存期限，它只是把期限<strong>显示出来</strong>。每张卡片都会写明何时到期，最后几个小时颜色会转暖。重要的请提前下载。<br><br>而且从这个版本起，<strong>清空一段对话不会再把它生成的图片一起删掉</strong>：重置只会移除你自己上传的附件。"
+          },
+          "q9": {
+            "question": "LIA 可以使用哪些图片模型？",
+            "answer": "<p>使用管理员配置的那一个，来自两个系列：OpenAI 的 <strong>GPT Image</strong> 和 <strong>Qwen Image 3.0</strong>（阿里云）。两者都能生成图片，也能修改你附上的照片。</p><p>每个模型都会声明自己能做什么——质量、尺寸、分辨率——LIA 只向你提供这些选项：如果你的偏好在所选模型上不存在，它会选用最接近的选项，绝不换成更贵的质量。你选择的格式（PNG、JPEG 或 WebP）会应用到每张图片，无论哪家服务商；当服务商对修改所用的原图收费时，显示的费用也会计入这张原图。</p>"
           }
         }
       },
@@ -9149,6 +9150,10 @@
       "honest_freshness": {
         "title": "新鲜，或如实地陈旧",
         "desc": "每张卡片都会说明更新时间，过期时会变暗，并提供一键重试。"
+      },
+      "honest_gaps": {
+        "title": "缺了什么，直接说明",
+        "desc": "当某条信息始终无法获得时，LIA 会在回答末尾说明，并附上它尝试过的方法。从别处找到的信息会注明来源。"
       },
       "draft_survives": {
         "title": "草稿永不丢失",
@@ -9454,6 +9459,12 @@
       "honest_freshness": {
         "fresh": "最新",
         "retry": "重试"
+      },
+      "honest_gaps": {
+        "obtained": "已找到路线",
+        "fallback": "来源：网页搜索",
+        "missing": "未获得：天气",
+        "tried": "已尝试：天气服务、网页"
       },
       "draft_survives": {
         "typing": "帮我安排明天的日程"
@@ -9945,14 +9956,8 @@
       "options": {
         "brave_name": "Brave Search",
         "brave_desc": "从互联网获取最新数据（在brave.com/search/api/获取免费API密钥）",
-        "wikipedia_name": "Wikipedia",
-        "wikipedia_desc": "从互联网获取通用信息（无需密钥，免费）",
-        "places_name": "Google Places",
-        "places_desc": "搜索场所、商店、路线等（无需密钥）",
         "weather_name": "OpenWeatherMap",
-        "weather_desc": "搜索天气和5天预报（在openweathermap.org/api获取免费API密钥）",
-        "browser_name": "Browser",
-        "browser_desc": "互联网搜索和浏览（无需密钥，免费）"
+        "weather_desc": "搜索天气和5天预报（在openweathermap.org/api获取免费API密钥）"
       },
       "cta": "连接我的服务"
     },
@@ -10008,7 +10013,7 @@
       "title": "命令示例",
       "subtitle": "LIA拥有众多工具和功能，建议你逐步探索：",
       "features": {
-        "image_generation": "AI图像生成与编辑（DALL·E、GPT Image）",
+        "image_generation": "AI图像生成与编辑",
         "skills": "Skills用于发展其专业知识或引导其行动（可自动生成）",
         "mcp": "MCP用于通过市场工具扩展其能力（只需两次点击）",
         "rag": "RAG用于从你的文档中丰富其知识",
@@ -10612,7 +10617,7 @@
       },
       "web_intelligence": {
         "title": "搜索、地点与路线",
-        "description": "多源网络搜索——Brave、Perplexity、维基百科——并把任何公开网页读成干净的文本；附近的地点和商店；驾车、步行、骑行或公共交通路线；自动定位，可选记住位置，让你在旅途中也得到本地化回答，并始终说明该位置的时效。维基百科、地点和天气无需任何密钥，第一天即可使用。"
+        "description": "多源网络搜索——Brave、Perplexity、维基百科——并把任何公开网页读成干净的文本；附近的地点和商店；驾车、步行、骑行或公共交通路线；自动定位，可选记住位置，让你在旅途中也得到本地化回答，并始终说明该位置的时效。维基百科、网页阅读、地点、路线和天气由你的实例提供：始终开启，无需任何配置。"
       },
       "voice_mode": {
         "title": "语音模式，100% 本地监听",
@@ -10784,7 +10789,7 @@
       },
       "image_generation": {
         "title": "AI 图像生成",
-        "description": "描述画面，LIA 生成图像；附上照片，她用自然语言修图或改造。质量、尺寸和格式遵循你的偏好，每张图片的费用都会显示。生成的图片限时保留：卡片显示真实的到期时间，最后几小时转为提醒色，而你的“生成文件”图库把它留在手边——独立于产生它的那次对话。"
+        "description": "描述图片，LIA 就能生成；附上一张照片，它就能用自然语言修改——使用 OpenAI 的 GPT Image 或 Qwen Image 3.0，取决于管理员选择的模型。每个模型都会声明自己的能力，你对质量、尺寸和格式的偏好会随之适配，绝不换成更贵的选项；每张图片的费用都会显示。生成的图片带有可见的有效期，你的生成文件图库会把它留在手边——独立于生成它的那段对话。"
       },
       "document_generation": {
         "title": "AI 文档生成",
@@ -10879,7 +10884,7 @@
       },
       "bff": {
         "title": "安全架构",
-        "description": "BFF 架构，HTTP-only Cookie 与 Redis 会话：令牌绝不暴露给前端。通行密钥与 TOTP 双因素，敏感操作前需再次验证。严格的 CSP、覆盖 OWASP Top 10，第三方代码运行于无套接字、无网络的一次性容器中。"
+        "description": "BFF 架构，HTTP-only Cookie 与 Redis 会话：令牌绝不暴露给前端。通行密钥与 TOTP 双因素，敏感操作前需再次验证。严格的 CSP、覆盖 OWASP Top 10，第三方代码运行于无套接字、无网络的一次性容器中。Google 登录证明的是地址，而不是权限：它既不能激活也不能解封账户。"
       },
       "encryption": {
         "title": "加密",
@@ -10901,7 +10906,7 @@
       "deep_dive_link": "完整技术深度解析",
       "langgraph": {
         "title": "完成一项请求的两种方式",
-        "description": "简单的请求走计划路线：LIA 写出步骤，把彼此独立的步骤并行执行，并在需要您确认处停下。开放式的请求切换为自主循环，在思考与行动之间交替，直到得出答案。模式在聊天顶栏切换：计划模式的令牌消耗低数倍，自主模式则探索得更远。一轮对话在答案发出时结束——LIA 绝不预告自己不会做的事。"
+        "description": "简单的请求按计划执行：LIA 写出步骤，把彼此独立的步骤一起执行，并在需要你确认的地方停下。开放式请求会切换到以结果评判的自主循环：它核对每个工具结果是否回答了问题，遇到障碍时换一个来源，并说明它没能获得的内容以及尝试过的方法。你可以在聊天标题栏选择模式：计划模式消耗的 token 少得多，自主模式探索得更远。回答发出，本轮即告结束——LIA 从不预告它不会去做的工作。"
       },
       "llm_providers": {
         "title": "七家模型供应商，由您选择",
@@ -11206,7 +11211,7 @@
       "cost_prefix": "每条消息：",
       "cost_note": "——真实计数器，应用中每条回复下都能看到——",
       "p1_t": "成本，精确到分",
-      "p1_d": "逐条显示，按会话累计，并按每次调用确切时刻的费率计价——包括提供商的高峰与低谷时段。没有一个主流助手会给你看这个。",
+      "p1_d": "逐条消息显示，并按对话累计，按服务商实际收取的价格计算：每次调用确切时刻的价格、带有适用日期的闲时、按其价格计费的缓存写入。没有哪个大众助手会给你看这些。",
       "p2_t": "8.3/10 —— 公开审计",
       "p2_d": "24 个评估领域，协议与报告完整公开——包括仍需改进之处。",
       "p2_link": "阅读审计报告",
@@ -11573,17 +11578,17 @@
       "llm-providers": {
         "title": "多供应商AI：为每个任务选择合适的模型",
         "excerpt": "LIA支持众多供应商，允许为每种任务类型配置不同的模型。",
-        "body": "<h2>众多供应商，一个助手</h2><p>LIA原生集成多个LLM供应商，涵盖<strong>云端专有模型</strong>、<strong>开源模型</strong>和<strong>本地模型</strong>。每个供应商由LLM工厂中的专用适配器管理。</p><h2>56种可单独配置的LLM类型</h2><p>LIA定义了<strong>50多种可单独配置的LLM类型</strong>：路由器、响应、规划器、每个领域智能体等。对于每种类型，你可以定义：<code>provider</code>、<code>model</code>、<code>temperature</code>、<code>top_p</code>、<code>frequency_penalty</code>、<code>presence_penalty</code>、<code>max_tokens</code>、<code>timeout</code>和<code>reasoning_effort</code>。</p><p>例如：</p><ul><li>快速经济的模型用于<strong>路由</strong></li><li>强大的模型用于<strong>规划</strong></li><li>创意模型用于<strong>响应</strong></li><li>本地模型用于<strong>隐私保护</strong></li></ul><h2>配置解析链</h2><p>每个LLM的配置遵循<strong>3级解析链</strong>：管理界面（存储在数据库中）→ 环境变量 → 代码默认值。<code>LLMConfigOverrideCache</code>缓存提供O(1)查找，运行时无需数据库查询。通过管理界面的修改由于缓存失效而<strong>立即生效</strong>。</p><h2>多供应商LLM工厂</h2><p>所有供应商统一入口：</p><pre><code class=\"language-python\">def get_llm(\n    llm_type: LLMType,\n    config_override: LLMAgentConfig | None = None,\n) -&gt; BaseChatModel:\n    if config_override is None:\n        agent_config = get_llm_config_for_agent(\n            settings, llm_type\n        )\n    else:\n        agent_config = config_override\n\n    return ProviderAdapter.create_llm(agent_config)\n\n# 使用示例\nrouter_llm = get_llm(\"router\")        # 轻量级路由模型\nplanner_llm = get_llm(\"planner\")      # 强大规划模型\nresponse_llm = get_llm(\"response\")    # 创意响应模型</code></pre><h2>契约化的用量计数</h2><p>每个提供商都声明其令牌消耗的计数方式：在流式回答中显式请求、SDK 原生计数，或有意排除（免费的本地模型、归最终用户所有的密钥）。该声明在<strong>启动时校验</strong> — 未声明的提供商会阻止应用启动 — 付费调用若在无计数的情况下结束，会转化为计数器、警告和告警：支出上限不会再悄悄失明。按用途配置的超时会应用到每个提供商的客户端，默认值依据生产环境的真实延迟校准。按次计费的工具——图像生成、Perplexity、Brave——还设有每次请求的调用上限：智能体无法在付费 API 上循环，会被停止并附上解释，用已获得的内容完成回答。</p><h2>API密钥安全</h2><p>供应商的API密钥在存储到数据库之前通过<strong>Fernet</strong>（AES-128 CBC + HMAC）<strong>加密</strong>。任何密钥都不会以明文形式出现在日志或API响应中。</p><h2>推理模型</h2><p>让模型思考只经由<strong>一条统一的等级，在所有提供商处完全一致</strong>：<code>none</code>、<code>minimal</code>、<code>low</code>、<code>medium</code>、<code>high</code>、<code>xhigh</code>、<code>max</code>，外加提供商自身的默认值。某个具体模型真正接受什么并非手工声明，而是由其（提供商，模型）这一对<strong>推导</strong>得出；目录只能收窄这条等级，绝不能扩展它。因此管理界面只提供该模型 API 确实接受的深度，深度推理只在值得的地方开启。</p><h2>100%本地部署</h2><p>为了最大程度的隐私保护，LIA可以完全在本地运行，使用本地模型供应商。没有任何数据离开你的基础设施。只需将配置变量指向你的本地模型实例即可。</p><p>本地模型不是二等模型：LIA 通过 Ollama 的原生 API 与之对话，而不是经过兼容层，因此能表达关键的东西——关闭会思考模型的思考或选择其深度、设定上下文窗口、强制结构化输出、把思考轨迹与回答分开读取。能力读自你的服务器，而不是从名字猜测：界面只提供所选模型真正接受的内容。</p><h2>家族只声明一次，短回答不推理</h2><p>一个模型接受什么，由它的家族——其推理 API 的形态——推导而来，而这个家族只在一处声明，适配器、校验器和结构化输出路径都读取这一处；因此某供应商改名后的旗舰模型要么处处被识别，要么处处不被识别，绝不会三处中只有两处。同一条接缝也服务于只需要两句话的调用：在默认会思考的模型上，供应商把思考计入回答预算（OpenAI、Anthropic、Gemini 和 DeepSeek 都是如此），于是一个小预算买到的是隐藏的推理而不是回答。因此，只要模型能够停止推理，一条短通知就会以<em>不推理</em>方式、用一个小的回答预算来请求——而一条回来是空的或被截断的回答是一次拒绝，会被替换为预先写好的句子，花费予以保留，模型予以注明。</p>"
+        "body": "<h2>众多供应商，一个助手</h2><p>LIA原生集成多个LLM供应商，涵盖<strong>云端专有模型</strong>、<strong>开源模型</strong>和<strong>本地模型</strong>。每个供应商由LLM工厂中的专用适配器管理。</p><h2>56种可单独配置的LLM类型</h2><p>LIA定义了<strong>50多种可单独配置的LLM类型</strong>：路由器、响应、规划器、每个领域智能体等。对于每种类型，你可以定义：<code>provider</code>、<code>model</code>、<code>temperature</code>、<code>top_p</code>、<code>frequency_penalty</code>、<code>presence_penalty</code>、<code>max_tokens</code>、<code>timeout</code>和<code>reasoning_effort</code>。</p><p>例如：</p><ul><li>快速经济的模型用于<strong>路由</strong></li><li>强大的模型用于<strong>规划</strong></li><li>创意模型用于<strong>响应</strong></li><li>本地模型用于<strong>隐私保护</strong></li></ul><h2>配置解析链</h2><p>每个LLM的配置遵循<strong>3级解析链</strong>：管理界面（存储在数据库中）→ 环境变量 → 代码默认值。<code>LLMConfigOverrideCache</code>缓存提供O(1)查找，运行时无需数据库查询。通过管理界面的修改由于缓存失效而<strong>立即生效</strong>。</p><h2>多供应商LLM工厂</h2><p>所有供应商统一入口：</p><pre><code class=\"language-python\">def get_llm(\n    llm_type: LLMType,\n    config_override: LLMAgentConfig | None = None,\n) -&gt; BaseChatModel:\n    if config_override is None:\n        agent_config = get_llm_config_for_agent(\n            settings, llm_type\n        )\n    else:\n        agent_config = config_override\n\n    return ProviderAdapter.create_llm(agent_config)\n\n# 使用示例\nrouter_llm = get_llm(\"router\")        # 轻量级路由模型\nplanner_llm = get_llm(\"planner\")      # 强大规划模型\nresponse_llm = get_llm(\"response\")    # 创意响应模型</code></pre><h2>契约化的用量计数</h2><p>每个提供商都声明其令牌消耗的计数方式：在流式回答中显式请求、SDK 原生计数，或有意排除（免费的本地模型、归最终用户所有的密钥）。该声明在<strong>启动时校验</strong> — 未声明的提供商会阻止应用启动 — 付费调用若在无计数的情况下结束，会转化为计数器、警告和告警：支出上限不会再悄悄失明。按用途配置的超时会应用到每个提供商的客户端，默认值依据生产环境的真实延迟校准。按次计费的工具——图像生成、Perplexity、Brave——还设有每次请求的调用上限：智能体无法在付费 API 上循环，会被停止并附上解释，用已获得的内容完成回答。</p><h2>API密钥安全</h2><p>供应商的API密钥在存储到数据库之前通过<strong>Fernet</strong>（AES-128 CBC + HMAC）<strong>加密</strong>。任何密钥都不会以明文形式出现在日志或API响应中。</p><h2>推理模型</h2><p>让模型思考只经由<strong>一条统一的等级，在所有提供商处完全一致</strong>：<code>none</code>、<code>minimal</code>、<code>low</code>、<code>medium</code>、<code>high</code>、<code>xhigh</code>、<code>max</code>，外加提供商自身的默认值。某个具体模型真正接受什么并非手工声明，而是由其（提供商，模型）这一对<strong>推导</strong>得出；目录只能收窄这条等级，绝不能扩展它。因此管理界面只提供该模型 API 确实接受的深度，深度推理只在值得的地方开启。</p><h2>100%本地部署</h2><p>为了最大程度的隐私保护，LIA可以完全在本地运行，使用本地模型供应商。没有任何数据离开你的基础设施。只需将配置变量指向你的本地模型实例即可。</p><p>本地模型不是二等模型：LIA 通过 Ollama 的原生 API 与之对话，而不是经过兼容层，因此能表达关键的东西——关闭会思考模型的思考或选择其深度、设定上下文窗口、强制结构化输出、把思考轨迹与回答分开读取。能力读自你的服务器，而不是从名字猜测：界面只提供所选模型真正接受的内容。</p><h2>家族只声明一次，短回答不推理</h2><p>一个模型接受什么，由它的家族——其推理 API 的形态——推导而来，而这个家族只在一处声明，适配器、校验器和结构化输出路径都读取这一处；因此某供应商改名后的旗舰模型要么处处被识别，要么处处不被识别，绝不会三处中只有两处。同一条接缝也服务于只需要两句话的调用：在默认会思考的模型上，供应商把思考计入回答预算（OpenAI、Anthropic、Gemini 和 DeepSeek 都是如此），于是一个小预算买到的是隐藏的推理而不是回答。因此，只要模型能够停止推理，一条短通知就会以<em>不推理</em>方式、用一个小的回答预算来请求——而一条回来是空的或被截断的回答是一次拒绝，会被替换为预先写好的句子，花费予以保留，模型予以注明。</p><h2>模型接受什么，以及缓存花多少钱</h2><p>同一家服务商的每一代模型，接受的请求都不一样：最新的几代拒绝采样参数，另一些拒绝强制工具选择，思考有六种形态，没有指定时还有隐式深度。这些事实先在服务商的 API 上实测，再声明在唯一的一张表里，由推理规则、适配器、结构化输出和管理界面共同读取——代码里绝不散落模型名称。提示词则对所有缓存机制遵循同一种布局：稳定内容在前、易变内容在后，只有一条边界，由各适配器翻译成对应服务商的机制，不写入任何没人会再读取的缓存。缓存写入按真实价格计费——对以此方式收费的服务商为输入价格的 1.25 倍——有一道守卫会拒绝任何遗漏它的计价入口，顺带还消除了四个界面上缓存读取的重复计费。</p>"
       },
       "google-workspace": {
         "title": "Google Workspace集成：Gmail、Calendar、Contacts、Drive、Tasks",
         "excerpt": "LIA通过OAuth 2.0连接你的Google Workspace，用自然语言管理邮件、日历、联系人、Drive和任务。",
-        "body": "<h2>16个Google API，一次对话</h2><p>LIA集成<strong>16个Google API</strong>，覆盖你的工作空间及更多：<strong>Gmail API</strong>、<strong>Calendar API</strong>、<strong>People API v1</strong>（联系人）、<strong>Drive API</strong>、<strong>Tasks API</strong>、<strong>Routes API</strong>和<strong>Places API</strong>。你可以通过单一自然语言界面管理所有服务。</p><h2>各服务完整操作</h2><p>每个服务提供完整的CRUD操作集：</p><ul><li><strong>Gmail</strong> — 搜索、阅读、发送、回复、转发、标签管理。Scope：<code>gmail.modify</code></li><li><strong>Calendar</strong> — 搜索、创建、修改、删除日程，管理参与者。Scope：<code>calendar.events</code></li><li><strong>Contacts</strong> — 通过People API v1搜索、创建、修改、删除。Scope：<code>contacts</code>。字段投影优化至列表模式下<strong>每个联系人110个Token</strong>以最小化LLM消耗</li><li><strong>Drive</strong> — 搜索、列表、下载、共享文件。Scope：<code>drive.readonly</code></li><li><strong>Tasks</strong> — 列表、创建、更新、完成、删除。Scope：<code>tasks</code></li></ul><h2>Routes和Places：全球API</h2><p>除了Workspace之外，LIA还集成了<strong>Google Routes API</strong>（计算路线：驾车、公共交通、骑行、步行）和<strong>Google Places API</strong>（搜索地点、商家和兴趣点）。这些API丰富了助手的上下文响应。Places 与天气、空气质量一样使用实例自己的密钥：无需绑定任何账户，新账户一开始就启用了该服务。</p><h2>ConnectorTool架构</h2><p>每个服务使用<code>ConnectorTool</code>基类，自动处理OAuth认证、Token刷新、API客户端缓存和错误管理。字段投影（<code>field masks</code>）按操作优化，以减少API响应大小和Token消耗。</p><h2>在助手眼中一封邮件是什么样的</h2><p>邮件以<strong>干净的文本</strong>到达助手：HTML 只转换一次，引用的历史和签名在客户端边界就被移除，提供商的原始树结构从不随行。在此基础上，工具按问题的需要提供<strong>三种详细程度</strong>：<em>metadata</em> 用于列举（发件人、主题、日期、预览），<em>full</em> 用于读一封邮件——长正文分段到达，在段落边界切分，绝不在句子中间——<em>summary</em> 用于对许多封进行推理。摘要是每封邮件一段简短的<strong>浓缩</strong>（要点、关键信息、待办、类别、重要性），由一个小模型只计算一次，缓存三十天，并计入这个人的用量；无法生成时，邮件会按原样读取而不是编造。没有其他说明时，最近的邮件指收件箱；有针对性的搜索也会检索归档，从最新的开始，并用一个不透明的分页令牌继续。</p><h2>附件不只是被列出，还会被读取</h2><p>列出一封邮件的附件是元数据读取；打开一个附件是下载，三个供应商都把它放在同一个方法之后——同样按标识符或名称选择，同样的错误——因为 Gmail 的附件标识符可能在同一封邮件的两次读取之间失效，过期的标识符必须按名称解析，而不是失败。文档（PDF、Word、表格、EPUB…）按<strong>文本</strong>读取，并像正文一样分段送达；图片，或没有文字层的扫描版 PDF，被渲染为数量受限的页面交给<strong>视觉模型</strong>，并在只看到前几页时被告知。大小上限在下载任何字节<em>之前</em>就按列表信息生效，拒绝会说明原因（太大、不支持、找不到、有歧义），视觉调用计入你的用量，返回的内容被包裹为陌生人发来的东西——数据，绝不是指令。</p><h2>OAuth 2.0安全</h2><p>访问令牌通过Fernet（AES-128 CBC + HMAC）加密存储在数据库中。刷新是透明的：如果Token在操作期间过期，LIA会自动更新。请求的OAuth scope严格遵循<strong>最小权限原则</strong>。</p><h2>授权早已允许的能力</h2><p>2026 年 8 月这一批几乎没有向用户索取新权限：它使用的是已授予范围本就涵盖、但 LIA 从未调用的能力。<strong>联系人分组</strong>（People API）让整个标签可寻址——“给家人分组发邮件”——成员数量取自 API 聚合结果，绝不来自被截断的页面。<strong>freeBusy</strong> 端点在计算空闲时段时只读取忙碌区间：比读取日程内容更少的数据，却给出更好的答案。<strong>history.list</strong> 用锚定在历史标识上的精确增量，取代了心跳的周期性重复查询。而 <strong>Sheets</strong> 与 <strong>Docs</strong> API 接受已授予的 Drive 令牌：读取表格，并在确认后写入，无需重新授权。</p><p>两项平台服务补全了这一体系，只需一个开关即可启用，因为它们使用实例密钥而非个人账号：<strong>Weather</strong>（面向不愿自行申请密钥的用户，作为 OpenWeatherMap 的替代）和 <strong>Environment</strong>（空气质量、花粉）。归一化在客户端边界完成，因此已经消费天气数据的十九处界面一行都没有改动。<strong>Web Risk</strong> 在打开前筛查网址，<strong>Street View</strong> 为没有照片的地点提供配图——先免费确认影像存在——而 <strong>watch</strong> 通道与 <strong>Pub/Sub</strong> 在运营者启用后，用通知取代轮询。</p><h2>一次授权，服务由你掌控</h2><p>同一 Google 账户的服务现在可以集中授权。LIA 在回调时核验账户身份，每项服务仍可单独启用，并续期共享授权，无需为每个工具重复同意。</p>"
+        "body": "<h2>16个Google API，一次对话</h2><p>LIA集成<strong>16个Google API</strong>，覆盖你的工作空间及更多：<strong>Gmail API</strong>、<strong>Calendar API</strong>、<strong>People API v1</strong>（联系人）、<strong>Drive API</strong>、<strong>Tasks API</strong>、<strong>Routes API</strong>和<strong>Places API</strong>。你可以通过单一自然语言界面管理所有服务。</p><h2>各服务完整操作</h2><p>每个服务提供完整的CRUD操作集：</p><ul><li><strong>Gmail</strong> — 搜索、阅读、发送、回复、转发、标签管理。Scope：<code>gmail.modify</code></li><li><strong>Calendar</strong> — 搜索、创建、修改、删除日程，管理参与者。Scope：<code>calendar.events</code></li><li><strong>Contacts</strong> — 通过People API v1搜索、创建、修改、删除。Scope：<code>contacts</code>。字段投影优化至列表模式下<strong>每个联系人110个Token</strong>以最小化LLM消耗</li><li><strong>Drive</strong> — 搜索、列表、下载、共享文件。Scope：<code>drive.readonly</code></li><li><strong>Tasks</strong> — 列表、创建、更新、完成、删除。Scope：<code>tasks</code></li></ul><h2>Routes和Places：全球API</h2><p>除了Workspace之外，LIA还集成了<strong>Google Routes API</strong>（计算路线：驾车、公共交通、骑行、步行）和<strong>Google Places API</strong>（搜索地点、商家和兴趣点）。这些API丰富了助手的上下文响应。Places 与天气、空气质量一样使用实例自己的密钥：无需绑定，也无需启用：该服务属于实例，服务于每个账户，既没有按账户的记录，也没有设置里的开关。</p><h2>ConnectorTool架构</h2><p>每个服务使用<code>ConnectorTool</code>基类，自动处理OAuth认证、Token刷新、API客户端缓存和错误管理。字段投影（<code>field masks</code>）按操作优化，以减少API响应大小和Token消耗。</p><h2>在助手眼中一封邮件是什么样的</h2><p>邮件以<strong>干净的文本</strong>到达助手：HTML 只转换一次，引用的历史和签名在客户端边界就被移除，提供商的原始树结构从不随行。在此基础上，工具按问题的需要提供<strong>三种详细程度</strong>：<em>metadata</em> 用于列举（发件人、主题、日期、预览），<em>full</em> 用于读一封邮件——长正文分段到达，在段落边界切分，绝不在句子中间——<em>summary</em> 用于对许多封进行推理。摘要是每封邮件一段简短的<strong>浓缩</strong>（要点、关键信息、待办、类别、重要性），由一个小模型只计算一次，缓存三十天，并计入这个人的用量；无法生成时，邮件会按原样读取而不是编造。没有其他说明时，最近的邮件指收件箱；有针对性的搜索也会检索归档，从最新的开始，并用一个不透明的分页令牌继续。</p><h2>附件不只是被列出，还会被读取</h2><p>列出一封邮件的附件是元数据读取；打开一个附件是下载，三个供应商都把它放在同一个方法之后——同样按标识符或名称选择，同样的错误——因为 Gmail 的附件标识符可能在同一封邮件的两次读取之间失效，过期的标识符必须按名称解析，而不是失败。文档（PDF、Word、表格、EPUB…）按<strong>文本</strong>读取，并像正文一样分段送达；图片，或没有文字层的扫描版 PDF，被渲染为数量受限的页面交给<strong>视觉模型</strong>，并在只看到前几页时被告知。大小上限在下载任何字节<em>之前</em>就按列表信息生效，拒绝会说明原因（太大、不支持、找不到、有歧义），视觉调用计入你的用量，返回的内容被包裹为陌生人发来的东西——数据，绝不是指令。</p><h2>OAuth 2.0安全</h2><p>访问令牌通过Fernet（AES-128 CBC + HMAC）加密存储在数据库中。刷新是透明的：如果Token在操作期间过期，LIA会自动更新。请求的OAuth scope严格遵循<strong>最小权限原则</strong>。</p><h2>授权早已允许的能力</h2><p>2026 年 8 月这一批几乎没有向用户索取新权限：它使用的是已授予范围本就涵盖、但 LIA 从未调用的能力。<strong>联系人分组</strong>（People API）让整个标签可寻址——“给家人分组发邮件”——成员数量取自 API 聚合结果，绝不来自被截断的页面。<strong>freeBusy</strong> 端点在计算空闲时段时只读取忙碌区间：比读取日程内容更少的数据，却给出更好的答案。<strong>history.list</strong> 用锚定在历史标识上的精确增量，取代了心跳的周期性重复查询。而 <strong>Sheets</strong> 与 <strong>Docs</strong> API 接受已授予的 Drive 令牌：读取表格，并在确认后写入，无需重新授权。</p><p>两项平台服务补全了这一体系，只需一个开关即可启用，因为它们使用实例密钥而非个人账号：<strong>Weather</strong>（面向不愿自行申请密钥的用户，作为 OpenWeatherMap 的替代）和 <strong>Environment</strong>（空气质量、花粉）。归一化在客户端边界完成，因此已经消费天气数据的十九处界面一行都没有改动。<strong>Web Risk</strong> 在打开前筛查网址，<strong>Street View</strong> 为没有照片的地点提供配图——先免费确认影像存在——而 <strong>watch</strong> 通道与 <strong>Pub/Sub</strong> 在运营者启用后，用通知取代轮询。</p><h2>一次授权，服务由你掌控</h2><p>同一 Google 账户的服务现在可以集中授权。LIA 在回调时核验账户身份，每项服务仍可单独启用，并续期共享授权，无需为每个工具重复同意。</p>"
       },
       "apple-microsoft": {
         "title": "Apple iCloud和Microsoft 365：多平台连接器",
         "excerpt": "除Google外，LIA还支持Apple iCloud和Microsoft 365，提供完全的灵活性。",
-        "body": "<h2>一个助手，三个生态系统</h2><p>LIA不会将你锁定在单一生态系统中。除了Google Workspace之外，你还可以连接<strong>Apple iCloud</strong>和<strong>Microsoft 365</strong>，无论使用哪个供应商，都可以访问你的邮件、日历、联系人和任务。</p><h2>Apple iCloud</h2><p>Apple不为第三方应用提供OAuth。LIA因此使用从appleid.apple.com生成的<strong>App-Specific Passwords</strong>（应用专用密码）。该机制允许安全访问，无需暴露Apple账户的主密码：</p><ul><li><strong>Apple Mail</strong> — 通过IMAP/SMTP使用App-Specific Password认证读取和发送邮件</li><li><strong>Apple Calendar</strong> — 通过CalDAV协议管理日程</li><li><strong>Apple Contacts</strong> — 通过CardDAV协议搜索和管理联系人</li></ul><h2>Microsoft 365</h2><p>Microsoft集成使用<strong>OAuth 2.0 via Microsoft Entra ID</strong>（原Azure AD），采用Authorization Code + PKCE流程。调用通过统一的<strong>Microsoft Graph API</strong>进行：</p><ul><li><strong>Outlook</strong> — 邮件：通过Graph API <code>/me/messages</code>读取、发送、搜索</li><li><strong>Calendar</strong> — 日程：通过Graph API <code>/me/events</code>完整CRUD</li><li><strong>Contacts</strong> — 通讯录：通过Graph API <code>/me/contacts</code></li><li><strong>To Do</strong> — 任务管理：通过Graph API <code>/me/todo/lists</code></li></ul><h2>供应商抽象：resolve_active_connector()</h2><p>LIA的架构基于<strong>按功能类别的抽象</strong>。<code>resolve_active_connector()</code>函数动态确定每个类别（邮件、日历、联系人和任务）的活跃供应商（Google、Apple或Microsoft）。</p><h2>按领域互斥</h2><p>每个功能类别只能有一个活跃连接器。这种<strong>互斥性在数据库中强制执行</strong>：激活Microsoft邮件连接器会自动停用Google或Apple邮件连接器。这确保了每个领域有唯一的数据源。但你可以在不同类别之间混合使用供应商：例如Gmail用于邮件、Apple Calendar用于日程、Microsoft To Do用于任务。</p><h2>无论哪个提供商，邮件只有一套词汇</h2><p>IMAP、Microsoft Graph 和 Gmail API 对一封邮件的描述并不相同——而且很长一段时间里，其中两个在模仿第三个，伪造出一棵 Gmail 形状的树，助手随后还得从中读取。如今三个规范化器在客户端边界产出<strong>同一种中立的邮件</strong>：干净的文本正文，绝不是 HTML 或 base64，引用的历史和签名已移除，相同的字段用相同的名字。下游的一切——三种详细程度、每封邮件的摘要、聊天中的卡片、心跳，以及跟随邮箱的知识空间——读取的都是这一种形式，而且各提供商之间的一致性是在真实载荷上测量的，而不是假定的。从 iCloud 账户发出的回复也能正确归入会话：它带上了原始邮件所缺少的标识符。</p><h2>Microsoft 账户授权</h2><p>对于 Microsoft 365，一次同意可以覆盖同一账户中选定的服务；邮件、日历和其他功能仍可分别控制。OAuth 回调核验账户与签发方。Apple 连接继续使用自己的授权流程。</p>"
+        "body": "<h2>一个助手，三个生态系统</h2><p>LIA不会将你锁定在单一生态系统中。除了Google Workspace之外，你还可以连接<strong>Apple iCloud</strong>和<strong>Microsoft 365</strong>，无论使用哪个供应商，都可以访问你的邮件、日历、联系人和任务。</p><h2>Apple iCloud</h2><p>Apple不为第三方应用提供OAuth。LIA因此使用从appleid.apple.com生成的<strong>App-Specific Passwords</strong>（应用专用密码）。该机制允许安全访问，无需暴露Apple账户的主密码：</p><ul><li><strong>Apple Mail</strong> — 通过IMAP/SMTP使用App-Specific Password认证读取和发送邮件</li><li><strong>Apple Calendar</strong> — 通过CalDAV协议管理日程</li><li><strong>Apple Contacts</strong> — 通过CardDAV协议搜索和管理联系人</li></ul><h2>Microsoft 365</h2><p>Microsoft集成使用<strong>OAuth 2.0 via Microsoft Entra ID</strong>（原Azure AD），采用Authorization Code + PKCE流程。调用通过统一的<strong>Microsoft Graph API</strong>进行：</p><ul><li><strong>Outlook</strong> — 邮件：通过Graph API <code>/me/messages</code>读取、发送、搜索</li><li><strong>Calendar</strong> — 日程：通过Graph API <code>/me/events</code>完整CRUD</li><li><strong>Contacts</strong> — 通讯录：通过Graph API <code>/me/contacts</code></li><li><strong>To Do</strong> — 任务管理：通过Graph API <code>/me/todo/lists</code></li></ul><h2>供应商抽象：resolve_active_connector()</h2><p>LIA的架构基于<strong>按功能类别的抽象</strong>。<code>resolve_active_connector()</code>函数动态确定每个类别（邮件、日历、联系人和任务）的活跃供应商（Google、Apple或Microsoft）。</p><h2>按领域互斥</h2><p>每个功能类别只能有一个活跃连接器。这种<strong>互斥性在数据库中强制执行</strong>：激活Microsoft邮件连接器会自动停用Google或Apple邮件连接器。这确保了每个领域有唯一的数据源。但你可以在不同类别之间混合使用供应商：例如Gmail用于邮件、Apple Calendar用于日程、Microsoft To Do用于任务。</p><h2>无论哪个提供商，邮件只有一套词汇</h2><p>IMAP、Microsoft Graph 和 Gmail API 对一封邮件的描述并不相同——而且很长一段时间里，其中两个在模仿第三个，伪造出一棵 Gmail 形状的树，助手随后还得从中读取。如今三个规范化器在客户端边界产出<strong>同一种中立的邮件</strong>：干净的文本正文，绝不是 HTML 或 base64，引用的历史和签名已移除，相同的字段用相同的名字。下游的一切——三种详细程度、每封邮件的摘要、聊天中的卡片、心跳，以及跟随邮箱的知识空间——读取的都是这一种形式，而且各提供商之间的一致性是在真实载荷上测量的，而不是假定的。从 iCloud 账户发出的回复也能正确归入会话：它带上了原始邮件所缺少的标识符。</p><h2>Microsoft 账户授权</h2><p>对于 Microsoft 365，一次同意可以覆盖同一账户中选定的服务；邮件、日历和其他功能仍可分别控制。OAuth 回调核验账户与签发方。Apple 连接继续使用自己的授权流程。</p><h2>在所有日历中用同一种方式搜索</h2><p>过去，日历搜索会把关键词直接发给服务商，而各家理解不一：Google 全面搜索，Microsoft 只搜主题，Apple 搜标题和描述——像「午餐」这样的词还会被当成需要在联系人里查找的人，随后整个时间窗口被当作搜索结果返回。现在工具会自己读取时间窗口，并用同一种方式搜索——标题、地点、组织者和参与者，不区分大小写和重音——在 Google、Microsoft 和 Apple 上完全一致，也不再调用联系人；结果还会说明搜索了什么、是否找到，以及时间窗口是否被完整读取。</p>"
       },
       "mcp-protocol": {
         "title": "Model Context Protocol：无限扩展LIA",
@@ -11598,7 +11603,7 @@
       "voice-mode": {
         "title": "语音模式：像与个人助手一样与LIA对话",
         "excerpt": "LIA 的语音领域结合了免费的本地 STT（Sherpa-onnx Whisper，可选远程 ElevenLabs Scribe 以获得更高精度）、目录驱动的 TTS（Edge / OpenAI / ElevenLabs），以及自 v1.47 起用你自己的 Gemini、OpenAI 或 ElevenLabs 密钥运行的实时 Live 模式。按句级流式合成在约 1 秒内带来第一段音频。按消息的成本归属使付费语音调用完全可审计。",
-        "body": "<h2>三种激活模式</h2><p>LIA 支持三种语音交互方式：</p><ul><li><strong>唤醒词</strong> — 说\"OK Guy\"启动免提聆听。检测完全在浏览器中通过 Sherpa-onnx WASM 进行（仅英语模型）。唤醒词检测不会有任何音频离开浏览器。</li><li><strong>按住说话</strong> — 按住麦克风按钮说话。已针对移动端优化。</li><li><strong>自动语音结束检测 (VAD)</strong> — 静音 ~0.75 秒后自动停止聆听。</li></ul><h2>语音识别：本地默认，远程可选</h2><p>每位用户在 <strong>设置 → 语音模式</strong> 选择 STT 模式：</p><ul><li><strong>本地</strong>（默认，免费）— 在 LIA 服务器上以 <strong>16 kHz 单声道</strong> 运行的 Sherpa-onnx Whisper，采用 INT8 量化。支持 <strong>99+ 种语言</strong>。音频从不离开 LIA 服务器。</li><li><strong>远程</strong>（可选启用）— ElevenLabs Scribe，0.22 美元/小时，按音频时长计费。在对话语音上精度更高，尤其在嘈杂环境下。每条用户气泡上的低调 🎤 徽章显示时长和欧元成本；成本汇入仪表板的常规 <strong>成本</strong> 磁贴和你的使用上限——无独立配额。</li></ul><p>启用远程时，两个管理员侧的安全杠杆可防范成本激增：全局总开关（<code>ELEVENLABS_STT_ENABLED</code>）和按片段的时长上限（<code>ELEVENLABS_STT_MAX_AUDIO_DURATION_SECONDS</code>，默认 300 秒），在任何提供商调用前都会校验。</p><h2>目录驱动的语音合成</h2><p>语音合成现在通过单一管理表单（LLM 配置 → Voice TTS）配置，第一天即提供三家提供商：</p><ul><li><strong>Edge TTS</strong> — Microsoft 神经语音、免费、默认。SSML rate / pitch / volume 微调。</li><li><strong>OpenAI TTS</strong> — <code>tts-1</code> 或 <code>tts-1-hd</code>，高品质语音（alloy、echo、fable、onyx、nova、shimmer）。speed + response_format 微调。</li><li><strong>ElevenLabs</strong> — <code>eleven_multilingual_v2</code>、<code>eleven_turbo_v2_5</code>、<code>eleven_flash_v2_5</code>。stability、similarity_boost、style、use_speaker_boost 微调。从已配置账户实时选择声音（自定义 + 库声音）。</li></ul><p>对于付费提供商，助手消息上的 🔊 徽章显示字符数和欧元成本；Edge 保持免费，无徽章。支持的音频格式：<strong>MP3、Opus、AAC、FLAC、WAV、PCM</strong>——按提供商选择。</p><h2>按句级流式合成实现亚秒级延迟</h2><p>语音管线现在 <strong>按完整句子并行</strong> 触发 TTS 合成，而不再等待完整的 LLM 响应。第一句在 <strong>约 1 秒</strong> 内开始播放，而助手仍在撰写答案的其余部分。ElevenLabs 上的持久 HTTP 长连接在 #2…N 调用中每句再节省约 100–300 毫秒。有序送达由缓冲队列保证——失败槽位会被跳过，不阻塞整体流。</p><h2>一句话在哪里结束</h2><p>「按句」切分的前提是知道一句话在哪里结束 —— 而仅凭一个句点说明不了这一点。只有<strong>后面跟着空格</strong>，或位于输入末尾时，分隔符才会结束一句话：「现在 3.5 度」因此保持完整，而不会先读成「现在三。」再在另一段音频里读「五度」。价格、版本号和网址同理。在逐句流式路径上，这条规则更是必需的：缓冲区是逐个 token 增长的，所以 <code>\"3.\"</code> 是一个完全正常的中间状态 —— 在它上面分发，等于还没读完就开口。管线中的两个切分器由一张共享的用例表以及一个要求二者一致的测试共同钉住。</p><h2>语音评论与导出</h2><p>LIA 可在其响应上附加简短的 <strong>语音评论</strong>（一种 TTS 叙述插入）。音频通过 WebSocket 流式传输，使用一次性 BFF 票据（TTL 60 秒）确保安全。两项新的 CSV 导出——<code>stt-usage</code> 和 <code>tts-usage</code>——列出每次付费语音调用的对话、消息 ID、提供商、时长 / 字符数与欧元成本。现有的 <code>consumption-summary</code> 导出也新增 STT 和 TTS 列，使总计始终位于一处。</p><h2>当 LIA 打给你</h2><p>语音并不止步于浏览器。在<em>电话 · 我的身份</em>中登记你的号码，让 LIA 打过来并读出一个验证码，你输入确认；此后，“八点打给我，聊聊我的一天”——或者一条这样说的例程——就会让你的电话响起，无需确认卡片：卡片保护的是第三方，而这里该确认的人正是接电话的人。在电话里，语音助手带着聊天所知的一切，并在启用实时查询后边聊边读取 LIA——邮件、日历、任务、联系人、文件、地点、天气、记忆——使用与聊天相同的只读工具，每个结果都压缩为语音能说出的内容；她不执行任何操作。挂断后，你说的话会作为你自己的一轮对话回放到聊天中，带有电话标记，任何请求都在那里等待你的确认。</p><h2>Live 模式：两个智能，一道接缝</h2><p>自 v1.47 起，语音图标多了第三种用途：在你用自己密钥连接的实时模型上进行<strong>实时的语音对语音会话</strong>——通过 WebSocket 的 Gemini Live、通过 WebRTC 的 GPT-Live，或声音和轮次控制都留在其门户上的 ElevenLabs 代理。音频从不经过 LIA 服务器：API 铸造一次性凭证并生成配置，浏览器原样重放并自行打开连接。</p><p>设计的核心是两个智能之间的一道接缝。语音模型拥有对话——倾听、说话、打断、填补等待——并通过唯一声明的函数 <code>send_to_lia</code> <strong>把每一次数据或操作请求委托</strong>给聊天引擎。浏览器把这次调用变成你自己会话下的普通聊天回合：同样的确认、登记和配额，在你说话时绘制在对话中。LIA 需要问的问题就是语音接下来说的话，结束卡片汇总 LIA 自己的花费。服务商在你密钥上的计费折算为参考计数器显示出来，从不记录。</p><p><strong>直接会话</strong>把电话线路搬进浏览器：语音自己持有 LIA 的只读工具——你允许的领域——为你读取而不执行任何操作，你的话在结束时作为你的消息转达。在真实会话中测得，工具声明占配置的九成，首个回合的成本约为委托模式的九倍：直接会话换来的是低延迟，从来不是省钱。同样的两种模式——Live 与直接 Live——现在也管理 LIA 打给你的电话，两条线路共用一次结束流程。</p><h2>从一句语音指令到两小时的会议</h2><p>同一个麦克风现在可以录下整场会议。这对语音引擎的改变比对界面更大：本地 Whisper 只解码一个三十秒的窗口，对更长的内容会默默返回前三十秒——语音输入从未遇到这个缺陷，因为一句指令很短。长音频现在由语音活动检测器切成语音窗口，每个窗口单独解码，因此再长的录音也不成问题。远程引擎一次请求处理整个文件并区分发言人；引擎链从管理员的引擎依次到 ElevenLabs、OpenAI 和本地模型，拒绝的提供商会把接力交给下一个。纪要是一次填充用户模板的结构化调用，而每一项付费单位——引擎处的音频、模型处的 token——都会写在生成的卡片、会议页面和列表上。</p>"
+        "body": "<h2>三种激活模式</h2><p>LIA 支持三种语音交互方式：</p><ul><li><strong>唤醒词</strong> — 说\"OK Guy\"启动免提聆听。检测完全在浏览器中通过 Sherpa-onnx WASM 进行（仅英语模型）。唤醒词检测不会有任何音频离开浏览器。</li><li><strong>按住说话</strong> — 按住麦克风按钮说话。已针对移动端优化。</li><li><strong>自动语音结束检测 (VAD)</strong> — 静音 ~0.75 秒后自动停止聆听。</li></ul><h2>语音识别：本地默认，远程可选</h2><p>每位用户在 <strong>设置 → 语音模式</strong> 选择 STT 模式：</p><ul><li><strong>本地</strong>（默认，免费）— 在 LIA 服务器上以 <strong>16 kHz 单声道</strong> 运行的 Sherpa-onnx Whisper，采用 INT8 量化。支持 <strong>99+ 种语言</strong>。音频从不离开 LIA 服务器。</li><li><strong>远程</strong>（可选启用）— ElevenLabs Scribe，0.22 美元/小时，按音频时长计费。在对话语音上精度更高，尤其在嘈杂环境下。每条用户气泡上的低调 🎤 徽章显示时长和欧元成本；成本汇入仪表板的常规 <strong>成本</strong> 磁贴和你的使用上限——无独立配额。</li></ul><p>启用远程时，两个管理员侧的安全杠杆可防范成本激增：全局总开关（<code>ELEVENLABS_STT_ENABLED</code>）和按片段的时长上限（<code>ELEVENLABS_STT_MAX_AUDIO_DURATION_SECONDS</code>，默认 300 秒），在任何提供商调用前都会校验。</p><h2>目录驱动的语音合成</h2><p>语音合成现在通过单一管理表单（LLM 配置 → Voice TTS）配置，第一天即提供三家提供商：</p><ul><li><strong>Edge TTS</strong> — Microsoft 神经语音、免费、默认。SSML rate / pitch / volume 微调。</li><li><strong>OpenAI TTS</strong> — <code>tts-1</code> 或 <code>tts-1-hd</code>，高品质语音（alloy、echo、fable、onyx、nova、shimmer）。speed + response_format 微调。</li><li><strong>ElevenLabs</strong> — <code>eleven_multilingual_v2</code>、<code>eleven_turbo_v2_5</code>、<code>eleven_flash_v2_5</code>。stability、similarity_boost、style、use_speaker_boost 微调。从已配置账户实时选择声音（自定义 + 库声音）。</li></ul><p>对于付费提供商，助手消息上的 🔊 徽章显示字符数和欧元成本；Edge 保持免费，无徽章。支持的音频格式：<strong>MP3、Opus、AAC、FLAC、WAV、PCM</strong>——按提供商选择。</p><h2>按句级流式合成实现亚秒级延迟</h2><p>语音管线现在 <strong>按完整句子并行</strong> 触发 TTS 合成，而不再等待完整的 LLM 响应。第一句在 <strong>约 1 秒</strong> 内开始播放，而助手仍在撰写答案的其余部分。ElevenLabs 上的持久 HTTP 长连接在 #2…N 调用中每句再节省约 100–300 毫秒。有序送达由缓冲队列保证——失败槽位会被跳过，不阻塞整体流。</p><h2>一句话在哪里结束</h2><p>「按句」切分的前提是知道一句话在哪里结束 —— 而仅凭一个句点说明不了这一点。只有<strong>后面跟着空格</strong>，或位于输入末尾时，分隔符才会结束一句话：「现在 3.5 度」因此保持完整，而不会先读成「现在三。」再在另一段音频里读「五度」。价格、版本号和网址同理。在逐句流式路径上，这条规则更是必需的：缓冲区是逐个 token 增长的，所以 <code>\"3.\"</code> 是一个完全正常的中间状态 —— 在它上面分发，等于还没读完就开口。管线中的两个切分器由一张共享的用例表以及一个要求二者一致的测试共同钉住。</p><h2>语音评论与导出</h2><p>LIA 可在其响应上附加简短的 <strong>语音评论</strong>（一种 TTS 叙述插入）。音频通过 WebSocket 流式传输，使用一次性 BFF 票据（TTL 60 秒）确保安全。两项新的 CSV 导出——<code>stt-usage</code> 和 <code>tts-usage</code>——列出每次付费语音调用的对话、消息 ID、提供商、时长 / 字符数与欧元成本。现有的 <code>consumption-summary</code> 导出也新增 STT 和 TTS 列，使总计始终位于一处。</p><h2>当 LIA 打给你</h2><p>语音并不止步于浏览器。在<em>电话 · 我的身份</em>中登记你的号码，让 LIA 打过来并读出一个验证码，你输入确认；此后，“八点打给我，聊聊我的一天”——或者一条这样说的例程——就会让你的电话响起，无需确认卡片：卡片保护的是第三方，而这里该确认的人正是接电话的人。在电话里，语音助手带着聊天所知的一切，并在启用实时查询后边聊边读取 LIA——邮件、日历、任务、联系人、文件、地点、天气、记忆——使用与聊天相同的只读工具，每个结果都压缩为语音能说出的内容；她不执行任何操作。挂断后，你说的话会作为你自己的一轮对话回放到聊天中，带有电话标记，任何请求都在那里等待你的确认。</p><h2>Live 模式：两个智能，一道接缝</h2><p>自 v1.47 起，语音图标多了第三种用途：在你用自己密钥连接的实时模型上进行<strong>实时的语音对语音会话</strong>——通过 WebSocket 的 Gemini Live、通过 WebRTC 的 GPT-Live，或声音和轮次控制都留在其门户上的 ElevenLabs 代理。音频从不经过 LIA 服务器：API 铸造一次性凭证并生成配置，浏览器原样重放并自行打开连接。</p><p>设计的核心是两个智能之间的一道接缝。语音模型拥有对话——倾听、说话、打断、填补等待——并通过唯一声明的函数 <code>send_to_lia</code> <strong>把每一次数据或操作请求委托</strong>给聊天引擎。浏览器把这次调用变成你自己会话下的普通聊天回合：同样的确认、登记和配额，在你说话时绘制在对话中。LIA 需要问的问题就是语音接下来说的话，结束卡片汇总 LIA 自己的花费。服务商在你密钥上的计费折算为参考计数器显示出来，从不记录。</p><p><strong>直接会话</strong>把电话线路搬进浏览器：语音自己持有 LIA 的只读工具——你允许的领域——为你读取而不执行任何操作，你的话在结束时作为你的消息转达。在真实会话中测得，工具声明占配置的九成，首个回合的成本约为委托模式的九倍：直接会话换来的是低延迟，从来不是省钱。同样的两种模式——Live 与直接 Live——现在也管理 LIA 打给你的电话，两条线路共用一次结束流程。</p><p>在 iPhone 和 iPad 上，ElevenLabs 智能体使用其服务商的原生音频连接（WebRTC），比原始音频流在这些设备上更稳定；按 IP 地址受限的 Gemini 密钥会被 Google 从浏览器端拒绝，LIA 会明确指出这一点，而不是让会话无故失败。</p><h2>从一句语音指令到两小时的会议</h2><p>同一个麦克风现在可以录下整场会议。这对语音引擎的改变比对界面更大：本地 Whisper 只解码一个三十秒的窗口，对更长的内容会默默返回前三十秒——语音输入从未遇到这个缺陷，因为一句指令很短。长音频现在由语音活动检测器切成语音窗口，每个窗口单独解码，因此再长的录音也不成问题。远程引擎一次请求处理整个文件并区分发言人；引擎链从管理员的引擎依次到 ElevenLabs、OpenAI 和本地模型，拒绝的提供商会把接力交给下一个。纪要是一次填充用户模板的结构化调用，而每一项付费单位——引擎处的音频、模型处的 token——都会写在生成的卡片、会议页面和列表上。</p>"
       },
       "knowledge-spaces": {
         "title": "知识空间：将文档转化为AI智能",
@@ -11628,7 +11633,7 @@
       "security-architecture": {
         "title": "纵深防御：LIA的5项安全原则",
         "excerpt": "纵深防御、最小权限、速率限制、加密和验证保护你的数据。",
-        "body": "<h2>5项基本原则</h2><p>LIA的安全性基于五项应用于应用每一层的原则：</p><ul><li><strong>纵深防御</strong> — 多层控制（认证、速率限制、验证、加密）</li><li><strong>最小权限</strong> — 默认最小权限</li><li><strong>安全失败</strong> — 出错时拒绝而非允许</li><li><strong>不信任输入</strong> — Pydantic验证 + 系统化清洗</li><li><strong>默认安全</strong> — HTTPS、HttpOnly/SameSite cookies、严格CORS</li></ul><h2>哈希与加密</h2><p>密码使用<strong>bcrypt</strong>（带自动盐值）进行哈希。敏感数据（OAuth令牌、连接器凭据、PII、MCP服务器凭据）使用<strong>Fernet</strong>（AES-128 CBC + HMAC-SHA256）加密，确保机密性和完整性。加密密钥与数据分开管理。</p><h2>JWT与会话管理</h2><p>JWT令牌使用HS256算法，配合Redis中的JTI（JWT ID）黑名单系统。一次性令牌（邮件验证、密码重置）在首次使用后即失效。此机制防止任何敏感令牌的重复使用。</p><h2>强身份验证与设备控制</h2><p>登录不止于密码。<strong>WebAuthn 通行密钥</strong>让你通过 Face ID、指纹或设备密码进行身份验证 — 设计上抗钓鱼，配有一次性服务器质询和基于签名计数器的克隆检测。<strong>TOTP 第二因素</strong>为密码登录添加 6 位数验证步骤，辅以十个以哈希存储的一次性备用码。敏感操作 — 管理凭据、导出数据、注销其他设备 — 都经过 <strong>step-up 重新验证</strong>：一个 5 分钟的确认窗口，采用类型化的 API 契约，绝不静默重定向。<strong>我的设备</strong>列出每个在线会话及刻意限定的元数据（浏览器和系统类别、截断的 IP），可即时注销任意会话 — 被注销的会话几秒内即失去实时流 — 并在账户从无法识别的设备登录时推送提醒。</p><h2>可配置速率限制</h2><p>速率限制在两个层面运作：</p><ul><li><strong>HTTP</strong> — 通过上游nginx</li><li><strong>工具</strong> — 按用户、按工具的滑动窗口，阈值由配置驱动，覆盖每一个付费外部 API（图像生成、网页搜索、浏览器、DevOps CLI）</li><li><strong>外部连接器</strong> — 跨实例共享的分布式 Redis 滑动窗口（Google、Apple、API 密钥提供商）</li></ul><p>API限制严格：每次请求最多10个项目，每个领域有默认值（默认10，最大50）。</p><h2>渲染与网络加固</h2><p>聊天会渲染 LLM 的输出——它可能转发第三方 HTML（邮件正文、抓取的页面、工具结果）——并通过严格的净化边界（<code>rehype-sanitize</code> 配合经审计的 schema）：<code>&lt;script&gt;</code>、<code>&lt;iframe&gt;</code>、<code>&lt;form&gt;</code> 及事件处理器会被移除，而合法的卡片、按钮和公式得以保留。交互式 MCP/Skill 应用从不经过 markdown——它们只在沙箱化的 iframe 小组件中挂载。在网络层面，生产环境 API 位于 Cloudflare 之后作为唯一入口，容器端口绑定 loopback，uvicorn 仅信任反向代理的请求头：因此 <code>request.client.host</code> 承载真实的访客 IP，「按 IP」的速率限制按访客生效，而非作用于单一共享的内部地址。</p><h2>提示注入防护</h2><p>来源是<strong>数据</strong>的属性，而不是取回它的那个工具的属性。逐工具地封装内容会漏掉一半 —— 对调用方的穷尽式搜索发现邮件工具未被覆盖，而恰恰是它的 docstring 承诺返回完整正文 —— 而且它盯错了面：内容通过两条路径抵达模型，两条都不是工具。注册表的 <strong>24 种数据类型</strong>一次性分类为内部或第三方撰写，未知类型一律判定为<em>外部</em>，遇到未分类的类型应用会拒绝启动。凡来自第三方的内容，抵达模型时都标注为待分析的数据，而绝非指令。</p><p><strong>七类注入模式</strong>在六种语言中被识别 —— 伪造的系统角色、「忽略先前的指令」、身份切换、要求把你的数据发往别处、在他人文本中点名 LIA 的工具、不可见 Unicode、藏在 HTML 注释里的指令。内容仍<strong>原封不动</strong>发往模型，只附上一条指明所属类别的提示：净化意味着改写一封你可能想原样阅读的邮件，换来的却是下一次绕过就会推翻的保证。扫描范围有界，可疑文本从不进入日志 —— 它按其性质由攻击者掌控，且通常包含你自己的数据。</p><h2>资源所有权验证</h2><p>每次资源访问都通过<code>check_resource_ownership()</code>进行检查，带有<code>hide_existence</code>参数：公共资源返回403（拒绝访问），私有资源返回404（资源不存在），以避免向攻击者透露其存在。</p><h2>每用户使用配额</h2><p>LIA 允许管理员设置<strong>每用户配额</strong>，包括令牌、消息和成本。执行使用<strong>5层纵深防御</strong>架构。基础设施故障时系统<strong>fail-open</strong>。管理员可即时封禁/解封任何用户。</p><h2>软件供应链</h2><p>每个版本都基于锁定的依赖图构建：通用 lockfile 锁定实际安装的约 200 个包，每个包在构建时通过 SHA256 指纹校验——同一版本始终产出相同且经完整性校验的镜像。所有依赖（包括传递依赖）都会持续比对已知漏洞数据库进行审计，随每个版本发布的软件物料清单（SBOM）现已覆盖前后端两侧，准确列出生产环境中运行的内容。扫描器不再只是报告问题：它们会让构建失败。</p><h2>防护要经过验证，而不是宣称</h2><p>最隐蔽的风险不是缺少防护，而是宣称存在却毫无作用的防护。告警可能位于监控从未加载的文件中；加固步骤可能以一条无论成败都会打印的成功消息收尾；为健康探针设置的豁免，如果写成前缀匹配而非精确匹配，就会为任何会输入 <code>/health</code> 的人打开一扇门。这三种情况下，测试都是绿色的，文档都在断言，而防护并不存在。</p><p>答案只有一条规则：每一项防护都由一个可执行的守卫支撑，一旦防护消失，守卫就会失败。告警规则文件必须是其模板的精确渲染，每条告警都必须指向真实存在的处置指南并拥有自己的测试用例。没有书面理由，任何容器都不会获得全部密钥。每个对外发布的端口都绑定到本地回环。而在编写修复时，我们会先恢复旧行为，确认测试确实变红——无法失败的测试什么也证明不了。</p><h2>会重新计算的守卫，以及三个缺陷</h2><p>这条规则又一次被应用，而且更进了一步。演示器方案里的每一项防护都带着自己的测试交付，全绿——而且形状都一样：它们钉住的是交付当天代码的行为。一份手写的清单描述的不是系统，而是作者对系统的了解。于是有三个守卫被重写，改为从事实来源<strong>重新计算</strong>防护：运行汇总真正发布的成本族，用 AST 读出；应用真正挂载的路由，对照边缘的求值顺序；连接器路由在两个方向上被完整清点，使「未分类」和「已分类但已卸载」同样变红。</p><p>它们找出了三个既有测试看不见的缺陷。语音合成<strong>计了费却从未计入</strong>实例支出上限——在公开实例上，这道上限恰好对访客最先尝试的东西视而不见。用 Google 登录是公开的，并且绕过了如今强制的条款接受，把一个真实的外部身份放到了一次性账户上。还有十一条连接器路径——Apple 应用专用密码的激活、API 密钥轮换、智能家居配对——可以在毫无防护的情况下绑定真实凭据，因为此前的守卫住在连接器这个领域里，它只能看见这个领域暴露出来的东西。随后每个新守卫都被故意破坏过，以核实它确实会变红。</p><p>会重新计算的守卫，对它不去看的东西依然是盲的。可达路由的守卫过去用测试进程的开关挂载路由器，且只冻结边缘转发的内容：演示实例已关闭的功能族的数十条路由在那里被当作「可达」，而一个已启用却没有边缘前缀的功能族，则以空白页面呈现给访问者，没有一个测试变红。如今它在演示实例模板的上限之下挂载路由器——即真正运行的那些——并双向读取：已挂载的路由要么被公开，要么被声明为隐藏并附带理由，而留给代码默认值的上限会被拒绝。演示实例由此得到一个可见的结果：打开它的页面会列出它提供什么、不提供什么，读取自它自身的配置。</p><p>随后是第六课，它关乎一项保障的存续时长，而非其强度。第三方文本——邮件正文、邀请说明、抓取的网页——在 LIA 读取的那一刻就被正确标记为不可信。但当较长的对话被压缩以腾出空间时，摘要器被要求保留标识符、决定与结果，却没有被告知任何来源信息：它忠实地把发件人的请求提升为既定事实，放进权限最高的通道，并在其后的每个回合都被保留。这个标记从来没有错；它只是比它所保护的数据活得更短。现在，摘要会继承它所概括内容的来源，该来源在写入时计算，而非从模型选择复述的内容中反推。</p>"
+        "body": "<h2>5项基本原则</h2><p>LIA的安全性基于五项应用于应用每一层的原则：</p><ul><li><strong>纵深防御</strong> — 多层控制（认证、速率限制、验证、加密）</li><li><strong>最小权限</strong> — 默认最小权限</li><li><strong>安全失败</strong> — 出错时拒绝而非允许</li><li><strong>不信任输入</strong> — Pydantic验证 + 系统化清洗</li><li><strong>默认安全</strong> — HTTPS、HttpOnly/SameSite cookies、严格CORS</li></ul><h2>哈希与加密</h2><p>密码使用<strong>bcrypt</strong>（带自动盐值）进行哈希。敏感数据（OAuth令牌、连接器凭据、PII、MCP服务器凭据）使用<strong>Fernet</strong>（AES-128 CBC + HMAC-SHA256）加密，确保机密性和完整性。加密密钥与数据分开管理。</p><h2>JWT与会话管理</h2><p>JWT令牌使用HS256算法，配合Redis中的JTI（JWT ID）黑名单系统。一次性令牌（邮件验证、密码重置）在首次使用后即失效。此机制防止任何敏感令牌的重复使用。</p><h2>强身份验证与设备控制</h2><p>登录不止于密码。<strong>WebAuthn 通行密钥</strong>让你通过 Face ID、指纹或设备密码进行身份验证 — 设计上抗钓鱼，配有一次性服务器质询和基于签名计数器的克隆检测。<strong>TOTP 第二因素</strong>为密码登录添加 6 位数验证步骤，辅以十个以哈希存储的一次性备用码。敏感操作 — 管理凭据、导出数据、注销其他设备 — 都经过 <strong>step-up 重新验证</strong>：一个 5 分钟的确认窗口，采用类型化的 API 契约，绝不静默重定向。<strong>我的设备</strong>列出每个在线会话及刻意限定的元数据（浏览器和系统类别、截断的 IP），可即时注销任意会话 — 被注销的会话几秒内即失去实时流 — 并在账户从无法识别的设备登录时推送提醒。</p><h2>可配置速率限制</h2><p>速率限制在两个层面运作：</p><ul><li><strong>HTTP</strong> — 通过上游nginx</li><li><strong>工具</strong> — 按用户、按工具的滑动窗口，阈值由配置驱动，覆盖每一个付费外部 API（图像生成、网页搜索、浏览器、DevOps CLI）</li><li><strong>外部连接器</strong> — 跨实例共享的分布式 Redis 滑动窗口（Google、Apple、API 密钥提供商）</li></ul><p>API限制严格：每次请求最多10个项目，每个领域有默认值（默认10，最大50）。</p><h2>渲染与网络加固</h2><p>聊天会渲染 LLM 的输出——它可能转发第三方 HTML（邮件正文、抓取的页面、工具结果）——并通过严格的净化边界（<code>rehype-sanitize</code> 配合经审计的 schema）：<code>&lt;script&gt;</code>、<code>&lt;iframe&gt;</code>、<code>&lt;form&gt;</code> 及事件处理器会被移除，而合法的卡片、按钮和公式得以保留。交互式 MCP/Skill 应用从不经过 markdown——它们只在沙箱化的 iframe 小组件中挂载。在网络层面，生产环境 API 位于 Cloudflare 之后作为唯一入口，容器端口绑定 loopback，uvicorn 仅信任反向代理的请求头：因此 <code>request.client.host</code> 承载真实的访客 IP，「按 IP」的速率限制按访客生效，而非作用于单一共享的内部地址。</p><h2>提示注入防护</h2><p>来源是<strong>数据</strong>的属性，而不是取回它的那个工具的属性。逐工具地封装内容会漏掉一半 —— 对调用方的穷尽式搜索发现邮件工具未被覆盖，而恰恰是它的 docstring 承诺返回完整正文 —— 而且它盯错了面：内容通过两条路径抵达模型，两条都不是工具。注册表的 <strong>24 种数据类型</strong>一次性分类为内部或第三方撰写，未知类型一律判定为<em>外部</em>，遇到未分类的类型应用会拒绝启动。凡来自第三方的内容，抵达模型时都标注为待分析的数据，而绝非指令。</p><p><strong>七类注入模式</strong>在六种语言中被识别 —— 伪造的系统角色、「忽略先前的指令」、身份切换、要求把你的数据发往别处、在他人文本中点名 LIA 的工具、不可见 Unicode、藏在 HTML 注释里的指令。内容仍<strong>原封不动</strong>发往模型，只附上一条指明所属类别的提示：净化意味着改写一封你可能想原样阅读的邮件，换来的却是下一次绕过就会推翻的保证。扫描范围有界，可疑文本从不进入日志 —— 它按其性质由攻击者掌控，且通常包含你自己的数据。</p><h2>资源所有权验证</h2><p>每次资源访问都通过<code>check_resource_ownership()</code>进行检查，带有<code>hide_existence</code>参数：公共资源返回403（拒绝访问），私有资源返回404（资源不存在），以避免向攻击者透露其存在。</p><h2>每用户使用配额</h2><p>LIA 允许管理员设置<strong>每用户配额</strong>，包括令牌、消息和成本。执行使用<strong>5层纵深防御</strong>架构。基础设施故障时系统<strong>fail-open</strong>。管理员可即时封禁/解封任何用户。</p><h2>软件供应链</h2><p>每个版本都基于锁定的依赖图构建：通用 lockfile 锁定实际安装的约 200 个包，每个包在构建时通过 SHA256 指纹校验——同一版本始终产出相同且经完整性校验的镜像。所有依赖（包括传递依赖）都会持续比对已知漏洞数据库进行审计，随每个版本发布的软件物料清单（SBOM）现已覆盖前后端两侧，准确列出生产环境中运行的内容。扫描器不再只是报告问题：它们会让构建失败。</p><h2>防护要经过验证，而不是宣称</h2><p>最隐蔽的风险不是缺少防护，而是宣称存在却毫无作用的防护。告警可能位于监控从未加载的文件中；加固步骤可能以一条无论成败都会打印的成功消息收尾；为健康探针设置的豁免，如果写成前缀匹配而非精确匹配，就会为任何会输入 <code>/health</code> 的人打开一扇门。这三种情况下，测试都是绿色的，文档都在断言，而防护并不存在。</p><p>答案只有一条规则：每一项防护都由一个可执行的守卫支撑，一旦防护消失，守卫就会失败。告警规则文件必须是其模板的精确渲染，每条告警都必须指向真实存在的处置指南并拥有自己的测试用例。没有书面理由，任何容器都不会获得全部密钥。每个对外发布的端口都绑定到本地回环。而在编写修复时，我们会先恢复旧行为，确认测试确实变红——无法失败的测试什么也证明不了。</p><h2>会重新计算的守卫，以及三个缺陷</h2><p>这条规则又一次被应用，而且更进了一步。演示器方案里的每一项防护都带着自己的测试交付，全绿——而且形状都一样：它们钉住的是交付当天代码的行为。一份手写的清单描述的不是系统，而是作者对系统的了解。于是有三个守卫被重写，改为从事实来源<strong>重新计算</strong>防护：运行汇总真正发布的成本族，用 AST 读出；应用真正挂载的路由，对照边缘的求值顺序；连接器路由在两个方向上被完整清点，使「未分类」和「已分类但已卸载」同样变红。</p><p>它们找出了三个既有测试看不见的缺陷。语音合成<strong>计了费却从未计入</strong>实例支出上限——在公开实例上，这道上限恰好对访客最先尝试的东西视而不见。用 Google 登录是公开的，并且绕过了如今强制的条款接受，把一个真实的外部身份放到了一次性账户上。还有十一条连接器路径——Apple 应用专用密码的激活、API 密钥轮换、智能家居配对——可以在毫无防护的情况下绑定真实凭据，因为此前的守卫住在连接器这个领域里，它只能看见这个领域暴露出来的东西。随后每个新守卫都被故意破坏过，以核实它确实会变红。</p><p>会重新计算的守卫，对它不去看的东西依然是盲的。可达路由的守卫过去用测试进程的开关挂载路由器，且只冻结边缘转发的内容：演示实例已关闭的功能族的数十条路由在那里被当作「可达」，而一个已启用却没有边缘前缀的功能族，则以空白页面呈现给访问者，没有一个测试变红。如今它在演示实例模板的上限之下挂载路由器——即真正运行的那些——并双向读取：已挂载的路由要么被公开，要么被声明为隐藏并附带理由，而留给代码默认值的上限会被拒绝。演示实例由此得到一个可见的结果：打开它的页面会列出它提供什么、不提供什么，读取自它自身的配置。</p><p>随后是第六课，它关乎一项保障的存续时长，而非其强度。第三方文本——邮件正文、邀请说明、抓取的网页——在 LIA 读取的那一刻就被正确标记为不可信。但当较长的对话被压缩以腾出空间时，摘要器被要求保留标识符、决定与结果，却没有被告知任何来源信息：它忠实地把发件人的请求提升为既定事实，放进权限最高的通道，并在其后的每个回合都被保留。这个标记从来没有错；它只是比它所保护的数据活得更短。现在，摘要会继承它所概括内容的来源，该来源在写入时计算，而非从模型选择复述的内容中反推。</p><h2>联合身份不授予任何权限</h2><p>通过邮箱注册的账户需要等待管理员审批。在生产环境中实测：用同一地址进行 Google 登录会在 68 秒内激活它，而没有通知任何人——同一路径还能解封管理员封禁的账户。如今关联身份再也不会改变账户状态；只有 Google 为所声明的地址担保时才会采信；如果该地址从未被证明，注册者的密码和会话会被撤销，并通知管理员；已删除的账户绝不会被恢复。与此同时，「是谁在调用？」只有一个答案：二十一处原本读取代理地址——或访客自己填写的地址——的代码，统一经过由守卫强制的唯一解析器。日志配置现在也先于应用程序的导入：过早绑定的日志记录器会沿用默认设置，既没有级别过滤，也没有个人数据过滤。</p>"
       },
       "privacy-by-design": {
         "title": "隐私设计：GDPR、加密和数据控制",
@@ -11636,9 +11641,9 @@
         "body": "<h2>隐私设计</h2><p>LIA从一开始就以数据保护为基本原则来设计，而非事后补充。</p><h2>Fernet对称加密</h2><p>所有敏感数据通过<strong>Fernet</strong>（AES-128 CBC + HMAC-SHA256）使用<code>encrypt_data()</code>函数加密。覆盖范围包括OAuth令牌、连接器凭据、PII和MCP服务器凭据。OAuth凭据在写入数据库前加密，读取时即时解密。加密密钥与数据分开管理。</p><h2>最小化数据收集</h2><p>LIA仅收集运行所需的最少数据：</p><ul><li>个人资料信息（姓名、邮箱、偏好设置）</li><li>对话历史（加密）</li><li>服务连接令牌（加密）</li><li>匿名使用指标</li></ul><h2>删除与级联</h2><p>删除用户账户会触发完整的<strong>级联删除</strong>：连接器、对话、设置、会话、记忆和所有关联数据都将不可逆地删除。数据库中不会保留任何孤立数据。</p><h2>安全会话与Cookie</h2><p>会话Cookie配置了<code>HttpOnly</code>、<code>Secure</code>（生产环境）和<code>SameSite=lax</code>属性。默认会话持续时间为7天，选择\"记住我\"可延长至30天。一次性令牌在首次使用后通过Redis黑名单机制失效。</p><h2>外部内容防护</h2><p>从外部来源（邮件、网页、文档）获取的内容在注入提示前标记为<code>UNTRUSTED</code>，并进行可配置封装。web_fetch工具限制为每个用户在60秒窗口内最多10次调用，以防止滥用。</p><h2>日志中PII过滤</h2><p>日志系统应用<strong>OWASP日志备忘录</strong>建议，自动从应用日志中过滤个人数据。敏感数据不会出现在日志中。</p><h2>数据可移植性 (v1.9.1)</h2><p>LIA允许每个用户从设置 > 功能中<strong>导出个人消费数据</strong>为CSV格式。三种导出类型：LLM消费（每次调用的Token和成本）、Google API消费和汇总摘要。安全性：<code>user_id</code>在服务器端强制设置——不暴露任何参数（IDOR防护）。</p><h2>恢复经过验证的备份</h2><p>保护数据也意味着确保数据能扛住事故。生产数据库每晚自动备份，保留 7 天、4 周和 6 个月的历史，存放在权限受限的专用目录中。而且，只有恢复被证明可行，备份才算数：恢复流程经过真实测试——将最新转储恢复到一次性容器中，并与线上数据库比对（模式修订、行数）——这一演练随技术栈一同交付。</p><h2>一份完整的记录，而不是一份样本</h2><p>三本自动维护的登记簿分别说明 LIA 为你<strong>做</strong>了什么、为回答你而<strong>查阅</strong>了什么，以及她<strong>自行着手</strong>做了什么。它们不承载任何内容：一次查阅只保留能力本身——「你的日程」——绝不保留搜索内容，因为写下来就等于抄录了这本登记簿正是为其问责而存在的那份数据。</p><p>你从<strong>设置 &gt; 登记簿</strong>下载的记录是<strong>完整</strong>的。它此前带有行数上限：那是一种真实的保护，因为整份文档要在 Raspberry Pi 上于内存中拼装——但它被施加在了错误的变量上。稀缺的是内存；被限制的却是真相。服务端游标如今限制的是缓冲区：无论数据量多大，文件都承载你的筛选条件所指定的全部内容，文件头写明确切行数与生成时刻，并在你的浏览器接受时顺带压缩。</p>"
       },
       "observability": {
-        "title": "583个Prometheus指标、30个Grafana仪表板和Langfuse追踪",
-        "excerpt": "LIA提供企业级可观测性：583 指标、Grafana仪表板、通过Langfuse的LLM追踪，以及带处置指南的邮件告警。",
-        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 583个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中并带有PII过滤</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>38个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。38个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>30个Grafana仪表板</h2><p>LIA提供30个编号01至30的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony、briefing、product-value、meetings、effect-ledger、workboard 和 live。每个仪表板提供按用户、时间段和环境可过滤的视图。 第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 14 项关键告警组成的核心——API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成拥有8个专用指标来追踪每次LLM调用：消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p><h2>而自 v1.34 起：助手读取自身遥测</h2><p>以上一切原本只为人类而存在；助手自己什么都不读。ADR-247 闭合了这个环路：周期性自检把黄金指标与直接探针汇成带精确数值的健康快照；警报与严重判定按故障收敛为唯一事件，由预算受限、以运维手册为依据的 LLM 诊断；管理员拥有平台健康面板、主动通知和只读聊天工具。已知故障如今还会塑造回答——规划阶段即绕开降级能力，失败步骤用类型化错误码解释，绝不引用原始日志。此后，诊断不再只凭一个数字：按事件类型声明的配方规定要读取哪些细分指标和日志事件，证据包在诊断时收集并去除个人数据，无法访问的来源被声明为不可用而非当作沉默，模型读到的内容会展示在判定下方。</p><h2>统计结果，而非尝试</h2><p>v1.38.3 重新审视了一个计数器。统计抵达服务商的调用次数，是关于服务商的事实——可一旦这些调用会被重试，它就成了错误的分母：被重试救回的失败会抬高错误率，尽管什么都没丢失。如今第二个计数器按逻辑操作各记一行，重试折叠其中，回答运维人员唯一会据以行动的问题：调用方拿到结果了吗？第三个计数器则说明限流对每次尝试做了什么，因为「预算太小」与「Redis 宕机」在布尔值里毫无区别，却需要相反的处置。</p><p>最近的一课，关乎选择度量什么。自主循环有迭代次数和时长的计数器，却唯独没有度量真正增长的东西：每一步交付给模型的提示词。在生产代码上实测，第一次迭代是 2.3k tokens，第九十次是 112k——因为每个工具结果都留在模型会反复重读的对话里。现在有两个直方图记录交付体积及其占模型上下文窗口的比例，由状态归约器本就维护的那个带记忆化的计数器供数，因此这项度量在热路径上不产生额外开销。它们并未附带任何压缩策略，这是刻意的：一个对从未观测过的量采取行动的系统，优化的只是一个猜测。</p>"
+        "title": "587个Prometheus指标、30个Grafana仪表板和Langfuse追踪",
+        "excerpt": "LIA提供企业级可观测性：587 指标、Grafana仪表板、通过Langfuse的LLM追踪，以及带处置指南的邮件告警。",
+        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 587个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中并带有PII过滤</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>38个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。38个模块覆盖：HTTP、agents（SSE/router/LLM/HITL/planner）、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩、briefing、business、registry、heartbeat、健康指标、日志、电话和使用限制。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>30个Grafana仪表板</h2><p>LIA提供30个编号01至30的Grafana仪表板：app-overview、slo-tracking、infra-resources、http-api、llm-tokens-cost、logs-traces、agents-pipeline、hitl、conversations-users、oauth-connectors-mcp、voice-websocket、channels、proactive-heartbeat、registry-checkpoints、langgraph-deep、meta-health、user-analytics-geo、rag-spaces、subagents-skills、react-browser、health-metrics、compaction、journals-user-model、telephony、briefing、product-value、meetings、effect-ledger、workboard 和 live。每个仪表板提供按用户、时间段和环境可过滤的视图。 第 26 个是产品驾驶舱：经验证的结果（明确的 👍，或未被更正的操作）、激活漏斗、留存与每个有用结果的成本 — 精确计数存放在 PostgreSQL 中，Grafana 通过仅限聚合视图的只读角色读取。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>邮件告警与处置指南</h2><p>监控不止于仪表板：一个由 14 项关键告警组成的核心——API、PostgreSQL 或 Redis 不可用、磁盘、容器内存、5xx 错误率、流式延迟、每日备份失败、公网 URL 不可达、TLS 证书临近过期、限流失效——由 Prometheus 持续评估，并通过 Alertmanager 以邮件送达。每条告警都关联对应的处置指南（runbook），阈值按环境保存在 .env 文件中，promtool 单元测试确保通知中显示的阈值与触发表达式完全一致。blackbox 探针甚至像真实用户一样，从 Cloudflare 边缘到前端端到端地测试整条链路。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成拥有8个专用指标来追踪每次LLM调用：消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p><h2>而自 v1.34 起：助手读取自身遥测</h2><p>以上一切原本只为人类而存在；助手自己什么都不读。ADR-247 闭合了这个环路：周期性自检把黄金指标与直接探针汇成带精确数值的健康快照；警报与严重判定按故障收敛为唯一事件，由预算受限、以运维手册为依据的 LLM 诊断；管理员拥有平台健康面板、主动通知和只读聊天工具。已知故障如今还会塑造回答——规划阶段即绕开降级能力，失败步骤用类型化错误码解释，绝不引用原始日志。此后，诊断不再只凭一个数字：按事件类型声明的配方规定要读取哪些细分指标和日志事件，证据包在诊断时收集并去除个人数据，无法访问的来源被声明为不可用而非当作沉默，模型读到的内容会展示在判定下方。</p><h2>统计结果，而非尝试</h2><p>v1.38.3 重新审视了一个计数器。统计抵达服务商的调用次数，是关于服务商的事实——可一旦这些调用会被重试，它就成了错误的分母：被重试救回的失败会抬高错误率，尽管什么都没丢失。如今第二个计数器按逻辑操作各记一行，重试折叠其中，回答运维人员唯一会据以行动的问题：调用方拿到结果了吗？第三个计数器则说明限流对每次尝试做了什么，因为「预算太小」与「Redis 宕机」在布尔值里毫无区别，却需要相反的处置。</p><p>最近的一课，关乎选择度量什么。自主循环有迭代次数和时长的计数器，却唯独没有度量真正增长的东西：每一步交付给模型的提示词。在生产代码上实测，第一次迭代是 2.3k tokens，第九十次是 112k——因为每个工具结果都留在模型会反复重读的对话里。现在有两个直方图记录交付体积及其占模型上下文窗口的比例，由状态归约器本就维护的那个带记忆化的计数器供数，因此这项度量在热路径上不产生额外开销。它们并未附带任何压缩策略，这是刻意的：一个对从未观测过的量采取行动的系统，优化的只是一个猜测。</p><p>同样的原则也追上了工具成功率。工具失败的方式是<em>返回</em>一个失败，而不是抛出异常，而计数器只看异常：成功率从结构上就恒为 1.0，读取它的两条告警根本无法触发。如今由唯一的谓词决定什么算成功，供登记簿、指标和 ReAct 循环共同使用——显示的成功率下降了，因为它终于说了真话。</p>"
       },
       "prompt-engineering": {
         "title": "版本化提示系统：78个提示作为代码管理",
@@ -11658,7 +11663,7 @@
       "react-execution-mode": {
         "title": "Pipeline vs ReAct：当结构化工程超越放任自流",
         "excerpt": "LIA 提供两种执行模式：精细编排、token 消耗少 4 到 8 倍的 Pipeline，以及用于无法预先列出步骤的请求的迭代式 ReAct 模式——后者是唯一能运行脚本、用计算代替估算的模式。",
-        "body": "<h2>两种哲学，同一目标</h2><p>在 AI 代理生态系统中，<strong>ReAct</strong>（Reasoning + Acting）已成为事实标准。其原则：让 LLM 在每次迭代中决定调用哪个工具，无需预定义计划。因其简单性而引人入胜，这是当今大多数框架的方法。LIA 也提供该模式 — 但通过其 <strong>Pipeline 模式</strong>走得更远：这是深度工程的成果，以根本性更高的效率实现相同的灵活性。</p><h2>Pipeline：规划、验证、执行</h2><p>Pipeline 模式遵循 <strong>8 节点</strong> LangGraph 图：</p><ol><li><strong>Router</strong> — 对请求分类</li><li><strong>Planner</strong> — 生成结构化 ExecutionPlan</li><li><strong>Semantic Validator</strong> — 执行前验证计划一致性</li><li><strong>Approval Gate</strong> — 必要时人工验证 (HITL)</li><li><strong>Task Orchestrator</strong> — 并行执行步骤</li><li><strong>Response</strong> — 最终综合</li></ol><p>此模式<strong>只规划一次</strong>然后执行。结果：Pipeline 消耗的 token <strong>比 ReAct 少 4 到 8 倍</strong>。</p><h2>效率：数字说明一切</h2><p>以取消会议并发邮件为例。ReAct 模式下，LLM 反复迭代，每次都重新注入全部上下文。Pipeline 模式下，规划器生成<strong>一个计划</strong>，编排器<strong>并行</strong>执行。更少调用，更少 token，相同结果。</p><h2>控制与可观测性</h2><p>Pipeline 提供 ReAct 无法匹敌的<strong>完整可追溯性</strong>。每个步骤都有名称、类型和单独度量。</p><h2>可靠性与保护</h2><p>Pipeline 集成了 ReAct 所缺少的验证层：<strong>Semantic Validator</strong>、<strong>幻觉防御</strong>和 <strong>6 个 HITL 确认级别</strong>。如今有两道护栏约束着循环本身：它的时限以<strong>计算时间</strong>衡量，因此你用于决定是否批准的那几分钟不再消耗预算 —— 此前，稍长一些的确认会切断该回合并迫使回答从头重做，已完成的步骤全部丢失；而以完全相同参数重复调用的工具，第四次会被拒绝，第五次则结束该回合，因为不断重复自己的智能体并没有在推进。</p><h2>可扩展架构</h2><p>Pipeline 的<strong>通用模块化设计</strong>是核心优势。添加新代理只需注册工具。Skills 系统进一步推动可扩展性。</p><h2>ReAct：当答案的形状无法预先确定时</h2><p>ReAct 并不是用于<em>简单</em>请求的模式，而是用于那些无法预先列出步骤的请求：探索性查询、根据上一个工具返回结果分岁的调用链、外部 MCP 服务器。它携带与 Pipeline 相同的记忆——同一份画像、同一份日志、同一份引用，包括降级信息——而它的迭代预算是<strong>靠进展挣来的</strong>：一次什么也没产出的迭代，买不到下一次。它也是唯一能够<strong>计算而不是估算</strong>的模式：当某一步需要对很多行做算术、在两份名单之间做关联，或者跨时区计算时长时，它会写几行 Python 并在严格隔离的沙箱中运行——没有数据库，每次都是一次性容器——给出一个你可以核对的结果。而工具返回的内容会<strong>在 token 预算内逐项到达模型</strong>——被接纳的每一项都是完整的，至少有一项总会通过，截断会被明确说明而不是默不作声——因此一整箱完整邮件绝不会变成一段在第一封的邮件头中间被截断的转储。LIA 用原生 <code>interrupt()</code> 实现 HITL，用计算时间衡量截止期限，并配有 5 项专用 Prometheus 指标。</p><h2>循环带上的工具</h2><p>ReAct 循环拿到的不是整个目录：它带上的是<strong>问题所需要的工具</strong>。路由器本来就会为请求计算一个嵌入向量以识别其领域；同一个向量把每个可用工具——原生工具与个人 MCP 服务器一视同仁——排成一份全局排名。选择过程由组合得出，不写死任何工具名：先是识别出的领域的工具，再是其他每个家族里最好的几个以免任何家族不可触达，最后是排名的前列直至一个公开的预算。上限只剩下安全网。一份手工固定的「核心」列表曾被写出又被否决：它会把某一个账户的习惯编进一个为许多人打造的产品。而且循环读取个人知识空间的方式与管道完全相同——一方知道的，另一方也知道。</p><h2>作为工具箱的沙箱</h2><p>循环写出的脚本过去是完全隔离的，而一个隔离的脚本唯一做不到的事，就是向某个服务提问。现在它可以访问网络——绝不直连。一次联网运行会加入一个内部网络，其唯一出口是一个专用代理：仅限 HTTPS，只到脚本声明的主机，私有网段和服务器本身在建立连接时即被拒绝。用户用自己的 API 密钥连接的服务可以立即访问，而密钥从不进入容器：脚本读取一个每次运行专属的令牌，代理只在该主机上把它换成真实密钥。没人允许过的主机会在循环内<strong>先问</strong>，有三种回答——带上本轮的数据、不带数据，或者拒绝——同一个调用在回答之下继续，因此请求的其余部分绝不会因为这个问题而丢失。每次联网运行都会在容器启动前记入用户的登记簿，模型被告知四种角色（计算、诊断、填补空缺、转换），并有二十二个在构建镜像中验证过的库，管理员可以关闭联网而保留计算器。</p><h2>选择权在用户</h2><p>偏好按<strong>用户级别</strong>持久化，可从仪表板一键切换。我们的信念：Pipeline 虽然设计更复杂，但证明了严谨编排在大多数场景中超越放任自流。</p>"
+        "body": "<h2>两种哲学，同一目标</h2><p>在 AI 代理生态系统中，<strong>ReAct</strong>（Reasoning + Acting）已成为事实标准。其原则：让 LLM 在每次迭代中决定调用哪个工具，无需预定义计划。因其简单性而引人入胜，这是当今大多数框架的方法。LIA 也提供该模式 — 但通过其 <strong>Pipeline 模式</strong>走得更远：这是深度工程的成果，以根本性更高的效率实现相同的灵活性。</p><h2>Pipeline：规划、验证、执行</h2><p>Pipeline 模式遵循 <strong>8 节点</strong> LangGraph 图：</p><ol><li><strong>Router</strong> — 对请求分类</li><li><strong>Planner</strong> — 生成结构化 ExecutionPlan</li><li><strong>Semantic Validator</strong> — 执行前验证计划一致性</li><li><strong>Approval Gate</strong> — 必要时人工验证 (HITL)</li><li><strong>Task Orchestrator</strong> — 并行执行步骤</li><li><strong>Response</strong> — 最终综合</li></ol><p>此模式<strong>只规划一次</strong>然后执行。结果：Pipeline 消耗的 token <strong>比 ReAct 少 4 到 8 倍</strong>。</p><h2>效率：数字说明一切</h2><p>以取消会议并发邮件为例。ReAct 模式下，LLM 反复迭代，每次都重新注入全部上下文。Pipeline 模式下，规划器生成<strong>一个计划</strong>，编排器<strong>并行</strong>执行。更少调用，更少 token，相同结果。</p><h2>控制与可观测性</h2><p>Pipeline 提供 ReAct 无法匹敌的<strong>完整可追溯性</strong>。每个步骤都有名称、类型和单独度量。</p><h2>可靠性与保护</h2><p>Pipeline 集成了 ReAct 所缺少的验证层：<strong>Semantic Validator</strong>、<strong>幻觉防御</strong>和 <strong>6 个 HITL 确认级别</strong>。如今有两道护栏约束着循环本身：它的时限以<strong>计算时间</strong>衡量，因此你用于决定是否批准的那几分钟不再消耗预算 —— 此前，稍长一些的确认会切断该回合并迫使回答从头重做，已完成的步骤全部丢失；而以完全相同参数重复调用的工具，第四次会被拒绝，第五次则结束该回合，因为不断重复自己的智能体并没有在推进。</p><h2>可扩展架构</h2><p>Pipeline 的<strong>通用模块化设计</strong>是核心优势。添加新代理只需注册工具。Skills 系统进一步推动可扩展性。</p><h2>ReAct：当答案的形状无法预先确定时</h2><p>ReAct 并不是用于<em>简单</em>请求的模式，而是用于那些无法预先列出步骤的请求：探索性查询、根据上一个工具返回结果分岁的调用链、外部 MCP 服务器。它携带与 Pipeline 相同的记忆——同一份画像、同一份日志、同一份引用，包括降级信息——而它的迭代预算是<strong>靠进展挣来的</strong>：一次什么也没产出的迭代，买不到下一次。它也是唯一能够<strong>计算而不是估算</strong>的模式：当某一步需要对很多行做算术、在两份名单之间做关联，或者跨时区计算时长时，它会写几行 Python 并在严格隔离的沙箱中运行——没有数据库，每次都是一次性容器——给出一个你可以核对的结果。而工具返回的内容会<strong>在 token 预算内逐项到达模型</strong>——被接纳的每一项都是完整的，至少有一项总会通过，截断会被明确说明而不是默不作声——因此一整箱完整邮件绝不会变成一段在第一封的邮件头中间被截断的转储。LIA 用原生 <code>interrupt()</code> 实现 HITL，用计算时间衡量截止期限，并配有 5 项专用 Prometheus 指标。</p><h2>循环带上的工具</h2><p>ReAct 循环拿到的不是整个目录：它带上的是<strong>问题所需要的工具</strong>。路由器本来就会为请求计算一个嵌入向量以识别其领域；同一个向量把每个可用工具——原生工具与个人 MCP 服务器一视同仁——排成一份全局排名。选择过程由组合得出，不写死任何工具名：先是识别出的领域的工具，再是其他每个家族里最好的几个以免任何家族不可触达，最后是排名的前列直至一个公开的预算。上限只剩下安全网。一份手工固定的「核心」列表曾被写出又被否决：它会把某一个账户的习惯编进一个为许多人打造的产品。而且循环读取个人知识空间的方式与管道完全相同——一方知道的，另一方也知道。</p><h2>作为工具箱的沙箱</h2><p>循环写出的脚本过去是完全隔离的，而一个隔离的脚本唯一做不到的事，就是向某个服务提问。现在它可以访问网络——绝不直连。一次联网运行会加入一个内部网络，其唯一出口是一个专用代理：仅限 HTTPS，只到脚本声明的主机，私有网段和服务器本身在建立连接时即被拒绝。用户用自己的 API 密钥连接的服务可以立即访问，而密钥从不进入容器：脚本读取一个每次运行专属的令牌，代理只在该主机上把它换成真实密钥。没人允许过的主机会在循环内<strong>先问</strong>，有三种回答——带上本轮的数据、不带数据，或者拒绝——同一个调用在回答之下继续，因此请求的其余部分绝不会因为这个问题而丢失。每次联网运行都会在容器启动前记入用户的登记簿，模型被告知四种角色（计算、诊断、填补空缺、转换），并有二十二个在构建镜像中验证过的库，管理员可以关闭联网而保留计算器。</p><h2>以结果评判</h2><p>一个只要模型不再调用工具就停下的循环，会让坚持与否取决于某个模型如何理解一句话——而每个角色都可配置，模型也可以互换。因此机制放在循环本身：凡是它着手去获取的信息——用户的要求，以及它发起的每一次交叉核对——最终要么<strong>获得，要么声明</strong>，并附上尝试过的阶梯：先修正调用，再换一个明确标注的来源，最后才是声明。声明的缺口可换来一次有限的补救回合，由一个不调用任何模型的节点完成；指令会展示给后续调用，但绝不写入历史。一个回答了另一个问题的结果——问的是明天，却给出今天的天气——与错误一样是障碍；工具遇到无法识别的值会拒绝，而不是悄悄替换。在三个模型系列上的实测：63 条信息中获得 58 条，此前为 50 条；原始案例 9 次中解决 7 次，此前为 3 次；没有障碍的回合不多出任何一次调用。</p><p>失败则从消息本身读取，而不是从它的文字中推断：工具结果带有结构化标记，在对话恢复后依然保留，而已声明的失败不再换来额外的迭代。最后，一个运维选项会在每个回合绑定全部工具，并把本回合的上下文放在问题之后，让服务商的缓存能在回合之间复用前缀：根据缓存机制不同，每回合节省 18% 至 42%，基于数百个真实回合测得；默认关闭，因为没有缓存的模型会因此多花钱。</p><h2>选择权在用户</h2><p>偏好按<strong>用户级别</strong>持久化，可从仪表板一键切换。我们的信念：Pipeline 虽然设计更复杂，但证明了严谨编排在大多数场景中超越放任自流。</p>"
       },
       "mcp-react-agent": {
         "title": "MCP ReAct：由迭代代理驱动的 MCP 服务器",
@@ -11678,12 +11683,12 @@
       "account-lifecycle": {
         "title": "账户生命周期：4种状态实现完整 GDPR 合规",
         "excerpt": "LIA 通过4状态模型管理用户账户 — 活跃、停用、删除、擦除 — 自动清理22个表并保留账单历史。",
-        "body": "<h2>4状态模型</h2><p>LIA 的账户管理遵循严格的生命周期，符合 GDPR 要求：</p><ol><li><strong>Active</strong> — 功能正常的账户，完全访问</li><li><strong>Deactivated</strong> — 停用的账户（软删除），数据保留但访问被阻止</li><li><strong>Deleted</strong> — 个人数据已清除，账单历史保留</li><li><strong>Erased</strong> — 完全不可逆删除（GDPR 被遗忘权）</li></ol><p>每个转换都是<strong>单向的</strong>。</p><h2>22个表的清理</h2><p><code>AccountDeletionService</code> 协调跨 <strong>22个数据库表</strong>的数据删除。LangGraph 检查点和存储也会被清理。</p><h2>账单保留</h2><p>账单表即使在删除后也会被<strong>保留</strong>。外键使用 <code>SET NULL</code> 而非 <code>CASCADE</code>。</p><h2>后台任务保护</h2><p>七个后台任务在执行前检查账户状态。停用或删除的用户会被<strong>静默跳过</strong>。</p><h2>缓存失效</h2><p>账户停用时，授权缓存<strong>立即失效</strong>。</p><h2>管理员界面</h2><p>管理面板清晰区分<strong>删除</strong>（可逆）和<strong>擦除</strong>（不可逆，GDPR）操作。可视徽章实时显示状态。</p>"
+        "body": "<h2>4状态模型</h2><p>LIA 的账户管理遵循严格的生命周期，符合 GDPR 要求：</p><ol><li><strong>Active</strong> — 功能正常的账户，完全访问</li><li><strong>Deactivated</strong> — 停用的账户（软删除），数据保留但访问被阻止</li><li><strong>Deleted</strong> — 个人数据已清除，账单历史保留</li><li><strong>Erased</strong> — 完全不可逆删除（GDPR 被遗忘权）</li></ol><p>每个转换都是<strong>单向的</strong>。</p><p>任何联合登录都不会让账户在状态之间转换：用 Google 登录证明的是地址，而不是审批，因此待审核的注册或被封禁的账户保持原状——即使是未激活的账户，也始终可以退出登录。</p><h2>22个表的清理</h2><p><code>AccountDeletionService</code> 协调跨 <strong>22个数据库表</strong>的数据删除。LangGraph 检查点和存储也会被清理。</p><h2>账单保留</h2><p>账单表即使在删除后也会被<strong>保留</strong>。外键使用 <code>SET NULL</code> 而非 <code>CASCADE</code>。</p><h2>后台任务保护</h2><p>七个后台任务在执行前检查账户状态。停用或删除的用户会被<strong>静默跳过</strong>。</p><h2>缓存失效</h2><p>账户停用时，授权缓存<strong>立即失效</strong>。</p><h2>管理员界面</h2><p>管理面板清晰区分<strong>删除</strong>（可逆）和<strong>擦除</strong>（不可逆，GDPR）操作。可视徽章实时显示状态。</p>"
       },
       "hallucination-defense": {
         "title": "幻觉防御：当 LLM 编造参数时",
         "excerpt": "LIA 在工具执行前检测并中和 LLM 幻觉参数，使用签名检查和规划器中的禁用工具列表。",
-        "body": "<h2>幽灵参数问题</h2><p>LLM 很有创造力 — 有时太有创造力。当规划器生成 ExecutionPlan 时，可能会编造目标工具签名中不存在的参数：<code>order</code>、<code>order_by</code>、<code>sort</code>、<code>limit</code>…这些幻觉参数导致静默的 <code>TypeError</code> 崩溃。</p><h2>基于签名的清理</h2><p>并行执行器在调用前通过 <code>inspect.signature()</code> 检查每个工具的 <strong>Python 签名</strong>。签名中未声明的任何参数都会被<strong>自动删除</strong>。</p><h2>规划器中的禁用工具</h2><p>规划器提示包含<strong>明确的禁用工具列表</strong>：<code>resolve_reference</code>、<code>get_context_list</code>、<code>get_context</code>、<code>resolve_context</code>、<code>lookup_reference</code>。这大幅减少了不必要的重新规划幻觉。</p><h2>简化的 HITL</h2><p>审批门现在以<strong>直通</strong>模式运行。人工验证集中在下游的<strong>上下文确认</strong>。</p><h2>干净的取消</h2><p>FOR_EACH 循环取消现在产生<strong>快速路径</strong>响应。</p><h2>语义参数防护栏</h2><p>还有一层保护在执行时生效：每个带有语义类型注解的工具参数（实际地址、电子邮箱……）都会在 API 调用前被检查。如果计划试图在此传入本轮已解析的<strong>人名</strong>——比如导航到「Alexandre Dupont」而不是他的地址——调用会在产生任何费用前被拦截，并返回可恢复的错误来引导模型：「先获取该联系人的地址」。防护栏由工具清单驱动（没有针对单个工具的硬编码规则），在两种执行模式下均生效，并采用<em>fail-open</em>设计：存疑时绝不干扰合法调用。</p><h2>纵深防御</h2><p>这些机制构成<strong>多层防御</strong>：提示指令减少幻觉、签名自省中和幽灵参数、上下文 HITL 处理关键操作。结果：更健壮的执行计划。</p><h2>那个值为“null”的参数</h2><p>另一种幻觉并非来自模型，而是来自<strong>替换</strong>。在 <code>FOR_EACH</code> 下，指向缺失值的 <code>$item.字段</code> 占位符会在 <em>JSON 引号内部</em>被替换：输出 <code>null</code> 因而产生了字面字符串 <code>\"null\"</code>，而任何 <code>if not value</code> 判断都会欣然放行。生产环境中，一次天气调用收到了 <code>location=\"null\"</code>，于是对同名地点做了地理编码，并给出了爱尔兰 Cappaghnanool 的天气。现在会用一个哨兵标记缺失字段，并在解析后移除：该参数被视为<strong>缺省</strong>，工具随即应用自己的默认值——此处即自动定位。</p><h2>不臆造实体属性</h2><p>最微妙的防线不在参数，而在<strong>回答</strong>。在未调用任何工具的一轮中，当前轮次的注册表按设计为空（防串扰保护），会话历史又刻意排除工具消息：模型于是不再拥有<em>任何</em>权威数据，只能复述此前的文字。一个读到的 11:15 的日程，就这样被说成了 16 点。现在近期获取的实体会被显式重新注入——设有时效上限，且绝不优先于当前轮次——并有一条权威性规则禁止臆造属性：请求过却从未获得的数据，必须声明其缺失。</p><h2>凭空编造诊断</h2><p>同一类缺陷的第三面既不是参数也不是属性，而是<strong>解释</strong>。过去只要计划验证器否决了某个步骤，这个判定就足以让回答宣告失败。但被否决的计划仍会执行：路由从不读取该判定，而工具多半会自行修正那个越界的取值。实测结果是：回答声称邮件无法读取，并把邮件连接器指为元凶——可那十封邮件就在这条回答自己的上下文里，连接器也一切正常。一个说得笃定却错误的诊断比承认失败更糟，因为用户会照着它去行动。现在只有当某项能力<strong>什么都没产出</strong>时，才会被判定为受阻。</p><p>最后一个盲区是结构性的，而非偶然。被要求对计划给出裁决的审阅者，能可靠地检查计划<strong>包含</strong>什么，却会漏掉它<strong>缺少</strong>什么——已发表的测量把这一差距定在判别力约 0.9 对 0.55。LIA 的检查在输出模式里能够指名「缺失步骤」，但它的提示词从未描述过这样一种情况，其决策树里也没有任何一条涉及「缺失」。解法不是更严厉的指令，而是不同的操作顺序：先列举请求所确立的各项要求，再逐项核对是否都有步骤覆盖，然后才形成裁决。两道护栏让它保持诚实——由分析计划已获取数据即可满足的要求属于回答模型，而任何能力都无法服务的要求同样不算缺失步骤。</p>"
+        "body": "<h2>幽灵参数问题</h2><p>LLM 很有创造力 — 有时太有创造力。当规划器生成 ExecutionPlan 时，可能会编造目标工具签名中不存在的参数：<code>order</code>、<code>order_by</code>、<code>sort</code>、<code>limit</code>…这些幻觉参数导致静默的 <code>TypeError</code> 崩溃。</p><h2>基于签名的清理</h2><p>并行执行器在调用前通过 <code>inspect.signature()</code> 检查每个工具的 <strong>Python 签名</strong>。签名中未声明的任何参数都会被<strong>自动删除</strong>。</p><h2>规划器中的禁用工具</h2><p>规划器提示包含<strong>明确的禁用工具列表</strong>：<code>resolve_reference</code>、<code>get_context_list</code>、<code>get_context</code>、<code>resolve_context</code>、<code>lookup_reference</code>。这大幅减少了不必要的重新规划幻觉。</p><h2>简化的 HITL</h2><p>审批门现在以<strong>直通</strong>模式运行。人工验证集中在下游的<strong>上下文确认</strong>。</p><h2>干净的取消</h2><p>FOR_EACH 循环取消现在产生<strong>快速路径</strong>响应。</p><h2>语义参数防护栏</h2><p>还有一层保护在执行时生效：每个带有语义类型注解的工具参数（实际地址、电子邮箱……）都会在 API 调用前被检查。如果计划试图在此传入本轮已解析的<strong>人名</strong>——比如导航到「Alexandre Dupont」而不是他的地址——调用会在产生任何费用前被拦截，并返回可恢复的错误来引导模型：「先获取该联系人的地址」。防护栏由工具清单驱动（没有针对单个工具的硬编码规则），在两种执行模式下均生效，并采用<em>fail-open</em>设计：存疑时绝不干扰合法调用。</p><h2>纵深防御</h2><p>这些机制构成<strong>多层防御</strong>：提示指令减少幻觉、签名自省中和幽灵参数、上下文 HITL 处理关键操作。结果：更健壮的执行计划。</p><h2>那个值为“null”的参数</h2><p>另一种幻觉并非来自模型，而是来自<strong>替换</strong>。在 <code>FOR_EACH</code> 下，指向缺失值的 <code>$item.字段</code> 占位符会在 <em>JSON 引号内部</em>被替换：输出 <code>null</code> 因而产生了字面字符串 <code>\"null\"</code>，而任何 <code>if not value</code> 判断都会欣然放行。生产环境中，一次天气调用收到了 <code>location=\"null\"</code>，于是对同名地点做了地理编码，并给出了爱尔兰 Cappaghnanool 的天气。现在会用一个哨兵标记缺失字段，并在解析后移除：该参数被视为<strong>缺省</strong>，工具随即应用自己的默认值——此处即自动定位。</p><h2>不臆造实体属性</h2><p>最微妙的防线不在参数，而在<strong>回答</strong>。在未调用任何工具的一轮中，当前轮次的注册表按设计为空（防串扰保护），会话历史又刻意排除工具消息：模型于是不再拥有<em>任何</em>权威数据，只能复述此前的文字。一个读到的 11:15 的日程，就这样被说成了 16 点。现在近期获取的实体会被显式重新注入——设有时效上限，且绝不优先于当前轮次——并有一条权威性规则禁止臆造属性：请求过却从未获得的数据，必须声明其缺失。</p><h2>凭空编造诊断</h2><p>同一类缺陷的第三面既不是参数也不是属性，而是<strong>解释</strong>。过去只要计划验证器否决了某个步骤，这个判定就足以让回答宣告失败。但被否决的计划仍会执行：路由从不读取该判定，而工具多半会自行修正那个越界的取值。实测结果是：回答声称邮件无法读取，并把邮件连接器指为元凶——可那十封邮件就在这条回答自己的上下文里，连接器也一切正常。一个说得笃定却错误的诊断比承认失败更糟，因为用户会照着它去行动。现在只有当某项能力<strong>什么都没产出</strong>时，才会被判定为受阻。</p><p>最后一个盲区是结构性的，而非偶然。被要求对计划给出裁决的审阅者，能可靠地检查计划<strong>包含</strong>什么，却会漏掉它<strong>缺少</strong>什么——已发表的测量把这一差距定在判别力约 0.9 对 0.55。LIA 的检查在输出模式里能够指名「缺失步骤」，但它的提示词从未描述过这样一种情况，其决策树里也没有任何一条涉及「缺失」。解法不是更严厉的指令，而是不同的操作顺序：先列举请求所确立的各项要求，再逐项核对是否都有步骤覆盖，然后才形成裁决。两道护栏让它保持诚实——由分析计划已获取数据即可满足的要求属于回答模型，而任何能力都无法服务的要求同样不算缺失步骤。</p><h2>失败会被说明，绝不猜测</h2><p>同一个缺陷还有另一扇门：工具的真实失败。在生产环境中实测，在出现工具失败的回合里，每三个回答就有一个带着编造的配置诊断——「没有配置任何日历服务」，而相关的三个连接器其实都处于启用状态——而在 142 个没有失败的回合中一个也没有。模型是在填补沉默：代码写入的内容与其他部分读取的内容之间有四处断裂，导致任何失败都从未真正传达给它。如今每一个步骤失败都通过唯一的渠道送达，它会指明工具并公布确切总数；只成功一半的计划会交还成功的部分；而早已写下的规则——绝不说「什么都没配置」——终于在每天发生失败的地方生效。</p>"
       },
       "embedding-calibration": {
         "title": "嵌入向量校准：8个阈值调优以实现语义精度",
@@ -11698,7 +11703,7 @@
       "tabular-administration": {
         "title": "当工作簿成为表单：批量管理的正确做法",
         "excerpt": "以每次一个对话框的方式管理一百二十四个模型，不是人机工程问题，而是设计问题。本文讲述那套把管理界面变成 Excel 往返的声明式底座，以及它在途中揭出的两处计费缺陷。",
-        "body": "<h2>每个模型一个对话框，撑不住规模</h2><p>LIA 的模型目录有一百二十四条记录。每条承载二十四项特征 —— 上下文窗口、工具支持、采样参数、推理形态 —— 以及一份四维度的价目。管理界面为每个模型提供一个对话框：改一个价格恰到好处，可当供应商修订整份价目表时就荒谬了，而这一年会发生两三次。</p><p>显而易见的答案本该是一张可批量编辑的表格。我们真正构建的，是一套描述工作簿的<strong>声明式底座</strong>，并从这唯一的描述派生出两个方向：写入器产出文件，读取器把它读回。底座完全不引入任何领域。领域只提供一份列声明和一个经由自身服务落库的应用器。把这套机制移植到另一块管理界面，写的是一份声明 —— 而不是格式代码。</p><h2>让一个文件可以安全导入的三条规则</h2><ul><li><strong>列按技术键解析，绝不按位置。</strong> 第一行承载不变的技术键并保持隐藏；第二行承载翻译后的标签。重排某列、隐藏某列、新增某列，或者用法语导出、用德语回传：这些都不会改变读取结果。</li><li><strong>没有任何东西被隐式删除。</strong> 文件中缺失的行永远不会删除任何东西。有人忘记取消的筛选，不可能清空一个目录。下架要经过一列显式的状态列 —— 把它重新置为真则重新启用。</li><li><strong>预览是有约束力的。</strong> 导入分两步：第一步什么都不写，逐字段返回计划；第二步重新推导该计划，若与已审阅的那份不同则拒绝执行。按行的乐观锁只拒绝期间被改动过的行，因此同事改了一个无关模型，并不会让你整个文件被驳回。</li></ul><p>还有一条规则在默默起作用：未发生变化的内容不会被写入。没有它，重新导入一百二十四行就会留下一百二十四个无用的价目版本，而价目历史 —— 让「三月这项花了我们多少钱」这个问题可被回答的东西 —— 会被噪声填满。</p><h2>文件陈述事实，而非你的假设</h2><p>三列只读的派生列之所以存在，是因为原始数据会误导人。没有生效价目的模型会被静默按零计费 —— 文件把这件事写成文字。带时间窗的价目，比如某供应商的低谷时段，此前读起来像一份平价目，因为时间窗住在一个没人有理由打开的工作表上；现在它出现在承载价格的那一行上。</p><p>完整性是被守护的，而不是被记住的。工作簿的早期版本导出十六列，而真实模式远不止于此，保真度测试却看不见 —— 它拿一份抽取与自己作比较。如今的判据是数据库模式本身：每一列业务字段要么被导出，要么带着书面理由被排除；明天新增一列就会让构建变红。</p><h2>设计一个导出功能会揭示什么</h2><p>写导出器需要回答一个简单的问题：一个模型的价目是多少？当时没有答案。没有任何约束保证只有一份生效价目，四条读取路径都在没有确定性排序的情况下选取 —— 其中两条可能在同一时刻、同一数据库上，为同一模型返回不同的价格。一个按原始名称写入、按归一化名称读取的缓存，让带日期的模型按其基础模型的价格计费。</p><p>修复它产出了一条值得带去别处的规则：<strong>迁移绝不臆造业务数据。</strong> 直觉规则 —— 保留最新的那一行 —— 与真实的分歧个案对照后，每一次都被证伪。正确的是较旧那行，而在两个模型上改变的是计费<em>单位</em>本身。因此迁移只合并严格相同的重复项，遇到其余情形便点名并停止。裁决权仍在人手中。</p><h2>格式并非细节</h2><p><code>.xlsx</code> 本身就是一个 zip 压缩包，所以防 zip 炸弹的护栏沿用插件导入器的那一套，是共享而非重写。而 OOXML 会反噬：工作表保护的布尔值为真时意味着「禁止」，于是为了锁住五列计算列而保护工作表，反而悄无声息地禁止了新增模型 —— 恰恰是管理员最需要做的事。那个看似启用下拉列表的属性，实际上是把它隐藏起来。这两点现在都由针对生成 XML 的断言钉死，因为对其中任何一个出于好意的「修正」，都会拿掉这份文件一半的易用性，而不会有任何一个测试变红。</p>"
+        "body": "<h2>每个模型一个对话框，撑不住规模</h2><p>LIA 的模型目录有一百二十四条记录。每条承载二十四项特征 —— 上下文窗口、工具支持、采样参数、推理形态 —— 以及一份四维度的价目。管理界面为每个模型提供一个对话框：改一个价格恰到好处，可当供应商修订整份价目表时就荒谬了，而这一年会发生两三次。</p><p>显而易见的答案本该是一张可批量编辑的表格。我们真正构建的，是一套描述工作簿的<strong>声明式底座</strong>，并从这唯一的描述派生出两个方向：写入器产出文件，读取器把它读回。底座完全不引入任何领域。领域只提供一份列声明和一个经由自身服务落库的应用器。把这套机制移植到另一块管理界面，写的是一份声明 —— 而不是格式代码。</p><h2>让一个文件可以安全导入的三条规则</h2><ul><li><strong>列按技术键解析，绝不按位置。</strong> 第一行承载不变的技术键并保持隐藏；第二行承载翻译后的标签。重排某列、隐藏某列、新增某列，或者用法语导出、用德语回传：这些都不会改变读取结果。</li><li><strong>没有任何东西被隐式删除。</strong> 文件中缺失的行永远不会删除任何东西。有人忘记取消的筛选，不可能清空一个目录。下架要经过一列显式的状态列 —— 把它重新置为真则重新启用。</li><li><strong>预览是有约束力的。</strong> 导入分两步：第一步什么都不写，逐字段返回计划；第二步重新推导该计划，若与已审阅的那份不同则拒绝执行。按行的乐观锁只拒绝期间被改动过的行，因此同事改了一个无关模型，并不会让你整个文件被驳回。</li></ul><p>还有一条规则在默默起作用：未发生变化的内容不会被写入。没有它，重新导入一百二十四行就会留下一百二十四个无用的价目版本，而价目历史 —— 让「三月这项花了我们多少钱」这个问题可被回答的东西 —— 会被噪声填满。</p><h2>文件陈述事实，而非你的假设</h2><p>三列只读的派生列之所以存在，是因为原始数据会误导人。没有生效价目的模型会被静默按零计费 —— 文件把这件事写成文字。带时间窗的价目，比如某供应商的低谷时段，此前读起来像一份平价目，因为时间窗住在一个没人有理由打开的工作表上；现在它出现在承载价格的那一行上。</p><p>完整性是被守护的，而不是被记住的。工作簿的早期版本导出十六列，而真实模式远不止于此，保真度测试却看不见 —— 它拿一份抽取与自己作比较。如今的判据是数据库模式本身：每一列业务字段要么被导出，要么带着书面理由被排除；明天新增一列就会让构建变红。</p><h2>设计一个导出功能会揭示什么</h2><p>写导出器需要回答一个简单的问题：一个模型的价目是多少？当时没有答案。没有任何约束保证只有一份生效价目，四条读取路径都在没有确定性排序的情况下选取 —— 其中两条可能在同一时刻、同一数据库上，为同一模型返回不同的价格。一个按原始名称写入、按归一化名称读取的缓存，让带日期的模型按其基础模型的价格计费。</p><p>修复它产出了一条值得带去别处的规则：<strong>迁移绝不臆造业务数据。</strong> 直觉规则 —— 保留最新的那一行 —— 与真实的分歧个案对照后，每一次都被证伪。正确的是较旧那行，而在两个模型上改变的是计费<em>单位</em>本身。因此迁移只合并严格相同的重复项，遇到其余情形便点名并停止。裁决权仍在人手中。</p><h2>格式并非细节</h2><p><code>.xlsx</code> 本身就是一个 zip 压缩包，所以防 zip 炸弹的护栏沿用插件导入器的那一套，是共享而非重写。而 OOXML 会反噬：工作表保护的布尔值为真时意味着「禁止」，于是为了锁住五列计算列而保护工作表，反而悄无声息地禁止了新增模型 —— 恰恰是管理员最需要做的事。那个看似启用下拉列表的属性，实际上是把它隐藏起来。这两点现在都由针对生成 XML 的断言钉死，因为对其中任何一个出于好意的「修正」，都会拿掉这份文件一半的易用性，而不会有任何一个测试变红。</p><p>当计价时段学会了「适用日期」时，格式再次变化：有些服务商只在工作日按高峰计费。工作簿因此多了一列，版本号也随之声明：旧格式的文件会被拒绝，因为把它当作「每天适用」来读取，会让每个周末重新按全价计费——被悄悄读取的旧版本，正是版本号存在所要防止的那类缺陷。</p>"
       }
     }
   },
@@ -13993,6 +13998,7 @@
     "error": {
       "start": "实时会话无法开始。",
       "connector_missing": "请先激活一个 Live 连接器，再开始语音会话。",
+      "key_ip_restricted": "Google 拒绝了此设备的连接：Gemini Live API 密钥设置了 IP 地址限制。请为此 Live 连接器使用一把没有 IP 限制的独立密钥。",
       "session_in_progress": "此账户已有一个正在进行的实时会话。",
       "instance_busy": "此实例当前打开的实时会话过多，请稍后再试。",
       "mint_rate_limited": "短时间内启动会话过多，请等待一分钟。",

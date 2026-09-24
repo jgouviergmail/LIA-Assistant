@@ -1,12 +1,13 @@
-"""Public (non-admin) image-generation options endpoint.
+"""Public (non-admin) image-generation options endpoint (ADR-305).
 
-Exposes the qualities and sizes available for the currently configured
-image-generation model, derived from the active rows in
-``image_generation_pricing``. Consumed by the user-facing
-``ImageGenerationSettings`` component to populate its dropdowns dynamically
-(replacing the previously hardcoded values).
+Exposes what the configured image model offers — its qualities (with price
+ranges) and sizes (with orientation and billing tier) — and the person's
+EFFECTIVE quality and size: their stored preferences mapped onto that offer by
+the resolver the image tools use (``preferences.py``). The settings therefore
+show exactly what the next image will use, even after the administrator changed
+the model.
 
-Phase: v1.x DB-source-of-truth release (Task 17).
+Phase: v1.x DB-source-of-truth release (Task 17); multi-provider since ADR-305.
 """
 
 from __future__ import annotations
@@ -19,7 +20,13 @@ from src.core.exceptions import raise_invalid_input
 from src.core.session_dependencies import get_current_active_session
 from src.domains.feature_switches.guard import require_capability
 from src.domains.feature_switches.registry import PlatformCapability
-from src.domains.image_generation.options_cache import ImageOptionsCache
+from src.domains.image_generation.preferences import (
+    ImageModelNotServedError,
+    active_image_options,
+    effective_quality,
+    effective_size,
+)
+from src.domains.image_generation.sizing import Orientation
 from src.domains.users.models import User
 
 logger = structlog.get_logger(__name__)
@@ -35,33 +42,32 @@ router = APIRouter(
     ],
 )
 
-
-# Mapping from raw size strings (as stored in image_generation_pricing) to
-# i18n keys for the user-facing label. Sizes not in this map fall back to
-# a generic "custom" label, with the raw value still shown in the UI.
-_SIZE_LABEL_KEYS: dict[str, str] = {
-    "1024x1024": "settings.image_generation.size_square",
-    "1024x1536": "settings.image_generation.size_portrait",
-    "1536x1024": "settings.image_generation.size_landscape",
-}
+# The user-facing label of a size is its orientation; the dimensions and the
+# billing tier are shown beside it.
+_SIZE_LABEL_KEY = "settings.image_generation.size_{orientation}"
 
 
 class QualityOptionResponse(BaseModel):
-    """One quality level supported for the configured image model.
+    """One quality level offered by the configured image model.
 
     The price range (min/max across the model's sizes) lets the UI render
     a "(~$0.04-0.06)" hint without a second roundtrip.
     """
 
-    value: str = Field(..., description="Quality identifier (e.g. 'low', 'medium', 'high')")
-    min_cost_usd: float = Field(..., ge=0)
-    max_cost_usd: float = Field(..., ge=0)
+    value: str = Field(..., description="Quality identifier, in the model family's vocabulary")
+    min_cost_usd: float = Field(..., ge=0, description="Cheapest size at this quality (USD)")
+    max_cost_usd: float = Field(..., ge=0, description="Dearest size at this quality (USD)")
 
 
 class SizeOptionResponse(BaseModel):
-    """One image size supported for the configured image model."""
+    """One image size offered by the configured image model."""
 
     value: str = Field(..., description="Image dimensions (e.g. '1024x1024')")
+    orientation: Orientation = Field(..., description="Square, landscape or portrait")
+    tier: str | None = Field(
+        default=None,
+        description="The family's billing tier for this size (e.g. '1k', '2k'), if it has tiers",
+    )
     label_key: str = Field(
         ...,
         description="i18n key for the user-facing label (resolved client-side)",
@@ -69,7 +75,7 @@ class SizeOptionResponse(BaseModel):
 
 
 class ImageGenerationOptionsResponse(BaseModel):
-    """Response: which qualities and sizes the user can pick for image generation."""
+    """What the person can pick, and what their next image will use."""
 
     model_config = ConfigDict(protected_namespaces=())
 
@@ -78,47 +84,32 @@ class ImageGenerationOptionsResponse(BaseModel):
         description="The image_generation LLM type's currently configured model_name",
     )
     provider: str = Field(..., description="Provider that hosts the active model")
-    qualities: list[QualityOptionResponse]
-    sizes: list[SizeOptionResponse]
+    qualities: list[QualityOptionResponse] = Field(..., description="Offered qualities")
+    sizes: list[SizeOptionResponse] = Field(..., description="Offered sizes")
+    effective_quality: str = Field(
+        ...,
+        description="The quality the next image uses: the stored one mapped onto the offer",
+    )
+    effective_size: str = Field(
+        ...,
+        description="The size the next generated image uses: the stored one mapped onto the offer",
+    )
 
 
 @router.get("/options", response_model=ImageGenerationOptionsResponse)
 async def get_image_generation_options(
-    _user: User = Depends(get_current_active_session),
+    user: User = Depends(get_current_active_session),
 ) -> ImageGenerationOptionsResponse:
-    """Return the qualities and sizes available for the currently configured image model.
+    """Return what the configured image model offers and what the person will get.
 
-    The active model is read from the LLM config cache for the
-    ``image_generation`` LLM type. If no model is configured, or if no
-    pricing rows exist for the configured model (e.g. the admin has
-    deactivated all of them), the endpoint returns 422 with an explicit
-    message — the user-facing component should display a graceful empty
-    state in that case.
+    When the configured model is not served (no family, no client, or no active
+    pricing row), the endpoint returns 400 naming it — the user-facing component
+    displays a graceful empty state in that case.
     """
-    from src.core.llm_agent_config import LLMAgentConfig
-    from src.domains.llm_config.cache import LLMConfigOverrideCache
-    from src.domains.llm_config.constants import LLM_DEFAULTS
-
-    # 1. Resolve the active image_generation model. The cache lookup follows
-    # the same merge logic as Configuration LLM: defaults + admin override.
-    overrides = LLMConfigOverrideCache.get_override("image_generation")
-    defaults: LLMAgentConfig | None = LLM_DEFAULTS.get("image_generation")
-    if defaults is None:
-        raise_invalid_input("Image generation LLM type is not registered in LLM_DEFAULTS")
-
-    active_model = (overrides or {}).get("model") or defaults.model
-    if not active_model:
-        raise_invalid_input("Image generation LLM type has no model configured")
-
-    # 2. Look up the model's options in the cache (DISTINCT-aggregated from
-    # image_generation_pricing).
-    options = ImageOptionsCache.get_options_for_model(active_model)
-    if options is None:
-        raise_invalid_input(
-            f"No active pricing rows for image model {active_model!r}. "
-            "The admin must declare at least one (model, quality, size) row "
-            "in Tarification LLM Image."
-        )
+    try:
+        options = active_image_options()
+    except ImageModelNotServedError as exc:
+        raise_invalid_input(str(exc))
 
     return ImageGenerationOptionsResponse(
         active_model=options.model,
@@ -134,8 +125,12 @@ async def get_image_generation_options(
         sizes=[
             SizeOptionResponse(
                 value=s.value,
-                label_key=_SIZE_LABEL_KEYS.get(s.value, "settings.image_generation.size_custom"),
+                orientation=s.orientation,
+                tier=s.tier,
+                label_key=_SIZE_LABEL_KEY.format(orientation=s.orientation),
             )
             for s in options.sizes
         ],
+        effective_quality=effective_quality(user.image_generation_default_quality, options),
+        effective_size=effective_size(user.image_generation_default_size, options),
     )

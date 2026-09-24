@@ -136,6 +136,9 @@ class _Vendor:
         if request.url.path == "/v1/convai/conversation/get-signed-url":
             assert request.url.params["agent_id"] == AGENT
             return httpx.Response(200, json={"signed_url": SIGNED})
+        if request.url.path == "/v1/convai/conversation/token":
+            assert request.url.params["agent_id"] == AGENT
+            return httpx.Response(200, json={"token": "livekit-token", "conversation_id": "conv_1"})
         if request.method == "PATCH" and request.url.path == f"/v1/convai/agents/{AGENT}":
             return httpx.Response(200, json={})
         if request.method == "POST" and request.url.path == "/v1/convai/tools":
@@ -311,6 +314,20 @@ async def test_the_credential_is_a_signed_url_within_the_vendors_window() -> Non
         connect_deadline_at=now + timedelta(seconds=60),
     )
     assert short.connect_deadline_at == now + timedelta(seconds=60)
+
+
+async def test_webrtc_credential_is_a_token_on_the_same_agent() -> None:
+    vendor = _Vendor()
+    now = datetime.now(UTC)
+    credential = await _provider(vendor).mint(
+        "k",
+        _inputs(audio_transport="webrtc"),
+        expires_at=now + timedelta(minutes=30),
+        connect_deadline_at=now + timedelta(seconds=60),
+    )
+    assert credential.name == "livekit-token"
+    assert credential.connect_deadline_at == now + timedelta(seconds=60)
+    assert ("GET", "/v1/convai/conversation/token", None) in vendor.calls
 
 
 # -- the agent sync ------------------------------------------------------------------------

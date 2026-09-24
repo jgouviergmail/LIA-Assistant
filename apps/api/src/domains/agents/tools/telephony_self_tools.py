@@ -154,6 +154,8 @@ async def _live_tools_for(
     )
     if creds is None or not creds.api_secret:
         return ()
+    # The reads end before the vendor is asked (ADR-304).
+    await db.commit()
     bindings = await ensure_vendor_live_tools(
         db, connector=connector, api_key=creds.api_key, api_secret=creds.api_secret
     )
@@ -176,6 +178,8 @@ async def _delegation_tool_for(db: Any, user_id: UUID, *, user_name: str) -> str
     )
     if creds is None or not creds.api_secret:
         return None
+    # The reads end before the vendor is asked (ADR-304).
+    await db.commit()
     return await ensure_vendor_delegation_tool(
         db,
         connector=connector,
@@ -230,6 +234,9 @@ async def _initiate_owner_call(
     async with get_db_context() as db:
         user = await db.get(User, user_id)
         display = resolve_user_display_name(user.full_name, user.email) if user else ""
+        # This session is the dial's own; no read of it may stay open while
+        # the context below is built or a vendor answers (ADR-304).
+        await db.commit()
         delegation_tool_id: str | None = None
         if call_mode == "delegated":
             delegation_tool_id = await _delegation_tool_for(db, user_id, user_name=display)

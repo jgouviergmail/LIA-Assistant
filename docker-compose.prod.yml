@@ -333,7 +333,14 @@ services:
       resources:
         limits:
           cpus: '1'
-          memory: 256M  # Was 512M — actual usage ~105M
+          # 512M, with the V8 heap bounded at 320M in the image (NODE_OPTIONS,
+          # apps/web/Dockerfile.prod). Measured 2026-09-22: at 256M the working
+          # set sat at 95 % of the limit (ContainerMemoryNearLimit) with no
+          # leak — Node derives its heap limit FROM the cgroup (259 MB for a
+          # 256 MB limit), so the heap alone could fill the container and left
+          # nothing for what lives off it (code, buffers, image optimisation).
+          # The earlier « actual usage ~105M » was an idle snapshot.
+          memory: 512M
         reservations:
           cpus: '0.25'
           memory: 128M

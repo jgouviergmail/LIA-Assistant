@@ -83,6 +83,10 @@ Two bills, one of which is yours alone.
 ### Settings › Live mode
 The model (choosing it is choosing its provider), the voice with a sample on every change, the thinking level where the model offers one, how the conversation behaves (interruptions, end of speech, when LIA delivers an answer), the silence and the duration cap per model (`0` = no limit, under a billing warning), an optional spend ceiling per session. Every model you connect keeps its own settings. The header's voice menu follows these settings at once.
 
+**On iPhone and iPad**, an ElevenLabs agent goes through its provider's native audio link (WebRTC), which plays more steadily than the raw audio stream on those devices. At the end of a session the browser reports aggregate playback counts (chunks, gaps, sample rates) — never any audio or transcript — so an audio problem can be diagnosed.
+
+**A Gemini key restricted by IP address** is refused by Google when the connection comes from your browser. LIA names that cause instead of failing silently: use a separate Gemini key without an IP restriction for the Live connector.
+
 ## Privacy
 
 - Wake word detection: browser-only (WASM), no external transmission

@@ -1404,6 +1404,40 @@
       ]
     },
     {
+      "id": 75,
+      "type": "timeseries",
+      "title": "Cross-Turn Cache Fallbacks (by reason)",
+      "description": "Turns where REACT_CROSS_TURN_CACHE_ENABLED could not bind every tool and kept the relevance selection (ADR-308): `cap` when the account holds more tools than REACT_AGENT_MAX_TOOLS (raise the cap to the account's catalogue), `window` when the schemas exceed REACT_CROSS_TURN_CACHE_MAX_WINDOW_FRACTION of the ReAct slot's context window (a small-window model). Zero when the flag is off. A steady rate means the flag buys nothing on those turns.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 79
+      },
+      "targets": [
+        {
+          "expr": "sum by (reason) (rate(react_cross_turn_cache_fallback_total[$__rate_interval])) or vector(0)",
+          "legendFormat": "{{reason}}",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ]
+    },
+    {
       "id": 70,
       "type": "row",
       "title": "ReAct · Sandbox Egress (ADR-298)",
@@ -1567,6 +1601,40 @@
         {
           "expr": "max(probe_success{job=\"blackbox-egress\"}) or vector(0)",
           "legendFormat": "probe_success",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ]
+    },
+    {
+      "id": 76,
+      "type": "timeseries",
+      "title": "Recovery Passes (by outcome)",
+      "description": "ReAct turns whose final answer declared facts it could not obtain and that took a recovery pass (ADR-310), by what the pass achieved: `resolved` (the answer no longer declares a gap), `partial` (fewer gaps), `still_unresolved` (the ladder found no source), `cut` (a budget ended the loop during the pass). Zero when REACT_RECOVERY_PASSES_MAX=0.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 102
+      },
+      "targets": [
+        {
+          "expr": "sum by (outcome) (rate(react_recovery_turns_total[$__rate_interval])) or vector(0)",
+          "legendFormat": "{{outcome}}",
           "refId": "A",
           "datasource": {
             "type": "prometheus",

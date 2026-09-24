@@ -345,6 +345,10 @@ async def process_completed_call(call_id: UUID, payload: dict[str, Any]) -> None
         user = await db.get(User, call.user_id)
         language = user.language if user else settings.default_language
         user_timezone = _user_display_timezone(user)
+        # The reads end here (ADR-304): every path below asks a model, a
+        # vendor or a push service before it writes, and each write commits
+        # its own transaction.
+        await db.commit()
         if call.call_kind is CallKind.SELF:
             # The owner's call becomes their own chat turn (lot 4): its own
             # path, its own module — the two mandates share nothing past here.

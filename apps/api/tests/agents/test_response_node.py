@@ -101,21 +101,6 @@ def test_format_agent_results_success():
     assert result == ""  # No status message for success
 
 
-def test_format_agent_results_connector_disabled():
-    """Test formatting when connector is disabled."""
-    agent_results = {
-        "contacts_agent": {
-            "status": "connector_disabled",
-            "data": None,
-            "error": "Le service Google Contacts n'est pas activé.",
-        }
-    }
-
-    result = format_agent_results_for_prompt(agent_results)
-    assert "⚠️ contacts_agent" in result
-    assert "Google Contacts n'est pas activé" in result
-
-
 def test_format_agent_results_error():
     """Test formatting technical errors."""
     agent_results = {
@@ -247,10 +232,10 @@ async def test_response_node_multiple_agents():
                 "tokens_out": 25,
                 "duration_ms": 500,
             },
-            "emails_agent": {  # Future agent
-                "status": "connector_disabled",
+            "emails_agent": {
+                "status": "error",
                 "data": None,
-                "error": "Gmail connector not activated",
+                "error": "Gmail refused the request",
                 "tokens_in": 0,
                 "tokens_out": 0,
                 "duration_ms": 10,
@@ -267,9 +252,10 @@ async def test_response_node_multiple_agents():
     from src.domains.agents.nodes.response_node import format_agent_results_for_prompt
 
     formatted = format_agent_results_for_prompt(state.get("agent_results", {}))
-    # Success results don't produce status - only connector_disabled does
-    assert "⚠️" in formatted
-    assert "Gmail connector not activated" in formatted
+    # A data success produces no status line (the data travels through
+    # {data_for_filtering}); a failed agent states what happened (ADR-303).
+    assert "❌" in formatted
+    assert "Gmail refused the request" in formatted
     # No success emoji or contact count (data is in {data_for_filtering})
     assert "✅" not in formatted
 

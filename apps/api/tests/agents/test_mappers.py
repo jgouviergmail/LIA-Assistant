@@ -148,10 +148,10 @@ class TestMapExecutionResultToAgentResult:
             execution_result=execution_result, plan_id="plan789", turn_id=3
         )
 
-        # Then: Status is failed and error is set
+        # Then: every executed step failed, so the aggregate is ERROR (ADR-303)
         agent_result = agent_results["3:plan_executor"]
         assert agent_result["agent_name"] == "plan_executor"
-        assert agent_result["status"] == "failed"
+        assert agent_result["status"] == "error"
         assert agent_result["error"] == "Step 'search' failed: Contact not found"
         assert agent_result["data"]["completed_steps"] == 0
         assert agent_result["data"]["total_steps"] == 2
@@ -228,9 +228,15 @@ class TestMapExecutionResultToAgentResult:
             execution_result=execution_result, plan_id="plan111", turn_id=2
         )
 
-        # Then: Only successful steps' contacts data is normalized
+        # Then: the plan PRODUCED contacts, so it is a SUCCESS carrying its
+        # failure — this assertion used to read "failed" while the very next
+        # line proved a step had succeeded (ADR-303, defect D2).
         agent_result = agent_results["2:plan_executor"]
-        assert agent_result["status"] == "failed"
+        assert agent_result["status"] == "success"
+        assert len(agent_result["failed_steps"]) == 1
+        # The FailedStep carries the STEP's own error, not the plan's summary.
+        assert agent_result["failed_steps"][0]["error"] == "VALIDATION_ERROR"
+        assert agent_result["failed_steps"][0]["tool_name"] == "resolve_reference"
         # Contacts are normalized from the successful step
         assert agent_result["data"]["total_count"] == 1
         assert agent_result["data"]["contacts"][0]["name"] == "Jean"

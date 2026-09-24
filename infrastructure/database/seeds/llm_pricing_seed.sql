@@ -17,10 +17,12 @@
 -- flat on fresh installs — the exact defect class the pricing_unit note
 -- above records.
 --
--- Two tables, both idempotent (ON CONFLICT DO NOTHING):
---   llm_models        — the capabilities catalogue (125 models)
---   llm_model_pricing — prices resolved by model NAME (140 rows, price
---                       history kept: superseded rows ship is_active=false)
+-- Two tables, both idempotent:
+--   llm_models        — the capabilities catalogue (ON CONFLICT DO NOTHING:
+--                       a row a migration already curated keeps its values)
+--   llm_model_pricing — prices resolved by model NAME, price history kept
+--                       (superseded rows ship is_active=false); the tariffs
+--                       this bundle supersedes are retired, then upserted
 
 -- Disable triggers for faster bulk insert
 SET session_replication_role = replica;
@@ -78,6 +80,16 @@ INSERT INTO llm_models (
     ('openai', 'gpt-5.6-luna', 1047576, 128000, true, true, true, true, true, true, false, false, false, false, 'chat', '["none", "low", "medium", "high", "xhigh"]'::jsonb, 'openai_gpt5_6_luna', true),
     ('openai', 'gpt-5.6-sol', 1047576, 128000, true, true, true, true, true, true, false, false, false, false, 'chat', '["none", "low", "medium", "high", "xhigh"]'::jsonb, 'openai_gpt5_6_sol', true),
     ('openai', 'gpt-5.6-terra', 1047576, 128000, true, true, true, true, true, true, false, false, false, false, 'chat', '["none", "low", "medium", "high", "xhigh"]'::jsonb, 'openai_gpt5_6_terra', true),
+    -- GPT-6, from developers.openai.com/api/docs/models/gpt-6-* (2026-09-23):
+    -- 1 050 000-token window and 128 000 output, so 922 000 of input (the
+    -- registries' convention: gpt-5 is 400K - 128K = 272K); text and image in,
+    -- streaming, function calling and structured outputs. Astra reasons
+    -- low..max with no off switch; Sol and Luna add `none`. They leave through
+    -- the Responses API: Chat Completions takes function calling only at
+    -- reasoning none.
+    ('openai', 'gpt-6-astra', 922000, 128000, true, true, true, true, true, true, false, false, false, false, 'chat', '["low", "medium", "high", "xhigh", "max"]'::jsonb, NULL, true),
+    ('openai', 'gpt-6-luna', 922000, 128000, true, true, true, true, true, true, false, false, false, false, 'chat', '["none", "low", "medium", "high", "xhigh", "max"]'::jsonb, NULL, true),
+    ('openai', 'gpt-6-sol', 922000, 128000, true, true, true, true, true, true, false, false, false, false, 'chat', '["none", "low", "medium", "high", "xhigh", "max"]'::jsonb, NULL, true),
     ('openai', 'gpt-5-chat-latest', 8192, 4096, true, true, false, true, false, false, true, true, true, true, 'chat', NULL, NULL, true),
     ('openai', 'gpt-5-codex', 8192, 4096, true, true, false, true, false, true, false, false, false, false, 'chat', '["low", "medium", "high"]'::jsonb, 'openai_gpt5_codex', true),
     ('openai', 'gpt-5-mini', 1047576, 16384, true, true, true, true, true, true, false, false, false, false, 'chat', '["minimal", "low", "medium", "high"]'::jsonb, 'openai_gpt5', true),
@@ -116,6 +128,24 @@ INSERT INTO llm_models (
     ('anthropic', 'claude-opus-4-5', 8192, 4096, true, true, false, true, false, true, true, false, false, false, 'chat', NULL, 'anthropic_4_5', true),
     ('anthropic', 'claude-opus-4-6', 8192, 4096, true, true, false, true, false, true, true, false, false, false, 'chat', '["none", "low", "medium", "high", "max"]'::jsonb, 'anthropic_4_6', true),
     ('anthropic', 'claude-sonnet-4-6', 8192, 4096, true, true, false, true, false, true, true, false, false, false, 'chat', '["none", "low", "medium", "high", "max"]'::jsonb, 'anthropic_sonnet_4_6', true),
+    -- Every Claude model the Claude API serves that the catalogue lacked, read on
+    -- 2026-09-23 (ADR-306): windows and effort ladders from the Models API, the
+    -- rest from validation requests on the API itself. 1M in / 128K out from Opus
+    -- 4.6 on; Sonnet 4.5 keeps 200K / 64K (the context-windows documentation,
+    -- where the Models API reports 1M). A non-default temperature is refused
+    -- from Opus 4.7 on, and top_p never reaches a Claude model (the adapter
+    -- drops it).
+    -- Fable 5, Fable 5.1 and Opus 5.5 cannot switch thinking off: no `none` on
+    -- their ladder. The Mythos models are Project Glasswing only (absent from
+    -- the Models API of an ordinary organisation), so not offered here.
+    ('anthropic', 'claude-fable-5-1', 1000000, 128000, true, true, false, true, true, true, false, false, false, false, 'chat', '["low", "medium", "high", "xhigh", "max"]'::jsonb, 'anthropic_always_on', true),
+    ('anthropic', 'claude-fable-5', 1000000, 128000, true, true, false, true, true, true, false, false, false, false, 'chat', '["low", "medium", "high", "xhigh", "max"]'::jsonb, 'anthropic_always_on', true),
+    ('anthropic', 'claude-opus-5-5', 1000000, 128000, true, true, false, true, true, true, false, false, false, false, 'chat', '["low", "medium", "high", "xhigh", "max"]'::jsonb, 'anthropic_always_on', true),
+    ('anthropic', 'claude-opus-5', 1000000, 128000, true, true, false, true, true, true, false, false, false, false, 'chat', '["none", "low", "medium", "high", "xhigh", "max"]'::jsonb, 'anthropic_5', true),
+    ('anthropic', 'claude-sonnet-5', 1000000, 128000, true, true, false, true, true, true, false, false, false, false, 'chat', '["none", "low", "medium", "high", "xhigh", "max"]'::jsonb, 'anthropic_5', true),
+    ('anthropic', 'claude-opus-4-8', 1000000, 128000, true, true, false, true, true, true, false, false, false, false, 'chat', '["none", "low", "medium", "high", "xhigh", "max"]'::jsonb, 'anthropic_4_7', true),
+    ('anthropic', 'claude-opus-4-7', 1000000, 128000, true, true, false, true, true, true, false, false, false, false, 'chat', '["none", "low", "medium", "high", "xhigh", "max"]'::jsonb, 'anthropic_4_7', true),
+    ('anthropic', 'claude-sonnet-4-5', 200000, 64000, true, true, false, true, true, true, true, false, false, false, 'chat', NULL, 'anthropic_4_5', true),
     ('deepseek', 'deepseek-chat', 128000, 8192, true, true, false, true, false, false, true, true, true, true, 'chat', NULL, NULL, false),
     ('deepseek', 'deepseek-reasoner', 128000, 64000, false, false, false, true, false, true, false, false, false, false, 'chat', NULL, NULL, false),
     -- deepseek-flash is the vendor's CURRENT name (DeepSeek-V4.1-Flash, vision
@@ -168,16 +198,39 @@ INSERT INTO llm_models (
     ('gemini', 'gemini-3.5-flash-lite', 1000000, 65536, true, true, false, true, true, true, true, true, true, true, 'chat', NULL, NULL, true),
     ('gemini', 'gemini-3.6-flash', 1000000, 64000, true, true, false, true, true, true, true, true, true, true, 'chat', '["minimal", "low", "medium", "high"]'::jsonb, NULL, true),
     ('gemini', 'gemini-3.7-flash', 1000000, 64000, true, true, false, true, true, true, true, true, true, true, 'chat', '["low", "medium", "high"]'::jsonb, NULL, true),
+    -- gemini-3.8-flash, from ai.google.dev/gemini-api/docs/models/gemini-3.8-flash
+    -- (2026-09-23): input 1 048 576 / output 65 536 tokens, text + image + video
+    -- + audio + PDF in, function calling and structured outputs; thinking
+    -- levels low/medium/high only — `minimal` "returns an error", so the
+    -- ladder narrowing below is what keeps a slot from sending it.
+    ('gemini', 'gemini-3.8-flash', 1048576, 65536, true, true, false, true, true, true, true, true, true, true, 'chat', '["low", "medium", "high"]'::jsonb, NULL, true),
     ('gemini', 'gemini-3-flash-preview', 1000000, 65536, true, true, false, true, true, true, true, true, false, false, 'chat', '["minimal", "low", "medium", "high"]'::jsonb, 'gemini_3_x_flash', true),
     ('gemini', 'gemini-3-pro-image-preview', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'image', NULL, NULL, false),
     ('gemini', 'gemini-3-pro-preview', 1000000, 65536, true, true, false, true, true, true, true, true, false, false, 'chat', '["low", "medium", "high"]'::jsonb, 'gemini_3_x_pro', true),
     ('gemini', 'gemini-embedding-001', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'embedding', NULL, NULL, true),
     ('qwen', 'qwen3.5-flash', 1000000, 65536, true, true, false, true, true, true, true, true, false, true, 'chat', NULL, 'qwen3_5', true),
     ('qwen', 'qwen3.5-plus', 1000000, 65536, true, true, false, true, true, true, true, true, false, true, 'chat', NULL, 'qwen3_5', true),
+    -- Four Qwen models added 2026-09-23 from their Model Studio model pages
+    -- (alibabacloud.com/help/en/model-studio/qwen3-8-flash and siblings): max
+    -- input 991 808, max output 131 072 (65 536 for qwen3.6-flash), thinking,
+    -- function calling and structured output on all four; image and video
+    -- input on the three flash models, text only on the qwen3.7-max alias
+    -- (its 2026-05-20 snapshot — vision arrived with 2026-06-08).
+    ('qwen', 'qwen3.6-flash', 991808, 65536, true, true, false, true, true, true, true, true, false, true, 'chat', NULL, 'qwen3_6', true),
     ('qwen', 'qwen3.6-plus', 1000000, 65536, true, true, false, true, true, true, true, true, false, true, 'chat', NULL, 'qwen3_6', true),
+    ('qwen', 'qwen3.7-flash', 991808, 131072, true, true, false, true, true, true, true, true, false, true, 'chat', NULL, 'qwen3_7', true),
+    ('qwen', 'qwen3.7-max', 991808, 131072, true, true, false, true, false, true, true, true, false, true, 'chat', NULL, 'qwen3_7', true),
     ('qwen', 'qwen3.7-plus', 991000, 128000, true, true, false, true, true, true, true, true, false, true, 'chat', NULL, 'qwen3_7', true),
+    ('qwen', 'qwen3.8-flash', 991808, 131072, true, true, false, true, true, true, true, true, false, true, 'chat', NULL, 'qwen3_8', true),
     ('qwen', 'qwen3.8-max', 1000000, 128000, true, true, false, true, true, true, true, true, false, true, 'chat', NULL, 'qwen3.8_max', true),
     ('qwen', 'qwen3-max', 262144, 65536, false, true, false, true, false, true, true, true, false, true, 'chat', NULL, 'qwen3_max', true),
+    -- Qwen Image 3.0 (ADR-305), so the image slot can name them (ADR-244's
+    -- referential rule). kind 'image': the window and sampling columns are the
+    -- placeholders no reader consults for an image model — what the model
+    -- accepts is declared in image_generation/families.py, what it costs in
+    -- image_generation_pricing_seed.sql. Mirrored by migration a9d3f1c7e5b2.
+    ('qwen', 'qwen-image-3.0', 8192, 4096, false, false, false, false, true, false, false, false, false, false, 'image', NULL, NULL, true),
+    ('qwen', 'qwen-image-3.0-pro', 8192, 4096, false, false, false, false, true, false, false, false, false, false, 'image', NULL, NULL, true),
     ('elevenlabs', 'elevenlabs-agents', 8192, 4096, true, true, false, true, false, false, false, false, false, false, 'realtime', NULL, NULL, false),
     ('elevenlabs', 'eleven_v3_conversational', 5000, 1, false, false, false, true, false, false, false, false, false, false, 'tts', NULL, NULL, true),
     ('elevenlabs', 'eleven_flash_v2_5', 40000, 1, false, false, false, true, false, false, false, false, false, false, 'tts', NULL, NULL, true),
@@ -194,7 +247,7 @@ ON CONFLICT (model_name) DO NOTHING;
 
 -- The bundle is materialised once: the model set below is read TWICE (to retire
 -- the tariffs this bundle supersedes, then to insert its own), and duplicating
--- 139 rows of data to read them twice is how the two copies drift apart.
+-- its rows to read them twice is how the two copies drift apart.
 DROP TABLE IF EXISTS _lia_pricing_bundle;
 CREATE TEMP TABLE _lia_pricing_bundle (
     model_name      text,
@@ -206,18 +259,46 @@ CREATE TEMP TABLE _lia_pricing_bundle (
     is_active       boolean
 );
 
+-- Price audit, 2026-09-23 (migration d5f8b2a6c9e3 carries it to upgraded
+-- instances; a guard test holds both equal). Every active row was read against
+-- its vendor's page; the rows dated 2026-09-23 below correct eleven of them:
+-- gpt-5.6-sol (it carried gpt-5.5's price), deepseek-v4-flash (a retired name
+-- billed at the Flash price), gemini-3.7-flash (it carried the Batch price)
+-- and gemini-3.6-flash (the 2027 price), the two Gemini speech models (text
+-- in, AUDIO out), and five Qwen cache rates (on the Frankfurt Global scope an
+-- implicit hit costs 20 % of the input price -- qwen3.7-plus, qwen3-max -- and
+-- qwen3.5-flash, qwen3.5-plus and qwen3.6-plus have no implicit cache there,
+-- only the explicit one, whose hit costs 10 %). gemini-3.6/3.7/3.8
+-- Flash double on 2027-01-01 (1.50 / 0.15 / 7.50): nothing switches them, the
+-- tariffs must be edited on that date. Long-context tiers are not expressed.
 INSERT INTO _lia_pricing_bundle VALUES
     ('chatgpt-image-latest', 5.000000, 1.250000, 10.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', false),
     ('claude-haiku-4-5', 1.000000, 0.100000, 5.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
     ('claude-opus-4-5', 5.000000, 0.500000, 25.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
     ('claude-opus-4-6', 5.000000, 0.500000, 25.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
     ('claude-sonnet-4-6', 3.000000, 0.300000, 15.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
+    -- Claude, read 2026-09-23 on platform.claude.com/docs/en/about-claude/pricing
+    -- (ADR-306). `cached` is « cache hits and refreshes »: 0.1x input, except
+    -- Fable 5.1 (0.025x) and Opus 5.5 (0.05x). A cache WRITE is billed 1.25x
+    -- input on the 5-minute TTL (the only one LIA writes) and 2x on the 1-hour
+    -- one: a multiplier of the input price for every Claude model, so it is
+    -- applied by the cost computation to the written token count the API
+    -- reports, never stored as a price here. Fast mode is not used.
+    ('claude-fable-5-1', 10.000000, 0.250000, 50.000000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
+    ('claude-fable-5', 10.000000, 1.000000, 50.000000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
+    ('claude-opus-5-5', 4.000000, 0.200000, 20.000000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
+    ('claude-opus-5', 5.000000, 0.500000, 25.000000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
+    ('claude-opus-4-8', 5.000000, 0.500000, 25.000000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
+    ('claude-opus-4-7', 5.000000, 0.500000, 25.000000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
+    ('claude-sonnet-5', 2.000000, 0.200000, 10.000000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
+    ('claude-sonnet-4-5', 3.000000, 0.300000, 15.000000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
     ('computer-use-preview', 3.000000, NULL, 12.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
     ('deepseek-chat', 0.280000, 0.028000, 0.420000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', false),
     ('deepseek-flash', 0.300000, 0.006000, 1.200000, 'per_1m_tokens', '2026-09-11T22:42:59.784553+00:00', true),
     ('deepseek-reasoner', 0.280000, 0.028000, 0.420000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', false),
     ('deepseek-v4-flash', 0.140000, 0.028000, 0.280000, 'per_1m_tokens', '2026-05-05T19:09:22.020980+00:00', false),
-    ('deepseek-v4-flash', 0.440000, 0.014000, 1.320000, 'per_1m_tokens', '2026-08-14T10:02:47.659078+00:00', true),
+    ('deepseek-v4-flash', 0.440000, 0.014000, 1.320000, 'per_1m_tokens', '2026-08-14T10:02:47.659078+00:00', false),
+    ('deepseek-v4-flash', 0.300000, 0.006000, 1.200000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
     ('deepseek-v4-pro', 0.435000, 0.003625, 0.870000, 'per_1m_tokens', '2026-05-05T19:09:58.575173+00:00', false),
     ('deepseek-v4-pro', 1.740000, 0.014500, 3.480000, 'per_1m_tokens', '2026-05-31T20:52:46.764413+00:00', false),
     ('deepseek-v4-pro', 0.435000, 0.014500, 0.870000, 'per_1m_tokens', '2026-05-31T21:13:23.740669+00:00', false),
@@ -245,9 +326,11 @@ INSERT INTO _lia_pricing_bundle VALUES
     ('gemini-2.5-flash-native-audio-preview-09-2025', 0.500000, NULL, 2.000000, 'per_1m_tokens', '2026-09-19T14:00:00+00:00', true),
     ('gemini-2.5-flash-native-audio-preview-12-2025', 0.500000, NULL, 2.000000, 'per_1m_tokens', '2026-09-19T14:00:00+00:00', true),
     ('gemini-2.5-flash-preview-09-2025', 0.300000, 0.030000, 2.500000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
-    ('gemini-2.5-flash-preview-tts', 0.300000, 0.030000, 2.500000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
+    ('gemini-2.5-flash-preview-tts', 0.300000, 0.030000, 2.500000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', false),
+    ('gemini-2.5-flash-preview-tts', 0.500000, NULL, 10.000000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
     ('gemini-2.5-pro', 1.250000, 0.125000, 10.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
-    ('gemini-2.5-pro-preview-tts', 1.250000, 0.125000, 10.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
+    ('gemini-2.5-pro-preview-tts', 1.250000, 0.125000, 10.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', false),
+    ('gemini-2.5-pro-preview-tts', 1.000000, NULL, 20.000000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
     ('gemini-3.1-flash-lite-preview', 0.250000, 0.025000, 1.500000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
     ('gemini-3.1-flash-live-preview', 0.750000, NULL, 4.500000, 'per_1m_tokens', '2026-09-19T14:00:00+00:00', true),
     ('gemini-3.1-pro-preview', 2.000000, 0.200000, 12.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
@@ -256,10 +339,19 @@ INSERT INTO _lia_pricing_bundle VALUES
     ('gemini-3.5-flash', 1.500000, 1.000000, 9.000000, 'per_1m_tokens', '2026-05-21T17:57:32.004506+00:00', false),
     ('gemini-3.5-flash', 1.500000, 0.150000, 9.000000, 'per_1m_tokens', '2026-05-21T19:34:39.408402+00:00', true),
     ('gemini-3.5-flash-lite', 0.300000, 0.030000, 2.500000, 'per_1m_tokens', '2026-08-05T19:29:06.783270+00:00', true),
-    ('gemini-3.6-flash', 1.500000, 0.150000, 7.500000, 'per_1m_tokens', '2026-08-05T19:23:31.163569+00:00', true),
+    ('gemini-3.6-flash', 1.500000, 0.150000, 7.500000, 'per_1m_tokens', '2026-08-05T19:23:31.163569+00:00', false),
+    ('gemini-3.6-flash', 0.750000, 0.075000, 3.750000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
     ('gemini-3.7-flash', 0.375000, 0.037500, 1.875000, 'per_1m_tokens', '2026-08-14T09:47:36.063139+00:00', false),
     ('gemini-3.7-flash', 0.375000, 0.037500, 1.875000, 'per_1m_tokens', '2026-08-14T10:50:02.711915+00:00', false),
-    ('gemini-3.7-flash', 0.375000, 0.037500, 1.875000, 'per_1m_tokens', '2026-08-14T10:51:38.112846+00:00', true),
+    ('gemini-3.7-flash', 0.375000, 0.037500, 1.875000, 'per_1m_tokens', '2026-08-14T10:51:38.112846+00:00', false),
+    ('gemini-3.7-flash', 0.750000, 0.075000, 3.750000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
+    -- gemini-3.8-flash, Standard paid tier, read 2026-09-23 on
+    -- ai.google.dev/gemini-api/docs/pricing: the prices valid THROUGH
+    -- 2026-12-31. On 2027-01-01 they double (1.50 / 0.15 cached / 7.50) and
+    -- nothing switches them: one row is active per model and a row dated in
+    -- the future would retire this one at once — the tariff must be edited
+    -- on that date.
+    ('gemini-3.8-flash', 0.750000, 0.075000, 3.750000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
     ('gemini-3-flash-preview', 0.500000, 0.050000, 3.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
     ('gemini-3-pro-image-preview', 2.000000, 0.200000, 12.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', false),
     ('gemini-3-pro-preview', 2.000000, 0.200000, 12.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
@@ -293,9 +385,18 @@ INSERT INTO _lia_pricing_bundle VALUES
     ('gpt-5.5', 5.000000, 0.500000, 30.000000, 'per_1m_tokens', '2026-07-28T17:00:14.043038+00:00', true),
     ('gpt-5.6-luna', 1.000000, 0.100000, 6.000000, 'per_1m_tokens', '2026-07-28T17:02:17.524990+00:00', false),
     ('gpt-5.6-luna', 0.200000, 0.020000, 1.200000, 'per_1m_tokens', '2026-07-31T08:02:10.835620+00:00', true),
-    ('gpt-5.6-sol', 5.000000, 0.500000, 30.000000, 'per_1m_tokens', '2026-07-28T17:05:49.595885+00:00', true),
+    ('gpt-5.6-sol', 5.000000, 0.500000, 30.000000, 'per_1m_tokens', '2026-07-28T17:05:49.595885+00:00', false),
+    ('gpt-5.6-sol', 4.000000, 0.400000, 20.000000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
     ('gpt-5.6-terra', 2.500000, 0.250000, 15.000000, 'per_1m_tokens', '2026-07-28T17:03:53.303736+00:00', false),
     ('gpt-5.6-terra', 2.000000, 0.200000, 12.000000, 'per_1m_tokens', '2026-07-31T08:02:50.950786+00:00', true),
+    -- GPT-6, Standard processing, short context, read 2026-09-23 on
+    -- developers.openai.com/api/docs/pricing. Two vendor rules LIA cannot
+    -- express, both making the real bill HIGHER: a prompt above 272K input
+    -- tokens is billed 2x input/cache and 1.5x output for the whole request,
+    -- and cache writes cost 1.25x input (counted here as plain input).
+    ('gpt-6-astra', 10.000000, 1.000000, 50.000000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
+    ('gpt-6-luna', 0.100000, 0.010000, 0.500000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
+    ('gpt-6-sol', 2.000000, 0.200000, 10.000000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
     ('gpt-5-chat-latest', 1.250000, 0.125000, 10.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
     ('gpt-5-codex', 1.250000, 0.125000, 10.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
     ('gpt-5-mini', 0.250000, 0.025000, 2.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
@@ -326,17 +427,36 @@ INSERT INTO _lia_pricing_bundle VALUES
     ('o4-mini', 1.100000, 0.275000, 4.400000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
     ('o4-mini-deep-research', 2.000000, 0.500000, 8.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', true),
     ('qwen2.5', 0.000000, NULL, 0.000000, 'per_1m_tokens', '2026-03-19T00:08:59.327299+00:00', false),
-    ('qwen3.5-flash', 0.029000, 0.020000, 0.287000, 'per_1m_tokens', '2026-04-03T19:48:04.022930+00:00', true),
-    ('qwen3.5-plus', 0.115000, 0.075000, 0.688000, 'per_1m_tokens', '2026-04-03T19:49:08.410572+00:00', true),
+    ('qwen3.5-flash', 0.029000, 0.020000, 0.287000, 'per_1m_tokens', '2026-04-03T19:48:04.022930+00:00', false),
+    ('qwen3.5-flash', 0.029000, 0.002900, 0.287000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
+    ('qwen3.5-plus', 0.115000, 0.075000, 0.688000, 'per_1m_tokens', '2026-04-03T19:49:08.410572+00:00', false),
+    ('qwen3.5-plus', 0.115000, 0.011500, 0.688000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
+    -- Qwen, Germany (Frankfurt) region, deployment scope Global, read
+    -- 2026-09-23 on alibabacloud.com/help/en/model-studio/model-pricing. A
+    -- tiered model carries its FIRST tier, like its neighbours (qwen3.6-flash:
+    -- up to 256K input tokens per request; qwen3.7-flash: up to 32K — beyond,
+    -- the vendor bills 3x). Cached input: the implicit cache bills 20% of the
+    -- input price (context-cache page), except the qwen3.8 family whose rate is
+    -- published in the console only — qwen3.8-flash carries 10%, the owner's
+    -- figure. qwen3.6-flash has NO implicit cache in any region (the same page's
+    -- model table): its one cached rate is the explicit hit LIA marks, 10%
+    -- (ADR-309).
+    ('qwen3.6-flash', 0.165000, 0.016500, 0.990000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
     ('qwen3.6-plus', 0.276000, 0.180000, 1.651000, 'per_1m_tokens', '2026-04-03T20:01:03.074715+00:00', false),
-    ('qwen3.6-plus', 0.276000, 0.180000, 1.651000, 'per_1m_tokens', '2026-07-03T18:10:50.321102+00:00', true),
+    ('qwen3.6-plus', 0.276000, 0.180000, 1.651000, 'per_1m_tokens', '2026-07-03T18:10:50.321102+00:00', false),
+    ('qwen3.6-plus', 0.276000, 0.027600, 1.651000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
+    ('qwen3.7-flash', 0.028000, 0.005600, 0.110000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
+    ('qwen3.7-max', 1.650000, 0.330000, 4.951000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
     ('qwen3.7-plus', 0.276000, 0.056000, 1.101000, 'per_1m_tokens', '2026-07-03T18:08:11.598986+00:00', false),
     ('qwen3.7-plus', 0.276000, 0.056000, 1.101000, 'per_1m_tokens', '2026-07-03T18:10:18.975537+00:00', false),
     ('qwen3.7-plus', 0.276000, 0.056000, 1.101000, 'per_1m_tokens', '2026-07-03T18:11:03.440022+00:00', false),
-    ('qwen3.7-plus', 0.276000, 0.056000, 1.101000, 'per_1m_tokens', '2026-08-03T16:36:49.954274+00:00', true),
+    ('qwen3.7-plus', 0.276000, 0.056000, 1.101000, 'per_1m_tokens', '2026-08-03T16:36:49.954274+00:00', false),
+    ('qwen3.7-plus', 0.276000, 0.055200, 1.101000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
+    ('qwen3.8-flash', 0.113000, 0.011300, 0.382000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
     ('qwen3.8-max', 1.650000, 0.206000, 4.951000, 'per_1m_tokens', '2026-08-03T16:34:15.770220+00:00', false),
     ('qwen3.8-max', 1.650000, 0.206000, 4.951000, 'per_1m_tokens', '2026-08-15T07:27:33.896260+00:00', true),
-    ('qwen3-max', 0.359000, 0.240000, 1.434000, 'per_1m_tokens', '2026-04-03T20:03:46.404402+00:00', true),
+    ('qwen3-max', 0.359000, 0.240000, 1.434000, 'per_1m_tokens', '2026-04-03T20:03:46.404402+00:00', false),
+    ('qwen3-max', 0.359000, 0.071800, 1.434000, 'per_1m_tokens', '2026-09-23T00:00:00+00:00', true),
     ('gpt-4o-mini-transcribe', 0.003000, NULL, 0.000000, 'per_audio_minute', '2026-09-02T12:00:00+00:00', true),
     ('gpt-4o-transcribe-diarize', 0.006000, NULL, 0.000000, 'per_audio_minute', '2026-09-02T12:00:00+00:00', true),
     ('elevenlabs-agents', 0.100000, NULL, 0.000000, 'per_audio_minute', '2026-09-19T20:00:00+00:00', false),
@@ -426,7 +546,13 @@ WHERE p.is_active
 -- ============================================================================
 -- Time-slot tariffs (ADR-223) — DeepSeek v4 official peak/off-peak windows
 -- (verified 2026-08-17 on api-docs.deepseek.com: peak 01:00-04:00 and
--- 06:00-10:00 UTC, all other hours at exactly 50%).
+-- 06:00-10:00 UTC, all other hours at exactly 50%). Re-read 2026-09-23: the
+-- peak windows apply MONDAY THROUGH FRIDAY only (« All other hours are
+-- off-peak, including weekends »), so every window carries
+-- "weekdays": [1, 2, 3, 4, 5] — the UTC day a window starts on, ISO numbered
+-- (ADR-223 amendment). Chinese public holidays are not expressed (owner
+-- decision 2026-09-23). Migration e4a7c2f9b1d6 brings upgraded instances to
+-- the same windows; a guard test holds the two equal.
 --
 -- The demo instance's database lives in tmpfs and is rebuilt from THIS
 -- bundle at every boot, so the windowed tariff must ship here — an
@@ -442,19 +568,22 @@ SET input_unit_price = 0.150000,
     cached_input_unit_price = 0.003000,
     output_unit_price = 0.600000,
     time_slots = '[
-      {"start_utc": "01:00", "end_utc": "04:00", "input_unit_price": 0.3, "cached_input_unit_price": 0.006, "output_unit_price": 1.2},
-      {"start_utc": "06:00", "end_utc": "10:00", "input_unit_price": 0.3, "cached_input_unit_price": 0.006, "output_unit_price": 1.2}
+      {"start_utc": "01:00", "end_utc": "04:00", "input_unit_price": 0.3, "cached_input_unit_price": 0.006, "output_unit_price": 1.2, "weekdays": [1, 2, 3, 4, 5]},
+      {"start_utc": "06:00", "end_utc": "10:00", "input_unit_price": 0.3, "cached_input_unit_price": 0.006, "output_unit_price": 1.2, "weekdays": [1, 2, 3, 4, 5]}
     ]'::jsonb
 FROM llm_models m
 WHERE m.id = p.model_id AND m.model_name = 'deepseek-flash' AND p.is_active;
 
+-- deepseek-v4-flash: a legacy name DeepSeek still accepts, served by
+-- DeepSeek-V4.1-Flash « and billed at the Flash price » (pricing page, read
+-- 2026-09-23) -- the same tariff as deepseek-flash above.
 UPDATE llm_model_pricing p
-SET input_unit_price = 0.220000,
-    cached_input_unit_price = 0.007000,
-    output_unit_price = 0.660000,
+SET input_unit_price = 0.150000,
+    cached_input_unit_price = 0.003000,
+    output_unit_price = 0.600000,
     time_slots = '[
-      {"start_utc": "01:00", "end_utc": "04:00", "input_unit_price": 0.44, "cached_input_unit_price": 0.014, "output_unit_price": 1.32},
-      {"start_utc": "06:00", "end_utc": "10:00", "input_unit_price": 0.44, "cached_input_unit_price": 0.014, "output_unit_price": 1.32}
+      {"start_utc": "01:00", "end_utc": "04:00", "input_unit_price": 0.3, "cached_input_unit_price": 0.006, "output_unit_price": 1.2, "weekdays": [1, 2, 3, 4, 5]},
+      {"start_utc": "06:00", "end_utc": "10:00", "input_unit_price": 0.3, "cached_input_unit_price": 0.006, "output_unit_price": 1.2, "weekdays": [1, 2, 3, 4, 5]}
     ]'::jsonb
 FROM llm_models m
 WHERE m.id = p.model_id AND m.model_name = 'deepseek-v4-flash' AND p.is_active;
@@ -464,8 +593,8 @@ SET input_unit_price = 0.660000,
     cached_input_unit_price = 0.022000,
     output_unit_price = 1.980000,
     time_slots = '[
-      {"start_utc": "01:00", "end_utc": "04:00", "input_unit_price": 1.32, "cached_input_unit_price": 0.044, "output_unit_price": 3.96},
-      {"start_utc": "06:00", "end_utc": "10:00", "input_unit_price": 1.32, "cached_input_unit_price": 0.044, "output_unit_price": 3.96}
+      {"start_utc": "01:00", "end_utc": "04:00", "input_unit_price": 1.32, "cached_input_unit_price": 0.044, "output_unit_price": 3.96, "weekdays": [1, 2, 3, 4, 5]},
+      {"start_utc": "06:00", "end_utc": "10:00", "input_unit_price": 1.32, "cached_input_unit_price": 0.044, "output_unit_price": 3.96, "weekdays": [1, 2, 3, 4, 5]}
     ]'::jsonb
 FROM llm_models m
 WHERE m.id = p.model_id AND m.model_name = 'deepseek-v4-pro' AND p.is_active;

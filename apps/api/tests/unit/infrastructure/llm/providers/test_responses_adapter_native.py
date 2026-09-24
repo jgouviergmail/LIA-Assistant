@@ -11,7 +11,8 @@ No network / no LLM call.
 
 from __future__ import annotations
 
-from langchain_core.messages import HumanMessage, SystemMessage
+import pytest
+from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 
 from src.infrastructure.llm.providers.responses_adapter import (
     ChatOpenAICached,
@@ -32,6 +33,13 @@ class TestEligibility:
         assert not is_responses_api_eligible("gpt-4o")
         assert not is_responses_api_eligible("gpt-4-turbo")
         assert not is_responses_api_eligible("gpt-3.5-turbo")
+
+    @pytest.mark.parametrize("model", ["gpt-6-astra", "gpt-6-sol", "gpt-6-luna"])
+    def test_gpt6_goes_through_the_responses_api(self, model: str) -> None:
+        """On Chat Completions GPT-6 accepts function calling only with
+        ``reasoning_effort=none`` (model pages, 2026-09-23): a tool-using slot
+        that reasons must reach the Responses API or every turn is refused."""
+        assert is_responses_api_eligible(model)
 
 
 class TestStaticPrefix:
@@ -91,6 +99,41 @@ class TestComputeCacheKey:
         b = [SystemMessage(content="PROMPT TYPE B")]
         assert compute_prompt_cache_key(a, "gpt-5-mini") != compute_prompt_cache_key(
             b, "gpt-5-mini"
+        )
+
+    def test_a_system_message_after_the_marker_does_not_change_the_key(self) -> None:
+        """The turn's data in a second system message is dynamic like the rest.
+
+        Hashed whole, it gave every turn its own key — and from GPT-5.6 on its
+        own CACHE: measured on gpt-6-luna, a second call sharing the static
+        prefix read 0 tokens under a new key and 2,831 under the same one. Every
+        ReAct turn (its context blocks) and every response carrying agent
+        results has that shape.
+        """
+        from src.core.constants import DYNAMIC_CONTEXT_MARKER
+
+        def turn(data: str) -> list[BaseMessage]:
+            return [
+                SystemMessage(content=f"RESPONSE PROMPT{DYNAMIC_CONTEXT_MARKER}ctx {data}"),
+                SystemMessage(content=f"<AgentResults>{data}</AgentResults>"),
+                HumanMessage(content="question"),
+            ]
+
+        assert compute_prompt_cache_key(turn("A"), "gpt-6-luna") == compute_prompt_cache_key(
+            turn("B"), "gpt-6-luna"
+        )
+
+    def test_a_static_system_message_before_the_marker_still_keys(self) -> None:
+        from src.core.constants import DYNAMIC_CONTEXT_MARKER
+
+        def prompt(static: str) -> list[BaseMessage]:
+            return [
+                SystemMessage(content=static),
+                SystemMessage(content=f"{DYNAMIC_CONTEXT_MARKER}ctx"),
+            ]
+
+        assert compute_prompt_cache_key(prompt("TYPE A"), "gpt-6-luna") != compute_prompt_cache_key(
+            prompt("TYPE B"), "gpt-6-luna"
         )
 
     def test_no_system_message_falls_back_to_model(self) -> None:
@@ -224,6 +267,7 @@ class TestOnePredicateForReasoningModels:
             return_value=None,
         ):
             assert is_reasoning_model("gpt-5.9-unseeded") is True
+            assert is_reasoning_model("gpt-6-unseeded") is True
             assert is_reasoning_model("gpt-4.1-mini") is False
 
 

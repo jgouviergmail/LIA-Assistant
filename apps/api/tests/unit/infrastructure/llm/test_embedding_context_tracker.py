@@ -39,6 +39,7 @@ class TestPersistEmbeddingTokensConversationTracker:
             prompt_tokens=150,
             completion_tokens=0,
             cached_tokens=0,
+            cache_write_tokens=0,
             duration_ms=120.5,
             call_type="embedding",
         )

@@ -49,8 +49,9 @@ def test_declared_row_falls_back_to_the_table() -> None:
 
 
 def test_unknown_model_uses_the_table() -> None:
+    """The table's value, now the vendor's (1M since Opus 4.6 — ADR-306)."""
     ModelCapabilitiesCache._cache.pop("claude-opus-4-6", None)
-    assert get_effective_context_window("claude-opus-4-6") == 200_000
+    assert get_effective_context_window("claude-opus-4-6") == 1_000_000
 
 
 def test_a_zero_window_never_wins() -> None:

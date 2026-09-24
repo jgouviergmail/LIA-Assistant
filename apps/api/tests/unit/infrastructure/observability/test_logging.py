@@ -157,6 +157,30 @@ class TestConfigureLogging:
         mock_structlog_configure.assert_called_once()
 
     @patch("src.infrastructure.observability.logging.settings")
+    def test_the_telegram_library_never_logs_below_info(self, mock_settings):
+        """Its DEBUG lines carry the bot token (in the API URL) and the webhook
+        secret (in the call parameters) — seen in the dev log, 2026-09-22. A
+        DEBUG root level set for an investigation must not publish them."""
+        import logging as stdlib_logging
+
+        mock_settings.log_level = "DEBUG"
+        mock_settings.environment = "test"
+        mock_settings.log_level_uvicorn = "DEBUG"
+        mock_settings.log_level_uvicorn_access = "DEBUG"
+        mock_settings.log_level_sqlalchemy = "DEBUG"
+        mock_settings.log_level_httpx = "DEBUG"
+        mock_settings.is_production = False
+        telegram_logger = stdlib_logging.getLogger("telegram")
+        saved = telegram_logger.level
+        try:
+            configure_logging()
+            assert not stdlib_logging.getLogger("telegram.ext.ExtBot").isEnabledFor(
+                stdlib_logging.DEBUG
+            )
+        finally:
+            telegram_logger.setLevel(saved)
+
+    @patch("src.infrastructure.observability.logging.settings")
     def test_root_handler_renders_through_the_shared_chain(self, mock_settings):
         """The root handler must carry the ProcessorFormatter (FN-4).
 

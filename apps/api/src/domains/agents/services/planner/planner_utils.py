@@ -18,6 +18,23 @@ if TYPE_CHECKING:
     from src.domains.agents.services.smart_catalogue_service import FilteredCatalogue
 
 
+def smart_plan_id(config: RunnableConfig) -> str:
+    """The id of a plan the smart planner builds: its run's, prefixed.
+
+    Every plan used to be ``smart_unknown``: the id was read from
+    ``configurable``, which has not carried the run id since ADR-231.
+
+    Args:
+        config: The planner's ``RunnableConfig``.
+
+    Returns:
+        ``smart_<run id>``, or ``smart_unknown`` when the config carries none.
+    """
+    from src.core.run_config import run_id_of
+
+    return f"smart_{run_id_of(config, 'unknown')}"
+
+
 def build_plan_from_steps(
     steps: list[ExecutionStep],
     intelligence: QueryIntelligence,
@@ -39,15 +56,13 @@ def build_plan_from_steps(
     from src.domains.agents.nodes.utils import extract_session_id_from_config
     from src.domains.agents.orchestration.plan_schemas import ExecutionPlan
 
-    configurable = config.get("configurable", {})
-
     # Get tokens saved from catalogue service if available
     tokens_saved = 0
     if catalogue_service:
         tokens_saved = catalogue_service.get_metrics().tokens_saved
 
     return ExecutionPlan(
-        plan_id=f"smart_{configurable.get('run_id', 'unknown')}",
+        plan_id=smart_plan_id(config),
         user_id=runtime_user_id_str() or "",
         session_id=extract_session_id_from_config(config, required=False) or "",
         steps=steps,

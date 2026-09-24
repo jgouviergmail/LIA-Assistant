@@ -146,6 +146,9 @@ def _react_bounds(state: dict[str, Any]) -> dict[str, Any]:
         # says whether the budget is CALIBRATED, not merely that it was hit. It
         # only ever reached a log line before.
         "abandoned_calls": list(result.get("abandoned_calls") or []),
+        # ADR-310: the passes a declared gap bought, and what they achieved — None
+        # when the turn took none.
+        "recovery": result.get("recovery"),
     }
 
 

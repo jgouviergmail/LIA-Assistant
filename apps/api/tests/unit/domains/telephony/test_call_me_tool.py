@@ -227,6 +227,24 @@ async def test_third_party_tool_is_unaffected_when_no_number_is_verified(
     assert out.registry_updates  # the PHONE_CALL draft, as before
 
 
+class _TxDb:
+    """A session that knows whether a read left its transaction open (ADR-304)."""
+
+    def __init__(self, user: object = None) -> None:
+        self.user = user
+        self.open = False
+
+    def read(self) -> None:
+        self.open = True
+
+    async def get(self, _model: object, _pk: object) -> object:
+        self.read()
+        return self.user
+
+    async def commit(self) -> None:
+        self.open = False
+
+
 # ---------------------------------------------------------------------------
 # Live tools (lot 7): provisioned before the dial, attached to the call
 # ---------------------------------------------------------------------------
@@ -246,10 +264,11 @@ async def test_live_tools_are_provisioned_and_handed_to_the_dial(
     seen: dict = {}
 
     class _Connectors:
-        def __init__(self, _db) -> None:  # noqa: ANN001
-            pass
+        def __init__(self, db) -> None:  # noqa: ANN001
+            self.db = db
 
         async def get_active(self, _user_id):  # noqa: ANN001
+            self.db.read()
             return connector
 
     class _Creds:
@@ -261,6 +280,7 @@ async def test_live_tools_are_provisioned_and_handed_to_the_dial(
 
     async def _ensure(db, *, connector, api_key, api_secret):  # noqa: ANN001
         seen["ensure"] = (connector, api_key, api_secret)
+        seen["open_at_vendor"] = db.open
         return (
             LiveToolBinding("get_events_tool", "tool_a", "event"),
             LiveToolBinding("get_emails_tool", "tool_b", "email"),
@@ -272,9 +292,10 @@ async def test_live_tools_are_provisioned_and_handed_to_the_dial(
 
     # Every available tool is provisioned once per connector; the person's own
     # switches decide what THIS call attaches (lot 8).
-    bindings = await smod._live_tools_for(object(), uuid4(), disabled_domains=frozenset({"email"}))
+    bindings = await smod._live_tools_for(_TxDb(), uuid4(), disabled_domains=frozenset({"email"}))
     assert bindings == (LiveToolBinding("get_events_tool", "tool_a", "event"),)
     assert seen["ensure"] == (connector, "k", "whsec")
+    assert seen["open_at_vendor"] is False, "the vendor was asked inside the reads"
 
 
 @pytest.mark.unit
@@ -372,13 +393,11 @@ def _wire_dial(
     seen: dict[str, object] = {}
     user = SimpleNamespace(full_name="Alex", email="alex@example.com")
 
-    class _Db:
-        async def get(self, _model, _user_id):  # noqa: ANN001
-            return user
+    db = _TxDb(user)
 
     @asynccontextmanager
     async def _ctx():
-        yield _Db()
+        yield db
 
     async def _delegation(db, user_id, *, user_name):  # noqa: ANN001
         seen["delegation_asked"] = user_name
@@ -392,6 +411,7 @@ def _wire_dial(
         _user_id, *, language, timezone, objective, rich_context_enabled
     ) -> str:  # noqa: ANN001
         seen["context_asked"] = rich_context_enabled
+        seen["open_at_context"] = db.open
         return "## Agenda"
 
     _Dial.calls = []
@@ -429,6 +449,7 @@ async def test_a_direct_dial_is_handed_its_lookups_and_its_context(
     assert [b.name for b in handed["live_tools"]] == ["get_events_tool"]
     assert seen["lookups_asked"] == frozenset({"email"})
     assert seen["context_asked"] is True
+    assert seen["open_at_context"] is False, "the context was built inside the user read"
     assert "delegation_asked" not in seen
 
 
@@ -481,10 +502,11 @@ async def test_the_delegation_tool_is_provisioned_for_a_live_call(
     seen: dict = {}
 
     class _Connectors:
-        def __init__(self, _db) -> None:  # noqa: ANN001
-            pass
+        def __init__(self, db) -> None:  # noqa: ANN001
+            self.db = db
 
         async def get_active(self, _user_id):  # noqa: ANN001
+            self.db.read()
             return connector
 
     class _Creds:
@@ -496,15 +518,17 @@ async def test_the_delegation_tool_is_provisioned_for_a_live_call(
 
     async def _ensure(db, *, connector, api_key, api_secret, user_name):  # noqa: ANN001
         seen["ensure"] = (connector, api_key, api_secret, user_name)
+        seen["open_at_vendor"] = db.open
         return "tool_delegation"
 
     monkeypatch.setattr(smod, "TelephonyConnectorService", _Connectors)
     monkeypatch.setattr(smod, "ConnectorService", _Creds)
     monkeypatch.setattr(smod, "ensure_vendor_delegation_tool", _ensure)
 
-    tool_id = await smod._delegation_tool_for(object(), uuid4(), user_name="Alex")
+    tool_id = await smod._delegation_tool_for(_TxDb(), uuid4(), user_name="Alex")
     assert tool_id == "tool_delegation"
     assert seen["ensure"] == (connector, "k", "whsec", "Alex")
+    assert seen["open_at_vendor"] is False, "the vendor was asked inside the reads"
 
 
 @pytest.mark.unit

@@ -17,13 +17,16 @@ from __future__ import annotations
 import json
 from collections.abc import Iterator
 from datetime import UTC, datetime
+from types import SimpleNamespace
 
 import pytest
 
+from src.domains.llm.models import LLMProviderEnum, PricingUnitEnum
 from src.infrastructure.cache import pricing_cache
 from src.infrastructure.cache.pricing_cache import (
     CachedModelPrice,
     PricingCacheData,
+    build_price_index,
     get_cached_cost_usd_eur,
 )
 
@@ -54,8 +57,29 @@ PEAK_SLOTS = [
     },
 ]
 
+#: Claude Opus 5 on platform.claude.com/docs/en/about-claude/pricing (2026-09-23):
+#: base input $5, « 5m cache writes » $6.25 per million tokens.
+CLAUDE_INPUT_PRICE = 5.0
+CLAUDE_5M_WRITE_PRICE = 6.25
+
 PEAK_AT = datetime(2026, 8, 17, 2, 30, tzinfo=UTC)
 OFF_PEAK_AT = datetime(2026, 8, 17, 12, 0, tzinfo=UTC)
+
+
+def _tariff_row(
+    name: str, provider: LLMProviderEnum, *, input_price: float = 1.0
+) -> SimpleNamespace:
+    """An active tariff row as ``build_price_index`` reads it (model joined)."""
+    return SimpleNamespace(
+        model=SimpleNamespace(model_name=name, provider=provider),
+        input_unit_price=input_price,
+        output_unit_price=2,
+        cached_input_unit_price=0,
+        pricing_unit=PricingUnitEnum.per_1m_tokens,
+        time_slots=None,
+        audio_input_unit_price=None,
+        audio_output_unit_price=None,
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -88,6 +112,13 @@ def _populate_local_cache() -> Iterator[None]:
                 cached_input_unit_price=CACHED_PRICE,
                 pricing_unit="per_1m_tokens",
                 time_slots=PEAK_SLOTS,
+            ),
+            "claude-opus-5": CachedModelPrice(
+                input_unit_price=CLAUDE_INPUT_PRICE,
+                output_unit_price=25.0,
+                cached_input_unit_price=0.5,
+                pricing_unit="per_1m_tokens",
+                cache_write_multiplier=1.25,
             ),
         },
         usd_eur_rate=USD_EUR,
@@ -139,6 +170,114 @@ class TestTokenCostArithmetic:
     def test_eur_conversion_applies_the_cached_rate(self) -> None:
         usd, eur = get_cached_cost_usd_eur("gpt-4.1-mini", 500_000, 250_000)
         assert eur == pytest.approx(usd * USD_EUR)
+
+
+# ============================================================================
+# Prompt-cache writes (ADR-306)
+# ============================================================================
+
+
+class TestCacheWriteSurcharge:
+    """A written token is a prompt token, owed the write rate on top."""
+
+    def test_a_written_token_costs_the_published_write_price(self) -> None:
+        """The prompt count INCLUDES the writes (``UsageTokens``): the whole
+        million is written, so the call costs exactly the « 5m cache writes »
+        column of the vendor's table."""
+        usd, eur = get_cached_cost_usd_eur("claude-opus-5", MILLION, 0, cache_write_tokens=MILLION)
+        assert usd == pytest.approx(CLAUDE_5M_WRITE_PRICE)
+        assert eur == pytest.approx(CLAUDE_5M_WRITE_PRICE * USD_EUR)
+
+    def test_only_the_written_part_pays_the_surcharge(self) -> None:
+        usd, _ = get_cached_cost_usd_eur(
+            "claude-opus-5", 2 * MILLION, 0, cache_write_tokens=MILLION
+        )
+        assert usd == pytest.approx(CLAUDE_INPUT_PRICE + CLAUDE_5M_WRITE_PRICE)
+
+    def test_no_write_no_surcharge(self) -> None:
+        usd, _ = get_cached_cost_usd_eur("claude-opus-5", MILLION, 0)
+        assert usd == pytest.approx(CLAUDE_INPUT_PRICE)
+
+    def test_a_tariff_without_a_write_surcharge_bills_a_write_as_input(self) -> None:
+        """The count reaches every tariff; only a declared multiplier charges it."""
+        usd, _ = get_cached_cost_usd_eur("no-cache-model", MILLION, 0, cache_write_tokens=MILLION)
+        assert usd == pytest.approx(INPUT_PRICE)
+
+    def test_the_surcharge_follows_the_input_price_of_a_time_slot(self) -> None:
+        cache = pricing_cache._local_cache
+        assert cache is not None
+        cache.models["deepseek-v4-flash"].cache_write_multiplier = 1.25
+        usd, _ = get_cached_cost_usd_eur(
+            "deepseek-v4-flash", MILLION, 0, cache_write_tokens=MILLION, at=PEAK_AT
+        )
+        assert usd == pytest.approx(INPUT_PRICE * 2 * 1.25)
+
+    def test_the_multiplier_is_the_providers_rule_set_when_the_index_is_built(self) -> None:
+        """Claude and OpenAI tariffs carry 1.25; nobody else's does (pricing pages, 2026-09-23).
+
+        OpenAI bills a write on GPT-5.6 and GPT-6 alone, and those are the only
+        models that report one: on a repeated prefix, eleven earlier models
+        answered ``cache_write_tokens: 0`` and gpt-4o-mini no such field (measured
+        the same day), so the provider's rule prices every write it can meet.
+        """
+        index = build_price_index(
+            [
+                _tariff_row("claude-opus-5", LLMProviderEnum.anthropic),
+                _tariff_row("gpt-6-luna", LLMProviderEnum.openai),
+                _tariff_row("qwen3.5-plus", LLMProviderEnum.qwen),
+                _tariff_row("gemini-3.8-flash", LLMProviderEnum.gemini),
+            ]
+        )
+        assert index["claude-opus-5"].cache_write_multiplier == 1.25
+        assert index["gpt-6-luna"].cache_write_multiplier == 1.25
+        # DashScope's explicit cache writes at 125 % (ADR-309); a Qwen model with
+        # an implicit cache reports no write, so the provider's rule prices only
+        # the writes the explicit markers produce.
+        assert index["qwen3.5-plus"].cache_write_multiplier == 1.25
+        assert index["gemini-3.8-flash"].cache_write_multiplier == 1.0
+
+    def test_a_gpt6_write_costs_the_published_cache_write_price(self) -> None:
+        """gpt-6-luna: input $0.10, « cache writes » $0.125 per million (pricing page)."""
+        index = build_price_index(
+            [_tariff_row("gpt-6-luna", LLMProviderEnum.openai, input_price=0.10)]
+        )
+        cache = pricing_cache._local_cache
+        assert cache is not None
+        cache.models["gpt-6-luna"] = index["gpt-6-luna"]
+        usd, _ = get_cached_cost_usd_eur("gpt-6-luna", MILLION, 0, cache_write_tokens=MILLION)
+        assert usd == pytest.approx(0.125)
+
+    def test_a_blob_written_before_the_multiplier_still_loads(self) -> None:
+        """Rolling deploy: an older worker's blob has no such key."""
+        blob = json.dumps(
+            {
+                "models": {
+                    "claude-opus-5": {
+                        "input_unit_price": 5.0,
+                        "output_unit_price": 25.0,
+                        "cached_input_unit_price": 0.5,
+                        "pricing_unit": "per_1m_tokens",
+                    }
+                },
+                "usd_eur_rate": USD_EUR,
+                "last_refresh_ts": 0.0,
+            }
+        )
+        restored = PricingCacheData.from_json(blob)
+        assert restored.models["claude-opus-5"].cache_write_multiplier == 1.0
+
+    def test_the_multiplier_survives_the_redis_round_trip(self) -> None:
+        cache = pricing_cache._local_cache
+        assert cache is not None
+        restored = PricingCacheData.from_json(cache.to_json())
+        assert restored.models["claude-opus-5"].cache_write_multiplier == 1.25
+
+    def test_the_currency_wrapper_carries_the_writes(self) -> None:
+        from src.infrastructure.cache.pricing_cache import get_cached_cost
+
+        with_write = get_cached_cost("claude-opus-5", MILLION, 0, cache_write_tokens=MILLION)
+        without = get_cached_cost("claude-opus-5", MILLION, 0)
+        assert with_write == pytest.approx(without * 1.25)
 
 
 # ============================================================================

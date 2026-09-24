@@ -113,6 +113,26 @@ class TestUpdateConfigAnthropicTemperatureLock:
         assert update.temperature == 0.5  # off → no thinking → no lock
         assert update.top_p == 0.9
 
+    @pytest.mark.parametrize("level", ["provider_default", "none"])
+    async def test_a_generation_that_refuses_sampling_stores_none(self, level: str) -> None:
+        """From Opus 4.7 on a non-default temperature is a 400 whatever the
+        thinking (ADR-306): a stored value would be one the runtime never sends."""
+        service, _db = _make_service()
+        caps = SimpleNamespace(model_id="claude-opus-4-8", reasoning_enum_values=None)
+        update = LLMTypeConfigUpdate(
+            provider="anthropic",
+            model="claude-opus-4-8",
+            reasoning_effort=ReasoningIntent(level=level),  # type: ignore[arg-type]
+            temperature=0.5,
+            top_p=0.9,
+        )
+
+        with patch(_CAPS_GET, return_value=caps), patch(_CACHE_RELOAD, new=AsyncMock()):
+            await service.update_config("planner", update, uuid4(), MagicMock())
+
+        assert update.temperature is None
+        assert update.top_p is None
+
 
 @pytest.mark.unit
 @pytest.mark.asyncio

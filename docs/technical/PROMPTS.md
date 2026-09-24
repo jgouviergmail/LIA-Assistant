@@ -214,15 +214,31 @@ gère les spécificités de chaque provider :
    `--- DYNAMIC CONTEXT (all variable data below) ---` sépare ; tout le contenu
    par-requête (datetime, requête, contexte, catalogue, données) vient APRÈS.
    Le marqueur canonique est `DYNAMIC_CONTEXT_MARKER` (`core/constants.py`).
-2. **Anthropic** (`infrastructure/llm/factory.py`) : split au marqueur en deux
-   blocs system, `cache_control: ephemeral` sur le bloc statique uniquement.
-   Sans marqueur, AUCUN `cache_control` n'est posé (un prompt dynamique non
-   marqué paierait l'écriture cache à 125 % à chaque appel sans jamais de hit).
-   Un prompt 100 % statique opte en TERMINANT par le marqueur
-   (ex. `compaction_prompt.txt`, `semantic_validator_prompt.txt`).
+2. **Anthropic** (`infrastructure/llm/providers/anthropic_payload.py`, branché
+   sur le hook de payload de `factory.py` — ADR-306) : split au marqueur,
+   `cache_control: ephemeral` sur le préfixe statique uniquement, QUELLE QUE SOIT
+   la forme du système — une chaîne, ou la liste de blocs que langchain produit
+   quand un tour porte plusieurs messages système (mesuré : le point d'arrêt
+   posé sur le dernier bloc, celui des données du tour, relisait 0 et
+   réécrivait 5 222 jetons à 125 % à chaque tour). Sans marqueur, AUCUN
+   `cache_control` n'est posé (un prompt dynamique non marqué paierait
+   l'écriture cache à 125 % à chaque appel sans jamais de hit). Un prompt 100 %
+   statique opte en TERMINANT par le marqueur (ex. `compaction_prompt.txt`,
+   `semantic_validator_prompt.txt`). Le point d'arrêt glissant (niveau racine)
+   n'est posé que dans une boucle d'outils, où la requête suivante le relit ;
+   la réflexion des tours précédents n'est pas rejouée ; TTL de 5 minutes
+   seulement. Une écriture est facturée à son prix (1,25× l'entrée) sur tous les
+   chemins de coût.
 3. **OpenAI** (`infrastructure/llm/providers/responses_adapter.py`) :
-   `prompt_cache_key` dérivée du préfixe avant le marqueur (routage du cache) ;
-   le préfixe stable maximise le hit du prefix caching automatique.
+   `prompt_cache_key` dérivée du préfixe avant le PREMIER marqueur (routage du
+   cache) — un message système placé après, sans marqueur, est dynamique comme le
+   reste : haché en entier, il donnait une clé, donc sur GPT-5.6+ un cache, par
+   tour ; le préfixe stable maximise le hit du prefix caching automatique. GPT-5.6 et
+   GPT-6 cachent par point d'arrêt et facturent l'écriture 1,25× : le préfixe
+   statique y reçoit un point d'arrêt explicite, coupé au marqueur
+   (`providers/openai_payload.py`, ADR-306) — sans lui, le point d'arrêt
+   implicite couvrait le contexte du tour et chaque appel réécrivait tout son
+   prompt. Les modèles antérieurs refusent ce champ (400) et ne le reçoivent pas.
 4. **DeepSeek / Qwen / Gemini** : prefix caching implicite — le préfixe stable
    suffit, aucun code spécifique.
 

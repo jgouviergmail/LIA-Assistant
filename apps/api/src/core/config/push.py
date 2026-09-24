@@ -22,6 +22,7 @@ from src.core.constants import (
     PUSH_WAKE_MAIL_REQUIRE_LABELS_DEFAULT,
     PUSH_WAKE_MAX_USERS_PER_SWEEP_DEFAULT,
     PUSH_WAKE_PAYLOAD_TTL_SECONDS_DEFAULT,
+    PUSH_WAKE_SERVE_TIMEOUT_SECONDS_DEFAULT,
     PUSH_WAKE_SWEEP_INTERVAL_SECONDS_DEFAULT,
     PUSH_WATCH_TTL_SECONDS_DEFAULT,
 )
@@ -119,6 +120,14 @@ class PushSettings(BaseSettings):
         ge=60,
         le=86400,
         description="How long a queued wake stays valid before it is dropped as stale.",
+    )
+    push_wake_serve_timeout_seconds: int = Field(
+        default=PUSH_WAKE_SERVE_TIMEOUT_SECONDS_DEFAULT,
+        ge=30,
+        le=1800,
+        description="Wall-clock ceiling of ONE wake: a wake that stops moving is cut and "
+        "counted 'timeout' so the sweep serves the next account (ADR-304). A safety net "
+        "above every bounded step, never a budget.",
     )
     push_wake_mail_require_labels: list[str] = Field(
         default=list(PUSH_WAKE_MAIL_REQUIRE_LABELS_DEFAULT),

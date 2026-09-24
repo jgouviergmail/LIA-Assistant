@@ -410,11 +410,13 @@ async def test_detach_resolves_the_connector_and_only_patches_when_attached(
     assert await detach_live_tools(db, user_id=uuid4(), client_factory=lambda _k: client) is True
     assert client.patches == [("ag_1", [])]
     assert connector.connector_metadata["live_tools_attached"] is False
-    assert db.commits == 1
+    # ADR-304: the reads end BEFORE the vendor PATCH, the new state is
+    # committed after it — two commits, none spanning the vendor call.
+    assert db.commits == 2
 
     # Already detached: nothing to PATCH, nothing to commit.
     assert await detach_live_tools(db, user_id=uuid4(), client_factory=lambda _k: client) is True
-    assert len(client.patches) == 1 and db.commits == 1
+    assert len(client.patches) == 1 and db.commits == 2
 
 
 @pytest.mark.unit

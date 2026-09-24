@@ -127,6 +127,55 @@ class TestWrites:
         row = next(r for r in after.models if r["model_name"] == "imp-price")
         assert row["input_unit_price"] == Decimal("9")
 
+    async def test_the_days_of_a_window_reach_the_database(
+        self, async_session: AsyncSession
+    ) -> None:
+        """Only the days change: the imported windows must carry them into the
+        new tariff version, or the import writes back an every-day peak."""
+        pricing = await create_llm_pricing_async(
+            async_session,
+            model_name="imp-days",
+            input_price=Decimal("0.15"),
+            output_price=Decimal("0.60"),
+        )
+        pricing.time_slots = [
+            {
+                "start_utc": "01:00",
+                "end_utc": "04:00",
+                "input_unit_price": 0.3,
+                "cached_input_unit_price": 0.006,
+                "output_unit_price": 1.2,
+            }
+        ]
+        await async_session.flush()
+        payload = await _export(async_session)
+        stored = [
+            ParsedRow(row_number=3, key="imp-days", values=dict(slot))
+            for slot in payload.slots
+            if slot["model_name"] == "imp-days"
+        ]
+        edited = [
+            ParsedRow(
+                row_number=3,
+                key="imp-days",
+                values={**stored[0].values, "weekdays": ["mon", "tue", "wed", "thu", "fri"]},
+            )
+        ]
+        rows = [_row_for(payload, "imp-days")]
+
+        plan = build_change_plan(
+            db_rows=payload.models, sheet_rows=rows, sheet_slots=edited, db_slots=stored
+        )
+        outcome = await PricingImportService(async_session).apply(
+            plan, sheet_rows=rows, sheet_slots=edited
+        )
+        await async_session.flush()
+
+        assert outcome.updated == ("imp-days",)
+        after = await _export(async_session)
+        (window,) = [slot for slot in after.slots if slot["model_name"] == "imp-days"]
+        assert window["weekdays"] == ["mon", "tue", "wed", "thu", "fri"]
+
     async def test_the_previous_tariff_survives_as_history(
         self, async_session: AsyncSession
     ) -> None:

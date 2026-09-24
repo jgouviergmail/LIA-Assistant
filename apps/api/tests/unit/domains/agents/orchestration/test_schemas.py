@@ -5,7 +5,7 @@ Phase: Session 14 - Quick Wins (orchestration/schemas)
 Created: 2025-11-20
 
 Focus: Pydantic models and helper functions for orchestration
-Target Coverage: 98% → 100% (missing line 251: create_pending_agent_result)
+Target Coverage: 98% → 100%
 """
 
 import pytest
@@ -16,9 +16,9 @@ from src.domains.agents.orchestration.schemas import (
     AgentResultData,
     ContactsResultData,
     EmailsResultData,
+    FailedStep,
     MultiDomainResultData,
     OrchestratorPlan,
-    create_pending_agent_result,
 )
 
 
@@ -282,42 +282,44 @@ class TestAgentResult:
         assert result.error == "API rate limit exceeded"
         assert result.data is None
 
-    def test_agent_result_connector_disabled_status(self):
-        """Test AgentResult with connector_disabled status."""
+    def test_agent_result_rejects_retired_statuses(self):
+        """ADR-303: ``connector_disabled``, ``pending`` and ``failed`` are gone.
+
+        The first two had no producer at all, the third had one the readers did
+        not know — so the two formatter branches that restituted ``error`` were
+        dead and every failed plan reached the prompt as « Statut inconnu ».
+        """
+        for retired in ("connector_disabled", "pending", "failed"):
+            with pytest.raises(ValidationError):
+                AgentResult(agent_name="contacts_agent", status=retired)
+
+    def test_agent_result_carries_its_failed_steps(self):
+        """A partial plan is a SUCCESS that still failed somewhere."""
         result = AgentResult(
-            agent_name="contacts_agent",
-            status="connector_disabled",
-            error="Google connector not enabled",
+            agent_name="plan_executor",
+            status="success",
+            failed_steps=[
+                FailedStep(
+                    step_index=1,
+                    tool_name="fetch_web_page_tool",
+                    error="HTTP error 403",
+                    error_code="FORBIDDEN",
+                )
+            ],
         )
+        assert result.status == "success"
+        assert result.failed_steps[0].error_code == "FORBIDDEN"
 
-        assert result.status == "connector_disabled"
-        assert result.error == "Google connector not enabled"
-
-    def test_agent_result_pending_status(self):
-        """Test AgentResult with pending status."""
-        result = AgentResult(agent_name="contacts_agent", status="pending")
-
-        assert result.status == "pending"
-        assert result.data is None
-        assert result.error is None
-
-    def test_agent_result_failed_status(self):
-        """Test AgentResult with failed status."""
-        result = AgentResult(
-            agent_name="contacts_agent", status="failed", error="Unexpected exception"
-        )
-
-        assert result.status == "failed"
-        assert result.error == "Unexpected exception"
+    def test_agent_result_has_no_failed_steps_by_default(self):
+        assert AgentResult(agent_name="a", status="success").failed_steps == []
 
     def test_agent_result_validates_status(self):
         """Test that status is validated (Literal type)."""
         # Valid statuses
         AgentResult(agent_name="test", status="success")
         AgentResult(agent_name="test", status="error")
-        AgentResult(agent_name="test", status="connector_disabled")
-        AgentResult(agent_name="test", status="pending")
-        AgentResult(agent_name="test", status="failed")
+        # ADR-303: the vocabulary is binary — the three retired values are
+        # covered by test_agent_result_rejects_retired_statuses above.
 
         # Invalid status should raise validation error
         with pytest.raises(ValidationError) as exc_info:
@@ -327,7 +329,7 @@ class TestAgentResult:
 
     def test_agent_result_is_mutable(self):
         """Test that AgentResult is mutable (frozen=False)."""
-        result = AgentResult(agent_name="contacts_agent", status="pending")
+        result = AgentResult(agent_name="contacts_agent", status="error")
 
         # Should be able to modify fields
         result.status = "success"
@@ -415,55 +417,112 @@ class TestOrchestratorPlan:
         assert plan.metadata["execution_started"] is True
 
 
-class TestCreatePendingAgentResult:
-    """Tests for create_pending_agent_result() helper function."""
+class TestFailedStepsSurviveTheCheckpoint:
+    """``failed_steps`` crosses a checkpoint, or the honesty rule dies on resume.
 
-    def test_create_pending_agent_result_basic(self):
-        """Test creating pending AgentResult."""
-        result = create_pending_agent_result("contacts_agent")
+    The formatter defers a plan aggregate to the runtime failures directive on
+    the strength of this field. A HITL turn resumes from a PostgreSQL
+    checkpoint, so the field must come back through LangGraph's own serializer
+    under the allowlist production installs — CLAUDE.md's round-trip rule
+    applied to the one field ADR-303 added to the state.
+    """
 
-        assert isinstance(result, AgentResult)
-        assert result.agent_name == "contacts_agent"
-        assert result.status == "pending"
-        assert result.data is None
-        assert result.error is None
-        assert result.tokens_in == 0
-        assert result.tokens_out == 0
-        assert result.duration_ms == 0
+    @staticmethod
+    def _serde():
+        from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 
-    def test_create_pending_agent_result_different_agents(self):
-        """Test creating pending results for different agents."""
-        contacts_result = create_pending_agent_result("contacts_agent")
-        gmail_result = create_pending_agent_result("emails_agent")
+        from src.domains.conversations.checkpointer import _CHECKPOINT_ALLOWED_MODULES
 
-        assert contacts_result.agent_name == "contacts_agent"
-        assert gmail_result.agent_name == "emails_agent"
-        assert contacts_result.status == "pending"
-        assert gmail_result.status == "pending"
+        return JsonPlusSerializer(allowed_msgpack_modules=_CHECKPOINT_ALLOWED_MODULES)
 
-    def test_create_pending_agent_result_returns_agent_result_type(self):
-        """Test that helper returns AgentResult type."""
-        result = create_pending_agent_result("test_agent")
-        assert type(result).__name__ == "AgentResult"
+    def test_every_field_of_a_failed_step_comes_back(self) -> None:
+        from src.domains.agents.orchestration.schemas import AgentResult, FailedStep
 
-    def test_create_pending_agent_result_zero_metrics(self):
-        """Test that pending result has zero metrics."""
-        result = create_pending_agent_result("contacts_agent")
+        serde = self._serde()
+        step = FailedStep(
+            step_index=1,
+            tool_name="fetch_web_page_tool",
+            error="HTTP error 403 fetching https://example.com/a",
+            error_code="FORBIDDEN",
+        )
+        entry = AgentResult(
+            agent_name="plan_executor", status="success", failed_steps=[step]
+        ).model_dump()
 
-        # All metrics should be zero for pending state
-        assert result.tokens_in == 0
-        assert result.tokens_out == 0
-        assert result.duration_ms == 0
+        state = {"agent_results": {"9:plan_executor": entry}}
+        back = serde.loads_typed(serde.dumps_typed(state))["agent_results"]["9:plan_executor"]
 
-    def test_create_pending_agent_result_can_be_modified(self):
-        """Test that pending result can be modified after creation."""
-        result = create_pending_agent_result("contacts_agent")
+        assert back["status"] == "success"
+        assert back["failed_steps"] == [step.model_dump()]
 
-        # Modify to success state
-        result.status = "success"
-        result.tokens_in = 150
-        result.data = ContactsResultData(contacts=[], total_count=0)
+    def test_a_tool_message_keeps_its_error_status(self) -> None:
+        """The ReAct failure marker is read AFTER a resume, never before it."""
+        from langchain_core.messages import ToolMessage
 
-        assert result.status == "success"
-        assert result.tokens_in == 150
-        assert result.data is not None
+        serde = self._serde()
+        message = ToolMessage(
+            content="Calendar unavailable: token expired.",
+            tool_call_id="call_1",
+            name="get_events_tool",
+            status="error",
+        )
+        back = serde.loads_typed(serde.dumps_typed([message]))[0]
+        assert isinstance(back, ToolMessage)
+        assert back.status == "error"
+
+
+class TestAFailedStepIsBoundedBeforeItReachesTheState:
+    """``agent_results`` is capped « for memory management » — its entries must be too.
+
+    ``StepResult.error`` is built at the source as ``str(e)`` and even as
+    ``f"{type(result).__name__}: {result}"``, so it can carry a whole payload.
+    Measured in the ADR-303 cold review: five failed steps produced **200 350
+    bytes** of ``failed_steps``, persisted to PostgreSQL on every turn of the
+    thread. The MODEL bounds its own field, so no producer — present or future,
+    wherever it builds one — can put a document in the graph state.
+    """
+
+    def test_a_runaway_error_is_cut_at_the_model(self) -> None:
+        from src.core.tool_outcome import TOOL_ERROR_HEAD_CHARS
+        from src.domains.agents.orchestration.schemas import FailedStep
+
+        step = FailedStep(step_index=0, tool_name="t", error="X" * 40_000, error_code="C" * 900)
+        assert step.error is not None
+        assert len(step.error) == TOOL_ERROR_HEAD_CHARS
+        assert step.error_code is not None
+        assert len(step.error_code) <= 64
+
+    def test_a_short_error_is_untouched_and_none_survives(self) -> None:
+        from src.domains.agents.orchestration.schemas import FailedStep
+
+        assert FailedStep(step_index=0, tool_name="t", error="boom").error == "boom"
+        assert FailedStep(step_index=0, tool_name="t").error is None
+
+    def test_the_mapped_state_entry_stays_small(self) -> None:
+        """End to end: what the mapper puts in the state, in bytes."""
+        import json
+
+        from src.domains.agents.orchestration.mappers import map_execution_result_to_agent_result
+        from src.domains.agents.orchestration.schemas import ExecutionResult, StepResult
+
+        execution_result = ExecutionResult(
+            success=False,
+            step_results=[
+                StepResult(
+                    step_index=index,
+                    tool_name="t",
+                    args={},
+                    result={"success": False},
+                    success=False,
+                    error="X" * 40_000,
+                )
+                for index in range(5)
+            ],
+            total_steps=5,
+            completed_steps=5,
+            failed_step_index=0,
+            error="e",
+            total_execution_time_ms=0,
+        )
+        entry = next(iter(map_execution_result_to_agent_result(execution_result, "p", 1).values()))
+        assert len(json.dumps(entry["failed_steps"])) < 2_000

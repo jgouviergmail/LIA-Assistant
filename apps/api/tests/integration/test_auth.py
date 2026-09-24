@@ -561,6 +561,28 @@ class TestLogout:
         assert any("lia_session=" in header for header in cookie_headers)
 
     @pytest.mark.asyncio
+    async def test_an_inactive_account_can_end_its_own_session(
+        self, async_client: AsyncClient, test_inactive_user: User
+    ):
+        """A pending or blocked account must be able to sign out.
+
+        The account-inactive page offers one action, « sign out », and the
+        endpoint answered 403 to it: the page claimed the person was signed out
+        while their session stayed valid (production, 2026-09-18).
+        """
+        login_response = await async_client.post(
+            "/api/v1/auth/login",
+            json={"email": test_inactive_user.email, "password": "Inactive123!!"},
+        )
+        assert login_response.status_code == 200
+        async_client.cookies.set("lia_session", extract_cookie_value(login_response, "lia_session"))
+
+        logout_response = await async_client.post("/api/v1/auth/logout")
+
+        assert logout_response.status_code == 200
+        assert (await async_client.get("/api/v1/auth/me")).status_code == 401
+
+    @pytest.mark.asyncio
     async def test_logout_all_devices(
         self, async_client: AsyncClient, test_user: User, test_user_credentials: dict[str, str]
     ):

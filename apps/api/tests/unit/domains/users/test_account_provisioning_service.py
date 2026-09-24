@@ -6,13 +6,13 @@ cascade from the auth service (ADR-126): skill states + usage limits,
 with caller-controlled transaction topology (``commit_per_step``).
 """
 
-from collections.abc import Iterator
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
 
 from src.core.config import settings
+from src.domains.connectors.models import Connector
 from src.domains.users.account_provisioning_service import AccountProvisioningService
 
 
@@ -30,36 +30,24 @@ def service(mock_db: AsyncMock) -> AccountProvisioningService:
     return AccountProvisioningService(mock_db)
 
 
-@pytest.fixture(autouse=True)
-def _keyless_connectors_step() -> Iterator[AsyncMock]:
-    """Stub the keyless-connector step: it has its own suite, and an AsyncMock
-    session would hand it a coroutine for ``db.add`` that nobody awaits."""
-    with patch(
-        "src.domains.users.keyless_connectors_provisioning.provision_keyless_connectors",
-        new_callable=AsyncMock,
-        return_value=[],
-    ) as step:
-        yield step
+class TestNoConnectorProvisioned:
+    """Sign-up stages no connector: the keyless ones belong to the instance (ADR-307)."""
 
-
-class TestKeylessConnectorsStep:
-    """provision_new_user hands the new account to the keyless-connector step."""
-
-    async def test_the_step_runs_on_the_same_session(
+    async def test_no_connector_row_is_staged(
         self,
         service: AccountProvisioningService,
         mock_db: AsyncMock,
         monkeypatch: pytest.MonkeyPatch,
-        _keyless_connectors_step: AsyncMock,
     ) -> None:
         monkeypatch.setattr(settings, "usage_limits_enabled", False, raising=False)
-        user_id = uuid4()
+        mock_db.add = MagicMock()
 
         with patch("src.domains.skills.preference_service.SkillPreferenceService") as skill_cls:
             skill_cls.return_value.ensure_user_skills = AsyncMock(return_value=0)
-            await service.provision_new_user(user_id, commit_per_step=False)
+            await service.provision_new_user(uuid4(), commit_per_step=False)
 
-        _keyless_connectors_step.assert_awaited_once_with(mock_db, user_id)
+        staged = [call.args[0] for call in mock_db.add.call_args_list]
+        assert not [row for row in staged if isinstance(row, Connector)]
 
 
 class TestProvisionNewUser:

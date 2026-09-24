@@ -399,6 +399,7 @@ class LiveCredentialResponse(BaseModel):
     setup: dict[str, Any] = Field(
         ..., description="The provider setup the client replays verbatim (token connections)."
     )
+    audio_transport: Literal["websocket", "webrtc"] = "websocket"
 
 
 class LiveSessionStartRequest(BaseModel):
@@ -411,6 +412,7 @@ class LiveSessionStartRequest(BaseModel):
             "direct: the voice reads LIA's tools itself and never acts (ADR-300 wave 4)."
         ),
     )
+    audio_transport: Literal["websocket", "webrtc"] = "websocket"
 
 
 class LiveSessionStartResponse(LiveCredentialResponse):
@@ -423,6 +425,7 @@ class LiveSessionStartResponse(LiveCredentialResponse):
     mode: LiveSessionMode = Field(
         "delegated", description="How this session runs; the client routes tool calls on it."
     )
+    tool_names: list[str] = Field(default_factory=list)
     expires_at: datetime = Field(
         ...,
         description="The session's cap; moved by every extension (explicit, or automatic when unlimited).",
@@ -547,6 +550,21 @@ class LiveTurnResponse(BaseModel):
     assistant_message_id: UUID | None
 
 
+class LiveAudioDiagnostics(BaseModel):
+    """Aggregate playback counts from the browser; no audio or transcript content."""
+
+    chunks: int = Field(ge=0)
+    drains: int = Field(ge=0)
+    audio_ms: int = Field(ge=0)
+    source_rate: int = Field(ge=0)
+    context_rate: int = Field(ge=0)
+    short_gap_count: int = Field(default=0, ge=0)
+    short_gap_ms: int = Field(default=0, ge=0)
+    short_gap_bins: list[int] = Field(default_factory=list, max_length=12)
+    long_gap_count: int = Field(default=0, ge=0)
+    max_gap_ms: int = Field(default=0, ge=0)
+
+
 class LiveEndRequest(BaseModel):
     """How the session ended, as the client saw it.
 
@@ -556,6 +574,7 @@ class LiveEndRequest(BaseModel):
     """
 
     outcome: LiveOutcome
+    audio_diagnostics: LiveAudioDiagnostics | None = None
     detail: str | None = Field(
         None,
         max_length=LIVE_END_DETAIL_MAX_CHARS,

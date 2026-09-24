@@ -427,7 +427,9 @@ test.describe('chat live session', () => {
       'relayé dans ta conversation comme un message de toi'
     );
     await expect.poll(() => startBodies.length).toBe(1);
-    expect(startBodies[0]).toEqual({ mode: 'direct' });
+    // The browser declares its audio transport with the mode (ADR-300
+    // amendment): WebRTC on iOS, the WebSocket everywhere else — Chromium here.
+    expect(startBodies[0]).toEqual({ mode: 'direct', audio_transport: 'websocket' });
 
     // The lookup went through the API's tool door, its text back to the voice on the same id.
     await expect.poll(() => toolBodies.length).toBe(1);

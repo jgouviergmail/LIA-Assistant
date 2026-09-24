@@ -164,3 +164,45 @@ def test_batch_size_capped(client: TestClient) -> None:
     events = [{"kind": "event", "event_type": "landing_view"}] * (MAX_EVENTS_PER_BATCH + 1)
     resp = client.post("/product/events", json={"events": events})
     assert resp.status_code == 422
+
+
+async def test_a_rotated_forwarded_header_buys_no_fresh_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ADR-213: the bucket is keyed on the header the visitor cannot write.
+
+    The limiter used to key on the LEFTMOST X-Forwarded-For entry, the one the
+    visitor supplies (Cloudflare appends the real address after it): rotating
+    it minted a fresh budget per request.
+    """
+    from starlette.requests import Request
+
+    keys: list[str] = []
+
+    class _RecordingLimiter:
+        async def acquire(self, key: str, max_calls: int, window_seconds: int) -> bool:
+            keys.append(key)
+            return True
+
+    monkeypatch.setattr(
+        "src.infrastructure.rate_limiting.redis_limiter.get_rate_limiter",
+        AsyncMock(return_value=_RecordingLimiter()),
+    )
+
+    for forged in ("127.0.0.1", "198.51.100.1"):
+        await _rate_limit_product_events(
+            Request(
+                {
+                    "type": "http",
+                    "method": "POST",
+                    "path": "/api/v1/product/events",
+                    "headers": [
+                        (b"x-forwarded-for", f"{forged}, 203.0.113.9".encode()),
+                        (b"cf-connecting-ip", b"203.0.113.9"),
+                    ],
+                    "client": (forged, 443),
+                }
+            )
+        )
+
+    assert keys == ["product:events:203.0.113.9", "product:events:203.0.113.9"]

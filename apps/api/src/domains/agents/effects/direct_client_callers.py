@@ -44,7 +44,9 @@ CLIENT_CALL_RECORDERS: Final[dict[str, str]] = {
     "domains/agents/services/knowledge_enrichment_service.py": "in-turn",
     "domains/agents/services/planner/hue_discovery.py": "in-turn",
     "domains/briefing/fetchers.py": "briefing",
-    "domains/rag_spaces/drive_ingest.py": "space",
+    # The push-driven drain of the Drive changes feed (ADR-304 moved it out
+    # of ``drive_ingest``), under ``space_read``.
+    "domains/rag_spaces/drive_push.py": "space",
     "domains/rag_spaces/drive_sync.py": "space",
     "domains/rag_spaces/mail_source_service.py": "space",
     "domains/users/geocoding.py": "profile",
@@ -56,6 +58,17 @@ CLIENT_CALL_RECORDERS: Final[dict[str, str]] = {
     "infrastructure/scheduler/heartbeat_wake_sweep.py": "wake",
     "domains/heartbeat/context_aggregator.py": "heartbeat",
     "domains/heartbeat/context_sources.py": "heartbeat",
+    # Through the door (ADR-304): the calendar verdict of a tick — a cache hit
+    # records nothing, a live read is filed on the heartbeat surface.
+    "domains/moments/busy_gate.py": "heartbeat",
+    # The backward calendar read of a moment, filed by the moment sweep.
+    "domains/moments/detectors/event_followup.py": "moment",
+    # Every section an owner call opens is filed on the phone_call surface.
+    "domains/telephony/self_call_context.py": "phone_call",
+    # The calendar event a recording overlaps, filed on the meeting surface.
+    "domains/meetings/enrichment.py": "meeting",
+    # The 360° calendar section, filed by the assembly that asked for it.
+    "domains/relations/providers/events.py": "relation_debrief",
     "domains/interests/services/content_sources/brave_source.py": "interest",
     "domains/interests/services/content_sources/perplexity_source.py": "interest",
     "domains/interests/services/content_sources/wikipedia_source.py": "interest",
@@ -65,8 +78,12 @@ CLIENT_CALL_RECORDERS: Final[dict[str, str]] = {
 #: never a convenience: it must say what the module does with the client.
 NOT_A_CAPABILITY_READ: Final[dict[str, str]] = {
     "domains/agents/api/service.py": (
-        "Holds a ClientRegistry to hand clients to the agents; it opens no "
-        "connector itself, and every tool it serves is gated."
+        "The contacts cache WARM-UP: before a turn it lists the person's "
+        "contacts into the Redis cache the contacts tools read, and hands them "
+        "to nobody. What is consulted is recorded by the tool gate, at the "
+        "contacts tool that reads the cache — a prefetch nobody reads is not a "
+        "consultation. (Corrected 2026-09-22: this entry used to say the module "
+        "opens no connector; the warm-up always did.)"
     ),
     "domains/relations/providers/client.py": (
         "The 360° assembly's own client factory. What it fetches is recorded "
@@ -76,10 +93,6 @@ NOT_A_CAPABILITY_READ: Final[dict[str, str]] = {
         "Registers and renews Google push WATCH subscriptions. It tells "
         "Google where to send change notices; it fetches no content, and the "
         "read those notices trigger is recorded by whoever performs it."
-    ),
-    "domains/meetings/enrichment.py": (
-        "Turns coordinates the recording already carried into a place name. "
-        "The upload is the read, and it is the person's own."
     ),
     "domains/agents/utils/email_enricher.py": (
         "Borrows the Gmail client's PARSER (``_extract_body_recursive``) on a "

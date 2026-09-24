@@ -9,15 +9,13 @@ Architecture Simplification (2026-01):
 """
 
 from src.core.config import settings
-from src.core.constants import (
-    CALENDAR_TOOL_DEFAULT_LIMIT,
-    GOOGLE_CALENDAR_SCOPES,
-)
+from src.core.constants import GOOGLE_CALENDAR_SCOPES
 
 # Re-export: the loader imports the whole calendar family from this module.
 from src.domains.agents.calendar.availability_manifest import (
     find_availability_catalogue_manifest,
 )
+from src.domains.agents.calendar.event_search import QUERY_CONTRACT
 from src.domains.agents.registry.catalogue import (
     CostProfile,
     DisplayMetadata,
@@ -52,25 +50,24 @@ _get_events_desc = (
     "- Fetch by ID (from $steps or CONTEXT only): use `event_id` or `event_ids`\n"
     "- List by range: use `time_min`/`time_max` without query\n"
     "\n"
-    "**QUERY PARAMETER — attendee (person) search ONLY**:\n"
-    "- Use `query` ONLY to find events with a specific PERSON, by name:\n"
-    "  → get_events_tool(query='Jean Dupont') — resolved to their email (attendee).\n"
-    "- For ANY title / topic / category / quality ('medical', 'dentist', a\n"
-    "  project name, 'important'): OMIT query. Calendar free-text search is\n"
-    "  unreliable; the assistant lists events in the time window and filters the\n"
-    "  concept when answering.\n"
+    "**QUERY PARAMETER — words found in the title, location, organizer or attendees**:\n"
+    "- The tool reads the time window and keeps the events containing EVERY word,\n"
+    "  case and accents ignored: a person's name, a subject word, a place.\n"
+    "  → get_events_tool(query='Alex', time_min=..., time_max=...)\n"
+    "- For a theme / category / quality ('medical', 'important'): OMIT query and\n"
+    "  filter the listed events when answering.\n"
     "- Generic listing (next N events): OMIT query, set max_results.\n"
     "\n"
     "**COMMON USE CASES**:\n"
     "- 'my next 2 appointments/events' → NO query, just max_results=2\n"
     "- 'what is on my calendar today' → NO query, time_min=today_start, time_max=today_end\n"
     "- 'my upcoming events' → NO query, default time range applies\n"
-    "- 'meeting with John' → query='John' (person → attendee search)\n"
+    "- 'meeting with John' → query='John' (attendee, organizer or title)\n"
+    "- 'lunch on the terrace' → query='lunch' or query='terrace'\n"
     "- 'doctor / medical appointment' → NO query (list + filter the concept)\n"
     "- 'show this event details' → event_id=ID from $steps or CONTEXT\n"
     "\n"
     "**Time Format**: ISO 8601 (e.g., '2025-01-15T00:00:00+01:00').\n"
-    "**Default**: Next 7 days if unspecified.\n"
     "**RETURNS**: Full event info (description, attendees, conference link, etc.)."
 )
 
@@ -111,9 +108,7 @@ get_events_catalogue_manifest = ToolManifest(
     ],
     parameters=[
         # Query mode parameters
-        ParameterSchema(
-            name="query", type="string", required=False, description="Free text search query"
-        ),
+        ParameterSchema(name="query", type="string", required=False, description=QUERY_CONTRACT),
         ParameterSchema(
             name="time_min",
             type="string",
@@ -155,7 +150,7 @@ get_events_catalogue_manifest = ToolManifest(
             name="max_results",
             type="integer",
             required=False,
-            description=f"Max return (def: {CALENDAR_TOOL_DEFAULT_LIMIT}, max: {settings.calendar_tool_default_max_results})",
+            description=f"Max return (default and max: {settings.calendar_tool_default_max_results})",
             constraints=[
                 ParameterConstraint(kind="minimum", value=1),
                 ParameterConstraint(

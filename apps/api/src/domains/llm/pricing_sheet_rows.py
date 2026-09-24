@@ -34,6 +34,7 @@ from src.domains.llm.models import LLMModel, LLMModelPricing
 from src.domains.llm.pricing_sheet import (
     FINGERPRINT_COLUMN,
     MODELS_SHEET,
+    weekday_codes,
 )
 
 #: i18n keys this module resolves through the ``labels`` mapping. Published so
@@ -209,6 +210,7 @@ def _slot_rows(model_name: str, pricing: LLMModelPricing | None) -> list[dict[st
             "model_name": model_name,
             "start_utc": window.get("start_utc"),
             "end_utc": window.get("end_utc"),
+            "weekdays": weekday_codes(window.get("weekdays")),
         }
         for key in _SLOT_PRICE_KEYS:
             raw = window.get(key)
@@ -218,12 +220,23 @@ def _slot_rows(model_name: str, pricing: LLMModelPricing | None) -> list[dict[st
 
 
 def _slots_summary(windows: Sequence[Mapping[str, Any]], labels: Mapping[str, str]) -> str | None:
-    """State the windowed tariff on the row that carries the price."""
+    """State the windowed tariff on the row that carries the price.
+
+    A window restricted to some days names them: without them a Monday-Friday
+    peak reads as a daily one on the very row an administrator checks.
+    """
     if not windows:
         return None
-    listing = ", ".join(f"{w.get('start_utc')}-{w.get('end_utc')}" for w in windows)
+    listing = ", ".join(_window_label(window) for window in windows)
     template = labels.get("settings.admin.llm.sheet.slots_summary", "{count}: {windows}")
     return template.format(count=len(windows), windows=listing)
+
+
+def _window_label(window: Mapping[str, Any]) -> str:
+    """``01:00-04:00``, or ``01:00-04:00 (mon,tue,wed,thu,fri)`` on some days only."""
+    hours = f"{window.get('start_utc')}-{window.get('end_utc')}"
+    codes = weekday_codes(window.get("weekdays"))
+    return f"{hours} ({','.join(codes)})" if codes else hours
 
 
 def _reasoning_shape(model: LLMModel, labels: Mapping[str, str]) -> str:

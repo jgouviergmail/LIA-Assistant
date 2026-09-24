@@ -162,6 +162,18 @@ class APIKeyActivationRequest(BaseModel):
             raise ValueError("Please enter a valid API key")
         return v
 
+    @field_validator("connector_type")
+    @classmethod
+    def refuse_keyless_type(cls, v: ConnectorType) -> ConnectorType:
+        """Refuse a keyless type: the instance provides it, no account activates it.
+
+        Activation and rotation both read this schema, so no per-account row
+        of a keyless type can be written back (ADR-307).
+        """
+        if v.is_keyless:
+            raise ValueError(f"{v.value} needs no key: the instance provides it to every account")
+        return v
+
 
 class APIKeyValidationRequest(BaseModel):
     """Request schema for validating an API key before activation."""

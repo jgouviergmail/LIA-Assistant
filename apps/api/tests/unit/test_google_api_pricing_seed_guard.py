@@ -14,6 +14,9 @@ This guard pins two invariants:
    has a matching seed row — a tracked call with no pricing row is silently
    billed at zero (`get_cost_per_request` returns 0 on a cache miss), which
    under-reports user costs without any error.
+3. Every Routes SKU the client can file a call under is priced (2026-09-23
+   price audit): the default drive route triggers the Enterprise tier, $15 per
+   1000, where every call used to be filed at the Essentials $5.
 """
 
 from __future__ import annotations
@@ -22,6 +25,13 @@ import re
 from pathlib import Path
 
 import pytest
+
+from src.domains.connectors.clients.google_routes_client import (
+    ROUTES_SKU_ENTERPRISE,
+    ROUTES_SKU_ESSENTIALS,
+    ROUTES_SKU_PRO,
+    ROUTES_SKU_SUFFIXES,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -99,3 +109,32 @@ def test_every_tracked_endpoint_has_a_seed_row() -> None:
         "track_google_api_call sites without a google_api_pricing seed row "
         f"(silently billed at $0): {sorted(missing)}"
     )
+
+
+# Routes SKUs per 1000 requests -- per 1000 ELEMENTS for the matrix -- on the
+# official price list (read 2026-09-23). The client files each call under the
+# suffix its request triggers (``routes_sku_suffix``).
+_ROUTES_TIERS: dict[str, tuple[str, float]] = {
+    ROUTES_SKU_ESSENTIALS: ("Essentials", 5.0),
+    ROUTES_SKU_PRO: ("Pro", 10.0),
+    ROUTES_SKU_ENTERPRISE: ("Enterprise", 15.0),
+}
+_ROUTES_ENDPOINTS: dict[str, str] = {
+    "/directions/v2:computeRoutes": "Compute Routes",
+    "/distanceMatrix/v2:computeRouteMatrix": "Compute Route Matrix",
+}
+
+
+@pytest.mark.parametrize("suffix", ROUTES_SKU_SUFFIXES)
+@pytest.mark.parametrize("endpoint", sorted(_ROUTES_ENDPOINTS))
+def test_every_routes_sku_the_client_can_file_is_priced(endpoint: str, suffix: str) -> None:
+    tier, price = _ROUTES_TIERS[suffix]
+    assert _load_seed_rows()[("routes", f"{endpoint}{suffix}")] == (
+        f"{_ROUTES_ENDPOINTS[endpoint]} {tier}",
+        price,
+    )
+
+
+def test_street_view_static_is_billed_at_its_sku() -> None:
+    """Static Street View is $7 per 1000 on the price list; the seed billed $2."""
+    assert _load_seed_rows()[("street_view", "/streetview")] == ("Street View Static", 7.0)

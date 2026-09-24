@@ -21,9 +21,12 @@ from pydantic_settings import BaseSettings
 
 from src.core.constants import (
     IMAGE_GENERATION_ENABLED_DEFAULT,
+    IMAGE_GENERATION_ENCODING_QUALITY_DEFAULT,
     IMAGE_GENERATION_MAX_IMAGES_DEFAULT,
     IMAGE_GENERATION_RATE_LIMIT_CALLS_DEFAULT,
     IMAGE_GENERATION_RATE_LIMIT_WINDOW_SECONDS_DEFAULT,
+    IMAGE_GENERATION_RESULT_DOWNLOAD_TIMEOUT_SECONDS_DEFAULT,
+    IMAGE_GENERATION_RESULT_MAX_MB_DEFAULT,
     IMAGE_GENERATION_TOOL_TIMEOUT_SECONDS_DEFAULT,
     MAX_IMAGE_GENERATION_TOOL_TIMEOUT_SECONDS_DEFAULT,
 )
@@ -112,5 +115,46 @@ class ImageGenerationSettings(BaseSettings):
             "BELOW the measured 138s of a high-quality render, so no value of "
             "the floor above could ever make it succeed. Caps whatever timeout "
             "the planner requests."
+        ),
+    )
+
+    # ========================================================================
+    # Result download (vendors that answer with a URL — ADR-305)
+    # ========================================================================
+
+    image_generation_result_download_timeout_seconds: float = Field(
+        default=IMAGE_GENERATION_RESULT_DOWNLOAD_TIMEOUT_SECONDS_DEFAULT,
+        ge=5.0,
+        le=300.0,
+        description=(
+            "Total deadline (seconds) for downloading an image a vendor returned "
+            "as a URL (Qwen Image: valid 24 hours, fetched at once). The image is "
+            "already billed when the download starts, so the deadline is generous."
+        ),
+    )
+
+    image_generation_result_max_mb: int = Field(
+        default=IMAGE_GENERATION_RESULT_MAX_MB_DEFAULT,
+        ge=1,
+        le=200,
+        description=(
+            "Largest image (MB) the API accepts to download from a vendor's result "
+            "URL. The transfer is abandoned beyond it rather than buffered."
+        ),
+    )
+
+    # ========================================================================
+    # Encoding (the person's output format — ADR-305)
+    # ========================================================================
+
+    image_generation_encoding_quality: int = Field(
+        default=IMAGE_GENERATION_ENCODING_QUALITY_DEFAULT,
+        ge=1,
+        le=100,
+        description=(
+            "Quality (1-100) of every lossy encoding the image domain writes: an "
+            "image delivered in the person's JPEG or WebP format, and an edit's "
+            "source re-encoded to fit its vendor's byte limit. A PNG is never "
+            "re-encoded."
         ),
     )

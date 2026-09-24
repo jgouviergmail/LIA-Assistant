@@ -62,6 +62,7 @@ from src.domains.connectors.clients.brave_search_client import BraveSearchClient
 from src.domains.connectors.clients.perplexity_client import PerplexityClient
 from src.domains.connectors.clients.wikipedia_client import WikipediaClient
 from src.domains.connectors.models import ConnectorType
+from src.domains.connectors.schemas import APIKeyCredentials
 from src.domains.connectors.service import ConnectorService
 from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.cache.web_search_cache import WebSearchCache
@@ -191,6 +192,27 @@ ContextTypeRegistry.register(
 # ============================================================================
 
 
+async def _api_key_credentials(
+    user_uuid: UUID, connector_type: ConnectorType
+) -> APIKeyCredentials | None:
+    """The account's key for a search provider (API-key connector, not OAuth).
+
+    Read in a session of its own, closed before the provider is asked
+    (ADR-304): a search can take seconds, and no transaction waits on one.
+
+    Args:
+        user_uuid: Whose key.
+        connector_type: The search provider.
+
+    Returns:
+        The decrypted key, or None when the connector is not configured.
+    """
+    async with get_db_context() as db:
+        return await ConnectorService(db).get_api_key_credentials(
+            user_id=user_uuid, connector_type=connector_type
+        )
+
+
 async def _search_perplexity(
     query: str,
     user_uuid: UUID,
@@ -204,62 +226,56 @@ async def _search_perplexity(
     Returns dict with answer, citations, related_questions or None if not available.
     """
     try:
-        async with get_db_context() as db:
-            connector_service = ConnectorService(db)
-            # Use get_api_key_credentials for API key connectors (not OAuth)
-            credentials = await connector_service.get_api_key_credentials(
-                user_id=user_uuid,
-                connector_type=ConnectorType.PERPLEXITY,
+        credentials = await _api_key_credentials(user_uuid, ConnectorType.PERPLEXITY)
+
+        if not credentials:
+            logger.debug("perplexity_not_configured", user_id=str(user_uuid))
+            return None
+
+        client = PerplexityClient(
+            api_key=credentials.api_key,
+            user_id=user_uuid,
+            model=settings.perplexity_search_model,
+            user_timezone=user_timezone,
+            user_language=user_language,
+        )
+
+        try:
+            # Build system prompt with datetime context
+            current_datetime = get_current_datetime_context(
+                timezone_str=user_timezone,
+                language=user_language,
             )
+            system_prompt = f"Current date and time: {current_datetime}"
 
-            if not credentials:
-                logger.debug("perplexity_not_configured", user_id=str(user_uuid))
-                return None
+            # Convert recency filter
+            recency_filter = None
+            if recency in {"day", "week", "month", "year"}:
+                recency_filter = recency
 
-            client = PerplexityClient(
-                api_key=credentials.api_key,
-                user_id=user_uuid,
-                model=settings.perplexity_search_model,
-                user_timezone=user_timezone,
-                user_language=user_language,
+            result = await client.search(
+                query=query,
+                search_recency_filter=recency_filter,
+                return_citations=True,
+                return_related_questions=True,
+                system_prompt=system_prompt,
             )
+        finally:
+            # Deterministic close of the pooled httpx client (leak fix)
+            await client.close()
 
-            try:
-                # Build system prompt with datetime context
-                current_datetime = get_current_datetime_context(
-                    timezone_str=user_timezone,
-                    language=user_language,
-                )
-                system_prompt = f"Current date and time: {current_datetime}"
+        logger.info(
+            "perplexity_search_success",
+            user_id=str(user_uuid),
+            query=query[:50],
+            citations_count=len(result.get("citations", [])),
+        )
 
-                # Convert recency filter
-                recency_filter = None
-                if recency in {"day", "week", "month", "year"}:
-                    recency_filter = recency
-
-                result = await client.search(
-                    query=query,
-                    search_recency_filter=recency_filter,
-                    return_citations=True,
-                    return_related_questions=True,
-                    system_prompt=system_prompt,
-                )
-            finally:
-                # Deterministic close of the pooled httpx client (leak fix)
-                await client.close()
-
-            logger.info(
-                "perplexity_search_success",
-                user_id=str(user_uuid),
-                query=query[:50],
-                citations_count=len(result.get("citations", [])),
-            )
-
-            return {
-                "answer": result.get("answer", ""),
-                "citations": result.get("citations", []),
-                "related_questions": result.get("related_questions", []),
-            }
+        return {
+            "answer": result.get("answer", ""),
+            "citations": result.get("citations", []),
+            "related_questions": result.get("related_questions", []),
+        }
 
     except Exception as e:
         logger.warning(
@@ -290,59 +306,54 @@ async def _search_brave(
     Returns list of WebSearchResult or empty list if not available.
     """
     try:
-        async with get_db_context() as db:
-            connector_service = ConnectorService(db)
-            credentials = await connector_service.get_api_key_credentials(
-                user_id=user_uuid,
-                connector_type=ConnectorType.BRAVE_SEARCH,
-            )
+        credentials = await _api_key_credentials(user_uuid, ConnectorType.BRAVE_SEARCH)
 
-            if not credentials:
-                logger.debug("brave_not_configured", user_id=str(user_uuid))
-                return []
+        if not credentials:
+            logger.debug("brave_not_configured", user_id=str(user_uuid))
+            return []
 
-            client = BraveSearchClient(
-                api_key=credentials.api_key,
-                user_id=user_uuid,
-            )
+        client = BraveSearchClient(
+            api_key=credentials.api_key,
+            user_id=user_uuid,
+        )
 
-            try:
-                result = await client.search(
-                    query=query,
-                    endpoint=endpoint,
-                    count=count,
-                    freshness=freshness,
-                )
-            finally:
-                # Deterministic close of the pooled httpx client (leak fix)
-                await client.close()
-
-            if not result:
-                return []
-
-            # Extract results based on endpoint (different response formats)
-            if endpoint == "web":
-                raw_results = result.get("web", {}).get("results", [])
-            else:
-                raw_results = result.get("results", [])
-
-            logger.info(
-                "brave_search_success",
-                user_id=str(user_uuid),
-                query=query[:50],
+        try:
+            result = await client.search(
+                query=query,
                 endpoint=endpoint,
-                results_count=len(raw_results),
+                count=count,
+                freshness=freshness,
             )
+        finally:
+            # Deterministic close of the pooled httpx client (leak fix)
+            await client.close()
 
-            return [
-                WebSearchResult(
-                    title=item.get("title", ""),
-                    url=item.get("url", ""),
-                    snippet=item.get("description", ""),
-                    source=WEB_SEARCH_SOURCE_BRAVE,
-                )
-                for item in raw_results[:count]
-            ]
+        if not result:
+            return []
+
+        # Extract results based on endpoint (different response formats)
+        if endpoint == "web":
+            raw_results = result.get("web", {}).get("results", [])
+        else:
+            raw_results = result.get("results", [])
+
+        logger.info(
+            "brave_search_success",
+            user_id=str(user_uuid),
+            query=query[:50],
+            endpoint=endpoint,
+            results_count=len(raw_results),
+        )
+
+        return [
+            WebSearchResult(
+                title=item.get("title", ""),
+                url=item.get("url", ""),
+                snippet=item.get("description", ""),
+                source=WEB_SEARCH_SOURCE_BRAVE,
+            )
+            for item in raw_results[:count]
+        ]
 
     except Exception as e:
         logger.warning(

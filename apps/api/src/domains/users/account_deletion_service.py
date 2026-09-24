@@ -27,6 +27,7 @@ from uuid import UUID
 from sqlalchemy import Delete, Update, delete, or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.client_ip import resolve_client_ip
 from src.core.config import settings
 from src.core.exceptions import ResourceConflictError, raise_user_not_found
 from src.domains.connectors.models import (
@@ -919,7 +920,7 @@ class AccountDeletionService:
 
         from src.domains.users.repository import UserRepository
 
-        ip_address = request.client.host if request and request.client else None
+        ip_address = resolve_client_ip(request) if request else None
         user_agent = request.headers.get("user-agent") if request else None
 
         repo = UserRepository(self.db)

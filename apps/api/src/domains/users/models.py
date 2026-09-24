@@ -577,14 +577,14 @@ class User(LivePreferencesColumns, PhoneIdentityColumns, BaseModel):
         nullable=False,
         default=IMAGE_GENERATION_QUALITY_DEFAULT,
         server_default=IMAGE_GENERATION_QUALITY_DEFAULT,
-        comment="Default image quality: low, medium, high.",
+        comment="Preferred image quality; mapped onto the configured model's offer.",
     )
     image_generation_default_size: Mapped[str] = mapped_column(
         String(20),
         nullable=False,
         default=IMAGE_GENERATION_SIZE_DEFAULT,
         server_default=IMAGE_GENERATION_SIZE_DEFAULT,
-        comment="Default image size: 1024x1024, 1536x1024, 1024x1536.",
+        comment="Preferred image size (WIDTHxHEIGHT); mapped onto the model's offer.",
     )
     image_generation_output_format: Mapped[str] = mapped_column(
         String(10),

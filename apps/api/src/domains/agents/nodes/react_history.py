@@ -109,7 +109,10 @@ def window_messages_for_react(
     from langchain_core.messages import SystemMessage as SM
 
     from src.core.constants import COMPACTION_SUMMARY_MARKER
-    from src.domains.agents.utils.message_windowing import get_windowed_messages
+    from src.domains.agents.utils.message_windowing import (
+        get_windowed_messages,
+        history_block_turns,
+    )
 
     # Find the last HumanMessage — everything after it is the current ReAct loop
     last_human_idx = -1
@@ -126,8 +129,15 @@ def window_messages_for_react(
     current_turn = messages[last_human_idx:]
 
     # Window the history using existing infrastructure
+    # Under the cross-turn cache flag the history is dropped by blocks, so each
+    # turn's history extends the previous one and is read again (ADR-309).
+    window = settings.react_agent_history_window_turns
     windowed_history = get_windowed_messages(
-        history, window_size=settings.react_agent_history_window_turns
+        history,
+        window_size=window,
+        block_size=(
+            history_block_turns(window) if settings.react_cross_turn_cache_enabled else None
+        ),
     )
 
     # Legacy-checkpoint hygiene (see docstring): keep only the compaction

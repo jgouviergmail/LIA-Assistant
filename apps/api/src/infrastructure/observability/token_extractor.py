@@ -21,12 +21,17 @@ logger = structlog.get_logger(__name__)
 
 
 class TokenUsage(NamedTuple):
-    """Token usage extracted from LLMResult."""
+    """Token usage extracted from LLMResult.
+
+    ``cache_write_tokens`` is the part of ``input_tokens`` Claude wrote to its
+    prompt cache (``UsageTokens.cache_write``), owed the write surcharge.
+    """
 
     input_tokens: int
     output_tokens: int
     cached_tokens: int
     model_name: str
+    cache_write_tokens: int = 0
 
 
 class TokenExtractor:
@@ -71,6 +76,7 @@ class TokenExtractor:
         input_tokens = 0
         output_tokens = 0
         cached_tokens = 0
+        cache_write_tokens = 0
         model_name = "unknown"
         usage_dict = None
 
@@ -88,22 +94,12 @@ class TokenExtractor:
                     # on Anthropic): the prompt count excludes the cache reads, which
                     # get_cached_cost_usd_eur prices additively.
                     tokens = tokens_from_usage_metadata(usage_dict)
-                    input_tokens, output_tokens, cached_tokens = (
-                        tokens.prompt,
-                        tokens.completion,
-                        tokens.cached,
-                    )
-                    # cache_creation (Anthropic only) stays in the prompt count —
-                    # priced at input rate, close to the actual 125 % — but is logged.
-                    input_details = usage_dict.get("input_token_details") or {}
-                    cache_creation = input_details.get("cache_creation", 0) or 0
-                    if cache_creation > 0:
-                        logger.info(
-                            "token_cache_creation_detected",
-                            cache_creation_tokens=cache_creation,
-                            cache_read_tokens=cached_tokens,
-                            msg="Cache write detected — subsequent identical prefixes will be cache hits",
-                        )
+                    input_tokens = tokens.prompt
+                    output_tokens = tokens.completion
+                    cached_tokens = tokens.cached
+                    # A Claude cache write stays in the prompt count (it is a
+                    # prompt token) and is carried apart for its surcharge.
+                    cache_write_tokens = tokens.cache_write
 
             # Extract model name from response_metadata
             if hasattr(first_gen, "message") and hasattr(first_gen.message, "response_metadata"):
@@ -152,4 +148,5 @@ class TokenExtractor:
             output_tokens=output_tokens,
             cached_tokens=cached_tokens,
             model_name=model_name,
+            cache_write_tokens=cache_write_tokens,
         )

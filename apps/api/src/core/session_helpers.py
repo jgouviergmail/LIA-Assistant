@@ -9,6 +9,7 @@ from typing import Any, Literal, cast
 import structlog
 from fastapi import Request, Response
 
+from src.core.client_ip import resolve_client_ip
 from src.core.client_metadata import extract_client_meta
 from src.core.config import settings
 from src.core.constants import MFA_PENDING_COOKIE_NAME
@@ -123,7 +124,7 @@ async def create_authenticated_session_with_cookie(
     if request is not None:
         client_meta = extract_client_meta(
             user_agent=request.headers.get("user-agent"),
-            client_ip=request.client.host if request.client else None,
+            client_ip=resolve_client_ip(request),
         )
 
     session = await session_store.create_session(

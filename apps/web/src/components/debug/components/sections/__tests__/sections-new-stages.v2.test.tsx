@@ -185,6 +185,35 @@ describe('ImageGenerationSection', () => {
     expect(screen.getByText('gpt-image-1')).toBeInTheDocument();
     expect(screen.getByText(/a lighthouse at dawn/)).toBeInTheDocument();
     expect(screen.getAllByText('2 images').length).toBeGreaterThan(0);
+    expect(screen.queryByText(/reference image/)).not.toBeInTheDocument();
+  });
+
+  it('names the reference image an edit was billed for', () => {
+    open(
+      ['image_generation'],
+      <ImageGenerationSection
+        calls={[
+          {
+            model: 'qwen-image-3.0-pro',
+            quality: 'standard',
+            size: '2448x1632',
+            image_count: 1,
+            input_image_count: 1,
+            cost_usd: 0.071511,
+            cost_eur: 0.0614,
+            duration_ms: 21000,
+            prompt_preview: 'make it night',
+          },
+        ]}
+        summary={{
+          total_calls: 1,
+          total_images: 1,
+          total_cost_usd: 0.071511,
+          total_cost_eur: 0.0614,
+        }}
+      />
+    );
+    expect(screen.getByText(/1 reference image/)).toBeInTheDocument();
   });
 });
 
@@ -240,7 +269,13 @@ describe('VoiceSection', () => {
           total_characters: 420,
           total_cost_eur: 0.0058,
           calls: [
-            { provider: 'openai', model: 'tts-1', characters: 420, cost_eur: 0.0058, duration_ms: 850 },
+            {
+              provider: 'openai',
+              model: 'tts-1',
+              characters: 420,
+              cost_eur: 0.0058,
+              duration_ms: 850,
+            },
           ],
         }}
       />

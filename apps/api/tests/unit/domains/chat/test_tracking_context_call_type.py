@@ -99,6 +99,38 @@ class TestTrackingContextCallType:
         assert len(ctx._node_records) == 1
         assert ctx._node_records[0].call_type == "chat"
 
+    async def test_a_cache_write_reaches_the_price(self) -> None:
+        """The auto-costed record prices the Claude write surcharge (ADR-306)."""
+        from unittest.mock import MagicMock
+
+        ctx = TrackingContext(
+            run_id="test-run",
+            user_id=uuid4(),
+            session_id="test-session",
+            conversation_id=uuid4(),
+            auto_commit=False,
+        )
+        ctx._context_token = None
+        pricer = MagicMock(return_value=(0.02, 0.018))
+        with (
+            patch("src.infrastructure.cache.pricing_cache.get_cached_cost_usd_eur", pricer),
+            patch(
+                "src.infrastructure.cache.pricing_cache.get_cached_usd_eur_rate",
+                return_value=0.92,
+            ),
+        ):
+            await ctx.record_node_tokens(
+                node_name="response",
+                model_name="claude-opus-5",
+                prompt_tokens=6000,
+                completion_tokens=50,
+                cached_tokens=0,
+                cache_write_tokens=5074,
+            )
+
+        assert pricer.call_args.kwargs["cache_write_tokens"] == 5074
+        assert ctx._node_records[0].cost_usd == pytest.approx(0.02)
+
     async def test_record_node_tokens_embedding_call_type(self) -> None:
         """record_node_tokens stores call_type='embedding' when specified."""
         ctx = TrackingContext(

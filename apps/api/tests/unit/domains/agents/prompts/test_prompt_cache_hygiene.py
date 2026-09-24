@@ -58,6 +58,8 @@ MARKER_REQUIRED: tuple[str, ...] = (
     # Background intelligence
     "memory_extraction_prompt",
     "interest_extraction_prompt",
+    # ADR-309: the rules and the analyst persona above, the turn's data below
+    "journal_introspection_prompt",
     "initiative_prompt",
     "heartbeat_decision_prompt",
     "heartbeat_message_prompt",
@@ -109,6 +111,10 @@ ALLOWED_BEFORE_MARKER: dict[str, frozenset[str]] = {
     "smart_planner_prompt": frozenset({"result_keys_list", "semantic_broad_batch"}),
     # Settings-driven cap, invariant at runtime for a given deployment.
     "initiative_prompt": frozenset({"max_actions"}),
+    # ``max_entry_chars``: the settings cap the output format publishes next to its
+    # example, invariant for a deployment. ``analyst_persona``: a fixed text whose
+    # only variable is the personality code, stable per user (ADR-309).
+    "journal_introspection_prompt": frozenset({"max_entry_chars", "analyst_persona"}),
     # What the RENDERER enforces, the prompt publishes (ADR-184, ADR-274):
     # three settings and one value derived from the slot's max_tokens. All four
     # are invariant for a deployment — they change when an administrator edits

@@ -24,13 +24,17 @@ from collections.abc import Iterable
 from contextlib import suppress
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any
 
 import structlog
 from prometheus_client import Counter
 
 from src.core.config import settings
-from src.core.constants import REDIS_KEY_PRICING_CACHE, SUPPORTED_CURRENCIES
+from src.core.constants import (
+    PROMPT_CACHE_WRITE_MULTIPLIER,
+    REDIS_KEY_PRICING_CACHE,
+    SUPPORTED_CURRENCIES,
+)
 from src.core.llm_utils import normalize_model_name, resolve_priced_name
 from src.domains.llm.pricing_time_slots import find_active_slot
 
@@ -39,25 +43,20 @@ from src.domains.llm.pricing_time_slots import find_active_slot
 _CURRENCY_USD = SUPPORTED_CURRENCIES[0]  # "USD"
 _CURRENCY_EUR = SUPPORTED_CURRENCIES[1]  # "EUR"
 
-
-# ============================================================================
-# PROTOCOLS (for type-safe duck typing)
-# ============================================================================
-
-
-@runtime_checkable
-class TokenUsageRecord(Protocol):
-    """
-    Protocol for token usage records (duck typing interface).
-
-    Any object with these attributes can be used with calculate_total_cost_from_logs().
-    Typically: TokenUsageLog model from src.domains.chat.models
-    """
-
-    model_name: str
-    prompt_tokens: int
-    completion_tokens: int
-    cached_tokens: int | None
+#: The providers whose prompt-cache writes LIA bills above the input price, and
+#: by how much (pricing pages, 2026-09-23). Anthropic's 5-minute write is 1.25x
+#: on every Claude model. OpenAI's is 1.25x on GPT-5.6 and GPT-6 and free before
+#: them -- and only those two generations REPORT a write: on a repeated prefix,
+#: eleven earlier models answered ``cache_write_tokens: 0`` and gpt-4o-mini, on
+#: Chat Completions, no such field (measured the same day), so the provider's
+#: rule prices exactly the writes it can meet (ADR-306). DashScope's explicit
+#: cache writes at 125 % too; LIA marks it on the Qwen models that have no
+#: implicit cache, and the others report no write (ADR-309).
+_CACHE_WRITE_MULTIPLIERS: dict[str, float] = {
+    "anthropic": PROMPT_CACHE_WRITE_MULTIPLIER,
+    "openai": PROMPT_CACHE_WRITE_MULTIPLIER,
+    "qwen": PROMPT_CACHE_WRITE_MULTIPLIER,
+}
 
 
 # ============================================================================
@@ -111,6 +110,10 @@ class CachedModelPrice:
     #: tariff declares none. Defaults keep a pre-audio blob deserializable.
     audio_input_unit_price: float | None = None
     audio_output_unit_price: float | None = None
+    #: What a token written to the prompt cache costs, as a multiple of the
+    #: input price: the provider's rule, set when the index is built (ADR-306).
+    #: 1.0 = no surcharge, which also keeps a pre-surcharge blob deserializable.
+    cache_write_multiplier: float = 1.0
 
     def to_json(self) -> str:
         """Serialize to JSON for Redis storage."""
@@ -208,6 +211,9 @@ def build_price_index(rows: Iterable[LLMModelPricing]) -> dict[str, CachedModelP
                     None
                     if pricing.audio_output_unit_price is None
                     else float(pricing.audio_output_unit_price)
+                ),
+                cache_write_multiplier=_CACHE_WRITE_MULTIPLIERS.get(
+                    str(getattr(pricing.model.provider, "value", pricing.model.provider)), 1.0
                 ),
             ),
         )
@@ -350,7 +356,10 @@ class PricingCacheService:
         """
         Load pricing cache from Redis into local memory.
 
-        Called at startup if Redis already has cached data. Returns False
+        Called by the cross-worker invalidation, where a peer has just
+        published the blob (``load_published_pricing_cache``), and at startup
+        only when the database cannot answer (``refresh_pricing_cache``) —
+        startup otherwise rebuilds from the database. Returns False
         (forcing a rebuild from DB) if the serialised payload is incompatible
         — e.g. after a column rename when the previous deploy left an old
         format in Redis.
@@ -389,18 +398,15 @@ class PricingCacheService:
             )
             return False
 
-    async def invalidate(self) -> None:
-        """Invalidate pricing cache (force refresh on next access)."""
-        global _local_cache
-        _local_cache = None
-        await self.redis.delete(self._cache_key)
-        logger.info("pricing_cache_invalidated")
-
     async def invalidate_and_refresh(self) -> bool:
         """Refresh pricing cache and notify all workers.
 
-        Called by admin endpoints after pricing modifications.
-        Publishes cross-worker invalidation via Redis Pub/Sub (ADR-063).
+        What every writer of a tariff calls — the admin routes after a pricing
+        mutation, the workbook import, the manual reload. Each worker keeps its
+        prices in memory, so a refresh that is not published leaves the other
+        workers billing the old tariff until they restart (ADR-063). Nothing is
+        published after a failed refresh: the others would adopt a blob that
+        says nothing new.
 
         Returns:
             True if refresh succeeded, False otherwise.
@@ -425,6 +431,8 @@ def get_cached_cost_usd_eur(
     completion_tokens: int,
     cached_tokens: int = 0,
     at: datetime | None = None,
+    *,
+    cache_write_tokens: int = 0,
 ) -> tuple[float, float]:
     """
     Estimate cost in both USD and EUR using cached prices (sync-safe for callbacks).
@@ -446,6 +454,12 @@ def get_cached_cost_usd_eur(
         at: Billing instant used for time-slot tariff resolution (ADR-223).
             Defaults to now (UTC) — the call instant, which is also the
             instant persisted with the usage log.
+        cache_write_tokens: The part of ``prompt_tokens`` written to the
+            provider's prompt cache (``UsageTokens.cache_write``). Already priced
+            at the input rate inside ``prompt_tokens``, it adds the tariff's write
+            surcharge (``cache_write_multiplier`` - 1) — ADR-306. A caller whose
+            usage carries writes must pass them: the guard
+            ``test_cache_write_reaches_every_price`` holds every call site.
 
     Returns:
         Tuple of (cost_usd, cost_eur) as floats
@@ -498,8 +512,11 @@ def get_cached_cost_usd_eur(
     input_cost = (prompt_tokens / 1_000_000) * input_price
     output_cost = (completion_tokens / 1_000_000) * output_price
     cached_cost = (cached_tokens / 1_000_000) * cached_price
+    write_surcharge = (
+        (cache_write_tokens / 1_000_000) * input_price * (prices.cache_write_multiplier - 1)
+    )
 
-    total_usd = input_cost + output_cost + cached_cost
+    total_usd = input_cost + output_cost + cached_cost + write_surcharge
     total_eur = total_usd * _local_cache.usd_eur_rate
 
     return (total_usd, total_eur)
@@ -572,6 +589,8 @@ def get_cached_cost(
     prompt_tokens: int,
     completion_tokens: int,
     cached_tokens: int = 0,
+    *,
+    cache_write_tokens: int = 0,
 ) -> float:
     """
     Estimate cost using cached prices (sync-safe for callbacks).
@@ -584,6 +603,8 @@ def get_cached_cost(
         prompt_tokens: Number of prompt/input tokens
         completion_tokens: Number of completion/output tokens
         cached_tokens: Number of cached input tokens (default: 0)
+        cache_write_tokens: The part of ``prompt_tokens`` written to the prompt
+            cache (see :func:`get_cached_cost_usd_eur`).
 
     Returns:
         Estimated cost in configured currency (EUR if settings.default_currency == "EUR")
@@ -594,6 +615,7 @@ def get_cached_cost(
         prompt_tokens=prompt_tokens,
         completion_tokens=completion_tokens,
         cached_tokens=cached_tokens,
+        cache_write_tokens=cache_write_tokens,
     )
 
     # Return cost in configured currency
@@ -601,36 +623,6 @@ def get_cached_cost(
         return cost_eur
 
     return cost_usd
-
-
-def calculate_total_cost_from_logs(logs: Iterable[TokenUsageRecord]) -> float:
-    """
-    Calculate total cost from a collection of token usage logs.
-
-    Centralized helper to avoid code duplication across services.
-    Uses cached pricing (sync-safe, no DB/API calls).
-
-    Args:
-        logs: Iterable of objects implementing TokenUsageRecord protocol
-              (typically TokenUsageLog from src.domains.chat.models)
-
-    Returns:
-        Total cost in configured currency (EUR if settings.default_currency == "EUR")
-        Returns 0.0 if cache not initialized or models not found
-
-    Example:
-        >>> logs = await chat_repo.get_token_logs_by_run_id(run_id)
-        >>> total_cost = calculate_total_cost_from_logs(logs)
-    """
-    return sum(
-        get_cached_cost(
-            model=log.model_name,
-            prompt_tokens=log.prompt_tokens,
-            completion_tokens=log.completion_tokens,
-            cached_tokens=log.cached_tokens or 0,
-        )
-        for log in logs
-    )
 
 
 def is_cache_initialized() -> bool:
@@ -673,31 +665,82 @@ def get_cache_stats() -> dict:
 
 
 async def refresh_pricing_cache() -> bool:
-    """
-    Refresh pricing cache from database.
+    """Rebuild the pricing cache from the DATABASE, and republish the blob.
 
-    Convenience function for use in app startup. Creates service instance
-    and refreshes cache from DB.
+    What a worker runs at startup, and it never starts from the Redis blob: a
+    worker keeps its in-memory prices for its whole life, and a blob written
+    before a deploy's pricing migration still carries the old tariffs —
+    measured on Docker dev 2026-09-23, the API restarted after the DeepSeek
+    weekday migration and kept billing Saturday peak hours at double from a
+    47-minute-old blob. The read is one query over the active tariffs.
+
+    When the database cannot answer at boot, the published blob is adopted
+    after all: an older tariff prices calls better than no cache, which bills
+    every call at zero for the worker's whole life.
 
     Returns:
-        True if refresh succeeded, False otherwise
+        True if the cache was rebuilt or, failing that, adopted from the blob
     """
     try:
         from src.infrastructure.cache.redis import get_redis_cache
 
         redis = await get_redis_cache()
         service = PricingCacheService(redis)
-
-        # Try to load from Redis first (faster if already cached)
-        if await service.load_from_redis():
+        if await service.refresh_from_database():
             return True
-
-        # Otherwise refresh from database
-        return await service.refresh_from_database()
+        logger.warning("pricing_cache_startup_adopting_published_blob")
+        return await service.load_from_redis()
 
     except Exception as e:
         logger.error(
             "pricing_cache_initialization_failed",
+            error=str(e),
+            error_type=type(e).__name__,
+        )
+        return False
+
+
+async def refresh_and_publish_pricing_cache() -> bool:
+    """Rebuild from the database, then tell every worker to adopt the result.
+
+    What every writer of a table this cache holds calls, AFTER its commit: the
+    tariff routes, the workbook import, the explicit reload, and both writers
+    of the USD→EUR rate — the admin route and the daily sync — because that
+    rate converts every cached cost to euros. The rebuild reads through a
+    session of its own, so before the commit it would read, and publish, the
+    state being replaced.
+
+    Returns:
+        True when the cache was rebuilt and the invalidation published
+    """
+    from src.infrastructure.cache.redis import get_redis_cache
+
+    redis = await get_redis_cache()
+    return await PricingCacheService(redis).invalidate_and_refresh()
+
+
+async def load_published_pricing_cache() -> bool:
+    """Adopt the blob a peer worker just published, or rebuild when it is gone.
+
+    What the cross-worker invalidation runs (ADR-063): the worker that wrote a
+    tariff rebuilt from the database and published the blob BEFORE notifying,
+    so the blob is the fresh one and N workers need not re-read the table.
+
+    Returns:
+        True if the cache was loaded or rebuilt, False otherwise
+    """
+    try:
+        from src.infrastructure.cache.redis import get_redis_cache
+
+        redis = await get_redis_cache()
+        service = PricingCacheService(redis)
+        if await service.load_from_redis():
+            return True
+        return await service.refresh_from_database()
+
+    except Exception as e:
+        logger.error(
+            "pricing_cache_reload_failed",
             error=str(e),
             error_type=type(e).__name__,
         )

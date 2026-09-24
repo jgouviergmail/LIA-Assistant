@@ -56,9 +56,11 @@ async def init_pricing_caches() -> None:
     from src.infrastructure.cache.invalidation import register_cache
 
     async def _reload_pricing_cache() -> None:
-        from src.infrastructure.cache.pricing_cache import refresh_pricing_cache as _refresh
+        # The notifying worker published a fresh blob before notifying: adopt
+        # it. Startup (above) never does — it rebuilds from the database.
+        from src.infrastructure.cache.pricing_cache import load_published_pricing_cache
 
-        await _refresh()
+        await load_published_pricing_cache()
 
     register_cache(CACHE_NAME_PRICING, _reload_pricing_cache)
 

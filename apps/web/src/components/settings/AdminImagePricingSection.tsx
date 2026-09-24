@@ -2,10 +2,7 @@
 
 import { useState, useEffect, useCallback, useOptimistic, useTransition } from 'react';
 import { toast } from 'sonner';
-import {
-  Receipt,
-  RefreshCw,
-} from 'lucide-react';
+import { Receipt, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SearchInput } from '@/components/ui/search-input';
@@ -51,8 +48,17 @@ export interface ImagePricing {
   quality: string;
   size: string;
   cost_per_image_usd: string;
+  /** Per reference image of an edit, for a family that bills it per image. */
+  cost_per_input_image_usd: string | null;
   effective_from: string;
   is_active: boolean;
+}
+
+type SortColumn = 'model' | 'quality' | 'size' | 'cost_per_image_usd' | 'cost_per_input_image_usd';
+
+/** An empty form field means "no reference-image price". */
+function inputPriceOrNull(value: string): string | null {
+  return value.trim() === '' ? null : value;
 }
 
 interface ImagePricingListResponse {
@@ -106,9 +112,7 @@ export default function AdminImagePricingSection({ lng }: BaseSettingsProps) {
   const [pageSize, setPageSize] = useState(20);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
-  const [sortBy, setSortBy] = useState<'model' | 'quality' | 'size' | 'cost_per_image_usd'>(
-    'model'
-  );
+  const [sortBy, setSortBy] = useState<SortColumn>('model');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const fetchEntries = useCallback(
@@ -186,15 +190,20 @@ export default function AdminImagePricingSection({ lng }: BaseSettingsProps) {
 
   const handleAddEntry = (formData: ImagePricingFormData) => {
     startTransition(async () => {
+      const inputPrice = inputPriceOrNull(formData.cost_per_input_image_usd);
       const tempEntry: ImagePricing = {
         id: `temp-${Date.now()}`,
         ...formData,
+        cost_per_input_image_usd: inputPrice,
         effective_from: new Date().toISOString(),
         is_active: true,
       };
       updateOptimisticEntries({ newEntry: tempEntry });
       try {
-        const result = await createImagePricing(formData);
+        const result = await createImagePricing({
+          ...formData,
+          cost_per_input_image_usd: inputPrice,
+        });
         if (result.success) {
           setShowAddModal(false);
           await fetchEntries();
@@ -224,6 +233,7 @@ export default function AdminImagePricingSection({ lng }: BaseSettingsProps) {
           quality: formData.quality,
           size: formData.size,
           cost_per_image_usd: formData.cost_per_image_usd,
+          cost_per_input_image_usd: inputPriceOrNull(formData.cost_per_input_image_usd),
         };
         const result = await updateImagePricing(pricingId, updatePayload);
         if (result.success) {
@@ -346,6 +356,13 @@ export default function AdminImagePricingSection({ lng }: BaseSettingsProps) {
                 sortOrder={sortOrder}
                 onSort={handleSort}
               />
+              <SortableHeader
+                label={t('settings.admin.image_pricing.table.input_cost_usd')}
+                column="cost_per_input_image_usd"
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={handleSort}
+              />
               <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 {t('settings.admin.image_pricing.table.actions')}
               </th>
@@ -371,6 +388,11 @@ export default function AdminImagePricingSection({ lng }: BaseSettingsProps) {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
                   ${parseFloat(entry.cost_per_image_usd).toFixed(4)}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
+                  {entry.cost_per_input_image_usd === null
+                    ? '—'
+                    : `$${parseFloat(entry.cost_per_input_image_usd).toFixed(6)}`}
                 </td>
                 {/* Named after the visible "Actions" column header (F012):
                     the cell holds only icon-independent buttons, which carry
@@ -465,15 +487,15 @@ function SortableHeader({
   onSort,
 }: {
   label: string;
-  column: string;
-  sortBy: string;
+  column: SortColumn;
+  sortBy: SortColumn;
   sortOrder: 'asc' | 'desc';
-  onSort: (col: 'model' | 'quality' | 'size' | 'cost_per_image_usd') => void;
+  onSort: (col: SortColumn) => void;
 }) {
   return (
     <th
       className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted transition-colors"
-      onClick={() => onSort(column as 'model' | 'quality' | 'size' | 'cost_per_image_usd')}
+      onClick={() => onSort(column)}
       aria-sort={sortBy === column ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}
       role="columnheader"
     >
@@ -497,6 +519,8 @@ interface ImagePricingFormData {
   quality: string;
   size: string;
   cost_per_image_usd: string;
+  /** Empty when the family bills no reference-image price. */
+  cost_per_input_image_usd: string;
 }
 
 interface ImagePricingModalProps {
@@ -506,17 +530,33 @@ interface ImagePricingModalProps {
   onSubmit: (data: ImagePricingFormData) => void;
 }
 
+/** The form a modal opens with: the edited row, or an empty OpenAI row. */
+function initialFormData(entry: ImagePricing | null): ImagePricingFormData {
+  if (entry === null) {
+    return {
+      provider: 'openai',
+      model: '',
+      quality: '',
+      size: '',
+      cost_per_image_usd: '',
+      cost_per_input_image_usd: '',
+    };
+  }
+  return {
+    provider: entry.provider,
+    model: entry.model,
+    quality: entry.quality,
+    size: entry.size,
+    cost_per_image_usd: entry.cost_per_image_usd,
+    cost_per_input_image_usd: entry.cost_per_input_image_usd ?? '',
+  };
+}
+
 function ImagePricingModal({ lng, entry, onClose, onSubmit }: ImagePricingModalProps) {
   const { t } = useTranslation(lng, 'translation');
   const isEdit = entry !== null;
 
-  const [formData, setFormData] = useState<ImagePricingFormData>({
-    provider: entry?.provider ?? 'openai',
-    model: entry?.model ?? '',
-    quality: entry?.quality ?? '',
-    size: entry?.size ?? '',
-    cost_per_image_usd: entry?.cost_per_image_usd ?? '',
-  });
+  const [formData, setFormData] = useState<ImagePricingFormData>(() => initialFormData(entry));
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -582,7 +622,7 @@ function ImagePricingModal({ lng, entry, onClose, onSubmit }: ImagePricingModalP
                 type="text"
                 value={formData.model}
                 onChange={e => setFormData({ ...formData, model: e.target.value })}
-                placeholder="gpt-image-1"
+                placeholder="gpt-image-2"
                 required
               />
             </div>
@@ -599,7 +639,7 @@ function ImagePricingModal({ lng, entry, onClose, onSubmit }: ImagePricingModalP
                 type="text"
                 value={formData.quality}
                 onChange={e => setFormData({ ...formData, quality: e.target.value })}
-                placeholder="low / medium / high"
+                placeholder="low / medium / high / standard"
                 required
               />
             </div>
@@ -632,6 +672,30 @@ function ImagePricingModal({ lng, entry, onClose, onSubmit }: ImagePricingModalP
                 placeholder="0.042"
                 required
               />
+            </div>
+
+            <div>
+              <label
+                htmlFor="img-input-cost"
+                className="block text-sm font-medium text-foreground mb-3"
+              >
+                {t('settings.admin.image_pricing.modal.input_cost_label')}
+              </label>
+              <Input
+                id="img-input-cost"
+                type="number"
+                step="0.000001"
+                min="0"
+                value={formData.cost_per_input_image_usd}
+                onChange={e =>
+                  setFormData({ ...formData, cost_per_input_image_usd: e.target.value })
+                }
+                placeholder="0.00275"
+                aria-describedby="img-input-cost-hint"
+              />
+              <p id="img-input-cost-hint" className="text-xs text-muted-foreground mt-1">
+                {t('settings.admin.image_pricing.modal.input_cost_hint')}
+              </p>
             </div>
 
             <div className="flex space-x-2 pt-4">

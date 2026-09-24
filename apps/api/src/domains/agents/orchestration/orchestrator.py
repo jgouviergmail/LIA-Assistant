@@ -24,7 +24,6 @@ from src.domains.agents.constants import (
     STATE_KEY_CURRENT_TURN_ID,
     STATE_KEY_ORCHESTRATION_PLAN,
     STATUS_ERROR,
-    STATUS_SUCCESS,
     make_agent_result_key,
 )
 from src.domains.agents.domain_schemas import RouterOutput
@@ -107,36 +106,6 @@ async def create_orchestration_plan(
     )
 
     return plan
-
-
-def should_execute_agent(agent_name: str, state: MessagesState) -> bool:
-    """
-    Check if an agent should be executed.
-
-    Prevents duplicate execution if agent already ran in current cycle.
-
-    Args:
-        agent_name: Name of the agent to check.
-        state: Current LangGraph state.
-
-    Returns:
-        True if agent should execute, False if already executed.
-    """
-    agent_results = state.get(STATE_KEY_AGENT_RESULTS, {})
-
-    # Check if agent already executed in this cycle
-    if agent_name in agent_results:
-        result = agent_results[agent_name]
-        # Only skip if status is success or connector_disabled (final states)
-        if result[FIELD_STATUS] in [STATUS_SUCCESS, "connector_disabled"]:
-            logger.debug(
-                "agent_already_executed",
-                agent_name=agent_name,
-                status=result[FIELD_STATUS],
-            )
-            return False
-
-    return True
 
 
 def get_next_agent_from_plan(state: MessagesState) -> str | None:

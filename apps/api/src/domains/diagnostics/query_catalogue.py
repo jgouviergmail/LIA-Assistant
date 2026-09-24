@@ -300,6 +300,21 @@ QUERY_CATALOGUE: dict[str, NamedQuery] = {
             external_metrics=(),
         ),
         NamedQuery(
+            query_id="push_wakes_queued_and_served",
+            title="Push wakes queued vs served (ADR-304)",
+            promql_template=(
+                "label_replace(sum(increase(push_wakes_enqueued_total[{window_minutes}m])),"
+                ' "side", "queued", "", "")'
+                " or "
+                "label_replace(sum by (outcome) (increase(push_wakes_total[{window_minutes}m])),"
+                ' "side", "served", "", "")'
+            ),
+            params=(_WINDOW,),
+            unit="count",
+            lia_metrics=("push_wakes_enqueued_total", "push_wakes_total"),
+            external_metrics=(),
+        ),
+        NamedQuery(
             query_id="sandbox_egress_proxy_probe",
             title="Egress proxy liveness (blackbox probe of /healthz)",
             promql_template='probe_success{job="blackbox-egress"}',

@@ -1,5 +1,7 @@
 """Tests for user MCP session context manager and setup/cleanup functions."""
 
+from collections.abc import AsyncIterator, Iterator
+from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -13,6 +15,19 @@ from src.infrastructure.mcp.user_context import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _short_sessions() -> Iterator[None]:
+    """The servers are read, and a refreshed envelope written, in short
+    sessions of their own (ADR-304) — none of them on the turn's session."""
+
+    @asynccontextmanager
+    async def _session() -> AsyncIterator[MagicMock]:
+        yield MagicMock()
+
+    with patch("src.infrastructure.database.session.get_db_context", _session):
+        yield
+
+
 class TestSetupUserMCPTools:
     """Tests for setup_user_mcp_tools standalone function."""
 
@@ -21,7 +36,7 @@ class TestSetupUserMCPTools:
     async def test_disabled_returns_none(self, mock_settings) -> None:
         """Should return None immediately when feature is disabled."""
         mock_settings.mcp_user_enabled = False
-        token = await setup_user_mcp_tools(uuid4(), AsyncMock())
+        token = await setup_user_mcp_tools(uuid4())
         assert token is None
 
     @pytest.mark.asyncio
@@ -34,7 +49,7 @@ class TestSetupUserMCPTools:
         mock_repo.get_enabled_active_for_user = AsyncMock(return_value=[])
         mock_repo_cls.return_value = mock_repo
 
-        token = await setup_user_mcp_tools(uuid4(), AsyncMock())
+        token = await setup_user_mcp_tools(uuid4())
         assert token is None
 
     @pytest.mark.asyncio
@@ -55,7 +70,7 @@ class TestSetupUserMCPTools:
         mock_repo_cls.return_value = mock_repo
         mock_get_pool.return_value = None
 
-        token = await setup_user_mcp_tools(uuid4(), AsyncMock())
+        token = await setup_user_mcp_tools(uuid4())
         assert token is None
 
     @pytest.mark.asyncio
@@ -89,7 +104,7 @@ class TestSetupUserMCPTools:
         mock_build_auth.return_value = MagicMock()
 
         # Should NOT raise — failure is logged and skipped
-        token = await setup_user_mcp_tools(uuid4(), AsyncMock())
+        token = await setup_user_mcp_tools(uuid4())
         assert token is None  # No tools available → no ContextVar set
 
     @pytest.mark.asyncio
@@ -131,9 +146,8 @@ class TestSetupUserMCPTools:
         mock_manifest.return_value = MagicMock()
 
         user_id = uuid4()
-        db = AsyncMock()
 
-        token = await setup_user_mcp_tools(user_id, db)
+        token = await setup_user_mcp_tools(user_id)
         try:
             assert token is not None
             ctx = user_mcp_tools_ctx.get()
@@ -180,7 +194,7 @@ class TestSetupUserMCPTools:
         mock_build_auth.return_value = MagicMock()
         mock_manifest.return_value = MagicMock()
 
-        token = await setup_user_mcp_tools(uuid4(), AsyncMock())
+        token = await setup_user_mcp_tools(uuid4())
         try:
             ctx = user_mcp_tools_ctx.get()
             assert ctx is not None
@@ -240,7 +254,7 @@ class TestSetupUserMCPTools:
         from src.infrastructure.mcp.user_tool_adapter import UserMCPToolAdapter
 
         with patch.object(UserMCPToolAdapter, "from_discovered_tool", return_value=adapter_mock):
-            token = await setup_user_mcp_tools(uuid4(), AsyncMock())
+            token = await setup_user_mcp_tools(uuid4())
             try:
                 ctx = user_mcp_tools_ctx.get()
                 assert ctx is not None
@@ -311,6 +325,8 @@ class TestSetupUserMCPTools:
         mock_build_auth.return_value = MagicMock()
         fresh = {"hub_search": {"description": [0.5] * 4, "keywords": []}}
         mock_compute.return_value = fresh
+        # The envelope is written on a fresh read of the row (ADR-304).
+        mock_repo.get_by_id = AsyncMock(return_value=server)
         adapter_mock = MagicMock()
         adapter_name = f"mcp_user_{str(server.id)[:8]}_hub_search"
         adapter_mock.name = adapter_name
@@ -319,7 +335,7 @@ class TestSetupUserMCPTools:
         from src.infrastructure.mcp.user_tool_adapter import UserMCPToolAdapter
 
         with patch.object(UserMCPToolAdapter, "from_discovered_tool", return_value=adapter_mock):
-            token = await setup_user_mcp_tools(uuid4(), AsyncMock())
+            token = await setup_user_mcp_tools(uuid4())
             try:
                 ctx = user_mcp_tools_ctx.get()
                 assert ctx is not None
@@ -377,7 +393,7 @@ class TestSetupUserMCPTools:
         from src.infrastructure.mcp.user_tool_adapter import UserMCPToolAdapter
 
         with patch.object(UserMCPToolAdapter, "from_discovered_tool", return_value=adapter_mock):
-            token = await setup_user_mcp_tools(uuid4(), AsyncMock())
+            token = await setup_user_mcp_tools(uuid4())
             try:
                 ctx = user_mcp_tools_ctx.get()
                 assert ctx is not None
@@ -428,9 +444,8 @@ class TestSetupUserMCPTools:
         mock_build_auth.return_value = MagicMock()
 
         user_id = uuid4()
-        db = AsyncMock()
 
-        token = await setup_user_mcp_tools(user_id, db)
+        token = await setup_user_mcp_tools(user_id)
         try:
             assert token is not None
             ctx = user_mcp_tools_ctx.get()
@@ -510,7 +525,7 @@ class TestSetupUserMCPTools:
         mock_get_pool.return_value = mock_pool
         mock_build_auth.return_value = MagicMock()
 
-        token = await setup_user_mcp_tools(uuid4(), AsyncMock())
+        token = await setup_user_mcp_tools(uuid4())
         try:
             assert token is not None
             ctx = user_mcp_tools_ctx.get()
@@ -570,7 +585,7 @@ class TestSetupUserMCPTools:
         mock_manifest.return_value = MagicMock()
 
         user_id = uuid4()
-        token = await setup_user_mcp_tools(user_id, AsyncMock())
+        token = await setup_user_mcp_tools(user_id)
         try:
             ctx = user_mcp_tools_ctx.get()
             assert ctx is not None
@@ -676,7 +691,7 @@ class TestUserMCPSessionContextManager:
     async def test_disabled_feature_yields(self, mock_settings) -> None:
         """Should yield immediately when feature disabled."""
         mock_settings.mcp_user_enabled = False
-        async with user_mcp_session(uuid4(), AsyncMock()):
+        async with user_mcp_session(uuid4()):
             # Should reach here without error
             pass
 
@@ -689,7 +704,7 @@ class TestUserMCPSessionContextManager:
         mock_setup.return_value = mock_token
 
         with pytest.raises(ValueError, match="test error"):
-            async with user_mcp_session(uuid4(), AsyncMock()):
+            async with user_mcp_session(uuid4()):
                 raise ValueError("test error")
 
         mock_cleanup.assert_called_once_with(mock_token)
@@ -760,7 +775,7 @@ class TestToolRegistrationFailuresAreVisible:
         mock_get_pool.return_value = mock_pool
         mock_build_auth.return_value = MagicMock()
 
-        token = await setup_user_mcp_tools(uuid4(), AsyncMock())
+        token = await setup_user_mcp_tools(uuid4())
         try:
             ctx = user_mcp_tools_ctx.get()
             assert ctx is not None
@@ -807,7 +822,7 @@ class TestToolRegistrationFailuresAreVisible:
         mock_get_pool.return_value = mock_pool
         mock_build_auth.return_value = MagicMock()
 
-        token = await setup_user_mcp_tools(uuid4(), AsyncMock())
+        token = await setup_user_mcp_tools(uuid4())
         try:
             mock_counter.labels.assert_called_once_with(
                 scope="user_iterative", error_type="TypeError"
@@ -851,7 +866,7 @@ class TestToolRegistrationFailuresAreVisible:
         mock_get_pool.return_value = mock_pool
         mock_build_auth.return_value = MagicMock()
 
-        token = await setup_user_mcp_tools(uuid4(), AsyncMock())
+        token = await setup_user_mcp_tools(uuid4())
         try:
             mock_counter.labels.assert_called_once_with(
                 scope="user_standard", error_type="TypeError"
@@ -909,7 +924,7 @@ class TestToolMetadataReachesTheAdapter:
         mock_pool = AsyncMock()
         mock_pool.get_or_connect = AsyncMock(return_value=entry)
         mock_get_pool.return_value = mock_pool
-        return server, await setup_user_mcp_tools(uuid4(), AsyncMock())
+        return server, await setup_user_mcp_tools(uuid4())
 
     @pytest.mark.unit
     @pytest.mark.asyncio
@@ -1008,7 +1023,7 @@ class TestAccountScopePublication:
         mock_get_pool.return_value = mock_pool
         mock_build_auth.return_value = MagicMock()
 
-        token = await setup_user_mcp_tools(uuid4(), AsyncMock())
+        token = await setup_user_mcp_tools(uuid4())
         assert token is not None
         return server, token
 

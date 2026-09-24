@@ -39,6 +39,7 @@ from src.domains.meetings.synthesis import render_transcript
 from src.domains.meetings.template_ref import TemplateRef
 from src.domains.meetings.template_service import MeetingTemplateService, ResolvedTemplate
 from src.domains.meetings.templates import parse_sections
+from src.infrastructure.database import get_db_context
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.structured_output import (
     StructuredOutputError,
@@ -146,7 +147,6 @@ async def _try_resolve(
 
 
 async def decide_template(
-    db: AsyncSession,
     *,
     meeting: Meeting,
     preference: MeetingPreference | None,
@@ -157,8 +157,11 @@ async def decide_template(
 ) -> TemplateDecision:
     """The template for a meeting being processed for the first time.
 
+    The library is read in a session of its own, closed before the model is
+    asked to choose (ADR-304): the choice is a model call, and a transaction
+    must never wait on one.
+
     Args:
-        db: Session for the library reads.
         meeting: The meeting (its own ``template_ref`` wins).
         preference: The user's preferences (``default_template_ref`` comes next).
         turns: The transcript (an excerpt of it reaches the model).
@@ -170,25 +173,29 @@ async def decide_template(
         The sections to fill and how they were chosen. Never raises for a
         model failure: the built-in default applies with the reason recorded.
     """
-    service = MeetingTemplateService(db)
-    if meeting.template_ref:
-        resolved = await _try_resolve(service, meeting.user_id, meeting.template_ref, language)
-        if resolved is not None:
-            return _decision(resolved, TemplateSelection.USER, None, outcome="user")
-    preferred = preference.default_template_ref if preference is not None else None
-    if preferred:
-        resolved = await _try_resolve(service, meeting.user_id, preferred, language)
-        if resolved is not None:
-            return _decision(resolved, TemplateSelection.PREFERENCE, None, outcome="preference")
-    default = await service.resolve(
-        meeting.user_id, str(TemplateRef.builtin(MEETINGS_DEFAULT_BUILTIN_TEMPLATE_KEY)), language
-    )
-    if not settings.meetings_template_auto_select_enabled:
-        return _decision(default, TemplateSelection.PREFERENCE, None, outcome="preference")
+    async with get_db_context() as db:
+        service = MeetingTemplateService(db)
+        if meeting.template_ref:
+            resolved = await _try_resolve(service, meeting.user_id, meeting.template_ref, language)
+            if resolved is not None:
+                return _decision(resolved, TemplateSelection.USER, None, outcome="user")
+        preferred = preference.default_template_ref if preference is not None else None
+        if preferred:
+            resolved = await _try_resolve(service, meeting.user_id, preferred, language)
+            if resolved is not None:
+                return _decision(resolved, TemplateSelection.PREFERENCE, None, outcome="preference")
+        default = await service.resolve(
+            meeting.user_id,
+            str(TemplateRef.builtin(MEETINGS_DEFAULT_BUILTIN_TEMPLATE_KEY)),
+            language,
+        )
+        if not settings.meetings_template_auto_select_enabled:
+            return _decision(default, TemplateSelection.PREFERENCE, None, outcome="preference")
+        candidates = await service.candidates(meeting.user_id, language)
     return await _select_automatically(
-        service,
         meeting=meeting,
         default=default,
+        candidates=candidates,
         turns=turns,
         calendar_title=calendar_title,
         language=language,
@@ -197,16 +204,15 @@ async def decide_template(
 
 
 async def _select_automatically(
-    service: MeetingTemplateService,
     *,
     meeting: Meeting,
     default: ResolvedTemplate,
+    candidates: list[ResolvedTemplate],
     turns: Sequence[TranscriptTurn],
     calendar_title: str | None,
     language: str,
     capture: TokenCaptureHandler,
 ) -> TemplateDecision:
-    candidates = await service.candidates(meeting.user_id, language)
     by_ref = {str(candidate.ref): candidate for candidate in candidates}
     excerpt = transcript_excerpt(render_transcript(turns), MEETINGS_TEMPLATE_AUTO_EXCERPT_CHARS)
     human = (

@@ -834,6 +834,7 @@ class PsycheService:
                         tokens_in=usage.prompt,
                         tokens_out=usage.completion,
                         tokens_cache=usage.cached,
+                        tokens_cache_write=usage.cache_write,
                         model_name=model_name_of(llm),
                         db=self.db,
                         source="proactive",

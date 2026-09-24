@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator, Iterator
+from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -16,6 +18,19 @@ from src.infrastructure.proactive.notification import (
 # Path for the lazy import inside send_notification_to_channels()
 _REPO_PATCH = "src.domains.channels.repository.UserChannelBindingRepository"
 _SEND_PATCH = "src.infrastructure.proactive.notification._send_to_channel"
+
+
+@pytest.fixture(autouse=True)
+def _short_session() -> Iterator[None]:
+    """The bindings are read in a short session of their own (ADR-304)."""
+
+    @asynccontextmanager
+    async def _session() -> AsyncIterator[MagicMock]:
+        yield MagicMock()
+
+    with patch("src.infrastructure.database.session.get_db_context", _session):
+        yield
+
 
 # =============================================================================
 # NotificationResult
@@ -89,7 +104,6 @@ class TestSendChannels:
     async def test_sends_to_active_bindings(self) -> None:
         """Should send notification to each active binding."""
         binding = _make_binding()
-        db = AsyncMock()
 
         with (
             patch(_SEND_PATCH, new_callable=AsyncMock) as mock_send,
@@ -105,7 +119,6 @@ class TestSendChannels:
                 body="Test body",
                 task_type="interest",
                 target_id="target-123",
-                db=db,
             )
 
         assert result == 1
@@ -121,7 +134,6 @@ class TestSendChannels:
     @pytest.mark.asyncio
     async def test_no_bindings_returns_zero(self) -> None:
         """No active bindings should return 0."""
-        db = AsyncMock()
 
         with patch(_REPO_PATCH) as mock_repo_cls:
             mock_repo = mock_repo_cls.return_value
@@ -133,7 +145,6 @@ class TestSendChannels:
                 body="Body",
                 task_type="interest",
                 target_id="target",
-                db=db,
             )
 
         assert result == 0
@@ -142,7 +153,6 @@ class TestSendChannels:
     async def test_partial_failure(self) -> None:
         """Should count only successful sends."""
         bindings = [_make_binding(channel_user_id="111"), _make_binding(channel_user_id="222")]
-        db = AsyncMock()
 
         with (
             patch(_SEND_PATCH, new_callable=AsyncMock, side_effect=[True, False]),
@@ -157,7 +167,6 @@ class TestSendChannels:
                 body="Body",
                 task_type="birthday",
                 target_id="target",
-                db=db,
             )
 
         assert result == 1
@@ -166,7 +175,6 @@ class TestSendChannels:
     async def test_exception_in_send_continues(self) -> None:
         """Exception in one binding should not prevent others."""
         bindings = [_make_binding(channel_user_id="111"), _make_binding(channel_user_id="222")]
-        db = AsyncMock()
 
         with (
             patch(
@@ -185,7 +193,6 @@ class TestSendChannels:
                 body="Body",
                 task_type="event",
                 target_id="target",
-                db=db,
             )
 
         assert result == 1
@@ -203,7 +210,6 @@ class TestSendToChannel:
     async def test_telegram_channel_delegates(self) -> None:
         """send_notification_to_channels should delegate to _send_to_channel."""
         binding = _make_binding(channel_type="telegram", channel_user_id="99999")
-        db = AsyncMock()
 
         with (
             patch(_SEND_PATCH, new_callable=AsyncMock) as mock_send,
@@ -219,7 +225,6 @@ class TestSendToChannel:
                 body="Body",
                 task_type="interest",
                 target_id="target-1",
-                db=db,
             )
 
         assert result == 1

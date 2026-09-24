@@ -1,0 +1,3 @@
+[RECOVERY PASS] Your answer above declared these facts unresolved:
+{unresolved}
+Before concluding, apply the RECOVERY LADDER to each of them, starting with the rungs you have not tried yet. Once every remaining rung is tried or can bring no new information, write your final message again, complete: it replaces the answer above, so it restates every finding of that answer, updated with what you recovered, and keeps in <unresolved> only what is still missing among the facts you set out to obtain.

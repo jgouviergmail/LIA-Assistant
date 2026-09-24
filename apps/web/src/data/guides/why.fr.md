@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version** : 6.0
-**Date** : 2026-09-22
-**Application** : LIA v1.47.1
+**Version** : 6.1
+**Date** : 2026-09-24
+**Application** : LIA v1.47.2
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -131,11 +131,11 @@ Parle à LIA comme à un assistant humain — pas de commandes à mémoriser, pa
 
 ### 3.3. Intelligence web et environnement
 
-Wikipédia, la navigation de pages, les lieux, la météo et la qualité de l'air ne te demandent rien : un nouveau compte démarre avec eux actifs.
+Wikipédia, la navigation de pages, les lieux, la météo et la qualité de l'air ne te demandent rien : ton instance les fournit à chaque compte, toujours actifs, sans rien à configurer.
 
 - **Recherche web** : recherche multi-sources (Brave Search, Perplexity, Wikipedia) pour des réponses complètes et sourcées
 - **Météo** : conditions actuelles et prévisions à 5 jours, avec détection de changements (début/fin de pluie, chute de température, alertes vent)
-- **Qualité de l'air et pollens** : indice de qualité de l'air et types de pollen en saison, joints à toute réponse météo quand le service est activé — avec la catégorie publiée par le fournisseur lui-même, et l'indice de ton pays quand il existe
+- **Qualité de l'air et pollens** : indice de qualité de l'air et types de pollen en saison, joints à toute réponse météo — avec la catégorie publiée par le fournisseur lui-même, et l'indice de ton pays quand il existe
 - **Lieux et commerces** : recherche de lieux à proximité avec détails, horaires, avis
 - **Itinéraires** : calcul d'itinéraires multi-modaux (voiture, marche, vélo, transports en commun) avec géolocalisation automatique
 - **Position en déplacement** : quand ta position en direct n'est pas disponible (application mobile restée en veille), LIA utilise ta dernière position mémorisée — si tu l'as activée — plutôt que ton adresse personnelle, et annonce toujours l'âge de cette position au lieu de la présenter comme courante
@@ -152,7 +152,7 @@ LIA propose un mode vocal complet :
 
 ### 3.5. Création et médias
 
-- **Génération d'images** : crée des images par description textuelle, édite des photos existantes
+- **Génération d'images** : crée des images par description textuelle, retouche des photos existantes — avec GPT Image d'OpenAI ou Qwen Image 3.0, selon le modèle choisi par l'administrateur ; tes préférences de qualité, de taille et de format s'adaptent à ce que le modèle sait faire, sans jamais passer à une option plus chère
 - **Génération de documents** : demande un CSV, un tableur Excel, un rapport Word, un PowerPoint ou un PDF — un modèle rédacteur dédié produit le contenu dans ta langue, puis un moteur de rendu local construit le vrai fichier avec les codes de son format : diapositives 16:9 dont la mise en page suit l'intention, sommaire et pagination calculés par Word, colonnes Excel typées sous un tableau filtrable, numéros de page exacts et signets en PDF. Le texte est mesuré avant d'être posé, donc rien ne déborde ; et si le modèle est coupé en route, LIA te le dit au lieu de livrer un document amputé. Le fichier arrive en carte téléchargeable avec une échéance explicite
 - **Schémas Excalidraw** : génère des diagrammes et schémas directement dans la conversation
 - **Pièces jointes** : joins photos et PDF — LIA analyse le contenu visuel et extrait le texte des documents ; le « + » propose aussi chaque document de tes espaces de connaissances, espace en pause compris, comme copie pour ce message
@@ -245,6 +245,8 @@ Chaque utilisateur dispose de son propre compte avec :
 - Ses propres connecteurs (Google, Microsoft, Apple)
 - Ses espaces de connaissances privés
 
+Un compte ne s'ouvre qu'avec l'accord de l'administrateur, et aucun raccourci ne le contourne : se connecter avec Google prouve une adresse, jamais une approbation — une inscription en attente ou un compte bloqué le restent.
+
 ### 4.2. Gestion d'usage par utilisateur
 
 L'administrateur garde le contrôle de la consommation :
@@ -315,6 +317,8 @@ Tu ne paies pas un abonnement qui masque les coûts réels. Tu vois exactement c
 La même transparence s'applique aux actions : sous chaque réponse, une ligne repliée « ⚙ N étapes · X s » déplie le déroulé réel — routage, outils appelés, durée — et cette trace est conservée avec le message : elle reste consultable après un rechargement, sur tous tes appareils. Chaque réponse peut aussi être jugée d'un 👍/👎 discret, mémorisé et réinjecté dans l'apprentissage de l'assistant — jamais pour régénérer la réponse à ta place.
 
 La règle ne souffre aucune exception par chemin. Tout ce que la plateforme paie pour toi avec ses propres clés atteint ton usage et tes limites, quelle que soit la modalité : une consultation de carte pendant un appel téléphonique ou une session live directe, les appels météo du briefing du matin, le géocodage de ton adresse, une photo de lieu qu'on te montre (comptée quand elle s'affiche, jamais d'avance), une synthèse vocale (comptée seulement pour les phrases réellement livrées). Une facture téléphonique et une carte de session live montrent un seul chiffre pour ce que le run a coûté, euros Maps compris. Et ce que tu paies avec **tes propres** clés de connecteur — un modèle live, l'agent téléphonique, une recherche web — reste dehors : montré là où il se produit, enregistré nulle part.
+
+Et le chiffre affiché est celui que le fournisseur facture vraiment : les tarifs sont relus sur ses pages, une écriture dans le cache d'un modèle compte à son propre prix, une heure creuse connaît ses jours (le week-end quand le fournisseur le fait), un itinéraire est compté au niveau que la requête déclenche — et un prix modifié par l'administrateur atteint aussitôt chaque serveur.
 
 ### 6.4. La confiance par la preuve
 
@@ -468,6 +472,8 @@ Cette exigence descend jusqu'à la machine. Un serveur est plusieurs processus, 
 ### 8.3. Un pipeline anti-hallucination
 
 Le système de réponse dispose d'un mécanisme anti-hallucination en trois couches : formatage des données avec limites explicites, directives imposant l'usage exclusif de données vérifiées, et gestion des cas limites. Le LLM est contraint de ne synthétiser que ce qui provient des résultats réels des outils. Et ce que le modèle lit est vrai : un prompt n'énonce que ce que le code impose — une borne publiée est la borne appliquée, un nombre vient d'un réglage — et une consigne n'est émise que quand son contenu existe.
+
+Un échec, lui, est **dit, jamais deviné** : quand un service échoue, LIA nomme lequel et ce qu'il a répondu, au lieu d'inventer une panne de configuration — mesuré avant la correction, une réponse sur trois le faisait sur les tours où un outil avait échoué. Et en mode autonome, une réponse est jugée sur son résultat : ce que LIA avait entrepris d'obtenir finit obtenu, ou déclaré à la fin de la réponse avec ce qu'elle a tenté ; une information venue d'une autre source porte cette source.
 
 ### 8.4. Human-in-the-Loop à 6 niveaux
 

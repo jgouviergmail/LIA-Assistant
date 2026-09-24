@@ -16,6 +16,7 @@ from fastapi import Request
 from sqlalchemy import func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.client_ip import resolve_client_ip
 from src.core.exceptions import (
     raise_admin_required,
     raise_user_not_found,
@@ -812,7 +813,7 @@ class UserService:
         assert user is not None
 
         # Extract request metadata
-        ip_address = request.client.host if request and request.client else None
+        ip_address = resolve_client_ip(request) if request else None
         user_agent = request.headers.get("user-agent") if request else None
 
         # Update activation status
@@ -961,7 +962,7 @@ class UserService:
             )
 
         # Extract request metadata
-        ip_address = request.client.host if request and request.client else None
+        ip_address = resolve_client_ip(request) if request else None
         user_agent = request.headers.get("user-agent") if request else None
 
         # Count connectors before deletion for audit (using efficient COUNT query)

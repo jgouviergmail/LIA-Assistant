@@ -33,7 +33,7 @@ from src.core.constants import (
     EXECUTION_MODE_PIPELINE,
     TOOL_NAME_DELEGATE_SUB_AGENT,
 )
-from src.core.field_names import FIELD_RUN_ID
+from src.core.run_config import run_id_of
 from src.domains.agents.analysis.query_intelligence_helpers import (
     get_query_intelligence_from_state,
 )
@@ -99,7 +99,7 @@ async def planner_node_v3(
     )
 
     configurable = config.get("configurable", {})
-    run_id = configurable.get(FIELD_RUN_ID, "unknown")
+    run_id = run_id_of(config, "unknown")
 
     # Get QueryIntelligence from state (uses centralized helper)
     # Priority: object version (_query_intelligence_obj) > dict reconstruction

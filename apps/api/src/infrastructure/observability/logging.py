@@ -201,6 +201,11 @@ def configure_logging() -> None:
     # warnings in 7 days of prod logs for third-party behavior we cannot fix
     # and already tolerate. Real transport failures still surface as ERROR.
     logging.getLogger("mcp.client.streamable_http").setLevel(logging.ERROR)
+    # python-telegram-bot logs, at DEBUG, the Bot API URL — the bot TOKEN is in
+    # its path — and every call's parameters, the webhook secret_token included
+    # (seen in the dev API log, 2026-09-22). A secret never reaches a log line,
+    # whatever LOG_LEVEL an operator sets for debugging.
+    logging.getLogger("telegram").setLevel(logging.INFO)
 
     logger = structlog.get_logger(__name__)
     logger.info(

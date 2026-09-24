@@ -427,6 +427,21 @@ async def test_start_hands_the_mandate_lias_inner_state_when_the_engine_has_one(
     assert "\n\n\n" not in mandate
 
 
+async def test_webrtc_preference_does_not_change_a_gemini_session() -> None:
+    service, _, _ = _service(_connector())
+    provider = _fake_provider()
+    with patch(f"{MODULE}.PROVIDERS", {"gemini_live": provider}):
+        response = await service.start(
+            USER,
+            language="fr",
+            timezone="Europe/Paris",
+            display_name="Alex",
+            audio_transport="webrtc",
+        )
+    assert response.audio_transport == "websocket"
+    assert provider.mint.call_args.args[1].audio_transport == "websocket"
+
+
 async def test_start_reads_the_models_own_cap_and_silence() -> None:
     # Per-model durations (owner decision 2026-09-19): the cap and the TTL follow
     # the MODEL's minutes, and the silence timeout travels to the client.
@@ -649,6 +664,8 @@ def test_setup_inputs_round_trip_is_equality_over_every_field() -> None:
         direct_tools=({"name": "get_calendar_events", "description": "d", "parameters": {}},),
     )
     assert setup_inputs_from_dict(setup_inputs_to_dict(direct)) == direct
+    webrtc = replace(direct, audio_transport="webrtc")
+    assert setup_inputs_from_dict(setup_inputs_to_dict(webrtc)) == webrtc
 
 
 # -- voice sample ----------------------------------------------------------------
@@ -1039,6 +1056,21 @@ async def test_an_extension_on_an_offer_provider_moves_the_cap_and_mints_nothing
     provider.mint.assert_not_awaited()
     kept = await store.get(USER.id)
     assert kept is not None and kept.expires_at == extended.expires_at
+
+
+async def test_an_elevenlabs_webrtc_extension_keeps_the_conversation_open() -> None:
+    base = _record(USER.id)
+    record = replace(
+        base,
+        provider="elevenlabs",
+        setup_inputs={**base.setup_inputs, "audio_transport": "webrtc"},
+    )
+    service, _, _ = _service(_connector(), record=record)
+    provider = _fake_provider()
+    with patch(f"{MODULE}.provider_by_id", lambda _pid: provider):
+        extended = await service.extend(USER, record.session_id, language="fr")
+    assert extended.credential is None
+    provider.mint.assert_not_awaited()
 
 
 async def test_a_reconnection_on_an_offer_provider_writes_a_fresh_nonce() -> None:

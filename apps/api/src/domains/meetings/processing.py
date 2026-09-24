@@ -155,6 +155,7 @@ def synthesis_cost_eur(usage: SynthesisUsage) -> float | None:
         prompt_tokens=usage.tokens_in,
         completion_tokens=usage.tokens_out,
         cached_tokens=usage.tokens_cache,
+        cache_write_tokens=usage.tokens_cache_write,
     )
     return eur if eur > 0 else None
 
@@ -421,6 +422,7 @@ async def _notify_ready(
             tokens_in=usage.tokens_in,
             tokens_out=usage.tokens_out,
             tokens_cache=usage.tokens_cache,
+            tokens_cache_write=usage.tokens_cache_write,
             model_name=usage.model_name,
             db=db,
             run_id=run_id,
@@ -630,6 +632,11 @@ async def _run(job: _Job, repo: MeetingRepository, db: Any, meeting: Meeting) ->
         await repo.release_unprocessed(job.meeting_id, code=ERROR_NO_ENGINE, message="")
         return
 
+    # The reads above end here: normalization, transcription and synthesis run
+    # for minutes, and a transaction must not wait on any of them (ADR-304).
+    # Every write below goes through the repository, which commits its own.
+    await db.commit()
+
     stopped_at = meeting.stopped_at or datetime.now(UTC)
     # One capture for the whole meeting: the template choice (ADR-259), the
     # condense passes and the synthesis add up to what the minutes cost.
@@ -659,10 +666,9 @@ async def _run(job: _Job, repo: MeetingRepository, db: Any, meeting: Meeting) ->
     await job.enter_stage(repo, MeetingStage.SYNTHESIZING)
     run_id = generate_proactive_run_id(MEETINGS_PROACTIVE_TASK_TYPE, str(meeting.id))
     calendar, location_label = await enrich_meeting(
-        db, meeting, stopped_at=stopped_at, language=language, run_id=run_id
+        meeting, stopped_at=stopped_at, language=language, run_id=run_id
     )
     decision = await decide_template(
-        db,
         meeting=meeting,
         preference=preference,
         turns=outcome.turns,

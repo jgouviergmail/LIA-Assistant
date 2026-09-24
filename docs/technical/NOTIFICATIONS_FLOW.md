@@ -200,19 +200,14 @@ sequenceDiagram
 
     SCH->>JOB: trigger @every minute
 
-    JOB->>REPO: get_and_lock_pending_reminders(limit=100)
+    JOB->>REPO: recover_stale_processing(timeout)
+    Note right of REPO: Claims a crash abandoned<br/>go back to PENDING (updated_at)
 
-    REPO->>DB: SELECT ... WHERE status='pending'<br/>AND trigger_at <= NOW()<br/>FOR UPDATE SKIP LOCKED
-
-    Note over DB: Atomic row locking<br/>prevents duplicates
-
-    DB-->>REPO: locked reminders[]
-
-    REPO->>DB: UPDATE status='processing'
-
-    REPO-->>JOB: reminders[]
-
-    loop For each reminder
+    loop Up to 100 reminders, ONE claimed at a time (ADR-304)
+        JOB->>REPO: claim_next_due()
+        REPO->>DB: SELECT ... WHERE status='pending'<br/>AND trigger_at <= NOW()<br/>LIMIT 1 FOR UPDATE SKIP LOCKED
+        REPO->>DB: UPDATE status='processing' + COMMIT
+        Note over DB: The lock is released at once:<br/>PROCESSING is the claim, and no<br/>transaction waits on the model or FCM
         JOB->>JOB: usage-limit pre-check
         alt User blocked for LLM
             JOB->>REPO: UPDATE status='pending'
@@ -633,38 +628,39 @@ FOR UPDATE SKIP LOCKED;
 -- 4. ORDER BY trigger_at: Oldest first (fairness)
 ```
 
-### Transaction Isolation
+### Transaction Isolation (ADR-304)
+
+The claim is committed BEFORE the reminder is notified, one reminder at a
+time. The former `get_and_lock_pending_reminders(limit=100)` only `flush`ed its
+PROCESSING transition — the row locks, and one transaction, were held through
+every model call and every push of the batch, while its comment said the lock
+was released.
 
 ```python
-async def get_and_lock_pending_reminders(self, limit: int = 100) -> list[Reminder]:
-    """
-    Transaction behavior:
-    1. BEGIN TRANSACTION (implicit via SQLAlchemy session)
-    2. SELECT ... FOR UPDATE SKIP LOCKED
-    3. UPDATE status = 'processing'
-    4. COMMIT (on context exit)
-
-    If any step fails, ROLLBACK automatically.
-    """
+async def claim_next_due(self) -> Reminder | None:
     stmt = (
         select(Reminder)
         .where(Reminder.status == ReminderStatus.PENDING.value)
         .where(Reminder.trigger_at <= datetime.now(UTC))
-        .order_by(Reminder.trigger_at.asc())
-        .limit(limit)
+        .order_by(Reminder.trigger_at.asc(), Reminder.id.asc())
+        .limit(1)
         .with_for_update(skip_locked=True)
     )
-
-    result = await self.db.execute(stmt)
-    reminders = list(result.scalars().all())
-
-    # Transition to PROCESSING within same transaction
-    for reminder in reminders:
+    reminder = (await self.db.execute(stmt)).scalar_one_or_none()
+    if reminder is not None:
         reminder.status = ReminderStatus.PROCESSING.value
-
-    await self.db.flush()  # Still within transaction
-    return reminders
+        await self.db.flush()
+    return reminder  # the caller's session commits at once
 ```
+
+- The notification (message generation, FCM, channels, archive, SSE) runs
+  with no transaction open, each read or write in a short session of its own.
+- The settlement runs in its own transaction and only while the claim stands
+  (`get_processing_for_update`): a reminder its owner deleted meanwhile is
+  left alone.
+- A claim older than `REMINDER_PROCESSING_STALE_TIMEOUT_MINUTES` was abandoned
+  by a crash and is released on `updated_at` at the next tick — at-least-once
+  delivery, as before.
 
 ---
 

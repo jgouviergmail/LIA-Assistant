@@ -218,9 +218,10 @@ class TestToolResponseToAgentResultWorkflow:
             turn_id=15,
         )
 
-        # Then: AgentResult reflects failure
+        # Then: AgentResult reflects failure — every executed step failed, so the
+        # aggregate is ERROR, the one value a reader knows (ADR-303).
         result = agent_results[make_agent_result_key(15, "plan_executor")]
-        assert result["status"] == "failed"
+        assert result["status"] == "error"
         assert result["error"] == "Step 0 failed: Contact not found"
         assert result["data"]["completed_steps"] == 0
         assert result["data"]["total_steps"] == 1
@@ -521,9 +522,12 @@ class TestErrorHandlingScenarios:
             turn_id=25,
         )
 
-        # Then: AgentResult reflects partial completion
+        # Then: AgentResult reflects partial completion — a plan that produced
+        # something is a SUCCESS carrying its failed steps; the FIELD states the
+        # partial, never the status (ADR-303). The plan's own verdict is kept.
         result = agent_results[make_agent_result_key(25, "plan_executor")]
-        assert result["status"] == "failed"
+        assert result["status"] == "success"
+        assert [step["step_index"] for step in result["failed_steps"]] == [1]
         assert result["error"] == "Step 1 failed: Operation timeout"
         assert result["data"]["completed_steps"] == 1
         assert result["data"]["total_steps"] == 3

@@ -55,6 +55,14 @@ class GoogleEnvironmentClient:
             )
         return settings.google_api_key
 
+    async def close(self) -> None:
+        """Nothing to release: every request opens and closes its own transport.
+
+        Present because every registered client can be closed by the shared
+        door (``connectors.active_client``, ADR-304) without asking which kind
+        it holds.
+        """
+
     async def _pace(self) -> None:
         elapsed = time.time() - self._last_request_time
         if elapsed < self._rate_limit_interval:

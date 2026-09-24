@@ -27,7 +27,7 @@ from src.core.constants import (
     STATE_KEY_INITIATIVE_SKIPPED_REASON,
     STATE_KEY_INITIATIVE_SUGGESTION,
 )
-from src.core.field_names import FIELD_RUN_ID
+from src.core.run_config import run_id_of
 from src.domains.agents.constants import (
     INTENTION_ACTION,
     INTENTION_CONVERSATION,
@@ -127,8 +127,7 @@ async def router_node_v3(
     messages = state[STATE_KEY_MESSAGES]
 
     # Extract run_id for logging
-    configurable = config.get("configurable", {})
-    run_id = configurable.get(FIELD_RUN_ID, "unknown")
+    run_id = run_id_of(config, "unknown")
 
     # Get last user message
     last_message = messages[-1] if messages else None
@@ -155,7 +154,7 @@ async def router_node_v3(
             start_response_context_prefetch,
         )
 
-        _prefetch_run_id = (config.get("metadata") or {}).get(FIELD_RUN_ID, "unknown")
+        _prefetch_run_id = run_id_of(config, "unknown")
         start_response_context_prefetch(state, config, _prefetch_run_id, include_system_rag=False)
 
     # Semantic pivot: translate query to English for optimal domain detection.

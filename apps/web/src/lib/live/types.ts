@@ -259,6 +259,7 @@ export interface LiveCredential {
   connection: 'token' | 'offer';
   /** The provider setup the client replays verbatim as its first frame (token connections; empty otherwise). */
   setup: Record<string, unknown>;
+  audio_transport?: 'websocket' | 'webrtc';
 }
 
 /** `POST /live/sessions/{id}/offer` — the provider's SDP answer, exchanged on the person's key. */
@@ -274,6 +275,7 @@ export interface LiveSessionStart extends LiveCredential {
   run_id: string;
   /** The mode the session was opened in (the record's own column). */
   mode: LiveSessionMode;
+  tool_names?: string[];
   /** The session's cap (ISO 8601); moved by every extension. */
   expires_at: string;
   /** This model's cap; 0 = unlimited: the client extends silently instead of asking. */
@@ -409,7 +411,7 @@ export type LiveInteractionStatus = 'in_progress' | 'idle';
  * it takes the microphone's stream and plays what it receives.
  */
 export interface LiveTransportAudio {
-  ownership: 'pcm' | 'native';
+  ownership: 'pcm' | 'native' | 'managed';
   inputRate: number;
   outputRate: number;
   /** The microphone chunk the transport wants, in milliseconds. */
@@ -474,6 +476,7 @@ export interface LiveTransportEvents {
 export interface LiveConnectOptions {
   credential: string;
   setup: Record<string, unknown>;
+  toolNames?: string[];
   resumptionHandle?: string | null;
   /** What the session's model can do — the transport shapes its wire from it. */
   capabilities: LiveModelCapabilities;

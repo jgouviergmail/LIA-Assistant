@@ -15,9 +15,16 @@ pytestmark = pytest.mark.unit
 MODELS = [
     ("openai", "gpt-5.2"),
     ("openai", "gpt-5.6-luna"),
+    ("openai", "gpt-6-sol"),
+    ("openai", "gpt-6-astra"),
     ("openai", "gpt-4.1"),
     ("anthropic", "claude-opus-4-6"),
     ("anthropic", "claude-opus-4-5"),
+    ("anthropic", "claude-sonnet-4-5"),
+    ("anthropic", "claude-opus-4-8"),
+    ("anthropic", "claude-opus-5"),
+    ("anthropic", "claude-fable-5-1"),
+    ("anthropic", "claude-opus-5-5"),
     ("deepseek", "deepseek-v4-flash"),
     ("gemini", "gemini-3.5-flash"),
     ("gemini", "gemini-2.5-flash"),
@@ -40,6 +47,14 @@ def test_every_combination_translates_to_serialisable_kwargs(provider: str, mode
                 128_000,
             )
             json.dumps(produced)
+
+
+def test_gpt6_astra_is_never_sent_an_effort_it_refuses() -> None:
+    """Astra has no ``none``: an operator's explicit off switch becomes the
+    lowest depth it accepts rather than a request the API refuses."""
+    profile = resolve_reasoning_profile("openai", "gpt-6-astra")
+    produced = translate(ReasoningIntent(level="none"), profile, "gpt-6-astra", 128_000)
+    assert produced == {"reasoning_effort": "low"}
 
 
 def test_a_non_reasoning_model_produces_no_kwarg_whatever_is_asked() -> None:

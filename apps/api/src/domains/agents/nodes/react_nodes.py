@@ -24,7 +24,6 @@ import structlog
 from langchain_core.messages import (
     AIMessage,
     BaseMessage,
-    SystemMessage,
     ToolMessage,
 )
 from langchain_core.runnables import RunnableConfig
@@ -33,6 +32,7 @@ from langgraph.types import interrupt
 
 from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.tool_outcome import explicit_success
 from src.domains.agents.analysis.query_intelligence_helpers import (
     get_qi_attr,
     get_query_intelligence_from_state,
@@ -50,6 +50,8 @@ from src.domains.agents.nodes.react_prompt import (
     network_available,
     sandbox_available,
 )
+from src.domains.agents.nodes.react_recovery import recovery_report, with_recovery_directives
+from src.domains.agents.nodes.react_turn_layout import compose_turn_messages, react_slot_provider
 from src.domains.agents.nodes.router_tool_scoring import GLOBAL_RANKING_KEY
 from src.domains.agents.orchestration.step_timeouts import compute_step_timeout
 from src.domains.agents.services.connector_error_notice import (
@@ -164,9 +166,36 @@ def _is_productive_result(raw_result: Any) -> bool:
     """
     if raw_result is None:
         return False
-    if isinstance(raw_result, dict):
-        return raw_result.get("success") is not False
+    if not explicit_success(raw_result):
+        # ``UnifiedToolOutput.failure(...)`` is a Pydantic model, so the old
+        # dict-only branch never saw it and ``bool(model)`` was always True: a
+        # loop failing every call bought itself iterations up to the ceiling,
+        # which this function's own contract forbids (ADR-303).
+        return False
+    # Whatever survived the failure check is productive iff it carries
+    # something: an EMPTY container teaches the loop nothing either, which the
+    # contract above states and the dict branch used to contradict — ``{}``
+    # counted as production and extended the budget on nothing.
     return bool(raw_result)
+
+
+def _tool_message_status(raw_result: Any) -> str:
+    """``"error"`` when the tool DECLARED a failure, else ``"success"``.
+
+    The ReAct body carries the tool's PROSE (``compose_tool_message``), so the
+    only honest way to tell a failure from an answer is a marker the message
+    carries itself. ``ToolMessage.status`` is that marker — already used by the
+    finalize node for abandoned calls (ADR-248) — and it is what the honesty
+    directive reads. Before it, no ReAct failure ever reached that directive,
+    and the model, left without a word about what broke, invented one.
+
+    Args:
+        raw_result: The tool's return value, before string conversion.
+
+    Returns:
+        ``"error"`` or ``"success"``.
+    """
+    return "success" if explicit_success(raw_result) else "error"
 
 
 def _record_react_metrics(iteration: int, duration_s: float, status: str) -> None:
@@ -398,12 +427,19 @@ async def react_call_model_node(
     # living in `messages` (ADR-169). Leading and contiguous means: one merged
     # system block for the provider, a prefix whose bytes do not change from one
     # turn to the next (so prompt caching can actually hit), and no second,
-    # non-consecutive system block for Anthropic to reject.
-    windowed = _window_messages_for_react(state["messages"])
-    system_blocks = state.get("react_system_blocks") or []
-    messages: list[BaseMessage] = [
-        SystemMessage(content=block) for block in system_blocks
-    ] + windowed
+    # non-consecutive system block for Anthropic to reject. With the cross-turn
+    # cache flag (ADR-308) the turn's context follows the question instead, in
+    # the shape its provider takes, so the static prompt alone leads.
+    cross_turn = settings.react_cross_turn_cache_enabled
+    messages = compose_turn_messages(
+        state.get("react_system_blocks") or [],
+        _window_messages_for_react(state["messages"]),
+        context_after_question=cross_turn,
+        provider=react_slot_provider() if cross_turn else None,
+    )
+    # ADR-310: a recovery pass shows the model its draft and its gaps right after
+    # the draft's place — composed per call, never written to the thread.
+    messages = with_recovery_directives(messages, state.get("react_recovery_passes") or [])
 
     _observe_delivered_context(messages)
 
@@ -616,6 +652,10 @@ async def react_execute_tools_node(
                 iteration=state.get("react_iteration", 0),
             )
             react_repeated_calls_total.labels(tool_name=tc_name, verdict=verdict).inc()
+            # Deliberately NOT status="error" (ADR-303): the loop repeating
+            # itself is a progress signal for the model, not a capability that
+            # broke. Marking it would put « the tool failed » in the honesty
+            # directive about a tool that never ran and never failed.
             new_messages.append(
                 ToolMessage(
                     content=repeated_call_message(verdict),
@@ -649,6 +689,7 @@ async def react_execute_tools_node(
                         content=f"ERROR: {violation.llm_message()}",
                         tool_call_id=tc_id,
                         name=tc_name,
+                        status="error",
                     )
                 )
                 continue
@@ -686,6 +727,9 @@ async def react_execute_tools_node(
             decision_action = decision.get("action") if isinstance(decision, dict) else None
             if decision_action not in ("confirm", "approve"):
                 new_messages.append(
+                    # Deliberately NOT status="error" (ADR-303/ADR-263): a
+                    # refusal is a DECISION, never a failure. Reporting it as a
+                    # breakdown would tell the person their own choice was a bug.
                     ToolMessage(
                         content=f"Action '{tc_name}' was declined by the user.",
                         tool_call_id=tc_id,
@@ -728,6 +772,7 @@ async def react_execute_tools_node(
                     content=f"Tool '{tc_name}' not found.",
                     tool_call_id=tc_id,
                     name=tc_name,
+                    status="error",
                 )
             )
             continue
@@ -737,6 +782,9 @@ async def react_execute_tools_node(
         # 300 s in one mode and unbounded in the other. One policy, two callers.
         tool_timeout = compute_step_timeout(tc_name, None)
         tool_started = time.perf_counter()
+        # Defensive default: every branch below sets it, and a branch added
+        # later must not silently publish a failure as a success.
+        tool_status = "success"
         try:
             # Inject ToolRuntime into args (required by ConnectorTools).
             # LangChain's InjectedToolArg is normally injected by ToolNode,
@@ -752,6 +800,7 @@ async def react_execute_tools_node(
                 )
             # Process through wrapper for string conversion + registry collection
             content = wrapper._process_result(raw_result, budget_tokens=result_budget)
+            tool_status = _tool_message_status(raw_result)
             productive_calls += _is_productive_result(raw_result)
             # Draft detection: a mutation tool (create/update/delete) returns
             # requires_confirmation=True — it prepared a DRAFT, not the real
@@ -772,6 +821,7 @@ async def react_execute_tools_node(
             # decides for itself WHICH timeout fired — see that function.
             elapsed = time.perf_counter() - tool_started
             content = tool_timeout_message(tc_name, bound_s=tool_timeout, elapsed_s=elapsed)
+            tool_status = "error"
             logger.warning(
                 "react_execute_tools_timeout",
                 tool_name=tc_name,
@@ -785,6 +835,7 @@ async def react_execute_tools_node(
             )
         except Exception as exc:
             content = f"Error executing {tc_name}: {exc!s}"
+            tool_status = "error"
             logger.warning(
                 "react_execute_tools_error",
                 tool_name=tc_name,
@@ -806,6 +857,7 @@ async def react_execute_tools_node(
                 content=content,
                 tool_call_id=tc_id,
                 name=tc_name,
+                status=tool_status,
             )
         )
         react_agent_tools_called_total.labels(tool_name=tc_name).inc()
@@ -1008,6 +1060,10 @@ async def react_finalize_node(
     # dashboards (ADR-170).
     compute_s = _loop_compute_seconds(state)
     tool_s = _loop_tool_seconds(state)
+    # ADR-310: what the recovery passes achieved — and, when a pass left no usable
+    # answer, the last draft it had taken off the thread, which IS the answer.
+    recovery = recovery_report(state, last_message, cut=pending_tool_calls)
+    final_content = recovery.pop("final_message", final_content)
     _record_react_metrics(iteration, compute_s, "success" if final_content else "empty")
 
     logger.info(
@@ -1033,6 +1089,7 @@ async def react_finalize_node(
     }
     if truncation is not None:
         react_result["truncation"] = truncation
+    react_result.update(recovery)
     if abandoned:
         # The same list the log line carries, where a person reading the debug
         # panel can see it: which capabilities the turn asked for and never got

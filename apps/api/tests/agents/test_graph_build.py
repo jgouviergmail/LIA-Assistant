@@ -111,6 +111,7 @@ class TestGraphConstruction:
             "task_orchestrator",
             AGENT_CONTACT,
             "response",
+            "react_recovery",  # ADR-310: the recovery pass
             "__start__",  # LangGraph internal entry node
         ]
 

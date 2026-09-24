@@ -50,6 +50,7 @@ from src.core.constants import (
     INTENT_PATTERNS_SEND,
     INTENT_PATTERNS_UPDATE,
 )
+from src.core.prompt_layout import single_call_messages
 from src.domains.agents.analysis.query_intelligence import (
     QueryIntelligence,
     SemanticFallback,
@@ -586,8 +587,6 @@ async def analyze_query(
 
         import asyncio
 
-        from langchain_core.messages import HumanMessage
-
         # NO reasoning_emit here — deliberate (reasoning-streaming POC decision:
         # query_analyzer EXCLUDED). This is a fast head-of-graph classification
         # with no UX value for a live "💭" block, and streaming the buffered
@@ -597,7 +596,7 @@ async def analyze_query(
         result: QueryAnalysisOutput = await asyncio.wait_for(
             get_structured_output(
                 llm=llm,
-                messages=[HumanMessage(content=prompt)],
+                messages=single_call_messages(prompt),
                 schema=QueryAnalysisOutput,
                 provider=agent_config.provider,
                 node_name="query_analyzer",
@@ -843,13 +842,12 @@ class QueryAnalyzerService:
         Returns:
             QueryIntelligence with full analysis and routing decision
         """
-        from src.core.field_names import FIELD_RUN_ID
+        from src.core.run_config import run_id_of
 
         reasoning_trace: list[str] = []
         intelligent_mechanisms: dict[str, Any] = {}
 
-        configurable = config.get("configurable", {})
-        run_id = configurable.get(FIELD_RUN_ID, "unknown")
+        run_id = run_id_of(config, "unknown")
         user_language = state.get("user_language", settings.default_language)
 
         try:

@@ -290,7 +290,12 @@ def test_completion_values_carry_the_same_checkpoint_columns(
         synthesis=MagicMock(
             report=MagicMock(model_dump=MagicMock(return_value={"title": "t"})),
             usage=SimpleNamespace(
-                model_name="m", tokens_in=1, tokens_out=1, tokens_cache=0, cost_usd=None
+                model_name="m",
+                tokens_in=1,
+                tokens_out=1,
+                tokens_cache=0,
+                tokens_cache_write=0,
+                cost_usd=None,
             ),
         ),
         decision=SimpleNamespace(

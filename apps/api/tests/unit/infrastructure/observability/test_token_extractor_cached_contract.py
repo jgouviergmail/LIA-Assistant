@@ -93,6 +93,29 @@ class TestModernExtraction:
         assert usage is not None
         assert usage.input_tokens == 1000
         assert usage.cached_tokens == 0
+        # Counted apart as well: the tariff decides whether it owes a surcharge.
+        assert usage.cache_write_tokens == 300
+
+    def test_a_claude_write_is_carried_for_its_surcharge(self, extractor: TokenExtractor) -> None:
+        """Still inside the input count, and ALSO reported apart (ADR-306)."""
+        usage = extractor.extract(
+            _modern_result(
+                {
+                    "input_tokens": 6000,
+                    "output_tokens": 50,
+                    "input_token_details": {
+                        "cache_read": 0,
+                        "cache_creation": 0,
+                        "ephemeral_5m_input_tokens": 5074,
+                        "ephemeral_1h_input_tokens": 0,
+                    },
+                },
+                model="claude-opus-5",
+            )
+        )
+        assert usage is not None
+        assert usage.input_tokens == 6000
+        assert usage.cache_write_tokens == 5074
 
     def test_model_name_is_read_from_response_metadata(self, extractor: TokenExtractor) -> None:
         usage = extractor.extract(

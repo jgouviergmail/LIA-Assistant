@@ -1,8 +1,8 @@
 """Unit tests for recent-entity grounding (2026-07-23).
 
 The response LLM gets no structured data on a turn that produced no registry
-updates (``current_turn_registry`` is empty by design, and ``<History>`` drops
-ToolMessages), so it could only recall entity values from prose — the
+updates (``current_turn_registry`` is empty by design, and the earlier turns
+reach it as the answers' prose), so it could only recall entity values from prose — the
 "16h instead of 11h15" class of error. These tests pin:
 
 - the gate, including the REFERENCE exclusion which protects a data-leak
@@ -16,6 +16,8 @@ Thresholds are read from settings, never hardcoded.
 """
 
 from __future__ import annotations
+
+from unittest.mock import patch
 
 import pytest
 
@@ -135,10 +137,20 @@ class TestBuildContext:
         assert len(_item_lines(out)) == 1
 
     def test_total_is_capped_by_settings(self):
-        cap = settings.tool_context_max_items
+        cap = settings.response_recent_entities_max_items
         ids = [f"event_{i}" for i in range(cap + 5)]
         registry = {i: _item(f"Evenement {i}") for i in ids}
         out = build_recent_entities_context(registry, _results(4, ids), 5, LANG)
+        assert len(_item_lines(out)) == cap
+
+    def test_the_context_store_ceiling_does_not_move_the_budget(self):
+        """The block is a prompt budget: widening what the store keeps for
+        « the 4th » must not widen what every follow-up turn injects."""
+        cap = settings.response_recent_entities_max_items
+        ids = [f"event_{i}" for i in range(cap + 5)]
+        registry = {i: _item(f"Evenement {i}") for i in ids}
+        with patch.object(settings, "api_max_items_per_request", cap + 5):
+            out = build_recent_entities_context(registry, _results(4, ids), 5, LANG)
         assert len(_item_lines(out)) == cap
 
     def test_most_recent_turn_comes_first(self):

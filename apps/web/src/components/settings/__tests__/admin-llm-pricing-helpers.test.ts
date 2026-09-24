@@ -197,8 +197,10 @@ const PEAK_ROW: TimeSlotFormRow = {
   input_unit_price: '0.44',
   cached_input_unit_price: '0.014',
   output_unit_price: '1.32',
+  weekdays: [1, 2, 3, 4, 5, 6, 7],
 };
 const SECOND_ROW: TimeSlotFormRow = { ...PEAK_ROW, start_utc: '06:00', end_utc: '10:00' };
+const WORKDAYS = [1, 2, 3, 4, 5];
 
 function slotsForm(over: Partial<ModelPricingFormData> = {}): ModelPricingFormData {
   return {
@@ -257,6 +259,46 @@ describe('validateTimeSlotRows', () => {
       ])
     ).toBe('overlap');
   });
+
+  // DeepSeek bills its peak windows Monday to Friday: a window may apply on
+  // some UTC days only — the day it STARTS on, as the backend reads it.
+  it('accepts the same hours on disjoint days', () => {
+    expect(
+      validateTimeSlotRows([
+        { ...PEAK_ROW, weekdays: WORKDAYS },
+        { ...PEAK_ROW, input_unit_price: '0.22', weekdays: [6, 7] },
+      ])
+    ).toBeNull();
+  });
+
+  it('flags the same hours on a shared day', () => {
+    expect(
+      validateTimeSlotRows([
+        { ...PEAK_ROW, weekdays: WORKDAYS },
+        { ...PEAK_ROW, start_utc: '02:00', weekdays: [5, 6] },
+      ])
+    ).toBe('overlap');
+  });
+
+  it('carries a window running past midnight into the next day', () => {
+    const fridayNight = { ...PEAK_ROW, start_utc: '22:00', end_utc: '02:00', weekdays: [5] };
+    const early = { ...PEAK_ROW, start_utc: '01:00', end_utc: '03:00' };
+    expect(validateTimeSlotRows([fridayNight, { ...early, weekdays: [6] }])).toBe('overlap');
+    expect(validateTimeSlotRows([fridayNight, { ...early, weekdays: [5] }])).toBeNull();
+  });
+
+  it('wraps Sunday night into Monday', () => {
+    expect(
+      validateTimeSlotRows([
+        { ...PEAK_ROW, start_utc: '22:00', end_utc: '02:00', weekdays: [7] },
+        { ...PEAK_ROW, start_utc: '00:00', end_utc: '01:00', weekdays: [1] },
+      ])
+    ).toBe('overlap');
+  });
+
+  it('flags a window that applies on no day as incomplete', () => {
+    expect(validateTimeSlotRows([{ ...PEAK_ROW, weekdays: [] }])).toBe('incomplete');
+  });
 });
 
 describe('buildTimeSlotsPayload', () => {
@@ -274,6 +316,19 @@ describe('buildTimeSlotsPayload', () => {
         output_unit_price: '1.32',
       },
     ]);
+  });
+
+  it('sends the days of a restricted window, sorted', () => {
+    const payload = buildTimeSlotsPayload(
+      slotsForm({ time_slots: [{ ...PEAK_ROW, weekdays: [5, 1, 3] }] }),
+      'update'
+    );
+    expect(payload?.[0].weekdays).toEqual([1, 3, 5]);
+  });
+
+  it('sends no days for an every-day window, like the rows stored before days existed', () => {
+    const payload = buildTimeSlotsPayload(slotsForm(), 'update');
+    expect(payload?.every(slot => !('weekdays' in slot))).toBe(true);
   });
 
   it('omits the field at create time when disabled (flat pricing)', () => {
@@ -308,6 +363,26 @@ describe('slotRowsFromModel', () => {
       },
     ]);
     expect(rows).toEqual([{ ...PEAK_ROW, cached_input_unit_price: '' }]);
+  });
+
+  it("reads a restricted window's days, and every day when the API sends none", () => {
+    const window = {
+      start_utc: '01:00',
+      end_utc: '04:00',
+      input_unit_price: '0.3',
+      cached_input_unit_price: null,
+      output_unit_price: '1.2',
+    };
+    const rows = slotRowsFromModel([
+      { ...window, weekdays: WORKDAYS },
+      { ...window, weekdays: null },
+      window,
+    ]);
+    expect(rows.map(row => row.weekdays)).toEqual([
+      WORKDAYS,
+      [1, 2, 3, 4, 5, 6, 7],
+      [1, 2, 3, 4, 5, 6, 7],
+    ]);
   });
 
   it('maps a flat-priced model to no rows', () => {

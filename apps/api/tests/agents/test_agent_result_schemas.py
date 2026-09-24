@@ -12,7 +12,6 @@ from src.domains.agents.orchestration.schemas import (
     AgentResult,
     AgentResultData,
     ContactsResultData,
-    create_pending_agent_result,
 )
 
 
@@ -160,7 +159,7 @@ class TestAgentResult:
     def test_agent_result_with_defaults(self):
         """Test AgentResult with default values for optional fields."""
         # When: Create with minimal fields
-        result = AgentResult(agent_name="test_agent", status="pending")
+        result = AgentResult(agent_name="test_agent", status="success")
 
         # Then: Defaults applied
         assert result.data is None
@@ -207,7 +206,7 @@ class TestAgentResult:
     def test_agent_result_model_dump_exclude_none(self):
         """Test model_dump with exclude_none=True."""
         # Given: AgentResult with None fields
-        result = AgentResult(agent_name="test", status="pending")
+        result = AgentResult(agent_name="test", status="success")
 
         # When: Serialize excluding None
         dumped = result.model_dump(exclude_none=True)
@@ -221,41 +220,15 @@ class TestAgentResult:
     def test_agent_result_allows_modification(self):
         """Test that AgentResult is not frozen (can be modified)."""
         # Given: AgentResult instance
-        result = AgentResult(agent_name="test", status="pending")
+        result = AgentResult(agent_name="test", status="success")
 
         # When: Modify field (should not raise FrozenInstanceError)
-        result.status = "success"
+        result.status = "error"
         result.data = {"result": "ok"}
 
         # Then: Modification successful
-        assert result.status == "success"
+        assert result.status == "error"
         assert result.data == {"result": "ok"}
-
-
-class TestCreatePendingAgentResult:
-    """Tests for create_pending_agent_result helper function."""
-
-    def test_create_pending_agent_result_returns_pending_status(self):
-        """Test that helper creates pending result."""
-        # When: Create pending result
-        result = create_pending_agent_result("contacts_agent")
-
-        # Then: Pending with zeros
-        assert result.agent_name == "contacts_agent"
-        assert result.status == "pending"
-        assert result.data is None
-        assert result.error is None
-        assert result.tokens_in == 0
-        assert result.tokens_out == 0
-        assert result.duration_ms == 0
-
-    def test_create_pending_agent_result_returns_agent_result_instance(self):
-        """Test that helper returns AgentResult instance."""
-        # When: Create pending result
-        result = create_pending_agent_result("test_agent")
-
-        # Then: Instance of AgentResult
-        assert isinstance(result, AgentResult)
 
 
 class TestAgentResultRoundTrip:

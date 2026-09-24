@@ -13,6 +13,7 @@ the two halves are declared in one place but consumed by two.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from decimal import Decimal
 from typing import Any
 
@@ -25,6 +26,7 @@ from src.domains.llm.pricing_sheet import (
     build_pricing_workbook_spec,
 )
 from src.infrastructure.tabular_io.reader import parse_workbook
+from src.infrastructure.tabular_io.report import IssueCode
 from src.infrastructure.tabular_io.writer import build_workbook
 
 pytestmark = pytest.mark.unit
@@ -123,7 +125,62 @@ def test_the_schema_version_travels_and_matches() -> None:
     """
     spec = build_pricing_workbook_spec()
 
-    assert spec.schema_version == SCHEMA_VERSION == 3
+    assert spec.schema_version == SCHEMA_VERSION == 4
+
+
+def test_the_days_of_a_window_survive_a_real_write_and_read() -> None:
+    spec = build_pricing_workbook_spec()
+    window = {
+        "model_name": "deepseek-flash",
+        "start_utc": "01:00",
+        "end_utc": "04:00",
+        "input_unit_price": Decimal("0.3"),
+        "cached_input_unit_price": Decimal("0.006"),
+        "output_unit_price": Decimal("1.2"),
+    }
+    content = build_workbook(
+        spec,
+        {
+            MODELS_SHEET.name: [_row(model_name="deepseek-flash", time_slots_mode="windows")],
+            SLOTS_SHEET.name: [
+                {**window, "weekdays": ["mon", "tue", "wed", "thu", "fri"]},
+                {**window, "start_utc": "06:00", "end_utc": "10:00", "weekdays": None},
+            ],
+        },
+        notice=["notice"],
+        labels={},
+        metadata={},
+    )
+
+    parsed = parse_workbook(spec, content, **_LIMITS)
+
+    assert parsed.issues == ()
+    days = [row.values["weekdays"] for row in parsed.sheets[SLOTS_SHEET.name]]
+    assert days == [["mon", "tue", "wed", "thu", "fri"], None]
+
+
+def test_a_file_exported_before_the_days_is_refused_not_read_as_every_day() -> None:
+    """A v3 file has no days column. Read as "every day", re-importing it
+    after the upgrade would put every weekend back at peak — so the version
+    refuses it before any window is compared."""
+    current = build_pricing_workbook_spec()
+    v3_slots = replace(
+        SLOTS_SHEET,
+        columns=tuple(column for column in SLOTS_SHEET.columns if column.key != "weekdays"),
+    )
+    v3 = replace(current, sheets=(MODELS_SHEET, v3_slots), schema_version=3)
+    content = build_workbook(
+        v3,
+        {MODELS_SHEET.name: [_row()], SLOTS_SHEET.name: []},
+        notice=["notice"],
+        labels={},
+        metadata={},
+    )
+
+    parsed = parse_workbook(current, content, **_LIMITS)
+
+    codes = {issue.code for issue in parsed.issues}
+    assert IssueCode.SCHEMA_VERSION_MISMATCH in codes
 
 
 def test_the_audio_pair_survives_a_real_write_and_read() -> None:

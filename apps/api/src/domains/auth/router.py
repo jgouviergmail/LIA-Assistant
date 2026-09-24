@@ -375,11 +375,16 @@ async def refresh_token(
 )
 async def logout(
     response: Response,
-    user: User = Depends(get_current_active_session),
+    user: User = Depends(get_current_session),
     lia_session: str = Cookie(),
 ) -> MessageResponse:
     """
     Logout user by deleting session using BFF Pattern.
+
+    Ending one's own session requires no standing: a pending or blocked account
+    signs out too (``get_current_session``, not the ACTIVE variant). The
+    account-inactive page offers exactly this action, and it answered 403 there
+    while the page reported the person signed out (production, 2026-09-18).
 
     Flow:
     1. Gets current session from HTTP-only cookie

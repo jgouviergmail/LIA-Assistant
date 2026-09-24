@@ -33,7 +33,7 @@ from __future__ import annotations
 
 from contextlib import suppress
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 from uuid import uuid4
 
 import structlog
@@ -55,7 +55,11 @@ from src.domains.peers.models import PeerConnectionStatus, PeerMessage
 from src.domains.peers.repository import PeersRepository
 from src.domains.users.models import User
 from src.infrastructure.database import get_db_context
-from src.infrastructure.llm.usage_metadata import tokens_from_response
+from src.infrastructure.llm.usage_metadata import (
+    UsageTokens,
+    model_name_of,
+    tokens_from_response,
+)
 from src.infrastructure.observability.metrics_registry import peers_messages_total
 from src.infrastructure.proactive.notification import NotificationDispatcher
 
@@ -67,12 +71,21 @@ logger = structlog.get_logger(__name__)
 _STALE_CLAIM_MINUTES = 10  # crash-recovery horizon (scheduled_actions default)
 
 
+class _DeliveryText(NamedTuple):
+    """The generated wording and what it cost (spec §9: the sender pays)."""
+
+    text: str
+    usage: UsageTokens
+    #: The model that answered: without it the call is priced at nothing.
+    model_name: str | None
+
+
 async def _generate_delivery_text(
     message: PeerMessage,
     sender: User,
     recipient: User,
     relay_count_today: int,
-) -> tuple[str, int, int, int]:
+) -> _DeliveryText:
     """Generate the recipient-voiced delivery wording (single LLM call).
 
     Args:
@@ -81,7 +94,7 @@ async def _generate_delivery_text(
         recipient: Recipient ORM row (language, personality, memory).
 
     Returns:
-        Tuple of (text, tokens_in, tokens_out, tokens_cache).
+        The text, its usage (cache writes included, ADR-306) and the model.
     """
     from src.domains.personalities.constants import DEFAULT_PERSONALITY_PROMPT
     from src.domains.personalities.service import PersonalityService
@@ -149,8 +162,7 @@ async def _generate_delivery_text(
         user_id=str(message.sender_id),  # spec §9: the sender owns this call
     )
     # ONE reader for every provider's spelling (ADR-272 corollary).
-    tokens = tokens_from_response(result)
-    return result.text, tokens.prompt, tokens.completion, tokens.cached
+    return _DeliveryText(result.text, tokens_from_response(result), model_name_of(llm))
 
 
 async def _revalidation_cancel_code(
@@ -287,7 +299,7 @@ async def deliver_claimed_message(message: PeerMessage, db: AsyncSession) -> str
         message.sender_id, message.recipient_id, now=now
     )
     try:
-        text, tokens_in, tokens_out, tokens_cache = await _generate_delivery_text(
+        text, usage, model_name = await _generate_delivery_text(
             message, sender, recipient, relay_count
         )
     except Exception as exc:  # noqa: BLE001 — typed retryable failure
@@ -310,10 +322,12 @@ async def deliver_claimed_message(message: PeerMessage, db: AsyncSession) -> str
             task_type="peer_message",
             target_id=str(message.id),
             conversation_id=None,
-            tokens_in=tokens_in,
-            tokens_out=tokens_out,
-            tokens_cache=tokens_cache,
-            model_name=None,
+            tokens_in=usage.prompt,
+            tokens_out=usage.completion,
+            tokens_cache=usage.cached,
+            tokens_cache_write=usage.cache_write,
+            # It used to be None, which priced every relayed message at zero.
+            model_name=model_name,
             source="scheduled",
         )
 

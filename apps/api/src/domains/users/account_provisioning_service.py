@@ -69,14 +69,9 @@ class AccountProvisioningService:
 
         await demo_account_preferences.apply_demo_account_preferences(self.db, user_id)
 
-        # Activate every connector that asks nothing of the person (Wikipedia,
-        # the browser, the platform-key Google services). Staged only, never
-        # raises — same contract as the two steps above.
-        from src.domains.users.keyless_connectors_provisioning import (
-            provision_keyless_connectors,
-        )
-
-        await provision_keyless_connectors(self.db, user_id)
+        # No connector is provisioned here: the ones that ask nothing of the
+        # person (Wikipedia, the browser, the platform-key Google services)
+        # belong to the instance and serve every account without a row (ADR-307).
 
         # Create default usage limits (feature-flagged subsystem)
         if getattr(settings, "usage_limits_enabled", False):

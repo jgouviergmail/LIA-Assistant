@@ -4,6 +4,11 @@ Moved from ``tests/unit/domains/heartbeat/test_proactive_task.py`` when the
 handler was hoisted out of ``heartbeat/prompts.py`` (it had a second private
 copy in ``open_loop_extractor.py`` reading a different ``LLMResult`` surface —
 the shared handler reads both, fallback-only, never double-counting).
+
+Since ADR-306 it counts in the ONE reader's buckets (``usage_metadata.py``):
+``tokens_in`` EXCLUDES the cache reads. It used to hand the RAW input to
+callers that priced ``tokens_cache`` on top, so four of its five consumers
+billed every cached token twice — at the full input rate and at the cached one.
 """
 
 from __future__ import annotations
@@ -34,6 +39,7 @@ class TestTokenCaptureHandler:
         assert handler.tokens_in == 0
         assert handler.tokens_out == 0
         assert handler.tokens_cache == 0
+        assert handler.tokens_cache_write == 0
         assert handler.has_usage is False
 
     def test_captures_tokens_from_usage_metadata(self):
@@ -44,7 +50,8 @@ class TestTokenCaptureHandler:
         )
         handler.on_llm_end(LLMResult(generations=[[gen]]))
 
-        assert handler.tokens_in == 500
+        # The cache reads leave the billable input: they are priced apart.
+        assert handler.tokens_in == 450
         assert handler.tokens_out == 120
         assert handler.tokens_cache == 50
         assert handler.has_usage is True
@@ -61,6 +68,27 @@ class TestTokenCaptureHandler:
         )
         handler.on_llm_end(LLMResult(generations=[[gen]]))
         assert handler.tokens_cache == 80
+        assert handler.tokens_in == 120
+
+    def test_captures_claude_cache_writes(self):
+        """A write stays a billable input token; it is ALSO counted apart,
+        because it owes the write surcharge on top (ADR-306)."""
+        handler = TokenCaptureHandler()
+        gen = _generation_with_usage(
+            {
+                "input_tokens": 6000,
+                "output_tokens": 40,
+                "input_token_details": {
+                    "cache_read": 0,
+                    "cache_creation": 0,
+                    "ephemeral_5m_input_tokens": 5074,
+                    "ephemeral_1h_input_tokens": 0,
+                },
+            }
+        )
+        handler.on_llm_end(LLMResult(generations=[[gen]]))
+        assert handler.tokens_in == 6000
+        assert handler.tokens_cache_write == 5074
 
     def test_accumulates_across_multiple_calls(self):
         """Counters accumulate across calls (retries are paid too)."""
@@ -71,7 +99,7 @@ class TestTokenCaptureHandler:
             )
             handler.on_llm_end(LLMResult(generations=[[gen]]))
 
-        assert handler.tokens_in == 300
+        assert handler.tokens_in == 270
         assert handler.tokens_out == 90
         assert handler.tokens_cache == 30
 
@@ -91,7 +119,8 @@ class TestTokenCaptureHandler:
         )
         handler.on_llm_end(result)
 
-        assert handler.tokens_in == 400
+        # The aggregate's prompt_tokens includes the cached ones, as usage_metadata does.
+        assert handler.tokens_in == 375
         assert handler.tokens_out == 90
         assert handler.tokens_cache == 25
 

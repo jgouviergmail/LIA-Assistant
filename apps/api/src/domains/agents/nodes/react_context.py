@@ -23,6 +23,7 @@ from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
 
 from src.core.config import settings
+from src.core.run_config import run_id_of
 from src.domains.agents.context.runtime_context import (
     runtime_context_if_running,
     runtime_user_id_str,
@@ -62,7 +63,7 @@ async def _embed_quietly(
     query: str,
     user_id: str,
     session_id: str | None,
-    configurable: dict[str, Any],
+    run_id: str,
 ) -> list[float] | None:
     """The shared embedding of the user message, or None if it cannot be had.
 
@@ -75,7 +76,7 @@ async def _embed_quietly(
         query: The user message to embed.
         user_id: Owner, for cost attribution.
         session_id: Thread id, for cost attribution.
-        configurable: The run's configurable block.
+        run_id: The turn's run id, for cost attribution.
 
     Returns:
         The vector, or None.
@@ -88,7 +89,7 @@ async def _embed_quietly(
     set_embedding_context(
         user_id=user_id,
         session_id=session_id or "unknown",
-        run_id=configurable.get("run_id") or "",
+        run_id=run_id,
     )
     try:
         return await get_or_compute_embedding(
@@ -143,7 +144,7 @@ async def build_memory_profile_block(
     # degradation and the one the other mode already gets.
     embedding: list[float] | None = None
     if not is_trivial_message(query):
-        embedding = await _embed_quietly(query, user_id, session_id, configurable)
+        embedding = await _embed_quietly(query, user_id, session_id, run_id_of(config))
 
     try:
         profile, _emotional_state, _debug = await build_psychological_profile(
@@ -187,7 +188,7 @@ async def build_knowledge_block(state: MessagesState, config: RunnableConfig) ->
     Returns:
         The wrapped block, or None when there is nothing to show.
     """
-    run_id = str((config.get("metadata") or {}).get("run_id") or "unknown")
+    run_id = run_id_of(config, "unknown")
     try:
         bundle = await peek_response_context(run_id)
         if bundle is not None:

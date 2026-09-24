@@ -25,7 +25,8 @@ Usage (the production image's ``CMD``)::
 
     python -m src.serve src.main:app --host 0.0.0.0 --port 8000 \\
         --limit-max-requests 10000 --limit-max-requests-jitter 1000 \\
-        --proxy-headers --forwarded-allow-ips '*' --timeout-graceful-shutdown 20
+        --proxy-headers --forwarded-allow-ips '*' --timeout-graceful-shutdown 20 \\
+        --ws websockets-sansio
 
 The worker count follows ``WEB_CONCURRENCY`` exactly as uvicorn's ``Config``
 reads it; ``--workers`` overrides it. Reload is deliberately not offered:
@@ -40,6 +41,7 @@ import sys
 from collections.abc import Sequence
 
 from uvicorn import Config, Server
+from uvicorn.config import WS_PROTOCOLS
 from uvicorn.main import STARTUP_FAILURE
 from uvicorn.supervisors import Multiprocess
 
@@ -74,6 +76,12 @@ def _parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--forwarded-allow-ips", default=None)
     parser.add_argument("--timeout-graceful-shutdown", type=int, default=None)
+    parser.add_argument(
+        "--ws",
+        default="auto",
+        choices=sorted(WS_PROTOCOLS),
+        help="WebSocket implementation (uvicorn's --ws).",
+    )
     return parser
 
 
@@ -97,6 +105,7 @@ def build_config(argv: Sequence[str] | None = None) -> Config:
         proxy_headers=args.proxy_headers,
         forwarded_allow_ips=args.forwarded_allow_ips,
         timeout_graceful_shutdown=args.timeout_graceful_shutdown,
+        ws=args.ws,
     )
 
 

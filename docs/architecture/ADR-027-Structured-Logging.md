@@ -4,6 +4,7 @@
 **Deciders**: Équipe architecture LIA
 **Technical Story**: Production-grade observability with GDPR compliance
 **Related Documentation**: `docs/technical/LOGGING.md`
+**Amendment (2026-09-23)**: the configuration now runs before the application is imported, and the tool loggers are bound when they log — a logger bound earlier kept structlog's defaults (no level filter, no PII filter). See [PII_LOGGING_SECURITY.md § 1bis](../technical/PII_LOGGING_SECURITY.md).
 
 ---
 

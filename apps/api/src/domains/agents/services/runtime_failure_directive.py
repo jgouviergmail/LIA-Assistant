@@ -53,7 +53,10 @@ async def build_run_honesty_block(state: dict[str, Any]) -> str:
     """Everything this answer must admit about its own run.
 
     Two independent halves, joined here so the response node keeps ONE seam:
-    what was cut short (always) and what failed (diagnostics-gated).
+    what was cut short and what failed — both ALWAYS. Only the platform
+    DEGRADATION paragraph waits for the diagnostics subsystem, which owns
+    the advisor. Telling someone that their calendar call failed is not a
+    diagnostics feature; it is the answer being honest (ADR-303).
 
     Args:
         state: The LangGraph state (completed_steps + messages are read).
@@ -63,14 +66,12 @@ async def build_run_honesty_block(state: dict[str, Any]) -> str:
         must not break response synthesis.
     """
     blocks = [build_truncation_block(state)]
-    blocks.append(await _diagnostics_failures_block(state))
+    blocks.append(await _failures_block(state))
     return "\n\n".join(block for block in blocks if block)
 
 
-async def _diagnostics_failures_block(state: dict[str, Any]) -> str:
-    """The typed runtime failures of the turn, or "" when the flag is off."""
-    if not getattr(settings, "diagnostics_enabled", False):
-        return ""
+async def _failures_block(state: dict[str, Any]) -> str:
+    """The typed runtime failures of the turn, or "" when the turn was clean."""
     try:
         from src.domains.agents.prompts.prompt_loader import load_prompt
         from src.domains.diagnostics.failure_context import (
@@ -82,7 +83,28 @@ async def _diagnostics_failures_block(state: dict[str, Any]) -> str:
             completed_steps=state.get("completed_steps"),
             messages=messages,
             template=str(load_prompt("runtime_failures_directive")),
+            tool_names_by_step=_tool_names_by_step(state.get("execution_plan")),
+            include_degradations=bool(getattr(settings, "diagnostics_enabled", False)),
         )
     except Exception as exc:
         logger.debug("runtime_failures_block_failed", error=str(exc))
         return ""
+
+
+def _tool_names_by_step(execution_plan: Any) -> dict[str, str]:
+    """``step_id → tool_name`` from the plan, empty when the turn had none.
+
+    A failure that names ``step_2`` tells the model nothing; one that names
+    ``get_events_tool`` tells it which capability to speak about.
+
+    Args:
+        execution_plan: The plan the turn executed, or None.
+
+    Returns:
+        The mapping, empty for a turn with no plan (ReAct, conversation).
+    """
+    steps = getattr(execution_plan, "steps", None) or []
+    return {
+        str(getattr(step, "step_id", "")): str(getattr(step, "tool_name", "") or "")
+        for step in steps
+    }

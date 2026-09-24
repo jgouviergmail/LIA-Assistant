@@ -9,18 +9,22 @@ output_version="responses/v1")`` natively provides Responses-API caching,
 multi-turn, native tool calls, structured output, reasoning-summary streaming
 and standard ``usage_metadata`` — all validated on the real path in dev.
 
-What remains genuinely custom (and worth keeping) is LIA's **prompt-cache-key
-routing**: hashing only the *static prefix* of system prompts (before the
-dynamic-context marker) so requests of the same prompt type share an OpenAI
-``prompt_cache_key`` and hit the prefix cache. The native ``ChatOpenAI`` accepts
-``prompt_cache_key`` per request but cannot derive it from the messages on its
-own, so we keep a thin subclass (:class:`ChatOpenAICached`, ~1 method) that
-injects the computed key into each request payload. Everything else is standard.
+What remains genuinely custom (and worth keeping) is LIA's **prompt-cache
+handling**, both halves keyed on the *static prefix* of system prompts (before
+the dynamic-context marker): a ``prompt_cache_key`` hashed from it, so requests
+of the same prompt type share a key and hit the prefix cache, and -- on the
+models that cache by breakpoint (GPT-5.6, GPT-6) -- a breakpoint at its end,
+without which every call rewrites its whole prompt at 1.25x
+(``providers/openai_payload.py``, ADR-306). The native ``ChatOpenAI`` can derive
+neither from the messages on its own, so we keep a thin subclass
+(:class:`ChatOpenAICached`, ~1 method) that applies both to each request
+payload. Everything else is standard.
 
-NOTE (documented trade-off): the thin subclass exists ONLY to preserve the
-static-prefix cache-key optimisation. If that optimisation is ever dropped, this
-module collapses to a plain ``ChatOpenAI(...)`` with zero custom code (the OpenAI
-automatic prefix cache still works without an explicit key). See option "B2".
+NOTE (documented trade-off): the thin subclass exists ONLY for that cache
+handling. Without it this module would collapse to a plain ``ChatOpenAI(...)``;
+the automatic prefix cache of the models before GPT-5.6 would still work without
+an explicit key, but GPT-5.6 and GPT-6 would pay the write surcharge on every
+call and read nothing.
 
 References:
     - https://platform.openai.com/docs/api-reference/responses
@@ -36,16 +40,19 @@ from typing import Any
 from langchain_core.messages import BaseMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
+from src.core.constants import DYNAMIC_CONTEXT_MARKER
 from src.infrastructure.llm.model_capabilities_cache import is_reasoning_model
+from src.infrastructure.llm.providers.openai_payload import shape_openai_payload
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
 
 
 # Responses API eligibility: pattern-based detection instead of a hardcoded list.
-# All GPT-4.1+, GPT-5.x and o-series models support the Responses API; only legacy
-# models (gpt-4o, gpt-4-turbo, gpt-3.5) do NOT.
-_RESPONSES_API_PATTERN = re.compile(r"^(gpt-4\.1|gpt-5|o[1-9])", re.IGNORECASE)
+# All GPT-4.1+, GPT-5.x, GPT-6 and o-series models support the Responses API; only
+# legacy models (gpt-4o, gpt-4-turbo, gpt-3.5) do NOT. GPT-6 MUST take it: on Chat
+# Completions it accepts function calling only with ``reasoning_effort=none``.
+_RESPONSES_API_PATTERN = re.compile(r"^(gpt-4\.1|gpt-5|gpt-6|o[1-9])", re.IGNORECASE)
 
 # Max static-prefix length hashed for the cache key (covers static instructions +
 # semi-static context like the tool catalogue; OpenAI caches 1024+ token prefixes).
@@ -55,7 +62,7 @@ _MAX_PREFIX_LENGTH = 8192
 def is_responses_api_eligible(model: str) -> bool:
     """Return True if ``model`` supports the OpenAI Responses API.
 
-    GPT-4.1+, GPT-5.x and o-series are eligible; legacy models (gpt-4o,
+    GPT-4.1+, GPT-5.x, GPT-6 and o-series are eligible; legacy models (gpt-4o,
     gpt-4-turbo, gpt-3.5) are not.
 
     Args:
@@ -84,8 +91,6 @@ def _extract_static_prefix(content: str) -> str:
     Returns:
         The static prefix (trimmed, capped at ``_MAX_PREFIX_LENGTH``).
     """
-    from src.core.constants import DYNAMIC_CONTEXT_MARKER
-
     marker_pos = content.find(DYNAMIC_CONTEXT_MARKER)
     static_prefix = content[:marker_pos].strip() if marker_pos != -1 else content.strip()
     if len(static_prefix) > _MAX_PREFIX_LENGTH:
@@ -101,6 +106,13 @@ def compute_prompt_cache_key(messages: list[BaseMessage], model: str) -> str:
     the static portion of system messages is hashed (dynamic/user content is left
     to automatic prefix matching), so the key is stable across turns.
 
+    The static part ends at the FIRST marker: a system message after the one
+    holding it carries the turn's data (a ReAct turn's context blocks, a
+    response's agent results) and is dynamic like the rest. Hashed whole, it
+    gave every turn its own key -- and from GPT-5.6 on its own cache: measured
+    on gpt-6-luna, a call sharing the previous one's static prefix read 0
+    tokens under a new key and 2,831 under the same one (ADR-306).
+
     Args:
         messages: The messages about to be sent.
         model: Model id (fallback grouping when there is no system message).
@@ -108,11 +120,14 @@ def compute_prompt_cache_key(messages: list[BaseMessage], model: str) -> str:
     Returns:
         A 32-char SHA256 hex digest used as the OpenAI ``prompt_cache_key``.
     """
-    static_parts = [
-        f"system:{_extract_static_prefix(str(msg.content))}"
-        for msg in messages
-        if isinstance(msg, SystemMessage)
-    ]
+    static_parts: list[str] = []
+    for msg in messages:
+        if not isinstance(msg, SystemMessage):
+            continue
+        content = str(msg.content)
+        static_parts.append(f"system:{_extract_static_prefix(content)}")
+        if DYNAMIC_CONTEXT_MARKER in content:
+            break
     if not static_parts:
         static_parts.append(f"model:{model}")
 
@@ -128,12 +143,15 @@ def compute_prompt_cache_key(messages: list[BaseMessage], model: str) -> str:
 
 
 class ChatOpenAICached(ChatOpenAI):
-    """``ChatOpenAI`` that injects a static-prefix-derived ``prompt_cache_key``.
+    """``ChatOpenAI`` that routes and marks the static prefix for the prompt cache.
 
-    Thin subclass: it only overrides payload building to add a computed
-    ``prompt_cache_key`` when the caller did not already supply one. All other
-    behaviour (Responses API, tools, structured output, reasoning summaries,
-    usage metadata, streaming) is the stock ``ChatOpenAI`` implementation.
+    Thin subclass: it only overrides payload building, to add a computed
+    ``prompt_cache_key`` when the caller did not already supply one and to place
+    the static-prefix breakpoint on the models that accept it
+    (:func:`~src.infrastructure.llm.providers.openai_payload.shape_openai_payload`).
+    All other behaviour (Responses API, tools, structured output, reasoning
+    summaries, usage metadata, streaming) is the stock ``ChatOpenAI``
+    implementation.
 
     This is the ONLY custom OpenAI code remaining after the ResponsesLLM removal.
     """
@@ -159,7 +177,9 @@ class ChatOpenAICached(ChatOpenAI):
                 error=str(exc),
                 error_type=type(exc).__name__,
             )
-        return payload
+        # From GPT-5.6 on the cache is written at breakpoints and billed 1.25x:
+        # the static prefix gets one, or every call rewrites its whole prompt.
+        return shape_openai_payload(payload, self.model_name)
 
 
 def create_responses_llm(

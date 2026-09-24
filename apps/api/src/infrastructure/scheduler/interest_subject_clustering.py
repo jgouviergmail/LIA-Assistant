@@ -113,6 +113,9 @@ async def recluster_user_subjects(user_id: UUID) -> int:
 
         user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
         language = getattr(user, "language", None) or settings.default_language
+        # The reads end before the model is asked (ADR-304); the labels are
+        # written on the same (still attached) rows once it answered.
+        await db.commit()
 
         indexed = list(enumerate(interests, start=1))
         interests_block = "\n".join(f"{idx}. {i.topic} ({i.category})" for idx, i in indexed)
@@ -142,6 +145,7 @@ async def recluster_user_subjects(user_id: UUID) -> int:
             tokens_in=usage.prompt,
             tokens_out=usage.completion,
             tokens_cache=usage.cached,
+            tokens_cache_write=usage.cache_write,
             model_name=model_name_of(llm),
             source="proactive",
         )

@@ -1,13 +1,16 @@
-"""In-memory cache of per-model image-generation options (qualities/sizes).
+"""In-memory cache of what each SERVABLE image model offers (ADR-305).
 
-Built by DISTINCT on ``image_generation_pricing`` rows (active only). Used by:
+Built from the active ``image_generation_pricing`` rows, kept only when a family
+declares the model (``families.py`` — a declared family has a client, which
+``client.py`` checks at import) and accepts the row's quality and size. What the
+cache holds is therefore exactly what can run and be billed. Used by:
 
-- Configuration LLM admin dropdown (image_generation LLM type) → list of
-  models, grouped by provider. Powered by
-  :meth:`get_models_grouped_by_provider`.
-- ``GET /image-generation/options`` (Task 17) → for a given active model,
-  list of qualities (with min/max price ranges) and sizes. Powered by
-  :meth:`get_options_for_model`.
+- Configuration LLM — the image slot's model list
+  (:meth:`get_models_grouped_by_provider`), and the write path's check that a
+  configured image model is served;
+- ``GET /image-generation/options`` and the image tools — the configured model's
+  qualities (with price ranges) and sizes (with orientation and billing tier)
+  (:meth:`get_options_for_model`).
 
 Cross-worker invalidated via Redis Pub/Sub (ADR-063), aligned with
 ``ModelCapabilitiesCache``.
@@ -21,19 +24,22 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.domains.image_generation.families import ImageFamily, resolve_image_family
 from src.domains.image_generation.models import ImageGenerationPricing
+from src.domains.image_generation.sizing import ImageSize, Orientation
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
 
+_ORIENTATION_ORDER: dict[Orientation, int] = {"square": 0, "landscape": 1, "portrait": 2}
+
 
 @dataclass(frozen=True)
 class QualityOption:
-    """One quality level supported for a given model.
+    """One quality level offered for a given model.
 
-    ``min_cost_usd`` / ``max_cost_usd`` span the price range across all
-    sizes available at that quality (lets the UI display the
-    "(~$0.04-0.06)" hint that ``ImageGenerationSettings`` shows today).
+    ``min_cost_usd`` / ``max_cost_usd`` span the price range across the sizes
+    offered at that quality (the "(~$0.04-0.06)" hint of the settings).
     """
 
     value: str
@@ -43,23 +49,32 @@ class QualityOption:
 
 @dataclass(frozen=True)
 class SizeOption:
-    """One image size supported for a given model."""
+    """One image size offered for a given model.
+
+    Attributes:
+        value: ``WIDTHxHEIGHT``.
+        orientation: Square, landscape or portrait (the settings' label).
+        tier: The family's billing tier for this size, or ``None`` without tiers.
+    """
 
     value: str
+    orientation: Orientation
+    tier: str | None
 
 
 @dataclass(frozen=True)
 class ModelOptions:
-    """Aggregated options for one image-generation model."""
+    """What one servable image model offers."""
 
     model: str
     provider: str
+    family: ImageFamily
     qualities: tuple[QualityOption, ...]
     sizes: tuple[SizeOption, ...]
 
 
 class ImageOptionsCache:
-    """Singleton in-memory cache of image-generation options.
+    """Singleton in-memory cache of servable image models and their offer.
 
     State:
         _by_model: ``model_name`` → :class:`ModelOptions`
@@ -98,55 +113,16 @@ class ImageOptionsCache:
 
     @staticmethod
     def _build_by_model(rows: list[ImageGenerationPricing]) -> dict[str, ModelOptions]:
-        """Group rows by model and aggregate qualities/sizes/price ranges."""
-        # First pass: group rows by model.
+        """Group rows by model and keep what a family and a client can serve."""
         per_model: dict[str, list[ImageGenerationPricing]] = {}
         for row in rows:
             per_model.setdefault(row.model, []).append(row)
 
         result: dict[str, ModelOptions] = {}
         for model_name, model_rows in per_model.items():
-            providers = {r.provider.value for r in model_rows}
-            if len(providers) > 1:
-                # The application-level invariant (router) prevents this, but
-                # log loudly if it ever happens (e.g. stale data from a
-                # legacy seed).
-                logger.warning(
-                    "image_options_cache_multi_provider",
-                    model=model_name,
-                    providers=sorted(providers),
-                )
-            provider = next(iter(providers))
-
-            # Qualities with min/max price across the model's sizes.
-            quality_buckets: dict[str, list[Decimal]] = {}
-            for r in model_rows:
-                quality_buckets.setdefault(r.quality, []).append(r.cost_per_image_usd)
-            qualities = tuple(
-                sorted(
-                    (
-                        QualityOption(
-                            value=quality,
-                            min_cost_usd=min(costs),
-                            max_cost_usd=max(costs),
-                        )
-                        for quality, costs in quality_buckets.items()
-                    ),
-                    key=lambda q: q.value,
-                )
-            )
-
-            # Sizes (DISTINCT, sorted).
-            size_set = {r.size for r in model_rows}
-            sizes = tuple(sorted((SizeOption(value=s) for s in size_set), key=lambda s: s.value))
-
-            result[model_name] = ModelOptions(
-                model=model_name,
-                provider=provider,
-                qualities=qualities,
-                sizes=sizes,
-            )
-
+            options = _servable_options(model_name, model_rows)
+            if options is not None:
+                result[model_name] = options
         return result
 
     @classmethod
@@ -160,7 +136,7 @@ class ImageOptionsCache:
 
     @classmethod
     def get_options_for_model(cls, model_name: str) -> ModelOptions | None:
-        """Return the aggregated options for ``model_name``, or ``None``."""
+        """Return what ``model_name`` offers, or ``None`` when it is not servable."""
         return cls._by_model.get(model_name)
 
     @classmethod
@@ -179,3 +155,87 @@ class ImageOptionsCache:
         cls._by_model = {}
         cls._by_provider = {}
         cls._loaded = False
+
+
+def _servable_options(
+    model_name: str, model_rows: list[ImageGenerationPricing]
+) -> ModelOptions | None:
+    """What one model offers, or ``None`` when nothing of it can be served.
+
+    Args:
+        model_name: The model.
+        model_rows: Its active pricing rows.
+
+    Returns:
+        The model's options, restricted to the rows of one provider that its
+        family accepts.
+    """
+    providers = {r.provider.value for r in model_rows}
+    if len(providers) > 1:
+        # The router's invariant prevents this; log loudly if stale data slips in.
+        logger.warning(
+            "image_options_cache_multi_provider", model=model_name, providers=sorted(providers)
+        )
+    provider = min(providers)
+    family = resolve_image_family(provider, model_name)
+    if family is None:
+        logger.warning("image_options_model_unserved", model=model_name, provider=provider)
+        return None
+
+    accepted = [
+        r
+        for r in model_rows
+        if r.provider.value == provider and family.refusal(r.quality, r.size) is None
+    ]
+    if len(accepted) < len(model_rows):
+        logger.warning(
+            "image_options_rows_refused",
+            model=model_name,
+            refused=len(model_rows) - len(accepted),
+        )
+    if not accepted:
+        return None
+
+    return ModelOptions(
+        model=model_name,
+        provider=provider,
+        family=family,
+        qualities=_quality_options(family, accepted),
+        sizes=_size_options(family, accepted),
+    )
+
+
+def _quality_options(
+    family: ImageFamily, rows: list[ImageGenerationPricing]
+) -> tuple[QualityOption, ...]:
+    """Offered qualities in the family's declared order, with their price range."""
+    buckets: dict[str, list[Decimal]] = {}
+    for row in rows:
+        buckets.setdefault(row.quality, []).append(row.cost_per_image_usd)
+    return tuple(
+        QualityOption(value=quality, min_cost_usd=min(costs), max_cost_usd=max(costs))
+        for quality in family.qualities
+        if (costs := buckets.get(quality))
+    )
+
+
+def _size_options(
+    family: ImageFamily, rows: list[ImageGenerationPricing]
+) -> tuple[SizeOption, ...]:
+    """Offered sizes by tier, then square/landscape/portrait, then area."""
+    tier_order = {tier.name: rank for rank, tier in enumerate(family.billing_tiers)}
+    sizes = {ImageSize.parse(row.size) for row in rows}
+    options = [
+        SizeOption(value=str(size), orientation=size.orientation, tier=family.tier_of(size))
+        for size in sizes
+    ]
+    return tuple(
+        sorted(
+            options,
+            key=lambda option: (
+                tier_order.get(option.tier or "", 0),
+                _ORIENTATION_ORDER[option.orientation],
+                ImageSize.parse(option.value).area,
+            ),
+        )
+    )

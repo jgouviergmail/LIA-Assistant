@@ -153,3 +153,68 @@ class TestItNeverCostsTheUserTheirAnswer:
 
         with patch("src.infrastructure.database.session.get_db_context", _exploding):
             assert await performed_effects("run-1") == []
+
+
+def _entry(tool_name: str, status: str = EffectStatus.SUCCEEDED.value) -> dict[str, Any]:
+    """One entry of ``performed_effects`` for the sentence rendering."""
+    return {
+        "label_key": f"effects.labels.{tool_name}",
+        "values": {"target": "x"},
+        "status": status,
+        "tool_name": tool_name,
+    }
+
+
+@pytest.fixture
+def _loaded_catalogue() -> Any:
+    """The catalogue the boot loads: the test reads the manifests' REAL declarations."""
+    from src.domains.agents.registry import reset_global_registry, set_global_registry
+    from src.domains.agents.registry.agent_registry import AgentRegistry
+    from src.domains.agents.registry.catalogue_loader import initialize_catalogue
+    from src.domains.agents.tools import tool_registry
+
+    tool_registry.ensure_tools_loaded()
+    registry = AgentRegistry()
+    initialize_catalogue(registry)
+    set_global_registry(registry)
+    try:
+        yield
+    finally:
+        reset_global_registry()
+
+
+class TestTheSentencesAreTheActsThePersonWouldRecognise:
+    """What the ReAct directive states (ADR-263 §23): the model is told to say
+    these are done, so an act on LIA's own context would become narration."""
+
+    def test_an_act_on_lia_s_own_context_is_not_stated(self, _loaded_catalogue: None) -> None:
+        from src.domains.agents.effects.turn_summary import succeeded_effect_sentences
+
+        sentences = succeeded_effect_sentences(
+            [_entry("activate_skill_tool"), _entry("set_current_item"), _entry("generate_image")],
+            "en",
+        )
+
+        assert sentences == ["Generated an image: x"]
+
+    def test_an_act_no_manifest_describes_is_stated(self, _loaded_catalogue: None) -> None:
+        """A draft executor has no manifest: stated rather than hidden."""
+        from src.domains.agents.effects.turn_summary import succeeded_effect_sentences
+
+        draft = {
+            **_entry("draft:email"),
+            "label_key": "effects.labels.draft.email",
+            "values": {"recipient": "a@b.c"},
+        }
+
+        sentences = succeeded_effect_sentences([draft], "en")
+
+        assert len(sentences) == 1 and "a@b.c" in sentences[0]
+
+    def test_a_failure_is_not_stated(self, _loaded_catalogue: None) -> None:
+        """The honesty directive states it, once (ADR-303)."""
+        from src.domains.agents.effects.turn_summary import succeeded_effect_sentences
+
+        failed = _entry("generate_image", EffectStatus.FAILED.value)
+
+        assert succeeded_effect_sentences([failed], "en") == []

@@ -38,10 +38,12 @@ if TYPE_CHECKING:
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
 
+from src.core.field_names import FIELD_FAILED_STEPS, FIELD_STATUS
 from src.domains.agents.constants import (
     STATE_KEY_AGENT_RESULTS,
     STATE_KEY_MESSAGES,
     STATE_KEY_PLANNER_ERROR,
+    AgentResultStatus,
 )
 from src.domains.agents.models import MessagesState
 from src.infrastructure.llm.usage_metadata import model_name_of_response
@@ -464,6 +466,32 @@ def calculate_conversation_turns(state: MessagesState) -> int:
     return turns
 
 
+def _status_and_partial(result: Any) -> tuple[str | None, bool]:
+    """Status and « carries failed steps » of one agent result.
+
+    Reads a DICT first — the real shape, since ``agent_results`` holds
+    ``AgentResult.model_dump()`` output. Asking ``hasattr(result, "status")``
+    on a dict is always False, so every pipeline turn (failed ones included)
+    used to fall through to « results exist, assume success » and be counted a
+    success on ``agent_success_rate_total`` (ADR-303).
+
+    Args:
+        result: One entry of ``agent_results``, dict or object.
+
+    Returns:
+        ``(status, carries_failed_steps)``; status is None when absent.
+    """
+    if isinstance(result, dict):
+        return result.get(FIELD_STATUS), bool(result.get(FIELD_FAILED_STEPS))
+    return getattr(result, "status", None), bool(getattr(result, "failed_steps", None))
+
+
+def _has_data(result: Any) -> bool:
+    """Whether a status-less payload carries data (so it did run)."""
+    payload = result.get("data") if isinstance(result, dict) else getattr(result, "data", None)
+    return payload is not None
+
+
 def infer_conversation_outcome(state: MessagesState) -> str:
     """
     Infer conversation outcome from state using heuristics.
@@ -522,15 +550,16 @@ def infer_conversation_outcome(state: MessagesState) -> str:
         results_iterable = agent_results_raw
 
     for result in results_iterable:
-        # Check if result has status/success indicators
-        if hasattr(result, "status"):
-            status = result.status
-            if status == "success":
-                has_success = True
-            elif status in ("failure", "error"):
-                has_failure = True
-        elif hasattr(result, "data"):
-            # If result has data, consider it success
+        status, carries_failed_steps = _status_and_partial(result)
+        if status == AgentResultStatus.SUCCESS.value:
+            has_success = True
+            # A partial plan is a SUCCESS that still failed somewhere: the
+            # field says so, the status cannot (ADR-303).
+            has_failure = has_failure or carries_failed_steps
+        elif status == AgentResultStatus.ERROR.value:
+            has_failure = True
+        elif status is None and _has_data(result):
+            # A legacy payload with no status at all: data means it ran.
             has_success = True
 
     # Classify outcome

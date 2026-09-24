@@ -10,7 +10,6 @@ Coverage:
 - classify_save_mode (explicit or default LIST)
 - auto_save with LIST and CURRENT modes
 - list_active_domains for multi-domain scenarios
-- _apply_intelligent_truncation with confidence scoring
 - _build_namespace validation
 - Error handling and edge cases
 - UUID and string user_id handling
@@ -349,9 +348,8 @@ class TestSaveList:
             )
 
     @pytest.mark.asyncio
-    async def test_save_list_truncates_when_exceeds_max(self, manager, mock_store):
-        """Test intelligent truncation when items exceed max_items."""
-        # Create more items than max_items setting
+    async def test_save_list_keeps_the_first_items_past_the_ceiling(self, manager, mock_store):
+        """A list past the connectors' ceiling keeps its first items, numbered as shown."""
         many_items = [
             {"resource_name": f"people/c{i}", "name": f"Contact {i}", "confidence": i / 200}
             for i in range(150)
@@ -359,7 +357,7 @@ class TestSaveList:
 
         metadata = {"turn_id": 1, "query": "test"}
 
-        with patch.object(settings, "tool_context_max_items", 100):
+        with patch.object(settings, "api_max_items_per_request", 100):
             await manager.save_list(
                 user_id="user123",
                 session_id="sess456",
@@ -370,10 +368,13 @@ class TestSaveList:
             )
 
         list_call = mock_store.aput.call_args_list[0]
-        saved_items = list_call[0][2]["items"]
+        saved = list_call[0][2]
 
-        # Should be truncated to max_items
-        assert len(saved_items) == 100
+        assert [item["resource_name"] for item in saved["items"]] == [
+            f"people/c{i}" for i in range(100)
+        ]
+        assert saved["items"][3]["index"] == 4
+        assert saved["metadata"]["total_count"] == 150
 
 
 # ============================================================================
@@ -1034,76 +1035,6 @@ class TestListActiveDomains:
         assert len(result) == 1
         assert result[0]["current_item"] is not None
         assert result[0]["current_item"]["name"] == "Jean"
-
-
-# ============================================================================
-# Test _apply_intelligent_truncation
-# ============================================================================
-
-
-class TestIntelligentTruncation:
-    """Test _apply_intelligent_truncation with confidence scoring."""
-
-    def test_truncation_returns_all_when_under_max(self, manager):
-        """Test that no truncation occurs when items < max_items."""
-        items = [{"name": f"Item {i}", "confidence": 0.8} for i in range(50)]
-
-        result = manager._apply_intelligent_truncation(items, 100, "contacts")
-
-        assert len(result) == 50
-        assert result == items
-
-    def test_truncation_keeps_70_recent_30_confidence(self, manager):
-        """Test 70% recent + 30% high confidence truncation strategy."""
-        # Create 200 items with varying confidence
-        items = [{"name": f"Item {i}", "confidence": i / 200} for i in range(200)]
-
-        result = manager._apply_intelligent_truncation(items, 100, "contacts")
-
-        assert len(result) == 100
-
-        # Should keep last 70 items (most recent)
-        recent_items = items[-70:]
-        assert all(item in result for item in recent_items)
-
-    def test_truncation_uses_default_confidence_when_missing(self, manager):
-        """Test that items without confidence get default 0.5."""
-        items = [
-            {"name": "High", "confidence": 0.9},
-            {"name": "No Conf 1"},  # No confidence field
-            {"name": "No Conf 2"},
-            {"name": "Low", "confidence": 0.2},
-        ]
-
-        result = manager._apply_intelligent_truncation(items, 3, "contacts")
-
-        assert len(result) == 3
-
-    def test_truncation_preserves_original_order(self, manager):
-        """Test that truncation preserves original item order."""
-        items = [{"name": f"Item {i}", "confidence": i / 100} for i in range(100)]
-
-        result = manager._apply_intelligent_truncation(items, 50, "contacts")
-
-        # Result order should match original order (not sorted by confidence)
-        prev_idx = -1
-        for item in result:
-            curr_idx = items.index(item)
-            assert curr_idx > prev_idx  # Ascending order preserved
-            prev_idx = curr_idx
-
-    def test_truncation_tries_alternative_confidence_fields(self, manager):
-        """Test that truncation checks score/relevance/rank fields."""
-        items = [
-            {"name": "Item 1", "score": 0.9},
-            {"name": "Item 2", "relevance": 0.8},
-            {"name": "Item 3", "rank": 0.7},
-            {"name": "Item 4"},  # No confidence field
-        ]
-
-        result = manager._apply_intelligent_truncation(items, 3, "contacts")
-
-        assert len(result) == 3
 
 
 # ============================================================================

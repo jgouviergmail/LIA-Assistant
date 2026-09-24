@@ -59,6 +59,19 @@ class TestClassifyConnectorException:
         assert notice is not None
         assert notice.action == "reconnect"
 
+    def test_a_keyless_service_on_the_platform_key_never_asks_to_reconnect(self) -> None:
+        # ADR-307: a 401/403 on the instance's key is the operator's to fix —
+        # the person has no connector to reconnect, and the settings list none.
+        for connector_type in ("google_places", "google_weather", "google_environment"):
+            exc = ConnectorAPIError(connector_type=connector_type, status_code=403, detail="d")
+            assert classify_connector_exception(exc) is None
+
+    def test_a_keyless_service_still_reports_a_rate_limit(self) -> None:
+        exc = ConnectorAPIError(connector_type="google_places", status_code=429, detail="d")
+        notice = classify_connector_exception(exc)
+        assert notice is not None
+        assert notice.action == "rate_limit"
+
     def test_api_error_429_maps_to_rate_limit(self) -> None:
         exc = ConnectorAPIError(
             connector_type="google_gmail", status_code=429, detail="rate limited"

@@ -6,8 +6,9 @@ Two properties are Redis's, not ours, and a mock proves neither:
   leave a single payload, dated by the FIRST, because the payload is written
   with ``SET NX`` and its TTL is the staleness bound;
 * **two sweeps never serve the same user** — the pending set is drained with
-  ``SPOP``, so concurrent workers split the queue instead of duplicating a
-  decision (a duplicated wake would be a duplicated notification).
+  ``SPOP``, one account at a time (ADR-304), so concurrent workers split the
+  queue instead of duplicating a decision (a duplicated wake would be a
+  duplicated notification).
 """
 
 from __future__ import annotations
@@ -24,7 +25,7 @@ from src.domains.push_channels.wake import (
     cooldown_key,
     enqueue_wake,
     payload_key,
-    pop_wakes,
+    pop_next_wake,
     try_acquire_wake_cooldown,
 )
 from src.infrastructure.cache.redis import get_redis_cache
@@ -62,8 +63,8 @@ async def test_a_notification_storm_is_one_wake_dated_by_the_first(redis) -> Non
         assert first is True
         assert not any(rest), "a storm must queue exactly one payload"
 
-        payloads = await pop_wakes(redis, 10, PROVIDERS)
-        assert len(payloads) == 1
+        payloads = await pop_next_wake(redis, PROVIDERS)
+        assert payloads is not None and len(payloads) == 1
         # Dated by the FIRST notification: the staleness bound measures how
         # long the user has been waiting, not how recently the storm ended.
         assert payloads[0].enqueued_at <= started
@@ -78,17 +79,18 @@ async def test_two_concurrent_sweeps_split_the_queue_and_never_share_a_user(redi
         for user_id in user_ids:
             await enqueue_wake(redis, user_id, "google_gmail", ttl_seconds=300)
 
-        left, right = await asyncio.gather(
-            pop_wakes(redis, 12, PROVIDERS),
-            pop_wakes(redis, 12, PROVIDERS),
-        )
-        served_left = {p.user_id for p in left}
-        served_right = {p.user_id for p in right}
+        async def _drain() -> set[uuid.UUID]:
+            served: set[uuid.UUID] = set()
+            while (payloads := await pop_next_wake(redis, PROVIDERS)) is not None:
+                served |= {p.user_id for p in payloads}
+            return served
+
+        served_left, served_right = await asyncio.gather(_drain(), _drain())
 
         assert served_left & served_right == set(), "two sweeps served the same user"
         assert served_left | served_right == set(user_ids), "a queued wake was lost"
         # And the queue is empty afterwards: payloads are deleted on read.
-        assert await pop_wakes(redis, 12, PROVIDERS) == []
+        assert await pop_next_wake(redis, PROVIDERS) is None
     finally:
         await _cleanup(redis, user_ids)
 

@@ -92,7 +92,7 @@ def format_weather_data(
             passes ``settings.briefing_weather_daily_forecast_days`` — keeps this
             formatter pure / free of global state).
         environment: Optional AQ/pollen extras (2026-08) as returned by
-            ``weather_environment_enrichment.environment_extras_or_none``.
+            ``weather_environment_enrichment.fetch_environment_extras``.
             ``None`` (the default) leaves the card exactly as before.
 
     Returns:

@@ -16,11 +16,13 @@ would resolve the wrong person's preference and look correct in every
 single-user test.
 """
 
+import dataclasses
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
 
+from src.domains.connectors.preferences import owner_defaults
 from src.domains.connectors.preferences.owner_defaults import (
     resolve_owner_calendar_id,
     resolve_owner_task_list_id,
@@ -74,15 +76,29 @@ async def _resolve_calendar(
             "ConnectorPreferencesService.get_preference_value",
             return_value=preference,
         ),
-        patch(
-            "src.domains.connectors.preferences.owner_defaults.resolve_calendar_name",
-            resolver,
+        patch.object(
+            owner_defaults,
+            "CALENDAR",
+            dataclasses.replace(owner_defaults.CALENDAR, resolve=resolver),
         ),
     ):
         calendar_id = await resolve_owner_calendar_id(
-            db=MagicMock(), client=MagicMock(), owner_id=OWNER, connector_type=_connector_type()
+            client=MagicMock(), owner_id=OWNER, connector_type=_connector_type()
         )
     return calendar_id, repo, resolver
+
+
+@pytest.fixture(autouse=True)
+def _short_session():
+    """The legacy resolvers read the name in a short session of their own (ADR-304)."""
+    from contextlib import asynccontextmanager
+
+    @asynccontextmanager
+    async def _session():
+        yield MagicMock()
+
+    with patch.object(owner_defaults, "get_db_context", _session):
+        yield
 
 
 # =========================================================================
@@ -126,13 +142,14 @@ async def test_named_default_task_list_is_used_instead_of_at_default():
             "ConnectorPreferencesService.get_preference_value",
             return_value="Perso",
         ),
-        patch(
-            "src.domains.connectors.preferences.owner_defaults.resolve_task_list_name",
-            resolver,
+        patch.object(
+            owner_defaults,
+            "TASK_LIST",
+            dataclasses.replace(owner_defaults.TASK_LIST, resolve=resolver),
         ),
     ):
         task_list_id = await resolve_owner_task_list_id(
-            db=MagicMock(), client=MagicMock(), owner_id=OWNER, connector_type=_connector_type()
+            client=MagicMock(), owner_id=OWNER, connector_type=_connector_type()
         )
 
     assert task_list_id == "list_perso_id"
@@ -197,7 +214,7 @@ async def test_an_infrastructure_failure_propagates_rather_than_reading_the_wron
         pytest.raises(RuntimeError),
     ):
         await resolve_owner_calendar_id(
-            db=MagicMock(), client=MagicMock(), owner_id=OWNER, connector_type=_connector_type()
+            client=MagicMock(), owner_id=OWNER, connector_type=_connector_type()
         )
 
 

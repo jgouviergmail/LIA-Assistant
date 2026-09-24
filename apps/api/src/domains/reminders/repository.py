@@ -1,17 +1,17 @@
 """
 Reminder repository for database operations.
 
-Includes anti-concurrence locking for scheduler.
+Includes the scheduler's claim, settlement and stale-claim recovery (ADR-304).
 
 Phase: Reminders with FCM notifications
 Created: 2025-12-28
 """
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 import structlog
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.repository import BaseRepository
@@ -93,49 +93,86 @@ class ReminderRepository(BaseRepository[Reminder]):
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
-    async def get_and_lock_pending_reminders(
-        self,
-        limit: int = 100,
-    ) -> list[Reminder]:
-        """
-        Get pending reminders due for notification AND lock them atomically.
+    async def claim_next_due(self) -> Reminder | None:
+        """Claim ONE due reminder for notification: PENDING → PROCESSING.
 
-        Uses FOR UPDATE SKIP LOCKED to prevent concurrent processing:
-        - Locks selected rows
-        - Skips rows already locked by another transaction
-        - Prevents duplicate notifications
+        ``FOR UPDATE SKIP LOCKED`` keeps two workers off the same row while the
+        claim is taken; the CALLER commits at once, which releases the row lock
+        and leaves the PROCESSING status as the claim (ADR-304). Nothing is
+        notified under the lock: a batch of 100 claimed together used to keep
+        every row locked — and one transaction open — through every model call
+        and every push of the batch. A claim a crash abandons is released by
+        :meth:`recover_stale_processing`.
 
         Returns:
-            List of reminders transitioned to PROCESSING status
+            The claimed reminder, or None when nothing is due.
         """
-        now = datetime.now(UTC)
-
         stmt = (
             select(Reminder)
             .where(Reminder.status == ReminderStatus.PENDING.value)
-            .where(Reminder.trigger_at <= now)
-            .order_by(Reminder.trigger_at.asc())
-            .limit(limit)
+            .where(Reminder.trigger_at <= datetime.now(UTC))
+            .order_by(Reminder.trigger_at.asc(), Reminder.id.asc())
+            .limit(1)
             .with_for_update(skip_locked=True)
         )
-
-        result = await self.db.execute(stmt)
-        reminders = list(result.scalars().all())
-
-        # Immediately transition to PROCESSING to release lock
-        for reminder in reminders:
+        reminder = (await self.db.execute(stmt)).scalar_one_or_none()
+        if reminder is not None:
             reminder.status = ReminderStatus.PROCESSING.value
+            await self.db.flush()
+        return reminder
 
-        await self.db.flush()
+    async def get_processing_for_update(self, reminder_id: UUID) -> Reminder | None:
+        """A claimed reminder, locked for its settlement — None when no longer claimed.
 
-        if reminders:
-            logger.info(
-                "reminders_locked_for_processing",
-                count=len(reminders),
-                reminder_ids=[str(r.id) for r in reminders],
+        The settlement of a notified reminder is conditioned on the claim still
+        standing: a reminder its owner deleted meanwhile, or one released as
+        stale and claimed again, is left to whoever holds it now.
+
+        Args:
+            reminder_id: The reminder claimed by :meth:`claim_next_due`.
+
+        Returns:
+            The row, locked until the caller commits, or None.
+        """
+        stmt = (
+            select(Reminder)
+            .where(Reminder.id == reminder_id)
+            .where(Reminder.status == ReminderStatus.PROCESSING.value)
+            .with_for_update()
+        )
+        return (await self.db.execute(stmt)).scalar_one_or_none()
+
+    async def recover_stale_processing(self, timeout_minutes: int) -> int:
+        """Release the claims a crashed worker left behind (crash recovery).
+
+        A reminder PROCESSING for longer than ``timeout_minutes`` — measured on
+        ``updated_at``, which the claim itself bumped — goes back to PENDING,
+        so the next claim picks it up. The timeout must exceed the time one
+        notification can take, or a live claim would be released under its
+        worker.
+
+        Args:
+            timeout_minutes: Age past which a claim is considered abandoned.
+
+        Returns:
+            Number of released reminders (exact).
+        """
+        cutoff = datetime.now(UTC) - timedelta(minutes=timeout_minutes)
+        stmt = (
+            update(Reminder)
+            .where(Reminder.status == ReminderStatus.PROCESSING.value)
+            .where(Reminder.updated_at < cutoff)
+            .values(status=ReminderStatus.PENDING.value)
+            .returning(Reminder.id)
+        )
+        released = list((await self.db.execute(stmt)).scalars().all())
+        if released:
+            logger.warning(
+                "reminders_stale_claims_released",
+                count=len(released),
+                timeout_minutes=timeout_minutes,
             )
-
-        return reminders
+        return len(released)
 
     async def get_all_pending_for_user(self, user_id: UUID) -> list[Reminder]:
         """Every reminder still waiting, whatever its trigger time.

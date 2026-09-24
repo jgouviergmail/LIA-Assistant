@@ -107,6 +107,16 @@ def _offer(*hosts: Any, ask_enabled: bool = True) -> Any:
     return NetworkOffer(hosts=tuple(hosts), ask_enabled=ask_enabled)
 
 
+def _network_rules(prompt: str) -> str:
+    """The network section alone: from its heading to the end of <Computation>.
+
+    Read to the END of the prompt, a word the rules must not say was found in the
+    <FinalResponse> rules (« what the user asked for ») — and a word they must say
+    was found there too, which is an oracle that cannot fail.
+    """
+    return prompt.split("Reachable now")[1].split("</Computation>")[0]
+
+
 class TestTheComputationBlockIsTheLivingContract:
     def test_the_four_roles_the_libraries_and_the_bounds(self) -> None:
         from src.domains.agents.python_sandbox.libraries import PYTHON_SANDBOX_LIBRARIES
@@ -131,7 +141,7 @@ class TestTheComputationBlockIsTheLivingContract:
     def test_the_offer_lists_hosts_with_their_credential_carrier(self) -> None:
         offer = _offer(_host("api.search.brave.com", "brave_search"), _host("status.example.org"))
         prompt = _build_system_prompt(_STATE, computation=True, network=offer)
-        block = prompt.split("Reachable now")[1]
+        block = _network_rules(prompt)
         assert "`api.search.brave.com`" in block and "`status.example.org`" in block
         # Measured 2026-09-18 on dev: told « `LIA_KEY_BRAVE_SEARCH` in the header »,
         # the model sent the variable's NAME as the header value (422 from Brave,
@@ -161,12 +171,12 @@ class TestTheComputationBlockIsTheLivingContract:
     def test_without_the_ask_the_rule_is_a_refusal(self) -> None:
         offer = _offer(_host("status.example.org"), ask_enabled=False)
         prompt = _build_system_prompt(_STATE, computation=True, network=offer)
-        block = prompt.split("Reachable now")[1]
+        block = _network_rules(prompt)
         assert "refused" in block and "asked" not in block
 
     def test_no_pre_permitted_host_is_said_not_left_blank(self) -> None:
         prompt = _build_system_prompt(_STATE, computation=True, network=_offer())
-        assert "none pre-permitted" in prompt.split("Reachable now")[1]
+        assert "none pre-permitted" in _network_rules(prompt)
 
     def test_the_network_is_never_promised_without_the_sandbox(self) -> None:
         prompt = _build_system_prompt(

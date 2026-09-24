@@ -93,6 +93,7 @@ class LiveSetupInputs:
     trigger_tokens: int
     target_tokens: int
     direct_tools: tuple[dict[str, Any], ...] = ()
+    audio_transport: Literal["websocket", "webrtc"] = "websocket"
 
 
 def setup_inputs_to_dict(inputs: LiveSetupInputs) -> dict[str, Any]:
@@ -120,6 +121,7 @@ def setup_inputs_from_dict(record_inputs: dict[str, Any]) -> LiveSetupInputs:
         trigger_tokens=int(record_inputs["trigger_tokens"]),
         target_tokens=int(record_inputs["target_tokens"]),
         direct_tools=tuple(dict(tool) for tool in record_inputs.get("direct_tools") or ()),
+        audio_transport=record_inputs.get("audio_transport", "websocket"),
     )
 
 

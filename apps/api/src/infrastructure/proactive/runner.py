@@ -535,6 +535,7 @@ class ProactiveTaskRunner:
                     prompt_tokens=result.tokens_in,
                     completion_tokens=result.tokens_out,
                     cached_tokens=result.tokens_cache,
+                    cache_write_tokens=result.tokens_cache_write,
                 )
             except Exception:
                 logger.debug(
@@ -681,6 +682,7 @@ class ProactiveTaskRunner:
             tokens_in=result.tokens_in,
             tokens_out=result.tokens_out,
             tokens_cache=result.tokens_cache,
+            tokens_cache_write=result.tokens_cache_write,
             model_name=result.model_name,
             run_id=run_id,
             source="proactive",

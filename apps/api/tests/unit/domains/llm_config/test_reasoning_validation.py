@@ -247,6 +247,85 @@ class TestThinkingTokenBudgetFloor:
         )
 
 
+class TestAModelThatReasonsUnasked:
+    """``provider_default`` is not "no reasoning" on a Claude generation that thinks unasked.
+
+    Fable 5, Fable 5.1 and Opus 5.5 cannot switch thinking off; Opus 5 and
+    Sonnet 5 think unless told not to (ADR-306). Leaving the level unset there
+    buys the vendor's implicit depth -- billed inside ``max_tokens`` like any
+    other -- so the incident guard must read that depth, not the empty field.
+    """
+
+    def _claude(self, model: str, intent: ReasoningIntent | None, max_tokens: int) -> Any:
+        return _agent_config(
+            provider="anthropic", model=model, reasoning_effort=intent, max_tokens=max_tokens
+        )
+
+    @pytest.mark.parametrize(
+        ("model", "implicit"),
+        [
+            ("claude-fable-5-1", "high"),
+            ("claude-fable-5", "high"),
+            ("claude-opus-5-5", "medium"),
+            ("claude-opus-5", "high"),
+            ("claude-sonnet-5", "high"),
+        ],
+    )
+    @pytest.mark.parametrize("intent", [None, ReasoningIntent(level="provider_default")])
+    def test_an_unset_level_is_the_implicit_depth(
+        self, model: str, implicit: str, intent: ReasoningIntent | None
+    ) -> None:
+        with pytest.raises(HTTPException) as exc:
+            validate_thinking_token_budget(
+                llm_type="response", effective=self._claude(model, intent, 600), floor=4000
+            )
+        detail = _detail(exc)
+        assert detail["type"] == "thinking_budget_below_floor"
+        assert detail["ctx"]["implicit_level"] == implicit
+        assert repr(implicit) in detail["msg"]
+
+    def test_the_implicit_depth_at_the_floor_passes(self) -> None:
+        validate_thinking_token_budget(
+            llm_type="response", effective=self._claude("claude-opus-5-5", None, 4000), floor=4000
+        )
+
+    def test_switching_it_off_is_light(self) -> None:
+        validate_thinking_token_budget(
+            llm_type="response",
+            effective=self._claude("claude-opus-5", ReasoningIntent(level="none"), 100),
+            floor=4000,
+        )
+
+    def test_an_explicit_light_level_stays_light(self) -> None:
+        """An operator who asked for ``low`` is judged on ``low``, not the default."""
+        validate_thinking_token_budget(
+            llm_type="response",
+            effective=self._claude("claude-fable-5-1", ReasoningIntent(level="low"), 100),
+            floor=4000,
+        )
+
+    @pytest.mark.parametrize(
+        ("provider", "model"),
+        [
+            ("anthropic", "claude-opus-4-7"),  # opt-in: off until asked
+            ("anthropic", "claude-opus-4-6"),
+            ("anthropic", "claude-haiku-4-5"),
+            ("deepseek", "deepseek-v4-flash"),  # no depth declared: unchanged
+            ("openai", "gpt-5.2"),
+        ],
+    )
+    def test_a_model_without_a_declared_implicit_depth_is_unchanged(
+        self, provider: str, model: str
+    ) -> None:
+        validate_thinking_token_budget(
+            llm_type="response",
+            effective=_agent_config(
+                provider=provider, model=model, reasoning_effort=None, max_tokens=100
+            ),
+            floor=4000,
+        )
+
+
 class TestExplicitOff:
     """``none`` is governed by ``can_disable``, never by ladder membership.
 

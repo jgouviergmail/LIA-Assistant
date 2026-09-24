@@ -816,3 +816,61 @@ async def test_a_third_party_call_ignores_a_mode(monkeypatch: pytest.MonkeyPatch
     result = await _call(TelephonyService(db, client_factory=factory), call_mode="delegated")
     assert result.status == "placed"
     assert captured["create_data"]["call_mode"] == "direct"
+
+
+class _TxFakeDB(_FakeDB):
+    """A session that knows whether a read left its transaction open (ADR-304)."""
+
+    def __init__(self, user: object) -> None:
+        super().__init__(user)
+        self.open = False
+
+    async def get(self, _model, _pk):  # noqa: ANN001
+        self.open = True
+        return self._user
+
+    async def commit(self) -> None:
+        await super().commit()
+        self.open = False
+
+
+@pytest.mark.unit
+async def test_no_vendor_or_calendar_call_runs_inside_the_dial_reads(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ADR-304: the zombie probe, the agent sync and the calendar read are
+    network calls; each used to run inside the transaction the dial's reads
+    opened (measured in production: the API key's row locked for the whole
+    dial). Every one of them now finds that transaction closed."""
+    db = _TxFakeDB(_user())
+    captured, factory = _install_fakes(
+        monkeypatch, active_existing=_zombie(minutes_old=2), vendor_conversation_status="done"
+    )
+    open_at: list[tuple[str, bool]] = []
+
+    def _watched(api_key: str) -> object:
+        client = factory(api_key)
+
+        class _Watch:
+            def __getattr__(self, name: str) -> object:
+                method = getattr(client, name)
+
+                async def _called(*args: object, **kwargs: object) -> object:
+                    open_at.append((name, db.open))
+                    return await method(*args, **kwargs)
+
+                return _called
+
+        return _Watch()
+
+    async def _availability(*_args: object, **_kwargs: object) -> AvailabilityRead:
+        open_at.append(("availability", db.open))
+        return AvailabilityRead(summary="free", opened=True, failed=False)
+
+    monkeypatch.setattr(svc, "build_availability", _availability)
+    result = await _call(TelephonyService(db, client_factory=_watched))
+
+    assert result.status == "placed"
+    names = [name for name, _ in open_at]
+    assert {"get_conversation_status", "update_agent", "availability"} <= set(names)
+    assert [name for name, was_open in open_at if was_open] == []

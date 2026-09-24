@@ -93,30 +93,7 @@ SECTION 4 — LEVELS
 - NEVER emit L2 or L3 here.
 
 =================================================================
-SECTION 5 — INPUTS
-=================================================================
-## CONVERSATION
-{conversation}
-
-## HEALTH CONTEXT (optional — ignore if absent)
-{health_context}
-
-{inner_state_section}
-
-{previous_turn_directives_section}
-
-## EXISTING ENTRIES (Maintain, update or delete these)
-{existing_entries}
-
-=================================================================
-SECTION 6 — CONSTRAINTS
-=================================================================
-- Size: {current_chars} / {max_chars} chars used. {size_warning}
-- Max {max_entry_chars} chars per entry.
-- Language: Write ALL entry text (title + content) in {user_language}.
-
-=================================================================
-SECTION 7 — FINAL CHECK (run on every entry before output)
+SECTION 5 — FINAL CHECK (run on every entry before output)
 =================================================================
 1. Trigger grounded in the LAST user message (not older turns)?
 2. Originated from the user, not an echo of my own suggestion?
@@ -125,10 +102,10 @@ SECTION 7 — FINAL CHECK (run on every entry before output)
 If in doubt → emit `[]`.
 
 =================================================================
-SECTION 8 — OUTPUT FORMAT
+SECTION 6 — OUTPUT FORMAT
 =================================================================
 Return ONLY a valid JSON ARRAY. Zero markdown formatting fences, zero prose.
-For update/delete: use the EXACT, untruncated UUID from headers above.
+For update/delete: use the EXACT, untruncated UUID from the EXISTING ENTRIES headers.
 
 ```json
 [
@@ -158,3 +135,32 @@ For update/delete: use the EXACT, untruncated UUID from headers above.
   }}
 ]
 ```
+
+{analyst_persona}
+
+--- DYNAMIC CONTEXT (all variable data below) ---
+
+=================================================================
+SECTION 7 — INPUTS
+=================================================================
+## CONVERSATION
+{conversation}
+
+## HEALTH CONTEXT (optional — ignore if absent)
+{health_context}
+
+{inner_state_section}
+
+{previous_turn_directives_section}
+
+## EXISTING ENTRIES (Maintain, update or delete these)
+{existing_entries}
+
+=================================================================
+SECTION 8 — CONSTRAINTS
+=================================================================
+- Size: {current_chars} / {max_chars} chars used. {size_warning}
+- Max {max_entry_chars} chars per entry.
+- Language: Write ALL entry text (title + content) in {user_language}.
+- Run the FINAL CHECK (SECTION 5) on every entry, then return ONLY the JSON array of
+  SECTION 6 — `[]` when nothing qualifies.

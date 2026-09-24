@@ -594,9 +594,10 @@ def create_agent_wrapper_node(
                 duration_ms = duration * 1000
                 for msg in new_messages:
                     if isinstance(msg, AIMessage) and getattr(msg, "usage_metadata", None):
-                        net_input, output_tokens, cached_tokens = tokens_from_usage_metadata(
-                            msg.usage_metadata
-                        )
+                        usage = tokens_from_usage_metadata(msg.usage_metadata)
+                        net_input = usage.prompt
+                        output_tokens = usage.completion
+                        cached_tokens = usage.cached
                         # Extract model name from response_metadata
                         model_name = "unknown"
                         resp_meta = getattr(msg, "response_metadata", None)
@@ -609,6 +610,7 @@ def create_agent_wrapper_node(
                             prompt_tokens=net_input,
                             completion_tokens=output_tokens,
                             cached_tokens=cached_tokens,
+                            cache_write_tokens=usage.cache_write,
                             duration_ms=duration_ms,
                         )
                         logger.info(

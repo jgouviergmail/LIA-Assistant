@@ -15,7 +15,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const { cookieGet } = vi.hoisted(() => ({ cookieGet: vi.fn() }));
-vi.mock('next/headers', () => ({ cookies: async () => ({ get: cookieGet }) }));
+// Both halves of the real module: the client reads the session cookie AND the
+// caller's address (ADR-213), absent here as in development.
+vi.mock('next/headers', () => ({
+  cookies: async () => ({ get: cookieGet }),
+  headers: async () => ({ get: () => null }),
+}));
 vi.mock('@/lib/logger', () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));

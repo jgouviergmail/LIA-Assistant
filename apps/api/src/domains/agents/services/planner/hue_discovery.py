@@ -60,46 +60,46 @@ async def build_iot_device_context(
 
         from src.domains.agents.effects.treatments import record_treatment
         from src.domains.connectors.clients.philips_hue_client import PhilipsHueClient
-        from src.domains.connectors.service import ConnectorService
-        from src.infrastructure.database.session import AsyncSessionLocal
+        from src.domains.connectors.session_scope import DetachedConnectorService
 
-        config.get("configurable", {})
         user_id = runtime_user_id_str(None)
         if not user_id:
             return ""
 
         user_uuid = UUID(str(user_id)) if not isinstance(user_id, UUID) else user_id
 
-        # Create a short-lived session for credential lookup
-        async with AsyncSessionLocal() as db_session:
-            connector_service = ConnectorService(db_session)
+        # Credentials in a session of their own, closed before the bridge is
+        # called; the client writes through a detached service (ADR-304).
+        connectors = DetachedConnectorService()
+        async with connectors.unit_of_work() as connector_service:
             credentials = await connector_service.get_hue_credentials(user_uuid)
-            if not credentials:
-                return ""
+        if not credentials:
+            return ""
 
-            client = PhilipsHueClient(user_uuid, credentials, connector_service)
+        client = PhilipsHueClient(user_uuid, credentials, connectors)
 
-            # Discovery calls — lightweight GET requests to the Hue Bridge.
-            # Recorded: the planner reaches the bridge through its CLIENT,
-            # so the tool gate that fills the consultation register never
-            # sees it, and the same read is registered when the person
-            # asks « quelles lampes ai-je ? » and silent when the planner
-            # asks it for them. The WRITES stay gated by their tools.
-            _started = perf_counter()
-            _read_failed = False
-            try:
-                lights = await client.list_lights()
-                rooms = await client.list_rooms()
-            except Exception:
-                _read_failed = True
-                raise
-            finally:
-                record_treatment(
-                    "planner:hue",
-                    None,
-                    succeeded=not _read_failed,
-                    duration_ms=int((perf_counter() - _started) * 1000),
-                )
+        # Discovery calls — lightweight GET requests to the Hue Bridge.
+        # Recorded: the planner reaches the bridge through its CLIENT,
+        # so the tool gate that fills the consultation register never
+        # sees it, and the same read is registered when the person
+        # asks « quelles lampes ai-je ? » and silent when the planner
+        # asks it for them. The WRITES stay gated by their tools.
+        _started = perf_counter()
+        _read_failed = False
+        try:
+            lights = await client.list_lights()
+            rooms = await client.list_rooms()
+        except Exception:
+            _read_failed = True
+            raise
+        finally:
+            await client.close()
+            record_treatment(
+                "planner:hue",
+                None,
+                succeeded=not _read_failed,
+                duration_ms=int((perf_counter() - _started) * 1000),
+            )
 
         light_names = [
             lt.get("metadata", {}).get("name", "")

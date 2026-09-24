@@ -541,7 +541,11 @@ async def diagnose_incidents(
             # Billed as it is spent: a language that ran has been paid for,
             # whether or not the languages after it get to run.
             call_cost, _call_eur = get_cached_cost_usd_eur(
-                model_name, usage.prompt, usage.completion, usage.cached
+                model_name,
+                usage.prompt,
+                usage.completion,
+                usage.cached,
+                cache_write_tokens=usage.cache_write,
             )
             cost_usd += call_cost
             await _record_spend(budget_key, call_cost)
@@ -556,6 +560,7 @@ async def diagnose_incidents(
                 tokens_in=usage.prompt,
                 tokens_out=usage.completion,
                 tokens_cache=usage.cached,
+                tokens_cache_write=usage.cache_write,
             )
             variants[language] = {
                 "diagnosis": output.diagnosis,

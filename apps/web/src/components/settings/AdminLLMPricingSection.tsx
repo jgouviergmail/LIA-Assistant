@@ -65,6 +65,7 @@ import { useConfirm } from '@/components/ui/use-confirm';
 import type { Language } from '@/i18n/settings';
 import { SectionToolbar } from '@/components/settings/SectionToolbar';
 import { AdminPricingSheetDialog } from '@/components/settings/AdminPricingSheetDialog';
+import { WeekdayToggleGroup } from '@/components/recurrence/WeekdayToggleGroup';
 import { useLLMPricingSheet } from '@/hooks/useLLMPricingSheet';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import type { BaseSettingsProps } from '@/types/settings';
@@ -1056,7 +1057,6 @@ function PricingReasoningLadder({
   );
 }
 
-
 /** Section 3 — kind, sampling caps, reasoning shape (template or custom).
  * Intentionally English-only (superuser technical surface) → no ``t``. */
 function PricingReasoningFields({
@@ -1130,9 +1130,7 @@ function PricingReasoningFields({
           <Switch
             id="is-reasoning-model"
             checked={formData.is_reasoning_model}
-            onCheckedChange={v =>
-              setFormData(prev => ({ ...prev, is_reasoning_model: v }))
-            }
+            onCheckedChange={v => setFormData(prev => ({ ...prev, is_reasoning_model: v }))}
           />
         </div>
       </div>
@@ -1240,6 +1238,11 @@ function PricingTimeSlotRow({
           <Trash2 className="h-4 w-4" aria-hidden="true" />
         </Button>
       </div>
+      <WeekdayToggleGroup
+        days={row.weekdays}
+        onChange={weekdays => onChange({ weekdays })}
+        label={t('settings.admin.llm.modal.time_slots_days_label')}
+      />
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {priceFields.map(([field, labelKey, required]) => (
           <div key={field}>
@@ -1551,7 +1554,7 @@ function pricingFormFromModel(model: LLMModelPricing): ModelPricingFormData {
     supports_strict_mode: model.supports_strict_mode,
     supports_streaming: model.supports_streaming,
     supports_vision: model.supports_vision,
-      kind: model.kind,
+    kind: model.kind,
     is_reasoning_model: model.is_reasoning_model,
     reasoning_enum_values_csv: formatEnumValuesCsv(model.reasoning_enum_values),
     reasoning_doc_i18n_key: model.reasoning_doc_i18n_key ?? '',
@@ -1614,7 +1617,6 @@ export function ModelPricingModal({ lng, model, onClose, onSubmit }: ModelPricin
       controller.abort();
     };
   }, [formProvider, formModelName]);
-
 
   // Time-slot validation (ADR-223): derived live so fixing the rows clears
   // the message, but only DISPLAYED after a submit attempt — a freshly

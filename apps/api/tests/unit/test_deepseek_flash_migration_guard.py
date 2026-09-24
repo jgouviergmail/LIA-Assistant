@@ -13,6 +13,7 @@ import importlib.util
 import json
 import re
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 
@@ -27,6 +28,9 @@ pytestmark = pytest.mark.unit
 _API_ROOT = Path(__file__).resolve().parents[2]
 _MIGRATION = (
     _API_ROOT / "alembic" / "versions" / "2026_09_12_1500-e9b5d7f3a2c4_deepseek_flash_catalogue.py"
+)
+_WEEKDAY_MIGRATION = (
+    _API_ROOT / "alembic" / "versions" / "2026_09_23_1200-e4a7c2f9b1d6_deepseek_peak_weekdays.py"
 )
 _SEED = _API_ROOT.parents[1] / "infrastructure" / "database" / "seeds" / "llm_pricing_seed.sql"
 
@@ -46,6 +50,14 @@ _SEED_WINDOWS = re.compile(
 
 def _load_migration():  # type: ignore[no-untyped-def]
     spec = importlib.util.spec_from_file_location("deepseek_flash_catalogue", _MIGRATION)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _load_weekday_migration() -> ModuleType:
+    spec = importlib.util.spec_from_file_location("deepseek_peak_weekdays", _WEEKDAY_MIGRATION)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -83,7 +95,15 @@ def test_the_migrated_tariff_equals_the_seed_bundle_row_and_its_windows() -> Non
     assert float(windows.group("input")) == module.OFF_PEAK["input"]
     assert float(windows.group("cached")) == module.OFF_PEAK["cached"]
     assert float(windows.group("output")) == module.OFF_PEAK["output"]
-    assert json.loads(windows.group("slots")) == module.TIME_SLOTS
+    # The bundle holds the windows as an UPGRADED instance holds them: this
+    # migration's, then Monday-Friday from the weekday migration (e4a7c2f9b1d6).
+    weekdays = _load_weekday_migration()
+    assert json.loads(windows.group("slots")) == [
+        {**slot, "weekdays": weekdays.WEEKDAYS} for slot in module.TIME_SLOTS
+    ]
+    assert {(slot["start_utc"], slot["end_utc"]) for slot in module.TIME_SLOTS} == set(
+        weekdays.VENDOR_WINDOWS
+    ), "the weekday migration would not recognise these windows as the vendor's"
 
 
 def test_the_tariff_insert_never_overrides_an_administered_price() -> None:

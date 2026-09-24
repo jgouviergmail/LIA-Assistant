@@ -28,7 +28,10 @@ if TYPE_CHECKING:
     from src.domains.journals.models import JournalEntry
 
 from src.core.config import settings
+from src.core.i18n import get_language_name
 from src.core.llm_config_helper import get_llm_config_for_agent
+from src.core.prompt_layout import single_call_messages
+from src.core.prompt_store import parse_prompt_sections, read_prompt_file
 from src.domains.agents.utils.json_parser import extract_json_from_llm_response
 from src.domains.journals.constants import (
     JOURNAL_ENTRY_CONTENT_MAX_LENGTH,
@@ -473,7 +476,7 @@ async def _persist_journal_tokens(
             return
 
         usage = tokens_from_usage_metadata(usage_metadata)
-        input_tokens, output_tokens, cached_tokens = usage
+        input_tokens, output_tokens = usage.prompt, usage.completion
         if usage.is_empty:
             return
 
@@ -501,7 +504,8 @@ async def _persist_journal_tokens(
                 model_name=model_name,
                 prompt_tokens=input_tokens,
                 completion_tokens=output_tokens,
-                cached_tokens=cached_tokens,
+                cached_tokens=usage.cached,
+                cache_write_tokens=usage.cache_write,
                 duration_ms=duration_ms,
             )
             await tracker.commit()
@@ -560,6 +564,7 @@ async def _update_user_last_cost(
             prompt_tokens=tokens.prompt,
             completion_tokens=tokens.completion,
             cached_tokens=tokens.cached,
+            cache_write_tokens=tokens.cache_write,
         )
 
         from src.domains.users.models import User
@@ -747,19 +752,14 @@ async def extract_journal_entry_background(
         # Format pre-filtered entries for prompt context (all in full since pre-filtered)
         existing_context = _format_existing_entries_for_context(existing_entries)
 
-        # Build size warning
+        # Build size warning — the words are the consolidation's own lines (ADR-284)
         usage_pct = (total_chars / max_total_chars * 100) if max_total_chars > 0 else 0
+        size_lines = dict(parse_prompt_sections(read_prompt_file("journal_consolidation_lines"), 2))
         size_warning = ""
         if usage_pct > 100:
-            size_warning = (
-                "CRITICAL: You have EXCEEDED the size limit. "
-                "You MUST summarize or delete entries to get back within the limit."
-            )
+            size_warning = size_lines["size_exceeded"]
         elif usage_pct > 80:
-            size_warning = (
-                "WARNING: You are approaching the size limit. "
-                "Consider summarizing or deleting older entries to make room."
-            )
+            size_warning = size_lines["size_approaching"]
 
         # Health Metrics context — empty string unless the user opted in.
         health_context = await _maybe_build_health_context(user_id)
@@ -787,7 +787,8 @@ async def extract_journal_entry_background(
             current_chars=total_chars,
             max_chars=max_total_chars,
             size_warning=size_warning,
-            user_language=user_language,
+            # The model reads the language's NAME, never a code (ADR-284).
+            user_language=get_language_name(user_language),
             max_entry_chars=max_entry_chars,
             health_context=health_context,
             inner_state_section=inner_state_section,
@@ -804,7 +805,9 @@ async def extract_journal_entry_background(
             result = await invoke_with_instrumentation(
                 llm=llm,
                 llm_type="journal_extraction",
-                messages=prompt,
+                # The fixed rules and persona as the system message, the turn's
+                # data as the question: a prompt cache reads the first (ADR-309).
+                messages=single_call_messages(prompt),
                 session_id=session_id,
                 user_id=user_id,
             )

@@ -11,6 +11,13 @@ proof surface was invisible for the one path that produces most effects.
 The response node HOLDS the authoritative run id — it receives it as an
 argument and passes it to the executor. A caller that knows must not be made to
 guess, so the scope now takes it.
+
+And the config answers from the plane the service WRITES. ADR-231 moved the run
+id to ``metadata``; these tests kept building ``configurable.run_id``, a shape
+no writer produces, so they stayed green while production filed every direct
+action under the thread — and on 2026-09-22 a pipeline step key collided with
+an earlier turn's, and a reminder was served a recorded result instead of being
+created. The configs below are the orchestration service's own shape.
 """
 
 from __future__ import annotations
@@ -26,6 +33,12 @@ from src.domains.agents.effects.scope import react_call_scope, scope_from_config
 pytestmark = [pytest.mark.unit]
 
 
+def _graph_config(run_id: str | None) -> dict[str, Any]:
+    """The config the orchestration service builds (ADR-231)."""
+    metadata: dict[str, Any] = {"run_id": run_id} if run_id else {}
+    return {"configurable": {"thread_id": "thread-42"}, "metadata": metadata}
+
+
 def _context(thread_id: str = "thread-42") -> Any:
     return SimpleNamespace(
         user_id="u", thread_id=thread_id, execution_mode="react", is_automated_source=False
@@ -39,7 +52,7 @@ class TestTheCallerSKnowledgeWins:
             return_value=_context(),
         ):
             scope = scope_from_config(
-                {"configurable": {"run_id": "from-config"}},
+                _graph_config("from-config"),
                 idempotency_key="draft:d1",
                 run_id="from-the-caller",
             )
@@ -53,7 +66,7 @@ class TestTheCallerSKnowledgeWins:
             return_value=_context(),
         ):
             scope = scope_from_config(
-                {"configurable": {}}, idempotency_key="draft:d1", run_id="the-real-run"
+                _graph_config(None), idempotency_key="draft:d1", run_id="the-real-run"
             )
 
         assert scope.run_id == "the-real-run"
@@ -66,11 +79,21 @@ class TestTheFallbacksAreUnchanged:
             "src.domains.agents.context.runtime_context.runtime_context_if_running",
             return_value=_context(),
         ):
-            scope = scope_from_config(
-                {"configurable": {"run_id": "from-config"}}, idempotency_key="step:s1"
-            )
+            scope = scope_from_config(_graph_config("from-config"), idempotency_key="step:s1")
 
         assert scope.run_id == "from-config"
+
+    def test_configurable_is_plumbing_only(self) -> None:
+        """Nobody writes a run id there since ADR-231: reading it is a second
+        authority on a fact the first one owns."""
+        config = {"configurable": {"thread_id": "thread-42", "run_id": "stale"}, "metadata": {}}
+        with patch(
+            "src.domains.agents.context.runtime_context.runtime_context_if_running",
+            return_value=_context(),
+        ):
+            scope = scope_from_config(config, idempotency_key="step:s1")
+
+        assert scope.run_id == "thread-42"
 
     def test_the_thread_remains_the_last_resort(self) -> None:
         """A correlation value, never an invented one."""
@@ -78,7 +101,7 @@ class TestTheFallbacksAreUnchanged:
             "src.domains.agents.context.runtime_context.runtime_context_if_running",
             return_value=_context(),
         ):
-            scope = scope_from_config({"configurable": {}}, idempotency_key="step:s1")
+            scope = scope_from_config(_graph_config(None), idempotency_key="step:s1")
 
         assert scope.run_id == "thread-42"
 
@@ -97,23 +120,26 @@ class TestTheFallbacksAreUnchanged:
             "src.domains.agents.context.runtime_context.runtime_context_if_running",
             return_value=_context(),
         ):
-            scope = react_call_scope(
-                {"configurable": {"run_id": "graph-run"}}, "call-1", approved=True
-            )
+            scope = react_call_scope(_graph_config("graph-run"), "call-1", approved=True)
 
         assert scope.run_id == "graph-run"
         assert scope.approved is True
 
     def test_the_step_key_stays_run_scoped(self) -> None:
-        """Two turns of one thread must not share a step key."""
+        """Two turns of one thread must not share a step key — the production
+        defect of 2026-09-22, where both were keyed on the thread and the second
+        reminder was served the first one's recorded result."""
         with patch(
             "src.domains.agents.context.runtime_context.runtime_context_if_running",
             return_value=_context(),
         ):
-            first = step_effect_key({"configurable": {"run_id": "run-A"}}, "s1")
-            second = step_effect_key({"configurable": {"run_id": "run-B"}}, "s1")
+            first = step_effect_key(_graph_config("run-A"), "step_1")
+            second = step_effect_key(_graph_config("run-B"), "step_1")
+            replay = step_effect_key(_graph_config("run-A"), "step_1")
 
         assert first != second
+        assert first == replay, "a HITL resume reuses its run id: the replay stays idempotent"
+        assert "thread-42" not in first
 
 
 class TestTheDraftExecutorPassesIt:

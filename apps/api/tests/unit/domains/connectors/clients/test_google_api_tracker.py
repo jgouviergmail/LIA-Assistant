@@ -73,3 +73,21 @@ async def test_a_call_under_a_tracker_is_filed_and_not_counted() -> None:
             assert tracker.pending_families()["google_api"] == 1
             tracker._google_api_records.clear()  # nothing to persist at exit
     assert _unaccounted("places") == before
+
+
+async def test_a_billed_batch_is_filed_as_its_units() -> None:
+    """Google bills a Route Matrix per element: six elements are six billable events."""
+    tracker = TrackingContext("run", uuid.uuid4(), "session", None)
+    with patch(
+        "src.domains.google_api.pricing_service.GoogleApiPricingService.get_cost_per_request",
+        return_value=(Decimal("0.010"), Decimal("0.009"), Decimal("0.9")),
+    ):
+        async with tracker:
+            track_google_api_call(
+                "routes", "/distanceMatrix/v2:computeRouteMatrix:pro", cached=False, units=6
+            )
+            [record] = tracker._google_api_records
+            assert record.units == 6
+            assert (record.cost_usd, record.cost_eur) == (Decimal("0.060"), Decimal("0.054"))
+            assert tracker.get_summary()["google_api_requests"] == 6
+            tracker._google_api_records.clear()  # nothing to persist at exit

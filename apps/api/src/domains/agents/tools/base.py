@@ -52,6 +52,7 @@ Benefits:
 
 import json
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from contextlib import suppress
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, TypeVar, Union
@@ -65,6 +66,7 @@ from src.core.i18n_api_messages import APIMessages
 from src.core.i18n_types import SupportedLanguage
 from src.domains.agents.context.runtime_context import LiaRuntimeContext
 from src.domains.agents.dependencies import ToolDependencies, get_dependencies
+from src.domains.agents.tools.common import ToolErrorCode
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import (
     handle_tool_exception,
@@ -72,7 +74,11 @@ from src.domains.agents.tools.runtime_helpers import (
     validate_runtime_config,
 )
 from src.domains.agents.utils.i18n_location import _normalize_language
-from src.domains.connectors.models import CATEGORY_DISPLAY_NAMES, ConnectorType
+from src.domains.connectors.models import (
+    CATEGORY_DISPLAY_NAMES,
+    ConnectorType,
+    get_connector_display_name,
+)
 
 if TYPE_CHECKING:
     from src.domains.agents.tools.output import StandardToolOutput
@@ -92,9 +98,40 @@ def _extract_runtime_language(runtime: Any) -> SupportedLanguage:
     return _normalize_language(raw)
 
 
+def _inactive_platform_key_error(
+    connector_type: ConnectorType,
+    runtime: Any,
+    not_activated: Callable[[SupportedLanguage], UnifiedToolOutput],
+) -> UnifiedToolOutput:
+    """The failure for a platform-key connector that does not serve the account.
+
+    A keyless service the INSTANCE withholds (ADR-307) has nothing for the
+    person to enable — no row, no switch in their settings — so its message
+    must not send them there, and its code says configuration rather than
+    « not activated ». Any other type keeps the tool's own message.
+
+    Args:
+        connector_type: The resolved connector type the tool needed.
+        runtime: The tool runtime (read for the user's language).
+        not_activated: The tool's own « not activated » formatter.
+
+    Returns:
+        A failure the model can relay as is.
+    """
+    language = _extract_runtime_language(runtime)
+    if not connector_type.is_keyless:
+        return not_activated(language)
+    return UnifiedToolOutput.failure(
+        message=APIMessages.connector_unavailable_on_instance(
+            get_connector_display_name(connector_type), language
+        ),
+        error_code=ToolErrorCode.CONFIGURATION_ERROR,
+    )
+
+
 # Note: ToolResponse is deprecated in favor of UnifiedToolOutput (2025-12-29)
 
-logger = structlog.get_logger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 # Type variable for API client type (GooglePeopleClient, GmailClient, etc.)
 ClientType = TypeVar("ClientType")
@@ -149,7 +186,29 @@ class LanguagePropagationMixin:
         return value if isinstance(value, str) and value else default
 
 
-class ConnectorTool[ClientType](LanguagePropagationMixin, ABC):
+class _ToolLoggerMixin:
+    """Give both tool base classes a logger bound when it LOGS.
+
+    Tool instances are module-level singletons, built when their module is
+    imported. A structlog logger keeps the configuration in force at the
+    moment it is bound: bound in ``__init__``, it froze structlog's defaults
+    for the life of the process whenever the import came before
+    ``configure_logging()`` — DEBUG lines at ``LOG_LEVEL=INFO``, console
+    rendering Promtail cannot parse, and no PII filter (measured in
+    production, 2026-09-23). Binding at each access follows whatever
+    configuration is installed.
+    """
+
+    tool_name: str
+    operation: str
+
+    @property
+    def logger(self) -> structlog.stdlib.BoundLogger:
+        """This tool's logger, carrying its name and operation."""
+        return logger.bind(tool=self.tool_name, operation=self.operation)
+
+
+class ConnectorTool[ClientType](_ToolLoggerMixin, LanguagePropagationMixin, ABC):
     """
     Abstract base class for connector-based tools.
 
@@ -209,7 +268,6 @@ class ConnectorTool[ClientType](LanguagePropagationMixin, ABC):
         """
         self.tool_name = tool_name
         self.operation = operation
-        self.logger = logger.bind(tool=tool_name, operation=operation)
 
     @property
     def runtime(self) -> ToolRuntime | None:
@@ -309,8 +367,10 @@ class ConnectorTool[ClientType](LanguagePropagationMixin, ABC):
                     if not await connector_service.is_connector_active(
                         user_uuid, effective_connector_type
                     ):
-                        return self._format_connector_not_activated_error(
-                            _extract_runtime_language(runtime)
+                        return _inactive_platform_key_error(
+                            effective_connector_type,
+                            runtime,
+                            self._format_connector_not_activated_error,
                         )
 
                     # Step 4 (API Key mode): Create client without credentials
@@ -714,7 +774,7 @@ class ConnectorTool[ClientType](LanguagePropagationMixin, ABC):
         return await get_user_language_safe(self.runtime, default=default)
 
 
-class APIKeyConnectorTool[ClientType](LanguagePropagationMixin, ABC):
+class APIKeyConnectorTool[ClientType](_ToolLoggerMixin, LanguagePropagationMixin, ABC):
     """
     Abstract base class for API key-based connector tools.
 
@@ -768,7 +828,6 @@ class APIKeyConnectorTool[ClientType](LanguagePropagationMixin, ABC):
         """
         self.tool_name = tool_name
         self.operation = operation
-        self.logger = logger.bind(tool=tool_name, operation=operation)
 
     async def execute(
         self,
@@ -866,10 +925,10 @@ class APIKeyConnectorTool[ClientType](LanguagePropagationMixin, ABC):
             effective_type = resolved
 
         if effective_type.uses_global_api_key:
-            # Platform-key provider: toggle activation, no credentials.
+            # Platform-key provider: no credentials, the instance provides it.
             if not await connector_service.is_connector_active(user_uuid, effective_type):
-                return self._format_connector_not_activated_error(
-                    _extract_runtime_language(runtime)
+                return _inactive_platform_key_error(
+                    effective_type, runtime, self._format_connector_not_activated_error
                 )
             from src.domains.connectors.clients.registry import ClientRegistry
 

@@ -96,17 +96,26 @@ class TestProviderUsageCapabilitiesRegistry:
 @patch("src.infrastructure.llm.providers.adapter.settings")
 class TestAdapterRequestsUsage:
     def _create(self, provider: str, model: str, mock_init: MagicMock) -> MagicMock:
+        """Create the LLM; return the constructor that ran with the kwargs it received.
+
+        Qwen is built on its own ``ChatOpenAI`` subclass (ADR-309) rather than
+        through ``init_chat_model``: both are intercepted, and the one called is
+        the one inspected.
+        """
         mock_llm = MagicMock(spec=BaseChatModel)
         mock_init.return_value = mock_llm
-        ProviderAdapter.create_llm(
-            provider=provider,  # type: ignore[arg-type]
-            model=model,
-            temperature=0.7,
-            max_tokens=1000,
-            streaming=True,
-            llm_type="response",
-        )
-        return mock_init
+        with patch(
+            "src.infrastructure.llm.providers.adapter.ChatQwenCached", return_value=mock_llm
+        ) as qwen:
+            ProviderAdapter.create_llm(
+                provider=provider,  # type: ignore[arg-type]
+                model=model,
+                temperature=0.7,
+                max_tokens=1000,
+                streaming=True,
+                llm_type="response",
+            )
+        return qwen if qwen.called else mock_init
 
     @pytest.mark.parametrize(
         ("provider", "model"),
@@ -166,8 +175,8 @@ class TestAdapterRequestsUsage:
         }
         for provider, model in models.items():
             mock_init.reset_mock()
-            self._create(provider, model, mock_init)
-            requested = mock_init.call_args.kwargs.get("stream_usage") is True
+            constructor = self._create(provider, model, mock_init)
+            requested = constructor.call_args.kwargs.get("stream_usage") is True
             declared = PROVIDER_USAGE_CAPABILITIES[provider] == "stream_usage_flag"
             assert requested == declared, provider
 

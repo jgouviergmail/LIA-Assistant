@@ -11,6 +11,7 @@ import type {
   LLMProviderName,
   TimeSlotPricePayload,
 } from '@/lib/actions/settings-actions';
+import { ISO_WEEKDAYS } from '@/lib/recurrence';
 
 /** Form data captured by the modal. The reasoning identity is written
  *  directly — a toggle and the depths left ticked — with no template mode:
@@ -52,24 +53,27 @@ export interface ModelPricingFormData {
   time_slots: TimeSlotFormRow[];
 }
 
-/** One editable window row of the time-slot tariff. All fields are input
- *  strings; `''` in cached means "no separate cache billing" (→ null on the
- *  wire), `''` elsewhere means "not filled in yet" (blocks submit). */
+/** One editable window row of the time-slot tariff. The prices and hours are
+ *  input strings; `''` in cached means "no separate cache billing" (→ null on
+ *  the wire), `''` elsewhere means "not filled in yet" (blocks submit). */
 export interface TimeSlotFormRow {
   start_utc: string;
   end_utc: string;
   input_unit_price: string;
   cached_input_unit_price: string;
   output_unit_price: string;
+  /** ISO weekdays of the UTC day the window starts on; all seven = every day. */
+  weekdays: number[];
 }
 
-/** A fresh editor row — hours empty so the admin types both bounds. */
+/** A fresh editor row — hours empty so the admin types both bounds, every day. */
 export const EMPTY_TIME_SLOT_ROW: TimeSlotFormRow = {
   start_utc: '',
   end_utc: '',
   input_unit_price: '',
   cached_input_unit_price: '',
   output_unit_price: '',
+  weekdays: [...ISO_WEEKDAYS],
 };
 
 /** Parse the stored ladder narrowing. Empty returns null, and that is the
@@ -231,14 +235,35 @@ function hhmmToMinutes(value: string): number {
   return parseInt(hours, 10) * 60 + parseInt(minutes, 10);
 }
 
-/** Project a window onto the 1440-minute day as non-wrapping [start,end)
- *  segments — a midnight-wrapping window becomes two. */
-function daySegments(startMinute: number, endMinute: number): Array<[number, number]> {
-  if (startMinute < endMinute) return [[startMinute, endMinute]];
-  return [
-    [startMinute, 1440],
-    [0, endMinute],
-  ];
+const MINUTES_PER_DAY = 1440;
+const MINUTES_PER_WEEK = 7 * MINUTES_PER_DAY;
+
+/** Project a window onto the 10 080-minute week as non-wrapping [start,end)
+ *  segments: one window per day it applies on, opening THAT day; a window whose
+ *  end precedes its start runs into the next day, and Sunday's into Monday. */
+function weekSegments(
+  startMinute: number,
+  endMinute: number,
+  weekdays: readonly number[]
+): Array<[number, number]> {
+  const length =
+    (((endMinute - startMinute) % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+  const segments: Array<[number, number]> = [];
+  for (const day of weekdays) {
+    const opening = (day - 1) * MINUTES_PER_DAY + startMinute;
+    const closing = opening + length;
+    if (closing <= MINUTES_PER_WEEK) {
+      segments.push([opening, closing]);
+    } else {
+      segments.push([opening, MINUTES_PER_WEEK], [0, closing - MINUTES_PER_WEEK]);
+    }
+  }
+  return segments;
+}
+
+/** True when the days name the whole week — "every day", sent as no days. */
+function isEveryDay(weekdays: readonly number[]): boolean {
+  return ISO_WEEKDAYS.every(day => weekdays.includes(day));
 }
 
 function isBlankOrNegativePrice(value: string): boolean {
@@ -253,14 +278,15 @@ function timeSlotRowIncomplete(row: TimeSlotFormRow): boolean {
     !HHMM_RE.test(row.end_utc) ||
     isBlankOrNegativePrice(row.input_unit_price) ||
     isBlankOrNegativePrice(row.output_unit_price) ||
-    (row.cached_input_unit_price.trim() !== '' && parseFloat(row.cached_input_unit_price) < 0)
+    (row.cached_input_unit_price.trim() !== '' && parseFloat(row.cached_input_unit_price) < 0) ||
+    row.weekdays.length === 0
   );
 }
 
-/** True when any two windows share at least one minute of the day. */
+/** True when any two windows share at least one minute of the week. */
 function timeSlotRowsOverlap(rows: TimeSlotFormRow[]): boolean {
   const segmented = rows.map(row =>
-    daySegments(hhmmToMinutes(row.start_utc), hhmmToMinutes(row.end_utc))
+    weekSegments(hhmmToMinutes(row.start_utc), hhmmToMinutes(row.end_utc), row.weekdays)
   );
   for (let index = 0; index < rows.length; index += 1) {
     for (let other = index + 1; other < rows.length; other += 1) {
@@ -275,8 +301,8 @@ function timeSlotRowsOverlap(rows: TimeSlotFormRow[]): boolean {
 }
 
 /** Validate editor rows before submit. Mirrors the backend order: shape
- *  first (incomplete), then zero-length windows, then overlap on the
- *  1440-minute circle. */
+ *  first (incomplete — a window on no day included), then zero-length
+ *  windows, then overlap on the 10 080-minute week circle. */
 export function validateTimeSlotRows(rows: TimeSlotFormRow[]): TimeSlotRowsError | null {
   if (rows.length === 0 || rows.some(timeSlotRowIncomplete)) return 'incomplete';
   if (rows.some(row => row.start_utc === row.end_utc)) return 'zero_length';
@@ -302,6 +328,9 @@ export function buildTimeSlotsPayload(
     cached_input_unit_price:
       row.cached_input_unit_price.trim() === '' ? null : row.cached_input_unit_price,
     output_unit_price: row.output_unit_price,
+    // Every day travels as NO days — the spelling of every window stored
+    // before days existed, so an untouched window never reads as edited.
+    ...(isEveryDay(row.weekdays) ? {} : { weekdays: [...row.weekdays].sort((a, b) => a - b) }),
   }));
 }
 
@@ -315,6 +344,7 @@ export function slotRowsFromModel(
     input_unit_price: slot.input_unit_price,
     cached_input_unit_price: slot.cached_input_unit_price ?? '',
     output_unit_price: slot.output_unit_price,
+    weekdays: slot.weekdays && slot.weekdays.length > 0 ? [...slot.weekdays] : [...ISO_WEEKDAYS],
   }));
 }
 

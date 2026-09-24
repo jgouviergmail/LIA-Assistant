@@ -1,0 +1,13 @@
+# One-line scaffolds of the response node's message list, one `key|template`
+# per line; blank lines and #-comments are ignored (ADR-284: prose never lives
+# in a .py). Rendered by nodes/response_node.py.
+
+# Opens the system message carrying this turn's agent results. That message
+# precedes the conversation's own messages, so it names them by what they are,
+# never by a position.
+current_turn_data|CURRENT TURN DATA (AUTHORITATIVE — overrides any contradictory information from earlier messages of this conversation):
+
+# The last message before generation, placed AFTER the conversation (a human
+# message: a non-first system message is refused by some providers). `language`
+# is the language's NAME, never a code.
+respond_in_language|[INSTRUCTION] Respond ENTIRELY in {language}. The conversation above may be in another language — ignore that and write your response in {language} only.

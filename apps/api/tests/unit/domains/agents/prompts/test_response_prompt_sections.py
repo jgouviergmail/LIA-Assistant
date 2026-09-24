@@ -51,7 +51,6 @@ class TestBareTurn:
         tail = _tail(_bare_turn())
         assert "Weave ONE or TWO" not in tail
         assert "DIRECTIVE DE SÉCURITÉ ÉMOTIONNELLE" not in tail
-        assert "<History>" not in tail  # the static <DataAuthority> may cite it
 
     def test_temporal_context_and_query_are_always_there(self) -> None:
         tail = _tail(_bare_turn())
@@ -99,12 +98,6 @@ class TestOneWrapperPerContext:
         assert "<AnticipatedNeeds>" in with_needs and "- may want a reminder" in with_needs
         assert "Weave ONE or TWO" in with_needs
 
-    def test_history_present_only_when_given(self) -> None:
-        prompt = get_response_prompt(
-            user_language="fr", user_query="q", conversation_history="user: hello"
-        )
-        assert "<History>" in prompt and "user: hello" in prompt
-
     def test_psychological_profile_present_only_when_given(self) -> None:
         prompt = get_response_prompt(
             user_language="fr", user_query="q", psychological_profile="PROFILE-7"
@@ -125,6 +118,34 @@ class TestOneWrapperPerContext:
         assert set(keys) <= params, set(keys) - params
 
 
+class TestTheConversationIsNotASection:
+    """ADR-309: the conversation reached the response model twice — a ``<History>``
+    text in the system prompt, each message cut at 500 characters, and the
+    conversation's own messages, whole. It now reaches it once, as the messages."""
+
+    def test_the_assembler_takes_no_history(self) -> None:
+        import inspect
+
+        assert "conversation_history" not in inspect.signature(get_response_prompt).parameters
+
+    def test_no_history_tag_whatever_the_contexts(self) -> None:
+        prompt = get_response_prompt(
+            user_language="fr",
+            user_query="q",
+            psychological_profile="P",
+            journal_context="J",
+            rag_context="R",
+            data_for_filtering="D",
+            recent_entities="E",
+        )
+        assert "<History>" not in prompt
+
+    def test_the_grounding_rule_cites_the_earlier_messages(self) -> None:
+        prompt = get_response_prompt(user_language="fr", user_query="q")
+        authority = prompt.split("<DataAuthority>", 1)[1].split("</DataAuthority>", 1)[0]
+        assert "an earlier message of this conversation" in authority
+
+
 class TestBracesReachTheModelOnce:
     def test_query_braces_are_not_escaped_by_the_assembler(self) -> None:
         prompt = get_response_prompt(user_language="fr", user_query="r={x}")
@@ -136,7 +157,7 @@ class TestBracesReachTheModelOnce:
             user_language="fr",
             user_query="r={x}",
             rag_context='{"json": true}',
-            conversation_history="user: \\frac{d}{2}",
+            recent_entities="- [notes] \\frac{d}{2}",
         )
         rendered = ChatPromptTemplate.from_messages(
             [("system", escape_braces(prompt))]

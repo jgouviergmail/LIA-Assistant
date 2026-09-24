@@ -1,0 +1,3 @@
+ACTIONS YOU PERFORMED THIS TURN (recorded by the platform — facts, not requests):
+{performed_actions}
+You performed them with your own tools. Say they are done, in your own words — never that you cannot do them. An image or a document listed here is already displayed to the person below your answer: do not describe how to obtain it, and never add a link to it.

@@ -8,6 +8,8 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
+from langchain_core.messages import AIMessage
+from langchain_core.outputs import ChatGeneration, LLMResult
 
 import src.domains.telephony.payload as payload_mod
 import src.domains.telephony.return_synthesis as rs
@@ -117,11 +119,28 @@ def _install_synthesis(
         ]
         captured["capture_handlers"] = handlers
         if usage is not None:
+            # Through the handler's real reading of a provider answer: the
+            # input INCLUDES the cache reads, as every provider reports it.
+            answer = LLMResult(
+                generations=[
+                    [
+                        ChatGeneration(
+                            message=AIMessage(
+                                content="",
+                                usage_metadata={
+                                    "input_tokens": usage.get("input", 0),
+                                    "output_tokens": usage.get("output", 0),
+                                    "total_tokens": usage.get("input", 0) + usage.get("output", 0),
+                                    "input_token_details": {"cache_read": usage.get("cache", 0)},
+                                },
+                            )
+                        )
+                    ]
+                ]
+            )
             for handler in handlers:
                 for _ in range(usage_per_call):
-                    handler.tokens_in += usage.get("input", 0)
-                    handler.tokens_out += usage.get("output", 0)
-                    handler.tokens_cache += usage.get("cache", 0)
+                    handler.on_llm_end(answer)
         return ReturnProposal(summary="S", proposal_text="P")
 
     monkeypatch.setattr(rs, "get_llm", lambda _t: object())
@@ -265,9 +284,12 @@ def _install_pipeline(
     async def _get_user(_model, _pk):
         return SimpleNamespace(language="fr")
 
+    async def _commit() -> None:
+        captured["commits"] = captured.get("commits", 0) + 1
+
     @contextlib.asynccontextmanager
     async def _ctx():
-        yield SimpleNamespace(get=_get_user)
+        yield SimpleNamespace(get=_get_user, commit=_commit)
 
     class _FakeDispatcher:
         async def dispatch(self, **kwargs):
@@ -278,6 +300,8 @@ def _install_pipeline(
 
     async def _fake_synth(**kwargs):
         captured["synth_in"] = kwargs
+        # ADR-304: the model is asked once the reads were committed.
+        captured["commits_before_synth"] = captured.get("commits", 0)
         return (
             ReturnProposal(summary="Recap", proposal_text="J'ai appelé Marie"),
             rs.SynthUsage(tokens_in=40, tokens_out=20, tokens_cache=0, model_name="gpt-4.1-nano"),
@@ -335,6 +359,8 @@ async def test_process_persists_minimized_and_delivers_once(monkeypatch) -> None
     assert "hi" not in str(mark)  # transcript text does not leak into persistence
     # The transcript WAS available to synthesis (then discarded).
     assert "hi" in captured["synth_in"]["transcript"]
+    # No read transaction was left open while the model synthesized (ADR-304).
+    assert captured["commits_before_synth"] >= 1
     # Delivered exactly once, with the localized title.
     assert captured["dispatch"]["content"] == "J'ai appelé Marie"
     assert captured["dispatch"]["task_type"] == "phone_call"

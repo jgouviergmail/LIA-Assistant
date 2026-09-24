@@ -218,7 +218,7 @@ class HeartbeatProactiveTask:
 
             # LLM Decision (structured output, cheap model)
             user_language = getattr(user, "language", settings.default_language)
-            decision, tok_in, tok_out, tok_cache = await get_heartbeat_decision(
+            decision, tok_in, tok_out, tok_cache, tok_write = await get_heartbeat_decision(
                 context, user_language=user_language
             )
 
@@ -246,7 +246,7 @@ class HeartbeatProactiveTask:
                 # appear in the dashboard/user statistics. Without this, skip tokens
                 # are silently lost since the runner only calls track_proactive_tokens()
                 # on successful dispatches.
-                await self._track_skip_tokens(user_id, tok_in, tok_out, tok_cache)
+                await self._track_skip_tokens(user_id, tok_in, tok_out, tok_cache, tok_write)
                 return None
 
             return HeartbeatTarget(
@@ -255,6 +255,7 @@ class HeartbeatProactiveTask:
                 decision_tokens_in=tok_in,
                 decision_tokens_out=tok_out,
                 decision_tokens_cache=tok_cache,
+                decision_tokens_cache_write=tok_write,
             )
 
         except Exception as e:
@@ -436,13 +437,15 @@ class HeartbeatProactiveTask:
             if facts is not None:
                 facts_block, citations, enrich_tok_in, enrich_tok_out = facts
 
-        message, msg_tok_in, msg_tok_out, msg_tok_cache = await generate_heartbeat_message(
-            message_draft=draft,
-            context=target.context,
-            user_language=user_language,
-            personality_instruction=personality,
-            user_id=user_id,
-            facts_block=facts_block,
+        message, msg_tok_in, msg_tok_out, msg_tok_cache, msg_tok_write = (
+            await generate_heartbeat_message(
+                message_draft=draft,
+                context=target.context,
+                user_language=user_language,
+                personality_instruction=personality,
+                user_id=user_id,
+                facts_block=facts_block,
+            )
         )
 
         if citations:
@@ -458,6 +461,7 @@ class HeartbeatProactiveTask:
         total_in = target.decision_tokens_in + msg_tok_in + enrich_tok_in
         total_out = target.decision_tokens_out + msg_tok_out + enrich_tok_out
         total_cache = target.decision_tokens_cache + msg_tok_cache
+        total_cache_write = target.decision_tokens_cache_write + msg_tok_write
 
         from src.core.llm_config_helper import get_llm_config_for_agent
 
@@ -479,6 +483,7 @@ class HeartbeatProactiveTask:
             tokens_in=total_in,
             tokens_out=total_out,
             tokens_cache=total_cache,
+            tokens_cache_write=total_cache_write,
             model_name=model_name,
             metadata={
                 "priority": target.decision.priority,
@@ -660,6 +665,7 @@ class HeartbeatProactiveTask:
         tokens_in: int,
         tokens_out: int,
         tokens_cache: int,
+        tokens_cache_write: int,
     ) -> None:
         """Track decision phase tokens when the LLM decides to skip.
 
@@ -684,6 +690,7 @@ class HeartbeatProactiveTask:
                 tokens_in=tokens_in,
                 tokens_out=tokens_out,
                 tokens_cache=tokens_cache,
+                tokens_cache_write=tokens_cache_write,
                 model_name=model_name,
                 source="proactive",
             )

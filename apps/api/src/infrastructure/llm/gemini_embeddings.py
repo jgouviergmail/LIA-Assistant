@@ -174,7 +174,10 @@ def _embedding_cost_usd(model_name: str, token_count: int) -> float:
         be the reason an embedding call fails.
     """
     try:
-        cost_usd, _cost_eur = get_cached_cost_usd_eur(model_name, token_count, 0)
+        # An embedding has no prompt cache: the explicit zero is the decision.
+        cost_usd, _cost_eur = get_cached_cost_usd_eur(
+            model_name, token_count, 0, cache_write_tokens=0
+        )
     except Exception as e:  # pragma: no cover - defensive; the cache is in-memory
         logger.debug("embedding_pricing_unavailable", model=model_name, error=str(e))
         return 0.0

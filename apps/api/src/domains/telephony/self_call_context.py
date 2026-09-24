@@ -97,10 +97,9 @@ async def _fetch_agenda(user_id: UUID, *, timezone: str, language: str) -> list[
     """
     from src.domains.briefing.formatters import format_agenda_event
     from src.domains.connectors.calendar_access import CalendarUnavailable, open_active_calendar
-    from src.infrastructure.database.session import get_db_context
 
     now = datetime.now(UTC)
-    async with get_db_context() as db, open_active_calendar(db, user_id) as access:
+    async with open_active_calendar(user_id) as access:
         if isinstance(access, CalendarUnavailable):
             return None
         result = await access.client.list_events(

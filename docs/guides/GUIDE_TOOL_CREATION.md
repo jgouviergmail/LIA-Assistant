@@ -1217,6 +1217,27 @@ class MyTool(ConnectorTool):
         return result
 ```
 
+#### A value the tool cannot read is refused, never replaced (ADR-310)
+
+A tool that substitutes a default for a value it could not read answers ANOTHER question and
+says nothing about it. Measured on 2026-09-23: the weather forecast read the French « demain »
+as today (its reader knew English words only), served the 24th for the 25th, and the loop took
+the success at face value. Three rules:
+
+- **Refuse, and say how to fix it.** Return a failure with `ToolErrorCode.INVALID_INPUT` and a
+  technical English message naming the value, the accepted format and, for a date, the
+  person's current date (`unreadable_date_result` in `tools/weather_dates.py`). In ReAct the
+  failure carries the ADR-303 structural marker and the recovery ladder corrects the call; in
+  the pipeline the runtime failures directive states it.
+- **Publish the contract once.** What a parameter accepts is ONE constant, read by the
+  manifest (the planner's catalogue) AND by the `@tool` signature
+  (`Annotated[str | None, DESCRIPTION]`), because the ReAct loop binds the `@tool` schema,
+  never the manifest — `FORECAST_DATE_DESCRIPTION` in `weather/catalogue_manifests.py`.
+- **Read leniently, publish strictly.** A tool may keep reading forms it used to accept (the
+  weather reader still takes `tomorrow`, `in 3 days` and « jeudi 9 avril 2026 ») so that an
+  older caller does not regress, but it never PUBLISHES them: the model resolves a relative
+  expression itself, from the current date in its context.
+
 ---
 
 ## 🔍 Troubleshooting

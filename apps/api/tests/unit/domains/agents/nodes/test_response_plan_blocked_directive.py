@@ -70,6 +70,7 @@ def _system_blocks(state: dict, plan_rejection_reason: str | None = None) -> str
             state=state,
             user_language="fr",
             llm=MagicMock(),
+            performed_actions_block="",
         )
 
     # The list is heterogeneous: ("role", text) tuples plus a

@@ -307,27 +307,32 @@ emails = ContactsFormatter._extract_emails(person)
 | **OpenWeatherMapClient** | 630 | Current weather, forecast, geocoding |
 | **WikipediaClient** | 644 | Search, articles, multi-language |
 
-#### Platform-Key Clients (global GOOGLE_API_KEY — activation is a user toggle)
+#### Platform-Key Clients (global GOOGLE_API_KEY — provided by the instance, ADR-307)
 
 | Connecteur | Key Features |
 |------------|--------------|
 | **GoogleWeatherClient** | Current conditions + hourly forecast, normalized to the OWM shape AT THE CLIENT BOUNDARY (icons mapped to OWM codes, km/h → m/s) so the 19 weather call sites are provider-agnostic |
 | **GoogleEnvironmentClient** | Air quality (universal + LOCAL national index) and pollen forecast; deliberately OUTSIDE the "weather" functional category, so an OpenWeatherMap user keeps it |
 
-#### Keyless user connectors — activated at sign-up
+#### Keyless user connectors — provided by the instance (ADR-307)
 
-A connector that asks NOTHING of the person (no OAuth consent, no personal key) is
-activated by one click in the settings, and **every new account starts with all of
-them**: Wikipedia, the browser, Google Places, Google Weather and Google Environment.
-The list is ONE declaration, `ConnectorType.get_keyless_types()` (`connectors/models.py`),
-mirrored by the frontend's `requiresKey: false` entries and pinned by
-`tests/unit/domains/connectors/test_keyless_connector_types_frontend_parity.py`.
-`users/keyless_connectors_provisioning.py` runs inside `provision_new_user` (ADR-126),
-stages the rows and never raises. Three refusals: a type the administrator disabled
-globally, a platform-key type on an instance with no `GOOGLE_API_KEY` (an active
-connector that can only fail is worse than an absent one), and the browser when
-`BROWSER_ENABLED=false`. Existing accounts are never touched; the rows carry
-`provisioned_by: signup_keyless` so the register says where they came from.
+A connector that asks NOTHING of the person (no OAuth consent, no personal key) belongs
+to the INSTANCE, not to the account: Wikipedia, the browser, Google Places, Google
+Weather and Google Environment serve every account, have **no per-account row**, and
+« My connectors » neither lists nor offers them. The list is ONE declaration,
+`ConnectorType.get_keyless_types()` (`connectors/models.py`), and whether a type serves
+the instance is ONE predicate, `connectors/keyless.py`, which refuses on three grounds:
+the administrator disabled the type globally, a platform-key type runs on an instance
+with no `GOOGLE_API_KEY`, or the browser runs where `BROWSER_ENABLED=false`.
+`ConnectorService.is_connector_active` returns that predicate for every keyless type
+without reading rows; in the « weather » category the person's own OpenWeatherMap wins
+and Google Weather is the default (`provider_resolver._instance_default`).
+`APIKeyActivationRequest` refuses a keyless type, and
+`tests/unit/domains/connectors/test_keyless_connectors_not_offered_by_frontend.py`
+refuses one in the frontend's `API_KEY_CONNECTOR_TYPES` / `API_KEY_CONNECTORS`. A tool
+whose keyless service the instance withholds answers `CONFIGURATION_ERROR` (« not
+available on this instance »), never « go to Settings », and a 401/403 on the platform
+key raises no « Reconnect » banner.
 
 #### Drive-token ride-along clients (no new scope)
 

@@ -209,3 +209,72 @@ async def test_mixed_statuses_returns_active_only():
     result = await resolve_active_connector(USER_ID, "email", service)
 
     assert result == ConnectorType.APPLE_EMAIL
+
+
+# --- Weather: the person's provider wins, the instance's default answers (ADR-307) ---
+
+
+def _weather_service(connectors: list, *, instance_provides: bool) -> AsyncMock:
+    """A service whose keyless answer is the INSTANCE's, never a row."""
+    service = _make_service(connectors)
+    service.is_connector_active = AsyncMock(return_value=instance_provides)
+    return service
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_weather_the_persons_own_provider_wins_over_the_default():
+    service = _weather_service(
+        [_make_connector(ConnectorType.OPENWEATHERMAP)], instance_provides=True
+    )
+
+    result = await resolve_active_connector(USER_ID, "weather", service)
+
+    assert result == ConnectorType.OPENWEATHERMAP
+    service.is_connector_active.assert_not_awaited()
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_weather_the_instance_default_answers_when_the_person_configured_none():
+    service = _weather_service([], instance_provides=True)
+
+    result = await resolve_active_connector(USER_ID, "weather", service)
+
+    assert result == ConnectorType.GOOGLE_WEATHER
+    service.is_connector_active.assert_awaited_once_with(USER_ID, ConnectorType.GOOGLE_WEATHER)
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_weather_nothing_when_the_instance_withholds_its_default():
+    service = _weather_service(
+        [_make_connector(ConnectorType.OPENWEATHERMAP, status=ConnectorStatus.INACTIVE)],
+        instance_provides=False,
+    )
+
+    assert await resolve_active_connector(USER_ID, "weather", service) is None
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_weather_a_leftover_keyless_row_is_never_read():
+    """A newer Google Weather row can no longer outrank the person's provider,
+    and an old one can no longer switch the default on."""
+    leftover = _make_connector(
+        ConnectorType.GOOGLE_WEATHER, updated_at=datetime(2026, 9, 1, tzinfo=UTC)
+    )
+    owm = _make_connector(ConnectorType.OPENWEATHERMAP)
+
+    assert (
+        await resolve_active_connector(
+            USER_ID, "weather", _weather_service([leftover, owm], instance_provides=True)
+        )
+        == ConnectorType.OPENWEATHERMAP
+    )
+    assert (
+        await resolve_active_connector(
+            USER_ID, "weather", _weather_service([leftover], instance_provides=False)
+        )
+        is None
+    )

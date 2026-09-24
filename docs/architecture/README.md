@@ -22,7 +22,7 @@
 - Task Orchestrator avec exécution parallèle (asyncio.gather)
 - Nodes agents de domaine (contact, email, event, file, task, weather, wikipedia, perplexity, place, route, hue, browser conditionnel)
 - HITL Dispatch (draft critique, self-loop replay-safe ADR-092) + for_each_confirm node
-- Initiative node (ADR-062) + boucle ReAct 4 nodes (setup → call_model ⇄ execute_tools → finalize)
+- Initiative node (ADR-062) + boucle ReAct 5 nodes (setup → call_model ⇄ execute_tools → finalize, et `react_recovery` quand la réponse déclare un écart — ADR-310)
 - Délégation sub-agent one-shot (ADR-083)
 
 **Source Code**: [`apps/api/src/domains/agents/graph.py`](../../apps/api/src/domains/agents/graph.py)

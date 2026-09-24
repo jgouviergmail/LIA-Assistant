@@ -105,31 +105,31 @@ LIA utilise **LangGraph v1.2.11** avec exécution parallèle native **asyncio** 
 Alternative path when `execution_mode == "react"`: the router routes to `react_setup` instead of `planner`.
 
 ```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                            ReAct Execution Loop                                │
-│                                                                                │
-│   router ──(react)──► react_setup ──► react_call_model ◄────────────┐          │
-│                                            │                        │          │
-│                                     tool_calls?                     │          │
-│                                    yes │    no │                    │          │
-│                                        ▼       ▼                    │          │
-│                              react_execute    react_finalize        │          │
-│                              _tools                │                │          │
-│                                 │                  │                │          │
-│                         draft? ─┤                  │                │          │
-│                    no (loop) ───┼──────────────────┼────────────────┘          │
-│                          yes    │                  │                           │
-│                                 ▼                  │                           │
-│                  hitl_dispatch ─► initiative       │                           │
-│                  (draft_critique)      │           │                           │
-│                                        ▼           ▼                           │
-│                                       response_node ──► [END]                  │
-└──────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│                           ReAct Execution Loop                                   │
+│                                                                                  │
+│ router ──(react)──► react_setup ──► react_call_model ◄───────────────────┬────┐  │
+│                                            │                             │    │  │
+│                   ┌────────────────────────┼───────────────────┐         │    │  │
+│        tool_calls │         none declared  │     gap declared  │         │    │  │
+│                   ▼                        ▼      a pass left  ▼         │    │  │
+│          react_execute_tools        react_finalize      react_recovery ──┘    │  │
+│                   │                        │           (draft removed,        │  │
+│           draft? ─┤                        │            pass recorded)        │  │
+│      no (loop) ───┼────────────────────────┼──────────────────────────────────┘  │
+│            yes    │                        │                                     │
+│                   ▼                        │                                     │
+│    hitl_dispatch ─► initiative             │                                     │
+│    (draft_critique)      │                 │                                     │
+│                          ▼                 ▼                                     │
+│                         response_node ──► [END]                                  │
+└──────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 - **react_setup**: Binds the tools the turn needs — the detected domains' tools, every other family's best-ranked tools, then the head of the router's global ranking (ADR-293; the cap is a stable-sort safety net) — builds system prompt, injects the **same memory context as the pipeline** (ADR-248: profile block, resolved references, portrait, journal, degradations — built by `react_context.py`; the two modes previously read different subsets, so a stored directive worked in one and silently did nothing in the other) + skills catalogue — published to the dedicated `react_system_blocks` state key rather than appended to the message history (ADR-169: appending re-sent every past copy on every call, destroyed the provider prefix cache and made Anthropic reject the sequence from the second turn)
 - **react_call_model**: Recomposes the system blocks as a stable leading prefix, calls the LLM with bound tools, applies message windowing, and charges its own duration to the loop's **compute** budget (ADR-170: the deadline used to run on wall clock, so human approval time was billed to the loop and cut the resumed turn)
 - **react_execute_tools**: Executes tools. Two HITL paths: `interrupt()` pre-approval for tools flagged `hitl_required` (idempotence pattern), and — for mutation tools that prepare a **draft** (`requires_confirmation`, e.g. create/update/delete event·email·contact·task·file·label) — a hand-off to the shared `hitl_dispatch → draft_critique` flow via `pending_draft_critique` instead of looping back to the model. This gives ReAct the same confirm/edit/cancel-then-execute guarantee as pipeline mode (the agent no longer reports an action as done before it is confirmed and executed).
+- **react_recovery** (ADR-310): Calls no model. Reached when the final message declares, in an `<unresolved>` block, a fact the loop set out to obtain — the person's, or a cross-check it started — and could not, while a pass is left (`REACT_RECOVERY_PASSES_MAX`) and no budget stops the loop — ONE predicate, `should_recover`, which calls `react_exit_reason`. It removes the draft from the thread at once (`RemoveMessage`, so every exit of the loop leaves one answer) and records the pass (`react_recovery_passes`, reset by `react_turn_reset()`); every later model call of the turn is SHOWN the draft and a directive naming the gaps right after the draft's place, never written to `messages`. Back to `react_call_model`.
 - **react_finalize**: Records metrics, sets `react_agent_result` and the named exit reason (`completed` / `budget_exhausted` / `no_progress` / `timeout`, ADR-248); **refuses to hand over mid-thought content** — a last `AIMessage` carrying tool calls and no usable text is not an answer, and shipping it is how a turn came to say "let me look into your emails…" and stop; routes to `response_node` — optionally via `initiative` on the nominal path (see note below)
 
 > **Draft hand-off (parity with pipeline)**: when `react_execute_tools` detects a prepared draft, `route_from_react_execute_tools` routes to `hitl_dispatch` (the same node the pipeline uses) → `initiative` → `response_node`, where the confirmed draft is actually executed (`execute_draft_if_confirmed`). The ReAct completion metrics are still emitted on this short-circuited path (`status="draft"`).

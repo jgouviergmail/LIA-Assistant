@@ -545,7 +545,8 @@ préfixe exact : un placeholder dynamique placé tôt invalide le cache de tout 
 qui suit, à chaque requête, chez tous les providers.
 
 La convention est provider-agnostique (la couche infra gère les spécificités —
-split `cache_control` Anthropic, `prompt_cache_key` OpenAI, prefix caching
+split `cache_control` Anthropic, `prompt_cache_key` OpenAI et point d'arrêt du
+préfixe statique sur GPT-5.6/GPT-6, prefix caching
 implicite DeepSeek/Qwen/Gemini) et verrouillée par les gardes CI de
 `tests/unit/domains/agents/prompts/test_prompt_cache_hygiene.py` : ajoutez tout
 nouveau prompt system dynamique à `MARKER_REQUIRED`, et justifiez toute

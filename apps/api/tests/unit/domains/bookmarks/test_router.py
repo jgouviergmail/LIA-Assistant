@@ -165,6 +165,7 @@ class TestListing:
             "tokens_in": 812,
             "tokens_out": 0,
             "tokens_cache": 0,
+            "tokens_cache_write": 0,
             "cost_eur": 0.000123,
             "model_name": "gemini-embedding-001",
         }

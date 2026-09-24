@@ -2,9 +2,9 @@
 
 > Field report — a complete system, from design to production.
 
-**Version**: 2.1
-**Date**: 2026-09-22
-**Application**: LIA v1.47.1
+**Version**: 2.2
+**Date**: 2026-09-24
+**Application**: LIA v1.47.2
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -19,9 +19,9 @@ Nearly all of the code was written by an AI, under human direction: a written en
 | --- | --- |
 | Code written by an AI — directed, framed, controlled | **≈ 100%** |
 | Source lines (excluding tests) — 51 functional domains | **720,000+** |
-| Automated tests, run on every commit and release | **39,000+** |
-| Documented architecture decisions (ADR) | **301** |
-| Versions shipped at a steady pace | **266** |
+| Automated tests, run on every commit and release | **40,000+** |
+| Documented architecture decisions (ADR) | **309** |
+| Versions shipped at a steady pace | **267** |
 | Languages, parity checked automatically | **6** |
 | Technical audit across 24 areas | **8.3/10** |
 
@@ -50,13 +50,13 @@ An AI that codes produces volume; it only produces quality under constraint. Fou
 
 ## 4. The trade-offs
 
-Three structural decisions, among the 301 documented:
+Three structural decisions, among the 309 documented:
 
 **Sovereignty & reversibility — no irreversible vendor dependency.** AI models (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, local models via Ollama) sit behind a single abstraction: any usage can switch provider through configuration, with cost comparison. The same principle applies to business services: Google, Apple and Microsoft are interchangeable per functional category. Hosting is fully controlled; personal data is encrypted and stays on the infrastructure.
 
-**AI economics — cost per request is a design criterion.** Two execution modes coexist: a deterministic, economical pipeline for everyday requests, and an autonomous agent mode for exploratory ones — the measured consumption gap ranges from 1 to 4-8×, for equivalent service on standard cases. Every call is counted per token, valued in euros, aggregated per user and per model, governed by quotas. Even a two-sentence notification is asked for without reasoning, because a model that thinks by default bills its thinking inside the answer budget. And the agent mode takes along only the tools the question calls for — chosen by relevance, never by order of arrival — because eighty tool schemas weighed most of a first call without being counted.
+**AI economics — cost per request is a design criterion.** Two execution modes coexist: a deterministic, economical pipeline for everyday requests, and an autonomous agent mode for exploratory ones — the measured consumption gap ranges from 1 to 4-8×, for equivalent service on standard cases. Every call is counted per token, valued in euros, aggregated per user and per model, governed by quotas. Even a two-sentence notification is asked for without reasoning, because a model that thinks by default bills its thinking inside the answer budget. And the agent mode takes along only the tools the question calls for — chosen by relevance, never by order of arrival — because eighty tool schemas weighed most of a first call without being counted. And the count comes out right: every call is valued at the price the provider really bills — tariffs re-read on its pages, a cache write at its own price, off-peak hours with their days.
 
-**Risk control — no irreversible action without human validation.** Six levels of human control, graded by the sensitivity of the action — from clarification to confirmation of destructive operations. Behavior on interruption is specified and tested: a pending validation survives restarts, with no loss and no double execution. Several actions in one request are submitted one at a time, each on its own card, and the report says what was done and for whom. The phone follows the same line: the card protects a third party, so when LIA calls the person themselves — on a number they declared and verified by a spoken code — the card is the person; on the line — as in a live voice session in the browser, on the person's own Gemini, OpenAI or ElevenLabs key — the mode is the person's choice: the voice hands every request to the chat as it is said, with its confirmations, or reads alone and acts on nothing; and what runs on the person's own vendor key is billed there, shown once, never counted here. Whatever the platform itself pays for the person — a map lookup during a call, the briefing's weather, a photo shown — reaches their ledger, whatever the path. What a stranger sends — a mail, its attachment — stays data to read, never an instruction to follow. And a script the assistant writes reaches the web through a single door, the person's keys swapped in outside it — a host nobody permitted is asked before, with the data, without it, or not at all.
+**Risk control — no irreversible action without human validation.** Six levels of human control, graded by the sensitivity of the action — from clarification to confirmation of destructive operations. Behavior on interruption is specified and tested: a pending validation survives restarts, with no loss and no double execution. Several actions in one request are submitted one at a time, each on its own card, and the report says what was done and for whom. The phone follows the same line: the card protects a third party, so when LIA calls the person themselves — on a number they declared and verified by a spoken code — the card is the person; on the line — as in a live voice session in the browser, on the person's own Gemini, OpenAI or ElevenLabs key — the mode is the person's choice: the voice hands every request to the chat as it is said, with its confirmations, or reads alone and acts on nothing; and what runs on the person's own vendor key is billed there, shown once, never counted here. Whatever the platform itself pays for the person — a map lookup during a call, the briefing's weather, a photo shown — reaches their ledger, whatever the path. What a stranger sends — a mail, its attachment — stays data to read, never an instruction to follow. And a script the assistant writes reaches the web through a single door, the person's keys swapped in outside it — a host nobody permitted is asked before, with the data, without it, or not at all. And when the autonomous agent cannot obtain what it was asked for, it says so — with what it tried — rather than fill the gap.
 
 ## 5. Operations
 

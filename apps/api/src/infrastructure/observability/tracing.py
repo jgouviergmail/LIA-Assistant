@@ -15,7 +15,7 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 from src.core.config import settings
-from src.core.field_names import FIELD_METADATA, FIELD_RUN_ID
+from src.core.run_config import run_id_of
 
 logger = structlog.get_logger(__name__)
 
@@ -120,10 +120,9 @@ def trace_node(node_name: str, llm_model: str | None = None) -> Any:
                 span.set_attribute("langgraph.node.name", node_name)
 
                 # Add run_id from config if available
-                if config and isinstance(config, dict):
-                    run_id = config.get(FIELD_METADATA, {}).get(FIELD_RUN_ID)
-                    if run_id:
-                        span.set_attribute("langgraph.run_id", str(run_id))
+                run_id = run_id_of(config)
+                if run_id:
+                    span.set_attribute("langgraph.run_id", run_id)
 
                 # Add LLM model if specified
                 if llm_model:

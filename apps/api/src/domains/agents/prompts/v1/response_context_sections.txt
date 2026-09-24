@@ -4,6 +4,11 @@
 # Attention architecture: System governance & identity first (Primacy),
 # untrusted external/RAG corpora in the middle, immediate operational anchors
 # and conversation recency last (Recency).
+#
+# The conversation itself is NOT a section: it reaches the model once, as the
+# conversation's own messages right after the system prompt — full, where a
+# <History> text copy here repeated it truncated to 500 characters per message
+# (ADR-309).
 
 # --- 1. SYSTEM GOVERNANCE & IDENTITY (Highest Authority) ---
 psychological_profile|PsychologicalProfile|Calibrate tone, depth, and pacing silently. NEVER mention, quote, or acknowledge having a psychological profile. Strictly comply with any "DIRECTIVE DE SÉCURITÉ ÉMOTIONNELLE".
@@ -30,4 +35,3 @@ recent_entities|RecentEntities|Entities from earlier turns of this conversation,
 
 # --- 6. RECENCY ANCHORS (Immediate Generation Context) ---
 user_query|UserQuery|The user's current request, in their own words. Primary anchor for user intent.
-conversation_history|History|

@@ -1,7 +1,14 @@
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 
 import { readErrorDetail } from '@/lib/api-error';
 import { SERVER_ACTION_TIMEOUT } from '@/lib/constants';
+
+/**
+ * The caller's address, as Cloudflare wrote it on the incoming request
+ * (overwriting whatever the visitor sent). The backend trusts this header and
+ * nothing else to answer "who is calling" (ADR-213, `core/client_ip.py`).
+ */
+const CLIENT_ADDRESS_HEADER = 'CF-Connecting-IP';
 
 /**
  * Server-side API Client for Next.js Server Actions
@@ -19,6 +26,8 @@ import { SERVER_ACTION_TIMEOUT } from '@/lib/constants';
  * Security:
  * - Maintains HTTP-only cookie security (cookies never exposed to client JavaScript)
  * - Properly forwards session cookies for backend authentication
+ * - Forwards the caller's address Cloudflare wrote, so the backend attributes
+ *   the call to the caller rather than to this server (ADR-213)
  * - Uses Docker service name for container-to-container communication
  *
  * @module api-server
@@ -72,11 +81,13 @@ interface RequestConfig extends RequestInit {
 class ServerApiClient {
   private baseURL: string;
   private sessionCookie: string | undefined;
+  private clientAddress: string | undefined;
   private isDevelopment: boolean;
 
-  private constructor(baseURL: string, sessionCookie?: string) {
+  private constructor(baseURL: string, sessionCookie?: string, clientAddress?: string) {
     this.baseURL = baseURL;
     this.sessionCookie = sessionCookie;
+    this.clientAddress = clientAddress;
     this.isDevelopment = process.env.NODE_ENV === 'development';
   }
 
@@ -90,11 +101,33 @@ class ServerApiClient {
     // Retrieve session cookie (name must match backend configuration)
     const sessionCookie = cookieStore.get('lia_session');
 
+    // A Server Action reaches the backend from THIS server, so the connection
+    // peer the backend sees is the web container: the audit of the 2026-09-22
+    // account deactivation recorded 172.18.0.19. Carrying the caller's address
+    // across keeps the audit trail, the session list and the per-caller rate
+    // limits on the caller. Absent in development, where no Cloudflare writes it.
+    const clientAddress = (await headers()).get(CLIENT_ADDRESS_HEADER) ?? undefined;
+
     // Docker service name for container-to-container communication
     const API_URL_SERVER = process.env.API_URL_SERVER || 'http://api:8000';
     const baseURL = `${API_URL_SERVER}/api/v1`;
 
-    return new ServerApiClient(baseURL, sessionCookie?.value);
+    return new ServerApiClient(baseURL, sessionCookie?.value, clientAddress);
+  }
+
+  /**
+   * What every backend call carries on behalf of the incoming request: its
+   * session cookie and the caller's address, each only when the request had it.
+   */
+  private forwardedHeaders(): Record<string, string> {
+    const forwarded: Record<string, string> = {};
+    if (this.sessionCookie) {
+      forwarded.Cookie = `lia_session=${this.sessionCookie}`;
+    }
+    if (this.clientAddress) {
+      forwarded[CLIENT_ADDRESS_HEADER] = this.clientAddress;
+    }
+    return forwarded;
   }
 
   /**
@@ -145,10 +178,7 @@ class ServerApiClient {
         method,
         headers: {
           'Content-Type': 'application/json',
-          // Forward session cookie if present
-          ...(this.sessionCookie && {
-            Cookie: `lia_session=${this.sessionCookie}`,
-          }),
+          ...this.forwardedHeaders(),
           ...fetchConfig.headers,
         },
         signal,

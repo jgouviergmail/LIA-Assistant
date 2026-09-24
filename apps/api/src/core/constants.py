@@ -69,7 +69,6 @@ SESSION_COOKIE_SAMESITE = "lax"  # CSRF protection
 # constants were unused (comment-only references) and were removed to avoid the
 # misleading impression they drove behavior.
 CONTACTS_TOOL_DEFAULT_LIMIT = 10
-CALENDAR_TOOL_DEFAULT_LIMIT = 10
 TASKS_TOOL_DEFAULT_LIMIT = 10
 EMAILS_TOOL_DEFAULT_LIMIT = 10
 DRIVE_TOOL_DEFAULT_LIMIT = 10
@@ -334,6 +333,31 @@ COMPACTION_EXTERNAL_PROVENANCE_BANNER = (
 # too small to cache — never as a per-model claim.
 ANTHROPIC_CACHE_MIN_TOKENS_TYPICAL = 1024
 
+# The Claude API accepts at most four cache_control breakpoints per request
+# (tools, system and messages together); automatic caching on top of four
+# explicit ones is a documented 400.
+ANTHROPIC_MAX_CACHE_BREAKPOINTS = 4
+
+# Claude « preserved thinking » (ADR-306): on the generations that bind a
+# thinking block to the conversation that produced it (Fable 5.1, Opus 5.5), an
+# account created from 2026-08-31 gets a 400 once the history before the block
+# changed — measured on Opus 5.5 with a rebuilt system prompt, which LIA does
+# every turn. The behaviour below asks the API to drop such a block instead of
+# refusing the request; it is only accepted with the beta header next to it (the
+# field alone is itself a 400).
+ANTHROPIC_THINKING_BINDING_BETA = "thinking-binding-controls-2026-08-01"
+ANTHROPIC_PREFIX_MISMATCH_BEHAVIOR = "drop_block"
+
+# A token written to a prompt cache costs this multiple of the input price —
+# the same on both vendors that charge a write (pricing pages read 2026-09-23,
+# ADR-306): Claude's « 5m cache writes » and OpenAI's « cache writes » on GPT-5.6
+# and GPT-6. The written tokens stay in the prompt count, which already pays 1x:
+# the cost adds the difference. LIA only ever writes the default TTL of each
+# (Claude's 5 minutes — anthropic_payload sets no ttl; OpenAI's 30 minutes, its
+# only value), so it is the one rate needed. The pricing cache hands it to every
+# Anthropic and OpenAI tariff when it builds its index.
+PROMPT_CACHE_WRITE_MULTIPLIER = 1.25
+
 # ============================================================================
 # RESPONSE LLM CONTEXT — STYLE NEUTRALIZATION (HTML enriched display mode)
 # ============================================================================
@@ -405,10 +429,6 @@ REGISTRY_EXTERNAL_LEGEND = (
 # Tool context resolution confidence threshold (0.0-1.0)
 # References with confidence below this threshold will not be resolved
 TOOL_CONTEXT_CONFIDENCE_THRESHOLD = 0.7
-
-# Maximum number of items to store per context list
-# Prevents memory bloat with very large result sets
-TOOL_CONTEXT_MAX_ITEMS = 10
 
 # ============================================================================
 # GOOGLE PEOPLE API - FIELD PROJECTION
@@ -733,6 +753,8 @@ SCHEDULER_JOB_MEMORY_CONSOLIDATION = "memory_consolidation"
 SCHEDULER_JOB_REMINDER_NOTIFICATION = "reminder_notification"
 SCHEDULER_JOB_UNVERIFIED_CLEANUP = "unverified_account_cleanup"
 SCHEDULER_JOB_TOKEN_REFRESH = "token_refresh"
+# One-shot, leader only: the bot-global Telegram webhook is set once (ADR-304).
+SCHEDULER_JOB_TELEGRAM_WEBHOOK = "telegram_webhook_setup"
 SCHEDULER_JOB_SCHEDULED_ACTION_EXECUTOR = "scheduled_action_executor"
 # Boot-time skills disk→DB sync — gated by a distributed lock so only one
 # worker performs the O(users×skills) write per deploy, not every worker (F018).
@@ -1075,6 +1097,10 @@ RESPONSE_MESSAGE_WINDOW_SIZE_DEFAULT = 10  # Response: creative synthesis (rich 
 # grounding when the current turn produced no registry data. Beyond it the
 # entities are considered stale and are not surfaced to the response LLM.
 RECENT_ENTITIES_MAX_TURN_AGE_DEFAULT = 3
+# How many of those entities the grounding block injects at most. A prompt
+# budget of its own: it used to borrow the context store's list ceiling, so
+# widening what the store keeps for « the 4th » widened this block too.
+RECENT_ENTITIES_MAX_ITEMS_DEFAULT = 10
 
 # SSE (Server-Sent Events) configuration
 SSE_HEARTBEAT_INTERVAL_DEFAULT = 15  # seconds
@@ -1536,6 +1562,9 @@ HTTP_TIMEOUT_EXTERNAL_API = 5.0  # Generic external API calls (fallback)
 # Timeout for the functional API-key verification performed at connector
 # activation (audit F034): a real authenticated call gates the ACTIVE status.
 CONNECTOR_API_KEY_VERIFY_TIMEOUT_SECONDS_DEFAULT = 10.0
+# Longest the informational « last used » stamp of an API key may wait for
+# its row (ADR-304): a busy row skips the stamp rather than delay the read.
+CONNECTOR_USE_STAMP_LOCK_TIMEOUT_MS = 500
 
 # Connector operations
 HTTP_TIMEOUT_CONNECTOR_STANDARD = 15.0  # Standard connector operations
@@ -2519,6 +2548,11 @@ PROACTIVE_NOTIFICATION_MAX_LENGTH_DEFAULT = 150
 # thinking inside ``max_tokens`` -- measured 2026-09-12 on deepseek-flash --
 # 150 tokens buys 150 tokens of chain of thought and no answer at all.
 REMINDER_MESSAGE_MAX_TOKENS = 150
+# Reminders notified per scheduler tick, each claimed on its own (ADR-304).
+REMINDER_NOTIFICATION_BATCH_LIMIT = 100
+# A reminder PROCESSING for longer is a claim a crash abandoned: released to
+# PENDING at the next tick. Must exceed one notification (model + push).
+REMINDER_PROCESSING_STALE_TIMEOUT_MINUTES_DEFAULT = 10
 
 # Proactive message injection into LangGraph state
 # When a user replies to a proactive notification, these messages (stored in
@@ -3383,12 +3417,13 @@ INTEREST_CONTENT_LLM_MAX_TOKENS_DEFAULT = 1000
 DYNAMIC_CONTEXT_MARKER = "--- DYNAMIC CONTEXT"
 
 # ============================================================================
-# REASONING MODELS (OpenAI o-series and GPT-5)
+# REASONING MODELS (OpenAI o-series, GPT-5 and GPT-6)
 # ============================================================================
 
 # Reasoning models pattern (regex for model name validation)
-# Matches: o1, o1-mini, o3-mini, o3-nano, o4-mini, gpt-5, gpt-5-mini, gpt-5-nano, gpt-5.1, gpt-5.2, etc.
-REASONING_MODELS_PATTERN = r"^(o[0-9](-.*)?|gpt-5([.-].*)?)"
+# Matches: o1, o1-mini, o3-mini, o3-nano, o4-mini, gpt-5, gpt-5-mini, gpt-5-nano, gpt-5.1, gpt-5.2,
+# gpt-6-astra, gpt-6-sol, gpt-6-luna, etc.
+REASONING_MODELS_PATTERN = r"^(o[0-9](-.*)?|gpt-[56]([.-].*)?)"
 # Note: REASONING_EFFORT_* constants removed (dead code - never imported)
 
 # Note: EVALUATOR_* constants moved to src/core/config/observability.py
@@ -4723,6 +4758,26 @@ RAG_DRIVE_MAX_ANCESTOR_DEPTH = 64
 # over-indexing, the hard bounds being the per-space document cap and the
 # walk bounds above).
 RAG_DRIVE_SYNC_CONFIRM_THRESHOLD_DEFAULT = 10
+# Push-driven Drive reindex (ADR-261 P2, bounded by ADR-304). The changes feed
+# is drained in pages of the size Google allows: the global item ceiling
+# (API_MAX_ITEMS_PER_REQUEST, 25) bounds what an AGENT receives, and applied to
+# this internal pagination it made the feed 40x chattier — measured 2026-09-22,
+# 5 832 calls in 50 minutes for one account and a wake sweep blocked 22 minutes.
+# One wake drains at most MAX_PAGES pages or DEADLINE seconds, keeps its place
+# (the channel's token advances past the window it handed over), re-queues
+# itself, and after MAX_CONSECUTIVE_TRUNCATIONS truncated wakes in a row
+# rebases the feed and re-synchronises the linked folders in full: a backlog a
+# full synchronisation reconciles is never replayed change by change.
+RAG_DRIVE_CHANGES_PAGE_SIZE_DEFAULT = 1000
+#: Google's documented maximum for ``changes.list`` ``pageSize``.
+RAG_DRIVE_CHANGES_PAGE_SIZE_MAX = 1000
+RAG_DRIVE_PUSH_MAX_PAGES_DEFAULT = 20
+RAG_DRIVE_PUSH_DRAIN_DEADLINE_SECONDS_DEFAULT = 45
+RAG_DRIVE_PUSH_MAX_CONSECUTIVE_TRUNCATIONS_DEFAULT = 5
+#: + {user_id}: consecutive truncated drains (runtime state, family ``rag:drive_push``).
+REDIS_KEY_DRIVE_PUSH_TRUNCATIONS_PREFIX = "rag:drive_push:truncations:"
+#: A streak older than a day is not a streak: the counter expires on its own.
+RAG_DRIVE_PUSH_TRUNCATIONS_TTL_SECONDS = 86400
 # Google-native MIME types the walk decides on.
 GOOGLE_DRIVE_FOLDER_MIME = "application/vnd.google-apps.folder"
 GOOGLE_DRIVE_SHORTCUT_MIME = "application/vnd.google-apps.shortcut"
@@ -5531,10 +5586,26 @@ IMAGE_GENERATION_MAX_IMAGES_DEFAULT: int = 1
 IMAGE_GENERATION_RATE_LIMIT_CALLS_DEFAULT: int = 10
 IMAGE_GENERATION_RATE_LIMIT_WINDOW_SECONDS_DEFAULT: int = 300
 
-# Valid parameter values (used by validators and tool input checks)
-IMAGE_GENERATION_VALID_QUALITIES: tuple[str, ...] = ("low", "medium", "high")
-IMAGE_GENERATION_VALID_SIZES: tuple[str, ...] = ("1024x1024", "1536x1024", "1024x1536")
+# Output formats a person may prefer. Qualities and sizes are NOT listed here: what
+# is valid depends on the configured model's family (image_generation/families.py,
+# ADR-305), and a stored preference is mapped onto it at run time.
 IMAGE_GENERATION_VALID_FORMATS: tuple[str, ...] = ("png", "jpeg", "webp")
+# The SHAPE a stored quality or size must have, whatever the model: a quality is a
+# short lowercase token (it fits the String(20) column), a size is WIDTHxHEIGHT.
+IMAGE_GENERATION_QUALITY_PATTERN: str = r"^[a-z][a-z0-9_-]{0,19}$"
+IMAGE_GENERATION_SIZE_PATTERN: str = r"^([1-9]\d{0,4})x([1-9]\d{0,4})$"
+
+# A vendor that answers with a URL (Qwen Image: valid 24 hours) is downloaded at
+# once. The deadline covers the whole transfer; the ceiling bounds what a mis-served
+# URL can make the API hold (a 2K PNG measures a few MB).
+IMAGE_GENERATION_RESULT_DOWNLOAD_TIMEOUT_SECONDS_DEFAULT: float = 60.0
+IMAGE_GENERATION_RESULT_MAX_MB_DEFAULT: int = 40
+# Quality (1-100) of every lossy encoding the image domain writes: an image delivered in
+# the person's JPEG or WebP format, and an edit's source re-encoded to fit its vendor.
+IMAGE_GENERATION_ENCODING_QUALITY_DEFAULT: int = 90
+# Hosts a Qwen image result may be downloaded from. A security allowlist, not a
+# tunable: the result URL is the one server-side fetch the vendor directs.
+QWEN_IMAGE_RESULT_HOST_SUFFIXES: tuple[str, ...] = (".aliyuncs.com",)
 
 # Response display mode (user preference)
 RESPONSE_DISPLAY_MODE_CARDS: str = "cards"
@@ -5554,11 +5625,6 @@ IMAGE_GENERATION_OUTPUT_FORMAT_DEFAULT: str = "png"
 
 # LLM config key (for LLMConfigOverrideCache lookup)
 IMAGE_GENERATION_LLM_TYPE: str = "image_generation"
-
-# Text model used by the Responses API for image editing ("Generate vs Edit").
-# The Responses API requires a TEXT model (not an image model). The image model
-# is selected internally by the image_generation tool within the Responses API.
-IMAGE_EDIT_RESPONSES_MODEL: str = "gpt-4.1-mini"
 
 # Cross-worker cache invalidation (ADR-063)
 CACHE_NAME_IMAGE_GENERATION_PRICING: str = "image_generation_pricing"
@@ -5844,6 +5910,30 @@ REACT_MCP_EXPAND_ITERATIVE_ENABLED_DEFAULT: bool = True
 # readable field of any e-mail — eleven iterations, a wrong answer.
 REACT_TOOL_RESULT_MAX_TOKENS_DEFAULT: int = 25_000
 REACT_TOOL_RESULT_WINDOW_FRACTION_DEFAULT: float = 0.25
+# ADR-308: bind EVERY available tool in registration order and move the turn's
+# context after the question, so a turn's prefix (tools + static prompt) is the
+# previous turn's and the provider's prompt cache is read across turns. Off by
+# default: without it nothing changes (relevance selection, context in the
+# system prompt). Measured 2026-09-23 at production's gaps between turns: -18 %
+# (Claude), -34 % (GPT-5.6), -42 % (DeepSeek) per turn; +18 % on a model with no
+# prompt cache at all (qwen3.5/3.6 on the Frankfurt endpoint).
+REACT_CROSS_TURN_CACHE_ENABLED_DEFAULT: bool = False
+# Largest share of the ReAct slot's context window every tool's schemas may
+# take before a turn keeps the relevance selection instead (a 32K local window
+# cannot hold the 36K tokens of the native catalogue).
+REACT_CROSS_TURN_CACHE_MAX_WINDOW_FRACTION_DEFAULT: float = 0.5
+# Under the same flag, the ReAct loop's history is dropped by BLOCKS of this share
+# of its window (ADR-309): the window holds between N and N + block - 1 turns, and
+# its first message only moves when a whole block goes, so each turn's history
+# extends the previous one and a provider reads it again. Half a window: about a
+# fifth more history on a model with no prompt cache, re-read two turns out of
+# three on the others. The response node's history is NOT dropped by blocks: it
+# follows the turn's own context (query, date, results), so no cache reads it.
+REACT_CROSS_TURN_HISTORY_BLOCK_FRACTION_DEFAULT: float = 0.5
+# ADR-310: recovery passes a ReAct turn may take when its final message declares
+# facts it could not obtain (an <unresolved> block). A pass re-opens the loop with
+# the draft and the gaps instead of ending the turn; 0 switches the pass off.
+REACT_RECOVERY_PASSES_MAX_DEFAULT: int = 1
 
 # ============================================================================
 # HEALTH METRICS (iPhone Shortcuts ingestion — heart rate, steps, …)
@@ -6014,6 +6104,14 @@ PUSH_WAKE_SWEEP_INTERVAL_SECONDS_DEFAULT = 120
 PUSH_WAKE_COOLDOWN_MINUTES_DEFAULT = 20
 PUSH_WAKE_MAX_USERS_PER_SWEEP_DEFAULT = 10
 PUSH_WAKE_PAYLOAD_TTL_SECONDS_DEFAULT = 3600
+# A safety net, not a budget (ADR-304): every step of a wake is bounded on its
+# own (drain pages and deadline, HTTP timeouts, the model's), and an HTTP read
+# timeout is PER OPERATION — a server trickling a byte every few seconds never
+# trips it. Generous on purpose: cancelling a heartbeat mid-decision may leave
+# an effect claimed and unsettled (ADR-263 counts it), so only a wake that has
+# clearly stopped moving is cut. The sweep pops one account at a time, so a cut
+# wake never held anyone else's.
+PUSH_WAKE_SERVE_TIMEOUT_SECONDS_DEFAULT = 180
 PUSH_WAKE_MAIL_MAX_MESSAGES = 10  # metadata fetched per wake for the pre-filter
 PUSH_WAKE_MAIL_REQUIRE_LABELS_DEFAULT: tuple[str, ...] = ("IMPORTANT",)
 PUSH_WAKE_MAIL_EXCLUDE_LABELS_DEFAULT: tuple[str, ...] = (

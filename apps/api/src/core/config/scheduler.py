@@ -16,6 +16,7 @@ from pydantic import Field
 from pydantic_settings import BaseSettings
 
 from src.core.constants import (
+    REMINDER_PROCESSING_STALE_TIMEOUT_MINUTES_DEFAULT,
     SCHEDULED_ACTIONS_EXECUTION_TIMEOUT_SECONDS,
     SCHEDULED_ACTIONS_MAX_CONCURRENCY,
     SCHEDULED_ACTIONS_RUNS_RETENTION_DAYS,
@@ -70,6 +71,20 @@ class SchedulerSettings(BaseSettings):
             "are purged at every executor tick. Symptom if too low: the export "
             "of a user's own execution history is short. Symptom if too high: "
             "the table grows with every routine of every account."
+        ),
+    )
+
+    reminder_processing_stale_timeout_minutes: int = Field(
+        default=REMINDER_PROCESSING_STALE_TIMEOUT_MINUTES_DEFAULT,
+        ge=1,
+        le=120,
+        description=(
+            "Recovery threshold for reminder claims (ADR-304). A reminder is "
+            "claimed (PROCESSING, committed) before it is notified; one still "
+            "PROCESSING past this duration was abandoned by a crash and is "
+            "released to PENDING at the next tick. MUST exceed the time one "
+            "notification can take (message generation + push), or a live "
+            "claim is released under its worker and the reminder sent twice."
         ),
     )
 

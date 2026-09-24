@@ -8,16 +8,25 @@ so) — nothing here decides who spoke.
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from time import perf_counter
 from typing import Any
 from uuid import UUID
 
 import httpx
 import structlog
-from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.domains.shared.consultation_sink import collector_is_active, consultation_collector
+from src.domains.shared.consultation_surfaces import record_surface_consultations
 
 logger = structlog.get_logger(__name__)
+
+#: The consultation surface and section the calendar lookup is filed under.
+_SURFACE = "meeting"
+_CALENDAR_SECTION = "calendar"
 
 #: Events considered around the recording (a meeting often starts late).
 _CALENDAR_MARGIN = timedelta(minutes=30)
@@ -76,51 +85,54 @@ def _attendee_names(event: dict[str, Any]) -> list[str]:
 
 
 async def match_calendar_event(
-    db: AsyncSession, *, user_id: UUID, started_at: datetime, stopped_at: datetime
+    *, user_id: UUID, started_at: datetime, stopped_at: datetime
 ) -> CalendarMatch | None:
-    """The user's calendar event overlapping the recording, if any (never raises)."""
-    try:
-        from src.domains.connectors.clients.registry import ClientRegistry
-        from src.domains.connectors.preferences.owner_defaults import resolve_owner_calendar_id
-        from src.domains.connectors.provider_resolver import resolve_active_connector
-        from src.domains.connectors.service import ConnectorService
+    """The user's calendar event overlapping the recording, if any (never raises).
 
-        connector_service = ConnectorService(db)
-        resolved_type = await resolve_active_connector(user_id, "calendar", connector_service)
-        if resolved_type is None:
-            return None
-        credentials = (
-            await connector_service.get_apple_credentials(user_id, resolved_type)
-            if resolved_type.is_apple
-            else await connector_service.get_connector_credentials(user_id, resolved_type)
-        )
-        if not credentials:
-            return None
-        client_class = ClientRegistry.get_client_class(resolved_type)
-        if client_class is None:
-            return None
-        client = client_class(user_id, credentials, connector_service)
-        calendar_id = await resolve_owner_calendar_id(
-            db=db, client=client, owner_id=user_id, connector_type=resolved_type
-        )
-        result = await client.list_events(
-            time_min=(started_at - _CALENDAR_MARGIN).isoformat(),
-            time_max=(stopped_at + _CALENDAR_MARGIN).isoformat(),
-            max_results=_MAX_EVENTS,
-            calendar_id=calendar_id,
-            fields=["id", "summary", "start", "end", "attendees", "location"],
-        )
+    Opened through the shared calendar door: no session is held while the
+    provider answers, and the client is closed on every path (ADR-304). The
+    lookup is a CONSULTATION of the person's calendar, filed on the ``meeting``
+    surface — ``failed`` when it could not be read, nothing when no calendar is
+    connected (nothing was opened).
+    """
+    from src.domains.connectors.calendar_access import CalendarAccess, open_active_calendar
+
+    started = perf_counter()
+    opened = failed = False
+    try:
+        async with open_active_calendar(user_id) as access:
+            if not isinstance(access, CalendarAccess):
+                return None
+            opened = True
+            result = await access.client.list_events(
+                time_min=(started_at - _CALENDAR_MARGIN).isoformat(),
+                time_max=(stopped_at + _CALENDAR_MARGIN).isoformat(),
+                max_results=_MAX_EVENTS,
+                calendar_id=access.calendar_id,
+                fields=["id", "summary", "start", "end", "attendees", "location"],
+            )
+            provider = str(getattr(access.connector_type, "value", access.connector_type))
         events = result.get("items", []) or []
     except (TimeoutError, httpx.HTTPError, ValueError, KeyError, AttributeError, OSError) as exc:
+        failed = True
         logger.debug("meeting_calendar_match_failed", user_id=str(user_id), error=str(exc))
         return None
+    finally:
+        if opened:
+            record_surface_consultations(
+                surface=_SURFACE,
+                user_id=user_id,
+                opened=[_CALENDAR_SECTION],
+                failed=[_CALENDAR_SECTION] if failed else [],
+                duration_ms=int((perf_counter() - started) * 1000),
+            )
 
     event = best_overlap(events, started_at, stopped_at)
     if event is None or not event.get("id"):
         return None
     return CalendarMatch(
         event_id=str(event["id"]),
-        provider=str(getattr(resolved_type, "value", resolved_type)),
+        provider=provider,
         title=str(event["summary"]) if event.get("summary") else None,
         attendees=_attendee_names(event),
         location=str(event["location"]) if event.get("location") else None,
@@ -138,8 +150,22 @@ async def place_label(lat: float, lon: float, *, language: str) -> str | None:
         return None
 
 
+@asynccontextmanager
+async def _consultations_of(run_id: str) -> AsyncIterator[None]:
+    """Publish the meeting run's collector, unless a run already collects.
+
+    The register keeps only what a published collector gathers: a background
+    job that records without one writes nothing, in silence (ADR-263).
+    """
+    if collector_is_active():
+        yield
+        return
+    async with consultation_collector(run_id):
+        yield
+
+
 async def enrich_meeting(
-    db: AsyncSession, meeting: Any, *, stopped_at: datetime, language: str, run_id: str
+    meeting: Any, *, stopped_at: datetime, language: str, run_id: str
 ) -> tuple[CalendarMatch | None, str | None]:
     """The calendar event and the place name of a recording, under its run's accounting.
 
@@ -149,8 +175,10 @@ async def enrich_meeting(
     (``_notify_ready`` files the synthesis tokens under it), so the euro joins
     the same summary row.
 
+    Neither lookup holds a database session (ADR-304): the job's own
+    session must not stay open while a provider answers.
+
     Args:
-        db: Session.
         meeting: The ``Meeting`` row.
         stopped_at: When the recording stopped.
         language: The owner's language, for the place name.
@@ -161,9 +189,12 @@ async def enrich_meeting(
     """
     from src.infrastructure.proactive.tracking import out_of_turn_spend
 
-    async with out_of_turn_spend(run_id, meeting.user_id, "meeting_enrichment"):
+    async with (
+        out_of_turn_spend(run_id, meeting.user_id, "meeting_enrichment"),
+        _consultations_of(run_id),
+    ):
         calendar = await match_calendar_event(
-            db, user_id=meeting.user_id, started_at=meeting.started_at, stopped_at=stopped_at
+            user_id=meeting.user_id, started_at=meeting.started_at, stopped_at=stopped_at
         )
         label = meeting.location_label
         if label is None and meeting.location_lat is not None and meeting.location_lon is not None:
