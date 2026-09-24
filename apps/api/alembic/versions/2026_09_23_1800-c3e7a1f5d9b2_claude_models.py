@@ -111,7 +111,7 @@ CATALOGUE_ROWS: tuple[dict[str, Any], ...] = (
             **_CLAUDE_FLAGS,
             "model_name": name,
             "reasoning_enum_values": _SWITCHABLE_LADDER,
-            "reasoning_doc_i18n_key": "anthropic_4_7",
+            "reasoning_doc_i18n_key": "anthropic_4_7",  # gitleaks:allow
         }
         for name in ("claude-opus-4-8", "claude-opus-4-7")
     ),
@@ -124,7 +124,7 @@ CATALOGUE_ROWS: tuple[dict[str, Any], ...] = (
         "max_output_tokens": 64_000,
         "supports_temperature": True,
         "reasoning_enum_values": None,
-        "reasoning_doc_i18n_key": "anthropic_4_5",
+        "reasoning_doc_i18n_key": "anthropic_4_5",  # gitleaks:allow
     },
 )
 
