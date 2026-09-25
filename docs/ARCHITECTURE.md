@@ -73,7 +73,7 @@ Ordres de grandeur mesurés le 2026-09-24 (`git ls-files`) ; les valeurs exactes
 | **Routes d'API** | 500+ |
 | **LLM Providers** | 7 (catalogue en base, ADR-244) |
 | **Agents** | 20 |
-| **Tools** | 115 exposés au catalogue |
+| **Tools** | 123 exposés au catalogue |
 | **Fichiers Prompts** | 150+ (`prompts/v1/`) |
 | **Langues i18n** | 6 |
 

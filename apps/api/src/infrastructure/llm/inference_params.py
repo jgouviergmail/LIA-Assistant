@@ -94,6 +94,7 @@ _FAMILY_NAMES: Final[dict[str, str]] = {
     "chat-vertexai": "google",
     "ollama-chat": "ollama",
     "chat-ollama": "ollama",
+    "chat-deepseek": "deepseek",
 }
 
 
@@ -101,7 +102,9 @@ class InferenceParams(NamedTuple):
     """The parameters of one call, normalised.
 
     Attributes:
-        provider: The client family that answered.
+        provider: The provider family that answered, as LIA names it: the one
+            the factory configured when the model declares it, else the
+            client's own family.
         temperature: As sent; None when the call did not set one.
         top_p: As sent.
         max_output_tokens: The output cap, whatever the provider calls it.
@@ -120,20 +123,26 @@ class InferenceParams(NamedTuple):
     params_digest: str
 
 
-def capture_inference_params(params: dict[str, Any] | None) -> InferenceParams:
+def capture_inference_params(
+    params: dict[str, Any] | None, *, declared_provider: str | None = None
+) -> InferenceParams:
     """Read one call's parameters into the register's vocabulary.
 
     Args:
         params: ``invocation_params`` as LangChain hands them to a callback,
             or None when a path does not provide them.
+        declared_provider: The provider the factory configured for the model
+            (its metadata). It wins over the client's class: Qwen answers
+            through the OpenAI-compatible client, whose class says « openai ».
 
     Returns:
         The normalised record. Never raises.
     """
-    kept = {key: value for key, value in (params or {}).items() if key in INFERENCE_PARAM_ALLOWLIST}
+    kept = _allowlisted(params)
     level, budget = _reasoning(kept)
+    declared = declared_provider if isinstance(declared_provider, str) else None
     return InferenceParams(
-        provider=_provider(kept),
+        provider=declared or _provider(kept),
         temperature=_number(kept.get("temperature")),
         top_p=_number(kept.get("top_p")),
         max_output_tokens=_integer(_first_present(kept, _OUTPUT_CAP_KEYS)),
@@ -141,6 +150,33 @@ def capture_inference_params(params: dict[str, Any] | None) -> InferenceParams:
         reasoning_budget_tokens=budget,
         params_digest=row_digest({key: _digestible(value) for key, value in kept.items()}),
     )
+
+
+def requested_model(params: dict[str, Any] | None) -> str | None:
+    """The model the request NAMED — what the slot is configured with.
+
+    Not a column: the register keeps the model the provider REPORTED, which is
+    what was billed. The two differ when a provider resolves an alias or
+    answers under a dated snapshot, and a reader comparing a call with the
+    configuration needs both (the debug panel).
+
+    Args:
+        params: ``invocation_params`` as LangChain hands them to a callback.
+
+    Returns:
+        The requested model, or None when the request named none readable.
+    """
+    kept = _allowlisted(params)
+    for key in ("model", "model_name"):
+        value = kept.get(key)
+        if isinstance(value, str) and value:
+            return value
+    return None
+
+
+def _allowlisted(params: dict[str, Any] | None) -> dict[str, Any]:
+    """The allowlisted parameters, and nothing else (never a dump)."""
+    return {key: value for key, value in (params or {}).items() if key in INFERENCE_PARAM_ALLOWLIST}
 
 
 def _first_present(kept: dict[str, Any], keys: tuple[str, ...]) -> Any:

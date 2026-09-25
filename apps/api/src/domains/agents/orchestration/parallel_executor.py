@@ -2313,7 +2313,6 @@ async def _execute_tool_step(
                     step_id=step.step_id,
                     token_estimate=token_estimate,
                     cap=cap,
-                    sample=instruction_value[:200],
                 )
                 execution_time_ms = int((time.time() - start_time) * 1000)
                 return StepResult(

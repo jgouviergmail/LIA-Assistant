@@ -36,6 +36,7 @@ from .background_runs import BackgroundRunsSettings
 from .bookmarks import BookmarksSettings
 from .briefing import BriefingSettings
 from .browser import BrowserSettings
+from .calculation import CalculationSettings
 from .channels import ChannelsSettings
 from .connectors import ConnectorsSettings
 from .database import DatabaseSettings
@@ -143,6 +144,7 @@ class Settings(
     MeetingsSettings,
     LiveSettings,
     BookmarksSettings,
+    CalculationSettings,
     MFASettings,
     AccountExportSettings,
     ProductSettings,

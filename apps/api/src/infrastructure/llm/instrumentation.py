@@ -58,7 +58,7 @@ from langchain_core.callbacks.base import BaseCallbackHandler
 from langchain_core.callbacks.manager import BaseCallbackManager
 from langchain_core.runnables import RunnableConfig
 
-from src.core.field_names import FIELD_CONVERSATION_ID, FIELD_USER_ID
+from src.core.field_names import FIELD_CONVERSATION_ID, FIELD_LLM_TYPE, FIELD_USER_ID
 from src.infrastructure.llm.callback_factory import get_callback_factory
 
 logger = structlog.get_logger(__name__)
@@ -344,7 +344,7 @@ def create_instrumented_config(
     # IMPORTANT: Metadata is always added, even if Langfuse is disabled
     # This allows tests to validate metadata enrichment without Langfuse
     enriched_metadata = {
-        "llm_type": llm_type,
+        FIELD_LLM_TYPE: llm_type,
         "instrumentation_version": "1.0.0",
         **(metadata or {}),
     }

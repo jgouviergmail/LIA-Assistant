@@ -205,7 +205,7 @@ async def build_psychological_profile(
                 return None, EmotionalState.NEUTRAL, None
 
             # Phase 6: Track usage for highly relevant memories (background)
-            await _track_memory_usage(user_id, results)
+            await track_memory_usage(user_id, results)
 
             # Compute emotional state for UI indicator
             emotional_state = compute_emotional_state(results)
@@ -283,6 +283,32 @@ async def build_psychological_profile(
         return None, EmotionalState.NEUTRAL, None
 
 
+async def build_profile_for_lookup(
+    user_id: str, query: str
+) -> tuple[str | None, EmotionalState, list[dict] | None]:
+    """The chat's profile briefing, ranked on a LOOKUP rather than a chat line.
+
+    ``build_psychological_profile`` ranks on the vector it is handed and falls
+    back to the most RECENT memories without one — the right degradation for a
+    trivial chat line (« ok »), the wrong answer to a question: the phone's
+    ``recall_memories`` lookup and the owner call's context passed their query
+    with no vector, and were served the ten newest memories whatever was asked
+    (ADR-313). A lookup key is embedded as such; without a vector (provider
+    down) the recency fallback still answers, as it always did.
+
+    Args:
+        user_id: Whose memories.
+        query: What is looked up.
+
+    Returns:
+        ``(profile, emotional_state, debug)``, as ``build_psychological_profile``.
+    """
+    from src.domains.memories.search import embed_lookup
+
+    embedding = await embed_lookup(query, user_id=user_id)
+    return await build_psychological_profile(user_id, query, query_embedding=embedding)
+
+
 async def get_memory_context_for_response(
     user_id: str,
     query: str,
@@ -356,14 +382,14 @@ async def _update_usage_stats_db(
         return 0
 
 
-async def _track_memory_usage(
+async def track_memory_usage(
     user_id: str,
     results: list[tuple[Memory, float]],
 ) -> None:
     """Track usage for highly relevant memories (score >= threshold).
 
     Filters memories by relevance threshold and updates usage stats in background.
-    Called from build_psychological_profile.
+    Called by the profile builder and by the memory search tool (ADR-313).
 
     Args:
         user_id: Target user ID.
@@ -407,12 +433,12 @@ async def get_memory_facts_for_query(
     and MemoryReferenceResolutionService to resolve personal references
     like "ma femme", "mon frère" before planning.
 
-    This function computes its OWN embedding (not centralized) because
-    the query is different from the user message (it's the clarification
-    response, initiative context, or resolver query).
+    The query differs from the user message (a clarification response, an
+    initiative context, a resolver query), so it is a LOOKUP: it goes through
+    the one lookup door (``memories.search``, ADR-313), embedded as a key.
 
-    Results are sorted by (usage_count, importance, score) descending
-    to prioritize frequently used and important memories.
+    Results are sorted by (score, importance, usage_count) descending: the
+    semantic similarity is the primary signal for a specific query.
 
     Args:
         user_id: Target user ID.
@@ -423,89 +449,50 @@ async def get_memory_facts_for_query(
     Returns:
         List of memory content strings, or None if empty/error.
     """
-    from src.infrastructure.database.session import get_db_context
+    from src.domains.memories.search import search_memories
 
     if not user_id:
         return None
 
     try:
-        if min_score is None:
-            min_score = settings.memory_min_search_score
-
-        # Compute embedding locally (query ≠ user message)
-        from src.infrastructure.llm.memory_embeddings import get_memory_embeddings
-
-        embeddings = get_memory_embeddings()
-        query_embedding = await embeddings.aembed_query(query[:500])
-
-        if not query_embedding:
-            return None
-
-        # Fetch more results than needed, then sort by importance/usage
-        fetch_limit = max(limit * 3, 30)
-
-        async with get_db_context() as db:
-            from src.domains.memories.repository import MemoryRepository
-
-            repo = MemoryRepository(db)
-            results = await repo.search_by_relevance(
-                user_id=UUID(user_id),
-                query_embedding=query_embedding,
-                limit=fetch_limit,
-                min_score=min_score,
-            )
-
-            if not results:
-                logger.debug(
-                    "memory_facts_no_results",
-                    user_id=user_id,
-                    query_preview=query[:50],
-                )
-                return None
-
-            # Sort by relevance score (primary), then importance, then usage_count.
-            # Semantic similarity is the most critical signal when retrieving facts
-            # for a specific query — usage_count as primary key caused targeted
-            # reference resolution to miss specific facts (e.g., "mon fils") in
-            # favor of more frequently used but less relevant memories.
-            sorted_results = sorted(
-                results,
-                key=lambda x: (
-                    x[1] or 0.0,
-                    x[0].importance or 0.5,
-                    x[0].usage_count or 0,
-                ),
-                reverse=True,
-            )
-
-            # Extract content from top memories (still inside session)
-            facts: list[str] = []
-            for memory, _score in sorted_results[:limit]:
-                content = memory.content or ""
-                if content:
-                    facts.append(content)
-
-            fetched_count = len(results)
-
-        if not facts:
-            return None
-
-        logger.info(
-            "memory_facts_extracted",
-            user_id=user_id,
-            query_preview=query[:50],
-            facts_count=len(facts),
-            total_length=sum(len(f) for f in facts),
-            fetched_count=fetched_count,
-            sorted_by="usage_count+importance",
+        results = await search_memories(
+            UUID(user_id),
+            query,
+            # Fetch more than needed, then sort by relevance/importance/usage.
+            limit=max(limit * 3, 30),
+            min_score=settings.memory_min_search_score if min_score is None else min_score,
         )
-
-        return facts
-
     except Exception as e:
         logger.warning(
             "memory_facts_extraction_failed",
             user_id=user_id,
-            error=str(e),
+            error_type=type(e).__name__,
         )
         return None
+
+    if not results:
+        logger.debug("memory_facts_no_results", user_id=user_id)
+        return None
+
+    # Semantic similarity is the most critical signal when retrieving facts for
+    # a specific query — usage_count as primary key caused targeted reference
+    # resolution to miss specific facts (e.g., "mon fils") in favor of more
+    # frequently used but less relevant memories.
+    sorted_results = sorted(
+        results,
+        key=lambda x: (x[1] or 0.0, x[0].importance or 0.5, x[0].usage_count or 0),
+        reverse=True,
+    )
+    facts = [memory.content for memory, _score in sorted_results[:limit] if memory.content]
+    if not facts:
+        return None
+
+    # Counts only at INFO: the query and the facts are the person's words.
+    logger.info(
+        "memory_facts_extracted",
+        user_id=user_id,
+        facts_count=len(facts),
+        total_length=sum(len(f) for f in facts),
+        fetched_count=len(results),
+    )
+    return facts

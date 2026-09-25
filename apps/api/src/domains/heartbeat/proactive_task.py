@@ -230,7 +230,7 @@ class HeartbeatProactiveTask:
                     logger.warning(
                         "heartbeat_interest_topic_invalid",
                         user_id=str(user_id),
-                        invalid_topic=decision.interest_topic[:50],
+                        invalid_topic_length=len(decision.interest_topic),
                     )
                     decision.interest_topic = None
 
@@ -238,7 +238,7 @@ class HeartbeatProactiveTask:
                 logger.info(
                     "heartbeat_llm_skip",
                     user_id=str(user_id),
-                    reason=decision.reason[:200],
+                    reason_length=len(decision.reason),
                     tokens_in=tok_in,
                     tokens_out=tok_out,
                 )
@@ -308,7 +308,7 @@ class HeartbeatProactiveTask:
             logger.warning(
                 "heartbeat_enrichment_resolve_failed",
                 user_id=str(user_id),
-                topic=topic[:50],
+                topic_length=len(topic),
                 error=str(e),
                 error_type=type(e).__name__,
             )
@@ -373,7 +373,7 @@ class HeartbeatProactiveTask:
             logger.warning(
                 "heartbeat_enrichment_failed",
                 user_id=str(user_id),
-                topic=topic[:50],
+                topic_length=len(topic),
                 error=str(e),
                 error_type=type(e).__name__,
             )
@@ -386,7 +386,7 @@ class HeartbeatProactiveTask:
             logger.info(
                 "heartbeat_enrichment_empty",
                 user_id=str(user_id),
-                topic=topic[:50],
+                topic_length=len(topic),
                 sources_tried=generation.sources_tried,
             )
             heartbeat_enrichment_total.labels(outcome="empty").inc()
@@ -396,7 +396,7 @@ class HeartbeatProactiveTask:
         logger.info(
             "heartbeat_enrichment_succeeded",
             user_id=str(user_id),
-            topic=topic[:50],
+            topic_length=len(topic),
             source=content_result.source,
             citations_count=len(content_result.citations),
         )

@@ -2,10 +2,11 @@
 
 A treatment row records WHICH capability answered and never what was asked, so
 its wording carries no placeholder: it is a noun, the name of the domain the
-capability belongs to. Thirty-one nouns cover every tool the assistant has and
-every tool it will ever have, because a new capability joins an existing
-domain — which is exactly why the domain, rather than the tool, is what a
-reader is shown. The tool name is displayed beside it, so nothing is hidden.
+capability belongs to. One noun per domain covers every tool the assistant has:
+a new capability joins an existing domain, and a new domain brings its noun in
+the six languages (the boot guard refuses one that does not) — which is exactly
+why the domain, rather than the tool, is what a reader is shown. The tool name
+is displayed beside it, so nothing is hidden.
 
 Data module (exempt from the size ratchet, like ``i18n_effects``): one table
 per language, the SAME key set under each, checked by
@@ -43,6 +44,10 @@ TREATMENT_DOMAIN_LABELS: dict[str, dict[str, str]] = {
         "health": "Données de santé",
         "interest": "Centres d'intérêt",
         "journal": "Journal",
+        "memory": "Mémoire à long terme",
+        "calculation": "Calculs",
+        "activity": "Activité de LIA",
+        "generated_file": "Fichiers produits par LIA",
         "hue": "Éclairage connecté",
         "image_generation": "Génération d'images",
         "mcp": "Serveur externe (MCP)",
@@ -79,6 +84,10 @@ TREATMENT_DOMAIN_LABELS: dict[str, dict[str, str]] = {
         "health": "Health data",
         "interest": "Interests",
         "journal": "Journal",
+        "memory": "Long-term memory",
+        "calculation": "Calculations",
+        "activity": "LIA's activity",
+        "generated_file": "Files LIA produced",
         "hue": "Smart lighting",
         "image_generation": "Image generation",
         "mcp": "External server (MCP)",
@@ -115,6 +124,10 @@ TREATMENT_DOMAIN_LABELS: dict[str, dict[str, str]] = {
         "health": "Gesundheitsdaten",
         "interest": "Interessen",
         "journal": "Tagebuch",
+        "memory": "Langzeitgedächtnis",
+        "calculation": "Berechnungen",
+        "activity": "Aktivität von LIA",
+        "generated_file": "Von LIA erstellte Dateien",
         "hue": "Intelligente Beleuchtung",
         "image_generation": "Bilderzeugung",
         "mcp": "Externer Server (MCP)",
@@ -151,6 +164,10 @@ TREATMENT_DOMAIN_LABELS: dict[str, dict[str, str]] = {
         "health": "Datos de salud",
         "interest": "Intereses",
         "journal": "Diario",
+        "memory": "Memoria a largo plazo",
+        "calculation": "Cálculos",
+        "activity": "Actividad de LIA",
+        "generated_file": "Archivos creados por LIA",
         "hue": "Iluminación conectada",
         "image_generation": "Generación de imágenes",
         "mcp": "Servidor externo (MCP)",
@@ -187,6 +204,10 @@ TREATMENT_DOMAIN_LABELS: dict[str, dict[str, str]] = {
         "health": "Dati sulla salute",
         "interest": "Interessi",
         "journal": "Diario",
+        "memory": "Memoria a lungo termine",
+        "calculation": "Calcoli",
+        "activity": "Attività di LIA",
+        "generated_file": "File creati da LIA",
         "hue": "Illuminazione smart",
         "image_generation": "Generazione di immagini",
         "mcp": "Server esterno (MCP)",
@@ -223,6 +244,10 @@ TREATMENT_DOMAIN_LABELS: dict[str, dict[str, str]] = {
         "health": "健康数据",
         "interest": "兴趣",
         "journal": "日志",
+        "memory": "长期记忆",
+        "calculation": "计算",
+        "activity": "LIA 的活动",
+        "generated_file": "LIA 生成的文件",
         "hue": "智能照明",
         "image_generation": "图像生成",
         "mcp": "外部服务器（MCP）",

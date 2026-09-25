@@ -17,7 +17,9 @@ const BLOCK = {
 
 describe('PeerBlocksBlock', () => {
   it('renders the empty state without a list', () => {
-    renderWithProviders(<PeerBlocksBlock lng="fr" blocks={[]} onUnblock={vi.fn()} mutating={false} />);
+    renderWithProviders(
+      <PeerBlocksBlock lng="fr" blocks={[]} onUnblock={vi.fn()} mutating={false} />
+    );
     expect(screen.getByText('settings.peers.blocks.empty')).toBeInTheDocument();
     expect(screen.queryByRole('list')).not.toBeInTheDocument();
   });

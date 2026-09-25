@@ -21,6 +21,7 @@ from src.domains.usage_limits.instance_spend import (
 from src.infrastructure.llm import get_llm
 from src.infrastructure.llm.message_text import coerce_content_to_text
 from src.infrastructure.llm.usage_metadata import model_name_of
+from src.infrastructure.observability.log_facts import log_unreadable_text
 
 logger = structlog.get_logger(__name__)
 
@@ -139,12 +140,14 @@ Description: {source_description}"""
                 context="personality_translation",
             )
             if not parse_result.success or not isinstance(parse_result.data, dict):
-                logger.error(
+                log_unreadable_text(
+                    logger,
                     "translation_json_parse_error",
+                    content or "",
+                    level="error",
                     personality_code=personality_code,
                     target_language=target_language,
                     error=parse_result.error,
-                    response_content=content[:200] if content else None,
                 )
                 raise ValueError(f"Failed to parse translation response: {parse_result.error}")
 

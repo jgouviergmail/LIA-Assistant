@@ -314,7 +314,7 @@ class PlanValidator:
             result.add_error(
                 code=ToolErrorCode.INVALID_INPUT,
                 message="Plan must be a dict with 'steps' key",
-                context={"plan": str(plan)[:100]},
+                context={"plan_type": type(plan).__name__},
             )
             return result
 
@@ -670,7 +670,11 @@ class PlanValidator:
                         message=f"Parameter '{param_name}' does not match pattern {expected}",
                         step_index=step_index,
                         tool_name=tool_name,
-                        context={"param": param_name, "value": param_value, "pattern": expected},
+                        context={
+                            "param": param_name,
+                            "value_length": len(param_value),
+                            "pattern": expected,
+                        },
                     )
 
             elif kind == "enum":
@@ -680,7 +684,11 @@ class PlanValidator:
                         message=f"Parameter '{param_name}' not in allowed values {expected}",
                         step_index=step_index,
                         tool_name=tool_name,
-                        context={"param": param_name, "value": param_value, "allowed": expected},
+                        context={
+                            "param": param_name,
+                            "value_type": type(param_value).__name__,
+                            "allowed": expected,
+                        },
                     )
 
         except Exception as e:
@@ -847,7 +855,6 @@ class PlanValidator:
                 "execution_plan_validation_error",
                 plan_id=plan.plan_id,
                 code=issue.code.value if hasattr(issue.code, "value") else str(issue.code),
-                message=issue.message,
                 step_index=issue.step_index,
                 tool_name=issue.tool_name,
                 context=issue.context,
@@ -857,7 +864,6 @@ class PlanValidator:
                 "execution_plan_validation_warning",
                 plan_id=plan.plan_id,
                 code=issue.code.value if hasattr(issue.code, "value") else str(issue.code),
-                message=issue.message,
                 step_index=issue.step_index,
                 tool_name=issue.tool_name,
                 context=issue.context,
@@ -1187,7 +1193,7 @@ class PlanValidator:
                     step_index=step_index,
                     tool_name=step.tool_name,
                     param_name=param_name,
-                    matched_terms=matched,
+                    matched_count=len(matched),
                     mode=mode,
                 )
                 result.add_warning(
@@ -1200,7 +1206,7 @@ class PlanValidator:
                     tool_name=step.tool_name,
                     context={
                         "param": param_name,
-                        "matched_terms": matched,
+                        "matched_count": len(matched),
                         "mode": mode,
                     },
                 )

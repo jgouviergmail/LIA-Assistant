@@ -29,6 +29,7 @@ from langchain_core.tools import InjectedToolArg, tool
 from pydantic import BaseModel
 
 from src.core.config import settings
+from src.core.date_contract import UnreadableDateError
 from src.core.i18n import _
 from src.core.i18n_v3 import V3Messages
 from src.domains.agents.constants import AGENT_QUERY, AGENT_WEATHER, CONTEXT_DOMAIN_WEATHER
@@ -43,7 +44,6 @@ from src.domains.agents.data_registry.models import (
 from src.domains.agents.tools.base import APIKeyConnectorTool
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.weather_dates import (
-    UnreadableDateError,
     calculate_target_date,
     unreadable_date_result,
 )

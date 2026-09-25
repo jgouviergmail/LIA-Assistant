@@ -173,7 +173,6 @@ class ConversationService:
             "conversation_created",
             user_id=str(user_id),
             conversation_id=str(conversation.id),
-            title=conversation.title,
         )
 
         return conversation
@@ -808,10 +807,8 @@ class ConversationService:
             logger.info(
                 "last_user_message_updated",
                 conversation_id=str(conversation_id),
-                original_content_preview=(
-                    original_content[:50] if len(original_content) > 50 else original_content
-                ),
-                new_content=new_content,
+                original_content_length=len(original_content),
+                new_content_length=len(new_content),
             )
 
             return last_user_message

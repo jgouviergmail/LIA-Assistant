@@ -79,9 +79,9 @@
     },
     "f.provenance": {
       "name": "Herkunft und Ehrlichkeit",
-      "role": "Jede Antwort sagt, woher ihre Fakten stammen — Quellen, genutzte Werkzeuge — und benennt einen Fehlschlag so, wie er ist, ohne eine Diagnose zu erfinden.",
+      "role": "Jede Antwort sagt, woher ihre Fakten stammen — Quellen, genutzte Werkzeuge —, berechnet, was exakt sein muss, statt es zu schätzen, und benennt einen Fehlschlag so, wie er ist, ohne eine Diagnose zu erfinden.",
       "goal": "Einer Antwort glauben können, weil man sie prüfen kann.",
-      "src": "12c6a842c090"
+      "src": "0077efc8d115"
     },
     "f.subagents": {
       "name": "Delegierte Unteragenten",
@@ -97,15 +97,15 @@
     },
     "f.memory": {
       "name": "Langzeitgedächtnis",
-      "role": "Fakten, Vorlieben und Arbeitsanweisungen, im Hintergrund aus deinen Gesprächen gewonnen; jede Erinnerung ist sichtbar, korrigierbar und behält ihren Verlauf, wenn sie sich ändert.",
+      "role": "Fakten, Vorlieben und Arbeitsanweisungen, im Hintergrund aus deinen Gesprächen gewonnen und gezielt nachgeschlagen, wenn unterwegs ein Thema auftaucht; jede Erinnerung ist sichtbar, korrigierbar und behält ihren Verlauf, wenn sie sich ändert.",
       "goal": "Nicht wiederholen müssen, was LIA schon über dich weiß.",
-      "src": "9f5f203e3b93"
+      "src": "a6453a53542e"
     },
     "f.journals": {
       "name": "Tagebücher und Porträt",
-      "role": "LIA führt eigene Tagebücher für ihre Überlegungen und stellt dein Porträt aus vier Quellen zusammen — Erinnerungen, Interessen, Gewohnheiten, Beziehungen — und sagt dabei, welche sie lesen konnte.",
+      "role": "LIA führt eigene Tagebücher für ihre Überlegungen, die sie durchsucht, wenn ein Thema auftaucht, und stellt dein Porträt aus vier Quellen zusammen — Erinnerungen, Interessen, Gewohnheiten, Beziehungen — und sagt dabei, welche sie lesen konnte.",
       "goal": "Ein Verständnis von dir, das sich mit der Zeit verfeinert und lesbar bleibt.",
-      "src": "4b4842e18151"
+      "src": "79114967b569"
     },
     "f.psyche": {
       "name": "Psyche und Gesicht",
@@ -151,9 +151,9 @@
     },
     "f.peers": {
       "name": "Peer-Verbindungen",
-      "role": "Zwei LIA-Konten verbinden: sich über die Assistentin Nachrichten übermitteln, sich gegenseitig Tickets anvertrauen.",
+      "role": "Zwei LIA-Konten verbinden: sich über die Assistentin Nachrichten übermitteln, ein erzeugtes Bild teilen, sich gegenseitig Tickets anvertrauen.",
       "goal": "Zusammenarbeiten, ohne die Assistentin zu verlassen.",
-      "src": "ad8f77dcd088"
+      "src": "0999b15ba37c"
     },
     "f.connectors": {
       "name": "Konnektoren",
@@ -163,9 +163,9 @@
     },
     "f.mail": {
       "name": "E-Mails",
-      "role": "Bereinigte E-Mails lesen, sie ein einziges Mal zusammenfassen, suchen, verfassen, antworten und Anhänge lesen — gesendet wird immer über einen freigegebenen Entwurf.",
+      "role": "Bereinigte E-Mails lesen, sie ein einziges Mal zusammenfassen, suchen, verfassen, antworten und Anhänge lesen — an andere wird immer über einen freigegebenen Entwurf gesendet; eine E-Mail an dich selbst geht direkt hinaus.",
       "goal": "Dein Postfach in ein paar Sätzen abarbeiten.",
-      "src": "27fec2781b28"
+      "src": "8b1872b98aa6"
     },
     "f.calendar": {
       "name": "Kalender",
@@ -235,9 +235,9 @@
     },
     "f.images": {
       "name": "Erzeugte Bilder",
-      "role": "Ein Bild bei mehreren Anbietern erstellen oder bearbeiten, jeder mit seinen Formaten und seinem angezeigten Preis.",
+      "role": "Ein Bild bei mehreren Anbietern erstellen oder bearbeiten, jeder mit seinen Formaten und seinem angezeigten Preis; die Beschreibung auf Wunsch anreichern, ein Bild durch Fragen wiederfinden, es mit einer Verbindung teilen.",
       "goal": "Eine Idee in einem Satz bebildern.",
-      "src": "c14d4690f7b2"
+      "src": "bd76adef0b7f"
     },
     "f.meetings": {
       "name": "Besprechungen",
@@ -289,9 +289,9 @@
     },
     "f.notifications": {
       "name": "Benachrichtigungen und Kanäle",
-      "role": "Web- und Mobil-Benachrichtigungen sowie Telegram; eine von LIA gesendete Benachrichtigung ist eine im Register vermerkte Aktion.",
+      "role": "Web- und Mobil-Benachrichtigungen sowie Telegram; eine von LIA gesendete Benachrichtigung ist eine im Register vermerkte Aktion, und eine Ankündigung der Administration geht nur an die Konten, die sie meint.",
       "goal": "Dich erreichen, wo du bist, ohne es je stillschweigend zu tun.",
-      "src": "feb9356742c4"
+      "src": "bb532ffc6ada"
     },
     "f.activity": {
       "name": "Aktivität und Vorschläge",
@@ -325,9 +325,9 @@
     },
     "f.privacy": {
       "name": "Daten und Datenschutz",
-      "role": "Drei Register — Aktionen, Abrufe, Entscheidungen —, die die Instanz pro Konto in einer Kette versiegeln kann; vollständiger Export deiner Daten; Vergessen; Nachvollziehbarkeit im Sinne von Artikel 12 des AI Act.",
+      "role": "Drei Register — Aktionen, Abrufe, Entscheidungen —, die die Instanz pro Konto in einer Kette versiegeln kann; vollständiger Export deiner Daten; Vergessen; technische Logs, die Fakten behalten, nie deine Worte; Nachvollziehbarkeit im Sinne von Artikel 12 des AI Act.",
       "goal": "Wissen, was LIA getan, gelesen und entschieden hat — und alles mitnehmen oder alles löschen können.",
-      "src": "57fc43e143ea"
+      "src": "67ab0aa58bd2"
     },
     "f.costs": {
       "name": "Kosten und Kontingente",

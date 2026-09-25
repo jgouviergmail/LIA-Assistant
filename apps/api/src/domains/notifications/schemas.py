@@ -10,6 +10,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from src.domains.notifications.models import BroadcastAudience
+
 
 class TokenRegisterRequest(BaseModel):
     """Request to register a new FCM token."""
@@ -98,7 +100,11 @@ class BroadcastMessageRequest(BaseModel):
     )
     user_ids: list[UUID] | None = Field(
         None,
-        description="Optional list of user IDs to send to. If null, sends to all active users.",
+        min_length=1,
+        description=(
+            "Accounts to send to. Null sends to all active users; an empty list is "
+            "refused — a cleared selection must never become « everyone » (ADR-312)."
+        ),
     )
 
 
@@ -126,6 +132,54 @@ class UnreadBroadcastsResponse(BaseModel):
 
     broadcasts: list[BroadcastInfo]
     total: int
+
+
+class BroadcastRecipientView(BaseModel):
+    """One named recipient of a targeted broadcast, as the admin history shows it."""
+
+    id: UUID = Field(..., description="The recipient account.")
+    full_name: str | None = Field(None, description="Profile name, when the account has one.")
+    email: str = Field(..., description="Account e-mail (the admin surface shows it).")
+
+
+class BroadcastHistoryItem(BaseModel):
+    """One sent broadcast in the admin history (ADR-312)."""
+
+    id: UUID = Field(..., description="Broadcast id.")
+    message: str = Field(..., description="The message as the admin wrote it (never translated).")
+    sent_at: datetime = Field(..., description="When it was sent (UTC).")
+    sender_name: str | None = Field(None, description="The sending admin, when still known.")
+    audience: BroadcastAudience = Field(..., description="all | selected.")
+    recipients: list[BroadcastRecipientView] = Field(
+        default_factory=list,
+        description="The first recipients of a selected broadcast, in name order.",
+    )
+    recipients_total: int = Field(
+        ..., ge=0, description="Exact number of recipient accounts that still exist."
+    )
+    reached_count: int = Field(
+        ...,
+        ge=0,
+        description=(
+            "Accounts the send reached at send time (a delivery figure; the addressed "
+            "selection is `recipients` + `recipients_total`)."
+        ),
+    )
+    expires_at: datetime | None = Field(None, description="Expiry instant; null = never.")
+    expires_in_days: int | None = Field(
+        None, ge=0, description="The expiry delay chosen at send time, in days; null = never."
+    )
+    is_expired: bool = Field(..., description="Whether the expiry instant has passed.")
+    fcm_sent: int = Field(..., ge=0, description="Push notifications delivered at send time.")
+    fcm_failed: int = Field(..., ge=0, description="Push notifications that failed at send time.")
+    read_count: int = Field(..., ge=0, description="Accounts that dismissed it (exact count).")
+
+
+class BroadcastHistoryResponse(BaseModel):
+    """A page of the sent-broadcasts history with its exact total (ADR-312)."""
+
+    items: list[BroadcastHistoryItem] = Field(..., description="The page, newest first.")
+    total: int = Field(..., ge=0, description="Every broadcast ever sent (exact).")
 
 
 # Rebuild models for forward references

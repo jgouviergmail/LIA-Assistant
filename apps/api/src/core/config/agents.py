@@ -27,6 +27,7 @@ from src.core.constants import (
     ADAPTIVE_REPLANNING_MAX_ATTEMPTS_DEFAULT,
     AGENT_EFFECT_CLAIMED_ORPHAN_STALENESS_SECONDS_DEFAULT,
     AGENT_EFFECT_EXPORT_BATCH_ROWS_DEFAULT,
+    AGENT_EFFECT_LABEL_VALUE_MAX_CHARS_DEFAULT,
     AGENT_EFFECT_RESULT_PAYLOAD_MAX_BYTES_DEFAULT,
     AGENT_HISTORY_KEEP_LAST_DEFAULT,
     AGENT_MAX_ITERATIONS_DEFAULT,
@@ -68,6 +69,8 @@ from src.core.constants import (
     DEFAULT_MESSAGE_WINDOW_SIZE,
     DEFAULT_TOOL_TIMEOUT_MS,
     DEFAULT_TOOL_TIMEOUT_SECONDS,
+    EFFECT_ACTIVITY_MAX_ACTIONS_DEFAULT,
+    EFFECT_ACTIVITY_WINDOW_DAYS_DEFAULT,
     EMAILS_AGENT_PROMPT_VERSION_DEFAULT,
     EXECUTION_TRACE_PERSIST_MAX_STEPS_DEFAULT,
     EXPRESSIVITY_ENABLED_DEFAULT,
@@ -467,6 +470,16 @@ class AgentsSettings(BaseSettings):
             "timeout, or a call in flight would be reported as a gap (ADR-263)."
         ),
     )
+    effect_label_value_max_chars: int = Field(
+        default=AGENT_EFFECT_LABEL_VALUE_MAX_CHARS_DEFAULT,
+        ge=40,
+        le=4000,
+        description=(
+            "Longest value one line of an effect's label keeps (a subject, a reminder, "
+            "a recipient), cut on a word with an ellipsis beyond it. Read when the "
+            "effect is claimed, so it shapes the rows written from then on."
+        ),
+    )
     effect_export_batch_rows: int = Field(
         default=AGENT_EFFECT_EXPORT_BATCH_ROWS_DEFAULT,
         ge=50,
@@ -476,6 +489,22 @@ class AgentsSettings(BaseSettings):
             "download holds, never what it contains: an extraction is complete "
             "or it is not an extraction (ADR-273)."
         ),
+    )
+    effect_activity_max_actions: int = Field(
+        default=EFFECT_ACTIVITY_MAX_ACTIONS_DEFAULT,
+        ge=1,
+        le=100,
+        description=(
+            "Most actions the activity tool (get_my_activity_tool, ADR-318) lists, "
+            "newest first. The exact total is stated beside them, so this shortens "
+            "the list, never the count (ADR-185)."
+        ),
+    )
+    effect_activity_window_days: int = Field(
+        default=EFFECT_ACTIVITY_WINDOW_DAYS_DEFAULT,
+        ge=1,
+        le=366,
+        description="Days the activity tool looks back when the request names no period.",
     )
 
     # --- Tamper-evident chain over the two registers (ADR-263, lot 5) ------

@@ -37,9 +37,11 @@ export interface Conversation {
  * Narrow the untyped JSONB message metadata to the archived card payloads
  * (generated images/documents, browser screenshot). Pure, module-level: keeps
  * the message mapper's cyclomatic complexity bounded, and names the same
- * shapes the live SSE path uses so the two boundaries cannot drift.
+ * shapes the live SSE path uses so the two boundaries cannot drift. Exported
+ * for the live proactive bubble (an image a connection shared, ADR-316), which
+ * carries the very same metadata as the row it archives.
  */
-function archivedCardsFromMetadata(metadata: Record<string, unknown> | null): {
+export function archivedCardsFromMetadata(metadata: Record<string, unknown> | null | undefined): {
   generatedImages?: GeneratedImage[];
   generatedDocuments?: GeneratedDocument[];
   browserScreenshot?: { url: string; alt: string };

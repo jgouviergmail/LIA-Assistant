@@ -4,7 +4,7 @@
 >
 > Version: 1.7
 > Date: 2026-07-17
-> Architecture: Prometheus + Grafana (29 dashboards, 905 panels)
+> Architecture: Prometheus + Grafana (dashboards : `infrastructure/observability/grafana/dashboards/`)
 > Total métriques : compté par `scripts/audit/measure_metric_coverage.py` (analyse AST, source de vérité — ne pas recopier un nombre ici : la garde de couverture et la tuile publique en dérivent déjà). Relevé 2026-09-02 : **499** + recording rules Prometheus
 > Source de vérité : `src/infrastructure/observability/metrics_*.py` — ce catalogue détaille les familles principales (~120 métriques), voir « Couverture du catalogue »
 > Compliance: OpenTelemetry conventions, Google SRE best practices

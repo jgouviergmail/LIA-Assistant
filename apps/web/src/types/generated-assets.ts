@@ -2,7 +2,8 @@
  * What LIA produced, as the gallery reads it (ADR-279).
  *
  * The wire shapes mirror `domains/attachments/schemas.py` exactly: the backend
- * guard that reads this file would fail on a drift, and a field spelled two
+ * guard that reads this file (`tests/unit/domains/attachments/
+ * test_gallery_wire_shape.py`) fails on a drift, and a field spelled two
  * ways is how a card behaves differently live and after a reload (the
  * `GeneratedImage` lesson).
  */
@@ -27,6 +28,8 @@ export interface GeneratedAsset {
   created_at: string;
   /** When the cleanup removes it — stated, never implied. */
   expires_at: string;
+  /** Who shared this image, for a copy a connection sent (ADR-316); null otherwise. */
+  shared_by_name: string | null;
 }
 
 /** One page, its EXACT total (ADR-185) and the bounds the API enforces. */

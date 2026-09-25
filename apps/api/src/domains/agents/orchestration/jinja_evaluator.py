@@ -317,13 +317,13 @@ class JinjaTemplateEvaluator:
                     list(steps_context.keys()) if isinstance(steps_context, dict) else []
                 )
 
-                # Extract step data summary for debugging
-                step_summaries = {}
+                # Each step's data SHAPE (keys and counts, never values) for debugging
+                step_shapes = {}
                 for step_name, step_data in (
                     steps_context.items() if isinstance(steps_context, dict) else []
                 ):
                     if isinstance(step_data, dict):
-                        step_summaries[step_name] = {
+                        step_shapes[step_name] = {
                             "keys": list(step_data.keys())[:10],  # First 10 keys
                             "groups_count": (
                                 len(step_data.get("groups", [])) if "groups" in step_data else None
@@ -348,7 +348,7 @@ class JinjaTemplateEvaluator:
                             original_template if original_template != template_str else None
                         ),
                         available_steps=available_steps,
-                        step_summaries=step_summaries,
+                        step_shapes=step_shapes,
                         error=error_msg,
                     )
                     raise EmptyResultError(error_msg)
@@ -363,7 +363,7 @@ class JinjaTemplateEvaluator:
                             original_template if original_template != template_str else None
                         ),
                         available_steps=available_steps,
-                        step_summaries=step_summaries,
+                        step_shapes=step_shapes,
                         hint="Template produced empty string - check step dependencies and data availability",
                     )
 

@@ -184,7 +184,7 @@ async def search_wikipedia_tool(
 
         logger.info(
             "search_wikipedia_success",
-            query=query,
+            query_length=len(query),
             language=language,
             results_count=len(search_results),
         )
@@ -211,7 +211,7 @@ async def search_wikipedia_tool(
     except Exception as e:
         logger.error(
             "search_wikipedia_error",
-            query=query,
+            query_length=len(query),
             language=language,
             error=str(e),
         )
@@ -308,7 +308,7 @@ async def get_wikipedia_summary_tool(
 
         logger.info(
             "get_wikipedia_summary_success",
-            title=title,
+            title_length=len(title),
             language=language,
             summary_length=len(extract),
         )
@@ -333,7 +333,7 @@ async def get_wikipedia_summary_tool(
     except Exception as e:
         logger.error(
             "get_wikipedia_summary_error",
-            title=title,
+            title_length=len(title),
             language=language,
             error=str(e),
         )
@@ -458,7 +458,7 @@ async def get_wikipedia_article_tool(
 
         logger.info(
             "get_wikipedia_article_success",
-            title=title,
+            title_length=len(title),
             language=language,
             content_length=len(content),
         )
@@ -512,7 +512,7 @@ async def get_wikipedia_article_tool(
     except Exception as e:
         logger.error(
             "get_wikipedia_article_error",
-            title=title,
+            title_length=len(title),
             language=language,
             error=str(e),
         )
@@ -608,7 +608,7 @@ async def get_wikipedia_related_tool(
 
         logger.info(
             "get_wikipedia_related_success",
-            title=title,
+            title_length=len(title),
             language=language,
             related_count=len(registry_updates),
         )
@@ -635,7 +635,7 @@ async def get_wikipedia_related_tool(
     except Exception as e:
         logger.error(
             "get_wikipedia_related_error",
-            title=title,
+            title_length=len(title),
             language=language,
             error=str(e),
         )

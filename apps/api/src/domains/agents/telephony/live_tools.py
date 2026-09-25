@@ -256,12 +256,14 @@ async def tools_hidden_by_capabilities(registry: AgentRegistry) -> set[str]:
 
 
 async def build_psychological_profile(user_id: str, query: str) -> Any:
-    """The chat's own memory briefing for a question (the native lookup's reader)."""
-    from src.domains.agents.middleware.memory_injection import (
-        build_psychological_profile as _build,
-    )
+    """The chat's own memory briefing RANKED on the question (the native lookup's reader).
 
-    return await _build(user_id, query=query)
+    Handed no vector, the chat's builder served the ten most recent memories
+    whatever was asked; the lookup door embeds the question first (ADR-313).
+    """
+    from src.domains.agents.middleware.memory_injection import build_profile_for_lookup
+
+    return await build_profile_for_lookup(user_id, query)
 
 
 # ---------------------------------------------------------------------------

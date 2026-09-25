@@ -475,6 +475,14 @@ export const EYES_WIDGET_PREFS_KEY = 'lia_eyes_widget_prefs';
 export const SHORTCUTS_DOCK_PREFS_KEY = 'lia_shortcuts_dock_prefs';
 
 /**
+ * LocalStorage key persisting the debug panel's width, as the person dragged it.
+ *
+ * Outside the SEC-035 purge registry for the eyes' reason: a display preference
+ * of the device, holding one number and nothing an account inherits harmfully.
+ */
+export const DEBUG_PANEL_PREFS_KEY = 'lia_debug_panel_prefs';
+
+/**
  * SessionStorage key holding the debug metrics history (SEC-035).
  *
  * The entries carry the user's own request text plus execution details, and the

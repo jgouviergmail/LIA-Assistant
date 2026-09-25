@@ -38,6 +38,7 @@ from src.domains.agents.constants import DEFAULT_CONTACT_NAME
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.instrumentation import create_instrumented_config
 from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
+from src.infrastructure.observability.log_facts import log_unreadable_text
 
 logger = structlog.get_logger(__name__)
 
@@ -169,7 +170,7 @@ class DraftModificationService:
             "draft_modification_started",
             run_id=run_id,
             draft_type=draft_type,
-            instructions=instructions[:100] if instructions else None,
+            instructions_length=len(instructions) if instructions else 0,
             original_keys=list(original_draft.keys()),
             has_contact_context=contact_context is not None,
         )
@@ -429,9 +430,7 @@ class DraftModificationService:
                 logger.info(
                     "draft_modification_recipient_override_email",
                     run_id=run_id,
-                    extracted_emails=emails_in_instructions,
-                    original_to=original_to,
-                    new_to=new_to,
+                    extracted_email_count=len(emails_in_instructions),
                 )
                 return modified_content
 
@@ -529,9 +528,10 @@ class DraftModificationService:
 
             # If no fields were extracted, log warning and return empty
             if not result:
-                logger.warning(
+                log_unreadable_text(
+                    logger,
                     "draft_modification_no_fields_extracted",
-                    response_preview=response[:200],
+                    response,
                     expected_fields=content_fields,
                 )
                 return {}
@@ -539,10 +539,8 @@ class DraftModificationService:
             return result
 
         except json.JSONDecodeError as e:
-            logger.warning(
-                "draft_modification_json_parse_error",
-                error=str(e),
-                response_preview=response[:200],
+            log_unreadable_text(
+                logger, "draft_modification_json_parse_error", response, error=str(e)
             )
 
             # Fallback: try to extract content heuristically

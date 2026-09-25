@@ -299,7 +299,7 @@ async def clarification_node(
         updated_semantic_validation["clarification_cancelled"] = True
         logger.info(
             "clarification_node_cancelled_by_user",
-            clarification_response=clarification_response[:50] if clarification_response else None,
+            clarification_length=len(clarification_response) if clarification_response else 0,
             action="Aborting flow, routing to response",
         )
         return {
@@ -367,7 +367,7 @@ async def clarification_node(
                 (issue.get("issue_type") if isinstance(issue, dict) else str(issue))
                 for issue in issues[:3]
             ],
-            clarification_response=clarification_response[:50] if clarification_response else None,
+            clarification_length=len(clarification_response) if clarification_response else 0,
             action="Proceeding to execution (no replan needed)",
         )
 
@@ -398,7 +398,7 @@ async def clarification_node(
                 (issue.get("issue_type") if isinstance(issue, dict) else str(issue))
                 for issue in issues[:3]
             ],
-            clarification_response=clarification_response[:50] if clarification_response else None,
+            clarification_length=len(clarification_response) if clarification_response else 0,
             action="Routing to planner for regeneration",
         )
 

@@ -10,6 +10,7 @@
 import React from 'react';
 import { Workflow } from 'lucide-react';
 import { DebugChip, DebugSection, EmptySection, NodeChip, SubSectionHeader } from '../shared';
+import { callModel, callModelTitle } from '../../utils/call-model';
 import { MODEL_NAME_TRUNCATE_LENGTH } from '../../utils/constants';
 import { formatTokenCount, formatCost, formatDuration, truncateText } from '../../utils/formatters';
 import { TONE_TEXT } from '../../utils/tones';
@@ -140,6 +141,7 @@ export const LLMPipelineSection = React.memo(function LLMPipelineSection({
             const callType = call.call_type ?? 'chat';
             const typeChip = CALL_TYPE_CHIP[callType] ?? CALL_TYPE_CHIP.chat;
             const seq = index + 1;
+            const model = callModel(call);
 
             return (
               <div
@@ -160,12 +162,12 @@ export const LLMPipelineSection = React.memo(function LLMPipelineSection({
                 {/* Node chip */}
                 <NodeChip nodeName={call.node_name} maxLength={20} />
 
-                {/* Model name */}
+                {/* Model name: the configured one, the served one in its title */}
                 <span
                   className="min-w-0 truncate font-mono text-muted-foreground"
-                  title={call.model_name}
+                  title={callModelTitle(model)}
                 >
-                  {truncateText(call.model_name, MODEL_NAME_TRUNCATE_LENGTH)}
+                  {truncateText(model.name, MODEL_NAME_TRUNCATE_LENGTH)}
                 </span>
 
                 {/* Spacer */}

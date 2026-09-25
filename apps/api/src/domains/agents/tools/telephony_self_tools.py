@@ -61,6 +61,8 @@ def memory_fetcher_for(user_id: UUID, *, objective: str) -> SectionFetcher:
 
     Handed to the telephony context builder from HERE because that builder
     lives in ``agents``, which ``telephony`` must not import (the T2 cycle).
+    The objective is a LOOKUP, embedded before the search: handed no vector,
+    the chat's builder served the most recent memories instead (ADR-313).
 
     Args:
         user_id: Whose memories.
@@ -69,11 +71,11 @@ def memory_fetcher_for(user_id: UUID, *, objective: str) -> SectionFetcher:
     Returns:
         A fetcher yielding the profile lines the chat would inject.
     """
-    from src.domains.agents.middleware.memory_injection import build_psychological_profile
+    from src.domains.agents.middleware.memory_injection import build_profile_for_lookup
 
     async def fetch() -> list[str]:
-        profile, _state, _debug = await build_psychological_profile(
-            str(user_id), query=objective or "catch-up call"
+        profile, _state, _debug = await build_profile_for_lookup(
+            str(user_id), objective or "catch-up call"
         )
         return [line for line in (profile or "").splitlines() if line.strip()][:MEMORY_LINES_MAX]
 

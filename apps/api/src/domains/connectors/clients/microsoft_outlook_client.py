@@ -171,7 +171,7 @@ class MicrosoftOutlookClient(BaseMicrosoftClient):
                 logger.warning(
                     "outlook_search_filter_conflict",
                     user_id=str(self.user_id),
-                    query=query,
+                    query_length=len(query),
                     detail="$search and $filter cannot be combined; dropping $search",
                 )
                 del params["$search"]
@@ -203,7 +203,7 @@ class MicrosoftOutlookClient(BaseMicrosoftClient):
         logger.info(
             "outlook_search_emails",
             user_id=str(self.user_id),
-            query=query,
+            query_length=len(query) if query else 0,
             results_count=len(messages),
         )
 
@@ -363,14 +363,28 @@ class MicrosoftOutlookClient(BaseMicrosoftClient):
 
         await self._make_request("POST", "/me/sendMail", json_data=message_body)
 
+        # Counts only at INFO: recipients and subject are the person's content.
         logger.info(
             "outlook_email_sent",
             user_id=str(self.user_id),
-            to=to,
-            subject=subject,
+            recipients=len(message_body["message"]["toRecipients"]),
         )
 
         return {"id": "", "labelIds": ["SENT"], "threadId": ""}
+
+    async def get_own_address(self) -> str | None:
+        """The connected mailbox's address, from Graph ``/me`` (ADR-314).
+
+        ``mail`` is the mailbox's primary address; a personal account leaves it
+        null and signs in with its address as ``userPrincipalName``. A principal
+        name that is not an address (a work tenant's internal id) vouches for no
+        mailbox.
+        """
+        me = await self._make_request("GET", "/me", params={"$select": "mail,userPrincipalName"})
+        for candidate in (me.get("mail"), me.get("userPrincipalName")):
+            if isinstance(candidate, str) and "@" in candidate:
+                return candidate
+        return None
 
     async def reply_email(
         self,

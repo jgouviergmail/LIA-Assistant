@@ -1226,13 +1226,19 @@ the success at face value. Three rules:
 
 - **Refuse, and say how to fix it.** Return a failure with `ToolErrorCode.INVALID_INPUT` and a
   technical English message naming the value, the accepted format and, for a date, the
-  person's current date (`unreadable_date_result` in `tools/weather_dates.py`). In ReAct the
-  failure carries the ADR-303 structural marker and the recovery ladder corrects the call; in
-  the pipeline the runtime failures directive states it.
+  person's current date (`unreadable_date_message` in `core/date_contract.py`, shared by every
+  tool that reads a date since ADR-318 — the weather tool wraps it in `unreadable_date_result`).
+  In ReAct the failure carries the ADR-303 structural marker and the recovery ladder corrects
+  the call; in the pipeline the runtime failures directive states it.
 - **Publish the contract once.** What a parameter accepts is ONE constant, read by the
   manifest (the planner's catalogue) AND by the `@tool` signature
   (`Annotated[str | None, DESCRIPTION]`), because the ReAct loop binds the `@tool` schema,
-  never the manifest — `FORECAST_DATE_DESCRIPTION` in `weather/catalogue_manifests.py`.
+  never the manifest — `FORECAST_DATE_DESCRIPTION` in `weather/catalogue_manifests.py`. A date
+  parameter states `ISO_MOMENT_DESCRIPTION` and reads through `read_moment` / `period_bounds`
+  (`core/date_contract.py`: ISO 8601 only, a date stays a date, a day is a whole day in the
+  person's timezone). A bound the tool enforces is stated in that same wording, read from its
+  setting (`CALCULATE_EXPRESSION_DESCRIPTION`, ADR-318) — a bound only the manifest's
+  constraint carries is hidden from the loop (ADR-184).
 - **Read leniently, publish strictly.** A tool may keep reading forms it used to accept (the
   weather reader still takes `tomorrow`, `in 3 days` and « jeudi 9 avril 2026 ») so that an
   older caller does not regress, but it never PUBLISHES them: the model resolves a relative

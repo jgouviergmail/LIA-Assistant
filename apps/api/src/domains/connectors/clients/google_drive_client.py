@@ -166,7 +166,7 @@ class GoogleDriveClient(BaseGoogleClient):
         logger.info(
             "drive_search_completed",
             user_id=str(self.user_id),
-            query=query,
+            query_length=len(query),
             search_mode=search_mode,
             results_count=len(response.get("files", [])),
             fields_projected=bool(fields),
@@ -280,7 +280,6 @@ class GoogleDriveClient(BaseGoogleClient):
             "drive_get_file_metadata",
             user_id=str(self.user_id),
             file_id=file_id,
-            file_name=response.get("name"),
             fields_projected=bool(fields),
         )
 

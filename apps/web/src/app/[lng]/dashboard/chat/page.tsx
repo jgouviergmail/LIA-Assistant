@@ -18,6 +18,7 @@ import { ContextUsagePill } from '@/components/chat/ContextUsagePill';
 import { ChatSearchBar } from '@/components/chat/search/ChatSearchBar';
 import { useChatHistorySearch } from '@/hooks/useChatHistorySearch';
 import { DebugPanel } from '@/components/debug/DebugPanel';
+import { ResizableDebugPanel } from '@/components/debug/ResizableDebugPanel';
 import { useDebugMetrics } from '@/components/debug/hooks/useDebugMetrics';
 import { WifiOff, Trash2, Search, X } from 'lucide-react';
 import { VoiceModeBadge } from '@/components/voice/VoiceModeBadge';
@@ -39,6 +40,9 @@ import { FeatureErrorBoundary } from '@/components/errors';
 import { useDebugPanelEnabled } from '@/hooks/useDebugPanelEnabled';
 import { useAppConfig, type AppConfig } from '@/hooks/useAppConfig';
 import { BookmarkStateProvider } from '@/lib/bookmark-state-context';
+import { PeersAvailabilityProvider } from '@/lib/peers/availability-context';
+import { peersAvailable } from '@/lib/peers/image-share';
+import { archivedCardsFromMetadata } from '@/hooks/useConversation';
 import { useInputDraft } from '@/hooks/useInputDraft';
 import { useSkills } from '@/hooks/useSkills';
 import {
@@ -372,6 +376,9 @@ export default function ChatPage() {
         tokensOut: metadata?.tokens_out as number | undefined,
         tokensCache: metadata?.tokens_cache as number | undefined,
         costEur: metadata?.cost_eur as number | undefined,
+        // The cards the archived row carries — an image a connection shared
+        // (ADR-316) shows live exactly as it will after a reload.
+        ...archivedCardsFromMetadata(metadata),
         metadata: {
           type: proactiveType,
           target_id: targetId,
@@ -891,7 +898,7 @@ export default function ChatPage() {
       <div className="flex h-[calc(100vh-5.25rem-var(--connector-banner-h,0px)-var(--meeting-banner-h,0px))] supports-[height:100dvh]:h-[calc(100dvh-5.25rem-var(--connector-banner-h,0px)-var(--meeting-banner-h,0px))] gap-4">
         {/* Main Chat Area */}
         <div
-          className={`flex flex-col flex-1 bg-background rounded-xl border border-border/50 shadow-lg overflow-hidden ${showDebugPanel ? 'max-w-[calc(100%-420px)]' : ''}`}
+          className="flex flex-col flex-1 min-w-0 bg-background rounded-xl border border-border/50 shadow-lg overflow-hidden"
         >
           {/* Messages area. The header + search + banner block is STICKY INSIDE
               this scroll container (2026-07-30): backdrop-blur only renders
@@ -1109,32 +1116,34 @@ export default function ChatPage() {
                   onPrefill={handleFollowupPick}
                 />
                 <BookmarkStateProvider enabled={bookmarksEnabled(appConfig)}>
-                  <ChatMessageList
-                    messages={displayedMessages}
-                    isTyping={isTyping && !searchQuery}
-                    activeStreamId={searchQuery ? null : activeStreamId}
-                    streamPhase={streamPhase}
-                    browserScreenshot={browserScreenshot}
-                    // Scroll-up pagination — disabled while the user is searching
-                    // (search filters client-side over already-loaded messages
-                    // only, so a sentinel would conflate "no match in this page"
-                    // with "more remote history exists").
-                    hasMoreOlder={hasMoreOlder && !searchQuery}
-                    isLoadingOlder={isLoadingOlder}
-                    onLoadOlder={handleLoadOlder}
-                    searchHighlight={highlightTerm}
-                    // UXR Lot 3 (A3): floating return button — in history view it
-                    // delegates to the QW-2 return-to-present page swap.
-                    historyView={historyView}
-                    onReturnToPresent={handleReturnToPresent}
-                    ownSendTick={ownSendTick}
-                    onRetry={handleRetry}
-                    onPrefillComposer={handleFollowupPick}
-                    // W8: an empty chat offers three ways in. Same rail as the
-                    // follow-up chips — it prefills the composer, never sends.
-                    onStarterPick={handleFollowupPick}
-                    groundedSuggestions={groundedSuggestions}
-                  />
+                  <PeersAvailabilityProvider available={peersAvailable(appConfig)}>
+                    <ChatMessageList
+                      messages={displayedMessages}
+                      isTyping={isTyping && !searchQuery}
+                      activeStreamId={searchQuery ? null : activeStreamId}
+                      streamPhase={streamPhase}
+                      browserScreenshot={browserScreenshot}
+                      // Scroll-up pagination — disabled while the user is searching
+                      // (search filters client-side over already-loaded messages
+                      // only, so a sentinel would conflate "no match in this page"
+                      // with "more remote history exists").
+                      hasMoreOlder={hasMoreOlder && !searchQuery}
+                      isLoadingOlder={isLoadingOlder}
+                      onLoadOlder={handleLoadOlder}
+                      searchHighlight={highlightTerm}
+                      // UXR Lot 3 (A3): floating return button — in history view it
+                      // delegates to the QW-2 return-to-present page swap.
+                      historyView={historyView}
+                      onReturnToPresent={handleReturnToPresent}
+                      ownSendTick={ownSendTick}
+                      onRetry={handleRetry}
+                      onPrefillComposer={handleFollowupPick}
+                      // W8: an empty chat offers three ways in. Same rail as the
+                      // follow-up chips — it prefills the composer, never sends.
+                      onStarterPick={handleFollowupPick}
+                      groundedSuggestions={groundedSuggestions}
+                    />
+                  </PeersAvailabilityProvider>
                 </BookmarkStateProvider>
               </div>
             </RegistryProvider>
@@ -1201,16 +1210,18 @@ export default function ChatPage() {
           hitlAwaiting={hitl.status === 'awaiting'}
         />
 
-        {/* Debug Panel - Right side (only when enabled + desktop viewport ≥1024px) */}
+        {/* Debug Panel - Right side (only when enabled + desktop viewport ≥1024px),
+            at the width the person dragged it to — into the conversation, which
+            keeps its floor and takes whatever room is left (`min-w-0`). */}
         {showDebugPanel && (
-          <div className="w-[400px] bg-background rounded-xl border border-border/50 shadow-lg overflow-hidden">
+          <ResizableDebugPanel>
             <DebugPanel
               key={latestDebugMetrics ? 'has-metrics' : 'no-metrics'}
               metrics={latestDebugMetrics}
               history={debugMetricsHistory}
               className="h-full"
             />
-          </div>
+          </ResizableDebugPanel>
         )}
       </div>
     </FeatureErrorBoundary>

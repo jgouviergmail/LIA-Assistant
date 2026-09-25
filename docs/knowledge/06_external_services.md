@@ -494,3 +494,23 @@ Yes! LIA can **intelligently combine** multiple services:
 
 **💡 Tip:**
 Phrase your requests naturally - LIA will automatically choose the right tools.
+
+## Can LIA do exact calculations, count days or convert currencies?
+Yes, and it does not do them in its head.
+
+**🧮 Calculations:**
+• "*What is 17.5% of €1,234.56?*"
+• "*Split €1,550 between four people*"
+LIA computes in exact decimal: 0.1 + 0.2 is 0.3. When a result had to be rounded — a division that does not come out even, a square root — it says so ("about").
+
+**📅 Dates:**
+• "*How many days until 14 July?*"
+• "*Add 10 working days to today*"
+• "*What time is it in Tokyo?*"
+Working days run Monday to Friday, **public holidays not deducted** — it says so. A duration in hours counts the time really elapsed, clock changes included.
+
+**💱 Currencies:**
+• "*How much is 250 dollars in euros?*"
+At the **European Central Bank** reference rate, whose date LIA gives. A bank or a card applies its own rate and fees: it is a reliable order of magnitude, not the amount on your statement.
+
+These calculations work in Pipeline and ReAct mode alike, with nothing to set up.

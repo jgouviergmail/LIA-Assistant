@@ -112,12 +112,14 @@ class TestPersonMemoriesRegression:
                 "src.infrastructure.llm.memory_embeddings.get_memory_embeddings",
                 return_value=_fake_embeddings(),
             ),
+            # The recall reaches the store through the one lookup door
+            # (ADR-313), which binds its collaborators at import.
             patch(
-                "src.infrastructure.database.session.get_db_context",
+                "src.domains.memories.search.get_db_context",
                 return_value=db_ctx,
             ),
             patch(
-                "src.domains.memories.repository.MemoryRepository",
+                "src.domains.memories.search.MemoryRepository",
                 return_value=repo,
             ),
         ):

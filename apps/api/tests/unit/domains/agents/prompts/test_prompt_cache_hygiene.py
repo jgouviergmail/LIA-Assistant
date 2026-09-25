@@ -55,6 +55,8 @@ MARKER_REQUIRED: tuple[str, ...] = (
     "hitl_question_generator_prompt",
     # Documents (ADR-274): the static craft rules first, the request in the tail
     "document_generation_prompt",
+    # Images (ADR-315): the prompting techniques first, the request in the tail
+    "image_prompt_enhancement_prompt",
     # Background intelligence
     "memory_extraction_prompt",
     "interest_extraction_prompt",
@@ -130,6 +132,9 @@ ALLOWED_BEFORE_MARKER: dict[str, frozenset[str]] = {
     ),
     # Personality block in the static header; stable per user.
     "heartbeat_message_prompt": frozenset({"personality_instruction"}),
+    # The bound the enhancement checks enforce, published next to the rule it
+    # quantifies (ADR-184); a setting, invariant for a deployment (ADR-315).
+    "image_prompt_enhancement_prompt": frozenset({"max_chars"}),
 }
 
 

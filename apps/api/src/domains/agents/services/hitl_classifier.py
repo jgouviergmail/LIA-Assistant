@@ -42,6 +42,7 @@ from src.domains.agents.services.hitl.action_taxonomy import (
 from src.domains.agents.services.hitl.validator import HitlValidator
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.structured_output import get_structured_output
+from src.infrastructure.observability.log_facts import log_unreadable_text
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
@@ -303,7 +304,7 @@ class HitlResponseClassifier:
                 "hitl_classification_completed",
                 decision=classification.decision,
                 confidence=classification.confidence,
-                user_response=user_response[:50],
+                user_response_length=len(user_response),
                 duration_ms=round(classification_duration * 1000, 2),
             )
 
@@ -313,14 +314,11 @@ class HitlResponseClassifier:
             fallback_reason = "classified"
             if classification.decision == "EDIT" and not classification.edited_params:
                 fallback_reason = "missing_params"
-                reasoning_preview = (
-                    classification.reasoning[:100] if classification.reasoning else ""
-                )
                 logger.warning(
                     "edit_decision_demoted_missing_params",
                     original_confidence=classification.confidence,
-                    reasoning_preview=reasoning_preview,
-                    user_response=user_response[:50],
+                    reasoning_length=len(classification.reasoning or ""),
+                    user_response_length=len(user_response),
                     has_clarification=bool(classification.clarification_question),
                 )
 
@@ -361,7 +359,7 @@ class HitlResponseClassifier:
             logger.error(
                 "hitl_classification_error",
                 error=str(e),
-                user_response=user_response[:50],
+                user_response_length=len(user_response),
             )
             raise
 
@@ -722,12 +720,14 @@ class HitlResponseClassifier:
             return ClassificationResult(**data)
 
         except json.JSONDecodeError as e:
-            logger.error("json_parse_error", error=str(e), content=str(json_content)[:200])
+            log_unreadable_text(
+                logger, "json_parse_error", json_content, level="error", error=str(e)
+            )
             raise ValueError(f"Invalid JSON from classifier: {e}") from e
         except ValueError:
             # Missing fields, or a Pydantic ValidationError (itself a ValueError):
             # already the type the contract promises.
-            logger.error("result_parse_error", content=str(json_content)[:200])
+            log_unreadable_text(logger, "result_parse_error", json_content, level="error")
             raise
         except Exception as e:
             # Anything else — a non-string payload from an exotic provider
@@ -735,5 +735,7 @@ class HitlResponseClassifier:
             # Callers catch by type and fall back to a safe decision; letting an
             # AttributeError through made the docstring a lie and the failure
             # depend on which provider was configured.
-            logger.error("result_parse_error", error=str(e), content=str(json_content)[:200])
+            log_unreadable_text(
+                logger, "result_parse_error", json_content, level="error", error=str(e)
+            )
             raise ValueError(f"Unparseable classification payload: {e}") from e

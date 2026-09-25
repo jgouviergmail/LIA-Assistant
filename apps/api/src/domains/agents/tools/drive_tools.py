@@ -257,7 +257,7 @@ class SearchFilesTool(ToolOutputMixin, ConnectorTool[GoogleDriveClient]):
         logger.info(
             "search_files_success",
             user_id=str(user_id),
-            query_preview=query[:20] if query and len(query) > 20 else query,
+            query_length=len(query) if query else 0,
             total_results=len(files),
         )
 
@@ -674,7 +674,6 @@ class GetFileDetailsTool(ToolOutputMixin, ConnectorTool[GoogleDriveClient]):
                 "get_file_content_folder_detected",
                 user_id=str(user_id),
                 file_id=file_id,
-                folder_name=metadata.get("name"),
             )
             # List folder contents instead of trying to download
             folder_result = await client.list_files(
@@ -697,7 +696,6 @@ class GetFileDetailsTool(ToolOutputMixin, ConnectorTool[GoogleDriveClient]):
             "get_file_details_success",
             user_id=str(user_id),
             file_id=file_id,
-            name=metadata.get("name"),
             has_content=content is not None,
             is_folder=folder_contents is not None,
             folder_items_count=len(folder_contents) if folder_contents else 0,
@@ -1105,7 +1103,6 @@ class DeleteFileDraftTool(ToolOutputMixin, ConnectorTool[GoogleDriveClient]):
             "delete_file_draft_prepared",
             user_id=str(user_id),
             file_id=file_id,
-            name=metadata.get("name"),
         )
 
         return {
@@ -1243,7 +1240,6 @@ async def execute_file_delete_draft(
         "file_delete_draft_executed",
         user_id=str(user_id),
         file_id=draft_content["file_id"],
-        name=name,
     )
 
     return {

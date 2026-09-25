@@ -1,7 +1,7 @@
 # Stack Technique - Reference Complete
 
 > **Version**: 2.0
-> **Date**: 2026-07-11
+> **Date**: 2026-09-25
 > **Statut**: Reference officielle des versions
 
 ---
@@ -35,8 +35,8 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 |-------------|---------|------|
 | **Next.js** | 16.3.4 | Framework React SSR/SSG |
 | **React** | 19.2.7 | UI Library |
-| **TypeScript** | 6.0.2 | Type safety |
-| **Tailwind CSS** | 4.3.2 | Utility-first CSS |
+| **TypeScript** | 6.0.3 | Type safety |
+| **Tailwind CSS** | 4.3.3 | Utility-first CSS |
 
 ### State & Data
 
@@ -103,7 +103,7 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 
 | Technologie | Version | Role |
 |-------------|---------|------|
-| **langchain-core** | 1.5.5 | Core abstractions |
+| **langchain-core** | 1.5.6 | Core abstractions |
 | **langchain** | 1.3.15 | LLM framework |
 | **langgraph** | 1.2.11 | Agent orchestration |
 | **langgraph-checkpoint** | 4.2.0 | Checkpoint serialization |
@@ -114,7 +114,7 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 
 | Technologie | Version | Provider |
 |-------------|---------|----------|
-| **langchain-openai** | 1.5.1 | OpenAI GPT-4/5 |
+| **langchain-openai** | 1.5.2 | OpenAI GPT-4/5 |
 | **langchain-anthropic** | 1.5.6 | Claude |
 | **langchain-google-genai** | 4.3.4 | Gemini |
 | **langchain-deepseek** | 1.1.0 | DeepSeek |
@@ -188,7 +188,7 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 | Service | Image | Role |
 |---------|-------|------|
 | **Prometheus** | `prom/prometheus:v3.0.0` | Metrics collection |
-| **Alertmanager** | `prom/alertmanager:v0.27.0` | Alert routing (14-alert core by email, ADR-119) |
+| **Alertmanager** | `prom/alertmanager:v0.27.0` | Alert routing (core alert set by email, ADR-119) |
 | **blackbox-exporter** | `prom/blackbox-exporter:v0.25.0` | HTTP probes (backup healthcheck, public URL/TLS) |
 | **Grafana** | `grafana/grafana:11.3.0` | Dashboards & visualization |
 | **Loki** | `grafana/loki:3.2.1` | Log aggregation |

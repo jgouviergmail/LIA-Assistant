@@ -263,6 +263,17 @@ its domain, and a graph step collapses `sub-agent: <title>` and
 `MCP Iterative: <server>` to one word, because those two carry user-authored text
 and third-party server names.
 
+**The model reads them too** (ADR-318). Asked « what did you do for me this
+week », LIA used to answer from nothing it could check. `get_my_activity_tool`
+reads the two registers — effects and consultations — in one session and four
+statements (`effects/activity.py`): the newest actions under
+`EFFECT_ACTIVITY_MAX_ACTIONS`, their EXACT total, the exact count per outcome, and
+the exact count of consultations per domain, under the tabs' own authorship
+filter so the tool and the screen cannot disagree. An action is worded in the
+person's language from the label the register recorded, never re-derived. The
+other three records are not read, and neither is the proactive timeline of
+`domains/activity`.
+
 ---
 
 ## 7. Operating it
@@ -316,6 +327,7 @@ des journaux*.
 | The five records as one file | `domains/agents/effects/article12_export.py` |
 | Reading the five registers, shared by both surfaces | `domains/agents/effects/technical_reads.py` |
 | The series, aggregated in SQL | `domains/agents/effects/statistics.py` |
+| The period as the model asks for it (ADR-318) | `domains/agents/effects/activity.py` |
 | The user's card | `apps/web/src/components/effects/ChainSealCard.tsx` |
 | The administrator's sweep | `apps/web/src/components/settings/AdminChainVerification.tsx` |
 | The charts, one component for both audiences | `apps/web/src/components/effects/RegisterCharts.tsx` |

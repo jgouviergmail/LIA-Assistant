@@ -359,6 +359,10 @@ class UserBase(BaseModel, TimezoneValidatorMixin, ThemeValidatorMixin, FontFamil
     image_generation_output_format: str = Field(
         default="png", description="Default output format: png, jpeg, webp"
     )
+    image_generation_prompt_enhancement: bool = Field(
+        default=False,
+        description="Image prompts rewritten with recognised techniques before generation",
+    )
     use_last_known_location: bool = Field(
         default=False,
         description=(
@@ -442,6 +446,12 @@ class UserBase(BaseModel, TimezoneValidatorMixin, ThemeValidatorMixin, FontFamil
     @classmethod
     def set_health_metrics_agents_enabled_default(cls, v: bool | None) -> bool:
         """Ensure health_metrics_agents_enabled defaults to False if None."""
+        return v if v is not None else False
+
+    @field_validator("image_generation_prompt_enhancement", mode="before")
+    @classmethod
+    def set_image_generation_prompt_enhancement_default(cls, v: bool | None) -> bool:
+        """Ensure image_generation_prompt_enhancement defaults to False if None."""
         return v if v is not None else False
 
     @field_validator("exchange_rhythm", mode="before")

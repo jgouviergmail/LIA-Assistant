@@ -772,7 +772,7 @@ async def _handle_execution_plan(
                 plan_id=execution_plan.plan_id,
                 trigger=replan_result.trigger.value,
                 decision=replan_result.decision.value,
-                reasoning=replan_result.reasoning,
+                reasoning_length=len(replan_result.reasoning),
                 recovery_strategy=replan_result.recovery_strategy.value,
                 attempt=replan_attempt,
             )
@@ -813,7 +813,7 @@ async def _handle_execution_plan(
                     # TODO: Add message to state when implementing full re-planning loop
                     logger.info(
                         "replan_escalate_user_message",
-                        message=replan_result.user_message[:200],
+                        message_length=len(replan_result.user_message),
                     )
 
             elif replan_result.decision == RePlanDecision.ABORT:
@@ -822,7 +822,7 @@ async def _handle_execution_plan(
                     # TODO: Add message to state when implementing full re-planning loop
                     logger.warning(
                         "replan_abort_message",
-                        message=replan_result.user_message[:200],
+                        message_length=len(replan_result.user_message),
                     )
 
             elif replan_result.decision == RePlanDecision.RETRY_SAME:

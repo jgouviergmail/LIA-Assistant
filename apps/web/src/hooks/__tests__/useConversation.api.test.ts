@@ -46,7 +46,7 @@ vi.mock('@/lib/logging-context', () => {
   return { useLoggingContext: () => ({ withContext }) };
 });
 
-import { useConversation } from '../useConversation';
+import { archivedCardsFromMetadata, useConversation } from '../useConversation';
 import { logger } from '@/lib/logger';
 
 // ---------------------------------------------------------------------------
@@ -501,5 +501,22 @@ describe('useConversation — reset', () => {
       })
     ).rejects.toThrow('User not authenticated');
     expect(h.post).not.toHaveBeenCalled();
+  });
+});
+
+describe('archivedCardsFromMetadata — the live bubble reads the row it archives', () => {
+  it('reads an image card a connection shared (ADR-316), live as after a reload', () => {
+    const image = { url: '/api/v1/attachments/x', alt: 'a lighthouse', expires_at: null };
+    expect(archivedCardsFromMetadata({ generated_images: [image] }).generatedImages).toEqual([
+      image,
+    ]);
+  });
+
+  it('reads nothing from a bubble with no metadata', () => {
+    expect(archivedCardsFromMetadata(undefined)).toEqual({
+      generatedImages: undefined,
+      generatedDocuments: undefined,
+      browserScreenshot: undefined,
+    });
   });
 });

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { initI18next } from '@/i18n';
 import {
   Blocks,
+  Calculator,
   ClipboardList,
   CloudSun,
   Cpu,
@@ -83,6 +84,13 @@ const TECH_ITEMS = [
     icon: CloudSun,
     iconBg: 'bg-gradient-to-br from-teal-500/15 to-emerald-500/15',
   },
+  // Beside the honest enrichments: both are about a figure being true — the
+  // one a provider publishes, the one a tool computes (ADR-318).
+  {
+    key: 'exact_answers',
+    icon: Calculator,
+    iconBg: 'bg-gradient-to-br from-lime-500/15 to-green-500/15',
+  },
   { key: 'stack', icon: Layers, iconBg: 'bg-gradient-to-br from-cyan-500/15 to-sky-500/15' },
   {
     key: 'rich_skills',
@@ -121,7 +129,9 @@ export async function TechSection({ lng }: TechSectionProps) {
           </div>
         </FadeInOnScroll>
 
-        {/* 2x4 grid at >=880px, 4x2 at >=640px, stacked on mobile */}
+        {/* Four columns from the `mobile` breakpoint, two from `sm`, stacked
+            below: keep the card count a multiple of four (16 today) so the
+            last row is never left ragged. */}
         <div className="grid grid-cols-1 sm:grid-cols-2 mobile:grid-cols-4 gap-6">
           {TECH_ITEMS.map(({ key, icon: Icon, iconBg }, i) => (
             <FadeInOnScroll key={key} delay={i * 80}>

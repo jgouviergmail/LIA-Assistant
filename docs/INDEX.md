@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 80+ |
 | Guides pratiques | 20+ |
 | Runbooks | 45 |
-| ADRs | 310 ADR files (ADR-311 latest — ADR-008 n'a pas de fichier séparé, d'où le numéro un cran au-dessus du décompte) |
+| ADRs | 317 ADR files (ADR-318 latest — ADR-008 n'a pas de fichier séparé, d'où le numéro un cran au-dessus du décompte) |
 | Fiches knowledge (RAG système) | 40 |
 
 ---
@@ -44,7 +44,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [ARCHITECTURE_LANGRAPH.md](./ARCHITECTURE_LANGRAPH.md) | **Le graphe** : nodes, routing, state, HITL, streaming, INTELLIPLANNER — la référence LangGraph |
 | [ARCHITECTURE_AGENT.md](./ARCHITECTURE_AGENT.md) | **Le manuel du domaine agents** : ajouter un connecteur, un agent, un tool ; manifestes, cache, DI, contexte, tests |
 | [STATE_AND_CHECKPOINT.md](./technical/STATE_AND_CHECKPOINT.md) | State management et persistence (les reducers font autorité ici) |
-| [TELEPHONY.md](./technical/TELEPHONY.md) | Téléphonie agentique (appels sortants, ADR-127) ; le téléphone comme canal — numéro vérifié, appel du titulaire sans carte, relais en tour, outils en direct dérivés du catalogue avec projection vocale, une dépense par appel, domaines et personnalité de la personne, périmètre du portail (ADR-290) ; le mode Live du téléphone — la session Live du navigateur sur la ligne, chaque demande un tour de chat pendant l'appel par un pont serveur, Live / Live direct au choix de la personne, disponible seulement où le vendeur peut rappeler l'API (ADR-301) |
+| [TELEPHONY.md](./technical/TELEPHONY.md) | Téléphonie agentique (appels sortants, ADR-127) ; le téléphone comme canal — numéro vérifié, appel du titulaire sans carte, relais en tour, outils en direct dérivés du catalogue avec projection vocale, une dépense par appel, domaines et personnalité de la personne, périmètre du portail (ADR-290) ; le mode Live du téléphone — la session Live du navigateur sur la ligne, chaque demande un tour de chat pendant l'appel par un pont serveur, Live / Live direct au choix de la personne, disponible seulement où le vendeur peut rappeler l'API (ADR-301) ; calcul, journal et activité offerts à la voix, pas les fichiers générés (ADR-318) |
 | [MEETINGS.md](./technical/MEETINGS.md) | Enregistrement de réunions et comptes rendus structurés (ADR-258), bibliothèque de modèles et changement de format (ADR-259) |
 | [WORKBOARD.md](./technical/WORKBOARD.md) | Le tableau de tickets (ADR-276) : sept colonnes, un porteur, un résultat ; LIA exécute les tickets qui lui sont affectés |
 | [LIVE_MODE.md](./technical/LIVE_MODE.md) | Le mode Live vocal (ADR-299, ADR-300, ADR-301) : parole à parole sur la clé de la personne, Gemini Live, GPT-Live ET ElevenLabs Agents (catégorie additive, deux fils sous une couture — jeton ou offre SDP, fonction ou délégation native), la voix délègue toute demande au moteur du chat, la session DIRECTE qui tient les outils de lecture elle-même, une session par compte, silence et plafond par modèle, le compteur indicatif du fournisseur (facturation `vendor` : montrée, jamais enregistrée), la dépense de LIA sur la carte de clôture, le mode direct relayé à la fin comme au téléphone |
@@ -52,7 +52,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [PROVENANCE_AND_CAPABILITIES.md](./technical/PROVENANCE_AND_CAPABILITIES.md) | Provenance bornée des conclusions et carte des capacités (ADR-201, ADR-204) |
 | [DEMO_INSTANCE.md](./technical/DEMO_INSTANCE.md) | Démonstrateur libre : image standard isolée, plafond, capacités, purge nocturne, surface vérifiée (ADR-216→218) |
 | [DEBUG_PANEL.md](./technical/DEBUG_PANEL.md) | Panneau de debug : trace en ordre d'exécution, chronologie ancrée au run, waterfall LLM (ADR-209) |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (310 ADR files) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (317 ADR files) |
 
 ### Pour les Product Managers
 
@@ -113,7 +113,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [Plan latence/TTFT](./superpowers/plans/2026-07-10-latency-optimization-plan.md) | Instrumentation par étage (`langgraph_stage_duration_seconds`), protocole reproductible (`scripts/perf/measure_ttft.py`), shortlist chiffrée & avant/après | 🚧 |
 | [BACKGROUND_RUNS.md](./technical/BACKGROUND_RUNS.md) | Exécution détachée du chat (ADR-117) — producteur + Redis Streams, archive-first, drain shutdown, flag `BACKGROUND_RUNS_ENABLED` | ✅ |
 | [BRIEFING_DOMAIN.md](./technical/BRIEFING_DOMAIN.md) | Today Briefing — bounded context autonome sans LangGraph (ADR-077) : fetchers `asyncio.gather`, cache Redis par section, endpoints split cards/synthesis | ✅ |
-| [AI_ACT_TRACEABILITY.md](./technical/AI_ACT_TRACEABILITY.md) | Traçabilité (ADR-263, lots 5 à 9) : ce que LIA enregistre, ce que le scellement par compte prouve — et, dit noir sur blanc, ce qu'il ne prouve pas ; la carte de l'article 12 lot par lot, la fenêtre publiée, l'exploitation du notaire | ✅ |
+| [AI_ACT_TRACEABILITY.md](./technical/AI_ACT_TRACEABILITY.md) | Traçabilité (ADR-263, lots 5 à 9) : ce que LIA enregistre, ce que le scellement par compte prouve — et, dit noir sur blanc, ce qu'il ne prouve pas ; la carte de l'article 12 lot par lot, la fenêtre publiée, l'exploitation du notaire ; les registres lus par le modèle avec des totaux exacts (`get_my_activity_tool`, ADR-318) | ✅ |
 | [DIAGNOSTICS_DOMAIN.md](./technical/DIAGNOSTICS_DOMAIN.md) | Auto-diagnostic (ADR-247, ADR-266) : lecture Prometheus/Loki/Alertmanager qui ne lève jamais, catalogue de requêtes borné, auto-contrôle leader, mémoire d'incidents, diagnostic LLM budgété sur un dossier de preuves collecté au moment du diagnostic (recettes par clé de corrélation, échec ouvert source par source), advisor de dégradations sur le chemin de réponse | ✅ |
 | [DEBUG_PANEL_ARCHITECTURE.md](./technical/DEBUG_PANEL_ARCHITECTURE.md) | Debug Panel — flow des métriques de scoring (domaines, outils, intents) pour le tuning des thresholds | ✅ |
 
@@ -122,7 +122,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Document | Description | Statut |
 |----------|-------------|--------|
 | [AGENTS.md](./technical/AGENTS.md) | Architecture multi-agent, AgentRegistry | ✅ |
-| [TOOLS.md](./technical/TOOLS.md) | Architecture tools, @connector_tool | ✅ |
+| [TOOLS.md](./technical/TOOLS.md) | Architecture tools, @connector_tool ; calcul exact, dates, devises, journal, activité, fichiers générés (ADR-318) | ✅ |
 | [AGENT_MANIFEST.md](./technical/AGENT_MANIFEST.md) | ToolManifest, catalogue, domain taxonomy | ✅ |
 | [GOOGLE_CONTACTS_INTEGRATION.md](./technical/GOOGLE_CONTACTS_INTEGRATION.md) | Intégration Google Contacts | ✅ |
 | [EMAIL_FORMATTER.md](./technical/EMAIL_FORMATTER.md) | E-mails : vocabulaire `EmailMessage`, niveaux de détail, condensés (ADR-287), formatage et dates | ✅ |
@@ -139,8 +139,8 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [BROWSER_CONTROL.md](./technical/BROWSER_CONTROL.md) | Browser automation (Playwright) — navigation, interaction, extraction JS, progressive screenshots (SSE side-channel) — evolution F7 | ✅ |
 | [MCP_INTEGRATION.md](./technical/MCP_INTEGRATION.md) | MCP (Model Context Protocol) — Serveurs d'outils externes, MCP Apps, Excalidraw | ✅ |
 | [CHANNELS_INTEGRATION.md](./technical/CHANNELS_INTEGRATION.md) | Canaux de messagerie externes (Telegram) — evolution F3 | ✅ |
-| [ATTACHMENTS_INTEGRATION.md](./technical/ATTACHMENTS_INTEGRATION.md) | Pièces jointes (images, PDF) avec analyse vision LLM — evolution F4 | ✅ |
-| [IMAGE_GENERATION.md](./technical/IMAGE_GENERATION.md) | AI Image Generation — multi-provider (OpenAI GPT Image, Qwen Image 3.0) : une famille déclare l'offre d'un modèle, un client par fournisseur la sert, la préférence résolue comme intention, l'image de référence tarifée (ADR-305) ; cost tracking, attachment storage | ✅ |
+| [ATTACHMENTS_INTEGRATION.md](./technical/ATTACHMENTS_INTEGRATION.md) | Pièces jointes (images, PDF) avec analyse vision LLM — evolution F4 ; la galerie des fichiers produits (ADR-279), retrouvée depuis la conversation et montrée en cartes (`find_generated_files_tool`, ADR-318) | ✅ |
+| [IMAGE_GENERATION.md](./technical/IMAGE_GENERATION.md) | AI Image Generation — multi-provider (OpenAI GPT Image, Qwen Image 3.0) : une famille déclare l'offre d'un modèle, un client par fournisseur la sert, la préférence résolue comme intention, l'image de référence tarifée (ADR-305) ; amélioration facultative du prompt par un créneau dédié, jamais une barrière (ADR-315) ; partage d'une image avec une connexion, en copie dans sa galerie et son chat (ADR-316) ; cost tracking, attachment storage | ✅ |
 | [DOCUMENT_GENERATION.md](./technical/DOCUMENT_GENERATION.md) | AI Document Generation (ADR-226, ADR-274) — dedicated LLM slot, crafted renderers (csv/xlsx/docx/pptx/pdf/md/txt), TTL attachment cards | ✅ |
 | [TABULAR_ADMIN_IO.md](./technical/TABULAR_ADMIN_IO.md) | Import/export tabulaire des administrations (ADR-228) — socle déclaratif, classeur Excel, aperçu obligatoire, verrou optimiste par ligne | ✅ |
 | [HEARTBEAT_AUTONOME.md](./technical/HEARTBEAT_AUTONOME.md) | Notifications proactives LLM-driven (Heartbeat) — evolution F5 | ✅ |
@@ -150,7 +150,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [PERSONALITIES.md](./technical/PERSONALITIES.md) | Système de personnalités (seeds, traductions, sélection utilisateur) | ✅ |
 | [NOTIFICATIONS_FLOW.md](./technical/NOTIFICATIONS_FLOW.md) | Flux de notifications de bout en bout (SSE, FCM, Telegram) | ✅ |
 | [NANOBOT_INTEGRATION_ROADMAP.md](./technical/NANOBOT_INTEGRATION_ROADMAP.md) | Roadmap d'intégration (document de planification — chemins prévisionnels) | 📦 |
-| [LLM_CONFIG_ADMIN.md](./technical/LLM_CONFIG_ADMIN.md) | Administration dynamique des configurations LLM (56 types, 9 providers) | ✅ |
+| [LLM_CONFIG_ADMIN.md](./technical/LLM_CONFIG_ADMIN.md) | Administration dynamique des configurations LLM (61 types, 9 providers) | ✅ |
 | [SKILLS_INTEGRATION.md](./technical/SKILLS_INTEGRATION.md) | Skills system (agentskills.io standard) — SKILL.md files, activation, scripts, rich outputs (frames + images), runtime conventions, hardened import pipeline + chat-driven install + dialogue skills (ADR-118) | ✅ |
 | [PLUGINS_INTEGRATION.md](./technical/PLUGINS_INTEGRATION.md) | Agent Plugins client (agent-plugins.org v1.0.0 standard, ADR-225) — portable packages bundling skills + streamable-http MCP servers, per-component import report, provenance invariant, group uninstall | ✅ |
 
@@ -186,13 +186,13 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | Document | Description | Statut |
 |----------|-------------|--------|
-| [LONG_TERM_MEMORY.md](./technical/LONG_TERM_MEMORY.md) | Mémoire long-terme, profil psychologique | ✅ |
+| [LONG_TERM_MEMORY.md](./technical/LONG_TERM_MEMORY.md) | Mémoire long-terme, profil psychologique, recherche active par une seule porte (`search_memories_tool`, ADR-313) | ✅ |
 | [MEMORY_RESOLUTION.md](./technical/MEMORY_RESOLUTION.md) | Résolution références, relations — architecture 3 phases (LLM extraction + recherche ciblée + résolution) | ✅ |
 | [INTERESTS.md](./technical/INTERESTS.md) | Système apprentissage centres d'intérêt | ✅ |
 | [SCHEDULED_ACTIONS.md](./technical/SCHEDULED_ACTIONS.md) | Actions planifiées récurrentes | ✅ |
 | [SUB_AGENTS.md](./technical/SUB_AGENTS.md) | Sub-agents éphémères — délégation via `delegate_to_sub_agent_tool` (ADR-083, F6 legacy supprimé) | ✅ |
 | [HYBRID_SEARCH.md](./technical/HYBRID_SEARCH.md) | Recherche hybride BM25 + sémantique (**historique** — supprimé en ADR-168 ; le BM25 vivant est celui des RAG Spaces) | 🗄️ |
-| [JOURNALS.md](./technical/JOURNALS.md) | Personal Journals — carnets de bord introspectifs, injection sémantique | ✅ |
+| [JOURNALS.md](./technical/JOURNALS.md) | Personal Journals — carnets de bord introspectifs, injection sémantique ; recherche active dans le journal sur le seuil configuré (`search_journal_tool`, ADR-318) | ✅ |
 | [USAGE_LIMITS.md](./technical/USAGE_LIMITS.md) | Per-user usage limits — tokens, messages, cost quotas with 5-layer enforcement | ✅ |
 | [PSYCHE_ENGINE.md](./technical/PSYCHE_ENGINE.md) | Psyche Engine — complete functional & technical documentation with scenarios | ✅ |
 | [ADR-068-Psyche-Engine.md](./architecture/ADR-068-Psyche-Engine.md) | Psyche Engine — architectural decision record | ✅ |
@@ -324,7 +324,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Description | Statut |
 |-----|-------------|--------|
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs (ADR-245 le plus récent) | ✅ |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des ADRs — la liste qui fait foi | ✅ |
 
 ### ADRs Récents (2026)
 
@@ -535,14 +535,14 @@ section ne référence.
 
 ### Backend (apps/api/)
 
-> Source de vérité : `apps/api/requirements.lock.txt` (ADR-112). Versions ci-dessous relevées au 2026-07-11.
+> Source de vérité : `apps/api/requirements.lock.txt` (ADR-112). Versions ci-dessous relevées au 2026-09-25.
 
 | Technologie | Version | Usage |
 |-------------|---------|-------|
-| Python | ≥3.12 | Runtime |
+| Python | 3.14 | Runtime |
 | FastAPI | 0.136.3 | Framework API |
 | LangGraph | 1.2.11 | Orchestration multi-agents |
-| langchain-core | 1.5.5 | Core abstractions |
+| langchain-core | 1.5.6 | Core abstractions |
 | SQLAlchemy | 2.0.50 | ORM async |
 | PostgreSQL | 16 + pgvector | Database + vector search |
 | redis (client Python) | 8.0.1 | Cache, sessions, rate limiting (serveur Redis 7.4) |
@@ -553,14 +553,14 @@ section ne référence.
 
 ### Frontend (apps/web/)
 
-> Source de vérité : `apps/web/package.json`. Versions ci-dessous relevées au 2026-07-11.
+> Source de vérité : `apps/web/package.json`. Versions ci-dessous relevées au 2026-09-25.
 
 | Technologie | Version | Usage |
 |-------------|---------|-------|
 | Next.js | 16.3.4 | Framework React |
 | React | 19.2.7 | UI Library |
-| TypeScript | 6.0.2 | Typage |
-| Tailwind CSS | 4.3.2 | Styling |
+| TypeScript | 6.0.3 | Typage |
+| Tailwind CSS | 4.3.3 | Styling |
 | Radix UI | v1–v2 | Composants UI |
 | TanStack Query | 5.101 | State management |
 | react-i18next | 17.0 | Internationalisation |

@@ -66,7 +66,7 @@ class TestOperationalInjectionLevelRouting:
 
         with (
             patch.object(context_builder, "JournalEntryRepository", return_value=repo),
-            patch.object(context_builder, "_fire_and_forget_injection_tracking"),
+            patch.object(context_builder, "track_injected_entries"),
         ):
             await context_builder.build_journal_context(
                 user_id=uuid4(),
@@ -87,7 +87,7 @@ class TestOperationalInjectionLevelRouting:
 
         with (
             patch.object(context_builder, "JournalEntryRepository", return_value=repo),
-            patch.object(context_builder, "_fire_and_forget_injection_tracking"),
+            patch.object(context_builder, "track_injected_entries"),
         ):
             await context_builder.build_journal_context(
                 user_id=uuid4(),
@@ -114,7 +114,7 @@ class TestOperationalInjectionLevelRouting:
 
         with (
             patch.object(context_builder, "JournalEntryRepository", return_value=repo),
-            patch.object(context_builder, "_fire_and_forget_injection_tracking"),
+            patch.object(context_builder, "track_injected_entries"),
         ):
             result, _debug, ids = await context_builder.build_journal_context(
                 user_id=uuid4(),

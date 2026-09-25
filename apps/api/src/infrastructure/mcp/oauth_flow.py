@@ -45,6 +45,7 @@ from src.core.security.utils import (
     generate_state_token,
 )
 from src.infrastructure.mcp.security import validate_http_endpoint
+from src.infrastructure.observability.log_facts import url_host
 
 logger = structlog.get_logger(__name__)
 
@@ -204,7 +205,7 @@ class MCPOAuthFlowHandler:
             logger.warning(
                 "mcp_oauth_endpoint_rejected",
                 phase=phase,
-                host=urlparse(url).hostname or "unparseable",
+                host=url_host(url) or "unparseable",
                 reason=error,
             )
         return is_valid
@@ -330,8 +331,8 @@ class MCPOAuthFlowHandler:
             logger.warning(
                 "mcp_oauth_issuer_changed",
                 server_id=str(server_id),
-                previous_issuer_host=urlparse(stored_issuer or "").hostname or "unparseable",
-                new_issuer_host=urlparse(metadata.issuer).hostname or "unparseable",
+                previous_issuer_host=url_host(stored_issuer) or "unparseable",
+                new_issuer_host=url_host(metadata.issuer) or "unparseable",
             )
             resolved_client_id = None
             resolved_client_secret = None
@@ -493,8 +494,8 @@ class MCPOAuthFlowHandler:
         if iss is not None and recorded_issuer and iss != recorded_issuer:
             logger.error(
                 "mcp_oauth_iss_mismatch",
-                expected_host=urlparse(recorded_issuer).hostname or "unparseable",
-                received_host=urlparse(iss).hostname or "unparseable",
+                expected_host=url_host(recorded_issuer) or "unparseable",
+                received_host=url_host(iss) or "unparseable",
             )
             raise ValueError(
                 "OAuth callback issuer mismatch: the authorization response "
@@ -730,9 +731,9 @@ class MCPOAuthFlowHandler:
 
         logger.info(
             "mcp_oauth_heuristic_metadata_fallback",
-            auth_server_url=auth_server_url,
-            authorization_endpoint=authorize_url,
-            token_endpoint=token_url,
+            auth_server_host=url_host(auth_server_url),
+            authorization_host=url_host(authorize_url),
+            token_host=url_host(token_url),
         )
 
         return MCPAuthServerMetadata(

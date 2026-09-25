@@ -54,7 +54,6 @@ from src.domains.agents.constants import (
     NODE_ROUTER,
     NODE_SEMANTIC_VALIDATOR,
     NODE_TASK_ORCHESTRATOR,
-    STATE_KEY_MESSAGES,
     STATE_KEY_ROUTING_HISTORY,
 )
 from src.domains.agents.context import get_tool_context_store
@@ -161,11 +160,6 @@ def route_from_router(state: MessagesState) -> str:
             next_node=next_node,
             threshold_medium=settings.router_confidence_medium,
             threshold_high=settings.router_confidence_high,
-            input_preview=str(
-                state.get(STATE_KEY_MESSAGES, [])[-1].content
-                if state.get(STATE_KEY_MESSAGES)
-                else ""
-            )[:100],
         )
     elif confidence >= settings.router_confidence_low:
         tier = "low"

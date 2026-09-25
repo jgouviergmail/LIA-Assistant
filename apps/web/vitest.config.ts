@@ -68,6 +68,12 @@ export default defineConfig({
       // computed over the WHOLE include set — glob-matched files are NOT
       // subtracted from the global pool here.
       thresholds: {
+        // Re-measured 2026-09-24 after ADR-312..316 (the broadcast history
+        // table, the prompt-enhancement switch, the image-share dialog, button
+        // and gallery controls, the peers error codes — ~60 new tests):
+        // statements 81.78 / branches 76.70 / functions 79.53 / lines 82.58.
+        // `functions` rises 76 -> 77 and `lines` 79 -> 80 (floor(measured - 2));
+        // `statements` and `branches` do not cross an integer step.
         // Re-measured 2026-09-22 after contextual companion direction,
         // volume and ambience: 81.17 / 76.33 / 78.65 / 81.97 across the full
         // include set. Statements rises 78 -> 79; every axis keeps >= 2 points.
@@ -376,8 +382,8 @@ export default defineConfig({
         // (floor(measured - 2)); `branches` and `lines` do not cross a step.
         statements: 79,
         branches: 74,
-        functions: 76,
-        lines: 79,
+        functions: 77,
+        lines: 80,
         // Chat state machine — fully covered, keep it that way (2026-07).
         'src/reducers/**/*.ts': {
           statements: 100,

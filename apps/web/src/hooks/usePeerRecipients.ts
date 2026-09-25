@@ -22,9 +22,33 @@ import type { ConnectionView } from './usePeerConnections';
  *   and offering it would promise a delivery the backend refuses.
  */
 export function usePeerRecipients(enabled: boolean): ConnectionView[] {
-  const { data } = useApiQuery<ConnectionView[]>('/peers/connections', {
+  return usePeerRecipientsState(enabled).recipients;
+}
+
+/** The recipients, and whether they are still loading or could not be read. */
+export interface PeerRecipientsState {
+  recipients: ConnectionView[];
+  loading: boolean;
+  error: Error | null;
+}
+
+/**
+ * {@link usePeerRecipients} for a surface that must tell « none yet » from
+ * « still loading » and « could not be read » (the image share dialog): an
+ * empty list read as "no connection" when the request merely failed would be
+ * a false statement about the person's account.
+ *
+ * @param enabled - Fetch only while the surface is open.
+ * @returns Accepted connections, the loading flag and the error.
+ */
+export function usePeerRecipientsState(enabled: boolean): PeerRecipientsState {
+  const { data, loading, error } = useApiQuery<ConnectionView[]>('/peers/connections', {
     componentName: 'usePeerRecipients',
     enabled,
   });
-  return (data ?? []).filter(connection => connection.status === 'accepted');
+  return {
+    recipients: (data ?? []).filter(connection => connection.status === 'accepted'),
+    loading,
+    error,
+  };
 }

@@ -260,6 +260,7 @@ class TrackingContext:
         failure_kind: str | None = None,
         params: InferenceParams | None = None,
         cache_write_tokens: int = 0,
+        requested_model: str | None = None,
     ) -> None:
         """
         Record token usage for a single LLM node call.
@@ -285,6 +286,9 @@ class TrackingContext:
                 enough for sequential background calls that lack a start stamp.
             cache_write_tokens: The part of ``prompt_tokens`` Claude wrote to
                 its prompt cache, priced with its write surcharge (ADR-306).
+            requested_model: The model the request NAMED (the slot's
+                configuration), kept beside ``model_name`` — what the provider
+                reported and what is billed — for the debug panel (B8).
         """
         # Auto-calculate costs if not provided (modern callback path)
         # Use sync-safe pricing cache to avoid event loop issues in LangChain callbacks
@@ -339,6 +343,7 @@ class TrackingContext:
                 reasoning_level=params.reasoning_level if params else None,
                 reasoning_budget_tokens=params.reasoning_budget_tokens if params else None,
                 params_digest=params.params_digest if params else None,
+                requested_model=requested_model,
             )
             self._node_records.append(record)
 

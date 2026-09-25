@@ -132,9 +132,7 @@ export function GeneratedAssetFiltersBar({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="any">
-              {t('settings.generated_assets.filters.any_date')}
-            </SelectItem>
+            <SelectItem value="any">{t('settings.generated_assets.filters.any_date')}</SelectItem>
             {CREATED_WINDOWS.map(days => (
               <SelectItem key={days} value={daysAgo(days)}>
                 {t('settings.generated_assets.filters.last_days', { count: days })}
@@ -157,9 +155,7 @@ export function GeneratedAssetFiltersBar({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="any">
-              {t('settings.generated_assets.filters.any_expiry')}
-            </SelectItem>
+            <SelectItem value="any">{t('settings.generated_assets.filters.any_expiry')}</SelectItem>
             {EXPIRY_WINDOWS.map(hours => (
               <SelectItem key={hours} value={hoursAhead(hours)}>
                 {t('settings.generated_assets.filters.within_hours', { count: hours })}

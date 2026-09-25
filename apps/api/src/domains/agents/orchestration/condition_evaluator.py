@@ -645,9 +645,9 @@ class ReferenceResolver:
                                 break
 
                     if matched_item is None:
-                        raise KeyError(
-                            f"No item found with {filter_field}=='{filter_value}' in array"
-                        )
+                        # The filter VALUE is the plan's data (a name, an address):
+                        # the message names the field alone.
+                        raise KeyError(f"No item found matching the {filter_field} filter in array")
 
                     current = matched_item
 

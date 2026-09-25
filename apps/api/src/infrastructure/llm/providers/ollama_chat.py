@@ -210,7 +210,7 @@ def create_ollama_llm(
         base_url=base_url,
         num_ctx=num_ctx,
         num_predict=max_tokens,
-        reasoning=reasoning_kwargs.get("reasoning"),
+        reasoning_mode=reasoning_kwargs.get("reasoning"),
         capability_known=caps is not None,
     )
 

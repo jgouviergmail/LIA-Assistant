@@ -493,7 +493,6 @@ class GetTaskDetailsTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
             "get_task_details_success",
             user_id=str(user_id),
             task_id=task_id,
-            title=result.get("title", ""),
         )
 
         # Get user preferences for timezone conversion
@@ -753,7 +752,6 @@ class CreateTaskDraftTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
         logger.info(
             "create_task_draft_prepared",
             user_id=str(user_id),
-            title=title,
             has_due=due is not None,
         )
 
@@ -858,7 +856,6 @@ class CompleteTaskTool(ConnectorTool[GoogleTasksClient]):
             "task_completed",
             user_id=str(user_id),
             task_id=task_id,
-            title=result.get("title"),
         )
 
         return {
@@ -1246,7 +1243,6 @@ class DeleteTaskDraftTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
             "delete_task_draft_prepared",
             user_id=str(user_id),
             task_id=task_id,
-            title=task.get("title"),
         )
 
         return {
@@ -1411,7 +1407,6 @@ async def execute_task_draft(
         "task_draft_executed",
         user_id=str(user_id),
         task_id=task_id,
-        title=draft_content["title"],
         html_link=html_link,
     )
 
@@ -1460,7 +1455,6 @@ async def execute_task_update_draft(
         "task_update_draft_executed",
         user_id=str(user_id),
         task_id=task_id,
-        title=title,
         html_link=html_link,
     )
 

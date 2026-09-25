@@ -149,7 +149,6 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
             "microsoft_tasks_create_task_list",
             user_id=str(self.user_id),
             task_list_id=response.get("id"),
-            title=title,
         )
 
         return normalize_graph_task_list(response)
@@ -298,7 +297,6 @@ class MicrosoftTasksClient(BaseMicrosoftClient):
             user_id=str(self.user_id),
             task_list_id=resolved_id,
             task_id=response.get("id"),
-            title=title,
         )
 
         return normalize_graph_task(response)

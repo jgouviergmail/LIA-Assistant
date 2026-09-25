@@ -1,8 +1,8 @@
 # PII_LOGGING_SECURITY.md
 
 **Documentation Technique - LIA**
-**Version**: 1.2
-**Dernière mise à jour**: 2026-07-16
+**Version**: 1.3
+**Dernière mise à jour**: 2026-09-24
 **Statut**: ✅ Production-Ready
 
 ---
@@ -345,6 +345,51 @@ Helpers : `fingerprint_secret()`, `sanitize_url_query()`. Tests :
 (fingerprint corrélable, state applicatif préservé, masquage URL, redaction PKCE,
 sentinelle absente de bout en bout).
 
+
+
+### 2quater. Ce qu'une ligne CITE, et le garde qui lit la valeur (ADR-317, 2026-09-24)
+
+Le filet par nom de champ ne voyait ni ce qu'un texte d'erreur **cite**, ni un
+contenu rangé sous un nom inconnu. Mesuré le 2026-09-24 (chaque appel de journal
+de `src` au-dessus de DEBUG, valeur par valeur) : 438 valeurs portaient les mots
+de la personne. Réponse en quatre couches ([ADR-317](../architecture/ADR-317-A-Log-Line-Carries-Facts-Never-The-Words.md)) :
+
+| Couche | Où | Ce qu'elle fait |
+|--------|----|-----------------|
+| Source SQL | `infrastructure/database/session.py`, `errors.py`, `core/repository.py` | tout moteur `hide_parameters=True` (garde `test_sql_parameters_hidden_guard.py`) ; une erreur de base est journalisée par ses **faits** lus sur le pilote (`db_error`, `sqlstate`, `constraint`, `table`, `column`) ; le libellé `db_query_errors_total{error_type}` vient du SQLSTATE |
+| Citations | `observability/quoted_content.py` | au-dessus de DEBUG, sur toute chaîne **et sur le traceback rendu** : `DETAIL`/`CONTEXT` de PostgreSQL, `[parameters: …]`, argument asyncpg, messages PostgreSQL qui citent leur entrée, `input_value=` de Pydantic (jusqu'au dernier marqueur de la ligne) — la contrainte, la table, la requête et la classe restent |
+| URL | `pii_filter.sanitize_url_query` | au-dessus de DEBUG, les paramètres de recherche (`q`, `query`, `$search`, `srsearch`, `input`, `address`…) ; à **tous** les niveaux, les clés de fournisseur en query string (`key=` Google, `appid=` OpenWeatherMap), qu'une `HTTPStatusError` rend avec l'URL |
+| Noms | `CONTENT_FIELD_NAMES`, `_CONTENT_FIELD_SUFFIXES` | noms exacts ajoutés seulement quand AUCUNE ligne ne les emploie à autre chose (`query`, `topic`, `keyword`, `input`, `stdout`…) ; suffixes (`*_preview` sauf `*_id_preview`, `*_query`, `*_content`, `*_text`…) qui ne rédigent que du texte ou des listes — `has_content=True` ou `extra_body={…}` restent |
+
+`STRUCTLOG_META_FIELDS` se réduit aux quatre champs d'enveloppe que la chaîne écrit
+et qu'aucun appelant n'écrit (`event`, `logger`, `level`, `timestamp`) : aucun
+processeur n'ajoute les paramètres d'appel, et `filename=` — un nom de pièce
+jointe — contournait toutes les règles. Dans un traceback chaîné, le `DETAIL`
+s'arrête à la jonction que Python écrit entre deux exceptions : les cadres de pile
+de la suivante restent lisibles.
+
+**Aux sites d'appel**, la convention est un **fait** à la place du texte :
+`query_length=len(query)`, un identifiant (`interest_id`, `label_id`), l'hôte d'une
+URL (`url_host=url_host(url)`, qui ne lève jamais — événements de sécurité et de navigation),
+ou la ligne passe en DEBUG. Une sortie de modèle illisible passe par
+`log_unreadable_text(logger, event, text, level=…)` (`observability/log_facts.py`) :
+sa longueur au niveau voulu, ses mots sur une ligne DEBUG à part.
+
+**Le garde** `tests/unit/test_log_content_guard.py` lit la VALEUR (AST sur `src`) :
+refusée si c'est un aperçu tronqué d'autre chose qu'un identifiant, ou si ses
+feuilles sont des mots de contenu (le DERNIER mot décide : `query_length` est une
+longueur, `detection_query` une requête) ; le nom du champ ne compte que si la
+valeur n'est pas déjà une métadonnée ; un `name=` nu doit dire de quel nom il
+s'agit. Les exceptions sont écrites avec leur raison dans `ALLOWED` (borne
+numérique, nom de l'espace système de FAQ, réglage d'instance, adresse configurée
+par l'opérateur, refus du fournisseur de téléphonie, type de média) ; une exception
+qui ne correspond plus à aucune ligne fait échouer le test.
+
+**Limites énoncées** : les messages de nos propres exceptions en général (30 sites
+`raise` interpolent une valeur ; les cinq personnels ont été corrigés), les textes
+d'erreur de fournisseurs hors formats reconnus, le niveau DEBUG en production (les
+contenus y sont permis par la politique), et les lignes déjà stockées dans Loki
+jusqu'à l'expiration de la rétention.
 
 ### 3. Regex Patterns (Industry Standards)
 

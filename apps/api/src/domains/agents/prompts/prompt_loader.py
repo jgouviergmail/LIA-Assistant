@@ -265,6 +265,8 @@ PromptName = Literal[
     # Document generation — dedicated whole-document writer (ADR-226)
     "document_generation_prompt",
     "email_digest_prompt",
+    # Image prompt enhancement — an optional rewrite before the image model (ADR-315)
+    "image_prompt_enhancement_prompt",
     # One mail attachment read by the vision slot (image, scanned PDF).
     "email_attachment_vision_prompt",
     "email_attachment_vision_lines",
@@ -420,7 +422,9 @@ def load_prompt(
             logger.error(msg)
             raise PromptIntegrityError(msg)
 
-        logger.info("prompt_integrity_validated", name=name, version=version, hash=actual_hash[:8])
+        logger.info(
+            "prompt_integrity_validated", prompt_name=name, version=version, hash=actual_hash[:8]
+        )
 
     # Dashboard 15: prompt version usage counter (Langfuse-adjacent analytics)
     with suppress(Exception):

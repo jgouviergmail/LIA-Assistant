@@ -40,6 +40,7 @@ from src.core.constants import (
     JOURNAL_PORTRAIT_BRIEF_MAX_TOKENS_DEFAULT,
     JOURNAL_PORTRAIT_FULL_MAX_TOKENS_DEFAULT,
     JOURNAL_REACT_CONTEXT_MAX_ENTRIES_DEFAULT,
+    JOURNAL_SEARCH_MAX_RESULTS_DEFAULT,
 )
 
 
@@ -223,6 +224,16 @@ class JournalsSettings(BaseSettings):
             "Max L1/L2 behavioural directives injected into the ReAct reasoning loop "
             "(once, at react_setup). Count cap with no truncation — entries are injected "
             "in full. Set to 0 to disable directive injection in ReAct (portrait only)."
+        ),
+    )
+
+    journal_search_max_results: int = Field(
+        default=JOURNAL_SEARCH_MAX_RESULTS_DEFAULT,
+        ge=1,
+        le=30,
+        description=(
+            "Most entries one journal lookup (search_journal_tool, ADR-318) returns. "
+            "Published to the planner and the ReAct loop as the parameter's maximum."
         ),
     )
 

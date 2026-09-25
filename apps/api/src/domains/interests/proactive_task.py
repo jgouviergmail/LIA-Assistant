@@ -210,7 +210,6 @@ class InterestProactiveTask:
                         "interest_task_target_selected",
                         user_id=str(user_id),
                         interest_id=str(selected_interest.id),
-                        topic=selected_interest.topic[:50],
                         weight=round(weight, 3),
                         candidates_count=len(top_interests),
                         selection_mode="uniform",
@@ -240,16 +239,15 @@ class InterestProactiveTask:
                     mode="subject_rarity",
                     fail_open=str(debug.fail_open).lower(),
                 ).inc()
-                interest_selection_eligible_subjects.observe(debug.eligible_subjects)
+                interest_selection_eligible_subjects.observe(debug.eligible_subject_count)
                 logger.info(
                     "interest_task_target_selected",
                     user_id=str(user_id),
                     interest_id=str(selected_interest.id),
-                    topic=selected_interest.topic[:50],
                     candidates_count=len(top_interests),
                     selection_mode="subject_rarity",
                     total_subjects=debug.total_subjects,
-                    eligible_subjects=debug.eligible_subjects,
+                    eligible_subject_count=debug.eligible_subject_count,
                     fail_open=debug.fail_open,
                 )
                 logger.debug(
@@ -318,7 +316,6 @@ class InterestProactiveTask:
                     "interest_task_content_generation_failed",
                     user_id=str(user_id),
                     interest_id=str(target.id),
-                    topic=target.topic[:50],
                     sources_tried=generation_result.sources_tried,
                     error=generation_result.error,
                 )
@@ -362,7 +359,6 @@ class InterestProactiveTask:
                 "interest_task_content_generated",
                 user_id=str(user_id),
                 interest_id=str(target.id),
-                topic=target.topic[:50],
                 source=content_result.source,
                 content_length=len(presented_content),
                 tokens_in=total_tokens_in,

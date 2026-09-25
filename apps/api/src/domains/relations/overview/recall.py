@@ -24,6 +24,11 @@ _MEMORY_MIN_SCORE = 0.3
 async def fetch_person_memories(user_id: UUID, person_name: str) -> list[str] | None:
     """Long-term memories relevant to the person (embedding + topic match).
 
+    Through the one lookup door (``memories.search``, ADR-313): a person name
+    is a lookup key, never an utterance — the triviality patterns collide with
+    real surnames (Fine, Cool, Bien), and treating one as trivial returned None
+    here, silently erasing that contact's memories.
+
     Args:
         user_id: Owner of the memories.
         person_name: The person to recall about.
@@ -32,23 +37,13 @@ async def fetch_person_memories(user_id: UUID, person_name: str) -> list[str] | 
         The memory contents, or None when no embedding could be computed —
         which is "I could not look", not "there is nothing".
     """
-    from src.domains.memories.repository import MemoryRepository
-    from src.infrastructure.database.session import get_db_context
-    from src.infrastructure.llm.user_message_embedding import get_or_compute_embedding
+    from src.domains.memories.search import search_memories
 
-    # A person name is a lookup key, never an utterance: the triviality patterns
-    # collide with real surnames (Fine, Cool, Bien), and treating one as trivial
-    # returned None here — silently erasing that contact's memories.
-    query_embedding = await get_or_compute_embedding(message=person_name, is_conversational=False)
-    if not query_embedding:
+    results = await search_memories(
+        user_id, person_name, limit=_MEMORIES_LIMIT, min_score=_MEMORY_MIN_SCORE
+    )
+    if results is None:
         return None
-    async with get_db_context() as db:
-        results = await MemoryRepository(db).search_by_relevance(
-            user_id=user_id,
-            query_embedding=query_embedding,
-            limit=_MEMORIES_LIMIT,
-            min_score=_MEMORY_MIN_SCORE,
-        )
     return [memory.content for memory, _score in results if memory.content]
 
 

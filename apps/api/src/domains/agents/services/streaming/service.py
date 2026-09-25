@@ -633,7 +633,7 @@ class StreamingService:
                     run_id=run_id,
                     conversation_id=str(conversation_id),
                     intention=intention_label,
-                    user_query_preview=self.user_message[:50] if self.user_message else "empty",
+                    user_query_length=len(self.user_message) if self.user_message else 0,
                     reason="Graph stream completed without response tokens - generating LLM fallback",
                 )
 

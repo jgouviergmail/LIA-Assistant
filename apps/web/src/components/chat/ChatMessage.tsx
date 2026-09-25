@@ -27,6 +27,7 @@ import { apiImageProps, apiResourceUrl } from '@/lib/utils/api-resource-url';
 import { MarkdownContent } from './MarkdownContent';
 import { documentTypeIcon } from './document-card-icon';
 import { PeerMessageActions } from '@/components/chat/PeerMessageActions';
+import { ShareImageButton } from '@/components/peers/ShareImageButton';
 import { WorkboardNotificationActions } from '@/components/chat/WorkboardNotificationActions';
 import { isInterestNotificationMetadata } from './InterestNotificationCard';
 import { MeetingMinutesCard } from '@/components/meetings/MeetingMinutesCard';
@@ -49,7 +50,8 @@ import {
   type ResponseFeedbackButtonsProps,
 } from './ResponseFeedbackButtons';
 import { BookmarkButton } from './BookmarkButton';
-import { ShareResponseMenu } from './ShareResponseMenu';
+import { ActionChipButton } from './ActionChipButton';
+import { ShareResponseActions } from './ShareResponseActions';
 import { toast } from 'sonner';
 import { formatFileSize } from '@/lib/utils/image-compress';
 import { API_ENDPOINTS } from '@/lib/api-config';
@@ -380,31 +382,22 @@ function AssistantActionRow({
   const retryPrompt = retryPromptOf(message);
   return (
     <div className="flex flex-wrap items-center gap-1 mt-2 pt-2 border-t border-border/30">
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            onClick={onCopy}
-            aria-label={t('chat.message.copy')}
-            className="p-1.5 rounded-md border border-border/30 bg-background/80 hover:bg-background transition-colors"
-          >
-            {copied ? (
-              <Check className="h-3.5 w-3.5 text-green-600" />
-            ) : (
-              <Copy className="h-3.5 w-3.5 text-muted-foreground" />
-            )}
-          </button>
-        </TooltipTrigger>
-        <TooltipContent>{t('chat.message.copy')}</TooltipContent>
-      </Tooltip>
+      <ActionChipButton label={t('chat.message.copy')} onClick={onCopy}>
+        {copied ? (
+          <Check className="h-3.5 w-3.5 text-green-600" aria-hidden="true" />
+        ) : (
+          <Copy className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+        )}
+      </ActionChipButton>
       {/* ADR-282: keep this answer — every archived bubble with text,
           proactive notifications included. */}
       {bookmarkMessageDbId && <BookmarkButton messageDbId={bookmarkMessageDbId} />}
-      {/* UX P4: share/export menu — same chip family as Copy. Text-less
-          bubbles (image-only answers) have nothing to share or export:
+      {/* UX P4: Share and Download, two direct icons in the Copy chip family
+          (they replaced a « … » menu, 2026-09-24). Text-less bubbles
+          (image-only answers) have nothing to share or export:
           `navigator.share({ text: '' })` rejects and the .md would be empty. */}
       {message.content.trim().length > 0 && (
-        <ShareResponseMenu
+        <ShareResponseActions
           content={message.content}
           timestamp={message.timestamp}
           onPrefillComposer={onPrefillComposer}
@@ -516,6 +509,11 @@ function ImageExpiryNotice({
   );
 }
 
+/** A round action over an image card: faint until hovered or FOCUSED (a keyboard
+ * user must see where they are), always visible on touch. */
+const IMAGE_OVERLAY_ACTION =
+  'p-1.5 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity hover:bg-black/70 max-sm:opacity-70';
+
 /**
  * AI-generated image cards — rendered outside markdown to avoid
  * HTML nesting violations (<div> inside <p>).
@@ -564,23 +562,33 @@ function GeneratedImageCards({ images }: { images: GeneratedImage[] }) {
                   className="w-full h-auto rounded-lg shadow-md hover:shadow-lg transition-shadow [-webkit-touch-callout:default]"
                 />
               </button>
-              {/* Discrete download button — visible on hover (desktop) or always visible (touch) */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    onClick={e => {
-                      e.stopPropagation();
-                      downloadImage(displayUrl, img.alt);
-                    }}
-                    className="absolute bottom-2 right-2 p-1.5 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70 max-sm:opacity-70"
-                    aria-label={t('common.download')}
-                  >
-                    <Download className="w-4 h-4" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>{t('common.download')}</TooltipContent>
-              </Tooltip>
+              {/* Discrete actions — visible on hover or keyboard focus (desktop),
+                  always visible (touch). Sharing with a connection (ADR-316)
+                  renders only where the chat offers it. */}
+              <div className="absolute bottom-2 right-2 flex gap-1.5">
+                <ShareImageButton
+                  url={img.url}
+                  title={img.alt}
+                  expiresAt={img.expires_at}
+                  className={IMAGE_OVERLAY_ACTION}
+                />
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={e => {
+                        e.stopPropagation();
+                        downloadImage(displayUrl, img.alt);
+                      }}
+                      className={IMAGE_OVERLAY_ACTION}
+                      aria-label={t('common.download')}
+                    >
+                      <Download className="w-4 h-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t('common.download')}</TooltipContent>
+                </Tooltip>
+              </div>
               <ImageExpiryNotice expiresAt={img.expires_at} />
             </div>
           );

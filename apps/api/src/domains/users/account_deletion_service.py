@@ -153,6 +153,9 @@ def build_purge_statements(user_id: UUID) -> list[tuple[str, Delete]]:
         # Group 1 — Child tables (FK to other user-scoped tables)
         by_user("interest_notifications"),
         by_user("user_broadcast_reads"),
+        # ADR-312: the targeted broadcasts addressed to the account. Group 1:
+        # a child of admin_broadcasts (which is GLOBAL and stays).
+        by_user("admin_broadcast_recipients"),
         by_user("conversation_audit_log"),
         # ADR-263: the effect ledger. It CASCADES from users, but the account
         # deletion scrubs the user row rather than deleting it, so the cascade
@@ -187,6 +190,7 @@ def build_purge_statements(user_id: UUID) -> list[tuple[str, Delete]]:
             ),
         ),
         by_either_side("peer_messages", "sender_id", "recipient_id"),
+        by_either_side("peer_image_shares", "sender_id", "recipient_id"),
         by_either_side("peer_access_log", "accessor_id", "owner_id"),
         by_either_side("peer_blocks", "blocker_id", "blocked_id"),
         by_either_side("peer_connections", "user_a_id", "user_b_id"),
@@ -664,7 +668,7 @@ class AccountDeletionService:
             logger.info(
                 "account_deletion_user_tree_cleaned",
                 user_id=str(user_id),
-                content=label,
+                tree=label,
                 path=user_dir_str,
             )
             return 1

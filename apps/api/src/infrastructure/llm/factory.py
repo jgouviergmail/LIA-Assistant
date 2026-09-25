@@ -22,6 +22,7 @@ from langchain_core.language_models.chat_models import BaseChatModel
 
 from src.core.config import settings
 from src.core.constants import LLM_INSTANCE_CACHE_MAX_SIZE
+from src.core.field_names import FIELD_LLM_PROVIDER, FIELD_LLM_TYPE
 from src.core.llm_agent_config import LLMAgentConfig
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.infrastructure.llm.providers.adapter import ProviderAdapter
@@ -72,6 +73,28 @@ def _build_llm_cache_key(llm_type: str, agent_config: LLMAgentConfig, streaming:
         sort_keys=True,
         default=str,
     )
+
+
+def _stamp_slot(llm: BaseChatModel, *, llm_type: str, provider: str) -> None:
+    """Write the configured slot and provider into the model's own metadata.
+
+    A callback reads a model's own metadata merged OVER the caller's config
+    (LangChain, probed — through ``.bind()`` too), and the graph's config says
+    « agent_graph » for every node: read from the config, every call of a turn
+    was filed under the graph rather than under the slot an operator configured.
+    The instance cache is keyed by slot, so an instance is never shared by two.
+
+    Args:
+        llm: The model just built.
+        llm_type: The slot it was built for.
+        provider: The provider the slot is configured on.
+    """
+    current = getattr(llm, "metadata", None)
+    llm.metadata = {
+        **(current if isinstance(current, dict) else {}),
+        FIELD_LLM_TYPE: llm_type,
+        FIELD_LLM_PROVIDER: provider,
+    }
 
 
 def clear_llm_instance_cache() -> None:
@@ -194,6 +217,8 @@ LLMType = Literal[
     "document_generation",
     # E-mail digest: one short structured call per message, cached (ADR-287)
     "email_digest",
+    # Image prompt enhancement: an optional rewrite before the image model (ADR-315)
+    "image_prompt_enhancement",
     # Meeting minutes — structured synthesis of a transcribed recording (ADR-258)
     "meeting_synthesis",
     # Relationship debrief — daily synthesis of one contact's file (personal CRM)
@@ -374,6 +399,9 @@ def get_llm(
         context_window=merged_config.get("context_window"),
         provider_config=agent_config.provider_config,  # Advanced JSON config
     )
+
+    # 4b. The slot and the provider travel WITH the model (debug panel B8).
+    _stamp_slot(llm, llm_type=llm_type, provider=provider)
 
     # 5. Attach callbacks (metrics + Langfuse)
     # Phase 6 - LLM Observability: Callbacks are added dynamically at invoke time

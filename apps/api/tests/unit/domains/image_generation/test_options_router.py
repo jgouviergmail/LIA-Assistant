@@ -58,3 +58,24 @@ async def test_an_unserved_model_is_a_400_naming_it() -> None:
             await get_image_generation_options(user=person)  # type: ignore[arg-type]
     assert raised.value.status_code == 400
     assert "model 'x'" in raised.value.detail
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("offered", [True, False])
+async def test_the_enhancement_switch_is_offered_only_when_it_would_be_honoured(
+    offered: bool,
+) -> None:
+    """The page asks the same predicate as the image tool (ADR-315)."""
+    person = SimpleNamespace(
+        image_generation_default_quality="high", image_generation_default_size="1024x1536"
+    )
+    with (
+        patch(_ACTIVE, return_value=_qwen()),
+        patch(
+            "src.domains.image_generation.preferences.settings.image_prompt_enhancement_enabled",
+            offered,
+        ),
+    ):
+        response = await get_image_generation_options(user=person)  # type: ignore[arg-type]
+
+    assert response.prompt_enhancement_available is offered

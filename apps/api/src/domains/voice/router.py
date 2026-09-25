@@ -418,7 +418,7 @@ async def websocket_audio(
                                     "websocket_stt_provider_error",
                                     user_id=user_id,
                                     code=e.code,
-                                    message=e.message,
+                                    error=str(e),
                                 )
                                 # Surface the structured error to the client
                                 # so the frontend can show a precise toast,

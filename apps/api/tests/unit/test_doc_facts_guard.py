@@ -143,6 +143,17 @@ class TestScanSanity:
                 "base or stopped describing the stack. Both are regressions."
             )
 
+    def test_the_public_guides_are_in_the_scan_base(self) -> None:
+        """The site's « How » guides quoted a stale stack outside every scan (2026-09-25)."""
+        scanned = {item.path for item in _facts.audit_facts(REPO_ROOT)}
+
+        for lang in ("en", "fr", "de", "es", "it", "zh"):
+            guide = f"apps/web/src/data/guides/how.{lang}.md"
+            assert guide in scanned, (
+                f"{guide} quotes no tracked fact, which means the site's guides left "
+                "the scan base (FACT_ONLY_GLOBS) or stopped describing the stack."
+            )
+
     def test_several_distinct_facts_are_actually_exercised(self) -> None:
         """One fact matching everywhere would hide eleven silently-dead patterns."""
         seen = {item.fact for item in _facts.audit_facts(REPO_ROOT)}

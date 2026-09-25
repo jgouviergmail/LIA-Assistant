@@ -182,7 +182,7 @@ class BraveSearchClient(BaseAPIKeyClient):
         logger.info(
             "brave_search_request",
             endpoint=endpoint,
-            query=query[:50],
+            query_length=len(query),
             user_id=str(self.user_id) if self.user_id else None,
         )
 
@@ -194,7 +194,7 @@ class BraveSearchClient(BaseAPIKeyClient):
             logger.warning(
                 "brave_search_failed",
                 endpoint=endpoint,
-                query=query[:50],
+                query_length=len(query),
                 error=str(e),
                 error_type=type(e).__name__,
             )
@@ -209,7 +209,7 @@ class BraveSearchClient(BaseAPIKeyClient):
         logger.info(
             "brave_search_success",
             endpoint=endpoint,
-            query=query[:50],
+            query_length=len(query),
             results_count=results_count,
         )
         return data

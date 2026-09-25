@@ -75,7 +75,12 @@ def _openai_options() -> ModelOptions:
 
 
 def _caller(
-    options: ModelOptions, *, quality: str, size: str, output_format: str = "png"
+    options: ModelOptions,
+    *,
+    quality: str,
+    size: str,
+    output_format: str = "png",
+    enhance_prompt: bool = False,
 ) -> _Caller:
     return _Caller(
         user_id=uuid.uuid4(),
@@ -84,6 +89,7 @@ def _caller(
         stored_size=size,
         options=options,
         output_format=output_format,
+        enhance_prompt=enhance_prompt,
     )
 
 
@@ -211,6 +217,75 @@ class TestGenerateImage:
             1,
         )
         save.assert_not_awaited()
+
+
+_ENHANCEMENT = "src.domains.agents.image_generation.prompt_enhancement"
+_IMPROVED = "Photorealistic photograph of a lighthouse at dusk, 35 mm lens, warm side light."
+
+
+def _enhancer(*, offered: bool = True) -> tuple[Any, Any]:
+    from src.domains.agents.image_generation.prompt_enhancement import PromptEnhancement
+
+    enhance = AsyncMock(return_value=PromptEnhancement(text=_IMPROVED, outcome="enhanced"))
+    return (
+        patch(f"{_ENHANCEMENT}.enhance_image_prompt", enhance),
+        patch(
+            "src.domains.image_generation.preferences.settings.image_prompt_enhancement_enabled",
+            offered,
+        ),
+    )
+
+
+@pytest.mark.unit
+class TestPromptEnhancement:
+    """The vendor receives the enhanced prompt; the person keeps their own words (ADR-315)."""
+
+    async def test_an_opted_in_generation_sends_the_enhanced_prompt(self) -> None:
+        caller = _caller(_openai_options(), quality="low", size="1024x1024", enhance_prompt=True)
+        client = _FakeClient()
+        patches = _patched(caller, client)
+        enhance, offered = _enhancer()
+        with patches[0], patches[1] as save, patches[2], patches[3] as track, enhance as e, offered:
+            result = await _run(image_generation_tools.generate_image, "a lighthouse at dusk")
+
+        assert result.success
+        e.assert_awaited_once()
+        assert e.await_args.args[0] == "a lighthouse at dusk"
+        assert e.await_args.kwargs["user_id"] == str(caller.user_id)
+        assert client.calls[0]["prompt"] == _IMPROVED
+        # The billing record says what the vendor received ...
+        assert track.call_args.kwargs["prompt"] == _IMPROVED
+        # ... the gallery and the answer keep what the person asked for.
+        assert save.await_args.kwargs["prompt"] == "a lighthouse at dusk"
+        assert result.structured_data["prompt"] == "a lighthouse at dusk"
+
+    @pytest.mark.parametrize(("opted_in", "offered_flag"), [(False, True), (True, False)])
+    async def test_nothing_is_enhanced_unless_both_the_person_and_the_operator_say_so(
+        self, opted_in: bool, offered_flag: bool
+    ) -> None:
+        caller = _caller(
+            _openai_options(), quality="low", size="1024x1024", enhance_prompt=opted_in
+        )
+        client = _FakeClient()
+        patches = _patched(caller, client)
+        enhance, offered = _enhancer(offered=offered_flag)
+        with patches[0], patches[1], patches[2], patches[3], enhance as e, offered:
+            await _run(image_generation_tools.generate_image, "a lighthouse at dusk")
+
+        e.assert_not_awaited()
+        assert client.calls[0]["prompt"] == "a lighthouse at dusk"
+
+    async def test_an_edit_instruction_is_never_enhanced(self) -> None:
+        """Lens and light language would change what the person asked to keep."""
+        caller = _caller(_openai_options(), quality="medium", size="1024x1536", enhance_prompt=True)
+        client = _FakeClient()
+        patches = _patched(caller, client, source=_photo(3000, 4000))
+        enhance, offered = _enhancer()
+        with patches[0], patches[1], patches[2], patches[3], patches[4], enhance as e, offered:
+            await _run(image_generation_tools.edit_image, "add a hat")
+
+        e.assert_not_awaited()
+        assert client.calls[0]["prompt"] == "add a hat"
 
 
 @pytest.mark.unit

@@ -166,7 +166,7 @@ class WikipediaClient:
         logger.info(
             "wikipedia_search_completed",
             user_id=str(self.user_id) if self.user_id else None,
-            query=query,
+            query_length=len(query),
             language=self.language,
             results_count=len(results),
         )
@@ -253,7 +253,7 @@ class WikipediaClient:
             logger.info(
                 "wikipedia_summary_retrieved",
                 user_id=str(self.user_id) if self.user_id else None,
-                title=title,
+                title_length=len(title),
                 language=self.language,
             )
 
@@ -264,7 +264,7 @@ class WikipediaClient:
                 logger.warning(
                     "wikipedia_article_not_found",
                     user_id=str(self.user_id) if self.user_id else None,
-                    title=title,
+                    title_length=len(title),
                 )
                 return {"error": "Article not found", "title": title}
             raise
@@ -330,7 +330,6 @@ class WikipediaClient:
             logger.warning(
                 "wikipedia_article_missing",
                 user_id=str(self.user_id) if self.user_id else None,
-                title=title,
                 pageid=pageid,
             )
             return {"error": "Article not found", "title": title}
@@ -338,7 +337,6 @@ class WikipediaClient:
         logger.info(
             "wikipedia_article_retrieved",
             user_id=str(self.user_id) if self.user_id else None,
-            title=page.get("title"),
             pageid=page.get("pageid"),
             extract_length=len(page.get("extract", "")),
         )

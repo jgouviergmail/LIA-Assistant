@@ -19,7 +19,7 @@ import pytest
 
 from src.infrastructure.cache import pricing_cache as pricing_cache_module
 from src.infrastructure.cache.pricing_cache import CachedModelPrice, PricingCacheData
-from src.infrastructure.external.currency_api import CurrencyRateService
+from src.infrastructure.external.currency_api import CurrencyQuote, CurrencyRateService
 
 pytestmark = pytest.mark.integration
 
@@ -28,7 +28,12 @@ def test_1_deliberately_pollute_shared_state() -> None:
     """Pollute every state the reset fixture must cover (the 'attacker')."""
     # Class-attribute rate cache (shared by ALL instances — the exact
     # "singleton holding shared state" trap).
-    CurrencyRateService._rate_cache["USD_EUR"] = (Decimal("0.5"), datetime.now(UTC))
+    CurrencyRateService._rate_cache["USD_EUR"] = (
+        CurrencyQuote(rate=Decimal("0.5"), rate_date=None),
+        datetime.now(UTC),
+    )
+    CurrencyRateService._negative_cache["USD_GBP"] = datetime.now(UTC)
+    CurrencyRateService._currencies_cache["https://polluted"] = (("EUR",), datetime.now(UTC))
 
     # Module-level pricing snapshot.
     pricing_cache_module._local_cache = PricingCacheData(
@@ -64,6 +69,8 @@ def test_2_shared_state_is_pristine_after_polluting_test() -> None:
         "CurrencyRateService._rate_cache (class attribute) leaked from the "
         "previous test — the autouse reset fixture is broken"
     )
+    assert CurrencyRateService._negative_cache == {}
+    assert CurrencyRateService._currencies_cache == {}
     assert pricing_cache_module._local_cache is None, (
         "pricing_cache._local_cache (module-level snapshot) leaked from the " "previous test"
     )

@@ -199,7 +199,7 @@ async def claude_server_task_tool(
         "devops_task_draft_created",
         user_id=validated.user_id,
         server=server,
-        task=task[:200],
+        task_length=len(task),
         resumed=bool(resume_session),
         elapsed_ms=int((time.monotonic() - start_time) * 1000),
     )

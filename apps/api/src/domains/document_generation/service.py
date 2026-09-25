@@ -33,6 +33,7 @@ from src.domains.attachments.models import (
 )
 from src.domains.attachments.repository import AttachmentRepository
 from src.domains.attachments.thread_id import conversation_uuid
+from src.domains.attachments.urls import attachment_url
 from src.domains.document_generation.context import build_render_context
 from src.domains.document_generation.document_store import (
     PendingDocument,
@@ -291,7 +292,7 @@ async def generate_document_for_user(
         await db.commit()
         attachment_id = str(attachment.id)
 
-    url = f"/api/v1/attachments/{attachment_id}"
+    url = attachment_url(attachment_id)
     store_pending_document(
         conversation_id,
         PendingDocument(

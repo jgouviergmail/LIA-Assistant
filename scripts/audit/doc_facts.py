@@ -41,7 +41,7 @@ Two mechanisms, chosen per fact and never mixed by accident:
 Writing convention this enforces
 --------------------------------
 A document is free to choose its precision, but not to be precise and wrong:
-``Next.js 16`` and ``Next.js 16.2.11`` are both accepted, ``LangGraph 1.0``
+``Next.js 16`` and the exact pinned version are both accepted, ``LangGraph 1.0``
 against a pinned ``1.2.11`` is not (see :func:`truncate_to_precision`). When a
 sentence means "the 1.x generation" rather than a specific release, write
 ``LangGraph 1.x`` — no digit after the dot, nothing to keep up to date, and the
@@ -51,7 +51,9 @@ reads as a minimum and is checked like any other quoted value.
 HISTORICAL documents (``docs/architecture/ADR-*``, ``docs/superpowers/``) are
 out of scope by construction: they record what was true when they were written,
 and the classification is imported from ``doc_audit`` so "living document" keeps
-exactly one implementation.
+exactly one implementation. The site's public guides are scanned on top of that
+shared corpus (``FACT_ONLY_GLOBS``): the link audit has no business there, the
+version quotes do.
 
 Usage (from the repo root):
     python scripts/audit/doc_facts.py [REPO_ROOT] [--fix] [--include-unstaged]
@@ -88,18 +90,28 @@ from doc_audit import (  # noqa: E402  (deliberate: needs the sys.path line abov
 __all__ = [
     "FACTS",
     "FACT_HISTORICAL",
+    "FACT_ONLY_GLOBS",
     "Exemption",
     "Fact",
     "Occurrence",
     "SourceError",
     "audit_facts",
     "drifted",
+    "fact_documents",
     "fix_facts",
     "floor_values",
     "resolve_facts",
     "rewrite_document",
     "truncate_to_precision",
 ]
+
+
+#: Documents the SITE renders rather than the repository navigates. ``doc_audit``
+#: rightly leaves them out — their links are site routes, not repository paths —
+#: but they quote the stack's versions to every visitor, and no scan held those
+#: quotes: measured 2026-09-25, the six « How » guides still said Python 3.12+
+#: and Next.js 16.2.10 against a pinned 3.14 and 16.3.4.
+FACT_ONLY_GLOBS: tuple[str, ...] = ("apps/web/src/data/guides/*.md",)
 
 
 #: Living documents whose *numbers* are nonetheless history, with the reason.
@@ -723,6 +735,30 @@ def rewrite_document(path: Path, edits: list[tuple[int, int, str]]) -> bool:
     return True
 
 
+def fact_documents(
+    root: Path, tracked: tuple[frozenset[str], frozenset[str]] | None
+) -> list[Path]:
+    """Collect the corpus this module audits.
+
+    The navigated documentation (``doc_audit.doc_files``, one definition shared
+    with the link audit) plus :data:`FACT_ONLY_GLOBS`, filtered the same way:
+    inside a git checkout only what the index (or the preview) tracks.
+
+    Args:
+        root: Repository root.
+        tracked: The tracked files and directories, or ``None`` outside git.
+
+    Returns:
+        Every document to scan, the shared corpus first.
+    """
+    files = list(doc_files(root, tracked))
+    for pattern in FACT_ONLY_GLOBS:
+        for candidate in sorted(root.glob(pattern)):
+            if tracked is None or candidate.relative_to(root).as_posix() in tracked[0]:
+                files.append(candidate)
+    return files
+
+
 def audit_facts(root: Path, *, include_unstaged: bool = False) -> list[Occurrence]:
     """Find every quoted value of every fact across the LIVING documentation.
 
@@ -749,7 +785,7 @@ def audit_facts(root: Path, *, include_unstaged: bool = False) -> list[Occurrenc
     tracked = tracked_paths(root, include_unstaged=include_unstaged)
     occurrences: list[Occurrence] = []
 
-    for doc in doc_files(root, tracked):
+    for doc in fact_documents(root, tracked):
         rel = doc.relative_to(root).as_posix()
         if classify_document(rel) != "LIVING" or rel in FACT_HISTORICAL:
             continue

@@ -99,8 +99,7 @@ async def find_similar_interest(
         # INFO-level for production monitoring of deduplication decisions.
         logger.info(
             "interest_dedup_match_found",
-            new_topic=topic[:50],
-            matched_topic=best_match.topic[:50],
+            new_topic_length=len(topic),
             similarity=round(best_similarity, 4),
             threshold=settings.interest_dedup_similarity_threshold,
             matched_interest_id=str(best_match.id),
@@ -197,13 +196,11 @@ async def _apply_delete(
     interest = await _resolve_target(repo, extracted, user_id, known_ids)
     if interest is None:
         return 0
-    topic = interest.topic[:50]
     await repo.delete(interest)
     logger.info(
         "interest_deleted_by_extraction",
         user_id=user_id,
         interest_id=extracted.interest_id,
-        topic=topic,
     )
     return 1
 
@@ -243,7 +240,6 @@ async def _apply_update(
                 "interest_rename_collision_consolidated",
                 user_id=user_id,
                 interest_id=str(collision.id),
-                topic=collision.topic[:50],
             )
             return 1
 
@@ -261,7 +257,6 @@ async def _apply_update(
         "interest_updated_by_extraction",
         user_id=user_id,
         interest_id=extracted.interest_id,
-        topic=interest.topic[:50],
     )
     return 1
 
@@ -303,7 +298,6 @@ async def _apply_create(
             "interest_consolidated",
             user_id=user_id,
             interest_id=str(existing.id),
-            topic=existing.topic[:50],
             positive_signals=existing.positive_signals,
             previous_status=existing.status,
         )
@@ -335,7 +329,6 @@ async def _apply_create(
         "interest_created",
         user_id=user_id,
         interest_id=str(new_interest.id),
-        topic=extracted.topic[:50],
         category=extracted.category.value,
         confidence=extracted.confidence,
     )
@@ -392,7 +385,7 @@ async def apply_interest_actions(
                 "interest_storage_failed",
                 user_id=user_id,
                 action=extracted.action,
-                topic=extracted.topic[:50] if extracted.topic else "",
+                topic_length=len(extracted.topic or ""),
                 error=str(e),
             )
             continue

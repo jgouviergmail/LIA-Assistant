@@ -95,7 +95,7 @@ def format_with_current_datetime(
             error_type=type(e).__name__,
             user_timezone=user_timezone,
             user_language=user_language,
-            prompt_preview=prompt[:100] if len(prompt) > 100 else prompt,
+            prompt_length=len(prompt),
         )
         # Fail-safe: return original prompt if formatting fails
         return prompt

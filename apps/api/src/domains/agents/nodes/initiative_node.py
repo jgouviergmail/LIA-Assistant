@@ -710,7 +710,7 @@ async def _initiative_core(
         should_act=decision.should_act,
         action_count=len(decision.actions),
         has_suggestion=decision.suggestion is not None,
-        reasoning=decision.reasoning,
+        reasoning_length=len(decision.reasoning),
         run_id=run_id,
         execution_mode=execution_mode,
     )

@@ -92,6 +92,7 @@ apps/web/src/
 | `ATTACHMENTS_MAX_DOC_SIZE_MB` | `20` | Taille max par document PDF (MB) |
 | `ATTACHMENTS_MAX_PER_MESSAGE` | `5` | Nombre max de pieces jointes par message |
 | `ATTACHMENTS_TTL_HOURS` | `24` | Duree de retention sur disque (heures) |
+| `GENERATED_FILES_SEARCH_MAX_RESULTS` | `10` | Fichiers au plus qu'un appel de `find_generated_files_tool` renvoie et montre (ADR-318) |
 | `ATTACHMENTS_MAX_PDF_TEXT_CHARS` | `50000` | Troncature texte PDF extrait (caracteres) |
 | `ATTACHMENTS_ALLOWED_IMAGE_TYPES` | `image/jpeg,image/png,image/webp,image/gif` | Types MIME images autorises |
 | `ATTACHMENTS_ALLOWED_DOC_TYPES` | `application/pdf` | Types MIME documents autorises |
@@ -273,6 +274,31 @@ seule**, pas sur le routeur. Televerser et consulter sont deux capacites qui
 partagent une table : couper la premiere ne doit pas fermer la porte sur des
 fichiers que la personne garde legitimement, ni l'empecher de les supprimer. Le
 routeur `generated-assets` est inclus **sans condition**.
+
+### Retrouver un fichier depuis la conversation (ADR-318)
+
+`find_generated_files_tool` (domaine `generated_file`, les deux modes
+d'exécution) lit la galerie pour le modèle : les familles demandées — ou toutes —
+fusionnées de la plus récente à la plus ancienne sous un plafond publié
+(`GENERATED_FILES_SEARCH_MAX_RESULTS`), avec le total EXACT des correspondances.
+Seuls les fichiers dont l'échéance n'est pas passée sont lus
+(`GalleryFilters.expires_after`, `expires_at > instant`) : la galerie, elle,
+garde toutes ses lignes et montre l'échéance, mais un fichier que le nettoyage
+va retirer ne se remontre pas. Chaque fichier trouvé est MONTRÉ comme la carte
+que le chat dessine déjà, par les files des producteurs (images, documents),
+indexées par la conversation ; le modèle ne doit ajouter ni lien ni image. Le
+chemin d'une pièce jointe a une seule écriture (`attachments/urls.py`,
+`attachment_url`, `ATTACHMENT_PATH_PREFIX`), lue par les quatre producteurs qui
+l'écrivaient à la main et par la liste blanche d'URL de la réponse.
+
+La livraison des cartes ne dépend plus de QUI a mis la carte en file : les
+garde-fous sur `IMAGE_GENERATION_ENABLED` et `DOCUMENT_GENERATION_ENABLED` qui
+entouraient la livraison sont retirés (`image_generation/delivery.py`, sur le
+modèle de `document_generation/delivery.py`). Une carte mise en file derrière
+une porte fermée n'était jamais montrée, ni libérée.
+
+Le téléphone ne propose pas cet outil : il montre des cartes qu'aucune surface
+vocale ne dessine.
 
 ---
 

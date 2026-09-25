@@ -3,7 +3,8 @@
  * specific users additionally requires at least one recipient), the mandatory
  * confirmation before a broadcast leaves, the payload actually posted for both
  * targeting modes, recipient add/remove, the inactive-user filter, the form
- * reset after success, and the failure path.
+ * reset after success, the failure path — and the history below the form,
+ * refreshed only by a send that succeeded (ADR-312).
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -21,6 +22,13 @@ const { useApiMutation } = vi.hoisted(() => ({ useApiMutation: vi.fn() }));
 vi.mock('@/hooks/useApiMutation', () => ({ useApiMutation }));
 const { toast } = vi.hoisted(() => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('sonner', () => ({ toast }));
+// The history has its own suite; here it only has to be MOUNTED and told when
+// a broadcast left, so it is reduced to the prop that carries that.
+vi.mock('../AdminBroadcastHistory', () => ({
+  AdminBroadcastHistory: ({ refreshKey }: { refreshKey: number }) => (
+    <div data-testid="broadcast-history" data-refresh-key={refreshKey} />
+  ),
+}));
 
 import AdminBroadcastSection from '../AdminBroadcastSection';
 
@@ -119,12 +127,25 @@ describe('AdminBroadcastSection — confirmation', () => {
     await waitFor(() => expect(textarea).toHaveValue(''));
   });
 
+  it('refreshes the history under the form once a broadcast has left', async () => {
+    const { user } = render();
+    const history = screen.getByTestId('broadcast-history');
+    expect(history).toHaveAttribute('data-refresh-key', '0');
+
+    await user.type(screen.getByLabelText(MESSAGE_LABEL), 'Maintenance tonight');
+    await confirmSend(user);
+
+    await waitFor(() => expect(history).toHaveAttribute('data-refresh-key', '1'));
+  });
+
   it('reports a failed broadcast', async () => {
     sendBroadcast.mockRejectedValue(new Error('boom'));
     const { user } = render();
     await user.type(screen.getByLabelText(MESSAGE_LABEL), 'Maintenance tonight');
     await confirmSend(user);
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('settings.admin.broadcast.error'));
+    // Nothing left, so nothing new to show: the history is not refreshed.
+    expect(screen.getByTestId('broadcast-history')).toHaveAttribute('data-refresh-key', '0');
   });
 });
 

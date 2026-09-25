@@ -232,7 +232,7 @@ class ConversationOrchestrator:
 
         # INFO level log to diagnose scope loading issues
         # Generalized scope detection for all connector types
-        scope_summary = {
+        scope_flags = {
             "gmail": any("gmail" in s for s in scopes_list),
             "events": any("events" in s for s in scopes_list),
             "drive": any("drive" in s for s in scopes_list),
@@ -245,7 +245,7 @@ class ConversationOrchestrator:
             connectors_count=len(connectors),
             connector_details=connector_details,
             scopes_count=len(scopes_list),
-            scope_summary=scope_summary,
+            scope_flags=scope_flags,
         )
 
         return scopes_list

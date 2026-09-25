@@ -126,6 +126,9 @@ search_user_documents_catalogue_manifest = ToolManifest(
         category="tool",
     ),
     tool_category="search",
+    # Vectors plus a BM25 bonus (ADR-242): conceptual terms are legitimate here,
+    # never a leak the validator should strip (ADR-318).
+    text_search_mode="hybrid",
     version="1.0.0",
     updated_at=datetime.now(UTC),
 )

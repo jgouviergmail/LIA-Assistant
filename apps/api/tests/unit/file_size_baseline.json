@@ -26,7 +26,7 @@
     "domains/agents/services/streaming/service.py": 1326,
     "domains/agents/tools/calendar_tools.py": 1152,
     "domains/agents/tools/drive_tools.py": 825,
-    "domains/agents/tools/emails_tools.py": 1253,
+    "domains/agents/tools/emails_tools.py": 1033,
     "domains/agents/tools/google_contacts_tools.py": 1629,
     "domains/agents/tools/labels_tools.py": 638,
     "domains/agents/tools/mixins.py": 673,

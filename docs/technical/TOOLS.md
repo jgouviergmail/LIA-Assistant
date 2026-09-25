@@ -42,6 +42,11 @@
 | **Reminders** | Local | 3 | `reminder_tools.py` |
 | **Context** | Local | 5 | `context_tools.py` |
 | **Query** | Local | 1 | `local_query_tool.py` |
+| **Memory** | Local | 1 | `memory_search_tools.py` (ADR-313) |
+| **Calculation** | Local + Standalone (taux BCE) | 3 | `calculation_tools.py` (ADR-318) |
+| **Journal** | Local | 1 | `journal_search_tools.py` (ADR-318) |
+| **Activity** | Local | 1 | `activity_tools.py` (ADR-318) |
+| **Generated files** | Local | 1 | `generated_files_tools.py` (ADR-318) |
 | **MCP (per-user)** | MCP External | dynamic | `infrastructure/mcp/user_tool_adapter.py` |
 
 > **Types de connexion** : **Google OAuth** = authentification OAuth2 via Google ; **API Key** = clé API tierce configurée en `.env` ; **Hybrid** = local API key for LAN control + remote OAuth2 for cloud access (Philips Hue) ; **Standalone** = aucune authentification requise (accès direct HTTP) ; **Local** = outil interne sans appel externe ; **MCP External** = outils découverts dynamiquement via Model Context Protocol.

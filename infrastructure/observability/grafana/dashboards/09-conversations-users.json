@@ -1926,6 +1926,118 @@
         }
       },
       "description": "What a reset matched but kept: learning and runtime scopes are expected; an 'undeclared' family is a key the registry can neither purge nor protect knowingly — declare it in infrastructure/cache/key_families.py."
+    },
+    {
+      "id": 109,
+      "title": "Peers — connections, relayed messages, shared images",
+      "type": "row",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 103
+      },
+      "panels": []
+    },
+    {
+      "id": 110,
+      "title": "Relayed messages (1h, by outcome)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 0,
+        "y": 104
+      },
+      "targets": [
+        {
+          "expr": "sum by (outcome) (increase(peers_messages_total[1h])) or vector(0)",
+          "legendFormat": "{{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "Delivery outcomes of messages relayed between connections: `delivered`, `retried` (a real failure that will be attempted again), `failed` (the attempts ran out — the sender was told), `cancelled` (the world changed since the send: a block, a removal)."
+    },
+    {
+      "id": 111,
+      "title": "Connection lifecycle events (1h, by kind)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 8,
+        "y": 104
+      },
+      "targets": [
+        {
+          "expr": "sum by (kind) (increase(peers_events_total[1h])) or vector(0)",
+          "legendFormat": "{{kind}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "Connection requests created, accepted and declined, and connections removed — each one a notification to the people concerned."
+    },
+    {
+      "id": 112,
+      "title": "Shared images (1h, by outcome)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 16,
+        "y": 104
+      },
+      "targets": [
+        {
+          "expr": "sum by (outcome) (increase(peers_image_shares_total[1h])) or vector(0)",
+          "legendFormat": "{{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "Generated images shared with a connection (ADR-316): `shared` put a copy in the recipient's gallery; `not_connected`, `not_shareable` and `quota` refused before any copy; `failed` is a copy or a write that did not complete, and nothing was kept."
     }
   ]
 }

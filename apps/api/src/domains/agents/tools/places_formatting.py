@@ -220,7 +220,6 @@ def _format_place(
         logger.warning(
             "place_missing_coordinates_for_distance",
             place_id=place_id,
-            place_name=formatted.get("name"),
             has_location=bool(location),
         )
 

@@ -33,6 +33,7 @@ from src.core.config import settings
 from src.core.exceptions import ConnectorAPIError, ExternalServiceError, ValidationError
 from src.domains.connectors.clients.google_api_tracker import track_google_api_call
 from src.domains.connectors.models import ConnectorType
+from src.infrastructure.observability.log_facts import log_unreadable_text
 
 logger = structlog.get_logger(__name__)
 
@@ -374,7 +375,7 @@ class GoogleRoutesClient:
                 }
             elif "address" in location:
                 return {"address": location["address"]}
-        raise ValueError(f"Invalid location format: {location}")
+        raise ValueError("Invalid location format: expected coordinates or an address")
 
     # =========================================================================
     # COMPUTE ROUTE
@@ -531,8 +532,6 @@ class GoogleRoutesClient:
                     user_id=str(self.user_id) if self.user_id else "global",
                     status_code=response.status_code,
                     error=error_detail[:500],
-                    origin=str(origin)[:50],
-                    destination=str(destination)[:50],
                 )
                 raise ConnectorAPIError(
                     connector_type="google_routes",
@@ -553,8 +552,6 @@ class GoogleRoutesClient:
                 logger.warning(
                     "routes_api_no_route",
                     user_id=str(self.user_id) if self.user_id else "global",
-                    origin=str(origin)[:50],
-                    destination=str(destination)[:50],
                     travel_mode=travel_mode.value,
                 )
                 return {"routes": [], "error": "No route found"}
@@ -575,8 +572,6 @@ class GoogleRoutesClient:
                 "routes_api_request_error",
                 user_id=str(self.user_id) if self.user_id else "global",
                 error=str(e),
-                origin=str(origin)[:50],
-                destination=str(destination)[:50],
             )
             raise ExternalServiceError(
                 service_name="google_routes",
@@ -693,9 +688,8 @@ class GoogleRoutesClient:
                         try:
                             results.append(json.loads(line))
                         except json.JSONDecodeError:
-                            logger.warning(
-                                "routes_matrix_ndjson_line_parse_failed",
-                                line_preview=line[:100],
+                            log_unreadable_text(
+                                logger, "routes_matrix_ndjson_line_parse_failed", line
                             )
 
             # Google bills a matrix per element RETURNED, at the SKU the request

@@ -80,3 +80,17 @@ email_digest_cache_total = Counter(
     "that never hits.",
     ["result"],
 )
+
+image_prompt_enhancement_total = Counter(
+    "image_prompt_enhancement_total",
+    "Outcome of every image prompt handed to the optional enhancement step (ADR-315), "
+    "for the accounts that turned it on. 'enhanced' is one short model call whose "
+    "rewrite was sent to the image model; 'unchanged' a call that returned the request "
+    "as it was; 'rejected' a rewrite discarded by the deterministic checks (empty, "
+    "past the published bound, or a quoted text lost); 'failed' a model refusal or a "
+    "truncated answer (ADR-275); 'skipped_quota' a ceiling refusal. Every outcome but "
+    "'enhanced' sends the ORIGINAL prompt. A rising 'rejected' or 'failed' share names "
+    "a model that cannot hold the rules; an 'unchanged' share that dominates names a "
+    "prompt that no longer improves anything.",
+    ["outcome"],
+)

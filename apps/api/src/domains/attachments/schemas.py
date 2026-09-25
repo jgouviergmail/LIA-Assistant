@@ -56,6 +56,10 @@ class GeneratedAssetSummary(BaseModel):
     expires_at: datetime = Field(
         description="When the cleanup removes it (UTC) — stated, never implied.",
     )
+    shared_by_name: str | None = Field(
+        default=None,
+        description="Who shared this image, for a copy a connection sent (ADR-316); None otherwise.",
+    )
 
 
 class GeneratedAssetListResponse(BaseModel):

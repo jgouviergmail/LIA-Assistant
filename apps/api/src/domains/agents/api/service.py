@@ -1131,24 +1131,16 @@ class AgentService(
                                     str(_jid) for _jid in _injected_journal_ids
                                 ][:RESPONSE_FEEDBACK_JOURNAL_IDS_MAX]
 
-                            # Persist generated image URLs in message metadata
-                            # so they survive page reload (frontend reads them back)
-                            if getattr(settings, "image_generation_enabled", False):
-                                from src.domains.image_generation.image_store import (
-                                    peek_pending_images,
-                                    to_wire_metadata,
-                                )
+                            # Persist image cards in message metadata so they
+                            # survive a page reload — whoever queued them (the
+                            # image tool, the generated-files lookup, ADR-318).
+                            from src.domains.image_generation.delivery import (
+                                attach_archived_images,
+                            )
 
-                                peeked = peek_pending_images(str(conversation_id))
-                                if peeked:
-                                    # Same serializer as the done chunk below: the
-                                    # reloaded card must be the live one, purge
-                                    # deadline (N2) included.
-                                    assistant_metadata["generated_images"] = to_wire_metadata(
-                                        peeked
-                                    )
+                            attach_archived_images(assistant_metadata, str(conversation_id))
 
-                            # Generated document cards (ADR-226): flag check,
+                            # Generated document cards (ADR-226):
                             # peek and serialization live in the helper so this
                             # hotspot gains no branch and no drift surface.
                             from src.domains.document_generation.delivery import (
@@ -1182,6 +1174,7 @@ class AgentService(
                                         from src.domains.attachments.thread_id import (
                                             conversation_uuid,
                                         )
+                                        from src.domains.attachments.urls import attachment_url
                                         from src.infrastructure.database.session import (
                                             get_db_context,
                                         )
@@ -1220,9 +1213,7 @@ class AgentService(
                                             )
                                             await attach_db.commit()
 
-                                        browser_screenshot_card_url = (
-                                            f"/api/v1/attachments/{attachment.id}"
-                                        )
+                                        browser_screenshot_card_url = attachment_url(attachment.id)
                                         assistant_metadata["browser_screenshot"] = {
                                             "url": browser_screenshot_card_url,
                                             "alt": "Browser screenshot",
@@ -1569,19 +1560,11 @@ class AgentService(
                                 tts_snapshot_for_done["tts_cost_eur"]
                             )
 
-                    # === IMAGE GENERATION: Include image URLs in done metadata ===
-                    # Images are saved as Attachments by the tool. We pass the
-                    # URLs in done metadata so the frontend renders them as
-                    # dedicated cards (not inside markdown, avoiding proxy/hydration issues).
-                    if getattr(settings, "image_generation_enabled", False):
-                        from src.domains.image_generation.image_store import (
-                            get_and_clear_pending_images,
-                            to_wire_metadata,
-                        )
+                    # === IMAGE CARDS: in the done metadata, drawn as dedicated
+                    # cards (not inside markdown, avoiding proxy/hydration issues) ===
+                    from src.domains.image_generation.delivery import attach_done_images
 
-                        pending_images = get_and_clear_pending_images(str(conversation_id))
-                        if pending_images:
-                            done_metadata["generated_images"] = to_wire_metadata(pending_images)
+                    attach_done_images(done_metadata, str(conversation_id))
 
                     # === DOCUMENT GENERATION: card metadata in the done chunk (ADR-226) ===
                     from src.domains.document_generation.delivery import (

@@ -103,7 +103,6 @@ class ScheduledActionService:
             "scheduled_action_created",
             action_id=str(action.id),
             user_id=str(user_id),
-            title=data.title,
             next_trigger_at=next_trigger_at.isoformat() if next_trigger_at else None,
         )
 

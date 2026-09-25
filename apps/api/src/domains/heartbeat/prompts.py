@@ -127,7 +127,7 @@ async def get_heartbeat_decision(
     logger.info(
         "heartbeat_decision_result",
         action=decision.action,
-        reason=decision.reason[:100],
+        reason_length=len(decision.reason),
         priority=decision.priority,
         sources_used=decision.sources_used,
         tokens_in=tokens_in,

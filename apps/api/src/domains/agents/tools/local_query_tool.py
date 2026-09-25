@@ -222,7 +222,7 @@ async def local_query_engine_tool(
             logger.error(
                 "local_query_invalid_schema",
                 error=str(e),
-                query=query,
+                query_length=len(str(query)),
             )
             return UnifiedToolOutput.failure(
                 message=f"Query validation failed: {e}",
@@ -337,7 +337,7 @@ async def local_query_engine_tool(
         logger.error(
             "local_query_unexpected_error",
             error=str(e),
-            query=query,
+            query_length=len(str(query)),
             exc_info=True,
         )
         return UnifiedToolOutput.failure(

@@ -14,6 +14,7 @@ import {
   NodeChip,
   SubSectionHeader,
 } from '../shared';
+import { callModel, callModelTitle } from '../../utils/call-model';
 import { MODEL_NAME_TRUNCATE_LENGTH } from '../../utils/constants';
 import { formatTokenCount, formatCost, truncateText } from '../../utils/formatters';
 import { TONE_TEXT } from '../../utils/tones';
@@ -152,6 +153,9 @@ export const LLMCallsSection = React.memo(function LLMCallsSection({
             // name a value nobody set.
             const failed = call.status != null && call.status !== 'success';
             const sent = describeParams(call);
+            // The configured name leads; the provider's own name only when it
+            // differs (an alias it resolved, a dated snapshot).
+            const model = callModel(call);
 
             return (
               <div key={`${call.node_name}-${index}`} className="border-l-2 border-border pl-3 pb-1">
@@ -166,9 +170,9 @@ export const LLMCallsSection = React.memo(function LLMCallsSection({
                   </div>
                   <span
                     className="ml-2 truncate font-mono text-[10px] text-muted-foreground"
-                    title={`${call.provider ? `${call.provider} · ` : ''}${call.model_name}`}
+                    title={`${call.provider ? `${call.provider} · ` : ''}${callModelTitle(model)}`}
                   >
-                    {truncateText(call.model_name, MODEL_NAME_TRUNCATE_LENGTH)}
+                    {truncateText(model.name, MODEL_NAME_TRUNCATE_LENGTH)}
                   </span>
                 </div>
 
@@ -206,6 +210,14 @@ export const LLMCallsSection = React.memo(function LLMCallsSection({
                     <div className="flex justify-between">
                       <span>Slot:</span>
                       <span className="font-mono">{call.llm_type}</span>
+                    </div>
+                  )}
+                  {model.servedAs && (
+                    <div className="flex justify-between gap-2">
+                      <span className="shrink-0">Served as:</span>
+                      <span className="truncate font-mono" title={model.servedAs}>
+                        {model.servedAs}
+                      </span>
                     </div>
                   )}
                   {sent && (

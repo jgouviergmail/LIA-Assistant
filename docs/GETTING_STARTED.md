@@ -5,7 +5,7 @@
 
 **Version**: 4.0
 **Last Updated**: 2026-08-22
-**Compatibility**: LIA v1.47.3
+**Compatibility**: LIA v1.47.4
 
 ## Table of Contents
 
@@ -29,7 +29,7 @@
 
 ## Project Overview
 
-**LIA** is a multi-agent conversational AI assistant built with **FastAPI**, **Next.js** and **LangGraph**. It orchestrates 20+ specialized agents and 115 exposed tools across Google, Microsoft and Apple services (contacts, emails, calendar, files, tasks), plus Places, Routes, Weather, Wikipedia, Perplexity, Brave Search, web fetch, browser control, Philips Hue, image generation and per-user MCP servers.
+**LIA** is a multi-agent conversational AI assistant built with **FastAPI**, **Next.js** and **LangGraph**. It orchestrates 20+ specialized agents and 123 exposed tools across Google, Microsoft and Apple services (contacts, emails, calendar, files, tasks), plus Places, Routes, Weather, Wikipedia, Perplexity, Brave Search, web fetch, browser control, Philips Hue, image generation and per-user MCP servers.
 
 Two user-toggleable execution modes (switchable in the chat header):
 
@@ -43,7 +43,7 @@ Both modes converge on the same streaming response (SSE) and the same HITL (Huma
 | | |
 |---|---|
 | Specialized agents | 20+ |
-| Tools | 115 |
+| Tools | 123 |
 | LLM providers (text) | 7 — OpenAI, Anthropic, DeepSeek, Google Gemini, Qwen, Perplexity, Ollama |
 | Voice providers | ElevenLabs (STT/TTS), Edge TTS (free), OpenAI TTS + local Whisper STT |
 | Configurable LLM slots | 54 (admin UI, hot-reloaded) |

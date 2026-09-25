@@ -25,6 +25,7 @@ from src.core.constants import (
 from src.infrastructure.browser.accessibility import AccessibilityTreeExtractor, AXNode
 from src.infrastructure.browser.models import PageSnapshot
 from src.infrastructure.browser.security import BrowserSecurityPolicy
+from src.infrastructure.observability.log_facts import url_host
 from src.infrastructure.observability.metrics_browser import (
     browser_actions_total,
     browser_navigation_duration_seconds,
@@ -84,7 +85,7 @@ class BrowserSession:
             new_page: The newly opened page (popup or tab).
         """
         if self.page is not None and new_page != self.page:
-            logger.info("browser_popup_closed", url=new_page.url[:200])
+            logger.info("browser_popup_closed", url_host=url_host(new_page.url))
             await new_page.close()
 
     async def navigate(self, url: str) -> PageSnapshot:
@@ -419,7 +420,7 @@ class BrowserSession:
                 locator = self.page.locator(selector).first
                 if await locator.is_visible(timeout=500):
                     await locator.click(timeout=2000)
-                    logger.info("browser_cookie_banner_dismissed", selector=selector[:50])
+                    logger.info("browser_cookie_banner_dismissed", selector=selector)
                     # Wait for page to reload after cookie acceptance
                     # Many sites reload content dynamically after consent
                     try:

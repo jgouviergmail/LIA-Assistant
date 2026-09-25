@@ -1,7 +1,7 @@
 {
-  "version": "1.47.3",
-  "releaseDate": "2026-09-24",
-  "releases": 268,
+  "version": "1.47.4",
+  "releaseDate": "2026-09-25",
+  "releases": 269,
   "milestones": [
     {
       "version": "1.0.0",
@@ -196,8 +196,8 @@
       "date": "2026-09-20"
     },
     {
-      "version": "1.47.3",
-      "date": "2026-09-24"
+      "version": "1.47.4",
+      "date": "2026-09-25"
     }
   ],
   "domains": 51,
@@ -512,6 +512,13 @@
     "308": "ADR-308-ReAct-Cross-Turn-Prompt-Cache.md",
     "309": "ADR-309-One-Prompt-Layout-For-Every-Cache-Mechanism.md",
     "310": "ADR-310-ReAct-Turn-Judged-On-Its-Result.md",
-    "311": "ADR-311-Exchange-Rhythm-Is-The-Persons-Choice.md"
+    "311": "ADR-311-Exchange-Rhythm-Is-The-Persons-Choice.md",
+    "312": "ADR-312-A-Broadcast-Says-Who-It-Was-Addressed-To.md",
+    "313": "ADR-313-Long-Term-Memory-As-An-Active-Lookup.md",
+    "314": "ADR-314-An-E-Mail-To-Oneself-Needs-No-Confirmation.md",
+    "315": "ADR-315-Image-Prompt-Enhancement.md",
+    "316": "ADR-316-Sharing-A-Generated-Image-With-A-Connection.md",
+    "317": "ADR-317-A-Log-Line-Carries-Facts-Never-The-Words.md",
+    "318": "ADR-318-Assistant-Tools-Exact-Answers-And-Own-Records.md"
   }
 }

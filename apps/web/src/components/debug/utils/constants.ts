@@ -110,3 +110,16 @@ export const DEBUG_WIDTHS = {
   /** Numeric score (2.5rem) */
   scoreValue: 'w-10',
 } as const;
+
+/**
+ * The debug panel's width, in CSS pixels — the person drags it (owner request
+ * 2026-09-24) and the page keeps the conversation readable beside it.
+ */
+export const DEBUG_PANEL_WIDTH_DEFAULT = 400;
+export const DEBUG_PANEL_WIDTH_MIN = 320;
+/** The conversation keeps at least this much room: widening encroaches, never erases. */
+export const DEBUG_PANEL_CHAT_MIN_WIDTH = 360;
+/** The gap between the conversation and the panel (`gap-4`). */
+export const DEBUG_PANEL_GAP = 16;
+/** One arrow press; with Shift, four times as much. */
+export const DEBUG_PANEL_WIDTH_STEP = 16;

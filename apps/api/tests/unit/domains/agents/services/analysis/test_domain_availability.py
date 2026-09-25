@@ -1,15 +1,18 @@
 """The router's menu of domains must match what the deployment can actually run.
 
-Three domains are deployment-flag-gated. For each, the flag already gates the
+Some domains are deployment-flag-gated. For each, the flag already gates the
 tools and the REST surface, so a domain left in the menu while its flag is off
 is a domain the router can pick and the planner can then plan over nothing —
 which never raises, it just answers badly.
 
 ``peer`` was in exactly that state until 2026-07-30: ``peers_enabled`` gated
 the router, the catalogue manifests and the tool modules, but not this
-chokepoint.
+chokepoint. ``ticket`` was in it until 2026-09-24: it DECLARED
+``workboard_enabled`` in the taxonomy while this table did not hold it, because
+the check below read the table against the taxonomy and never the reverse.
 """
 
+from contextlib import ExitStack
 from unittest.mock import patch
 
 import pytest
@@ -26,6 +29,8 @@ EXPECTED_GATED = {
     "telephony": "telephony_enabled",
     "document": "rag_spaces_enabled",
     "peer": "peers_enabled",
+    "ticket": "workboard_enabled",
+    "journal": "journals_enabled",
 }
 
 
@@ -34,13 +39,13 @@ def test_gated_table_matches_the_documented_deployment_flags():
 
 
 def _names(**flags: bool) -> set[str]:
-    """Available domain names with the three deployment flags forced."""
-    with (
-        patch("src.core.config.settings.telephony_enabled", flags["telephony_enabled"]),
-        patch("src.core.config.settings.rag_spaces_enabled", flags["rag_spaces_enabled"]),
-        patch("src.core.config.settings.peers_enabled", flags["peers_enabled"]),
-        patch("src.infrastructure.mcp.registration.get_admin_mcp_domains", return_value={}),
-    ):
+    """Available domain names with every deployment flag of the table forced."""
+    with ExitStack() as stack:
+        for flag in FLAG_GATED_DOMAINS.values():
+            stack.enter_context(patch(f"src.core.config.settings.{flag}", flags[flag]))
+        stack.enter_context(
+            patch("src.infrastructure.mcp.registration.get_admin_mcp_domains", return_value={})
+        )
         return {d["name"] for d in build_available_domains()}
 
 
@@ -86,3 +91,15 @@ def test_every_flag_gated_domain_declares_its_flag_in_the_taxonomy():
         declared = (config.metadata or {}).get("feature_flag")
         if declared is not None:
             assert declared == flag
+
+
+def test_every_flag_the_taxonomy_declares_is_enforced_here():
+    """The reverse direction: a declared flag this chokepoint ignores is decoration."""
+    from src.domains.agents.registry.domain_taxonomy import DOMAIN_REGISTRY
+
+    declared = {
+        name: config.metadata["feature_flag"]
+        for name, config in DOMAIN_REGISTRY.items()
+        if (config.metadata or {}).get("feature_flag") and config.is_routable
+    }
+    assert declared.items() <= FLAG_GATED_DOMAINS.items()

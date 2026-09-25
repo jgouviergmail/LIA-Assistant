@@ -27,6 +27,7 @@ function asset(over: Partial<GeneratedAsset> = {}): GeneratedAsset {
     conversation_id: null,
     created_at: '2026-09-10T08:00:00Z',
     expires_at: '2026-09-11T08:00:00Z',
+    shared_by_name: null,
     ...over,
   };
 }

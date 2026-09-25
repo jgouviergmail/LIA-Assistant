@@ -174,7 +174,7 @@ class PerplexityContentSource:
 
             logger.info(
                 "perplexity_source_content_generated",
-                topic=topic,
+                topic_length=len(topic),
                 answer_length=len(answer),
                 citations_count=len(citations),
                 user_id=user_id,
@@ -198,14 +198,14 @@ class PerplexityContentSource:
                 logger.warning(
                     "perplexity_source_invalid_api_key",
                     user_id=user_id,
-                    topic=topic,
+                    topic_length=len(topic),
                 )
             return None
 
         except Exception as e:
             logger.warning(
                 "perplexity_source_generation_failed",
-                topic=topic,
+                topic_length=len(topic),
                 user_id=user_id,
                 error=str(e),
                 error_type=type(e).__name__,

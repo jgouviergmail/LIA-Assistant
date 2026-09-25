@@ -101,6 +101,12 @@ FIELD_OUTPUT = "output"
 FIELD_RESOURCE_NAME = "resource_name"
 FIELD_INDEX = "index"  # Item index in lists (1-based)
 FIELD_METADATA = "metadata"  # Metadata dictionaries (LangChain, LangGraph, custom)
+# The configured slot and provider of a model call, in callback metadata. The
+# factory stamps both on every model it builds (a model's own metadata wins over
+# the caller's config, whose graph-level value is « agent_graph »), the
+# instrumented config writes the slot too, and the token callback reads both.
+FIELD_LLM_TYPE = "llm_type"
+FIELD_LLM_PROVIDER = "llm_provider"
 FIELD_PARAMETERS = "parameters"  # Tool/function parameters
 FIELD_RESULT = "result"  # Tool/agent result data
 FIELD_REACT_SYNTHESIS = "react_synthesis"  # ReAct loop's final answer (response passthrough key)

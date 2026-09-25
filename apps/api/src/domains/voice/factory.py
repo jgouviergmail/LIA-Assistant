@@ -158,7 +158,7 @@ def _parse_provider_config(raw: object) -> dict[str, Any]:
     try:
         parsed = json.loads(raw)
     except TypeError, ValueError:
-        logger.warning("tts_provider_config_invalid_json", raw_preview=str(raw)[:120])
+        logger.warning("tts_provider_config_invalid_json", raw_length=len(str(raw)))
         return {}
     return parsed if isinstance(parsed, dict) else {}
 

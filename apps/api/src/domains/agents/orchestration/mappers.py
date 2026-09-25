@@ -128,7 +128,7 @@ def _upsert_contact(contacts_dict: dict[str, dict[str, Any]], contact: dict[str,
         resource_name = f"_synthetic_{len(contacts_dict)}"
         logger.warning(
             "contact_without_resource_name",
-            contact_preview=str(contact)[:200],
+            contact_keys=sorted(contact),
         )
 
     if resource_name in contacts_dict:
@@ -774,7 +774,6 @@ def map_execution_result_to_agent_result(
         "attempting_result_normalization",
         composite_key=composite_key,
         results_count=len(all_results_data),
-        results_preview=str(all_results_data)[:500] if all_results_data else "EMPTY",
         data_registry_provided=data_registry is not None,
         data_registry_items=len(data_registry) if data_registry else 0,
     )

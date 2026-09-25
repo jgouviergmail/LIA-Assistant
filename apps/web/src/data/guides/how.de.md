@@ -6,7 +6,7 @@
 
 **Version**: 5.1
 **Datum**: 2026-09-24
-**Application**: LIA v1.47.3
+**Application**: LIA v1.47.4
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -70,8 +70,8 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Self-Hosting ARM64 | Docker Multi-Arch, semantische Embeddings (mehrsprachig), Playwright Chromium Cross-Platform |
 | Datensouveränität | Lokales PostgreSQL (kein SaaS-DB), Fernet-Verschlüsselung im Ruhezustand, lokale Redis-Sessions |
 | Multi-Provider-LLM | Factory Pattern mit 7 Adaptern, Konfiguration pro Knoten, keine enge Kopplung an einen Provider |
-| Vollständige Transparenz | 587 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
-| Produktionszuverlässigkeit | 310 ADRs, ~32.106 von pytest gesammelte Tests in 1.937 Dateien, native Observability, HITL auf 6 Ebenen |
+| Vollständige Transparenz | 589 Prometheus-Metriken, eingebettetes Debug-Panel, Token-für-Token-Tracking |
+| Produktionszuverlässigkeit | 317 ADRs, ~32.725 von pytest gesammelte Tests in 1.974 Dateien, native Observability, HITL auf 6 Ebenen |
 | Kontrollierte Kosten | Smart Services (89 % Token-Einsparung), semantische Embeddings, Prompt Caching, Katalogfilterung |
 
 ### 1.2. Architekturprinzipien
@@ -89,11 +89,11 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 
 | Metrik | Wert |
 |----------|--------|
-| Tests | 32.106 von pytest über 1.937 Testdateien gesammelt + 9.071 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
-| pytest-Fixtures | 1.069, davon 48 über conftest geteilt |
-| Dokumentationsdokumente | 694 |
-| ADRs (Architecture Decision Records) | 310 |
-| Prometheus-Metriken | 587 Definitionen |
+| Tests | 32.725 von pytest über 1.974 Testdateien gesammelt + 9.160 vitest-Tests im Frontend (Abdeckungsschwellen fixiert, ADR-116) |
+| pytest-Fixtures | 1.082, davon 48 über conftest geteilt |
+| Dokumentationsdokumente | 703 |
+| ADRs (Architecture Decision Records) | 317 |
+| Prometheus-Metriken | 589 Definitionen |
 | Grafana-Dashboards | 30 |
 | Unterstützte Sprachen (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -105,27 +105,27 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 
 | Technologie | Version | Rolle | Warum diese Wahl |
 |-------------|---------|------|-------------------|
-| Python | 3.12+ | Runtime | Reichstes ML/KI-Ökosystem, natives Async, vollständiges Typing |
+| Python | 3.14 | Runtime | Reichstes ML/KI-Ökosystem, natives Async, vollständiges Typing |
 | FastAPI | 0.136.3 | REST-API + SSE | Automatische Pydantic-Validierung, OpenAPI-Docs, Async-First, Performance |
 | LangGraph | 1.2.11 | Multi-Agent-Orchestrierung | Einziges Framework mit nativer State-Persistenz + Zyklen + Interrupts (HITL) |
-| LangChain Core | 1.5.5 | LLM/Tools-Abstraktionen | `@tool`-Decorator, Nachrichtenformate, standardisierte Callbacks |
+| LangChain Core | 1.5.6 | LLM/Tools-Abstraktionen | `@tool`-Decorator, Nachrichtenformate, standardisierte Callbacks |
 | SQLAlchemy | 2.0.50 | Async ORM | `Mapped[Type]` + `mapped_column()`, Async Sessions, `selectinload()` |
 | PostgreSQL | 16 + pgvector | Datenbank + Vektorsuche | Native LangGraph-Checkpoints, semantische HNSW-Suche, Reife |
 | Redis | 7.4 | Cache, Sessions, Rate Limiting | O(1)-Operationen, atomisches Sliding Window (Lua), SETNX Leader Election |
 | Pydantic | 2.13.4 | Validierung + Serialisierung | `ConfigDict`, `field_validator`, Settings-Komposition via MRO |
-| structlog | latest | Strukturiertes Logging | JSON-Ausgabe mit automatischer PII-Filterung, snake_case Events |
+| structlog | 25.5 | Strukturiertes Logging | JSON-Ausgabe mit automatischer PII-Filterung, snake_case Events |
 | Gemini Embeddings | gemini-embedding-001 | Semantische Embeddings | Mehrsprachige Gemini-Embeddings (Gedächtnis, Routing, Interessen, Journale) — ADR-069 |
-| Playwright | latest | Browser-Automatisierung | Chromium Headless, CDP Accessibility Tree, Cross-Platform |
+| Playwright | 1.60 | Browser-Automatisierung | Chromium Headless, CDP Accessibility Tree, Cross-Platform |
 | APScheduler | 3.x | Hintergrund-Jobs | Cron/Interval-Trigger, kompatibel mit Redis Leader Election |
 
 ### 2.2. Frontend
 
 | Technologie | Version | Rolle |
 |-------------|---------|------|
-| Next.js | 16.2.10 | App Router, SSR, ISR |
+| Next.js | 16.3.4 | App Router, SSR, ISR |
 | React | 19.2.7 | UI mit Server Components |
-| TypeScript | 6.0.2 | Striktes Typing |
-| TailwindCSS | 4.3.2 | Utility-First CSS |
+| TypeScript | 6.0.3 | Striktes Typing |
+| TailwindCSS | 4.3.3 | Utility-First CSS |
 | TanStack Query | 5.101 | Server State Management, Cache, Mutations |
 | Radix UI | v2 | Barrierefreie UI-Primitives |
 | react-i18next | 17.0 | i18n (6 Sprachen), Namespace-basiert |
@@ -401,6 +401,8 @@ Drei Designentscheidungen tragen das Feature. Erstens die Ehrlichkeit des Artefa
 
 Die Bildgenerierung folgt derselben Regel des erklärten Angebots (ADR-305). Eine **Familie** – OpenAI GPT Image, Qwen Image 3.0 – erklärt, was ein Modell akzeptiert: seine Qualitäten, seine Größen (eine feste Liste oder eine Flächenhülle), seine Abrechnungsstufen und ob das Referenzbild einer Bearbeitung pro Bild berechnet wird. Jede Oberfläche liest diese eine Antwort: Ein Modell, das keine Familie erklärt, wird weder bepreist noch angeboten, ausgewählt oder ausgeführt. Ein Client pro Anbieter führt das konfigurierte Modell aus – die OpenAI-Bearbeitung läuft über `images.edit` auf diesem Modell, wo ein Umweg über die Responses-API das Standardmodell des SDK und ein Textmodell ausführte, das niemand zählte –, ein als URL geliefertes Ergebnis wird sofort unter einer Host-Allowlist heruntergeladen, begrenzt und geprüft, und die Vorliebe der Person ist eine Absicht, die zur Laufzeit in das Angebot des Modells aufgelöst wird (die günstigste angebotene Qualität, die Größe gleicher Ausrichtung mit der nächstliegenden Fläche) und dann als wirksamer Wert veröffentlicht wird. Das gewählte Format wird einmal für alle Anbieter angewendet, indem das Bild vor dem Speichern umgewandelt wird.
 
+Auf Wunsch der Person kann die Beschreibung eines **neuen** Bildes vor dem Aufruf von einem eigenen Slot umgeschrieben werden, nach den Empfehlungen, die jeder Anbieter veröffentlicht (ADR-315). Das ist eine Verbesserung, nie ein Tor: Ein in Anführungszeichen zitierter Text muss unverändert zurückkommen, und eine leere, zu lange oder gescheiterte Umschreibung lässt die ursprüngliche Beschreibung hinausgehen; eine Bearbeitung wird nie umgeschrieben; der Aufruf wird abgerechnet und protokolliert wie jeder andere, und die Galerie behält die Worte der Person. Der Betreiber kann die Option für die ganze Instanz zurückziehen, und der Optionsbildschirm veröffentlicht diesen Zustand, statt eine wirkungslose Einstellung anzubieten.
+
 ### 5.6. Was die Person behält: erzeugte Dateien und behaltene Antworten (ADR-279, ADR-282)
 
 Ein Artefakt und eine Antwort folgen zwei verschiedenen Lebenszyklen, sobald sie existieren, und beide gehören der Person, nicht der Unterhaltung. Eine erzeugte Datei — ein Bild, ein Dokument, ein Browser-Screenshot — ist ein Anhang mit gestempelter **Herkunft**, in einer eigenen Galerie gelistet, mit genauer Gesamtzahl und sichtbarer Aufbewahrungsfrist; das Leeren einer Unterhaltung entfernt, was die Person hochgeladen hat, und nie, was LIA erzeugt hat, weil eine Bereinigung entfernt, was ihre Familie deklariert, nicht, was ihr bloß ähnelt.
@@ -410,6 +412,8 @@ Eine Antwort, die die Person behalten will, ist ein anderes Objekt: Sie ist Pros
 Das Lesen und Löschen eigener Dateien überlebt die Upload-Obergrenze: der Router `attachments` wird unabhängig von `ATTACHMENTS_ENABLED` eingehängt, die Fähigkeitswache sitzt allein auf dem Upload. Da jedes erzeugte Dokument über diese Leseroute ausgeliefert wird, macht eine Instanz, die erzeugt, ohne Uploads anzunehmen — der Demonstrator —, das von ihr Erzeugte öffenbar, und der Ablaufdurchlauf läuft für die vier Produzenten der Tabelle, nie nur für den Upload.
 
 Eine aufbewahrte Antwort wird außerdem **als Dokument eines Wissensraums indexiert** (ADR-291): ein Raum pro Konto, über seine Rolle gefunden und nie über seinen Namen, beim ersten Lesezeichen angelegt, standardmäßig aktiv, außerhalb der Raum- und Dokumentgrenzen. Das Lesezeichen bleibt der Datensatz und das Dokument seine Projektion — ein datierter Titel, die zitierte Anfrage, die Antwort in Markdown umgewandelt, wenn sie eine HTML-Seite war —, sodass der angezeigte Zustand (indexiert, ausstehend, unter einer Ausgabengrenze zurückgestellt, deaktiviert, fehlerhaft) vom Dokument abgeleitet wird, solange es existiert, und die Kosten erst gemeldet werden, wenn es bereit ist. Eine Projektion wird beansprucht, bevor sie berechnet wird, die Fähigkeits- und Ausgabentore werden beim Akt gelesen, und ein Nachholen reitet auf dem Wartungstakt der Räume und bedient zuerst das am längsten nicht versuchte Lesezeichen — ein Konto unter Quote lässt die anderen nicht mehr verhungern. Das Löschen des Lesezeichens entfernt das Dokument; das Dokument wird aus dem Raum weder verschoben noch gelöscht, und ein über seine Rolle verwalteter Raum wird nicht von Hand gelöscht.
+
+Was erzeugt wurde, lässt sich auch **durch Fragen** wiederfinden (ADR-318): Ein Lesewerkzeug durchsucht die lebende Galerie nach Wörtern des Titels, Familie und Zeitraum und zeigt die gefundenen Dateien als die eigenen Karten des Chats, mit der exakten Gesamtzahl. Ein erzeugtes Bild lässt sich schließlich als Kopie **mit einer Verbindung teilen** (ADR-316): Der Klick ist die Bestätigung — kein Entwurf, kein Modell; zwei Tageskontingente werden je Absender unter einer transaktionsgebundenen Sperre serialisiert; die Dateikopie, die Galeriezeile der Empfängerseite und das Freigaberegister werden in einer einzigen Transaktion geschrieben; danach wird der Chat der Empfängerseite nach bestem Bemühen erreicht, auf einer eigenen Sitzung. Der Kommentar eines Dritten wird dort **wörtlich** zitiert: neutralisiert durch numerische Zeichenreferenzen, weil der Chat Markdown mit rohem HTML und `https:`-Bildern rendert und ein Backslash-Escape als Formel dargestellt würde.
 
 ## 6. Das Planungssystem (ExecutionPlan DSL)
 
@@ -594,6 +598,8 @@ Phase 8 (aktuell) legt den **vollständigen Plan** dem Benutzer **vor** jeder Au
 | `FOR_EACH_CONFIRM` | Massenmutationen | `interrupt()` mit Operationszählung |
 | `MODIFIER_REVIEW` | Von KI vorgeschlagene Änderungen | `interrupt()` mit Vorher/Nachher-Vergleich |
 
+**Was nichts zu bestätigen hat.** Eine Aktion fragt nichts, wenn nichts sie umleiten kann. Die E-Mail an sich selbst (ADR-314) hat keinen Empfänger als Parameter: Die Adresse ist die, die der Anbieter des verbundenen Postfachs nennt, oder, ohne Postfach, die bestätigte Adresse des Kontos über LIAs Relais — kein fremder Text kann sie also umleiten. Das Werkzeug erklärt sich `reversible` mit schriftlicher Begründung, sodass eine Routine ihr Ergebnis senden kann, wo ein Entwurf abgelehnt wird. Eine eingetippte Adresse, die zufällig die eigene ist, geht dagegen über den Entwurf: Ein Empfänger, der die Bestätigung manchmal überspränge, wäre ein Ziel für Injektionen.
+
 ### 9.3. Entwurfskritik: eine Beschreibung, eine Frage je Entwurf
 
 Ein zu bestätigender Entwurf und der Bericht seiner Ausführung werden **einmal beschrieben** — eine Kartenspezifikation aus beschrifteten Zeilen, Notizen und Blöcken, die je Entwurfstyp ein Renderer aus dem Anzeigeregister baut — und **je Oberfläche gezeichnet**: im Chat dasselbe `lia-card`-Markup wie eine E-Mail oder ein Termin (Kopfzeile, Illustration, Felder mit ihren Symbolen, Text als Block); auf einem Ticket, in einem externen Kanal oder im Anzeigemodus `markdown` das Markdown, das der Ticket-Kommentar glätten kann. Die Oberfläche entscheidet der Run, nie rät sie ein Aufrufer. Ein Bericht sagt, was getan wurde, an wen und womit: Jede Zeile eines Stapels trägt die Schlüsselfelder, die ihr Typ deklariert, und einen begrenzten Auszug des gesendeten Textes, zitiert mit den Anführungszeichen der Sprache. Vorher/Nachher-Vergleich bei Aktualisierungen, Irreversibilitätswarnungen, i18n-Beschriftungen und anklickbare Links gehören zu dieser Beschreibung.
@@ -693,7 +699,9 @@ Jede Erinnerung ist ein strukturiertes Dokument mit:
 
 Jede Erinnerung trägt **zwei Embeddings**: eines über ihren Inhalt, eines über die auslösenden Schlüsselwörter. Die Anfrage wird mit beiden verglichen, der bessere Treffer gewinnt (`LEAST(dist_content, dist_keyword)`, Rückfall auf den Inhalt, wenn der Schlüsselwortvektor leer ist).
 
-Das Langzeitgedächtnis hat ein eigenes PostgreSQL-Modell; die oben beschriebene Suche ist die, die es verwendet. Daneben existierte ein zweiter, hybrider Pfad: **ohne jeden Aufrufer**, weitgehend ungetestet — und vom Debug-Panel dennoch beim Nutzer beworben. Modul, Einstellungen, Metriken und Anzeige wurden gemeinsam entfernt ([ADR-168](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-168-Removal-Of-Dead-Hybrid-Memory-Search.md)). Die hybride Suche lebt weiter, aber dort, wo sie tatsächlich verwendet wird: RAG Spaces (Abschnitt 17).
+**Eine einzige Suchtür** (ADR-313). Eine Anfrage wird als *Schlüssel* eingebettet — ohne die Trivialitätsmuster des Gesprächs, die mit echten Namen und kurzen Fragen kollidieren —, bevor eine Sitzung geöffnet wird; dann werden die lebenden Erinnerungen der Person oberhalb der Relevanzschwelle geliefert, auf Wunsch auf Kategorien eingegrenzt. Alle Aufrufer gehen durch sie: die Gedächtnisfakten des Planers, der Initiative und der Referenzauflösung, der 360°-Rückblick auf eine Person und die Nachschlagevorgänge am Telefon, die „was weiß ich über X“ mit X beantworten statt mit den neuesten Erinnerungen.
+
+**Und gezielt nachgeschlagen.** Eine routbare Domäne trägt ein Lesewerkzeug, sodass die ReAct-Schleife und der Planer ein Thema nachschlagen können, das die Nachricht nicht nannte — den Absender einer gerade gelesenen E-Mail, einen in einem Dokument genannten Ort. Seine Grenzen werden aus den Quellen veröffentlicht, die es durchsetzt (das Kategorievokabular *ist* das gespeicherte, die Ergebnisobergrenze *ist* die Einstellung), die Präferenz der Person lehnt es ab wie die Einspeisung, eine sensible Erinnerung kommt mit ihrer Nutzungsnuance markiert zurück, und ein Fehler wird klassifiziert, nie „nichts erinnert“. Die hybride Suche BM25 + Embeddings lebt dort, wo sie dient: in den RAG Spaces (Abschnitt 17).
 
 ### 11.5. Stratifizierte Tagebücher (Journals)
 
@@ -717,6 +725,8 @@ Der Assistent führt introspektive Reflexionen, organisiert nach vier Themen (Se
 
 Das Porträt setzt sich aus **vier Quellen zusätzlich zu den Tagebüchern** zusammen (ADR-292): Erinnerungen, Interessen, gelernte Gewohnheiten und Beziehungs-Debriefs gehen als Material für die Synthese in den Konsolidierungsprompt ein. Die Tagebuch-Domäne importiert keine dieser Domänen — zwei von ihnen importieren sie bereits —, also bietet sich jede Quelle über ein geteiltes Register mit geschlossenem Vokabular an, das der Start explizit installiert und unvollständig ablehnt. Ein Leser antwortet `used | empty | disabled | unavailable` mit einer exakten Gesamtzahl, unter seinen drei beim Akt gelesenen Toren (Obergrenze, Schalter des Betreibers, Präferenz der Person), und wirft nie: Eine blinde Quelle wird benannt, nie als leer gelesen. Der Assembler liest eine Quelle nach der anderen unter einer Grenze pro Quelle und lässt einen ganzen Abschnitt jenseits des Gesamtbudgets fallen; der Prompt rendert einen Abschnitt nur, wenn er existiert, und verbietet, eine Zeile erneut aufzuzählen oder seine Quellen zu nennen. Die Herkunft wird mit dem Porträt persistiert, im selben Schreibvorgang, und darunter gezeichnet; eine Quelle, die sich bewegt hat, öffnet die Berechtigung zur nächsten Konsolidierung erneut.
 
+**Die Tagebücher lassen sich auch gezielt durchsuchen** (ADR-318). Über die Einspeisung hinaus durchsucht ein Lesewerkzeug — in beiden Modi — die Tagebücher der Person nach einem unterwegs gefundenen Thema, über dieselben Vektoren, an der *konfigurierten* Ähnlichkeitsschwelle statt der gelernten, und liefert nur Direktiven, Muster und Facetten: Eine rohe, noch nicht konsolidierte `L0`-Beobachtung kommt nie heraus. Die Präferenz der Person lehnt es ab wie die Einspeisung.
+
 ### 11.6. Interessensystem
 
 Erkennung durch Analyse der Anfragen mit bayesscher Gewichtsentwicklung (konfigurierbarer Decay). Interessen werden per Batch-LLM-Clustering zu **Themen** gruppiert (abgeleitete, selbstheilende Daten), und die Benachrichtigungsauswahl zieht mit **zweistufiger Seltenheit** (Themen-Cooldown + Priorität für die am wenigsten bedienten Themen und Interessen) — eine Leidenschaft monopolisiert nie die Benachrichtigungen. Multi-Source-Inhalte (Perplexity, Brave, Wikipedia, LLM-Reflexion) mit deterministisch angehängten **klickbaren Quellenlinks**. Benutzerfeedback (Daumen hoch/runter/blockieren) passt die Gewichtungen an; nächtliche Fusion von Quasi-Duplikaten.
@@ -735,7 +745,7 @@ llm = get_llm(provider="openai", model="gpt-5.4", temperature=0.7, streaming=Tru
 
 `get_llm()` löst die effektive Konfiguration über `get_llm_config_for_agent(settings, agent_type)` auf (Code-Defaults → DB-Admin-Overrides), instanziiert das Modell und wendet die spezifischen Adapter an.
 
-### 12.2. 56 LLM-Konfigurationstypen
+### 12.2. 61 LLM-Konfigurationstypen
 
 Jeder Knoten der Pipeline ist über die Admin-UI unabhängig konfigurierbar — ohne erneutes Deployment:
 
@@ -1043,6 +1053,11 @@ Herkunft ist daher eine Eigenschaft der **Daten**: Die 24 Registry-Typen werden 
 **Erkennen, niemals bereinigen.** Sieben Musterfamilien werden in den sechs Sprachen erkannt — Rollenübernahme, Anweisungsentführung, Persona-Wechsel, Exfiltration, ein in Fremdtext genanntes LIA-Werkzeug, unsichtbares Unicode, eine in einem HTML-Kommentar versteckte Direktive — und der Inhalt geht **unverändert** an das Modell, begleitet von einem Hinweis, der die Familie benennt. Bereinigen hieße, eine E-Mail umzuschreiben, die der Nutzer womöglich unverändert lesen will, im Tausch gegen eine Garantie, die die nächste Umgehung widerlegen würde. Die Erkennung ist auf die ersten 20 000 Zeichen begrenzt und **protokolliert den Text nie**: Er ist konstruktionsbedingt vom Angreifer kontrolliert und enthält regelmäßig die Daten des Nutzers.
 
 **Und eine Kennzeichnung, die das Zusammenfassen nicht überlebt, ist eine Kennzeichnung mit Verfallsdatum.** Die Kompaktierung liest das Gespräch und gibt es als `SystemMessage` wieder aus — den Kanal höchster Autorität, der in jedem späteren Durchgang erhalten bleibt, weil er das komprimierte Gedächtnis des Gesprächs *ist*. Ein Zusammenfasser, dem man aufträgt, Bezeichner, Entscheidungen und Ergebnisse zu bewahren, und dem man nichts über die Herkunft sagt, erhebt die Forderung eines Absenders getreulich zur feststehenden Tatsache. Die Markierung wandert daher mit: Eine Zusammenfassung, die aus Nachrichten mit Drittanbietertext entsteht, erbt ein Herkunftsbanner, das beim Schreiben berechnet und nicht aus dem abgeleitet wird, was das Modell zu wiederholen beliebte; und der Zusammenfassungs-Prompt meldet Behauptungen Dritter in einem eigenen Abschnitt, ihrer Quelle zugeordnet. Das Banner steht hinter der Markierung, an der vier Leser diese Nachricht erkennen — ein geänderter Präfix hätte das komprimierte Gedächtnis des Gesprächs still verschwinden lassen. Der deterministische Rückfall folgt derselben Regel: Bezeichner, die aus einem markierten Bereich stammen, werden als nicht vertrauenswürdig aufgeführt statt als Schlüsselbezeichner des Gesprächs, und eine nicht geschlossene Markierung färbt die gesamte Nachricht.
+
+### 19.7. Eine Protokollzeile trägt Fakten, nie Worte (ADR-317)
+
+Oberhalb der Debug-Stufe trägt eine Protokollzeile **Fakten** — Zahlen, Längen, Kennungen, Codes, den Host einer URL — und nie den Text, den eine Person geschrieben hat oder ein Modell über sie: Anfragen, Interessen, Namen von Dateien, Labels oder Räumen, besuchte Seiten. Die Regel wird **am Wert** bewacht, nicht am Feldnamen: Ein Test liest jeden Protokollaufruf des Codes und lehnt eine Vorschau (`x[:n]` von etwas anderem als einer Kennung) oder einen aus Inhalt abgeleiteten Wert ab, wie auch immer er heißt; jede Ausnahme trägt ihre schriftliche Begründung. Was ein Fehlertext **zitiert**, hält der Filter zurück — `DETAIL` und `CONTEXT` von PostgreSQL, die Parameter von SQLAlchemy, Pydantics `input_value`, auch in Tracebacks —, ein Datenbankfehler wird durch seine Fakten beschrieben (SQLSTATE, Constraint, Tabelle), und Anbieterschlüssel werden in jeder protokollierten URL maskiert, auf jeder Stufe. Zwei Grenzen werden so genannt, wie sie sind: Die Fehlermeldung eines externen Dienstes in einem unbekannten Format kann noch einen Wert zitieren, und die Debug-Stufe — in der Produktion ausgeschaltet — behält mehr.
+
 ---
 
 ## 20. Observability und Monitoring
@@ -1051,15 +1066,15 @@ Herkunft ist daher eine Eigenschaft der **Daten**: Die 24 Registry-Typen werden 
 
 | Technologie | Rolle |
 |-------------|------|
-| Prometheus | 587 benutzerdefinierte Metriken (RED Pattern) |
+| Prometheus | 589 benutzerdefinierte Metriken (RED Pattern) |
 | Grafana | 30 produktionsreife Dashboards |
 | Loki | Aggregierte strukturierte JSON-Logs |
 | Tempo | Verteiltes Cross-Service-Tracing (OTLP gRPC) |
 | Langfuse | LLM-spezifisches Tracing (Prompt-Versionen, Token-Nutzung) |
-| Alertmanager | Kern aus 14 vitalen Alerts per E-Mail (verknüpfte Runbooks, Schwellenwerte je Umgebung) + Webhook zu LIA: jeder Alarm wird zum Vorfall im Produkt (ADR-247) |
+| Alertmanager | Kern aus 29 vitalen Alerts per E-Mail (verknüpfte Runbooks, Schwellenwerte je Umgebung) + Webhook zu LIA: jeder Alarm wird zum Vorfall im Produkt (ADR-247) |
 | structlog | Strukturiertes Logging mit PII-Filterung |
 
-**Eine Metrik, die kein Dashboard erreicht, ist eine Metrik, auf die niemand reagiert.** Der Abstand zwischen dem, was der Code ausgibt, und dem, was ein Operator sehen kann, wird gemessen, nie angenommen: `scripts/audit/measure_metric_coverage.py` liest jede Metrikdefinition per AST (nicht per Regex — eine Regex liest `ZoneInfo("UTC")` als `Info`-Metrik) und prüft jeden Namen gegen sämtliche Dashboard-Panels, Recording Rules und Alert-Ausdrücke. 587 definiert; die 44, die nichts erreichen, stehen ausdrücklich in einer **ausschließlich schrumpfenden** Baseline — eine neu erblindete Metrik lässt den Build rot werden, und eine sichtbar gewordene Metrik muss die Liste verlassen, sonst nimmt die nächste blinde stillschweigend ihren Platz ein. Der Preis dafür, dies nicht gehabt zu haben: Eine offen ausfallende Heartbeat-Quelle verwarf die Gesundheitssignale bei 46,5 % der Ticks eine Woche lang, ohne dass eine Metrik es bemerkt hätte (ADR-148). Zwei Fallen, die der Wächter konstruktiv schließt — ein Zähler mit Labels, der nie ausgelöst hat, liefert **überhaupt keine Serie**, sodass ein Panel für einen seltenen Fehler `or vector(0)` braucht, sonst zeigt es „No data“, wo ein Operator eine grüne Null erwartet; und Abdeckung wird ausschließlich aus **Ausdrücken** von Panels und Regeln gelesen, denn eine in einem Kommentar genannte Metrik ist nicht verdrahtet.
+**Eine Metrik, die kein Dashboard erreicht, ist eine Metrik, auf die niemand reagiert.** Der Abstand zwischen dem, was der Code ausgibt, und dem, was ein Operator sehen kann, wird gemessen, nie angenommen: `scripts/audit/measure_metric_coverage.py` liest jede Metrikdefinition per AST (nicht per Regex — eine Regex liest `ZoneInfo("UTC")` als `Info`-Metrik) und prüft jeden Namen gegen sämtliche Dashboard-Panels, Recording Rules und Alert-Ausdrücke. 589 definiert; die 44, die nichts erreichen, stehen ausdrücklich in einer **ausschließlich schrumpfenden** Baseline — eine neu erblindete Metrik lässt den Build rot werden, und eine sichtbar gewordene Metrik muss die Liste verlassen, sonst nimmt die nächste blinde stillschweigend ihren Platz ein. Der Preis dafür, dies nicht gehabt zu haben: Eine offen ausfallende Heartbeat-Quelle verwarf die Gesundheitssignale bei 46,5 % der Ticks eine Woche lang, ohne dass eine Metrik es bemerkt hätte (ADR-148). Zwei Fallen, die der Wächter konstruktiv schließt — ein Zähler mit Labels, der nie ausgelöst hat, liefert **überhaupt keine Serie**, sodass ein Panel für einen seltenen Fehler `or vector(0)` braucht, sonst zeigt es „No data“, wo ein Operator eine grüne Null erwartet; und Abdeckung wird ausschließlich aus **Ausdrücken** von Panels und Regeln gelesen, denn eine in einem Kommentar genannte Metrik ist nicht verdrahtet.
 
 ### 20.2. Eingebettetes Debug-Panel
 
@@ -1332,7 +1347,7 @@ Die Skills-Oberfläche ist eine **Galerie**: Karten öffnen ein Detailblatt mit 
 
 Sechs bereichsübergreifende Funktionen teilen dieselbe Produktphilosophie: **sofortiges Feedback, keine Server-Kosten, wenn nicht nötig**.
 
-- **Lese-Invariante & reifes Eingabefeld** — eine streamende Antwort reißt einen nach oben gescrollten Leser nie mehr weg: Die Follow-Entscheidung misst die Geometrie live im Entscheidungsmoment (wachstumskompensiert), ein expliziter Sende-Tick ersetzt Daten-Diff-Heuristiken (zwei davon feuerten am echten Engine falsch), und ein schwebender Button mit Badge der Offscreen-Antworten bringt den Leser zurück. Das Eingabefeld trägt einen persistenten Entwurf pro Nutzer (debounced, beim Logout gelöscht), ein ↑/↓-Blättern über die letzten 10 Sendungen, `/`-Slash-Befehle (WAI-ARIA-Combobox auf der nativen Textarea, akzent-insensitives lokalisiertes Filtern) und eine In-Flow-Aktionszeile unter jeder Antwort (Kopieren, Feedback, Ausführungs-Trace).
+- **Lese-Invariante & reifes Eingabefeld** — eine streamende Antwort reißt einen nach oben gescrollten Leser nie mehr weg: Die Follow-Entscheidung misst die Geometrie live im Entscheidungsmoment (wachstumskompensiert), ein expliziter Sende-Tick ersetzt Daten-Diff-Heuristiken (zwei davon feuerten am echten Engine falsch), und ein schwebender Button mit Badge der Offscreen-Antworten bringt den Leser zurück. Das Eingabefeld trägt einen persistenten Entwurf pro Nutzer (debounced, beim Logout gelöscht), ein ↑/↓-Blättern über die letzten 10 Sendungen, `/`-Slash-Befehle (WAI-ARIA-Combobox auf der nativen Textarea, akzent-insensitives lokalisiertes Filtern) und eine In-Flow-Aktionszeile unter jeder Antwort (Kopieren, Behalten, Teilen, Herunterladen, Feedback, Ausführungs-Trace — Teilen öffnet das Teilen-Menü des Systems und dann die Verbindungen, deren Auswahl das Eingabefeld vorausfüllt, statt zu senden; Herunterladen schreibt eine datierte Markdown-Datei).
 - **Konversations-Verlaufssuche** — Query-Parameter `?search=` auf `GET /conversations/me/messages`. Die Filterung nutzt PostgreSQL `ILIKE` (case-insensitive, akzent-sensitiv — Vertrag per Test gesperrt). Das Frontend verwendet ein `useMemo` auf `messages`, um geladene Nachrichten sofort zu filtern; der Backend-Endpoint bleibt als latente Fähigkeit für eine zukünftige Deep-Search-UI verfügbar.
 - **Scroll-up-Paginierung** — derselbe Endpoint, Keyset-Cursor `?before=<created_at>` mit Rückgabe von `has_more` und `next_cursor`. Die Chat-UI bindet einen `IntersectionObserver` an einen 1-px-Sentinel oberhalb der ersten Nachricht; ältere Seiten werden mit ID-basierter Deduplizierung vorangestellt, und ein gemeinsam genutztes `wasPrependRef` lässt den Auto-Scroll-zum-Boden-`useEffect` diesen Zyklus überspringen, sodass die Ansicht genau dort verankert bleibt, wo der Leser war. Der bestehende zusammengesetzte Index `(conversation_id, created_at DESC)` macht jede Seite zu einem Index-only-Seek, unabhängig von der Konversationslänge. Die Seitenbegrenzungen (Standard 50, harte Obergrenze 200) sind via `CONVERSATION_HISTORY_DEFAULT_LIMIT` / `CONVERSATION_HISTORY_MAX_LIMIT` env-konfigurierbar.
 - **LaTeX-Rendering** — Die mathematischen und wissenschaftlichen Formeln, die LIA schreibt (`$inline$` / `$$block$$`), werden über KaTeX in `MarkdownContent.tsx` gerendert. Da der Assistent seine gesamte Antwort als HTML ausgibt, erkennt ein `rehypeMathInText`-Plugin die `$`/`$$`-Trennzeichen auf hast-Ebene — nachdem `rehypeRaw` das HTML expandiert hat — und wandelt sie in die Marker um, die `rehype-katex` rendert; `remark-math`, auf Markdown beschränkt, sieht in HTML eingebettetes Math nie. Reihenfolge: `rehypeRaw → rehypeSanitize → rehypeMathInText → rehypeKatex`; die Math-Schritte lesen nur bereits sanitisierten Text und erzeugen Spans mit festen Klassen, also keine neue Angriffsfläche.
@@ -1466,7 +1481,7 @@ Eine CSS-Regel bestimmt die Abstände des Design-Systems: Vertikale Ränder eine
 
 ## 24. Architekturentscheidungen (ADR)
 
-310 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
+317 ADRs im MADR-Format dokumentieren die wichtigsten Architekturentscheidungen. Einige repräsentative Beispiele:
 
 | ADR | Entscheidung | Gelöstes Problem | Gemessene Auswirkung |
 |-----|----------|----------------|---------------|
@@ -1548,6 +1563,8 @@ Der rote Faden dieser vier Arbeitspakete ist eine Eigenschaft der Tests selbst. 
 
 Der öffentliche Demonstrator wendet diese Grenzen auf sich selbst an und macht sie lesbar. Jede Fähigkeit des Registers ist in seiner Umgebungsvorlage schriftlich entschieden — ein- oder ausgeschaltet, mit Begründung — und zwei Wachen verweigern eine dem Code-Standard überlassene Obergrenze oder eine Abweichung zwischen Entwicklungs- und Produktionsvorlage; die Zählung der erreichbaren Routen hängt die Router unter genau diesen Obergrenzen ein, sodass eine abgeschaltete Familie nicht erscheint und eine eingeschaltete Route für Route geschrieben steht. Schließlich veröffentlicht jede Instanz in ihrer öffentlichen Konfiguration den wirksamen Zustand aller Fähigkeiten — Obergrenze und Schalter verknüpft — und die Instanz, die einen Demonstrator ankündigt, liest diese Konfiguration serverseitig und zeigt sie neben dem Link: die Liste dessen, was ein Besucher vorfinden wird und was nicht, folgt der Umgebungsdatei der Demonstration, niemand pflegt sie von Hand.
 
+**Eine Ankündigung sagt, an wen sie gerichtet war** (ADR-312). Das Publikum einer Ankündigung der Administration wird aufgelöst, bevor ihre Zeile geschrieben wird, und ihre Empfänger werden mit ihr gespeichert: Eine gezielte Ankündigung wird nur ihnen ausgeliefert — auch bei ihrer nächsten Anmeldung —, und eine Auswahl, die kein aktives Konto trifft, wird abgelehnt, statt an niemanden oder an alle zu gehen. Der Verlauf liefert eine Seite und ihre exakte Gesamtzahl, eine begrenzte Stichprobe der Empfänger mit ihrer exakten Anzahl, den Ablaufzeitpunkt und die gewählte Frist — in vier Abfragen, wie groß die Seite auch ist.
+
 ## 29. Per Datei verwalten: Die Arbeitsmappe ist das Formular
 
 Der LLM-Modellkatalog umfasst hundertvierundzwanzig Einträge; jeder trägt vierundzwanzig Merkmale und einen vierdimensionalen Tarif. Verwaltet wurde er mit einem Dialog je Modell — angemessen, um einen einzelnen Preis zu korrigieren, absurd, um die ganze Preistabelle aufzunehmen, die ein Anbieter zwei- oder dreimal im Jahr überarbeitet. Die Antwort war kein weiterer Bildschirm, sondern ein **deklaratives Fundament**: `WorkbookSpec` / `SheetSpec` / `ColumnSpec` beschreiben eine Arbeitsmappe, und beide Richtungen werden daraus abgeleitet — der Writer erzeugt die Datei, der Reader liest sie zurück. Das Fundament importiert keine Domäne; die Domäne liefert nur eine Spaltendeklaration und einen Applier, der über ihren eigenen Service geht. Das Verfahren auf einen anderen Verwaltungsbildschirm zu übertragen heißt, eine Deklaration zu schreiben — keinen Formatcode.
@@ -1619,6 +1636,8 @@ All diese Observability zu emittieren und nichts davon zu lesen heißt: überall
 ## 34. Rechnen statt raten: ein flüchtiges Skript in der bereits vorhandenen Sandbox
 
 Fragen Sie ein Sprachmodell, wie lange eine Reihe von Zwischenstopps insgesamt dauert, welche Namen in zwei Listen zugleich vorkommen oder was eine Zahlenspalte unter Berücksichtigung der Zeitzonen ergibt: Es antwortet — plausibel, flüssig, und nichts in der Antwort zeigt Ihnen, dass sie falsch ist. Das ist kein Prompt-Fehler: Das nächste Token vorherzusagen ist keine Arithmetik. Fünf Zeilen Python schon.
+
+**Alltägliche Rechnungen warten nicht auf ein Skript: Sie sind Werkzeuge** (ADR-318). In beiden Modi wird eine Rechnung in einen Baum zerlegt und in exakter Dezimalarithmetik ausgewertet — nie ausgeführt —, die Unendlichkeiten, die die Dezimalbibliothek ohne Fehler zurückgibt (`0 ** -1`, `ln(0)`), werden abgelehnt, und ein Ergebnis, das gerundet werden musste, sagt es. Eine Dauer wird zwischen zwei absoluten Zeitpunkten gezählt, weil zwei Zeitstempel derselben Zone auf ihrer Wanduhrzeit subtrahiert werden und für die 25 Stunden einer Zeitumstellung 24 ergäben. Eine Umrechnung liest den Referenzkurs der EZB und nennt sein Datum. Jede durchgesetzte Grenze ist eine Einstellung, formuliert in dem Wortlaut, den das Manifest des Planers und das ReAct-Schema gleichermaßen lesen. Das folgende flüchtige Skript bleibt für das, was kein Werkzeug abdeckt.
 
 **Es wurde keine neue Sandbox gebaut.** Die Skill-Sandbox (SEC-001) existierte bereits und war bereits gehärtet: Wegwerf-Container, kein Docker-Socket, `--network none`, schreibgeschütztes Wurzeldateisystem, uid 65534, sämtliche Capabilities entzogen. `execute_source` übergibt ihr lediglich einen Quelltext statt eines Dateipfads, und beide Wege teilen sich einen einzigen Ausführungskern — ein Satz Isolationsflags, sodass sich unmöglich einer härten und der andere vergessen lässt.
 
@@ -1714,6 +1733,8 @@ Das Gesicht des Begleiters wählte seinen Ausdruck am Ende eines Zuges aus der d
 
 **Ein Auszug ist vollständig, oder er ist kein Auszug.** Die fünf herunterladbaren Aufzeichnungen trugen eine Zeilenobergrenze, gemessen und nicht willkürlich: Auf dem angepeilten Raspberry Pi erreichten fünf Quellen mit fünftausend Zeilen einen Spitzenwert von 33,9 MB. Die Beschränkung war real — das ganze Dokument wurde im Speicher zusammengesetzt —, aber auf die falsche Größe angewandt. **Knapp war der Speicher; begrenzt war die Wahrheit**: 49 195 echte Zeilen gegen tausend je Quelle, also 97,9 % der Inferenz-Aufzeichnung abwesend, unter einem Kopf, der wahrheitsgemäß „abgeschnitten“ sagte. Ein serverseitiger Cursor begrenzt nun den Puffer; die Anzahl ist exakt — eine Aggregation über dieselbe Anweisung, die der Rumpf durchläuft — und wird vor der ersten Zeile veröffentlicht, sodass ein Auszug ohne obere Schranke eine bekommt: den Zeitpunkt seiner Erzeugung, im Kopf benannt statt still gesetzt.
 
+**Die Assistentin liest ihre eigenen Register** (ADR-318). Auf „was hast du diese Woche für mich getan?“ antwortet ein Lesewerkzeug aus den beiden Registern, mit exakten Summen und demselben Urheberfilter wie die Reiter — was die Person verlangt hat, was LIA von sich aus unternommen hat — statt aus der Erinnerung an ein Gespräch. Ein Register dient so zwei Lesern ohne zwei Implementierungen: dem Bildschirm, der es zeichnet, und der Antwort, die es zusammenfasst.
+
 ## 40. Ein Debriefing je Beziehung: was zehn Abschnitte nicht sagen
 
 **Eine Karte stapelt zehn Abschnitte, und niemand liest zehn Abschnitte.** Was ein Leser zuerst sucht — wo stehe ich mit dieser Person, und was ist anzusprechen —, ist eine Zusammenfassung, die keine Aggregation erzeugt. Sie wird daher vom Modell oben auf die Karte geschrieben: was offen ist, was als Nächstes ansteht, was zu merken lohnt. Ihre Erzeugung ist **faul**: Sie entsteht beim Öffnen der Karte, höchstens einmal pro lokalem Tag des Lesers, nie durch einen Planer — die Zahl der Beziehungen ist unbegrenzt — und nie während eines Chat-Zuges. Genau drei Neuerzeugungen sind legitim: die Sprache, der angefragte Umfang und eine ausdrückliche Bitte.
@@ -1764,8 +1785,8 @@ Dieselben zwei Modi erreichten dann das Telefon (ADR-301). Der Anruf des Inhaber
 
 LIA ist eine Software-Engineering-Übung, die versucht, ein konkretes Problem zu lösen: einen produktionsreifen, transparenten, sicheren und erweiterbaren Multi-Agent-KI-Assistenten zu bauen, der auf einem Raspberry Pi laufen kann.
 
-Die 310 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~32.106 Tests in 1.937 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
+Die 317 ADRs dokumentieren nicht nur die getroffenen Entscheidungen, sondern auch die verworfenen Alternativen und die akzeptierten Kompromisse. Die ~32.725 Tests in 1.974 Dateien, die vollständige CI/CD-Pipeline und der strikte MyPy-Modus sind keine Eitelkeitsmetriken — sie sind die Mechanismen, die es ermöglichen, ein System dieser Komplexität ohne Regressionen weiterzuentwickeln.
 
 Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lernen, semantisches Routing, systematisches HITL, LLM-gesteuerte Proaktivität, introspektive Journale — schafft ein System, in dem jede Komponente die anderen verstärkt. Das HITL speist das Pattern Learning, das die Kosten senkt, was mehr Funktionalitäten ermöglicht, die mehr Daten für das Gedächtnis generieren, das die Antworten verbessert. Dies ist ein Tugendkreis durch Design, nicht durch Zufall.
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (680+ Dokumente), der 310 ADRs und des Changelogs (v1.0 bis v1.47.3). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (680+ Dokumente), der 317 ADRs und des Changelogs (v1.0 bis v1.47.4). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

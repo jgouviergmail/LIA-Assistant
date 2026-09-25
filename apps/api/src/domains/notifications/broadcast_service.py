@@ -19,6 +19,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.constants import MAX_UNREAD_BROADCASTS
+from src.core.exceptions import raise_invalid_input
 from src.core.exceptions_domains import raise_usage_limit_exceeded
 from src.core.i18n import _, get_language_name
 from src.core.i18n_types import Language
@@ -92,35 +93,49 @@ class BroadcastService:
         Send a broadcast message to users.
 
         Flow:
-        1. Create broadcast record (Archive-First pattern)
-        2. Get users grouped by language preference (all or selected)
+        1. Resolve the addressed users grouped by language (all or selected),
+           and their device tokens — every read before any network call
+        2. Create the broadcast record WITH its audience (Archive-First)
         3. Translate message to each language
         4. Send SSE + FCM to each language group with translated message
         5. Update stats
+
+        The audience is resolved BEFORE the row is written (ADR-312): a targeted
+        broadcast stored without its recipients was served to every account by
+        the unread listing, and a selection addressing nobody (an empty list,
+        or only inactive accounts) is refused rather than sent to everyone.
 
         Args:
             message: The broadcast message content
             admin_user_id: Admin user ID who is sending
             expires_in_days: Optional expiration in days (null = never)
             source_language: Language of the original message (default: fr)
-            user_ids: Optional list of user IDs to target (None = all active users)
+            user_ids: Accounts to target; None = all active users
 
         Returns:
             BroadcastResult with delivery stats
+
+        Raises:
+            ValidationError: A selection that addresses no active account.
         """
         expires_at = None
         if expires_in_days:
             expires_at = datetime.now(UTC) + timedelta(days=expires_in_days)
 
-        # Create broadcast (Archive-First: persist before sending)
+        is_targeted = user_ids is not None
+        users_by_language = await self._resolve_audience(user_ids)
+        addressed = [user_id for group in users_by_language.values() for user_id in group]
+        total_users = len(addressed)
+        tokens_by_language = await self._tokens_by_language(users_by_language)
+
+        # Create broadcast (Archive-First: persist, audience included, before sending)
         broadcast = await self.broadcast_repo.create_broadcast(
             message=message,
             sent_by=admin_user_id,
             expires_at=expires_at,
+            recipient_ids=addressed if is_targeted else None,
         )
         await self.db.commit()
-
-        is_targeted = user_ids is not None and len(user_ids) > 0
 
         logger.info(
             "broadcast_created",
@@ -128,17 +143,8 @@ class BroadcastService:
             admin_user_id=str(admin_user_id),
             expires_at=expires_at.isoformat() if expires_at else None,
             is_targeted=is_targeted,
-            target_user_count=len(user_ids) if user_ids else None,
+            target_user_count=total_users if is_targeted else None,
         )
-
-        # Get users grouped by language (all or selected)
-        if is_targeted and user_ids:  # Explicit check for mypy type narrowing
-            users_by_language = await self.user_repo.get_selected_users_grouped_by_language(
-                user_ids
-            )
-        else:
-            users_by_language = await self.user_repo.get_active_users_grouped_by_language()
-        total_users = sum(len(users) for users in users_by_language.values())
 
         logger.info(
             "broadcast_sending",
@@ -154,19 +160,13 @@ class BroadcastService:
             target_languages=[lang for lang in users_by_language if lang != source_language],
         )
 
-        # Persist successful translations so later reads cost 0 LLM calls
-        # (N-213.2). Entries equal to the source message are the fallback of
-        # a failed translation — never freeze those in the cache.
-        persistable = {lang: text for lang, text in translations.items() if text != message}
-        if persistable:
-            await self.broadcast_repo.merge_translations(broadcast.id, persistable)
-            await self.db.commit()
-
+        await self._persist_translations(broadcast.id, message, translations)
         translations[source_language] = message  # Add original message
 
         # Send SSE + FCM to each language group
         fcm_sent, fcm_failed = await self._broadcast_to_users_by_language(
             users_by_language=users_by_language,
+            tokens_by_language=tokens_by_language,
             broadcast_id=broadcast.id,
             translations=translations,
         )
@@ -195,6 +195,59 @@ class BroadcastService:
             fcm_sent=fcm_sent,
             fcm_failed=fcm_failed,
         )
+
+    async def _resolve_audience(self, user_ids: list[UUID] | None) -> dict[str, list[UUID]]:
+        """The addressed accounts, grouped by language — resolved BEFORE any write.
+
+        A selection addressing no active account (an empty list, or only
+        inactive accounts) is refused rather than widened to everyone (ADR-312).
+
+        Args:
+            user_ids: Accounts to target; None = all active users.
+
+        Returns:
+            ``{language: [user_id, ...]}``.
+
+        Raises:
+            ValidationError: A selection that addresses no active account.
+        """
+        if user_ids is None:
+            return await self.user_repo.get_active_users_grouped_by_language()
+        users_by_language = await self.user_repo.get_selected_users_grouped_by_language(user_ids)
+        if not any(users_by_language.values()):
+            raise_invalid_input(
+                "None of the selected users is an active account.",
+                requested=len(user_ids),
+            )
+        return users_by_language
+
+    async def _tokens_by_language(
+        self, users_by_language: dict[str, list[UUID]]
+    ) -> dict[str, list[str]]:
+        """Each language group's FCM tokens — every read before any network call.
+
+        Read with the audience (ADR-304), so the commit that writes the
+        broadcast ends the only read transaction and nothing stays open while
+        the model translates or while Redis and FCM deliver. One query per
+        language group, never one per recipient (ADR-312).
+        """
+        return {
+            language: await self.fcm_service.get_active_token_strings(group)
+            for language, group in users_by_language.items()
+        }
+
+    async def _persist_translations(
+        self, broadcast_id: UUID, message: str, translations: dict[str, str]
+    ) -> None:
+        """Keep the successful translations so later reads cost 0 LLM calls (N-213.2).
+
+        An entry equal to the source message is the fallback of a failed
+        translation — never frozen in the cache.
+        """
+        persistable = {lang: text for lang, text in translations.items() if text != message}
+        if persistable:
+            await self.broadcast_repo.merge_translations(broadcast_id, persistable)
+            await self.db.commit()
 
     async def _translate_to_languages(
         self,
@@ -316,14 +369,19 @@ class BroadcastService:
     async def _broadcast_to_users_by_language(
         self,
         users_by_language: dict[str, list[UUID]],
+        tokens_by_language: dict[str, list[str]],
         broadcast_id: UUID,
         translations: dict[str, str],
     ) -> tuple[int, int]:
         """
         Send broadcast to users grouped by language.
 
+        Network only: the tokens were read (and the read committed) by the
+        caller, so no transaction is held while Redis and FCM answer (ADR-304).
+
         Args:
             users_by_language: Dict mapping language to user IDs
+            tokens_by_language: Dict mapping language to the group's FCM tokens
             broadcast_id: Broadcast UUID
             translations: Dict mapping language to translated message
 
@@ -341,27 +399,20 @@ class BroadcastService:
         for language, user_ids in users_by_language.items():
             message = translations.get(language, translations.get(DEFAULT_SOURCE_LANGUAGE, ""))
             fcm_title = _("Important message", language)  # type: ignore[arg-type]
-
-            # Collect FCM tokens for this language group
-            fcm_tokens: list[str] = []
-
-            for user_id in user_ids:
-                # Publish to SSE channel with translated message
-                payload = {
+            payload = json.dumps(
+                {
                     "type": "admin_broadcast",
                     "broadcast_id": str(broadcast_id),
                     "message": message,
                 }
-                await redis.publish(
-                    f"user_notifications:{user_id}",
-                    json.dumps(payload),
-                )
+            )
 
-                # Collect FCM tokens
-                tokens = await self.fcm_service.get_active_tokens(user_id)
-                fcm_tokens.extend(token.token for token in tokens)
+            # Publish to each user's SSE channel with the translated message
+            for user_id in user_ids:
+                await redis.publish(f"user_notifications:{user_id}", payload)
 
             # Send FCM batch for this language group
+            fcm_tokens = tokens_by_language.get(language, [])
             if fcm_tokens:
                 fcm_body = message[:100] + "..." if len(message) > 100 else message
                 fcm_sent, fcm_failed = await self.fcm_service.send_multicast(

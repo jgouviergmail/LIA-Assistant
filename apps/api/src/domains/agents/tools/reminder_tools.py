@@ -582,7 +582,7 @@ async def cancel_reminder_tool(
                 "cancel_reminder_draft_prepared",
                 reminder_id=str(reminder.id),
                 user_id=str(user_id),
-                content=reminder.content[:50] if reminder.content else "",
+                content_length=len(reminder.content or ""),
             )
 
             # Create draft for user confirmation (actual cancellation after HITL)

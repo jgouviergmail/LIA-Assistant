@@ -7,6 +7,7 @@ and admin broadcast messages.
 
 import uuid
 from datetime import datetime
+from enum import Enum
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text, UniqueConstraint
@@ -88,12 +89,27 @@ class UserFCMToken(BaseModel):
         )
 
 
+class BroadcastAudience(str, Enum):
+    """Who a broadcast is addressed to (ADR-312).
+
+    A ``str`` enum stored as its lowercase value in a ``String(20)`` column (the
+    peers pattern), so a raw string read back compares equal to a member.
+    """
+
+    #: Every active account at send time.
+    ALL = "all"
+    #: The accounts listed in ``admin_broadcast_recipients``, and nobody else.
+    SELECTED = "selected"
+
+
 class AdminBroadcast(BaseModel):
     """
-    Broadcast message sent by admin to all active users.
+    Broadcast message sent by an admin to all active users or to a selection.
 
-    Used for important announcements that all users must see.
-    Tracks delivery stats (FCM sent/failed) and links to read receipts.
+    Used for important announcements. Tracks delivery stats (FCM sent/failed),
+    links to read receipts, and — since ADR-312 — says who it was addressed to:
+    a targeted broadcast used to be stored without its recipients, and the
+    unread listing then served it to every account at its next sign-in.
     """
 
     __tablename__ = "admin_broadcasts"
@@ -102,6 +118,17 @@ class AdminBroadcast(BaseModel):
         Text,
         nullable=False,
         comment="The broadcast message content",
+    )
+
+    audience: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default=BroadcastAudience.ALL.value,
+        server_default=BroadcastAudience.ALL.value,
+        comment=(
+            "Who the broadcast is addressed to: all (every active account at send "
+            "time) | selected (the admin_broadcast_recipients rows) — ADR-312."
+        ),
     )
 
     sent_by: Mapped[uuid.UUID | None] = mapped_column(
@@ -192,3 +219,40 @@ class UserBroadcastRead(BaseModel):
 
     def __repr__(self) -> str:
         return f"<UserBroadcastRead(user_id={self.user_id}, broadcast_id={self.broadcast_id})>"
+
+
+class AdminBroadcastRecipient(BaseModel):
+    """One account a SELECTED broadcast is addressed to (ADR-312).
+
+    Written in the transaction that creates the broadcast, from the accounts the
+    send actually resolved (active ones). Read by the unread listing — a
+    broadcast addressed to others is neither served nor counted in a reader's
+    window — and by the admin history, which names a sample of them.
+    """
+
+    __tablename__ = "admin_broadcast_recipients"
+
+    broadcast_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("admin_broadcasts.id", ondelete="CASCADE"),
+        nullable=False,
+        comment="The selected-audience broadcast",
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        comment="An account the broadcast is addressed to",
+    )
+
+    __table_args__ = (
+        UniqueConstraint("broadcast_id", "user_id", name="uq_admin_broadcast_recipients"),
+        # The unread listing probes « is this reader a recipient » per broadcast.
+        Index("ix_admin_broadcast_recipients_user_id", "user_id"),
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<AdminBroadcastRecipient(broadcast_id={self.broadcast_id}, user_id={self.user_id})>"
+        )

@@ -400,6 +400,15 @@ peers_messages_total = Counter(
     "Relayed peer-message delivery outcomes",
     ["outcome"],  # delivered | retried | failed | cancelled
 )
+peers_image_shares_total = Counter(
+    "peers_image_shares_total",
+    "Generated images shared with a connection (ADR-316), by outcome. 'shared' "
+    "put a copy in the recipient's gallery; 'not_connected' (no accepted "
+    "connection, or a block), 'not_shareable' (not the sender's generated image, "
+    "expired, or its file gone) and 'quota' (a daily cap) refused before any "
+    "copy; 'failed' is a copy or a write that did not complete (nothing kept).",
+    ["outcome"],
+)
 
 interest_selection_eligible_subjects = Histogram(
     "interest_selection_eligible_subjects",

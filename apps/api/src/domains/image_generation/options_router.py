@@ -25,6 +25,7 @@ from src.domains.image_generation.preferences import (
     active_image_options,
     effective_quality,
     effective_size,
+    prompt_enhancement_offered,
 )
 from src.domains.image_generation.sizing import Orientation
 from src.domains.users.models import User
@@ -94,6 +95,13 @@ class ImageGenerationOptionsResponse(BaseModel):
         ...,
         description="The size the next generated image uses: the stored one mapped onto the offer",
     )
+    prompt_enhancement_available: bool = Field(
+        ...,
+        description=(
+            "Whether the operator offers the prompt enhancement (ADR-315): the "
+            "settings show the person's switch only when it would be honoured"
+        ),
+    )
 
 
 @router.get("/options", response_model=ImageGenerationOptionsResponse)
@@ -133,4 +141,5 @@ async def get_image_generation_options(
         ],
         effective_quality=effective_quality(user.image_generation_default_quality, options),
         effective_size=effective_size(user.image_generation_default_size, options),
+        prompt_enhancement_available=prompt_enhancement_offered(),
     )

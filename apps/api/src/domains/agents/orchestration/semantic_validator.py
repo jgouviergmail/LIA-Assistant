@@ -566,7 +566,7 @@ def detect_early_insufficient_content(
             logger.info(
                 "early_insufficient_content_missing_recipient",
                 domain=insufficient_domain,
-                user_request_preview=user_request[:50],
+                user_request_length=len(user_request),
             )
             return _create_field_clarification_result(
                 domain=insufficient_domain,
@@ -590,7 +590,7 @@ def detect_early_insufficient_content(
                 "early_insufficient_content_missing_content",
                 domain=insufficient_domain,
                 field=field_name,
-                user_request_preview=user_request[:50],
+                user_request_length=len(user_request),
             )
             return _create_field_clarification_result(
                 domain=insufficient_domain,
@@ -986,7 +986,7 @@ class PlanSemanticValidator:
             logger.warning(
                 "semantic_validation_ghost_dependency",
                 step_count=len(plan.steps),
-                feedback_preview=refs_feedback[:100] if refs_feedback else "",
+                feedback_length=len(refs_feedback) if refs_feedback else 0,
                 duration_ms=int((time.time() - start_time) * 1000),
             )
             return _programmatic_rejection(
@@ -1041,7 +1041,7 @@ class PlanSemanticValidator:
                 "semantic_validation_for_each_error",
                 step_count=len(plan.steps),
                 issue_type=for_each_issue.value,
-                feedback_preview=for_each_feedback[:100] if for_each_feedback else "",
+                feedback_length=len(for_each_feedback) if for_each_feedback else 0,
                 duration_ms=int((time.time() - start_time) * 1000),
             )
             return _programmatic_rejection(

@@ -11,17 +11,15 @@ from unittest.mock import MagicMock, patch
 import httpx
 import pytest
 
-from src.infrastructure.external.currency_api import CurrencyRateService
+from src.infrastructure.external.currency_api import CurrencyQuote, CurrencyRateService
 
 
 @pytest.fixture(autouse=True)
 def _clear_class_caches():
     """Clear class-level caches between tests to avoid cross-test pollution."""
-    CurrencyRateService._rate_cache.clear()
-    CurrencyRateService._negative_cache.clear()
+    CurrencyRateService.reset_caches()
     yield
-    CurrencyRateService._rate_cache.clear()
-    CurrencyRateService._negative_cache.clear()
+    CurrencyRateService.reset_caches()
 
 
 @pytest.mark.asyncio
@@ -46,7 +44,10 @@ async def test_get_rate_cache_hit():
     service = CurrencyRateService()
 
     # Pre-populate class-level cache with valid entry
-    CurrencyRateService._rate_cache["USD_EUR"] = (Decimal("0.95"), datetime.now(UTC))
+    CurrencyRateService._rate_cache["USD_EUR"] = (
+        CurrencyQuote(rate=Decimal("0.95"), rate_date=None),
+        datetime.now(UTC),
+    )
 
     # Mock httpx to ensure it's NOT called
     with patch("httpx.AsyncClient.get") as mock_get:
@@ -86,7 +87,10 @@ async def test_get_rate_cache_expiry():
 
     # Pre-populate cache with EXPIRED entry (25 hours ago)
     expired_time = datetime.now(UTC) - timedelta(hours=25)
-    CurrencyRateService._rate_cache["USD_EUR"] = (Decimal("0.90"), expired_time)
+    CurrencyRateService._rate_cache["USD_EUR"] = (
+        CurrencyQuote(rate=Decimal("0.90"), rate_date=None),
+        expired_time,
+    )
 
     # Mock httpx response with NEW rate
     mock_response = MagicMock()
@@ -99,7 +103,7 @@ async def test_get_rate_cache_expiry():
     # Should return NEW rate from API (not cached 0.90)
     assert rate == Decimal("0.96")
     # Verify cache was updated
-    assert CurrencyRateService._rate_cache["USD_EUR"][0] == Decimal("0.96")
+    assert CurrencyRateService._rate_cache["USD_EUR"][0].rate == Decimal("0.96")
 
 
 @pytest.mark.asyncio

@@ -364,7 +364,6 @@ class AppleCalendarClient(BaseAppleClient):
                 logger.warning(
                     "apple_calendar_event_parse_error",
                     error=str(e),
-                    event_url=str(getattr(event, "url", "unknown")),
                 )
 
         # Sort by start time (most recent first)

@@ -104,7 +104,9 @@ request.
      a narrower need goes in the query (`from:`, `subject:`), never in a
      larger page
 
-5. EMAIL CONTENT (send_email_tool)
+5. EMAIL CONTENT (send_email_tool, send_email_to_me_tool)
+   - To the user THEMSELVES ("email me", "send me X by email") → send_email_to_me_tool:
+     it takes no recipient and needs no draft — the only e-mail a routine can send
    - Literal text from user → use `body` + `subject` directly
    - Data from other steps → use `content_instruction` with $steps references
    - Creative content (poem, joke) → use `content_instruction` alone

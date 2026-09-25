@@ -22,6 +22,8 @@ from src.core.constants import (
     PEERS_DELIVERY_SWEEP_SECONDS_DEFAULT,
     PEERS_DISCOVERY_RATE_LIMIT_CALLS_DEFAULT,
     PEERS_DISCOVERY_RATE_LIMIT_WINDOW_SECONDS_DEFAULT,
+    PEERS_IMAGE_SHARE_MAX_PER_DAY_DEFAULT,
+    PEERS_IMAGE_SHARE_MAX_PER_DAY_PER_PAIR_DEFAULT,
     PEERS_MESSAGE_MAX_CHARS_DEFAULT,
     PEERS_MESSAGE_MAX_PER_DAY_DEFAULT,
     PEERS_MESSAGE_MAX_PER_DAY_PER_PAIR_DEFAULT,
@@ -73,6 +75,18 @@ class PeersSettings(BaseSettings):
         ge=1,
         le=100,
         description="Relayed messages a sender may enqueue per UTC day toward one peer.",
+    )
+    peers_image_share_max_per_day: int = Field(
+        default=PEERS_IMAGE_SHARE_MAX_PER_DAY_DEFAULT,
+        ge=1,
+        le=500,
+        description="Images a sender may share per UTC day (all connections, ADR-316).",
+    )
+    peers_image_share_max_per_day_per_pair: int = Field(
+        default=PEERS_IMAGE_SHARE_MAX_PER_DAY_PER_PAIR_DEFAULT,
+        ge=1,
+        le=100,
+        description="Images a sender may share per UTC day with one connection (ADR-316).",
     )
     peers_message_max_chars: int = Field(
         default=PEERS_MESSAGE_MAX_CHARS_DEFAULT,

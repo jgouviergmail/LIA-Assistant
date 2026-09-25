@@ -50,6 +50,12 @@ export interface UsePagedSectionOptions<TPayload, TItem> {
   /** Fetch only while the section is open: a folded list costs nothing. */
   enabled: boolean;
   pageSize?: number;
+  /**
+   * Bump it when a write elsewhere changed the set (a broadcast was just sent):
+   * the section refetches FROM ITS FIRST PAGE and keeps what it shows meanwhile
+   * — a refresh, never a first load. Omitted, nothing ever forces a refetch.
+   */
+  refreshKey?: number;
 }
 
 export function usePagedSection<TPayload, TItem>({
@@ -58,6 +64,7 @@ export function usePagedSection<TPayload, TItem>({
   selectTotal,
   enabled,
   pageSize = HUB_PAGE_SIZE,
+  refreshKey,
 }: UsePagedSectionOptions<TPayload, TItem>): PagedSection<TItem> {
   const [page, setPage] = useState(1);
 
@@ -74,11 +81,18 @@ export function usePagedSection<TPayload, TItem>({
     setWasEnabled(enabled);
     if (!enabled) setPage(1);
   }
+  // A new refresh key means the set changed under the reader: back to its
+  // start, where the change is (same render-phase adjustment as above).
+  const [lastRefreshKey, setLastRefreshKey] = useState(refreshKey);
+  if (lastRefreshKey !== refreshKey) {
+    setLastRefreshKey(refreshKey);
+    setPage(1);
+  }
 
   const separator = path.includes('?') ? '&' : '?';
   const { data, loading, error, refetch } = useApiQuery<TPayload>(
     `${path}${separator}limit=${pageSize}&offset=${(page - 1) * pageSize}`,
-    { componentName: 'usePagedSection', enabled }
+    { componentName: 'usePagedSection', enabled, deps: [refreshKey] }
   );
 
   const total = data ? selectTotal(data) : 0;

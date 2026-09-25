@@ -31,7 +31,15 @@ FIXED_EVENTS: dict[str, set[str]] = {
     },
     "domains/agents/nodes/router_node_v3.py": {"router_v3_start"},
     "domains/agents/utils/message_filters.py": {"orphan_tool_message_removed"},
-    "domains/agents/tools/emails_tools.py": {"email_content_instruction_fallback_to_user_message"},
+    # Moved with the content generation out of emails_tools.py (ADR-314).
+    "domains/agents/emails/content_generation.py": {
+        "email_content_instruction_fallback_to_user_message"
+    },
+    # The person's image request and its rewrite are never logged (ADR-315).
+    "domains/agents/image_generation/prompt_enhancement.py": {
+        "image_prompt_enhanced",
+        "image_prompt_enhancement_rejected",
+    },
 }
 
 _LEVELS = {"info", "warning", "error", "exception", "critical"}

@@ -97,7 +97,8 @@ def _reset_shared_pricing_and_semantic_state() -> Any:
     Without this, the full integration suite is order-dependent (tests green in
     isolation, red in a full run) through two families of shared state:
 
-    - Pricing/cost: ``CurrencyRateService._rate_cache`` is a CLASS attribute
+    - Pricing/cost: ``CurrencyRateService``'s rate, failure and currency-list
+      caches are CLASS attributes (``reset_caches`` empties all three)
       (shared by every instance) and ``pricing_cache._local_cache`` is a
       module-level snapshot — any earlier cost/currency test leaks its rates
       and prices into later assertions.
@@ -119,7 +120,7 @@ def _reset_shared_pricing_and_semantic_state() -> Any:
     from src.infrastructure.external.currency_api import CurrencyRateService
 
     def _reset() -> None:
-        CurrencyRateService._rate_cache.clear()
+        CurrencyRateService.reset_caches()
         pricing_cache_module._local_cache = None
         reset_registry()
         reset_expansion_service()

@@ -290,7 +290,7 @@ class KnowledgeEnrichmentService:
                 ):
                     logger.info(
                         "knowledge_enrichment_cache_hit",
-                        keyword=keyword,
+                        keyword_length=len(keyword),
                         endpoint=endpoint,
                         cache_age_seconds=cache_result.cache_age_seconds,
                     )
@@ -382,7 +382,11 @@ class KnowledgeEnrichmentService:
                 )
 
             if not api_response:
-                logger.info("knowledge_enrichment_no_results", keyword=keyword, endpoint=endpoint)
+                logger.info(
+                    "knowledge_enrichment_no_results",
+                    keyword_length=len(keyword),
+                    endpoint=endpoint,
+                )
                 return None
 
             # Parse results
@@ -397,7 +401,7 @@ class KnowledgeEnrichmentService:
 
             logger.info(
                 "knowledge_enrichment_success",
-                keyword=keyword,
+                keyword_length=len(keyword),
                 endpoint=endpoint,
                 results_count=len(results),
             )
@@ -412,7 +416,7 @@ class KnowledgeEnrichmentService:
         except TimeoutError:
             logger.warning(
                 "knowledge_enrichment_api_timeout",
-                keyword=keyword,
+                keyword_length=len(keyword),
                 endpoint=endpoint,
                 timeout=settings.brave_search_enrichment_timeout_seconds,
             )
@@ -421,7 +425,7 @@ class KnowledgeEnrichmentService:
         except Exception as e:
             logger.warning(
                 "knowledge_enrichment_error",
-                keyword=keyword,
+                keyword_length=len(keyword),
                 endpoint=endpoint,
                 error=str(e),
             )

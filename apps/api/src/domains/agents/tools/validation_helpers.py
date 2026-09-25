@@ -188,7 +188,7 @@ def validate_email_field(
 
     if not validate_email(value):
         raise ToolValidationError(
-            message=f"Invalid email format for '{field}': {value}",
+            message=f"Invalid email format for '{field}'",
             field=field,
         )
 
@@ -391,7 +391,7 @@ def validate_date_format(
         raise ToolValidationError(
             message=(
                 f"Invalid datetime format for '{field_name}'. "
-                f"Expected ISO 8601 format (e.g., '2025-02-01T10:00:00Z'), got: {value}"
+                f"Expected ISO 8601 format (e.g., '2025-02-01T10:00:00Z')"
             ),
             field=field_name,
         )

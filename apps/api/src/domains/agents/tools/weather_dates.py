@@ -11,7 +11,9 @@ languages (« jeudi 9 avril 2026 »).
 Anything else is REFUSED. Until 2026-09-23 it fell back to today in silence: a
 ReAct loop that passed « demain » got today's forecast back as a success and
 could only blame the service. The refusal carries the accepted format and the
-person's current date, so the model can correct its own call.
+person's current date, so the model can correct its own call — the wording and
+the exception live in ``core/date_contract`` since ADR-318, shared with every
+tool that takes a date.
 
 Extracted from ``weather_tools.py`` (frozen by the file-size ratchet), which
 imports it.
@@ -24,11 +26,11 @@ from datetime import UTC, date, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from src.core.date_contract import UnreadableDateError, unreadable_date_message
 from src.core.time_utils import now_in_timezone, parse_datetime
 from src.domains.agents.tools.common import ToolErrorCode
 
 __all__ = [
-    "UnreadableDateError",
     "calculate_target_date",
     "parse_localized_date",
     "unreadable_date_result",
@@ -103,18 +105,6 @@ _LOCALIZED_DATE_PATTERN = re.compile(r"(?:\w+\s+)?(\d{1,2})\s+(\w+)\s+(\d{4})", 
 _IN_N_DAYS = re.compile(r"in\s+(\d+)\s+days?")
 
 
-class UnreadableDateError(ValueError):
-    """A ``date`` value the forecast tools cannot read.
-
-    Attributes:
-        reference: The value as the caller sent it.
-    """
-
-    def __init__(self, reference: str) -> None:
-        super().__init__(f"unreadable date reference: {reference!r}")
-        self.reference = reference
-
-
 def parse_localized_date(ref: str) -> date | None:
     """Parse a date written in words, like 'jeudi 09 avril 2026' or '9 April 2026'.
 
@@ -155,16 +145,11 @@ def unreadable_date_result(reference: str, user_timezone: str) -> dict[str, Any]
     Returns:
         A tool result dict with ``success`` false and the INVALID_INPUT code.
     """
-    today = now_in_timezone(user_timezone).date().isoformat()
     return {
         "success": False,
         "error": "invalid_date",
         "error_code": ToolErrorCode.INVALID_INPUT.value,
-        "message": (
-            f"date '{reference}' is not readable: pass an ISO date (YYYY-MM-DD) or an "
-            f"ISO datetime, resolved from the current date; today is {today} "
-            f"({user_timezone})."
-        ),
+        "message": unreadable_date_message(reference, user_timezone),
     }
 
 

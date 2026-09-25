@@ -54,6 +54,11 @@ class TokenUsageRecord(NamedTuple):
     reasoning_level: str | None = None
     reasoning_budget_tokens: int | None = None
     params_digest: str | None = None
+    # The model the request NAMED — the slot's configuration (B8). ``model_name``
+    # is what the provider REPORTED, which is what is billed; the two differ
+    # when a provider resolves an alias or answers under a dated snapshot.
+    # Shown by the debug panel, not a column of token_usage_logs.
+    requested_model: str | None = None
 
 
 class ImageGenerationRecord(NamedTuple):
@@ -148,6 +153,7 @@ def breakdown_entry(record: TokenUsageRecord) -> dict[str, Any]:
     return {
         "node_name": record.node_name,
         "model_name": record.model_name,
+        "requested_model": record.requested_model,
         "tokens_in": record.prompt_tokens,
         "tokens_out": record.completion_tokens,
         "tokens_cache": record.cached_tokens,

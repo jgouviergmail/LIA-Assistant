@@ -181,17 +181,17 @@ async def forward_geocode(
         return (lat, lon, locality, country_code)
 
     except httpx.TimeoutException:
-        logger.warning("google_forward_geocode_timeout", address=address[:50])
+        logger.warning("google_forward_geocode_timeout", address_length=len(address))
     except httpx.HTTPStatusError as e:
         logger.warning(
             "google_forward_geocode_http_error",
-            address=address[:50],
+            address_length=len(address),
             status_code=e.response.status_code,
         )
     except Exception as e:
         logger.warning(
             "google_forward_geocode_error",
-            address=address[:50],
+            address_length=len(address),
             error=str(e),
             error_type=type(e).__name__,
         )

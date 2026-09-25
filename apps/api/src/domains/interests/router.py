@@ -235,7 +235,7 @@ async def create_interest(
             logger.info(
                 "interest_manual_no_embedding",
                 user_id=str(user.id),
-                topic=data.topic[:50],
+                topic_length=len(data.topic),
                 fallback="string_matching",
             )
 
@@ -254,7 +254,6 @@ async def create_interest(
             "interest_created_manual",
             user_id=str(user.id),
             interest_id=str(interest.id),
-            topic=data.topic[:50],
             category=data.category.value,
             has_embedding=topic_embedding is not None,
         )
@@ -266,7 +265,7 @@ async def create_interest(
         logger.warning(
             "interest_create_duplicate",
             user_id=str(user.id),
-            topic=data.topic[:50],
+            topic_length=len(data.topic),
         )
         raise ResourceConflictError(
             resource_type="interest",
@@ -597,7 +596,6 @@ async def update_interest(
                 "interest_embedding_regenerated",
                 interest_id=str(interest_id),
                 user_id=str(user.id),
-                new_topic=new_topic[:50],
                 has_embedding=new_embedding is not None,
             )
 

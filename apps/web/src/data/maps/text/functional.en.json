@@ -79,9 +79,9 @@
     },
     "f.provenance": {
       "name": "Provenance and honesty",
-      "role": "Each answer says where its facts come from — sources, tools used — and states a failure as it is, without inventing a diagnosis.",
+      "role": "Each answer says where its facts come from — sources, tools used — computes what must be exact instead of estimating it, and states a failure as it is, without inventing a diagnosis.",
       "goal": "Being able to trust an answer because you can check it.",
-      "src": "12c6a842c090"
+      "src": "0077efc8d115"
     },
     "f.subagents": {
       "name": "Delegated sub-agents",
@@ -97,15 +97,15 @@
     },
     "f.memory": {
       "name": "Long-term memory",
-      "role": "Facts, preferences and working instructions extracted from your conversations in the background; each memory can be seen and corrected, and keeps its history when it changes.",
+      "role": "Facts, preferences and working instructions extracted from your conversations in the background, and looked up on purpose when a subject comes up along the way; each memory can be seen and corrected, and keeps its history when it changes.",
       "goal": "No need to repeat what LIA already knows about you.",
-      "src": "9f5f203e3b93"
+      "src": "a6453a53542e"
     },
     "f.journals": {
       "name": "Journals and portrait",
-      "role": "LIA keeps her own reflection notebooks and compiles your portrait from four sources — memories, interests, habits, relationships — saying which ones she was able to read.",
+      "role": "LIA keeps her own reflection notebooks, which she looks up when a subject comes up, and compiles your portrait from four sources — memories, interests, habits, relationships — saying which ones she was able to read.",
       "goal": "An understanding of you that sharpens over time, and stays readable.",
-      "src": "4b4842e18151"
+      "src": "79114967b569"
     },
     "f.psyche": {
       "name": "Psyche and face",
@@ -151,9 +151,9 @@
     },
     "f.peers": {
       "name": "Peer connections",
-      "role": "Link two LIA accounts: pass messages to each other through the assistant, hand tickets to each other.",
+      "role": "Link two LIA accounts: pass messages to each other through the assistant, share a generated image, hand tickets to each other.",
       "goal": "Collaborate without leaving the assistant.",
-      "src": "ad8f77dcd088"
+      "src": "0999b15ba37c"
     },
     "f.connectors": {
       "name": "Connectors",
@@ -163,9 +163,9 @@
     },
     "f.mail": {
       "name": "Emails",
-      "role": "Read cleaned-up emails, summarize each one only once, search, write, reply and read attachments — sending always goes through an approved draft.",
+      "role": "Read cleaned-up emails, summarize each one only once, search, write, reply and read attachments — sending to someone else always goes through an approved draft; an email to yourself goes straight out.",
       "goal": "Handle your inbox in a few sentences.",
-      "src": "27fec2781b28"
+      "src": "8b1872b98aa6"
     },
     "f.calendar": {
       "name": "Calendar",
@@ -235,9 +235,9 @@
     },
     "f.images": {
       "name": "Generated images",
-      "role": "Create or edit an image with several providers, each with its own formats and its price shown.",
+      "role": "Create or edit an image with several providers, each with its own formats and its price shown; enrich the description on request, find an image again by asking, share it with a connection.",
       "goal": "Illustrate an idea in one sentence.",
-      "src": "c14d4690f7b2"
+      "src": "bd76adef0b7f"
     },
     "f.meetings": {
       "name": "Meetings",
@@ -289,9 +289,9 @@
     },
     "f.notifications": {
       "name": "Notifications and channels",
-      "role": "Web and mobile notifications, and Telegram; a notification sent by LIA is an action recorded in the register.",
+      "role": "Web and mobile notifications, and Telegram; a notification sent by LIA is an action recorded in the register, and an administrator's announcement goes only to the accounts it targets.",
       "goal": "Reach you where you are, without ever doing it silently.",
-      "src": "feb9356742c4"
+      "src": "bb532ffc6ada"
     },
     "f.activity": {
       "name": "Activity and proposals",
@@ -325,9 +325,9 @@
     },
     "f.privacy": {
       "name": "Data and privacy",
-      "role": "Three registers — actions, consultations, decisions — that the instance can seal into a per-account chain; a full export of your data; forgetting; traceability in the sense of Article 12 of the AI Act.",
+      "role": "Three registers — actions, consultations, decisions — that the instance can seal into a per-account chain; a full export of your data; forgetting; technical logs that keep facts, never your words; traceability in the sense of Article 12 of the AI Act.",
       "goal": "Know what LIA did, read and decided — and be able to take it all with you or erase it all.",
-      "src": "57fc43e143ea"
+      "src": "67ab0aa58bd2"
     },
     "f.costs": {
       "name": "Costs and quotas",

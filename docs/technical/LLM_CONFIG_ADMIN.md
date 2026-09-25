@@ -118,7 +118,7 @@ description pour les autres (`structuredErrorDetail`,
 
 > **Note**: La résolution API key utilise le DB en priorité, avec fallback `.env`. La migration `llm_config_002` a importé les clés `.env` existantes en DB. `_require_api_key()` dans `adapter.py` lève `ValueError` si aucune des deux sources n'a de clé.
 
-> **Scope de ce système**: Ce système Admin UI gère les **56 types LLM** (registre `LLM_TYPES_REGISTRY`) (router, planner, contacts_agent, etc.). Les configurations LLM d'infrastructure (Excalidraw, MCP description generation) restent dans `.env` via `MCPSettings`. Les clés API provider (OPENAI_API_KEY, etc.) sont dans `.env` comme fallback.
+> **Scope de ce système**: Ce système Admin UI gère les **61 types LLM** (registre `LLM_TYPES_REGISTRY`) (router, planner, contacts_agent, etc.). Les configurations LLM d'infrastructure (Excalidraw, MCP description generation) restent dans `.env` via `MCPSettings`. Les clés API provider (OPENAI_API_KEY, etc.) sont dans `.env` comme fallback.
 
 ### Contraintes Provider (filtrage automatique dans `adapter.py`)
 
@@ -158,7 +158,7 @@ description pour les autres (`structuredErrorDetail`,
 
 | Fichier | Rôle |
 |---------|------|
-| `domains/llm_config/constants.py` | `LLM_TYPES_REGISTRY` (metadata 35 types) + `LLM_DEFAULTS` (configs par défaut) |
+| `domains/llm_config/constants.py` | `LLM_TYPES_REGISTRY` (metadata 61 types) + `LLM_DEFAULTS` (configs par défaut) |
 | `domains/llm_config/models.py` | Tables `provider_api_keys` + `llm_config_overrides` |
 | `domains/llm_config/schemas.py` | Schemas Pydantic (request/response) |
 | `domains/llm_config/cache.py` | `LLMConfigOverrideCache` — cache in-memory (sync read, async populate) |
@@ -250,7 +250,7 @@ Cross-worker cache invalidation is handled via Redis Pub/Sub (ADR-063). When `in
 
 ## Types LLM
 
-> La liste exhaustive et à jour est `LLM_TYPES_REGISTRY` (`src/domains/llm_config/constants.py`) — 56 types au 2026-07. Le tableau ci-dessous donne les catégories principales.
+> La liste exhaustive et à jour est `LLM_TYPES_REGISTRY` (`src/domains/llm_config/constants.py`) — 61 types au 2026-09. Le tableau ci-dessous donne les catégories principales.
 
 ### Catégories
 

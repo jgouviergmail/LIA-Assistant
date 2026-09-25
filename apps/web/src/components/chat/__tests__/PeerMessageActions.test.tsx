@@ -61,11 +61,25 @@ describe('PeerMessageActions — scoping', () => {
 
   it('renders nothing on a request-outcome notice (accepted/removed kinds)', () => {
     const { container } = renderWithProviders(
-      <PeerMessageActions
-        metadata={{ ...REQUEST_META, peer_event: 'request_accepted' }}
-      />
+      <PeerMessageActions metadata={{ ...REQUEST_META, peer_event: 'request_accepted' }} />
     );
     expect(container).toBeEmptyDOMElement();
+  });
+});
+
+describe('PeerMessageActions — an image the peer shared (ADR-316)', () => {
+  it('offers the same reply and block as a relayed message', async () => {
+    const onPrefillComposer = vi.fn();
+    const { user } = renderWithProviders(
+      <PeerMessageActions
+        metadata={{ ...MESSAGE_META, type: 'proactive_peer_image' }}
+        onPrefillComposer={onPrefillComposer}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: /chat.peer.block/ })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /chat.peer.reply/ }));
+    expect(onPrefillComposer).toHaveBeenCalledWith('chat.peer.reply_prefill');
   });
 });
 
@@ -87,7 +101,9 @@ describe('PeerMessageActions — relayed message', () => {
     await waitFor(() =>
       expect(mutate).toHaveBeenCalledWith('/peers/blocks', { peer_id: 'peer-1' })
     );
-    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('settings.peers.blocks.blocked'));
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith('settings.peers.blocks.blocked')
+    );
     expect(screen.queryByRole('button', { name: /chat.peer.block/ })).not.toBeInTheDocument();
   });
 
@@ -102,9 +118,7 @@ describe('PeerMessageActions — relayed message', () => {
     mutate.mockRejectedValueOnce(new ApiError('conflict', 409, { detail: 'peers_conflict' }));
     const { user } = renderWithProviders(<PeerMessageActions metadata={MESSAGE_META} />);
     await user.click(screen.getByRole('button', { name: /chat.peer.block/ }));
-    await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith('settings.peers.errors.conflict')
-    );
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('settings.peers.errors.conflict'));
   });
 });
 

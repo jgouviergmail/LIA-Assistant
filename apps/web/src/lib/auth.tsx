@@ -41,6 +41,8 @@ export interface User {
   image_generation_default_quality?: string;
   image_generation_default_size?: string;
   image_generation_output_format?: string;
+  /** Rewrite generation prompts with recognised techniques first (ADR-315). */
+  image_generation_prompt_enhancement?: boolean;
   document_generation_enabled?: boolean;
   use_last_known_location?: boolean;
   health_metrics_agents_enabled?: boolean;

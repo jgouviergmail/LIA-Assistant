@@ -11,6 +11,9 @@ settings therefore show exactly what the next image will use.
   the nearest area (``sizing.closest_in_orientation``).
 - An edit keeps the SOURCE's proportions, within the billing tier of the size the
   person prefers.
+
+The prompt enhancement (ADR-315) is an opt-in of the person that the operator can
+withdraw: :func:`prompt_enhancement_offered` is the one reading of that switch.
 """
 
 from __future__ import annotations
@@ -55,6 +58,15 @@ def active_image_options() -> ModelOptions:
             "(Settings > Administration > Image pricing)."
         )
     return options
+
+
+def prompt_enhancement_offered() -> bool:
+    """Whether the operator offers the prompt enhancement (read at call time).
+
+    The one reading of the switch: the image tool and the settings page both ask
+    it, so the page never offers what the tool would ignore (ADR-315).
+    """
+    return settings.image_prompt_enhancement_enabled
 
 
 def effective_quality(stored: str | None, options: ModelOptions) -> str:

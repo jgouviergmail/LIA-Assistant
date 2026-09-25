@@ -156,6 +156,5 @@ async def fetch_skill_from_url(
     logger.info(
         "skill_url_import_fetched",
         content_bytes=len(content),
-        filename=filename,
     )
     return content, filename

@@ -46,6 +46,7 @@ from src.domains.agents.tools.common import ToolErrorCode, http_status_to_error_
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.tool_registry import registered_tool
 from src.domains.agents.utils.rate_limiting import rate_limit
+from src.domains.attachments.urls import attachment_url
 from src.domains.image_generation.options_cache import ModelOptions
 from src.domains.image_generation.providers.base import (
     ImageDeliveryError,
@@ -78,6 +79,8 @@ class _Caller:
     stored_size: str | None
     options: ModelOptions
     output_format: str
+    #: The person asked for their generation prompts to be enhanced (ADR-315).
+    enhance_prompt: bool = False
 
 
 async def _write_image_file(image_bytes: bytes, relative_path: str) -> Path:
@@ -150,6 +153,7 @@ async def _resolve_caller(
             stored_quality = user.image_generation_default_quality
             stored_size = user.image_generation_default_size
             output_format = user.image_generation_output_format
+            enhance_prompt = user.image_generation_prompt_enhancement
     except Exception as e:
         logger.error("image_tool_user_prefs_error", tool=tool, error_type=type(e).__name__)
         return UnifiedToolOutput.failure(
@@ -172,7 +176,36 @@ async def _resolve_caller(
         stored_size=stored_size,
         options=options,
         output_format=output_format,
+        enhance_prompt=bool(enhance_prompt),
     )
+
+
+async def _prompt_for_the_model(
+    prompt: str, caller: _Caller, runtime: ToolRuntime[LiaRuntimeContext, Any] | None
+) -> str:
+    """The request as the image model receives it (ADR-315).
+
+    Enhanced when the person turned it on AND the operator offers it; the
+    original otherwise, and on any doubt the enhancement has — it never costs
+    the person their image.
+
+    Args:
+        prompt: The request the tool received.
+        caller: Who asked, and whether they want their prompts enhanced.
+        runtime: The tool runtime; its config carries the turn's tracker.
+
+    Returns:
+        The prompt to send to the image model.
+    """
+    from src.domains.agents.image_generation.prompt_enhancement import enhance_image_prompt
+    from src.domains.image_generation.preferences import prompt_enhancement_offered
+
+    if not (caller.enhance_prompt and prompt_enhancement_offered()):
+        return prompt
+    enhancement = await enhance_image_prompt(
+        prompt, user_id=str(caller.user_id), config=runtime.config if runtime else None
+    )
+    return enhancement.text
 
 
 def _failure_code(error: ImageGenerationError) -> ToolErrorCode:
@@ -320,7 +353,7 @@ async def _save_image(
             error_code="TOOL_ERROR",
         )
 
-    image_url = f"/api/v1/attachments/{attachment_id}"
+    image_url = attachment_url(attachment_id)
     # Delivered to the frontend through the done chunk metadata, rendered as a
     # card below the assistant message.
     store_pending_image(
@@ -378,11 +411,13 @@ async def generate_image(
     # never a planner-supplied value: the settings are the person's budget.
     quality = effective_quality(caller.stored_quality, options)
     size = effective_size(caller.stored_size, options)
+    # What the vendor receives and bills; the gallery keeps the person's words.
+    sent_prompt = await _prompt_for_the_model(prompt, caller, runtime)
 
     result = await _call_provider(
         options,
         lambda client: client.generate(
-            prompt=prompt, model=options.model, quality=quality, size=size
+            prompt=sent_prompt, model=options.model, quality=quality, size=size
         ),
         action="generation",
         bill=lambda duration_ms: track_image_generation_call(
@@ -390,7 +425,7 @@ async def generate_image(
             quality=quality,
             size=size,
             image_count=1,
-            prompt=prompt,
+            prompt=sent_prompt,
             duration_ms=duration_ms,
         ),
     )
@@ -411,6 +446,7 @@ async def generate_image(
         size=size,
         duration_ms=int((time.time() - start_time) * 1000),
         prompt_length=len(prompt),
+        prompt_enhanced=sent_prompt != prompt,
     )
 
     # action_success() lets the parallel executor and the adaptive replanner

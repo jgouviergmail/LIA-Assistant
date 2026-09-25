@@ -9,7 +9,10 @@
  *   2026-07-25: `grep -c 'register_agent(' agents.py` — the telephony agent
  *   had landed without this counter following it.
  * - tools: tool manifests the running catalogue actually EXPOSES, not the count
- *   Re-measured 2026-09-18 (v1.45.2) on the dev instance = 115 (`tool_count` in
+ *   Re-measured 2026-09-25 (v1.47.4) on the dev instance = 123 (`tool_count` in
+ *   the catalogue log at boot): the six assistant tools of ADR-318, the memory
+ *   lookup (ADR-313) and the e-mail to oneself (ADR-314) joined the catalogue.
+ *   Previous re-measure 2026-09-18 (v1.45.2) on the dev instance = 115 (`tool_count` in
  *   the catalogue log at boot): the mail-attachment read tool (ADR-296) joined
  *   the e-mail agent.
  *   Previous re-measure 2026-09-10 (v1.44.0) on the dev instance = 114 (`tool_count` in
@@ -86,6 +89,10 @@
  *   over the 471 of v1.29.0 (instance ceiling, administrable capabilities and
  *   demonstrator envelope, ADR-216/217/218; 466 at v1.27.7).
  * - tests: SUM of both suites, rounded DOWN (the landing renders it as "N+").
+ *   Re-measured 2026-09-25 (v1.47.4): backend 32 725 collected over `tests/`
+ *   (sum of the per-file counts of `pytest --collect-only -q`, 1 974 files) +
+ *   frontend 9 160 passing (`task test:frontend:coverage`, 738 files) =
+ *   41 885 -> 41000.
  *   Re-measured 2026-09-24 (v1.47.3): backend 32 106 collected over `tests/`
  *   (sum of the per-file counts of `pytest --collect-only -q`, 1 937 files) +
  *   frontend 9 071 passing (`task test:frontend:coverage`, 729 files) =
@@ -341,14 +348,14 @@
 
 export const LANDING_STATS = {
   agents: 20,
-  tools: 115,
+  tools: 123,
   providers: 7,
   voiceLanguages: 99,
-  metrics: 587,
+  metrics: 589,
   uiLanguages: 6,
   tests: 41000,
-  adrs: 310,
-  releases: 268,
+  adrs: 317,
+  releases: 269,
   auditScore: '8.3/10',
   auditAreas: 24,
 } as const;

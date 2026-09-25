@@ -4,7 +4,7 @@
 
 **Version** : 2.2
 **Date** : 2026-09-24
-**Application** : LIA v1.47.3
+**Application** : LIA v1.47.4
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -20,8 +20,8 @@ La quasi-totalité du code a été écrite par une IA, sous direction humaine : 
 | Code écrit par une IA — dirigée, encadrée, contrôlée | **≈ 100 %** |
 | Lignes de source (hors tests) — 51 domaines fonctionnels | **720 000+** |
 | Tests automatisés, exécutés à chaque commit et livraison | **41 000+** |
-| Décisions d'architecture documentées (ADR) | **310** |
-| Versions livrées à rythme régulier | **268** |
+| Décisions d'architecture documentées (ADR) | **317** |
+| Versions livrées à rythme régulier | **269** |
 | Langues, parité vérifiée automatiquement | **6** |
 | Audit technique sur 24 périmètres | **8,3/10** |
 
@@ -50,19 +50,19 @@ Une IA qui code produit du volume ; elle ne produit de la qualité que sous cont
 
 ## 4. Les arbitrages
 
-Trois décisions structurantes, parmi les 310 documentées :
+Trois décisions structurantes, parmi les 317 documentées :
 
 **Souveraineté & réversibilité — aucune dépendance fournisseur irréversible.** Les modèles d'IA (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, modèles locaux via Ollama) sont placés derrière une abstraction unique : chaque usage peut changer de fournisseur par configuration, avec comparaison de coût. Même principe côté métier : Google, Apple et Microsoft sont interchangeables par catégorie fonctionnelle. L'hébergement est intégralement maîtrisé ; les données personnelles sont chiffrées et restent sur l'infrastructure.
 
 **Économie de l'IA — le coût par requête est un critère de conception.** Deux modes d'exécution coexistent : un pipeline déterministe et économe pour les demandes courantes, un mode agent autonome pour les demandes exploratoires — l'écart de consommation mesuré va de 1 à 4-8, à service rendu équivalent sur les cas standards. Chaque appel est compté au token, valorisé en euros, agrégé par utilisateur et par modèle, gouverné par quotas. Même une notification de deux phrases se demande sans réflexion, parce qu'un modèle qui réfléchit par défaut facture sa réflexion dans le budget de la réponse. Et le mode agent n'emporte que les outils que la question appelle — choisis par pertinence, jamais par ordre d'arrivée — parce que quatre-vingts schémas d'outils pesaient l'essentiel d'un premier appel sans être comptés. Et le compte tombe juste : chaque appel est valorisé au prix que le fournisseur facture réellement — tarifs relus sur ses pages, écriture de cache à son prix, heures creuses avec leurs jours.
 
-**Maîtrise du risque — aucune action irréversible sans validation humaine.** Six niveaux de contrôle humain, gradués selon la sensibilité de l'action — de la clarification à la confirmation des opérations destructives. Le comportement en cas d'interruption est spécifié et testé : une validation en attente survit aux redémarrages, sans perte ni double exécution. Plusieurs actions dans une même demande sont soumises une par une, chacune sur sa carte, et le compte rendu dit ce qui a été fait et pour qui. Le téléphone suit la même ligne : la carte protège un tiers, donc quand LIA appelle la personne elle-même — sur un numéro déclaré et vérifié par un code lu à voix haute — la carte, c'est la personne ; en ligne — comme dans une session vocale live du navigateur, sur la clé Gemini, OpenAI ou ElevenLabs de la personne — le mode est son choix : la voix confie chaque demande au chat au moment où elle est dite, avec ses confirmations, ou lit seule sans agir sur rien ; et ce qui tourne sur la clé personnelle du fournisseur y est facturé, montré une fois, jamais compté ici. Ce que la plateforme elle-même paie pour la personne — une consultation de carte pendant un appel, la météo du briefing, une photo montrée — atteint son grand livre, quel que soit le chemin. Ce qu'un inconnu envoie — un mail, sa pièce jointe — reste une donnée à lire, jamais une instruction à suivre. Et un script que l'assistante écrit n'atteint le web que par une seule porte, les clés de la personne échangées hors de lui — un hôte que personne n'a autorisé est demandé avant, avec les données, sans, ou pas du tout. Et quand l'agent autonome ne peut pas obtenir ce qu'on lui demande, il le dit — avec ce qu'il a tenté — plutôt que de combler le vide.
+**Maîtrise du risque — aucune action irréversible sans validation humaine.** Six niveaux de contrôle humain, gradués selon la sensibilité de l'action — de la clarification à la confirmation des opérations destructives. Le comportement en cas d'interruption est spécifié et testé : une validation en attente survit aux redémarrages, sans perte ni double exécution. Plusieurs actions dans une même demande sont soumises une par une, chacune sur sa carte, et le compte rendu dit ce qui a été fait et pour qui. Le téléphone suit la même ligne : la carte protège un tiers, donc quand LIA appelle la personne elle-même — sur un numéro déclaré et vérifié par un code lu à voix haute — la carte, c'est la personne ; en ligne — comme dans une session vocale live du navigateur, sur la clé Gemini, OpenAI ou ElevenLabs de la personne — le mode est son choix : la voix confie chaque demande au chat au moment où elle est dite, avec ses confirmations, ou lit seule sans agir sur rien ; et ce qui tourne sur la clé personnelle du fournisseur y est facturé, montré une fois, jamais compté ici. Ce que la plateforme elle-même paie pour la personne — une consultation de carte pendant un appel, la météo du briefing, une photo montrée — atteint son grand livre, quel que soit le chemin. Ce qu'un inconnu envoie — un mail, sa pièce jointe — reste une donnée à lire, jamais une instruction à suivre. Et un script que l'assistante écrit n'atteint le web que par une seule porte, les clés de la personne échangées hors de lui — un hôte que personne n'a autorisé est demandé avant, avec les données, sans, ou pas du tout. Et quand l'agent autonome ne peut pas obtenir ce qu'on lui demande, il le dit — avec ce qu'il a tenté — plutôt que de combler le vide. Ce qui doit être exact — un montant, une durée, une conversion — est calculé par un outil, jamais estimé par le modèle. Et ce qui part sans confirmation ne s'adresse qu'à la personne elle-même — un e-mail à soi, un appel sur son numéro vérifié : le destinataire n'y est pas un paramètre, rien ne peut donc le détourner.
 
 ## 5. L'exploitation
 
 Un système qu'on pilote aux instruments :
 
-- **Observabilité** : trente tableaux de bord — santé applicative, engagements de service, coûts d'IA, comportement des agents, infrastructure. Plus de 540 métriques ; journaux structurés centralisés avec filtrage des données personnelles ; traçage distribué de bout en bout. Une quarantaine de procédures d'exploitation écrites — diagnostic, remédiation, restauration. Et l'assistant lit lui-même cette télémétrie : auto-contrôle périodique, mémoire d'incidents diagnostiqués sur la base de ces procédures, réponses qui contournent une panne connue. Et un diagnostic montre les preuves dont il est issu. Et les instruments descendent jusqu'aux processus : chaque worker de l'API publie ce qu'il tient en mémoire, si bien qu'un total de conteneur se lit processus par processus.
+- **Observabilité** : trente tableaux de bord — santé applicative, engagements de service, coûts d'IA, comportement des agents, infrastructure. Plus de 580 métriques ; journaux structurés centralisés qui ne gardent que des faits, jamais les mots des personnes ; traçage distribué de bout en bout. Une quarantaine de procédures d'exploitation écrites — diagnostic, remédiation, restauration. Et l'assistant lit lui-même cette télémétrie : auto-contrôle périodique, mémoire d'incidents diagnostiqués sur la base de ces procédures, réponses qui contournent une panne connue. Et un diagnostic montre les preuves dont il est issu. Et les instruments descendent jusqu'aux processus : chaque worker de l'API publie ce qu'il tient en mémoire, si bien qu'un total de conteneur se lit processus par processus.
 - **Livraison** : déploiement conteneurisé, migrations de schéma automatisées, images publiées pour deux architectures matérielles (amd64/arm64).
 - **Coûts** : infrastructure frugale par choix — environ 150 € de matériel, zéro licence, briques open-source dimensionnées au besoin réel.
 - **Conformité** : sécurité revue point d'accès par point d'accès ; chiffrement des données personnelles ; cycle de vie des comptes aligné sur le RGPD.

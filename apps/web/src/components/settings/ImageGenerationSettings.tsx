@@ -8,6 +8,8 @@
  * - Default quality selection (driven by /image-generation/options)
  * - Default size selection (driven by /image-generation/options)
  * - Default output format (PNG/JPEG/WebP — the server converts every image into it)
+ * - Prompt enhancement (ADR-315): an opt-in rewrite of each generation prompt,
+ *   shown only when the operator offers it (``prompt_enhancement_available``)
  *
  * The qualities and sizes come from what the configured model offers (ADR-305):
  * each vendor has its own vocabulary, and a size carries its orientation and,
@@ -28,9 +30,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { useTranslation } from '@/i18n/client';
 import { useAuth } from '@/hooks/useAuth';
-import { useImageGenerationOptions, type SizeOption } from '@/hooks/useImageGenerationOptions';
+import {
+  useImageGenerationOptions,
+  type ImageGenerationOptions,
+  type SizeOption,
+} from '@/hooks/useImageGenerationOptions';
 import apiClient from '@/lib/api-client';
 import { toast } from 'sonner';
+import type { User } from '@/lib/auth';
 import type { BaseSettingsProps } from '@/types/settings';
 
 export function ImageGenerationSettings({ lng }: BaseSettingsProps) {
@@ -82,14 +89,18 @@ export function ImageGenerationSettings({ lng }: BaseSettingsProps) {
   const content = (
     <div className="space-y-4">
       {/* Enable toggle */}
-      <div className="flex items-center justify-between p-3 rounded-lg border bg-card">
+      <div className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-card">
         <div className="flex-1">
-          <p className="text-sm font-medium">{t('settings.image_generation.enable')}</p>
-          <p className="text-xs text-muted-foreground">
+          <p id="image-generation-enable-label" className="text-sm font-medium">
+            {t('settings.image_generation.enable')}
+          </p>
+          <p id="image-generation-enable-description" className="text-xs text-muted-foreground">
             {t('settings.image_generation.enable_description')}
           </p>
         </div>
         <Switch
+          aria-labelledby="image-generation-enable-label"
+          aria-describedby="image-generation-enable-description"
           checked={user?.image_generation_enabled ?? false}
           onCheckedChange={checked => updatePreference('image_generation_enabled', checked)}
           disabled={updating}
@@ -182,6 +193,14 @@ export function ImageGenerationSettings({ lng }: BaseSettingsProps) {
           </SelectContent>
         </Select>
       </div>
+
+      <PromptEnhancementRow
+        lng={lng}
+        offered={enhancementOffered({ loading, error, options })}
+        user={user}
+        disabled={updating}
+        onChange={checked => updatePreference('image_generation_prompt_enhancement', checked)}
+      />
     </div>
   );
 
@@ -194,5 +213,56 @@ export function ImageGenerationSettings({ lng }: BaseSettingsProps) {
     >
       {content}
     </SettingsSection>
+  );
+}
+
+/**
+ * Whether the enhancement switch is shown (ADR-315): only once the options are
+ * read, and only when the operator offers it — the page never offers what the
+ * image tool would ignore. Module-level and pure (the complexity ratchet).
+ */
+function enhancementOffered(state: {
+  loading: boolean;
+  error: Error | null;
+  options: ImageGenerationOptions | undefined;
+}): boolean {
+  return !state.loading && !state.error && Boolean(state.options?.prompt_enhancement_available);
+}
+
+/** The person's opt-in for rewriting their generation prompts (ADR-315). */
+function PromptEnhancementRow({
+  lng,
+  offered,
+  user,
+  disabled,
+  onChange,
+}: {
+  lng: BaseSettingsProps['lng'];
+  offered: boolean;
+  /** Whose opt-in — read here so the section's render stays flat (the CC ratchet). */
+  user: User | null;
+  disabled: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  const { t } = useTranslation(lng);
+  if (!offered) return null;
+  return (
+    <div className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-card">
+      <div className="flex-1">
+        <p id="image-generation-enhancement-label" className="text-sm font-medium">
+          {t('settings.image_generation.prompt_enhancement')}
+        </p>
+        <p id="image-generation-enhancement-description" className="text-xs text-muted-foreground">
+          {t('settings.image_generation.prompt_enhancement_description')}
+        </p>
+      </div>
+      <Switch
+        aria-labelledby="image-generation-enhancement-label"
+        aria-describedby="image-generation-enhancement-description"
+        checked={user?.image_generation_prompt_enhancement ?? false}
+        onCheckedChange={onChange}
+        disabled={disabled}
+      />
+    </div>
   );
 }

@@ -12,7 +12,10 @@ Created: 2026-03-08
 
 from dataclasses import dataclass
 
-from src.core.constants import EMAIL_DIGEST_MAX_OUTPUT_TOKENS
+from src.core.constants import (
+    EMAIL_DIGEST_MAX_OUTPUT_TOKENS,
+    IMAGE_PROMPT_ENHANCEMENT_MAX_OUTPUT_TOKENS,
+)
 from src.core.llm_agent_config import LLMAgentConfig
 from src.core.reasoning_intent import ReasoningIntent
 from src.domains.llm.models import LLMModelKindEnum
@@ -533,6 +536,18 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         description_key="settings.admin.llmConfig.types.image_generation",
         required_capabilities=[],  # Images API, not chat completions
         required_kind=LLMModelKindEnum.image,
+    ),
+    # Image prompt enhancement (ADR-315): an optional rewrite of an image prompt
+    # with recognised prompting techniques, before the image model is called --
+    # only for the accounts that turned it on.
+    "image_prompt_enhancement": LLMTypeMetadata(
+        llm_type="image_prompt_enhancement",
+        display_name="Image Prompt Enhancement",
+        category=CATEGORY_SPECIALIZED,
+        description_key="settings.admin.llmConfig.types.image_prompt_enhancement",
+        # Verified at the call site: this slot asks the model for a schema.
+        required_capabilities=["structured_output"],
+        power_tier=POWER_TIER_LOW,
     ),
     # E-mail digest (ADR-287): one short structured call per NEW message, then
     # cached -- what "résume mes non lus" and a morning routine reason over.
@@ -1188,6 +1203,19 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=16000,
         timeout_seconds=120.0,
+    ),
+    # Image prompt enhancement (ADR-315): one short schema-bound rewrite per
+    # generated image. No reasoning is declared here; `short_answer_config`
+    # declares `none` at the call site where the resolved profile can (ADR-285).
+    "image_prompt_enhancement": LLMAgentConfig(
+        provider="openai",
+        model="gpt-4.1-mini",
+        temperature=0.4,
+        top_p=1.0,
+        frequency_penalty=0.0,
+        presence_penalty=0.0,
+        max_tokens=IMAGE_PROMPT_ENHANCEMENT_MAX_OUTPUT_TOKENS,
+        timeout_seconds=30.0,
     ),
     # E-mail digest (ADR-287): a short, schema-bound answer with no reasoning.
     # `short_answer_config` declares `none` at the call site where the resolved

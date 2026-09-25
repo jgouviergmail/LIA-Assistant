@@ -647,7 +647,6 @@ class GetEventDetailsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
             user_id=str(user_id),
             event_id=event_id,
             calendar_id=calendar_id,
-            summary=result.get("summary", ""),
         )
 
         # Get user preferences for timezone conversion
@@ -1018,7 +1017,6 @@ class CreateEventDraftTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
         logger.info(
             "create_event_draft_prepared",
             user_id=str(user_id),
-            summary=summary,
             start_datetime=start_datetime,
             timezone=timezone,
             calendar_id=calendar_id,
@@ -1296,7 +1294,6 @@ class UpdateEventDraftTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
             event_id=event_id,
             timezone=timezone,
             calendar_id=calendar_id,
-            summary=summary or current_event.get("summary"),
         )
 
         # Convert current_event dates from UTC to user timezone for display consistency.
@@ -1514,7 +1511,6 @@ class DeleteEventDraftTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
             user_id=str(user_id),
             event_id=event_id,
             calendar_id=calendar_id,
-            summary=event.get("summary"),
         )
 
         return {

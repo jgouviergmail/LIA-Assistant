@@ -228,7 +228,7 @@ async def run_python_tool(
     _record_script(purpose=purpose, code=code, result=result)
     logger.info(
         "ephemeral_script_executed",
-        purpose=purpose[:120],
+        purpose_length=len(purpose),
         success=result.success,
         run_index=spent + 1,
         code_bytes=len(code.encode("utf-8")),

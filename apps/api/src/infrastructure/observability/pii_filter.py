@@ -13,7 +13,11 @@ Features:
 - OAuth state fingerprinting (correlatable, non-reversible) and PKCE/code
   redaction (SEC-012)
 - URL query-string credential stripping — verification/reset/OAuth links
-  (SEC-012)
+  (SEC-012), provider keys (`key=`, `appid=`)
+- Above DEBUG: content field names and suffixes redacted, a URL's search
+  parameters withheld, and what an error text QUOTES of a row or an input
+  (PostgreSQL DETAIL, Pydantic input_value, tracebacks included) withheld —
+  `quoted_content.py` (ADR-317)
 - Configurable field-based filtering
 - Hybrid approach: field-based + pattern-based detection
 
@@ -45,6 +49,7 @@ import re
 from typing import Any
 
 from src.core.field_names import FIELD_SESSION_ID
+from src.infrastructure.observability.quoted_content import redact_quoted_content
 
 # Sensitive field names to always redact (exact match, case-insensitive)
 SENSITIVE_FIELD_NAMES = {
@@ -114,6 +119,12 @@ _SENSITIVE_QUERY_PARAMS = (
     "pwd",
     "api_key",
     "apikey",
+    # Provider keys carried in the query string itself: Google Maps Platform
+    # (`?key=AIza…`) and OpenWeatherMap (`?appid=…`). An httpx status error
+    # renders the full request URL, so a failed call logged `error=str(e)`
+    # with the platform's key in it.
+    "key",
+    "appid",
     "state",
     "sig",
     "signature",
@@ -135,6 +146,35 @@ _SENSITIVE_QUERY_PARAMS = (
     "origin",
     "dest",
     "destination",
+)
+
+# Query-string parameters whose value IS the person's text — a search, an
+# address, a subject. Not credentials, so DEBUG keeps them (contents at DEBUG);
+# above it the value is withheld like any other content (inventory of
+# 2026-09-24: Gmail `q=`, Brave `q=`, Wikipedia `srsearch=`, Microsoft Graph
+# `$search=`/`$filter=`, OpenWeatherMap geocoding `q=<city>`).
+_CONTENT_QUERY_PARAMS = (
+    "q",
+    "query",
+    "search",
+    "search_query",
+    "srsearch",
+    "$search",
+    "$filter",
+    "input",
+    "text",
+    "textquery",
+    "keyword",
+    "keywords",
+    "term",
+    "terms",
+    "titles",
+    "name",
+    "address",
+    "prompt",
+    "question",
+    "subject",
+    "body",
 )
 
 # PII field names that should be pseudonymized (not fully redacted)
@@ -250,27 +290,98 @@ CONTENT_FIELD_NAMES = {
     "resolved_query",
     "combined_query",
     "enriched_query",
+    # Inventory of 2026-09-24 (every log call above DEBUG, read field by field):
+    # these names carried the person's words on every line that used them —
+    # `query=` on 43 lines, `topic=` (a person's interests, health included) on
+    # 35 — while the net above knew none of them. A name joins this list only
+    # when NO line uses it for anything else; `reason`, `message`, `name`,
+    # `task` and `detail` stay out (mostly codes or developer text) and are
+    # held line by line by `test_log_content_guard.py`.
+    "query",
+    "queries",
+    "question",
+    "instructions",
+    "modification_instructions",
+    "clarification",
+    "reasoning",
+    "topic",
+    "topics",
+    "keyword",
+    "keywords",
+    "terms",
+    "matched_terms",
+    "transcript",
+    "snippet",
+    "excerpt",
+    "stdout",
+    "stderr",
+    "purpose",
+    "input",
+    "selected_value",
+    "search_value",
+    "conversation",
+    "display_name",
+    "full_name",
+    "first_name",
+    "last_name",
+    "entity_name",
+    "resolved_name",
+    "place_name",
+    "label_name",
+    "folder_name",
+    "file_name",
+    "filename",
+    "name_filter",
 }
 
+# Suffixes that make a name content (`user_query_preview`, `result_content`,
+# `new_topic`). Unlike the exact names above, a suffix only redacts TEXT — a
+# string or a list of them — so metadata sharing the suffix survives:
+# `has_content=True`, `extra_body={...}` (a request's configuration),
+# `query_length=42`. An `*_id_preview` is an identifier prefix, never content.
+_CONTENT_FIELD_SUFFIXES = (
+    "_preview",
+    "_query",
+    "_queries",
+    "_question",
+    "_instructions",
+    "_topic",
+    "_topics",
+    "_reasoning",
+    "_keywords",
+    "_snippet",
+    "_excerpt",
+    "_transcript",
+    "_stdout",
+    "_stderr",
+    "_content",
+    "_text",
+    "_body",
+    "_subject",
+    "_title",
+    "_prompt",
+    "_input",
+)
+_IDENTIFIER_PREVIEW_SUFFIX = "_id_preview"
+
 # Structlog metadata fields — never sanitize these. They are the developer-controlled
-# log envelope (event name, logger module, level, timestamp, source position) and
-# never contain user data. Treating them like payload values causes false-positive
-# redactions on event names that happen to resemble token patterns
-# (e.g. `database_connection_pool_exhausted` matches the generic token regex).
+# log envelope (event name, logger module, level, timestamp) and never contain user
+# data. Treating them like payload values causes false-positive redactions on event
+# names that happen to resemble token patterns (e.g. `database_connection_pool_exhausted`
+# matches the generic token regex).
+#
+# The four envelope fields the chain in `logging.py` writes and no caller does
+# (`exception`, `stack` and the trace ids it also writes are payload, filtered
+# like any value). The call-site names (`filename`, `func_name`, `lineno`,
+# `module`, `thread`…) used to be listed too, but no processor of that chain
+# adds them — so the bypass only ever applied to APPLICATION fields of the same
+# name, where `filename=` is an attachment's or a generated document's name and
+# escaped every rule, emails included (2026-09-24).
 STRUCTLOG_META_FIELDS = {
     "event",
     "logger",
     "level",
     "timestamp",
-    "func_name",
-    "filename",
-    "lineno",
-    "module",
-    "pathname",
-    "process",
-    "process_name",
-    "thread",
-    "thread_name",
 }
 
 # Regex patterns for PII detection (using industry-standard patterns)
@@ -326,6 +437,12 @@ TOKEN_PATTERN = re.compile(
 # free-text ``code=200``-style content that is not a query parameter.
 _URL_QUERY_SECRET_PATTERN = re.compile(
     r"([?&](?:" + "|".join(_SENSITIVE_QUERY_PARAMS) + r")=)([^&\s#\"']+)",
+    re.IGNORECASE,
+)
+# The same shape for the content parameters (escaped: `$search` is one).
+_URL_QUERY_CONTENT_PATTERN = re.compile(
+    r"([?&](?:" + "|".join(re.escape(name) for name in _CONTENT_QUERY_PARAMS) + r")=)"
+    r"([^&\s#\"']+)",
     re.IGNORECASE,
 )
 
@@ -452,7 +569,7 @@ def _looks_like_opaque_token(value: str) -> bool:
     return bool(_OPAQUE_TOKEN_PATTERN.match(value))
 
 
-def sanitize_url_query(text: str) -> str:
+def sanitize_url_query(text: str, *, redact_content: bool = False) -> str:
     """Strip the values of sensitive query parameters from any URL in ``text``.
 
     Neutralizes single-use credentials embedded in logged links — e.g. an email
@@ -462,6 +579,8 @@ def sanitize_url_query(text: str) -> str:
 
     Args:
         text: Free-text log value that may contain one or more URLs.
+        redact_content: Also withhold the parameters whose value is the
+            person's text (``?q=``, ``$search=``) — above DEBUG.
 
     Returns:
         The text with sensitive query-parameter values redacted.
@@ -477,10 +596,13 @@ def sanitize_url_query(text: str) -> str:
     # characters are checked: a truncated URL can start at `&param=`).
     if "?" not in text and "&" not in text:
         return text
-    return _URL_QUERY_SECRET_PATTERN.sub(r"\1[REDACTED]", text)
+    text = _URL_QUERY_SECRET_PATTERN.sub(r"\1[REDACTED]", text)
+    if redact_content:
+        text = _URL_QUERY_CONTENT_PATTERN.sub(r"\1[REDACTED]", text)
+    return text
 
 
-def sanitize_string(text: str) -> str:
+def sanitize_string(text: str, *, redact_content: bool = False) -> str:
     """
     Sanitize a string by detecting and redacting PII patterns.
 
@@ -489,6 +611,9 @@ def sanitize_string(text: str) -> str:
 
     Args:
         text: Text to sanitize
+        redact_content: Also withhold what the text QUOTES of the person's data
+            — a database row, a refused input, a URL's search term
+            (``quoted_content.py``). Enabled above DEBUG.
 
     Returns:
         Sanitized text with PII redacted
@@ -499,7 +624,10 @@ def sanitize_string(text: str) -> str:
     """
     # Strip single-use credentials embedded in URL query strings (SEC-012):
     # verification/reset links and OAuth redirects carry `?token=`/`?code=`.
-    text = sanitize_url_query(text)
+    text = sanitize_url_query(text, redact_content=redact_content)
+
+    if redact_content:
+        text = redact_quoted_content(text)
 
     # Replace emails with pseudonymized hashes
     text = EMAIL_PATTERN.sub(lambda m: pseudonymize_email(m.group(0)), text)
@@ -516,21 +644,47 @@ def sanitize_string(text: str) -> str:
     return text
 
 
-def _sanitize_event_text(text: str) -> str:
+def _sanitize_event_text(text: str, *, redact_content: bool) -> str:
     """Sanitize the structlog ``event`` field without mangling event names.
 
     Deliberately NOT ``sanitize_string``: that one also applies
     ``TOKEN_PATTERN``, which would rewrite legitimate snake_case event names
-    that happen to look like opaque tokens. Only the two patterns that cannot
-    match an event name are applied — a URL query string, and an email address.
+    that happen to look like opaque tokens. Only the patterns that cannot match
+    an event name are applied — a URL query string, an email address, and
+    (above DEBUG) an error text's quotation, whose layouts all need spaces or
+    punctuation a snake_case name never has.
 
     Args:
         text: Raw ``event`` value.
+        redact_content: Whether the record is above DEBUG.
 
     Returns:
         The text with URL secrets redacted and addresses pseudonymized.
     """
-    return EMAIL_PATTERN.sub(lambda m: pseudonymize_email(m.group(0)), sanitize_url_query(text))
+    text = sanitize_url_query(text, redact_content=redact_content)
+    if redact_content:
+        text = redact_quoted_content(text)
+    return EMAIL_PATTERN.sub(lambda m: pseudonymize_email(m.group(0)), text)
+
+
+def _is_content_field(key_lower: str, value: Any) -> bool:
+    """Whether a field carries the person's words, by its name (and its type).
+
+    Args:
+        key_lower: The field name, lower-cased.
+        value: Its value — a suffix only ever redacts text.
+
+    Returns:
+        True for an exact content name, or a content suffix holding a string
+        or a list of them.
+    """
+    if key_lower in CONTENT_FIELD_NAMES:
+        return True
+    return (
+        isinstance(value, str | list | tuple | set | frozenset)
+        and key_lower.endswith(_CONTENT_FIELD_SUFFIXES)
+        and not key_lower.endswith(_IDENTIFIER_PREVIEW_SUFFIX)
+    )
 
 
 def sanitize_dict(data: dict[str, Any], *, redact_content: bool = False) -> dict[str, Any]:
@@ -582,7 +736,7 @@ def sanitize_dict(data: dict[str, Any], *, redact_content: bool = False) -> dict
         # account it belongs to is gone (SEC-012).
         if key_lower in STRUCTLOG_META_FIELDS:
             sanitized[key] = (
-                _sanitize_event_text(value)
+                _sanitize_event_text(value, redact_content=redact_content)
                 if key_lower == "event" and isinstance(value, str)
                 else value
             )
@@ -607,7 +761,7 @@ def sanitize_dict(data: dict[str, Any], *, redact_content: bool = False) -> dict
 
         # Content-bearing fields are redacted at INFO and above (C7 policy:
         # counters/IDs at INFO, contents at DEBUG or redacted)
-        if redact_content and key_lower in CONTENT_FIELD_NAMES:
+        if redact_content and _is_content_field(key_lower, value):
             sanitized[key] = redact_value(value)
             continue
 
@@ -629,14 +783,19 @@ def sanitize_dict(data: dict[str, Any], *, redact_content: bool = False) -> dict
                 (
                     sanitize_dict(item, redact_content=redact_content)
                     if isinstance(item, dict)
-                    else sanitize_string(item) if isinstance(item, str) else item
+                    else (
+                        sanitize_string(item, redact_content=redact_content)
+                        if isinstance(item, str)
+                        else item
+                    )
                 )
                 for item in value
             ]
             sanitized[key] = sanitized_list
         elif isinstance(value, str):
-            # Sanitize string values for PII patterns (emails, tokens in free text)
-            sanitized[key] = sanitize_string(value)
+            # Sanitize string values for PII patterns (emails, tokens in free
+            # text) and, above DEBUG, what an error text quotes of a row.
+            sanitized[key] = sanitize_string(value, redact_content=redact_content)
         else:
             # Keep non-string, non-dict, non-list values as-is
             sanitized[key] = value

@@ -329,10 +329,7 @@ async def resolve_reference(
                 "reference_resolved_successfully",
                 user_id=str(user_id),
                 domain=domain,
-                reference=reference,
-                resolved_name=(
-                    result.item.get(definition.display_name_field) if result.item else None
-                ),
+                reference_length=len(reference),
                 confidence=result.confidence,
                 match_type=result.match_type,
             )

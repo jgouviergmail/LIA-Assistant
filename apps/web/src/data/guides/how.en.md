@@ -6,7 +6,7 @@
 
 **Version**: 5.1
 **Date**: 2026-09-24
-**Application**: LIA v1.47.3
+**Application**: LIA v1.47.4
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -70,8 +70,8 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | ARM64 self-hosting | Multi-arch Docker, semantic embeddings (multilingual), Playwright chromium cross-platform |
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
-| Full transparency | 587 Prometheus metrics, embedded debug panel, token-by-token tracking |
-| Production reliability | 310 ADRs, ~32,106 pytest-collected tests across 1,937 files, native observability, 6-level HITL |
+| Full transparency | 589 Prometheus metrics, embedded debug panel, token-by-token tracking |
+| Production reliability | 317 ADRs, ~32,725 pytest-collected tests across 1,974 files, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
 ### 1.2. Architectural principles
@@ -89,11 +89,11 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Metric | Value |
 |--------|-------|
-| Tests | 32,106 collected by pytest across 1,937 test files + 9,071 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
-| pytest fixtures | 1,069, 48 of them shared through conftest |
-| Documentation documents | 694 |
-| ADRs (Architecture Decision Records) | 310 |
-| Prometheus metrics | 587 definitions |
+| Tests | 32,725 collected by pytest across 1,974 test files + 9,160 vitest frontend tests (ratcheted coverage thresholds, ADR-116) |
+| pytest fixtures | 1,082, 48 of them shared through conftest |
+| Documentation documents | 703 |
+| ADRs (Architecture Decision Records) | 317 |
+| Prometheus metrics | 589 definitions |
 | Grafana dashboards | 30 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -105,27 +105,27 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 
 | Technology | Version | Role | Why this choice |
 |------------|---------|------|-----------------|
-| Python | 3.12+ | Runtime | Richest ML/AI ecosystem, native async, complete typing |
+| Python | 3.14 | Runtime | Richest ML/AI ecosystem, native async, complete typing |
 | FastAPI | 0.136.3 | REST API + SSE | Auto Pydantic validation, OpenAPI docs, async-first, performance |
 | LangGraph | 1.2.11 | Multi-agent orchestration | Only framework offering native state persistence + cycles + interrupts (HITL) |
-| LangChain Core | 1.5.5 | LLM/tools abstractions | `@tool` decorator, message formats, standardized callbacks |
+| LangChain Core | 1.5.6 | LLM/tools abstractions | `@tool` decorator, message formats, standardized callbacks |
 | SQLAlchemy | 2.0.50 | Async ORM | `Mapped[Type]` + `mapped_column()`, async sessions, `selectinload()` |
 | PostgreSQL | 16 + pgvector | Database + vector search | Native LangGraph checkpoints, HNSW semantic search, maturity |
 | Redis | 7.4 | Cache, sessions, rate limiting | O(1) ops, atomic sliding window (Lua), SETNX leader election |
 | Pydantic | 2.13.4 | Validation + serialization | `ConfigDict`, `field_validator`, settings composition via MRO |
-| structlog | latest | Structured logging | JSON output with automatic PII filtering, snake_case events |
+| structlog | 25.5 | Structured logging | JSON output with automatic PII filtering, snake_case events |
 | Gemini Embeddings | gemini-embedding-001 | Semantic embeddings | Gemini multilingual embeddings (memory, routing, interests, journals) — ADR-069 |
-| Playwright | latest | Browser automation | Headless Chromium, CDP accessibility tree, cross-platform |
+| Playwright | 1.60 | Browser automation | Headless Chromium, CDP accessibility tree, cross-platform |
 | APScheduler | 3.x | Background jobs | Cron/interval triggers, compatible with Redis leader election |
 
 ### 2.2. Frontend
 
 | Technology | Version | Role |
 |------------|---------|------|
-| Next.js | 16.2.10 | App Router, SSR, ISR |
+| Next.js | 16.3.4 | App Router, SSR, ISR |
 | React | 19.2.7 | UI with Server Components |
-| TypeScript | 6.0.2 | Strict typing |
-| TailwindCSS | 4.3.2 | Utility-first CSS |
+| TypeScript | 6.0.3 | Strict typing |
+| TailwindCSS | 4.3.3 | Utility-first CSS |
 | TanStack Query | 5.101 | Server state management, cache, mutations |
 | Radix UI | v2 | Accessible UI primitives |
 | react-i18next | 17.0 | i18n (6 languages), namespace-based |
@@ -401,6 +401,8 @@ Three design decisions carry the feature. First, honesty of the artifact: spread
 
 Image generation follows the same declared-offer rule (ADR-305). A **family** — OpenAI GPT Image, Qwen Image 3.0 — declares what a model accepts: its qualities, its sizes (a fixed list or an area envelope), its billing tiers, and whether an edit's reference image is billed per image. Every surface reads that one answer: a model no family declares is neither priced, offered, selected nor run. One client per provider runs the configured model — the OpenAI edit goes through `images.edit` on that model, where a detour through the Responses API ran the SDK's default model and a text model nobody counted —, a result delivered as a URL is downloaded at once under a host allowlist, bounded and checked, and the person's preference is an intent resolved at run time to the model's offer (the cheapest offered quality, the size of the same orientation and nearest area), then published as the effective value. The chosen format is applied once for every provider, by converting the image before it is stored.
 
+At the person's option, the description of a **new** image can be rewritten before the call by a dedicated slot, following the advice each provider publishes (ADR-315). It is an enhancement, never a gate: a text quoted between quotation marks must come back intact, and a rewrite that is empty, too long or failed lets the original description go out; an edit is never rewritten; the call is billed and audited like any other, and the gallery keeps the person's own words. The operator can withdraw the option for the whole instance, and the options screen publishes that state rather than offering a setting that does nothing.
+
 ### 5.6. What the person keeps: produced files and kept answers (ADR-279, ADR-282)
 
 An artifact and an answer follow two different lifecycles once they exist, and both belong to the person rather than to the conversation. A produced file — an image, a document, a browser screenshot — is an attachment stamped with its **origin**, listed in a gallery of its own with an exact total and a visible retention deadline; clearing a conversation removes what the person uploaded and never what LIA produced, because a purge removes what its family declares, not what merely looks like it.
@@ -410,6 +412,8 @@ An answer the person wants to keep is a different object: it is prose, it must r
 Reading and deleting one's own files survives the uploads ceiling: the `attachments` router is mounted whatever `ATTACHMENTS_ENABLED` says, the capability guard sitting on the upload alone. Since every generated document is served by that read, an instance that generates without accepting uploads — the demonstrator — makes what it produces openable, and the expiry sweep runs for the table's four producers, never for uploads alone.
 
 A kept answer is also **indexed as a document of a knowledge space** (ADR-291): one space per account, found by its role and never by its name, created at the first bookmark, active by default, outside the space and document caps. The bookmark stays the record and the document its projection — a dated title, the quoted request, the answer converted to Markdown when it was an HTML page — so the exposed state (indexed, pending, deferred under a spend ceiling, disabled, in error) is derived from the document while it exists, and the cost is reported only once ready. A projection is claimed before it is computed, the capability and spend gates are read at the act, and a backfill rides the spaces' maintenance tick, serving the least recently attempted bookmark first — an account under quota no longer starves the others. Deleting the bookmark removes the document; the document is neither moved nor deleted from the space, and a space managed by its role is not deleted by hand.
+
+What was produced can also be found **by asking** (ADR-318): a read tool searches the live gallery by words of the title, family and period, and shows the files it finds as the chat's own cards, with the exact total. A generated image can finally be **shared with a connection** as a copy (ADR-316): the click is the confirmation — no draft, no model; two daily quotas are serialised per sender under a transaction-scoped lock; the file copy, the recipient's gallery row and the share ledger are written in one transaction; then the recipient's chat is reached on a best-effort basis, on a session of its own. A third party's comment is quoted there **literally**: neutralised with numeric character references, because the chat renders Markdown with raw HTML and `https:` images, and a backslash escape would be rendered as a formula.
 
 ## 6. The planning system (ExecutionPlan DSL)
 
@@ -594,6 +598,8 @@ Phase 8 (current) submits the **complete plan** to the user **before** any execu
 | `FOR_EACH_CONFIRM` | Bulk mutations | `interrupt()` with operation count |
 | `MODIFIER_REVIEW` | AI-suggested modifications | `interrupt()` with before/after comparison |
 
+**What has nothing to confirm.** An action asks nothing when nothing can divert it. The e-mail to oneself (ADR-314) has no recipient parameter: the address is the one the connected mailbox's provider states, or, without a mailbox, the account's verified address through LIA's relay — so no third-party text can redirect it. The tool declares `reversible` with its written reason, so a routine can send its result where a draft is refused. A typed address that happens to be one's own still goes through the draft: a recipient that sometimes skipped confirmation would be an injection target.
+
 ### 9.3. Draft critique: one description, one question per draft
 
 A draft to confirm and the report of its execution are **described once** — a card specification of labelled rows, notes and blocks, built by one renderer per draft type from the display registry — and **drawn per surface**: in the chat, the same `lia-card` markup as an e-mail or an event (header, illustration, fields with their icons, body in a block); on a ticket, on an external channel or under the `markdown` display mode, the Markdown the ticket comment can flatten. The surface is decided by the run, never guessed by a caller. A report says what was done, to whom and with what: each line of a batch carries the key fields its type declares and a bounded excerpt of the text sent, quoted with the language's own quotation marks. Before/after comparison for updates, irreversibility warnings, i18n labels and clickable links are part of that description.
@@ -693,7 +699,9 @@ Each memory is a structured document with:
 
 Every memory carries **two embeddings**: one over its content, one over the keywords that trigger it. The query is compared to both and the better match wins (`LEAST(dist_content, dist_keyword)`, falling back to content when the keyword vector is null).
 
-Long-term memory has its own PostgreSQL model; the retrieval described above is the one it uses. A second, hybrid path existed beside it: with **no caller at all**, largely uncovered, and yet still advertised to the user by the debug panel. Module, settings, metrics and display were removed together ([ADR-168](https://github.com/jgouviergmail/LIA-Assistant/blob/main/docs/architecture/ADR-168-Removal-Of-Dead-Hybrid-Memory-Search.md)). Hybrid search is still very much alive, but where it is actually used: RAG Spaces (section 17).
+**One lookup door** (ADR-313). A query is embedded as a *key* — without the conversational triviality patterns, which collide with real names and short questions — before a session opens, then the person's live memories above the relevance floor are served, optionally narrowed to categories. Every caller goes through it: the memory facts of the planner, the initiative and reference resolution, the 360° recall of a person, and the phone's lookups, which answer « what do I know about X » with X rather than with the latest memories.
+
+**And looked up on purpose.** A routable domain carries a read tool, so the ReAct loop and the planner can look up a subject the message did not name — the sender of an e-mail they just read, a place named in a document. Its bounds are published from the sources it enforces (the category vocabulary *is* the stored one, the result ceiling *is* the setting), the person's preference refuses it as it refuses the injection, a sensitive memory comes back flagged with its usage nuance, and a failure is classified, never « nothing remembered ». Hybrid BM25 + embeddings search lives where it serves: RAG Spaces (section 17).
 
 ### 11.5. Stratified journals
 
@@ -717,6 +725,8 @@ The assistant maintains introspective reflections organized along four themes (s
 
 The portrait is composed from **four sources on top of the journals** (ADR-292): memories, interests, learned habits and relationship debriefs enter the consolidation prompt as material for the synthesis. The journals domain imports none of those domains — two of them already import it — so each source is offered through a shared registry with a closed vocabulary, installed explicitly at boot and refused when incomplete. A reader answers `used | empty | disabled | unavailable` with an exact total, under its three gates read at the act (ceiling, operator switch, the person's preference), and never raises: a blind source is named, never read as empty. The assembler reads one source at a time under a per-source cap and drops a whole section beyond the global budget; the prompt renders a section only when it exists and forbids re-listing a line or naming its sources. The provenance is persisted with the portrait, in the same write, and drawn under it; a source that moved reopens the eligibility for the next consolidation.
 
+**The journals can also be looked up on purpose** (ADR-318). Beyond the injection, a read tool — in both modes — searches the person's journals for a subject found along the way, over the same vectors, at the *configured* similarity floor rather than the learned one, and serves only directives, patterns and facets: a raw, not yet consolidated `L0` observation never comes out. The person's preference refuses it as it refuses the injection.
+
 ### 11.6. Interest system
 
 Detection through query analysis with Bayesian weight evolution (configurable decay). Interests are grouped into **subjects** by batch LLM clustering (derived, self-healing data), and notification selection draws with **two-level rarity** (per-subject cooldown + priority to the least-served subjects and interests) — one passion never monopolizes notifications. Multi-source content (Perplexity, Brave, Wikipedia, LLM reflection) with deterministically appended **clickable source links**. User feedback (thumbs up/down/block) adjusts weights; nightly merge of near-duplicates.
@@ -735,7 +745,7 @@ llm = get_llm(provider="openai", model="gpt-5.4", temperature=0.7, streaming=Tru
 
 `get_llm()` resolves the effective configuration via `get_llm_config_for_agent(settings, agent_type)` (code defaults → DB admin overrides), instantiates the model, and applies specific adapters.
 
-### 12.2. 56 LLM configuration types
+### 12.2. 61 LLM configuration types
 
 Each pipeline node is independently configurable via the Admin UI — without redeployment:
 
@@ -1041,6 +1051,11 @@ Provenance is therefore a property of the **data**: the registry's 24 types are 
 **Detect, never sanitise.** Seven pattern families are recognised across the six languages — role override, instruction hijack, persona switch, exfiltration, a LIA tool named inside third-party text, invisible Unicode, a directive hidden in an HTML comment — and the content reaches the model **unchanged**, with a note naming the family. Sanitising would rewrite an email the user may want to read as-is, in exchange for a guarantee the next bypass would deny. Detection is bounded to the first 20,000 characters and **never logs the text**: it is attacker-controlled by construction and routinely holds the user's own data.
 
 **And a marking that does not survive summarisation is a marking that expires.** Compaction reads the conversation and re-emits it as a `SystemMessage` — the highest-authority channel, retained on every later turn because it *is* the conversation's compressed memory. A summariser told to preserve identifiers, decisions and outcomes, and told nothing about provenance, faithfully promotes a sender's demand into an established fact. So the taint travels: a summary built from third-party-carrying messages inherits a provenance banner, computed at write time rather than re-derived from whatever the model chose to echo, and the summarising prompt reports third-party claims in a dedicated section, attributed to their source. The banner sits after the marker that four readers use to recognise this message — a prefix change would have made the conversation's compressed memory vanish in silence. The deterministic fallback follows the same rule: identifiers harvested from inside a marked span are listed as untrusted rather than as key identifiers of the conversation, and an unclosed marker taints the whole message.
+
+### 19.7. A log line carries facts, never words (ADR-317)
+
+Above debug level, a log line carries **facts** — counts, lengths, identifiers, codes, a URL's host — and never the text a person wrote or a model wrote about them: queries, interests, the names of files, labels or spaces, pages browsed. The rule is guarded **by the value**, not by the field name: a test reads every logging call in the code and refuses a preview (`x[:n]` of anything but an identifier) or a value derived from content, whatever it is called, each exception carrying its written reason. What an error text **quotes** is withheld by the filter — PostgreSQL's `DETAIL` and `CONTEXT`, SQLAlchemy's parameters, Pydantic's `input_value`, tracebacks included —, a database error is described by its facts (SQLSTATE, constraint, table), and provider keys are masked in every logged URL, at every level. Two limits are stated as they are: an external service's error message in an unknown format can still quote a value, and the debug level — off in production — keeps more.
+
 ---
 
 ## 20. Observability and monitoring
@@ -1049,15 +1064,15 @@ Provenance is therefore a property of the **data**: the registry's 24 types are 
 
 | Technology | Role |
 |------------|------|
-| Prometheus | 587 custom metrics (RED pattern) |
+| Prometheus | 589 custom metrics (RED pattern) |
 | Grafana | 30 production-ready dashboards |
 | Loki | Aggregated structured JSON logs |
 | Tempo | Cross-service distributed traces (OTLP gRPC) |
 | Langfuse | LLM-specific tracing (prompt versions, token usage) |
-| Alertmanager | 14-alert vital core delivered by email (linked runbooks, per-environment thresholds) + webhook to LIA: every alert becomes an in-product incident (ADR-247) |
+| Alertmanager | 29-alert vital core delivered by email (linked runbooks, per-environment thresholds) + webhook to LIA: every alert becomes an in-product incident (ADR-247) |
 | structlog | Structured logging with PII filtering |
 
-**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 587 defined; the 44 that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. The price of not having had this: a heartbeat source failing open dropped the health signals on 46.5 % of ticks for a week, with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
+**A metric that reaches no dashboard is a metric nobody acts on.** The distance between what the code emits and what an operator can see is measured, never assumed: `scripts/audit/measure_metric_coverage.py` parses every metric definition (AST rather than a regex — a regex reads `ZoneInfo("UTC")` as an `Info` metric) and checks each name against every dashboard panel, recording rule and alert expression. 589 defined; the 44 that reach nothing are listed explicitly in a **shrink-only** baseline, so a newly blind metric fails the build and a metric that becomes visible must leave the list — otherwise the next blind one silently takes its slot. The price of not having had this: a heartbeat source failing open dropped the health signals on 46.5 % of ticks for a week, with no metric to notice it (ADR-148). Two traps the guard closes by construction — a labelled counter that never fired exposes **no series at all**, so a panel watching for a rare failure needs `or vector(0)` or it renders "No data" where an operator expects a green zero; and coverage is read from panel and rule **expressions** only, because a metric named in a comment is not wired.
 
 ### 20.2. Embedded Debug Panel
 
@@ -1326,7 +1341,7 @@ The skills surface is a **gallery**: cards open a detail sheet with the localize
 
 Six cross-cutting capabilities share the same product philosophy: **instant feedback, zero server cost when unnecessary**.
 
-- **Reading invariant & input maturity** — a streaming answer never yanks a reader who scrolled up: the follow decision measures live geometry at decision time (growth-compensated), an explicit own-send tick replaces data-diff heuristics (two of them false-fired against the real engine), and a floating button with an off-screen-responses badge brings the reader back. The input carries a per-user persistent draft (debounced, purged at logout), an ↑/↓ walk over the last 10 sends, `/` slash commands (WAI-ARIA combobox on the native textarea, diacritic-insensitive localized filtering) and an in-flow action row under every answer (copy, feedback, execution trace).
+- **Reading invariant & input maturity** — a streaming answer never yanks a reader who scrolled up: the follow decision measures live geometry at decision time (growth-compensated), an explicit own-send tick replaces data-diff heuristics (two of them false-fired against the real engine), and a floating button with an off-screen-responses badge brings the reader back. The input carries a per-user persistent draft (debounced, purged at logout), an ↑/↓ walk over the last 10 sends, `/` slash commands (WAI-ARIA combobox on the native textarea, diacritic-insensitive localized filtering) and an in-flow action row under every answer (copy, keep, share, download, feedback, execution trace — share opens the system sheet and then the connections, where a pick prefills the composer instead of sending; download writes a dated Markdown file).
 - **Conversation history search** — `?search=` query param on `GET /conversations/me/messages`. Filtering uses PostgreSQL `ILIKE` (case-insensitive, accent-sensitive — contract locked by test). The frontend uses a `useMemo` over `messages` to filter loaded messages instantly; the backend endpoint remains a latent capability for a future deep-search UI.
 - **Scroll-up pagination** — same endpoint, `?before=<created_at>` keyset cursor returning `has_more` and `next_cursor`. The chat UI binds an `IntersectionObserver` on a 1-px sentinel above the first message; older pages prepend with id-based dedup, and a shared `wasPrependRef` makes the auto-scroll-to-bottom `useEffect` skip itself for that cycle so the viewport stays anchored exactly where the reader was. The existing composite index `(conversation_id, created_at DESC)` makes each page an index-only seek regardless of conversation length. Page bounds (default 50, hard cap 200) are env-tunable via `CONVERSATION_HISTORY_DEFAULT_LIMIT` / `CONVERSATION_HISTORY_MAX_LIMIT`.
 - **LaTeX rendering** — The mathematical and scientific formulas LIA writes (`$inline$` / `$$block$$`) render via KaTeX in `MarkdownContent.tsx`. Since the assistant emits its whole answer as HTML, a `rehypeMathInText` plugin detects the `$`/`$$` delimiters at the hast level — after `rehypeRaw` has expanded the HTML — and turns them into the markers `rehype-katex` renders; `remark-math`, confined to markdown, never sees math buried in HTML. Order: `rehypeRaw → rehypeSanitize → rehypeMathInText → rehypeKatex`; the math steps read only already-sanitised text and emit fixed-class spans, so no new attack surface.
@@ -1460,7 +1475,7 @@ One CSS rule governs the design system's spacing: vertical margins on an `inline
 
 ## 24. Architecture Decision Records (ADR)
 
-310 ADRs in MADR format document the major architectural decisions. Some representative examples:
+317 ADRs in MADR format document the major architectural decisions. Some representative examples:
 
 | ADR | Decision | Problem solved | Measured impact |
 |-----|----------|----------------|-----------------|
@@ -1575,6 +1590,8 @@ The common thread across these four batches is a property of the tests themselve
 
 The public demonstrator applies these bounds to itself, and makes them readable. Every capability of the registry is decided in writing in its environment template — on or off, with the reason — and two guards refuse a ceiling left to the code's default or a disagreement between the development and production templates; the census of reachable routes mounts the routers under those same ceilings, so a switched-off family does not appear and a switched-on one is written route by route. Finally, every instance publishes in its public configuration the effective state of all its capabilities — ceiling and switch composed — and the instance that advertises a demonstrator reads that configuration server-side and shows it beside the link: the list of what a visitor will find, and will not, follows the demonstration's environment file, and nobody keeps it by hand.
 
+**An announcement says who it was addressed to** (ADR-312). The audience of an administrator's announcement is resolved before its row is written, and its recipients are stored with it: a targeted announcement is served to them alone — at their next sign-in too —, and a selection that targets no active account is refused rather than going to nobody, or to everybody. The history serves a page and its exact total, a bounded sample of the recipients with their exact count, the expiry instant and the chosen delay, in four queries whatever the page size.
+
 ## 29. Administering by file: the workbook is the form
 
 The LLM model catalogue holds a hundred and twenty-four entries; each carries twenty-four characteristics and a four-dimensional tariff. It was administered one dialog per model — fine for correcting a single price, absurd for taking in the whole grid a provider revises two or three times a year. The answer was not one more screen but a **declarative foundation**: `WorkbookSpec` / `SheetSpec` / `ColumnSpec` describe a workbook, and both directions are derived from it — the writer produces the file, the reader reads it back. The foundation imports no domain; the domain supplies only a column declaration and an applier that goes through its own service. Declining the mechanism to another administration screen means writing a declaration, not format code.
@@ -1646,6 +1663,8 @@ Emitting all that observability and reading none of it is being instrumented eve
 ## 34. Computing instead of guessing: an ephemeral script in the sandbox that already existed
 
 Ask a language model how long a series of layovers adds up to, which names appear in both of two lists, or what a column of figures comes to once timezones are taken into account, and it answers — plausibly, fluently, and with nothing in the answer to show you it is wrong. This is not a prompt defect: predicting the next token is not arithmetic. Five lines of Python are.
+
+**Everyday calculations do not wait for a script: they are tools** (ADR-318). In both modes, a calculation is parsed into a tree and evaluated in exact decimal — never executed —, the infinities the decimal library returns without raising (`0 ** -1`, `ln(0)`) are refused, and a result that had to be rounded says so. A duration is counted between two absolute instants, because two datetimes in one zone subtract on their wall clocks and would give 24 hours for the 25 of a clock change. A conversion reads the ECB reference rate and gives its date. Every enforced bound is a setting stated in the wording both the planner's manifest and the ReAct schema read. The ephemeral script below remains for what no tool covers.
 
 **No new sandbox was built.** The skills sandbox (SEC-001) already existed and was already hardened: a throwaway container, no Docker socket, `--network none`, read-only root filesystem, uid 65534, every capability dropped. `execute_source` merely hands it a source string instead of a file path, and both paths share one execution core — one set of isolation flags, so hardening one can never leave the other behind.
 
@@ -1741,6 +1760,8 @@ The companion's face used to pick its end-of-turn expression from the psyche's d
 
 **An extraction is complete, or it is not an extraction.** The five downloadable records carried a row ceiling that was measured rather than arbitrary: on the Raspberry Pi this targets, five sources at five thousand rows peaked at 33,9 MB. The constraint was real — the whole document was assembled in memory — but applied to the wrong variable. **What was scarce was memory; what was bounded was the truth**: 49 195 real rows against a thousand per source, so 97,9 % of the inference record was absent, under a header that truthfully said "truncated". A server-side cursor now bounds the buffer; the count is exact — an aggregate over the same statement the body streams — and published before the first row, so an extraction with no upper bound is given one: the instant of its generation, named in the header rather than pinned in silence.
 
+**The assistant reads its own registers** (ADR-318). To « what did you do for me this week? », a read tool answers from the two registers, with exact totals and the same authorship filter as the tabs — what the person asked for, what LIA undertook on its own — rather than from the memory of a conversation. A register thus serves two readers without two implementations: the screen that draws it and the answer that sums it up.
+
 ## 40. A debrief per relationship: what ten sections do not say
 
 **A card stacks ten sections, and nobody reads ten sections.** What a reader wants first — where I stand with this person, and what to raise — is a synthesis no aggregate produces. It is therefore written by the model at the top of the card: what is still open, what to do next, what is worth remembering. Its production is **lazy**: it is born when the card is opened, at most once per the reader's local day, never by a scheduler — the number of relationships is unbounded — and never during a chat turn. Exactly three rebuilds are legitimate: the language, the requested scope, and an explicit ask.
@@ -1791,8 +1812,8 @@ The same two modes then reached the phone (ADR-301). The owner call relayed the 
 
 LIA is a software engineering exercise that attempts to solve a concrete problem: building a production-quality, transparent, secure, and extensible multi-agent AI assistant capable of running on a Raspberry Pi.
 
-The 310 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~32,106 tests across 1,937 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
+The 317 ADRs document not only the decisions made but also the rejected alternatives and accepted trade-offs. The ~32,725 tests across 1,974 files, complete CI/CD, and strict MyPy are not vanity metrics — they are the mechanisms that allow evolving a system of this complexity without regression.
 
 The interweaving of subsystems — psychological memory, Bayesian learning, semantic routing, systematic HITL, LLM-driven proactivity, introspective journals — creates a system where each component reinforces the others. HITL feeds pattern learning, which reduces costs, which enables more features, which generate more data for memory, which improves responses. This is a virtuous circle by design, not by accident.
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (680+ documents), 310 ADRs, and the changelog (v1.0 to v1.47.3). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (680+ documents), 317 ADRs, and the changelog (v1.0 to v1.47.4). All metrics, versions, and patterns cited are verifiable in the codebase.*

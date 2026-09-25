@@ -88,6 +88,18 @@ class TestTheBreakdownCarriesWhatWasActuallySent:
         assert call["reasoning_level"] == "high"
         assert call["reasoning_budget_tokens"] == 4096
 
+    def test_it_names_the_model_requested_beside_the_one_reported(self) -> None:
+        # The request names the slot's configuration; the provider may answer
+        # under another name (an alias it resolved, a dated snapshot). The
+        # panel showed only the reported one, so a configured model could not
+        # be recognised in its own debug row (2026-09-24).
+        call = _context(
+            [TokenUsageRecord(**BASE, requested_model="deepseek-v4-flash")]
+        ).get_llm_calls_breakdown()[0]
+
+        assert call["requested_model"] == "deepseek-v4-flash"
+        assert call["model_name"] == BASE["model_name"]
+
     def test_it_carries_the_digest_that_correlates_two_calls(self) -> None:
         # The handle that says « these two calls were made the same way » — and
         # the one to quote when reporting a behaviour change.
@@ -132,6 +144,7 @@ class TestNothingIsInvented:
             "params_digest",
             "status",
             "failure_kind",
+            "requested_model",
         ):
             assert call[key] is None, key
 

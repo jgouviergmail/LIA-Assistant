@@ -24,6 +24,7 @@ from src.infrastructure.llm.inference_params import (
     INFERENCE_PARAM_ALLOWLIST,
     InferenceParams,
     capture_inference_params,
+    requested_model,
 )
 
 pytestmark = [pytest.mark.unit]
@@ -139,6 +140,8 @@ class TestTheProviderIsReadFromWhatTheClientDECLARES:
             ("openai-chat", "openai"),
             ("anthropic-chat", "anthropic"),
             ("chat-google-generative-ai", "google"),
+            # DeepSeek's own client: it used to reach the register as « chat-deepseek ».
+            ("chat-deepseek", "deepseek"),
             ("fake-list-chat-model", "fake-list-chat-model"),
         ],
     )
@@ -147,6 +150,46 @@ class TestTheProviderIsReadFromWhatTheClientDECLARES:
         register that silently forgets which client answered is worse than one
         carrying a name nobody has normalised yet."""
         assert capture_inference_params({"_type": declared}).provider == expected
+
+
+class TestTheProviderLIAConfiguredIsTheOneNamed:
+    """The factory declares the provider it configured; a client CLASS can lie.
+
+    Qwen is served through the OpenAI-compatible client, whose class names its
+    family « openai »: a DashScope call was filed as an OpenAI one.
+    """
+
+    def test_a_declared_provider_names_the_family_whatever_the_client_class(self) -> None:
+        params = capture_inference_params({"_type": "openai-chat"}, declared_provider="qwen")
+        assert params.provider == "qwen"
+
+    def test_without_a_declaration_the_client_family_is_read(self) -> None:
+        assert capture_inference_params({"_type": "openai-chat"}).provider == "openai"
+
+    @pytest.mark.parametrize("declared", [None, "", 7])
+    def test_an_unusable_declaration_falls_back_to_the_client(self, declared: object) -> None:
+        params = capture_inference_params(
+            {"_type": "anthropic-chat"},
+            declared_provider=declared,  # type: ignore[arg-type]
+        )
+        assert params.provider == "anthropic"
+
+
+class TestTheRequestedModelIsWhatTheRequestNamed:
+    """What LIA ASKED for — the slot's configuration. The provider may answer
+    under another name (an alias it resolved, a dated snapshot), and the debug
+    panel used to show only that one."""
+
+    @pytest.mark.parametrize("key", ["model", "model_name"])
+    def test_either_spelling_is_read(self, key: str) -> None:
+        assert requested_model({key: "deepseek-v4-flash"}) == "deepseek-v4-flash"
+
+    def test_model_is_read_before_model_name(self) -> None:
+        assert requested_model({"model_name": "b", "model": "a"}) == "a"
+
+    @pytest.mark.parametrize("params", [None, {}, {"model": ""}, {"model": 3}])
+    def test_nothing_named_is_nothing_read(self, params: object) -> None:
+        assert requested_model(params) is None  # type: ignore[arg-type]
 
 
 class TestReasoningSpeaksADR245sVocabulary:

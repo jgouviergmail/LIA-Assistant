@@ -207,7 +207,7 @@ class PerplexitySearchTool(PerplexityBaseTool):
             logger.debug("recency_mapped", original=recency, mapped="day")
         else:
             # Unknown value - default to no filter
-            logger.warning("recency_invalid_value", value=recency, using=None)
+            logger.warning("recency_invalid_value", value_length=len(str(recency)), using=None)
             recency_filter = None
 
         # Generate system prompt with current datetime context
@@ -244,7 +244,7 @@ class PerplexitySearchTool(PerplexityBaseTool):
         logger.info(
             "perplexity_search_success",
             user_id=str(user_id),
-            query=query[:50] if len(query) > 50 else query,
+            query_length=len(query),
             citations_count=len(result.get("citations", [])),
             recency=recency_filter,
             timezone=client.user_timezone,
@@ -386,8 +386,8 @@ class PerplexityAskTool(PerplexityBaseTool):
         logger.info(
             "perplexity_ask_success",
             user_id=str(user_id),
-            question=question[:50] if len(question) > 50 else question,
-            context=context if context else "none",
+            question_length=len(question),
+            has_context=bool(context),
             citations_count=len(result.get("citations", [])),
             timezone=client.user_timezone,
         )

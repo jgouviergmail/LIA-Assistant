@@ -168,3 +168,12 @@ Under the portrait, in **Settings > Journals**, a provenance line says how many
 entries were compiled and, for each source, whether it was used, empty, off or
 unavailable. When a source moves — a memory added, a debrief rebuilt — the next
 consolidation is reopened.
+
+## Can LIA search its journal?
+Yes. Beyond the entries your message evokes, which it re-reads with every answer, LIA can **search** its journals for a subject found along the way — "*what have you noticed about the way I work?*", or the name of a project it just came across in an e-mail.
+
+**📓 What it reads there:**
+Its directives, the patterns it observed and the facets of your portrait — never its raw observations, not yet consolidated.
+
+**🔒 Your settings decide:**
+If you switched journals off, nothing is searched, and LIA does not pretend there is nothing. Each search is a small similarity computation, counted in your usage like everything else.

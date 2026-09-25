@@ -138,6 +138,8 @@ class TestRouteTable:
             # could only have shown one page forever or inferred a total from
             # its length. Read-only — the relay itself is untouched.
             "/peers/messages",
+            # ADR-316: a generated image shared with a connection.
+            "/peers/connections/{connection_id}/images",
         }
 
     def test_discovery_search_carries_the_rate_limit_dependency(self):

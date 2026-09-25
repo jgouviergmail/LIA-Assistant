@@ -15,7 +15,10 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from src.core.constants import PEERS_CONTEXT_MESSAGE_MAX_CHARS
+from src.core.constants import (
+    PEERS_CONTEXT_MESSAGE_MAX_CHARS,
+    PEERS_IMAGE_SHARE_COMMENT_MAX_CHARS,
+)
 from src.domains.peers.models import PeerShareDomain, PeerShareLevel
 
 
@@ -244,6 +247,32 @@ class ConnectionView(BaseModel):
     )
     their_shares: list[ShareItem] = Field(
         default_factory=list, description="What this peer shares with me (read-only)."
+    )
+
+
+class ImageShareCreate(BaseModel):
+    """Share one of my generated images on this connection (ADR-316)."""
+
+    attachment_id: UUID = Field(description="One of the caller's generated images.")
+    comment: str | None = Field(
+        default=None,
+        max_length=PEERS_IMAGE_SHARE_COMMENT_MAX_CHARS,
+        description="Optional words for the recipient, quoted literally in their chat.",
+    )
+
+
+class ImageShareView(BaseModel):
+    """What a share produced, for the sender's confirmation."""
+
+    model_config = ConfigDict(frozen=True)
+
+    id: UUID = Field(description="The share (ledger row).")
+    recipient_display_name: str = Field(description="Who received the copy.")
+    delivered: bool = Field(
+        description=(
+            "Whether the recipient's chat was reached. The copy is in their gallery "
+            "either way; false means only the notification failed."
+        )
     )
 
 

@@ -68,13 +68,13 @@ class SelectionDebug:
 
     Attributes:
         total_subjects: Subject groups among candidates before cooldown filtering.
-        eligible_subjects: Subject groups after cooldown filtering.
+        eligible_subject_count: Subject groups after cooldown filtering.
         fail_open: True when the cooldown filter emptied the pool and was ignored.
         picked_subject: Chosen subject label ("(solo)" for unclustered singletons).
     """
 
     total_subjects: int
-    eligible_subjects: int
+    eligible_subject_count: int
     fail_open: bool
     picked_subject: str
 
@@ -337,7 +337,7 @@ def select_interest_subject_rarity(
 
     debug = SelectionDebug(
         total_subjects=len(groups),
-        eligible_subjects=len(eligible),
+        eligible_subject_count=len(eligible),
         fail_open=fail_open,
         picked_subject="(solo)" if picked_key.startswith(_SOLO_PREFIX) else picked_key,
     )

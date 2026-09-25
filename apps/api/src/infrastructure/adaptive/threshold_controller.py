@@ -62,11 +62,16 @@ class ThresholdPerimeter:
     default_getter: Callable[[], float]
 
 
+#: The journal injection's relevance floor, learned per account. One spelling
+#: for the builder that reads it and feeds it (the journal LOOKUP deliberately
+#: does neither — it answers a different question, ADR-318).
+JOURNAL_INJECTION_PERIMETER = "journal_injection"
+
 #: Registered perimeters — extend HERE (bounds are a design decision: replay
 #: the perimeter's calibration evidence before widening them).
 PERIMETERS: dict[str, ThresholdPerimeter] = {
-    "journal_injection": ThresholdPerimeter(
-        name="journal_injection",
+    JOURNAL_INJECTION_PERIMETER: ThresholdPerimeter(
+        name=JOURNAL_INJECTION_PERIMETER,
         floor=0.55,
         ceiling=0.70,
         target_rate_low=0.10,

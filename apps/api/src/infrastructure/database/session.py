@@ -13,6 +13,7 @@ from sqlalchemy.orm import declarative_base
 from sqlalchemy.pool import QueuePool
 
 from src.core.config import settings
+from src.infrastructure.database.errors import database_error_fields
 from src.infrastructure.observability.metrics_database import (
     db_connection_pool_checkedout,
     db_connection_pool_exhausted_total,
@@ -39,15 +40,18 @@ def _log_session_exception(exc: BaseException, *, endpoint: str) -> None:
     doctrine applied to tools (``ToolErrorCode``) and to FCM token invalidation.
     A pass-through exception is not silenced: it keeps a DEBUG line, so the
     rollback stays observable while investigating, and the caller logs it where
-    it belongs.
+    it belongs. A database failure is reported by its structural facts
+    (SQLSTATE, constraint, table) — its text quotes the rejected row.
     """
     if isinstance(exc, SQLAlchemyError | DBAPIError):
+        # The FACTS of the failure, never `str(exc)`: PostgreSQL quotes the row
+        # it rejects (see `infrastructure/database/errors.py`).
         logger.error(
             "database_session_error",
-            error=str(exc),
             error_type=type(exc).__name__,
             endpoint=endpoint,
             exc_info=True,
+            **database_error_fields(exc),
         )
         return
 
@@ -64,6 +68,10 @@ def _log_session_exception(exc: BaseException, *, endpoint: str) -> None:
 engine = create_async_engine(
     str(settings.database_url),
     echo=settings.log_level_sqlalchemy.upper() in ("DEBUG", "INFO"),
+    # A bound value is whatever the row holds — a message, a name, an address.
+    # Hidden from every error text and every echoed statement, whatever
+    # LOG_LEVEL_SQLALCHEMY says (guard: test_sql_parameters_hidden_guard.py).
+    hide_parameters=True,
     # Pool sizing
     pool_size=settings.database_pool_size,  # Persistent connections
     max_overflow=settings.database_max_overflow,  # Burst capacity

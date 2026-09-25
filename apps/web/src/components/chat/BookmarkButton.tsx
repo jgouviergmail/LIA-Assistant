@@ -17,11 +17,12 @@ import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { getApiErrorDetail } from '@/lib/api-error';
 import { ApiError } from '@/lib/api-client';
 import { useBookmarkState } from '@/lib/bookmark-state-context';
 import { logger } from '@/lib/logger';
+
+import { ActionChipButton } from './ActionChipButton';
 
 /**
  * The refusals whose `detail` the API translated (the cap, the operator's
@@ -80,25 +81,18 @@ export function BookmarkButton({ messageDbId }: BookmarkButtonProps) {
 
   const label = kept ? t('chat.message.bookmark_remove') : t('chat.message.bookmark');
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button
-          type="button"
-          onClick={() => void onClick()}
-          aria-label={label}
-          aria-pressed={kept}
-          aria-busy={busy || undefined}
-          data-testid="bookmark-toggle"
-          className="p-1.5 rounded-md border border-border/30 bg-background/80 hover:bg-background transition-colors"
-        >
-          {kept ? (
-            <BookmarkCheck className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-          ) : (
-            <Bookmark className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
-          )}
-        </button>
-      </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
-    </Tooltip>
+    <ActionChipButton
+      label={label}
+      onClick={() => void onClick()}
+      aria-pressed={kept}
+      aria-busy={busy || undefined}
+      data-testid="bookmark-toggle"
+    >
+      {kept ? (
+        <BookmarkCheck className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+      ) : (
+        <Bookmark className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+      )}
+    </ActionChipButton>
   );
 }

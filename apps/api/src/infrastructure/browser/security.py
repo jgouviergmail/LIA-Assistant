@@ -21,6 +21,7 @@ import structlog
 
 from src.core.config import settings
 from src.core.constants import BROWSER_BLOCKED_SCHEMES
+from src.infrastructure.observability.log_facts import url_host
 
 if TYPE_CHECKING:
     from playwright.async_api import Page, Route
@@ -211,7 +212,7 @@ class BrowserSecurityPolicy:
                 if parsed.scheme.lower() in BROWSER_BLOCKED_SCHEMES:
                     logger.warning(
                         "browser_request_blocked_scheme",
-                        url=url[:200],
+                        url_host=url_host(url),
                         scheme=parsed.scheme,
                     )
                     await route.abort("blockedbyclient")
@@ -219,7 +220,7 @@ class BrowserSecurityPolicy:
 
                 # Block file downloads (content-disposition: attachment)
                 if request.resource_type in ("document",) and "download" in url.lower():
-                    logger.warning("browser_request_blocked_download", url=url[:200])
+                    logger.warning("browser_request_blocked_download", url_host=url_host(url))
                     await route.abort("blockedbyclient")
                     return
 
@@ -228,14 +229,14 @@ class BrowserSecurityPolicy:
                     if enforce:
                         logger.warning(
                             "browser_request_ssrf_blocked",
-                            url=url[:200],
+                            url_host=url_host(url),
                             resource_type=request.resource_type,
                         )
                         await route.abort("blockedbyclient")
                         return
                     logger.warning(
                         "browser_request_ssrf_report_only",
-                        url=url[:200],
+                        url_host=url_host(url),
                         resource_type=request.resource_type,
                         msg="would be blocked once BROWSER_SSRF_ENFORCE is enabled",
                     )
@@ -250,7 +251,7 @@ class BrowserSecurityPolicy:
                 # internal service.
                 logger.warning(
                     "browser_request_interceptor_failed",
-                    url=url[:200],
+                    url_host=url_host(url),
                     error=str(exc),
                 )
                 await route.abort("blockedbyclient")

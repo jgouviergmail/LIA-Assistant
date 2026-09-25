@@ -359,7 +359,7 @@ class SemanticToolSelector:
         # DEBUG: Log email tool keywords (unified tool)
         if "get_emails_tool" in self._tool_keywords:
             kws = self._tool_keywords["get_emails_tool"]
-            logger.info(
+            logger.debug(
                 "debug_email_tool_keywords",
                 tool_name="get_emails_tool",
                 keyword_count=len(kws),
@@ -687,7 +687,7 @@ class SemanticToolSelector:
         # Log selection with hybrid scoring info
         logger.info(
             "semantic_tool_selection_complete",
-            query_preview=query[:100],
+            query_length=len(query),
             selected_count=len(selected),
             top_calibrated_score=round(top_calibrated_score, 3),
             softmax_temperature=self._softmax_temperature,

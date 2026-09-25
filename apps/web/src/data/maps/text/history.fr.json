@@ -1322,6 +1322,34 @@
     "311": {
       "title": "Le rythme d'échanges appartient à la personne",
       "summary": "Chacun choisit entre échanges fréquents et échanges ponctuels. Fréquents : LIA garde tous ses outils et prépare chaque tour pour que le suivant relise le précédent en cache, un premier message plus coûteux puis des suivants bien moins chers. Ponctuels : elle choisit les outils par pertinence, pour un coût stable."
+    },
+    "312": {
+      "title": "Une diffusion dit à qui elle s'adressait",
+      "summary": "Un message envoyé à quelques comptes choisis était ensuite montré à tout le monde à la connexion suivante : la liste des destinataires n'était pas gardée. Elle l'est désormais, et l'administrateur relit sous le formulaire l'historique paginé de ce qui est parti — date, destinataires, délai d'expiration."
+    },
+    "313": {
+      "title": "LIA peut chercher dans sa mémoire",
+      "summary": "Jusqu'ici, LIA ne se souvenait que de ce que le message évoquait. Elle peut maintenant chercher un sujet découvert en chemin — l'expéditeur d'un e-mail, un lieu, une consigne donnée un jour. Au téléphone, cette recherche répond enfin à la question posée, au lieu de rendre les derniers souvenirs."
+    },
+    "314": {
+      "title": "Un e-mail à soi-même part sans confirmation",
+      "summary": "Écrire à sa propre boîte ne demande plus de valider un brouillon, comme l'appel téléphonique à soi-même : « chaque matin, envoie-moi la météo par e-mail » peut tourner en routine. Le destinataire n'est jamais un paramètre : la boîte connectée, ou l'adresse vérifiée du compte."
+    },
+    "315": {
+      "title": "Un prompt d'image peut être amélioré sans être trahi",
+      "summary": "Pour qui l'active, un modèle dédié réécrit la description de chaque nouvelle image avec les techniques que les fournisseurs recommandent : cadrage, lumière, objectif, style. Ce qui est demandé ne change pas, le texte à écrire dans l'image reste mot pour mot, et au moindre doute la demande d'origine part telle quelle."
+    },
+    "316": {
+      "title": "Partager une image générée avec une connexion",
+      "summary": "Un clic sur une image l'envoie à une connexion, avec un commentaire si l'on veut. Elle arrive dans ses images, comme si elle l'avait générée, et dans son chat, le commentaire cité tel quel — jamais transformé en lien ou en image cachée."
+    },
+    "317": {
+      "title": "Les journaux gardent des faits, jamais les mots d'une personne",
+      "summary": "En dehors du débogage, les journaux ne gardent plus que des nombres, des longueurs et des identifiants : ni les recherches d'une personne, ni ses centres d'intérêt, ni les noms de ses contacts ou de ses fichiers. Quand une base de données ou un service cite la donnée qu'il refuse, la citation est retirée avant l'écriture. Un test lit chaque ligne de journal du code et refuse celle qui écrirait les mots d'une personne."
+    },
+    "318": {
+      "title": "LIA calcule au lieu d'estimer, et retrouve ce qu'elle a fait",
+      "summary": "Un calcul, une date ou une conversion de devises ne s'estiment plus de tête : LIA les calcule exactement, au taux de référence du jour, qu'elle nomme. Elle peut aussi chercher dans son journal un sujet découvert en chemin, te dire ce qu'elle a fait et consulté sur une période avec des totaux exacts, et te remontrer un fichier qu'elle a produit tant qu'il existe encore."
     }
   }
 }

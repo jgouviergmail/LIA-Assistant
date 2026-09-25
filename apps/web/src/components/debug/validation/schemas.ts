@@ -255,6 +255,7 @@ const LLMCallSchema = z.object({
   reasoning_level: z.string().nullable().optional(),
   reasoning_budget_tokens: z.number().nullable().optional(),
   params_digest: z.string().nullable().optional(),
+  requested_model: z.string().nullable().optional(),
 });
 
 /**

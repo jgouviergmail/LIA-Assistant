@@ -2,7 +2,8 @@
  * ImageGenerationSettings — the options-driven dropdowns across loading
  * (skeletons), the unavailable-pricing error, and the loaded selectors;
  * enabling generation (persist + refresh + toast), the error path, and the
- * no-user guard.
+ * no-user guard; the prompt enhancement switch (ADR-315), offered only when the
+ * server would honour it.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -41,6 +42,7 @@ const OPTIONS: ImageGenerationOptions = {
   ],
   effective_quality: 'low',
   effective_size: '1024x1024',
+  prompt_enhancement_available: true,
 };
 
 // A Qwen offer: one quality, 1K and 2K sizes. The server has mapped the
@@ -65,7 +67,12 @@ const QWEN_OPTIONS: ImageGenerationOptions = {
   ],
   effective_quality: 'standard',
   effective_size: '1632x2448',
+  prompt_enhancement_available: false,
 };
+
+const enableSwitch = () => screen.getByRole('switch', { name: 'settings.image_generation.enable' });
+const enhancementSwitch = () =>
+  screen.queryByRole('switch', { name: 'settings.image_generation.prompt_enhancement' });
 
 function authed(over: Partial<User> = {}) {
   return { user: makeUser(over), refreshUser: vi.fn() };
@@ -129,7 +136,7 @@ describe('ImageGenerationSettings — enable toggle', () => {
     useAuth.mockReturnValue(ctx);
     useImageGenerationOptions.mockReturnValue(dataQuery(OPTIONS));
     const { user } = renderWithProviders(<ImageGenerationSettings lng="en" />);
-    await user.click(screen.getByRole('switch'));
+    await user.click(enableSwitch());
     await waitFor(() =>
       expect(patch).toHaveBeenCalledWith('/users/u1', { image_generation_enabled: true })
     );
@@ -141,7 +148,7 @@ describe('ImageGenerationSettings — enable toggle', () => {
     patch.mockRejectedValue(new Error('boom'));
     useImageGenerationOptions.mockReturnValue(dataQuery(OPTIONS));
     const { user } = renderWithProviders(<ImageGenerationSettings lng="en" />);
-    await user.click(screen.getByRole('switch'));
+    await user.click(enableSwitch());
     await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(1));
   });
 
@@ -149,7 +156,66 @@ describe('ImageGenerationSettings — enable toggle', () => {
     useAuth.mockReturnValue({ user: null, refreshUser: vi.fn() });
     useImageGenerationOptions.mockReturnValue(dataQuery(OPTIONS));
     const { user } = renderWithProviders(<ImageGenerationSettings lng="en" />);
-    await user.click(screen.getByRole('switch'));
+    await user.click(enableSwitch());
     expect(patch).not.toHaveBeenCalled();
+  });
+});
+
+describe('ImageGenerationSettings — prompt enhancement (ADR-315)', () => {
+  it('is offered only when the server would honour it', () => {
+    useImageGenerationOptions.mockReturnValue(dataQuery(OPTIONS));
+    const { unmount } = renderWithProviders(<ImageGenerationSettings lng="en" />);
+    expect(enhancementSwitch()).toBeInTheDocument();
+    expect(enhancementSwitch()).toHaveAccessibleDescription(
+      'settings.image_generation.prompt_enhancement_description'
+    );
+    unmount();
+
+    useImageGenerationOptions.mockReturnValue(dataQuery(QWEN_OPTIONS));
+    renderWithProviders(<ImageGenerationSettings lng="en" />);
+    expect(enhancementSwitch()).not.toBeInTheDocument();
+  });
+
+  it('is not offered while the options load or when they fail', () => {
+    useImageGenerationOptions.mockReturnValue(loadingQuery());
+    const { unmount } = renderWithProviders(<ImageGenerationSettings lng="en" />);
+    expect(enhancementSwitch()).not.toBeInTheDocument();
+    unmount();
+
+    useImageGenerationOptions.mockReturnValue(errorQuery());
+    renderWithProviders(<ImageGenerationSettings lng="en" />);
+    expect(enhancementSwitch()).not.toBeInTheDocument();
+  });
+
+  it('reflects the stored choice and persists a change', async () => {
+    const ctx = authed({ image_generation_prompt_enhancement: true });
+    useAuth.mockReturnValue(ctx);
+    useImageGenerationOptions.mockReturnValue(dataQuery(OPTIONS));
+    const { user } = renderWithProviders(<ImageGenerationSettings lng="en" />);
+
+    const toggle = enhancementSwitch();
+    expect(toggle).toBeChecked();
+    await user.click(toggle!);
+
+    await waitFor(() =>
+      expect(patch).toHaveBeenCalledWith('/users/u1', {
+        image_generation_prompt_enhancement: false,
+      })
+    );
+    expect(ctx.refreshUser).toHaveBeenCalled();
+  });
+
+  it('is operable from the keyboard', async () => {
+    useImageGenerationOptions.mockReturnValue(dataQuery(OPTIONS));
+    const { user } = renderWithProviders(<ImageGenerationSettings lng="en" />);
+
+    enhancementSwitch()!.focus();
+    await user.keyboard(' ');
+
+    await waitFor(() =>
+      expect(patch).toHaveBeenCalledWith('/users/u1', {
+        image_generation_prompt_enhancement: true,
+      })
+    );
   });
 });

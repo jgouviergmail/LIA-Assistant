@@ -43,3 +43,9 @@ Uploading and consulting are two different capabilities that happen to share a
 table. Switching **file uploads** off stops you sending new files; it does not
 close the gallery, and it does not stop you downloading or deleting what is
 already there.
+
+## Can I ask LIA to find a file again?
+Yes: "*find the report you made me this morning*". LIA looks in these galleries — by words of the title, family and period — and shows the files again in the chat, as its own cards, with the exact number found. A file whose deadline has passed is gone, and LIA says so.
+
+## Can I share an image with someone?
+An image LIA generated for you can be shared with a connection from its card, here or in the chat: they receive a copy in their own gallery and in their chat, with your comment quoted as written (see Peer Connections).

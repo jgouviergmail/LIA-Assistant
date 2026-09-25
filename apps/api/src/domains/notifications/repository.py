@@ -4,10 +4,12 @@ Repository for FCM token management and admin broadcasts.
 Provides data access layer for user FCM tokens and broadcast messages.
 """
 
+from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import delete, literal, or_, select, update
+from sqlalchemy import delete, exists, literal, or_, select, update
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,7 +17,34 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.sql import func
 
 from src.core.repository import BaseRepository
-from src.domains.notifications.models import AdminBroadcast, UserBroadcastRead, UserFCMToken
+from src.domains.notifications.models import (
+    AdminBroadcast,
+    AdminBroadcastRecipient,
+    BroadcastAudience,
+    UserBroadcastRead,
+    UserFCMToken,
+)
+from src.domains.users.models import User
+
+#: Ids bound per ``IN (...)`` query when a list can grow with the instance.
+_IN_CLAUSE_CHUNK = 1000
+
+
+@dataclass(frozen=True)
+class RecipientRow:
+    """One named recipient of a selected-audience broadcast."""
+
+    user_id: UUID
+    full_name: str | None
+    email: str
+
+
+@dataclass(frozen=True)
+class RecipientSample:
+    """The first recipients of a broadcast in name order, and how many there are."""
+
+    total: int
+    users: tuple[RecipientRow, ...]
 
 
 class FCMTokenRepository(BaseRepository[UserFCMToken]):
@@ -202,6 +231,32 @@ class FCMTokenRepository(BaseRepository[UserFCMToken]):
         result = await self.db.execute(stmt)
         return result.rowcount > 0  # type: ignore[attr-defined, no-any-return]
 
+    async def get_active_token_strings(self, user_ids: Sequence[UUID]) -> list[str]:
+        """The active FCM tokens of several users, in one query.
+
+        A broadcast used to read the tokens of its recipients one user at a
+        time — N queries for N accounts on the send path (ADR-312).
+
+        Args:
+            user_ids: The users whose devices are reached.
+
+        Returns:
+            Their active token strings (possibly empty).
+        """
+        tokens: list[str] = []
+        # Bounded IN lists: asyncpg refuses more than 32 767 bind parameters,
+        # and an instance-wide language group can be larger than that.
+        for start in range(0, len(user_ids), _IN_CLAUSE_CHUNK):
+            chunk = user_ids[start : start + _IN_CLAUSE_CHUNK]
+            result = await self.db.scalars(
+                select(UserFCMToken.token).where(
+                    UserFCMToken.user_id.in_(chunk),
+                    UserFCMToken.is_active.is_(True),
+                )
+            )
+            tokens.extend(result.all())
+        return tokens
+
     async def update_last_used(self, token_id: UUID) -> None:
         """
         Update the last_used_at timestamp for a token.
@@ -252,25 +307,36 @@ class BroadcastRepository(BaseRepository[AdminBroadcast]):
         message: str,
         sent_by: UUID,
         expires_at: datetime | None = None,
+        recipient_ids: Sequence[UUID] | None = None,
     ) -> AdminBroadcast:
         """
-        Create a new broadcast message.
+        Create a new broadcast message with its audience (ADR-312).
 
         Args:
             message: The broadcast content
             sent_by: Admin user ID who sent it
             expires_at: Optional expiration datetime
+            recipient_ids: The accounts a SELECTED broadcast is addressed to;
+                None addresses everyone. A duplicate id is one recipient.
 
         Returns:
-            Created AdminBroadcast
+            Created AdminBroadcast (flushed, recipients included)
         """
+        audience = BroadcastAudience.ALL if recipient_ids is None else BroadcastAudience.SELECTED
         broadcast = AdminBroadcast(
             message=message,
             sent_by=sent_by,
             expires_at=expires_at,
+            audience=audience.value,
         )
         self.db.add(broadcast)
         await self.db.flush()
+        if recipient_ids is not None:
+            self.db.add_all(
+                AdminBroadcastRecipient(broadcast_id=broadcast.id, user_id=user_id)
+                for user_id in dict.fromkeys(recipient_ids)
+            )
+            await self.db.flush()
         return broadcast
 
     async def get_unread_for_user(
@@ -283,6 +349,8 @@ class BroadcastRepository(BaseRepository[AdminBroadcast]):
         Get broadcasts that user hasn't read yet.
 
         Excludes:
+        - Broadcasts addressed to other accounts (a SELECTED audience the
+          user is not part of — ADR-312)
         - Already read broadcasts
         - Expired broadcasts (expires_at < now)
         - Broadcasts created before the user's account (prevents new users from being spammed)
@@ -291,6 +359,8 @@ class BroadcastRepository(BaseRepository[AdminBroadcast]):
         The ``recent_limit`` caps how many of the *most recent eligible* broadcasts
         are considered at all. Only unread broadcasts within that window are returned.
         This prevents a cascade effect where dismissing 3 broadcasts reveals 3 older ones.
+        The audience is part of eligibility, so a broadcast to somebody else
+        never takes a place in this reader's window.
 
         Args:
             user_id: User UUID
@@ -302,8 +372,17 @@ class BroadcastRepository(BaseRepository[AdminBroadcast]):
         """
         now = func.now()
 
-        # Base conditions for eligible broadcasts (non-expired, after user signup)
+        # Base conditions for eligible broadcasts (addressed to this user,
+        # non-expired, after user signup)
+        addressed_to_user = or_(
+            AdminBroadcast.audience == BroadcastAudience.ALL.value,
+            exists().where(
+                AdminBroadcastRecipient.broadcast_id == AdminBroadcast.id,
+                AdminBroadcastRecipient.user_id == user_id,
+            ),
+        )
         eligible_conditions = [
+            addressed_to_user,
             or_(AdminBroadcast.expires_at.is_(None), AdminBroadcast.expires_at > now),
         ]
         if user_created_at is not None:
@@ -420,3 +499,104 @@ class BroadcastRepository(BaseRepository[AdminBroadcast]):
             )
         )
         await self.db.execute(stmt)
+
+    # ========== HISTORY (ADR-312) ==========
+
+    async def list_page(self, *, limit: int, offset: int) -> tuple[list[AdminBroadcast], int]:
+        """One page of every broadcast sent, newest first, with the exact total.
+
+        The ordering ends on the primary key so a page boundary never repeats or
+        skips a row when two broadcasts share a timestamp.
+
+        Args:
+            limit: Rows per page.
+            offset: Rows skipped before the page.
+
+        Returns:
+            The page's broadcasts (sender eager-loaded) and the total count.
+        """
+        total = int(await self.db.scalar(select(func.count(AdminBroadcast.id))) or 0)
+        rows = await self.db.scalars(
+            select(AdminBroadcast)
+            .options(selectinload(AdminBroadcast.sender))
+            .order_by(AdminBroadcast.created_at.desc(), AdminBroadcast.id.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+        return list(rows.all()), total
+
+    async def read_counts(self, broadcast_ids: Sequence[UUID]) -> dict[UUID, int]:
+        """How many accounts read each broadcast — an aggregate, never a page length.
+
+        Args:
+            broadcast_ids: The broadcasts to count.
+
+        Returns:
+            ``{broadcast_id: reads}`` for the broadcasts read at least once; an
+            absent id was read by nobody.
+        """
+        if not broadcast_ids:
+            return {}
+        result = await self.db.execute(
+            select(UserBroadcastRead.broadcast_id, func.count(UserBroadcastRead.id))
+            .where(UserBroadcastRead.broadcast_id.in_(broadcast_ids))
+            .group_by(UserBroadcastRead.broadcast_id)
+        )
+        return {broadcast_id: int(count) for broadcast_id, count in result.all()}
+
+    async def recipient_samples(
+        self, broadcast_ids: Sequence[UUID], *, per_broadcast: int
+    ) -> dict[UUID, RecipientSample]:
+        """The first recipients of each selected broadcast, and their exact number.
+
+        One statement for the whole page (a window per broadcast), so a page of
+        N broadcasts costs one query rather than N.
+
+        Args:
+            broadcast_ids: The page's broadcasts.
+            per_broadcast: How many recipients to name per broadcast.
+
+        Returns:
+            ``{broadcast_id: sample}`` for the broadcasts that have recipient
+            rows; a broadcast to all has none and is absent.
+        """
+        if per_broadcast < 1:
+            # A zero window would drop the totals with the names.
+            raise ValueError("per_broadcast must be at least 1")
+        if not broadcast_ids:
+            return {}
+        name_order = func.lower(func.coalesce(User.full_name, User.email))
+        ranked = (
+            select(
+                AdminBroadcastRecipient.broadcast_id.label("broadcast_id"),
+                User.id.label("user_id"),
+                User.full_name.label("full_name"),
+                User.email.label("email"),
+                func.row_number()
+                .over(
+                    partition_by=AdminBroadcastRecipient.broadcast_id,
+                    order_by=(name_order, User.id),
+                )
+                .label("rank"),
+                func.count().over(partition_by=AdminBroadcastRecipient.broadcast_id).label("total"),
+            )
+            .join(User, User.id == AdminBroadcastRecipient.user_id)
+            .where(AdminBroadcastRecipient.broadcast_id.in_(broadcast_ids))
+            .subquery()
+        )
+        result = await self.db.execute(
+            select(ranked)
+            .where(ranked.c.rank <= per_broadcast)
+            .order_by(ranked.c.broadcast_id, ranked.c.rank)
+        )
+        users: dict[UUID, list[RecipientRow]] = {}
+        totals: dict[UUID, int] = {}
+        for row in result.all():
+            users.setdefault(row.broadcast_id, []).append(
+                RecipientRow(user_id=row.user_id, full_name=row.full_name, email=row.email)
+            )
+            totals[row.broadcast_id] = int(row.total)
+        return {
+            broadcast_id: RecipientSample(total=totals[broadcast_id], users=tuple(rows))
+            for broadcast_id, rows in users.items()
+        }

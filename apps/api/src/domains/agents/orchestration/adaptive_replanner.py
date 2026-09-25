@@ -454,7 +454,7 @@ class AdaptiveRePlanner:
             decision=decision.value,
             strategy=strategy.value,
             attempt=context.replan_attempt,
-            reasoning=reasoning,
+            reasoning_length=len(reasoning),
             failed_step_id=failed_step_id,
         )
 

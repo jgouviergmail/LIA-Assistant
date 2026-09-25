@@ -298,7 +298,11 @@ flowchart TD
   whose required parameter is an id is left out). Measured on the real
   catalogue: 55 tools over 22 domains, plus the native `recall_memories`
   lookup (the chat has no memory tool; it reads through the chat's own
-  profile builder). The vendor description is the voice line of
+  profile builder). Since ADR-313 the chat has one (`search_memories_tool`, domain
+  `memory`, which the phone keeps off its list for its native lookup), and
+  ADR-318 adds `calculation`, `journal` and `activity` to `PHONE_DOMAINS` —
+  answers a voice can say; `generated_file` stays out, since it SHOWS cards
+  no voice surface draws. The vendor description is the voice line of
   `telephony_live_tools.txt` when one exists, else the manifest's own first
   paragraph. Provisioned per connector by fingerprint
   (`connector_metadata.live_tool_ids` / `live_tools_hash`), concurrently

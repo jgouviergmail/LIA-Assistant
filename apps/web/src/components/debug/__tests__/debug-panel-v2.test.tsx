@@ -90,6 +90,19 @@ describe('DebugPanel v2 — execution-ordered phases', () => {
     ]);
   });
 
+  it('draws each phase header ABOVE the section titles it groups', () => {
+    // Reported 2026-09-24: the phase headers were muted 10 px capitals under
+    // 14 px section titles in full ink — the parent level read as the lesser.
+    render(<DebugPanel metrics={CHAT_METRICS} history={[entry(CHAT_METRICS)]} />);
+
+    const [first] = screen.getAllByTestId('phase-header');
+    expect(first).toHaveClass('text-foreground', 'font-semibold', 'text-sm');
+    expect(first).not.toHaveClass('text-muted-foreground');
+    // The step number is its own mark, the title its own words.
+    expect(within(first).getByTestId('phase-step')).toHaveTextContent('1');
+    expect(first).toHaveTextContent(/Request/);
+  });
+
   it('folds idle sections behind a per-phase disclosure', async () => {
     const user = userEvent.setup();
     render(<DebugPanel metrics={CHAT_METRICS} history={[entry(CHAT_METRICS)]} />);

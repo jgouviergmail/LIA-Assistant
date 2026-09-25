@@ -88,7 +88,6 @@ class InterestRepository:
             "interest_created",
             user_id=str(user_id),
             interest_id=str(interest.id),
-            topic=topic[:50],
             category=category,
         )
 
@@ -318,7 +317,6 @@ class InterestRepository:
             "interest_deleted",
             interest_id=str(interest.id),
             user_id=str(interest.user_id),
-            topic=interest.topic[:50],
         )
 
     # =========================================================================
@@ -611,7 +609,6 @@ class InterestRepository:
             "interests_merged",
             kept_id=str(keep.id),
             duplicate_id=str(dup.id),
-            kept_topic=keep.topic[:50],
             positive_signals=keep.positive_signals,
         )
         return keep

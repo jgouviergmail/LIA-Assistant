@@ -699,6 +699,9 @@ export interface LLMCall {
   reasoning_level?: string | null;
   reasoning_budget_tokens?: number | null;
   params_digest?: string | null; // « these two calls were made the same way »
+  // What the request NAMED (the slot's configuration); `model_name` is what the
+  // provider answered under, which can be an alias it resolved.
+  requested_model?: string | null;
 }
 
 /**

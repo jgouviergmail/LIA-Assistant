@@ -65,7 +65,7 @@
     },
     "f.provenance": {
       "name": "Provenance et honnêteté",
-      "role": "Chaque réponse dit d'où viennent ses faits — sources, outils utilisés — et dit un échec tel qu'il est, sans inventer de diagnostic.",
+      "role": "Chaque réponse dit d'où viennent ses faits — sources, outils utilisés —, calcule ce qui doit être exact au lieu de l'estimer, et dit un échec tel qu'il est, sans inventer de diagnostic.",
       "goal": "Pouvoir croire une réponse parce qu'on peut la vérifier."
     },
     "f.subagents": {
@@ -80,12 +80,12 @@
     },
     "f.memory": {
       "name": "Mémoire long terme",
-      "role": "Faits, préférences et consignes de travail extraits en arrière-plan de tes conversations ; chaque souvenir se voit, se corrige, et garde son historique quand il change.",
+      "role": "Faits, préférences et consignes de travail extraits en arrière-plan de tes conversations, et cherchés exprès quand un sujet surgit en chemin ; chaque souvenir se voit, se corrige, et garde son historique quand il change.",
       "goal": "Ne pas avoir à répéter ce que LIA sait déjà de toi."
     },
     "f.journals": {
       "name": "Journaux et portrait",
-      "role": "LIA tient ses propres carnets de réflexion et compile ton portrait à partir de quatre sources — souvenirs, intérêts, habitudes, relations — en disant lesquelles elle a pu lire.",
+      "role": "LIA tient ses propres carnets de réflexion, qu'elle consulte quand un sujet surgit, et compile ton portrait à partir de quatre sources — souvenirs, intérêts, habitudes, relations — en disant lesquelles elle a pu lire.",
       "goal": "Une compréhension de toi qui s'affine avec le temps, et qui reste lisible."
     },
     "f.psyche": {
@@ -125,7 +125,7 @@
     },
     "f.peers": {
       "name": "Connexions entre pairs",
-      "role": "Relier deux comptes LIA : se transmettre des messages par l'assistante, se confier des tickets.",
+      "role": "Relier deux comptes LIA : se transmettre des messages par l'assistante, se partager une image générée, se confier des tickets.",
       "goal": "Collaborer sans quitter l'assistante."
     },
     "f.connectors": {
@@ -135,7 +135,7 @@
     },
     "f.mail": {
       "name": "E-mails",
-      "role": "Lire des e-mails nettoyés, les résumer une seule fois, chercher, rédiger, répondre et lire les pièces jointes — l'envoi passe toujours par un brouillon validé.",
+      "role": "Lire des e-mails nettoyés, les résumer une seule fois, chercher, rédiger, répondre et lire les pièces jointes — l'envoi à autrui passe toujours par un brouillon validé ; un e-mail à soi-même part directement.",
       "goal": "Traiter ta boîte en quelques phrases."
     },
     "f.calendar": {
@@ -195,7 +195,7 @@
     },
     "f.images": {
       "name": "Images générées",
-      "role": "Créer ou retoucher une image chez plusieurs fournisseurs, chacun avec ses formats et son prix affiché.",
+      "role": "Créer ou retoucher une image chez plusieurs fournisseurs, chacun avec ses formats et son prix affiché ; enrichir la description sur option, retrouver une image en le demandant, la partager avec une connexion.",
       "goal": "Illustrer une idée en une phrase."
     },
     "f.meetings": {
@@ -240,7 +240,7 @@
     },
     "f.notifications": {
       "name": "Notifications et canaux",
-      "role": "Notifications web et mobiles, et Telegram ; une notification envoyée par LIA est une action inscrite au registre.",
+      "role": "Notifications web et mobiles, et Telegram ; une notification envoyée par LIA est une action inscrite au registre, et une annonce d'administrateur ne va qu'aux comptes qu'elle vise.",
       "goal": "Te joindre là où tu es, sans jamais le faire en silence."
     },
     "f.activity": {
@@ -270,7 +270,7 @@
     },
     "f.privacy": {
       "name": "Données et confidentialité",
-      "role": "Trois registres — actions, consultations, décisions —, que l'instance peut sceller dans une chaîne par compte ; export complet de tes données ; oubli ; traçabilité au sens de l'article 12 de l'AI Act.",
+      "role": "Trois registres — actions, consultations, décisions —, que l'instance peut sceller dans une chaîne par compte ; export complet de tes données ; oubli ; des journaux techniques qui gardent des faits, jamais tes mots ; traçabilité au sens de l'article 12 de l'AI Act.",
       "goal": "Savoir ce que LIA a fait, lu et décidé — et pouvoir tout emporter ou tout effacer."
     },
     "f.costs": {

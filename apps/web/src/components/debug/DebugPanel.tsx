@@ -122,11 +122,13 @@ interface SectionSlot {
  * two-thirds N/A rows.
  */
 function PhaseGroup({
-  label,
+  step,
+  title,
   present,
   idle,
 }: {
-  label: string;
+  step: number;
+  title: string;
   present: React.ReactNode[];
   idle: React.ReactNode[];
 }) {
@@ -134,12 +136,22 @@ function PhaseGroup({
 
   return (
     <div>
-      <div className="px-1 pb-1 pt-3 first:pt-1">
+      <div className="px-1 pb-1 pt-4 first:pt-1">
+        {/* The PARENT level of the panel: full ink, the size of the section
+            titles it groups, semibold, and a numbered mark in the theme colour.
+            It used to be a muted 10 px label under 14 px titles in full ink, so
+            the phases read as the lesser level (reported 2026-09-24). */}
         <div
           data-testid="phase-header"
-          className="border-b border-border/30 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground"
+          className="flex items-center gap-2 border-b-2 border-primary/25 pb-1.5 text-sm font-semibold text-foreground"
         >
-          {label}
+          <span
+            data-testid="phase-step"
+            className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-primary/15 px-1.5 text-xs font-bold tabular-nums text-primary"
+          >
+            {step}
+          </span>
+          <span className="min-w-0 truncate">{title}</span>
         </div>
       </div>
       {present}
@@ -170,9 +182,10 @@ function PhaseGroup({
 function MetricsSections({ metrics }: { metrics: DebugMetrics }) {
   const presence = sectionPresence(metrics);
 
-  const phases: { label: string; sections: SectionSlot[] }[] = [
+  const phases: { step: number; title: string; sections: SectionSlot[] }[] = [
     {
-      label: '1 · Request',
+      step: 1,
+      title: 'Request',
       sections: [
         {
           value: 'query',
@@ -181,7 +194,8 @@ function MetricsSections({ metrics }: { metrics: DebugMetrics }) {
       ],
     },
     {
-      label: '2 · Analysis (router)',
+      step: 2,
+      title: 'Analysis (router)',
       sections: [
         {
           value: 'intent',
@@ -214,7 +228,8 @@ function MetricsSections({ metrics }: { metrics: DebugMetrics }) {
       ],
     },
     {
-      label: '3 · Planning',
+      step: 3,
+      title: 'Planning',
       sections: [
         { value: 'token_budget', node: <TokenBudgetSection data={metrics.token_budget} /> },
         { value: 'tools', node: <ToolSection data={metrics.tool_selection} /> },
@@ -227,7 +242,8 @@ function MetricsSections({ metrics }: { metrics: DebugMetrics }) {
       ],
     },
     {
-      label: '4 · Execution',
+      step: 4,
+      title: 'Execution',
       sections: [
         {
           value: 'execution_waves',
@@ -287,7 +303,8 @@ function MetricsSections({ metrics }: { metrics: DebugMetrics }) {
       ],
     },
     {
-      label: '5 · Response context',
+      step: 5,
+      title: 'Response context',
       sections: [
         {
           value: 'memory-injection',
@@ -310,7 +327,8 @@ function MetricsSections({ metrics }: { metrics: DebugMetrics }) {
       ],
     },
     {
-      label: '6 · Background extraction',
+      step: 6,
+      title: 'Background extraction',
       sections: [
         {
           value: 'memory-detection',
@@ -331,7 +349,8 @@ function MetricsSections({ metrics }: { metrics: DebugMetrics }) {
       ],
     },
     {
-      label: '7 · Totals & pipeline',
+      step: 7,
+      title: 'Totals & pipeline',
       sections: [
         {
           value: 'request_lifecycle',
@@ -411,7 +430,15 @@ function MetricsSections({ metrics }: { metrics: DebugMetrics }) {
             );
           }
         }
-        return <PhaseGroup key={phase.label} label={phase.label} present={present} idle={idle} />;
+        return (
+          <PhaseGroup
+            key={phase.step}
+            step={phase.step}
+            title={phase.title}
+            present={present}
+            idle={idle}
+          />
+        );
       })}
     </Accordion>
   );

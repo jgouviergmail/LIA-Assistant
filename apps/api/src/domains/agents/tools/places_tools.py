@@ -222,16 +222,11 @@ class SearchPlacesTool(ToolOutputMixin, ConnectorTool[GooglePlacesClient]):
                 geocoded_lat, geocoded_lon, _, _ = geocode_result
                 logger.info(
                     "places_viewport_geocoded",
-                    location=location,
-                    geocoded_lat=geocoded_lat,
-                    geocoded_lon=geocoded_lon,
+                    location_length=len(location),
                     radius_meters_param=raw_radius_param,
                 )
             else:
-                logger.warning(
-                    "places_viewport_geocode_failed",
-                    location=location,
-                )
+                logger.warning("places_viewport_geocode_failed", location_length=len(location))
                 # Fallback: disable geocoded viewport, use semantic search instead
                 needs_geocoded_viewport = False
                 geocode_failed = True
@@ -246,9 +241,9 @@ class SearchPlacesTool(ToolOutputMixin, ConnectorTool[GooglePlacesClient]):
                 query = f"{location}"
             logger.info(
                 "places_search_explicit_location",
-                original_query=kwargs.get("query", ""),
-                location=location,
-                combined_query=query[:100],
+                original_query_length=len(kwargs.get("query", "")),
+                location_length=len(location),
+                combined_query_length=len(query),
             )
 
         # Handle max_results with caps
@@ -332,7 +327,7 @@ class SearchPlacesTool(ToolOutputMixin, ConnectorTool[GooglePlacesClient]):
                 "geocoded" if geocoded_lat else ("browser" if restriction_lat else None)
             ),
             distance_source=distance_source,
-            query=query[:50] if query else "(none)",
+            query_length=len(query) if query else 0,
             place_type=place_type,
             radius_meters=radius_meters,
         )
@@ -461,7 +456,7 @@ class SearchPlacesTool(ToolOutputMixin, ConnectorTool[GooglePlacesClient]):
             logger.info(
                 "search_places_text_success",
                 user_id=str(user_id),
-                query=query,
+                query_length=len(query),
                 results=len(formatted_places),
                 place_type=place_type if place_type else "none",
                 has_location_restriction=location_restriction is not None,
@@ -724,7 +719,6 @@ class GetPlaceDetailsTool(ToolOutputMixin, ConnectorTool[GooglePlacesClient]):
             "get_place_details_success",
             user_id=str(user_id),
             place_id=place_id,
-            name=details.get("name"),
             has_distance=distance_source is not None,
         )
 

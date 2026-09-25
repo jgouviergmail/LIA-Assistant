@@ -1224,6 +1224,9 @@ The check runs **per step, on every plan** (single-domain, multi-domain, future 
 **Two exceptions** (skip the check):
 1. **Quoted literal** — presence of `"` or `'` anywhere in the param value signals literal-match intent.
 2. **Semantic-search tool** — `ToolManifest.text_search_mode != "literal"` (e.g. `"semantic"` or `"hybrid"` for vector-search backends).
+   Declared by the vector-backed lookups: `search_memories_tool` and `search_journal_tool` (`semantic`),
+   `search_user_documents_tool` (`hybrid`, vectors plus BM25). Until ADR-318 no manifest declared one, so
+   `autocorrect` would have stripped the very conceptual terms those stores match on; a test pins them.
 
 **Word-boundary matching** — the param value is split on whitespace, each token stripped of `.,;:!?()[]`, lowercased, then intersected with the term set. `"medical"` matches `"medical clinic Paris"` but not `"medicalign software"`.
 

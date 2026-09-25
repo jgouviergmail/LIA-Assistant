@@ -145,7 +145,7 @@ def _map_draft_critique_result(
             "approval_decision_draft_critique_edit",
             run_id=run_id,
             draft_id=draft_id,
-            modification_instructions=modification_instructions[:100],
+            instructions_length=len(modification_instructions),
         )
         return {
             "action": "edit",
@@ -158,7 +158,7 @@ def _map_draft_critique_result(
             "approval_decision_draft_critique_ambiguous",
             run_id=run_id,
             draft_id=draft_id,
-            clarification=result.clarification_question,
+            has_clarification=bool(result.clarification_question),
         )
         return {
             "action": "clarify",
@@ -219,7 +219,7 @@ async def _classify_draft_critique(
     logger.info(
         "approval_decision_draft_critique_detected",
         run_id=run_id,
-        user_message=user_message[:50],
+        user_message_length=len(user_message),
         draft_id=draft_id,
     )
 
@@ -238,7 +238,7 @@ async def _classify_draft_critique(
         logger.info(
             "approval_decision_draft_critique_using_classifier",
             run_id=run_id,
-            user_message=user_message[:100],
+            user_message_length=len(user_message),
             draft_id=draft_id,
         )
         classifier = HitlResponseClassifier()
@@ -262,7 +262,7 @@ async def _classify_draft_critique(
             error=str(e),
             error_type=type(e).__name__,
             fallback="edit",
-            user_message=user_message[:100],
+            user_message_length=len(user_message),
         )
         return {
             "action": "edit",
@@ -304,7 +304,7 @@ def _map_for_each_result(
         logger.info(
             "approval_decision_for_each_edit",
             run_id=run_id,
-            exclude_criteria=exclude_criteria[:100],
+            exclude_criteria_length=len(exclude_criteria),
         )
         return {"decision": "EDIT", "exclude_criteria": exclude_criteria}
 
@@ -342,7 +342,7 @@ async def _classify_for_each(
     logger.info(
         "approval_decision_for_each_confirmation_detected",
         run_id=run_id,
-        user_message=user_message[:50],
+        user_message_length=len(user_message),
     )
 
     try:
@@ -368,7 +368,7 @@ async def _classify_for_each(
             error=str(e),
             error_type=type(e).__name__,
             fallback="edit",
-            user_message=user_message[:100],
+            user_message_length=len(user_message),
         )
         return {"decision": "EDIT", "exclude_criteria": user_message}
 
@@ -473,7 +473,7 @@ def _map_generic_result(
             "approval_decision_replan",
             run_id=run_id,
             has_instructions=bool(replan_instructions),
-            reasoning=result.reasoning[:100] if result.reasoning else None,
+            reasoning_length=len(result.reasoning) if result.reasoning else 0,
         )
         return {
             "decision": "REPLAN",
@@ -485,7 +485,7 @@ def _map_generic_result(
         logger.warning(
             "approval_decision_ambiguous",
             run_id=run_id,
-            clarification=result.clarification_question,
+            has_clarification=bool(result.clarification_question),
         )
         return {
             "decision": "REJECT",
@@ -529,7 +529,7 @@ async def _classify_clarification(
         logger.info(
             "approval_decision_clarification_cancel_fast_path",
             run_id=run_id,
-            user_message=user_message[:50],
+            user_message_length=len(user_message),
         )
         return {"clarification": user_message, "cancelled": True}
 
@@ -550,7 +550,7 @@ async def _classify_clarification(
                 "approval_decision_clarification_cancel_classified",
                 run_id=run_id,
                 confidence=result.confidence,
-                user_message=user_message[:50],
+                user_message_length=len(user_message),
             )
             return {"clarification": user_message, "cancelled": True}
     except (ValueError, KeyError, TypeError, RuntimeError, AttributeError) as e:
@@ -565,7 +565,7 @@ async def _classify_clarification(
     logger.info(
         "approval_decision_clarification_passthrough",
         run_id=run_id,
-        user_message=user_message[:100],
+        user_message_length=len(user_message),
     )
     return {"clarification": user_message}
 
@@ -589,7 +589,7 @@ async def _classify_generic(
             "approval_decision_fast_path",
             run_id=run_id,
             decision="APPROVE",
-            user_message=user_message[:50],
+            user_message_length=len(user_message),
         )
         return {"decision": "APPROVE"}
 
@@ -598,7 +598,7 @@ async def _classify_generic(
             "approval_decision_fast_path",
             run_id=run_id,
             decision="REJECT",
-            user_message=user_message[:50],
+            user_message_length=len(user_message),
         )
         return {"decision": "REJECT", "rejection_reason": "User declined"}
 
@@ -608,7 +608,7 @@ async def _classify_generic(
         logger.info(
             "approval_decision_using_classifier",
             run_id=run_id,
-            user_message=user_message[:100],
+            user_message_length=len(user_message),
             action_context_count=len(action_context),
             interrupt_type=interrupt_type,
         )
@@ -622,7 +622,7 @@ async def _classify_generic(
             run_id=run_id,
             decision=result.decision,
             confidence=result.confidence,
-            reasoning=result.reasoning[:100] if result.reasoning else None,
+            reasoning_length=len(result.reasoning) if result.reasoning else 0,
             has_edited_params=bool(result.edited_params),
         )
         return _map_generic_result(result, action_context, run_id, user_language)
@@ -632,7 +632,7 @@ async def _classify_generic(
             run_id=run_id,
             error=str(e),
             error_type=type(e).__name__,
-            user_message=user_message[:100],
+            user_message_length=len(user_message),
         )
         # English scaffolding, like the sibling "User declined": this reason is
         # summarized by the response node, which writes to the user in their own
@@ -822,7 +822,7 @@ async def parse_approval_decision(
         logger.warning(
             "approval_decision_no_action_context",
             run_id=run_id,
-            user_message=user_message[:50],
+            user_message_length=len(user_message),
             interrupt_type=interrupt_type,
             has_pending_data=pending_data is not None,
             reason="No action_context found - treating as new request, not HITL resumption",

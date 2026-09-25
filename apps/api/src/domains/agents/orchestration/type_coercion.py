@@ -80,7 +80,7 @@ def coerce_string_to_list(value: str) -> list[str]:
 
     logger.info(
         "coerced_string_to_list",
-        original_value=value[:100] if len(value) > 100 else value,
+        original_length=len(value),
         pattern=pattern,
         items_count=len(cleaned),
     )

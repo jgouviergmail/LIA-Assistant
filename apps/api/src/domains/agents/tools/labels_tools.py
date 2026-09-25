@@ -259,7 +259,6 @@ class CreateLabelTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
             "label_created",
             user_id=str(user_id),
             label_id=created_label.get("id"),
-            label_name=name,
         )
 
         return {
@@ -380,8 +379,6 @@ class UpdateLabelTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
             "label_updated",
             user_id=str(user_id),
             label_id=label_id,
-            old_name=old_name,
-            new_name=new_name,
         )
 
         return {
@@ -504,7 +501,6 @@ class DeleteLabelDraftTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
             "delete_label_draft_prepared",
             user_id=str(user_id),
             label_id=label_id,
-            label_name=full_label_name,
             sublabels_count=len(sublabels),
             children_only=children_only,
         )
@@ -578,7 +574,7 @@ class DeleteLabelDirectTool(ConnectorTool[GoogleGmailClient]):
             logger.info(
                 "label_children_deleted",
                 user_id=str(user_id),
-                parent_label=label_name,
+                label_id=label_id,
                 deleted_count=deleted_count,
             )
 
@@ -597,7 +593,6 @@ class DeleteLabelDirectTool(ConnectorTool[GoogleGmailClient]):
                 "label_deleted",
                 user_id=str(user_id),
                 label_id=label_id,
-                label_name=label_name,
                 sublabels_deleted=len(sublabels),
             )
 
@@ -704,11 +699,7 @@ class ApplyLabelsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
                 # Create the label
                 new_label = await client.create_label(label_name)
                 resolved_label_ids.append(new_label["id"])
-                logger.info(
-                    "label_auto_created",
-                    user_id=str(user_id),
-                    label_name=label_name,
-                )
+                logger.info("label_auto_created", user_id=str(user_id), label_id=new_label["id"])
             else:
                 raise LabelNotFoundError(
                     APIMessages.label_not_found(label_name, language),

@@ -260,7 +260,6 @@ async def consolidate_memories() -> dict[str, Any]:
                             category=survivor.category,
                             similarity=round(similarity, 3),
                             survivor_importance=round(survivor.importance or 0.7, 2),
-                            loser_content_preview=(loser.content or "")[:60],
                         )
                     except Exception as e:
                         logger.warning(

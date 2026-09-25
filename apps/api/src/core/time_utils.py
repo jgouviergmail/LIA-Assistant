@@ -323,7 +323,7 @@ def normalize_user_datetime(dt_str: str | None, user_timezone: str) -> str | Non
     except ValueError, TypeError:
         logger.warning(
             "normalize_user_datetime_parse_failed",
-            input=dt_str[:50],
+            input_length=len(str(dt_str)),
         )
         return dt_str
 
@@ -351,7 +351,7 @@ def normalize_user_datetime(dt_str: str | None, user_timezone: str) -> str | Non
     except Exception as e:
         logger.warning(
             "normalize_user_datetime_tz_failed",
-            input=dt_str[:50],
+            input_length=len(dt_str),
             timezone=user_timezone,
             error=str(e),
         )
@@ -448,7 +448,7 @@ def parse_datetime(dt_input: str | int | datetime | None) -> datetime | None:
     except Exception as e:
         logger.warning(
             "datetime_parse_failed",
-            input=str(dt_input)[:50],
+            input_length=len(str(dt_input)),
             error=str(e),
         )
 
@@ -482,7 +482,7 @@ def _validate_date_range(
             "datetime_out_of_range",
             parsed_year=dt.year,
             parsed_date=dt.isoformat(),
-            original_input=str(original_input)[:100],
+            original_input_length=len(str(original_input)),
             context=context,
             min_valid_year=MIN_VALID_YEAR,
             max_valid_year=MAX_VALID_YEAR,
@@ -599,7 +599,7 @@ def format_datetime_for_display(
     except Exception as e:
         logger.warning(
             "datetime_format_failed",
-            input=str(dt_input)[:50],
+            input_length=len(str(dt_input)),
             error=str(e),
         )
         return "Date inconnue"

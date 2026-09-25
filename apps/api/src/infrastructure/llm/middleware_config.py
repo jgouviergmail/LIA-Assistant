@@ -489,13 +489,13 @@ def _create_summarization_middleware(agent_model: str | None = None) -> Any | No
         )
 
         # Convert fraction-based trigger to absolute token count
-        trigger_value = settings.summarization_trigger_fraction
-        if trigger_value <= 1.0:
+        trigger_fraction = settings.summarization_trigger_fraction
+        if trigger_fraction <= 1.0:
             # Fraction mode - convert to absolute tokens based on model's context window
-            max_tokens = int(context_window * trigger_value)
+            max_tokens = int(context_window * trigger_fraction)
         else:
             # Already an absolute token count
-            max_tokens = int(trigger_value)
+            max_tokens = int(trigger_fraction)
 
         # Create summarization LLM with proper API key injection.
         # SummarizationMiddleware accepts str | BaseChatModel. Passing a string
@@ -521,7 +521,7 @@ def _create_summarization_middleware(agent_model: str | None = None) -> Any | No
             model=summarization_model_name,
             agent_model=agent_model,
             context_window=context_window,
-            trigger_fraction=trigger_value,
+            trigger_fraction=trigger_fraction,
             max_tokens_before_summary=max_tokens,
             messages_to_keep=settings.summarization_keep_messages,
         )

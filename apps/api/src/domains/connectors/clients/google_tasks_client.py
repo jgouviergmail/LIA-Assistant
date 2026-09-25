@@ -122,7 +122,6 @@ class GoogleTasksClient(BaseGoogleClient):
             "tasks_get_task_list",
             user_id=str(self.user_id),
             task_list_id=task_list_id,
-            title=response.get("title"),
         )
 
         return response
@@ -147,7 +146,6 @@ class GoogleTasksClient(BaseGoogleClient):
             "tasks_create_task_list",
             user_id=str(self.user_id),
             task_list_id=response.get("id"),
-            title=title,
         )
 
         return response
@@ -253,7 +251,6 @@ class GoogleTasksClient(BaseGoogleClient):
             user_id=str(self.user_id),
             task_list_id=task_list_id,
             task_id=task_id,
-            title=response.get("title"),
         )
 
         return response
@@ -310,7 +307,6 @@ class GoogleTasksClient(BaseGoogleClient):
             user_id=str(self.user_id),
             task_list_id=task_list_id,
             task_id=response.get("id"),
-            title=title,
         )
 
         return response
@@ -375,7 +371,6 @@ class GoogleTasksClient(BaseGoogleClient):
             user_id=str(self.user_id),
             task_list_id=task_list_id,
             task_id=task_id,
-            title=response.get("title"),
             status=response.get("status"),
         )
 

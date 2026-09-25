@@ -232,6 +232,29 @@ Fonctions principales :
 - `compute_emotional_state()` : Calcule l'état émotionnel agrégé
 - `get_memory_context_for_response()` : Interface pour response_node
 
+### 2 bis. Recherche active (ADR-313)
+
+**Fichiers** : `apps/api/src/domains/memories/search.py` (la porte unique),
+`apps/api/src/domains/agents/tools/memory_search_tools.py` (l'outil).
+
+Le profil injecté est classé sur le MESSAGE de la personne. Pour un sujet que le
+tour découvre en chemin (l'expéditeur d'un e-mail lu, un lieu, une consigne), le
+planificateur et la boucle ReAct disposent du domaine routable `memory` et de
+`search_memories_tool` (`memory_agent`, lecture seule, sans OAuth ni HITL) :
+
+- `embed_lookup` vectorise une question comme une CLÉ (`is_conversational=False`) ;
+  `search_memories` sert les souvenirs vivants au-dessus de `MEMORY_MIN_SEARCH_SCORE`,
+  catégories en option ; le vecteur est calculé avant l'ouverture de session ;
+- tous les appelants passent par cette porte : faits mémoire du planificateur, de
+  l'initiative et de la résolution de références, rappel 360° d'une personne,
+  recherches du téléphone (`build_profile_for_lookup` — qui cherchait jusque-là les
+  dix souvenirs les plus récents quelle que soit la question) ;
+- les bornes publiées sont celles que l'outil applique (catégories =
+  `MemoryCategoryType`, plafond = `MEMORY_MAX_RESULTS`) ; la préférence
+  `memory_enabled` refuse la recherche comme l'injection ; un souvenir sensible revient
+  avec sa nuance d'usage comme obligation ; un échec n'est jamais lu comme « rien en
+  mémoire ».
+
 ### 3. Background Extractor
 
 **Fichier** : `apps/api/src/domains/agents/services/memory_extractor.py`

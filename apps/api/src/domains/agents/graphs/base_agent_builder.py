@@ -356,7 +356,7 @@ def build_generic_agent(config: AgentConfig) -> Any:
         logger.warning(
             "datetime_generator_provided_but_no_placeholder",
             agent_name=agent_name,
-            prompt_preview=system_prompt_template[:100],
+            prompt_length=len(system_prompt_template),
         )
 
     # Create LangChain v1.0 agent with create_agent

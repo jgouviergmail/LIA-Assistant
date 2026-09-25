@@ -1051,7 +1051,7 @@ class DependencyGraph:
             logger.error(
                 "for_each_param_substitution_failed",
                 error=str(e),
-                params_str=params_str[:200],
+                params_length=len(params_str),
             )
             return params or {}
 

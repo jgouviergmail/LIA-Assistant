@@ -298,7 +298,7 @@ def _apply_for_each_heuristics(
 
     logger.info(
         "for_each_heuristics_applied",
-        query_preview=query_lower[:50],
+        query_length=len(query_lower),
         has_explicit=has_explicit,
         has_plural=has_plural,
         has_mutation=has_mutation,
@@ -607,12 +607,12 @@ async def analyze_query(
 
         logger.info(
             "query_analysis_complete",
-            query_preview=query[:50],
+            query_length=len(query),
             intent=result.intent,
             primary_domain=result.primary_domain,
             secondary_domains=result.secondary_domains,
             confidence=round(result.confidence, 2),
-            reasoning=result.reasoning[:50],
+            reasoning_length=len(result.reasoning),
             is_mutation_intent=result.is_mutation_intent,
             has_cardinality_risk=result.has_cardinality_risk,
         )
@@ -676,7 +676,7 @@ async def analyze_query(
             "query_analysis_failed",
             error=str(e),
             error_type=type(e).__name__,
-            query_preview=query[:50],
+            query_length=len(query),
         )
         # Fallback: return action with no domains (will go to chat)
         return QueryAnalysisResult(
@@ -1333,7 +1333,6 @@ class QueryAnalyzerService:
                 ).inc()
                 logger.info(
                     "semantic_filter_terms_emitted",
-                    terms=analysis_result.semantic_filter_terms,
                     term_count=_term_count,
                     model=settings.query_analyzer_llm_model,
                 )
@@ -1398,7 +1397,7 @@ class QueryAnalyzerService:
             logger.error(
                 "analyze_full_failed",
                 error=str(e),
-                query_preview=fallback_query[:50],
+                query_length=len(fallback_query),
                 run_id=run_id,
             )
             return self._create_fallback_intelligence(fallback_query, user_language, error=e)

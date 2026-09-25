@@ -171,8 +171,7 @@ class InterestContentGenerator:
 
             logger.info(
                 "content_generation_diversity_retry",
-                original_topic=context.topic,
-                angled_topic=angled_topic,
+                original_topic_length=len(context.topic),
                 angle=angle,
                 user_id=context.user_id,
             )
@@ -189,7 +188,7 @@ class InterestContentGenerator:
             # Retry also produced only duplicates
             logger.warning(
                 "content_generation_diversity_retry_failed",
-                topic=context.topic,
+                topic_length=len(context.topic),
                 angle=angle,
                 user_id=context.user_id,
             )
@@ -204,7 +203,7 @@ class InterestContentGenerator:
         except Exception as e:
             logger.error(
                 "content_generation_error",
-                topic=context.topic,
+                topic_length=len(context.topic),
                 user_id=context.user_id,
                 error=str(e),
                 error_type=type(e).__name__,
@@ -276,7 +275,7 @@ class InterestContentGenerator:
             logger.info(
                 "content_generation_success_primary",
                 source=source_name,
-                topic=context.topic,
+                topic_length=len(context.topic),
                 content_length=len(content.content),
                 user_id=context.user_id,
             )
@@ -312,7 +311,7 @@ class InterestContentGenerator:
 
             logger.info(
                 "content_generation_success_fallback",
-                topic=context.topic,
+                topic_length=len(context.topic),
                 content_length=len(content.content),
                 user_id=context.user_id,
             )
@@ -331,7 +330,7 @@ class InterestContentGenerator:
 
         logger.warning(
             "content_generation_all_sources_failed",
-            topic=context.topic,
+            topic_length=len(context.topic),
             user_id=context.user_id,
             sources_tried=sources_tried,
         )
@@ -417,7 +416,7 @@ class InterestContentGenerator:
             logger.warning(
                 "content_source_exception",
                 source=source.source_name,
-                topic=context.topic,
+                topic_length=len(context.topic),
                 error=str(e),
                 error_type=type(e).__name__,
             )

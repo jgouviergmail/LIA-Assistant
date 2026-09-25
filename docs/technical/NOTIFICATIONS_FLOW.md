@@ -2,7 +2,7 @@
 
 > Documentation technique détaillée des flux de notifications dans LIA
 
-**Related ADRs**: ADR-051 (Reminder & Notification System), ADR-046 (Background Job Scheduling)
+**Related ADRs**: ADR-051 (Reminder & Notification System), ADR-046 (Background Job Scheduling), ADR-312 (Broadcast Audience)
 
 ---
 
@@ -13,20 +13,22 @@
 3. [Reminder Notification Flow](#reminder-notification-flow)
 4. [FCM Push Notification Flow](#fcm-push-notification-flow)
 5. [SSE Real-time Flow](#sse-real-time-flow)
-6. [Error Handling Flow](#error-handling-flow)
-7. [Concurrency Handling](#concurrency-handling)
+6. [Admin Broadcast Flow](#admin-broadcast-flow)
+7. [Error Handling Flow](#error-handling-flow)
+8. [Concurrency Handling](#concurrency-handling)
 
 ---
 
 ## Overview
 
-Le système de notifications LIA gère deux types de notifications avec livraison multi-canal :
+Le système de notifications LIA gère plusieurs types de notifications, livrées sur plusieurs canaux :
 
 | Type | Trigger | Delivery | Use Case |
 |------|---------|----------|----------|
 | **Reminders** | Scheduled (trigger_at) | FCM Push + SSE + Channels (Telegram) | "Rappelle-moi de..." |
 | **Proactive** | Interest detection | FCM Push + SSE + Channels (Telegram) | Actualités centres d'intérêt |
 | **Scheduled actions** | Cron (jours + heure) | FCM Push + SSE (**pas** de canaux) | Voir [SCHEDULED_ACTIONS.md](SCHEDULED_ACTIONS.md) |
+| **Admin broadcasts** | Un administrateur | FCM Push + SSE | Annonce à tous ou à des comptes choisis — voir [Admin Broadcast Flow](#admin-broadcast-flow) |
 | **Real-time** | Immediate | SSE only | Status updates, typing indicators |
 
 ### Règle transverse : le corps d'une notification est du texte brut
@@ -517,6 +519,30 @@ eventSource.onerror = (error) => {
   // EventSource will auto-reconnect
 };
 ```
+
+---
+
+## Admin Broadcast Flow
+
+An administrator's announcement (**Settings › Administration › Broadcast Message**,
+`POST /notifications/admin/broadcast`) goes to every active account or to a
+selection, and the row says which ([ADR-312](../architecture/ADR-312-A-Broadcast-Says-Who-It-Was-Addressed-To.md)):
+
+1. **The audience is resolved BEFORE the row is written** — the addressed accounts
+   grouped by language, and their FCM tokens, one query per language group, every
+   read before any network call. A selection that addresses no active account is
+   refused (400) rather than sent to everyone.
+2. **The row carries its audience** — `admin_broadcasts.audience` (`all` |
+   `selected`) and one `admin_broadcast_recipients` row per addressed account,
+   committed before anything is sent (archive first). The unread listing
+   (`GET /notifications/broadcasts/unread`) serves a targeted broadcast to its
+   recipients alone, at send time as at their next sign-in.
+3. **Delivery holds no transaction** (ADR-304) — the translations (one model call
+   per target language, persisted so later reads cost nothing) and the SSE + FCM
+   sends run after that commit; the delivery counters are written last.
+4. **The history** (`GET /notifications/admin/broadcasts`) serves a page and its
+   exact total, a bounded sample of the recipients with their exact count, the
+   expiry instant and the chosen delay — four queries whatever the page size.
 
 ---
 

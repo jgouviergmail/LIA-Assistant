@@ -209,7 +209,7 @@ def parse_skill_stdout(stdout: str) -> SkillScriptOutput:
             "skill_script_output_validation_failed",
             has_frame="frame" in data,
             has_image="image" in data,
-            stdout_preview=stdout[:200],
+            stdout_length=len(stdout),
         )
         return SkillScriptOutput(
             text=data.get("text", "") or stdout,

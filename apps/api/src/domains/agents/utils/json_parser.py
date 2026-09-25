@@ -237,8 +237,8 @@ def extract_json_from_llm_response(
             context=context,
             run_id=run_id,
             error=str(e),
-            json_text_preview=json_text[:200] if json_text else None,
-            raw_text_preview=response_text[:200] if response_text else None,
+            json_text_length=len(json_text) if json_text else 0,
+            raw_text_length=len(response_text) if response_text else 0,
         )
         agent_llm_json_parse_errors_total.labels(
             context=context,

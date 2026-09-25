@@ -11,11 +11,12 @@ from contextlib import suppress
 from uuid import uuid4
 
 import structlog
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
+from src.core.constants import BROADCAST_HISTORY_PAGE_SIZE_DEFAULT, BROADCAST_HISTORY_PAGE_SIZE_MAX
 from src.core.dependencies import get_db
 from src.core.exceptions import (
     raise_invalid_input,
@@ -27,10 +28,12 @@ from src.core.session_dependencies import (
     get_current_active_session_for_stream,
     get_current_superuser_session,
 )
+from src.domains.notifications.broadcast_history import broadcast_history
 from src.domains.notifications.broadcast_service import BroadcastService
 from src.domains.notifications.hub_counts import resolve_hub_counts
 from src.domains.notifications.schemas import (
     AndroidPushConfig,
+    BroadcastHistoryResponse,
     BroadcastMessageRequest,
     BroadcastMessageResponse,
     HubCountsResponse,
@@ -482,6 +485,41 @@ async def send_broadcast(
         fcm_sent=result.fcm_sent,
         fcm_failed=result.fcm_failed,
     )
+
+
+@router.get(
+    "/admin/broadcasts",
+    response_model=BroadcastHistoryResponse,
+    summary="Sent broadcasts history (Admin)",
+    description=(
+        "One page of every broadcast sent, newest first, with the exact total: "
+        "audience and a sample of its recipients, expiry, delivery stats and read "
+        "receipts (ADR-312)."
+    ),
+)
+async def list_broadcast_history(
+    limit: int = Query(
+        BROADCAST_HISTORY_PAGE_SIZE_DEFAULT,
+        ge=1,
+        le=BROADCAST_HISTORY_PAGE_SIZE_MAX,
+        description=f"Page size (max {BROADCAST_HISTORY_PAGE_SIZE_MAX}).",
+    ),
+    offset: int = Query(0, ge=0, description="Page offset."),
+    _current_user: User = Depends(get_current_superuser_session),
+    db: AsyncSession = Depends(get_db),
+) -> BroadcastHistoryResponse:
+    """The sent-broadcasts history drawn under the admin send form.
+
+    Args:
+        limit: Page size, bounded by the published maximum.
+        offset: Page offset.
+        _current_user: The authenticated superuser (the guard, not a reader).
+        db: Database session.
+
+    Returns:
+        The page and its exact total.
+    """
+    return await broadcast_history(db, limit=limit, offset=offset)
 
 
 @router.get(

@@ -24,10 +24,6 @@ from src.core.constants import (
     HEARTBEAT_NOTIFY_END_HOUR_DEFAULT,
     HEARTBEAT_NOTIFY_START_HOUR_DEFAULT,
     HEARTBEAT_PUSH_ENABLED_DEFAULT,
-    IMAGE_GENERATION_ENABLED_DEFAULT,
-    IMAGE_GENERATION_OUTPUT_FORMAT_DEFAULT,
-    IMAGE_GENERATION_QUALITY_DEFAULT,
-    IMAGE_GENERATION_SIZE_DEFAULT,
     INTEREST_NOTIFY_END_HOUR_DEFAULT,
     INTEREST_NOTIFY_MAX_PER_DAY_DEFAULT,
     INTEREST_NOTIFY_MIN_PER_DAY_DEFAULT,
@@ -37,6 +33,7 @@ from src.core.constants import (
     JOURNAL_MAX_ENTRY_CHARS_DEFAULT,
     JOURNAL_MAX_TOTAL_CHARS_DEFAULT,
 )
+from src.domains.users.image_generation_columns import ImageGenerationColumns
 from src.domains.users.live_preferences_columns import LivePreferencesColumns
 from src.domains.users.phone_identity_columns import PhoneIdentityColumns
 from src.domains.users.turn_preferences_columns import TurnPreferencesColumns
@@ -56,7 +53,13 @@ if TYPE_CHECKING:
     from src.domains.usage_limits.models import UserUsageLimit
 
 
-class User(LivePreferencesColumns, PhoneIdentityColumns, TurnPreferencesColumns, BaseModel):
+class User(
+    ImageGenerationColumns,
+    LivePreferencesColumns,
+    PhoneIdentityColumns,
+    TurnPreferencesColumns,
+    BaseModel,
+):
     """
     User model for authentication and profile.
     """
@@ -559,34 +562,7 @@ class User(LivePreferencesColumns, PhoneIdentityColumns, TurnPreferencesColumns,
         comment="Notify the user's devices (FCM) on logins from unattested devices.",
     )
 
-    # Image Generation preferences (evolution — AI Image Generation)
-    image_generation_enabled: Mapped[bool] = mapped_column(
-        default=IMAGE_GENERATION_ENABLED_DEFAULT,
-        nullable=False,
-        server_default="true",
-        comment="User opt-in for AI image generation feature.",
-    )
-    image_generation_default_quality: Mapped[str] = mapped_column(
-        String(20),
-        nullable=False,
-        default=IMAGE_GENERATION_QUALITY_DEFAULT,
-        server_default=IMAGE_GENERATION_QUALITY_DEFAULT,
-        comment="Preferred image quality; mapped onto the configured model's offer.",
-    )
-    image_generation_default_size: Mapped[str] = mapped_column(
-        String(20),
-        nullable=False,
-        default=IMAGE_GENERATION_SIZE_DEFAULT,
-        server_default=IMAGE_GENERATION_SIZE_DEFAULT,
-        comment="Preferred image size (WIDTHxHEIGHT); mapped onto the model's offer.",
-    )
-    image_generation_output_format: Mapped[str] = mapped_column(
-        String(10),
-        nullable=False,
-        default=IMAGE_GENERATION_OUTPUT_FORMAT_DEFAULT,
-        server_default=IMAGE_GENERATION_OUTPUT_FORMAT_DEFAULT,
-        comment="Default output format: png, jpeg, webp.",
-    )
+    # Image generation preferences: ImageGenerationColumns (image_generation_columns.py)
 
     # Admin MCP per-user toggle (evolution F2.5)
     admin_mcp_disabled_servers: Mapped[list[str]] = mapped_column(

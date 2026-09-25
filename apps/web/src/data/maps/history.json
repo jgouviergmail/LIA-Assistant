@@ -2271,6 +2271,62 @@
       "theme": "models",
       "functional": ["f.react", "f.costs", "f.admin"],
       "technical": ["t.react", "t.web"]
+    },
+    {
+      "adr": 312,
+      "date": "2026-09-24",
+      "theme": "experience",
+      "functional": ["f.notifications", "f.admin"],
+      "technical": ["t.push", "t.web"]
+    },
+    {
+      "adr": 313,
+      "date": "2026-09-24",
+      "theme": "memory",
+      "functional": ["f.memory", "f.react", "f.telephony"],
+      "technical": ["t.embeddings", "t.toolsys", "t.react"]
+    },
+    {
+      "adr": 314,
+      "date": "2026-09-24",
+      "theme": "connectors",
+      "functional": ["f.mail", "f.routines", "f.hitl"],
+      "technical": ["t.connclients", "t.toolsys"]
+    },
+    {
+      "adr": 315,
+      "date": "2026-09-24",
+      "theme": "models",
+      "functional": ["f.images", "f.llmconfig"],
+      "technical": ["t.llmfactory", "t.structured", "t.promptsys"]
+    },
+    {
+      "adr": 316,
+      "date": "2026-09-24",
+      "theme": "experience",
+      "functional": ["f.peers", "f.images"],
+      "technical": ["t.storage", "t.push", "t.web"]
+    },
+    {
+      "adr": 317,
+      "date": "2026-09-24",
+      "theme": "security",
+      "functional": ["f.privacy"],
+      "technical": ["t.logs", "t.postgres"]
+    },
+    {
+      "adr": 318,
+      "date": "2026-09-25",
+      "theme": "trust",
+      "functional": [
+        "f.planning",
+        "f.react",
+        "f.journals",
+        "f.provenance",
+        "f.images",
+        "f.telephony"
+      ],
+      "technical": ["t.toolsys", "t.registers", "t.storage", "t.embeddings"]
     }
   ]
 }

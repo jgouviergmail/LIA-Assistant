@@ -79,6 +79,7 @@ EMAIL_AGENT_MANIFEST = AgentManifest(
         "get_emails_tool",  # Unified tool (v2.0 - replaces search + details)
         "get_email_attachment_tool",  # One attachment, read (text or vision)
         "send_email_tool",
+        "send_email_to_me_tool",  # To the user themselves: no draft (ADR-314)
         "reply_email_tool",
         "forward_email_tool",
         "delete_email_tool",

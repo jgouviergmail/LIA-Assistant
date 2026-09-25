@@ -4,7 +4,7 @@
 
 **Phase**: evolution — AI Image Generation
 **Created**: 2026-03-25
-**Last Updated**: 2026-09-23 (several vendors, [ADR-305](../architecture/ADR-305-Image-Model-Declares-Its-Offer.md))
+**Last Updated**: 2026-09-24 (prompt enhancement, [ADR-315](../architecture/ADR-315-Image-Prompt-Enhancement.md); sharing with a connection, [ADR-316](../architecture/ADR-316-Sharing-A-Generated-Image-With-A-Connection.md))
 **Status**: Implemented
 
 > **ADR-305**: an image model declares its offer through its **family**, and one
@@ -34,6 +34,8 @@ as cards below the assistant response.
 | Cost tracking | Output images per (quality, size), plus the reference image of an edit where the vendor bills it per image, in the one exchange rate |
 | Attachment storage | Disk + DB with TTL-based cleanup via the attachment system |
 | Usage limits | Image costs included in per-user usage limit enforcement |
+| Prompt enhancement | Optional rewrite of a generation prompt with recognised techniques, the person's opt-in (ADR-315) |
+| Sharing | A generated image shared with a connection lands, as a copy, in their gallery and their chat (ADR-316) |
 
 ---
 
@@ -201,6 +203,9 @@ edit_image (source_attachment_id optional)
 | `src/domains/image_generation/image_store.py` | Pending images for SSE delivery |
 | `src/domains/agents/tools/image_generation_tools.py` | `generate_image` + `edit_image` |
 | `src/domains/agents/image_generation/catalogue_manifests.py` | Agent + tool manifests |
+| `src/domains/agents/image_generation/prompt_enhancement.py` | Optional prompt rewrite before the vendor call (ADR-315) |
+| `src/domains/peers/image_share.py` | Sharing a generated image with a connection (ADR-316) |
+| `apps/web/src/components/peers/ShareImageDialog.tsx` | The share dialog (chat card and gallery) |
 | `apps/web/src/components/settings/ImageGenerationSettings.tsx` | User settings UI |
 | `apps/web/src/components/settings/AdminImagePricingSection.tsx` | Admin pricing UI |
 
@@ -241,6 +246,54 @@ Two consequences the chat card does not show:
 The TTL still applies: the expiry is written on each card, and the gallery makes
 it visible rather than pushing it back.
 
+## Prompt enhancement (ADR-315)
+
+An opt-in of the person (`image_generation_prompt_enhancement`, off by default) that the
+operator can withdraw (`IMAGE_PROMPT_ENHANCEMENT_ENABLED`). When both allow it,
+`generate_image` hands its prompt to `agents/image_generation/prompt_enhancement.py`
+before the vendor call:
+
+- **one short structured call** on the slot `image_prompt_enhancement`, no reasoning
+  where the resolved profile can switch it off, the account named (both ceilings) and
+  the turn's config passed (the turn's tracker bills it);
+- **the versioned prompt** `image_prompt_enhancement_prompt` fixes what may not change
+  (subjects, count, actions, setting, named style, constraints, the text the image
+  carries, verbatim in quotes, and no text added) and states the techniques the two
+  vendors document (OpenAI's image prompting guide, the rewriter Qwen ships with
+  Qwen-Image); its static part is the system message, the request the question;
+- **deterministic checks** decide whether the rewrite is sent: empty, longer than
+  `IMAGE_PROMPT_ENHANCEMENT_MAX_CHARS` (the bound the prompt states), or a quoted text
+  lost → the ORIGINAL prompt goes;
+- **never a gate on the image**: a ceiling refusal, a failure or a truncated answer
+  sends the original prompt too.
+
+Only a generation is enhanced — an edit instruction names what to change, and lens or
+light language added to it would change what the person asked to keep. What the vendor
+received is what the cost record's preview holds; the gallery, the card and the answer
+keep the person's words. `image_prompt_enhancement_total{outcome}` counts every outcome
+(dashboard 05). The settings show the switch only when `GET /image-generation/options`
+publishes `prompt_enhancement_available`, read from the same predicate as the tool
+(`preferences.prompt_enhancement_offered`).
+
+## Sharing an image with a connection (ADR-316)
+
+« Share with a connection » sits on every generated image card of the chat and of the
+gallery (where connections are offered and the image has not expired). The dialog lists
+the accepted connections and takes an optional comment; its button is the
+confirmation. `POST /peers/connections/{connection_id}/images`
+(`domains/peers/image_share.py`):
+
+- shares only the sender's own, live, generated image on an accepted, unblocked
+  connection, under two daily quotas serialised per sender by an advisory lock;
+- copies the file under the recipient's folder and writes their gallery row — origin
+  `generated_image`, a lifetime from reception, the sender's title, `shared_by_name` —
+  and the `peer_image_shares` ledger row in one transaction;
+- then shows the image in the recipient's chat (`proactive_peer_image`, the same card
+  as a generated image, the comment as a literal quote), best-effort and on a session
+  of its own.
+
+`peers_image_shares_total{outcome}` counts the outcomes (dashboard 09).
+
 ---
 
 ## Configuration
@@ -257,6 +310,8 @@ it visible rather than pushing it back.
 | `IMAGE_GENERATION_RESULT_DOWNLOAD_TIMEOUT_SECONDS` | Total deadline to download an image a vendor returned as a URL |
 | `IMAGE_GENERATION_RESULT_MAX_MB` | Largest image downloaded from a vendor result URL |
 | `IMAGE_GENERATION_ENCODING_QUALITY` | JPEG/WebP quality of an image delivered in the person's format, and of an edit's source re-encoded to fit its vendor |
+| `IMAGE_PROMPT_ENHANCEMENT_ENABLED` | Offer the prompt enhancement at all (ADR-315); false = never offered, never rewritten |
+| `IMAGE_PROMPT_ENHANCEMENT_MAX_CHARS` | Longest enhanced prompt kept; a longer rewrite is discarded for the original |
 | `QWEN_BASE_URL` | Qwen's OpenAI-compatible base URL — the workspace host of the region whose price grid is seeded |
 
 Defaults and bounds live in `src/core/config/image_generation.py` and `.env.example`.
@@ -276,6 +331,7 @@ exceeded, the tool returns the standard `rate_limit_exceeded` JSON payload with
 | `image_generation_default_quality` | a short lowercase token | mapped onto the configured model's qualities |
 | `image_generation_default_size` | `WIDTHxHEIGHT` | mapped onto the configured model's sizes |
 | `image_generation_output_format` | png, jpeg, webp | the format every generated or edited image is stored and served in |
+| `image_generation_prompt_enhancement` | boolean | rewrite generation prompts first (ADR-315); inert while the operator withdraws it |
 
 ### Admin LLM Config
 

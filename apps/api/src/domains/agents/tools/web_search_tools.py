@@ -267,7 +267,7 @@ async def _search_perplexity(
         logger.info(
             "perplexity_search_success",
             user_id=str(user_uuid),
-            query=query[:50],
+            query_length=len(query),
             citations_count=len(result.get("citations", [])),
         )
 
@@ -340,7 +340,7 @@ async def _search_brave(
         logger.info(
             "brave_search_success",
             user_id=str(user_uuid),
-            query=query[:50],
+            query_length=len(query),
             endpoint=endpoint,
             results_count=len(raw_results),
         )
@@ -407,8 +407,7 @@ async def _search_wikipedia(
 
         logger.info(
             "wikipedia_search_success",
-            query=query,
-            title=article_title,
+            query_length=len(query),
             summary_length=len(extract),
         )
 
@@ -421,7 +420,7 @@ async def _search_wikipedia(
     except Exception as e:
         logger.warning(
             "wikipedia_search_failed",
-            query=query,
+            query_length=len(query),
             error=str(e),
         )
         return None
@@ -514,7 +513,7 @@ async def unified_web_search_tool(
                 logger.info(
                     "unified_web_search_from_cache",
                     user_id=str(user_uuid),
-                    query=query[:50],
+                    query_length=len(query),
                     cache_age_seconds=cache_result.cache_age_seconds,
                 )
                 # Note: registry_updates not restored from cache (RegistryItem
@@ -713,7 +712,7 @@ async def unified_web_search_tool(
     logger.info(
         "unified_web_search_success",
         user_id=str(user_uuid),
-        query=query[:50],
+        query_length=len(query),
         sources_used=sources_used,
         results_count=len(unified_output.results),
         has_wikipedia=unified_output.wikipedia is not None,

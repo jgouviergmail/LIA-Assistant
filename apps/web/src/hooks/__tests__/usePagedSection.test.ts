@@ -140,6 +140,35 @@ describe('usePagedSection', () => {
     await waitFor(() => expect(result.current.page).toBe(1));
   });
 
+  it('refetches from the first page when the refresh key changes, keeping its rows', async () => {
+    answer({ rows: ['a'], total: 100 });
+    const { result, rerender } = renderHook(
+      ({ key }: { key: number }) =>
+        usePagedSection<Payload, string>({
+          path: '/things',
+          selectItems: p => p.rows,
+          selectTotal: p => p.total,
+          enabled: true,
+          refreshKey: key,
+        }),
+      { initialProps: { key: 0 } }
+    );
+    act(() => result.current.setPage(3));
+    await waitFor(() => expect(result.current.page).toBe(3));
+
+    rerender({ key: 1 });
+
+    await waitFor(() => expect(result.current.page).toBe(1));
+    // The key reaches the query's dependencies (a refetch even when the path
+    // is unchanged), and the rows on screen are never dropped for it.
+    expect(useApiQuery).toHaveBeenLastCalledWith(
+      `/things?limit=${HUB_PAGE_SIZE}&offset=0`,
+      expect.objectContaining({ deps: [1] })
+    );
+    expect(result.current.firstLoad).toBe(false);
+    expect(result.current.items).toEqual(['a']);
+  });
+
   it('never asks for a page below the first', () => {
     answer({ rows: [], total: 0 });
     const { result } = render();

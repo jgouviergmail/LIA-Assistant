@@ -64,7 +64,7 @@ async def resolve_home_coordinates(
         logger.info(
             "home_location_geocoding_required",
             user_id=str(user_id),
-            address=location.address[:50] if location.address else None,
+            has_address=bool(location.address),
         )
 
         try:
@@ -148,7 +148,7 @@ async def resolve_home_coordinates(
             logger.error(
                 "home_location_geocoding_failed",
                 user_id=str(user_id),
-                address=location.address[:50] if location.address else None,
+                has_address=bool(location.address),
                 error=str(e),
             )
             raise_invalid_input(

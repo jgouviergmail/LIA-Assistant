@@ -4,7 +4,7 @@
 
 **Version**: 6.1
 **Date**: 2026-09-24
-**Application**: LIA v1.47.3
+**Application**: LIA v1.47.4
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -153,7 +153,7 @@ LIA offers a complete voice mode:
 
 ### 3.5. Creation and media
 
-- **Image generation**: create images from text descriptions, edit existing photos — with OpenAI's GPT Image or Qwen Image 3.0, whichever model the administrator chose; your quality, size and format preferences adapt to what the model can do, never moving to a dearer option
+- **Image generation**: create images from text descriptions, edit existing photos — with OpenAI's GPT Image or Qwen Image 3.0, whichever model the administrator chose; your quality, size and format preferences adapt to what the model can do, never moving to a dearer option; if you wish, your description is enriched following the provider's own advice, a quoted text kept word for word; an image is found again by asking, and shared in one click with a connection, who receives it in their gallery and their chat
 - **Document generation**: ask for a CSV, an Excel sheet, a Word report, a PowerPoint or a PDF — a dedicated writer model produces the content in your language, then a local renderer builds the real file with its format's own codes: 16:9 slides whose layout follows the intent, a table of contents and pagination computed by Word, typed Excel columns under a filterable Table, exact page numbers and bookmarks in the PDF. Text is measured before it is placed, so nothing overflows; and if the model is cut short, LIA says so instead of handing you an amputated document. The file arrives as a downloadable card with an explicit expiry
 - **Excalidraw diagrams**: generate diagrams and schemas directly in conversation
 - **Attachments**: attach photos and PDFs — LIA analyzes visual content and extracts text from documents; the « + » also offers every document of your knowledge spaces, a paused space included, as a copy for that message
@@ -211,6 +211,8 @@ And LIA can call *you*. Declare your number under *Telephony · My identity*, le
 On the same instance, two users can connect — and their assistants talk to each other. You say “ask Marie if she is free on Tuesday”, you approve the exact wording, and it is Marie’s assistant that delivers the message, in her assistant’s own personality, naming you; yours confirms delivery back to you. Each connection can also open chosen, read-only shares: your calendar availability, your task titles — nothing more, nothing by default.
 
 Protecting people comes before the feature: discovery is opt-in and exact-identity only — a full name or an address, never a fragment, blocking is silent (the other side never learns of it), and an unknown person, a decline or a block all receive exactly the same answer — probing who exists is impossible. Every access to a share is re-checked at the moment of the read and journaled, and relayed message content is erased after thirty days, leaving only the trace of the exchange.
+
+An image LIA generated for you can be shared in one click too: the person receives a copy in their gallery and in their chat, with your comment quoted as written — never turned into a link or a hidden image.
 
 ### 3.12. What ties you to someone, gathered
 
@@ -385,6 +387,8 @@ A last tab draws the period as charts, each carrying the exact total of the whol
 
 Article 12 of the EU AI Act sets record-keeping duties for high-risk systems; it does not automatically make this personal assistant a high-risk system. LIA still keeps five kinds of evidence: the three above, the parameters actually sent to each model and the register's own gaps — because a register should reveal where it is incomplete.
 
+And LIA reads them herself: ask her what she did for you this week, and she answers from the same registers, with exact totals — what you asked for on one side, what she undertook alone on the other — rather than roughly remembering.
+
 ## 7. Emotional depth
 
 ### 7.1. Beyond factual memory
@@ -394,6 +398,8 @@ Major assistants remember your preferences and personal facts. That's useful, bu
 Each memory carries an emotional weight (-10 to +10), an importance score, a usage nuance, and a psychological category. This isn't a simple database — it's a profile that understands what moves you, what motivates you, what hurts you.
 
 Those memories still have to arrive. A memory is only worth what it actually captures, and silence is its worst failure mode: nothing signals a memory that was never formed. So LIA counts each of its memorisation decisions — kept, skipped, disabled — so that the gap between what it should retain and what it does retain is visible rather than assumed. What you entrust to it while asking for an action counts as much as a confidence, what you write from a messenger counts as much as from the browser, and what the system says to itself never counts at all.
+
+And she does not stop at what your message evokes: when a name or a subject comes up along the way — the sender of an e-mail, a place in a document — she looks it up in her memory; on the phone too, she finds what answers your question rather than her latest memories.
 
 ### 7.2. The Psyche Engine: a living personality
 
@@ -432,6 +438,8 @@ From this stratification emerges a **compiled user-model portrait**: your voice,
 That portrait reads more than the journals: your memories, your interests, your learned habits and your relationship debriefs enter it as material, each under its own switch — yours and the administrator's. And it tells you where it comes from: under the portrait, a line names what was read, what was empty, what was off. A source that does not answer is named, never read as empty.
 
 This is a form of artificial introspection — the assistant reflecting on its interactions, measuring its own usefulness, and developing a nuanced understanding of you. You retain full control: reading by theme or by level, editing, signaling a problem on the portrait, triggering a consolidation on demand. The portrait itself is never directly edited — it's a synthesis voice, corrected through indirect levers to preserve its coherence.
+
+She also searches them when a subject comes up — her directives, her patterns, the facets of your portrait, never her raw, not yet verified observations.
 
 ### 7.4. Emotional safety
 
@@ -476,6 +484,8 @@ The response system features a three-layer anti-hallucination mechanism: data fo
 
 A failure, for its part, is **said, never guessed**: when a service fails, LIA names which one and what it answered, instead of inventing a configuration problem — measured before the fix, one answer in three did so on the turns where a tool had failed. And in autonomous mode, an answer is judged on its result: what LIA set out to obtain ends obtained, or declared at the end of the answer with what it tried; a fact that came from another source carries that source.
 
+What must be exact is **computed, never estimated**: a calculation, a duration between two dates, a currency conversion go through tools — exact decimal, real instants, the European Central Bank rate with its date — in both modes, and a rounded result says so.
+
 ### 8.4. Human-in-the-Loop with 6 levels
 
 LIA doesn't refuse sensitive actions — it **submits** them to you with the appropriate level of detail: plan approval, clarification, draft critique, destructive confirmation, batch operation confirmation, modification review. Each approval feeds the learning system — the system accelerates over time. And the promise is kept to the letter: what you approve — after one, two or ten edits — is **exactly** what gets executed, never a version silently re-generated behind the scenes. And when one request prepares several drafts, they are submitted one at a time, each on its own card, nothing executed before your last answer, the report saying to whom and what — only a bulk operation you approved as a list keeps a single confirmation.
@@ -504,7 +514,7 @@ LIA does not ask to be trusted on its word. The frameworks it follows are writte
 
 ### 9.1. What regulation requires
 
-**Privacy is designed into the architecture, not certified by a slogan.** Your account data lives in the database of the LIA instance you use; if you self-host, you control that server. You can export it as readable Markdown, structured JSON and files, or request its deletion; secret material is deliberately not exported. Credentials are encrypted, sessions are isolated and personally identifiable information is filtered from logs. Whether a particular deployment meets every GDPR duty still depends on how it is operated and which providers it uses.
+**Privacy is designed into the architecture, not certified by a slogan.** Your account data lives in the database of the LIA instance you use; if you self-host, you control that server. You can export it as readable Markdown, structured JSON and files, or request its deletion; secret material is deliberately not exported. Credentials are encrypted, sessions are isolated, and the server's technical logs keep only facts — counts, codes, identifiers — never your words: a test reads every logging line in the code to make sure of it. Whether a particular deployment meets every GDPR duty still depends on how it is operated and which providers it uses.
 
 **LIA keeps records even where a law does not require this personal use case to do so.** Article 12 of the EU AI Act addresses high-risk systems; LIA's action, consultation, decision, model-parameter and integrity records are a deliberate transparency choice, not a claim of high-risk certification. They can be exported and are removed with the account, subject to the documented limits of what each record captures.
 

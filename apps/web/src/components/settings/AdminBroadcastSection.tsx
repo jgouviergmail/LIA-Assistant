@@ -21,6 +21,7 @@ import { useApiQuery } from '@/hooks/useApiQuery';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useTranslation } from '@/i18n/client';
 import { SettingsSection } from '@/components/settings/SettingsSection';
+import { AdminBroadcastHistory } from '@/components/settings/AdminBroadcastHistory';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -73,12 +74,16 @@ interface UserAutocompleteResponse {
  * - Autocomplete search for user selection
  * - Confirmation dialog before sending
  * - Success/error toast with delivery stats
+ * - The sent-broadcasts history below the form, refreshed after each send (ADR-312)
  */
 export default function AdminBroadcastSection({ lng }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
   const [message, setMessage] = useState('');
   const [expiresInDays, setExpiresInDays] = useState<string>('none');
   const [showConfirm, setShowConfirm] = useState(false);
+  // Bumped after each successful send: the history refetches from its first
+  // page, where the new broadcast is, without being unmounted.
+  const [historyVersion, setHistoryVersion] = useState(0);
 
   // User selection state
   const [sendToAll, setSendToAll] = useState(true);
@@ -153,6 +158,7 @@ export default function AdminBroadcastSection({ lng }: BaseSettingsProps) {
         setExpiresInDays('none');
         setSelectedUsers([]);
         setSendToAll(true);
+        setHistoryVersion(version => version + 1);
       }
     } catch {
       toast.error(t('settings.admin.broadcast.error'));
@@ -341,6 +347,8 @@ export default function AdminBroadcastSection({ lng }: BaseSettingsProps) {
             {loading ? t('settings.admin.broadcast.sending') : t('settings.admin.broadcast.send')}
           </Button>
         </div>
+
+        <AdminBroadcastHistory lng={lng} refreshKey={historyVersion} />
       </div>
 
       {/* Confirmation Dialog */}

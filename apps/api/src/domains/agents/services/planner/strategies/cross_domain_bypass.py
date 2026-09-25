@@ -220,7 +220,7 @@ class CrossDomainBypassStrategy:
             target_domain=intelligence.primary_domain,
             tool=tool_name,
             field=field_used,
-            value=search_value[:50] if search_value else None,
+            value_length=len(search_value) if search_value else 0,
         )
 
         # Create virtual catalogue for debug panel

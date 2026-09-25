@@ -62,7 +62,7 @@ source .venv/bin/activate    # Windows : .venv/Scripts/activate
 pip install --require-hashes -r requirements-dev.lock.txt
 
 # Vérifier installation
-python --version  # 3.12+
+python --version  # 3.14
 pip list | grep fastapi
 pip list | grep langgraph
 pip list | grep pytest

@@ -253,7 +253,7 @@ No. A text LIA reads is never a text LIA runs.
 Every day LIA reads content you did not write: an email body, an invitation description authored by its organiser, a web page, a place listing, an external server's result. Anyone can slip in a sentence like "ignore previous instructions".
 
 **🏷️ The protection:**
-Every piece of data carries its **provenance**. The 24 data types LIA handles are classified once and for all: produced by LIA itself, or written by a third party. An unknown type is treated as external for safety, and the application refuses to start if a type has not been classified. What comes from outside reaches the model tagged as **material to analyse, never as an order to follow**.
+Every piece of data carries its **provenance**. The 25 data types LIA handles are classified once and for all: produced by LIA itself, or written by a third party. An unknown type is treated as external for safety, and the application refuses to start if a type has not been classified. What comes from outside reaches the model tagged as **material to analyse, never as an order to follow**.
 
 **🔎 The detection:**
 Seven families of trap are recognised across the app's six languages: fake system message, instruction hijack, identity switch, requests to send your data elsewhere, the name of a LIA tool slipped into foreign text, invisible characters, a directive hidden in an HTML comment.
@@ -308,3 +308,10 @@ LIA believes the announced address only when Google vouches for it (Google's own
 And even an inactive account can always sign out: ending your own session requires no status.
 
 Behind this, every record of « who is calling » — the administration audit, the address a new session shows in « My devices », the rate limits — reads one resolver of the address Cloudflare vouches for, never an address the visitor could write themselves.
+
+## What do the server's technical logs keep?
+**Facts**, not your words. To run and to be repaired, a server writes technical logs; LIA's keep counts, lengths, identifiers and error codes — not your searches, your interests, the names of your contacts or files, nor the pages you visited.
+
+**Even when something fails:** a database that refuses a value usually quotes it in its error message; LIA removes that quotation before writing the line and describes the error by its facts — which constraint, which table. Service access keys are masked in every logged address.
+
+**Checked continuously:** an automated test reads every log line in the code and refuses one that would write a person's text. Two limits remain, stated as they are: an external service's error message in an unknown format can still quote a value, and the debug level — off in production — keeps more detail.

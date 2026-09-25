@@ -24,7 +24,17 @@ Domains deliberately absent, with the reason:
   code; ``sub_agent`` runs a whole agent; ``browser`` drives a browser;
   ``query`` is executor-injected (pipeline only); ``mcp`` speaks a third
   party's vocabulary; ``document_generation`` and ``image_generation`` act;
-  ``interest`` and ``journal`` have no read tool.
+  ``interest`` has no read tool; ``memory`` has one (``search_memories_tool``,
+  ADR-313) but the voice reaches the same memories through its own native
+  ``recall_memories`` lookup, ranked through the same lookup door — listing the
+  domain would offer the voice two tools for one question;
+  ``generated_file`` (ADR-318) SHOWS what it finds as chat cards, which no voice
+  surface draws — and a file cannot be heard.
+
+The ADR-318 lookups that answer in words join it: ``calculation`` (a voice
+model computes no better than a chat model), ``journal`` (whose tool reads the
+person's preference from their row, since a voice runtime carries none) and
+``activity``.
 """
 
 from __future__ import annotations
@@ -34,8 +44,10 @@ from typing import Final
 #: The domains the phone may read, in the register's own vocabulary
 #: (``DOMAIN_REGISTRY`` / ``TREATMENT_DOMAIN_LABELS`` keys).
 PHONE_DOMAINS: Final[tuple[str, ...]] = (
+    "activity",
     "automation",
     "brave",
+    "calculation",
     "contact",
     "context",
     "document",
@@ -44,6 +56,7 @@ PHONE_DOMAINS: Final[tuple[str, ...]] = (
     "file",
     "health",
     "hue",
+    "journal",
     "peer",
     "perplexity",
     "place",

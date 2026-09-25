@@ -99,7 +99,7 @@ async def resolve_entity_for_action(
 
     logger.info(
         "resolve_entity_started",
-        query=query,
+        query_length=len(query),
         action=action,
         domain=domain,
         user_id=user_id,
@@ -111,7 +111,7 @@ async def resolve_entity_for_action(
     if not items:
         logger.info(
             "resolve_entity_not_found",
-            query=query,
+            query_length=len(query),
             domain=domain,
         )
         return _create_not_found_output(query, domain)
@@ -130,8 +130,7 @@ async def resolve_entity_for_action(
     if result.status == ResolutionStatus.RESOLVED:
         logger.info(
             "resolve_entity_success",
-            query=query,
-            resolved_value=result.resolved_value,
+            query_length=len(query),
             confidence=result.confidence,
         )
         return _create_success_output(
@@ -144,9 +143,8 @@ async def resolve_entity_for_action(
     elif result.status == ResolutionStatus.DISAMBIGUATION_NEEDED:
         logger.info(
             "resolve_entity_disambiguation_needed",
-            query=query,
+            query_length=len(query),
             domain=domain,
-            context=result.disambiguation_context,
         )
         return _create_disambiguation_output(
             disambiguation_context=result.disambiguation_context,
@@ -157,7 +155,7 @@ async def resolve_entity_for_action(
     elif result.status == ResolutionStatus.NO_TARGET_FIELD:
         logger.warning(
             "resolve_entity_no_target_field",
-            query=query,
+            query_length=len(query),
             domain=domain,
             error=result.error_message,
         )
@@ -172,7 +170,7 @@ async def resolve_entity_for_action(
         # Error or unexpected status
         logger.error(
             "resolve_entity_error",
-            query=query,
+            query_length=len(query),
             domain=domain,
             status=result.status,
             error=result.error_message,

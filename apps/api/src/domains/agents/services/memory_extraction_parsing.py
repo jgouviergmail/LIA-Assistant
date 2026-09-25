@@ -50,7 +50,7 @@ def _loggable_token(item: object, field: str) -> str | None:
     return "<unexpected>"
 
 
-def _validation_failure_summary(exc: Exception) -> list[str]:
+def _validation_error_types(exc: Exception) -> list[str]:
     """Describe WHAT failed without repeating WHAT WAS SUBMITTED.
 
     ``str(ValidationError)`` renders ``input_value=...``; for this parser that
@@ -111,7 +111,7 @@ def parse_extraction_result(result_text: str) -> list[ExtractedMemory]:
                     "memory_item_validation_failed",
                     action=_loggable_token(item, "action"),
                     category=_loggable_token(item, "category"),
-                    errors=_validation_failure_summary(e),
+                    errors=_validation_error_types(e),
                 )
                 continue
         return entries

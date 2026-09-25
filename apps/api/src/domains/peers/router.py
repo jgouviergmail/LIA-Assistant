@@ -20,6 +20,7 @@ from src.core.session_dependencies import get_current_active_session
 from src.domains.auth.dependencies import create_user_rate_limiter
 from src.domains.feature_switches.guard import capability_dependencies
 from src.domains.feature_switches.registry import PlatformCapability
+from src.domains.peers.image_share import deliver_shared_image, share_image
 from src.domains.peers.notifications import dispatch_peer_events
 from src.domains.peers.repository import PeersRepository
 from src.domains.peers.schemas import (
@@ -34,6 +35,8 @@ from src.domains.peers.schemas import (
     DiscoverySearchRequest,
     DiscoveryStateResponse,
     DiscoveryStateUpdate,
+    ImageShareCreate,
+    ImageShareView,
     RelayedMessageItem,
     RelayedMessagePage,
     ShareUpdate,
@@ -261,6 +264,39 @@ async def set_or_delete_share(
     await service.set_share(user.id, connection_id, payload.domain, payload.level)
     await db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/connections/{connection_id}/images",
+    response_model=ImageShareView,
+    status_code=status.HTTP_201_CREATED,
+    summary="Share one of my generated images with this connection",
+    description=(
+        "Copies the image into the connection's gallery, as if they had generated "
+        "it when it arrived, and shows it in their chat with the optional comment "
+        "quoted literally (ADR-316). Daily quotas per sender and per connection."
+    ),
+)
+async def share_image_with_connection(
+    connection_id: UUID,
+    payload: ImageShareCreate,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> ImageShareView:
+    """Share, commit, then reach the recipient's chat best-effort."""
+    shared = await share_image(
+        db,
+        sender_id=user.id,
+        connection_id=connection_id,
+        attachment_id=payload.attachment_id,
+        comment=payload.comment,
+    )
+    delivered = await deliver_shared_image(shared)
+    return ImageShareView(
+        id=shared.share_id,
+        recipient_display_name=shared.recipient_display_name,
+        delivered=delivered,
+    )
 
 
 @router.get(

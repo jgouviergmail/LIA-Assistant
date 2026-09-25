@@ -21,9 +21,9 @@ from typing import Any
 
 import pytest
 
+from src.core.config import settings
 from src.domains.agents.effects.labels import (
     EFFECT_LABEL_BUILDERS,
-    MAX_VALUE_CHARS,
     assert_effect_label_completeness,
     build_effect_label,
 )
@@ -86,12 +86,31 @@ class TestTheValuesCarryNoSurprises:
 
     def test_long_values_are_capped(self) -> None:
         """A card is a sentence, not a payload — and the column is encrypted."""
-        label = build_effect_label("draft:email", {"draft": {"to": "x" * 500}})
+        bound = settings.effect_label_value_max_chars
+        label = build_effect_label("draft:email", {"draft": {"to": "x" * (bound * 2)}})
         assert label is not None
-        assert len(label["values"]["recipient"]) <= MAX_VALUE_CHARS
+        assert len(label["values"]["recipient"]) <= bound
 
-    def test_a_long_prompt_is_cut_on_a_word_not_inside_one(self) -> None:
+    def test_an_ordinary_value_is_kept_whole(self) -> None:
+        """Reported 2026-09-24: « Actions performed » cut a reminder in mid-sentence.
+
+        The bound was 120 characters, applied when the effect is claimed — so a
+        few words of a reminder, an objective or an instruction were all the
+        card could ever show. A value the default bound holds is kept WHOLE.
+        """
+        reminder = " ".join(["Appeler le cabinet pour décaler le rendez-vous de jeudi"] * 6)
+        assert len(reminder) <= settings.effect_label_value_max_chars
+
+        label = build_effect_label("create_reminder_tool", {"content": reminder})
+
+        assert label is not None
+        assert label["values"]["target"] == reminder
+
+    def test_a_long_prompt_is_cut_on_a_word_not_inside_one(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Reported 2026-09-23: the image card ended on « … posture cr »."""
+        monkeypatch.setattr(settings, "effect_label_value_max_chars", 120)
         prompt = (
             "Image photoréaliste d’un chat domestique jouant de la trompette, trompette "
             "dorée tenue avec ses pattes avant, posture crâneuse, lumière de studio douce"
@@ -100,7 +119,17 @@ class TestTheValuesCarryNoSurprises:
         target = build_effect_label("generate_image", {"prompt": prompt})["values"]["target"]
 
         assert target.endswith("avant, posture…")
-        assert len(target) <= MAX_VALUE_CHARS
+        assert len(target) <= 120
+
+    def test_the_bound_is_the_operator_setting(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Read at claim time, never a constant: an operator can move it without a build."""
+        monkeypatch.setattr(settings, "effect_label_value_max_chars", 40)
+
+        label = build_effect_label("create_reminder_tool", {"content": "mot " * 30})
+
+        assert label is not None
+        assert len(label["values"]["target"]) <= 40
+        assert label["values"]["target"].endswith("…")
 
 
 @pytest.fixture

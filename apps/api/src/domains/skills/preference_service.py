@@ -68,14 +68,14 @@ class SkillPreferenceService:
         if not skill:
             raise ValueError(f"Skill '{skill_name}' not found")
 
-        new_value = await self.state_repo.toggle(user_id, skill.id)
+        is_active = await self.state_repo.toggle(user_id, skill.id)
         logger.info(
             "skill_toggled",
             skill_name=skill_name,
             user_id=str(user_id),
-            is_active=new_value,
+            is_active=is_active,
         )
-        return new_value
+        return is_active
 
     # ------------------------------------------------------------------
     # Admin actions

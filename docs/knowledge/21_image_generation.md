@@ -34,7 +34,9 @@ duration hard-coded in the app would eventually be wrong. Images generated befor
 this was introduced simply say nothing rather than guess.
 
 ## Are my generated images saved?
-Yes, images are saved as attachments on disk. They persist across page reloads and survive a conversation reset: you find them in **Settings > My generated files**, until the expiry each image card states.
+Yes, images are saved as attachments on disk. They persist across page reloads and survive a conversation reset: you find them in **Settings › My generated files**, until the expiry each image card states — the images a connection shared with you included.
+
+You can also ask LIA: "*show me the lighthouse image from this morning*" — it finds the image in your gallery and shows it again in the chat. And an image LIA generated for you can be shared with a connection from its card (see Peer Connections).
 
 ## Which image models can LIA use?
 The one your administrator configured, from two families: OpenAI's **GPT Image** and **Qwen Image 3.0** (Alibaba Cloud). Both create an image and edit a photo you attach.
@@ -42,3 +44,10 @@ The one your administrator configured, from two families: OpenAI's **GPT Image**
 Each model declares what it can do — its qualities, its sizes, its resolutions — and LIA offers you only that. A model no family declares cannot be priced, offered or selected. If your saved preference does not exist on the configured model, LIA takes the nearest option it offers — the cheapest offered quality, the size of the same orientation and nearest area — and never a dearer one. The format you chose (PNG, JPEG or WebP) is applied to every image, whatever the provider.
 
 The displayed cost counts everything the provider bills: the image, and the source image of an edit when the provider prices it per image (Qwen does; OpenAI bills it as tokens). An image that was billed but could not be delivered is still counted, because the provider charged it.
+
+## What does the "Enhance prompts automatically" option do?
+It lives in **Settings > Preferences > AI Image Generation** and is off by default. When it is on, before each new image a dedicated model rewrites your description following the advice the image provider publishes — framing, light, lens, style — without changing what you ask for.
+
+**What is protected:** a text you put in quotes (a title, a sign) must come back unchanged in the rewritten version; otherwise, or when the rewrite fails, exceeds the allowed length or comes back empty, your original description is sent. The option therefore never blocks an image.
+
+**What it leaves alone:** editing a photo keeps your request as is, and your gallery shows your own words. The rewrite is one short extra call, counted in your usage like everything else; your administrator can also withdraw the option for the whole instance.

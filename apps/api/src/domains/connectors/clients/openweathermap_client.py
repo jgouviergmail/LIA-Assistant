@@ -152,7 +152,7 @@ class OpenWeatherMapClient(BaseAPIKeyClient):
         logger.info(
             "weather_geocode_completed",
             user_id=str(self.user_id) if self.user_id else None,
-            query=query,
+            query_length=len(query),
             results_count=len(response),
         )
 
@@ -242,7 +242,6 @@ class OpenWeatherMapClient(BaseAPIKeyClient):
         logger.info(
             "weather_current_retrieved",
             user_id=str(self.user_id) if self.user_id else None,
-            location=response.get("name"),
             temp=response.get("main", {}).get("temp"),
             units=units,
         )
@@ -304,7 +303,6 @@ class OpenWeatherMapClient(BaseAPIKeyClient):
         logger.info(
             "weather_forecast_retrieved",
             user_id=str(self.user_id) if self.user_id else None,
-            location=response.get("city", {}).get("name"),
             entries_count=len(response.get("list", [])),
         )
 

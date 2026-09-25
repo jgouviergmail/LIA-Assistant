@@ -134,7 +134,9 @@ def _make_context(
 
 
 def _count_leak_warnings(result: ValidationResult) -> int:
-    return sum(1 for w in result.warnings if w.context and "matched_terms" in w.context)
+    # The context carries how many terms leaked, never the terms: they come from
+    # the person's query (ADR-317).
+    return sum(1 for w in result.warnings if w.context and "matched_count" in w.context)
 
 
 @pytest.fixture

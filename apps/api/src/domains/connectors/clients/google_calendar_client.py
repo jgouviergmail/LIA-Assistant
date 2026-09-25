@@ -175,7 +175,6 @@ class GoogleCalendarClient(BaseGoogleClient):
             "calendar_event_created",
             user_id=str(self.user_id),
             event_id=response.get("id"),
-            summary=summary,
         )
 
         return response
@@ -436,7 +435,6 @@ class GoogleCalendarClient(BaseGoogleClient):
             "calendar_event_retrieved",
             user_id=str(self.user_id),
             event_id=event_id,
-            summary=response.get("summary", ""),
             fields_projected=bool(fields),
         )
 
@@ -560,7 +558,6 @@ class GoogleCalendarClient(BaseGoogleClient):
             "calendar_event_updated",
             user_id=str(self.user_id),
             event_id=event_id,
-            summary=event_body.get("summary", ""),
         )
 
         return response

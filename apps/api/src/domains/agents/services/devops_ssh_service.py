@@ -321,7 +321,7 @@ class DevOpsService:
             logger.info(
                 "devops_local_executing",
                 working_directory=working_dir,
-                task_preview=task[:100],
+                task_length=len(task),
                 streaming=side_channel_queue is not None,
             )
 
@@ -373,7 +373,7 @@ class DevOpsService:
                     "devops_claude_cli_error",
                     mode="local",
                     exit_status=process.returncode,
-                    stderr=stderr_output[:500],
+                    stderr_length=len(stderr_output),
                 )
                 return DevOpsTaskResult(
                     success=False,
@@ -465,7 +465,7 @@ class DevOpsService:
                 host=host,
                 port=port,
                 username=username,
-                task_preview=task[:100],
+                task_length=len(task),
             )
 
             async with asyncssh.connect(**connect_kwargs) as conn:
@@ -485,7 +485,7 @@ class DevOpsService:
                     mode="ssh",
                     host=host,
                     exit_status=result.exit_status,
-                    stderr=stderr_output[:500],
+                    stderr_length=len(stderr_output),
                 )
                 return DevOpsTaskResult(
                     success=False,

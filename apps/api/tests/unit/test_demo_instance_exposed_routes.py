@@ -189,6 +189,8 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         "PATCH /api/v1/memories/{memory_id}/pin",
         "GET /api/v1/memories/{memory_id}/provenance",
         "POST /api/v1/notifications/admin/broadcast",
+        # ADR-312: the history under the send form, superuser-only like its sibling.
+        "GET /api/v1/notifications/admin/broadcasts",
         "GET /api/v1/notifications/broadcasts/unread",
         "POST /api/v1/notifications/broadcasts/{broadcast_id}/read",
         "GET /api/v1/notifications/hub-counts",
@@ -371,6 +373,11 @@ EXPECTED_EXPOSED_ROUTES: frozenset[str] = frozenset(
         "GET /api/v1/peers/connections",
         "DELETE /api/v1/peers/connections/{connection_id}",
         "PUT /api/v1/peers/connections/{connection_id}/shares",
+        # A generated image shared with a connection (ADR-316): the demonstrator
+        # generates no image (IMAGE_GENERATION_ENABLED=false), so the route
+        # refuses every id there — forwarded by the edge, refused by the
+        # application, the honest shape.
+        "POST /api/v1/peers/connections/{connection_id}/images",
         "GET /api/v1/peers/messages",
         "GET /api/v1/peers/blocks",
         "POST /api/v1/peers/blocks",

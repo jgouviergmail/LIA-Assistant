@@ -2943,6 +2943,100 @@
         }
       },
       "description": "Which schema and which outcome — `invalid_call_repaired` is the bare-word defect, `rejected` is a lost answer (the query analyzer falls back to a bare conversation, a document tool refuses). `parsed` is left out so the rare outcomes stay readable."
+    },
+    {
+      "id": 137,
+      "title": "Image prompt enhancement (ADR-315)",
+      "type": "row",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 155
+      },
+      "panels": []
+    },
+    {
+      "id": 138,
+      "title": "Prompts enhanced (24h)",
+      "type": "stat",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 0,
+        "y": 156
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(image_prompt_enhancement_total{outcome=\"enhanced\"}[24h])) or vector(0)",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "green"
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "auto",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "description": "Image prompts rewritten by the enhancement slot and sent as rewritten, in the last 24 hours — one short model call each, only for the accounts that turned it on."
+    },
+    {
+      "id": 139,
+      "title": "Enhancement outcomes (1h)",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": {
+        "h": 6,
+        "w": 18,
+        "x": 6,
+        "y": 156
+      },
+      "targets": [
+        {
+          "expr": "sum by (outcome) (increase(image_prompt_enhancement_total[1h])) or vector(0)",
+          "legendFormat": "{{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "0",
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "How each enhancement settled. Every outcome but `enhanced` sends the ORIGINAL prompt, so the image is never lost: `rejected` is a rewrite the deterministic checks discarded (empty, past the published bound, or a quoted text lost), `failed` a model refusal or a truncated answer, `skipped_quota` a ceiling refusal, `unchanged` a rewrite identical to the request. A rising `rejected` or `failed` share names a model that cannot hold the rules."
     }
   ],
   "time": {

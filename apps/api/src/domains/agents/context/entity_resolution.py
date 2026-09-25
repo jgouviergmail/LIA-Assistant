@@ -215,7 +215,7 @@ class EntityResolutionService:
         logger.info(
             "entity_resolution_started",
             domain=domain,
-            query=original_query,
+            query_length=len(original_query),
             action=intended_action,
             items_count=len(items),
         )
@@ -321,7 +321,6 @@ class EntityResolutionService:
                         "entity_resolution_auto_resolved",
                         domain=domain,
                         field=field_name,
-                        value=resolved_value,
                     )
                     return ResolvedEntity(
                         status=ResolutionStatus.RESOLVED,
@@ -346,7 +345,6 @@ class EntityResolutionService:
                 "entity_resolution_auto_resolved",
                 domain=domain,
                 field=field_name,
-                value=resolved_value,
             )
             return ResolvedEntity(
                 status=ResolutionStatus.RESOLVED,
@@ -359,7 +357,7 @@ class EntityResolutionService:
         logger.warning(
             "entity_resolution_no_target_field",
             domain=domain,
-            query=original_query,
+            query_length=len(original_query),
             target_fields=target_fields,
             available_fields=list(item.keys()),
         )
@@ -459,7 +457,6 @@ class EntityResolutionService:
             "entity_resolution_disambiguation_needed",
             disambiguation_type="multiple_fields",
             domain=domain,
-            entity_name=display_name,
             field=field_name,
             options_count=len(candidates),
         )
@@ -554,7 +551,7 @@ class EntityResolutionService:
             "entity_resolution_disambiguation_needed",
             disambiguation_type="multiple_entities",
             domain=domain,
-            query=original_query,
+            query_length=len(original_query),
             candidates_count=len(candidates),
             total_items=len(items),
         )

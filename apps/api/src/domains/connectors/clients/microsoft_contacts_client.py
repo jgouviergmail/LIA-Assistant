@@ -107,7 +107,7 @@ class MicrosoftContactsClient(BaseMicrosoftClient):
         logger.info(
             "microsoft_contacts_searched",
             user_id=str(self.user_id),
-            query=query,
+            query_length=len(query),
             results_count=len(results),
         )
 
@@ -234,7 +234,6 @@ class MicrosoftContactsClient(BaseMicrosoftClient):
             "microsoft_contact_created",
             user_id=str(self.user_id),
             contact_id=response.get("id"),
-            name=name,
         )
 
         return normalize_graph_contact(response)

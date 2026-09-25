@@ -69,6 +69,14 @@ class EmailClientProtocol(Protocol):
 
     async def trash_email(self, message_id: str) -> dict: ...
 
+    async def get_own_address(self) -> str | None:
+        """The connected mailbox's own address, as its provider states it (ADR-314).
+
+        None when the provider vouches for no address — the caller refuses
+        rather than guessing where « the person's own mailbox » is.
+        """
+        ...
+
     async def download_attachment(
         self,
         message_id: str,

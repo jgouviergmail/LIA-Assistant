@@ -77,6 +77,11 @@ AGENT_AUTOMATION = "automation_agent"  # Chat-piloted scheduled actions (ADR-140
 AGENT_PEER = "peer_agent"  # User-to-user connections (peers program)
 AGENT_TICKET = "ticket_agent"  # The workboard of tickets (ADR-276)
 AGENT_DOCUMENT = "document_agent"  # User RAG spaces as active capability (ADR-141)
+AGENT_MEMORY = "memory_agent"  # Long-term memory as an active lookup (ADR-313)
+AGENT_CALCULATION = "calculation_agent"  # Exact arithmetic, dates, currency (ADR-318)
+AGENT_JOURNAL = "journal_agent"  # LIA's own journal as an active lookup (ADR-318)
+AGENT_ACTIVITY = "activity_agent"  # What LIA did and read for the person (ADR-318)
+AGENT_GENERATED_FILE = "generated_file_agent"  # Files LIA produced, found again (ADR-318)
 AGENT_HEALTH = "health_agent"  # Health Metrics — unified agent (v1.17.2)
 AGENT_TELEPHONY = "telephony_agent"  # Outbound calls + their history (ADR-193)
 
@@ -377,11 +382,9 @@ CONTEXT_REFERENCE_CONFIDENCE_THRESHOLD = (
 )
 
 # ============================================================================
-# LOGGING AND PREVIEW LIMITS
+# RESPONSE PREVIEW LIMITS
 # ============================================================================
 
-LOGGING_CONTENT_PREVIEW_CHARS = 300  # Max chars in log content previews
-LOGGING_SUMMARY_PREVIEW_CHARS = 200  # Max chars in log summary previews
 RESPONSE_LIST_PREVIEW_ITEMS = 5  # Items to preview before truncation
 RESPONSE_MAX_ERRORS_DISPLAY = 3  # Max errors to display in response
 # Fallback marker injected into {data_for_filtering} when the filtering-data
@@ -852,9 +855,7 @@ __all__ = [
     "TURN_TYPE_CONVERSATIONAL",
     "CONTEXT_REFERENCE_CONFIDENCE_THRESHOLD",
     "get_context_reference_confidence_threshold",
-    # Logging and preview limits
-    "LOGGING_CONTENT_PREVIEW_CHARS",
-    "LOGGING_SUMMARY_PREVIEW_CHARS",
+    # Response preview limits
     "RESPONSE_LIST_PREVIEW_ITEMS",
     "RESPONSE_MAX_ERRORS_DISPLAY",
     "DATA_FILTERING_GENERATION_ERROR_MARKER",

@@ -49,4 +49,8 @@ LANGUAGE: Write entirely in {user_language}.
    - FORBIDDEN CLICHÉS: Never use "I hope this email finds you well", "J'espère que tu vas bien", "J'espère que vous allez bien", or similar empty pleasantries.
    - REGISTER: Align tone with the relationship implied in INSTRUCTION and RECIPIENT. Maintain consistent pronouns throughout ("tu" vs "vous" in French).
 
+6. NOTE TO SELF:
+   - When RECIPIENT is SELF, the user is sending this message to their OWN mailbox (a note, a digest, a record for later).
+   - Then there is no salutation, no call-to-action and no sign-off: start with the content itself, laid out to be scanned quickly.
+
 JSON:

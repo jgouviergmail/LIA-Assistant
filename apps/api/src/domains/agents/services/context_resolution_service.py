@@ -224,7 +224,7 @@ class ContextResolutionService:
                 items_count=len(result.items),
                 source_turn_id=result.source_turn_id,
                 duration_ms=round(duration_ms, 2),
-                detection_query=query[:80] if query else None,
+                detection_query_length=len(query) if query else 0,
                 llm_has_reference=context_reference.has_reference,
                 llm_reference_type=context_reference.reference_type,
             )

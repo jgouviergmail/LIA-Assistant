@@ -19,8 +19,13 @@ from langchain_core.outputs import LLMResult
 from prometheus_client import Counter
 
 from src.core.config import settings
-from src.core.field_names import FIELD_METADATA, FIELD_MODEL_NAME
-from src.infrastructure.llm.inference_params import capture_inference_params
+from src.core.field_names import (
+    FIELD_LLM_PROVIDER,
+    FIELD_LLM_TYPE,
+    FIELD_METADATA,
+    FIELD_MODEL_NAME,
+)
+from src.infrastructure.llm.inference_params import capture_inference_params, requested_model
 from src.infrastructure.observability.error_taxonomy import classify_llm_error
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_agents import (
@@ -417,17 +422,25 @@ class TokenTrackingCallback(AsyncCallbackHandler):
         node_name = md.get("node_name_override") or md.get("langgraph_node", "unknown")
         self._call_context[str(run_id)] = {
             "node_name": node_name,
-            # The configured slot, put here by create_instrumented_config at
-            # every instrumented call site (ADR-244). node_name cannot stand in
-            # for it: that is the graph node, its values are unbounded, and it
-            # does not map to a slot.
-            "llm_type": md.get("llm_type"),
+            # The configured slot (ADR-244). The factory stamps it on every model
+            # and LangChain merges a model's own metadata OVER the caller's, so
+            # the graph config's « agent_graph » no longer names every call (B8).
+            # node_name cannot stand in for it: that is the graph node, its
+            # values are unbounded, and it does not map to a slot.
+            "llm_type": md.get(FIELD_LLM_TYPE),
             "start_time": time.time(),
             # ADR-263 lot 7: the parameters actually SENT. LangChain hands them
             # to every callback beside this metadata, so the register needs no
             # plumbing of its own — and reading them HERE is what makes them
-            # survive a later change to llm_config_overrides.
-            "params": capture_inference_params(invocation_params),
+            # survive a later change to llm_config_overrides. The provider is
+            # the one the factory configured (a client class can say « openai »
+            # for a DashScope call).
+            "params": capture_inference_params(
+                invocation_params, declared_provider=md.get(FIELD_LLM_PROVIDER)
+            ),
+            # What the request NAMED — the slot's configuration — beside what
+            # the provider will report, which can be an alias it resolved.
+            "requested_model": requested_model(invocation_params),
         }
 
     async def on_llm_start(
@@ -586,6 +599,7 @@ class TokenTrackingCallback(AsyncCallbackHandler):
                 llm_type=call_ctx.get("llm_type"),
                 status="success",
                 params=call_ctx.get("params"),
+                requested_model=call_ctx.get("requested_model"),
             )
 
             # DEBUG: Confirm tokens recorded
@@ -649,7 +663,10 @@ class TokenTrackingCallback(AsyncCallbackHandler):
         try:
             await self.tracker.record_node_tokens(
                 node_name=call_ctx.get("node_name", "unknown"),
-                model_name="unknown",
+                # A failed call reports no model: the one it REQUESTED is the
+                # model the failure belongs to (ADR-244 judges models on their
+                # failures too), « unknown » only when the request named none.
+                model_name=call_ctx.get("requested_model") or "unknown",
                 prompt_tokens=0,
                 completion_tokens=0,
                 cached_tokens=0,
@@ -660,6 +677,7 @@ class TokenTrackingCallback(AsyncCallbackHandler):
                 status="error",
                 params=call_ctx.get("params"),
                 failure_kind=failure_kind,
+                requested_model=call_ctx.get("requested_model"),
             )
         except Exception as exc:  # noqa: BLE001
             logger.error(

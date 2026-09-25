@@ -292,6 +292,34 @@ class TestNothingPersonalLeavesTheCollector:
         assert "private message" not in flat, "a field outside the allowlist never travels"
         assert "user_email" not in flat
 
+    async def test_an_error_quoting_a_row_loses_the_quotation(self) -> None:
+        """An allowlisted `error` may still quote the row PostgreSQL rejected.
+
+        Lines written before the filter withheld quotations are still in Loki,
+        and the pack reaches a model and is stored with the incident.
+        """
+        lines = [
+            _line(
+                {
+                    "event": "gemini_embedding_failed",
+                    "error": (
+                        'duplicate key value violates unique constraint "u_key"\n'
+                        "DETAIL:  Key (name)=(Alice Martin) already exists."
+                    ),
+                    "reason": "https://api.search.brave.com/res/v1/web/search?q=Alice+Martin",
+                }
+            )
+        ]
+        context = await collect_diagnosis_context(
+            _incident(),
+            prom_client=_prom(),
+            loki_client=_loki(LokiResult(status="ok", lines=lines)),
+        )
+        flat = repr(context)
+        assert "Alice Martin" not in flat
+        assert "Alice+Martin" not in flat
+        assert "u_key" in flat, "the constraint still names the failure"
+
     async def test_every_kept_field_is_bounded(self) -> None:
         lines = [_line({"event": "gemini_embedding_failed", "error": "x" * 5000})]
         context = await collect_diagnosis_context(

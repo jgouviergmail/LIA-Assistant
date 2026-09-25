@@ -1652,6 +1652,41 @@
       "title": "The exchange rhythm belongs to the person",
       "summary": "Everyone chooses between frequent and occasional exchanges. Frequent: LIA keeps every tool and prepares each turn so the next one reads it back from the cache, a heavier first message then much cheaper ones. Occasional: it picks the tools by relevance, for a steady cost.",
       "src": "6da70629f513"
+    },
+    "312": {
+      "title": "A broadcast says who it was addressed to",
+      "summary": "A message sent to a few chosen accounts was then shown to everyone at their next sign-in: the list of recipients was not kept. It is now, and under the form the administrator reads the paginated history of what was sent — date, recipients, expiry.",
+      "src": "6f570d9edca6"
+    },
+    "313": {
+      "title": "LIA can search its memory",
+      "summary": "Until now LIA only remembered what the message evoked. It can now look up a subject found along the way — an e-mail's sender, a place, an instruction given one day. On the phone, that lookup finally answers the question asked instead of returning the latest memories.",
+      "src": "a92407a4177a"
+    },
+    "314": {
+      "title": "An e-mail to oneself leaves without confirmation",
+      "summary": "Writing to one's own mailbox no longer asks to approve a draft, like the phone call to oneself: « every morning, e-mail me the weather » can run as a routine. The recipient is never a parameter: the connected mailbox, or the account's verified address.",
+      "src": "cf8ee87a0682"
+    },
+    "315": {
+      "title": "An image prompt can be improved without being betrayed",
+      "summary": "For those who turn it on, a dedicated model rewrites the description of each new image with the techniques the vendors recommend: framing, light, lens, style. What is asked does not change, the text to write in the image stays word for word, and at the slightest doubt the original request goes as it is.",
+      "src": "c669a50ebf39"
+    },
+    "316": {
+      "title": "Sharing a generated image with a connection",
+      "summary": "One click on an image sends it to a connection, with a comment if you wish. It lands in their images, as if they had generated it, and in their chat, the comment quoted as written — never turned into a link or a hidden image.",
+      "src": "bb1730b8709d"
+    },
+    "317": {
+      "title": "Logs keep facts, never a person's words",
+      "summary": "Outside debugging, the logs keep only counts, lengths and identifiers: no searches, no interests, no names of contacts or files. When a database or a service quotes the data it refused, the quotation is removed before the line is written. A test reads every log line in the code and refuses one that would write a person's words.",
+      "src": "abfc2f1d0235"
+    },
+    "318": {
+      "title": "LIA computes instead of estimating, and finds what she did",
+      "summary": "A calculation, a date or a currency conversion is no longer worked out by guess: LIA computes it exactly, at the day's reference rate, which she names. She can also search her journal for a subject found along the way, tell you what she did and consulted over a period with exact totals, and show you again a file she produced while it still exists.",
+      "src": "deff5cf96b72"
     }
   }
 }

@@ -137,7 +137,9 @@ def _parse_iso_ts(value: str | None, *, param: str) -> datetime | None:
     try:
         parsed = datetime.fromisoformat(value.strip())
     except ValueError:
-        logger.warning("health_metrics_time_bound_invalid", param=param, value=value)
+        logger.warning(
+            "health_metrics_time_bound_invalid", param=param, value_type=type(value).__name__
+        )
         return None
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=UTC)

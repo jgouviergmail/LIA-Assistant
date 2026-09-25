@@ -51,6 +51,9 @@ Action: `resolve_reference` -> `get_emails_tool(message_id=...)`
 
 Input: "Send an email to Sophie"
 Action: `send_email_tool` (AFTER complete HITL cycle)
+
+Input: "Email me a summary of X"
+Action: `send_email_to_me_tool(content_instruction=...)` (to the user themselves: no draft)
 </Strategies>
 
 --- DYNAMIC CONTEXT (all variable data below) ---

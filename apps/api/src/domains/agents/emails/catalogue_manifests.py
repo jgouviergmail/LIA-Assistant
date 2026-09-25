@@ -42,7 +42,6 @@ send_email_catalogue_manifest = ToolManifest(
         "write email",
         "send message",
         "write message",
-        "send email with attachment",
         "email someone",
         "create new email",
     ],

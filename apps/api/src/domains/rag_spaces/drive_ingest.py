@@ -317,7 +317,7 @@ async def ingest_drive_file(
         await db.commit()
         content_bytes, ext, content_type = await _download(client, file_id, mime_type)
         if not content_bytes:
-            logger.warning("rag_drive_sync_empty_content", file_id=file_id, name=original_name)
+            logger.warning("rag_drive_sync_empty_content", file_id=file_id)
             return IngestResult("skipped")
 
         kwargs = await create_pending_document(
@@ -338,7 +338,7 @@ async def ingest_drive_file(
         return IngestResult("queued", kwargs)
     except Exception:
         rag_drive_sync_files_total.labels(result="failed").inc()
-        logger.exception("rag_drive_sync_file_error", file_id=file_id, name=original_name)
+        logger.exception("rag_drive_sync_file_error", file_id=file_id)
         return IngestResult("failed")
 
 

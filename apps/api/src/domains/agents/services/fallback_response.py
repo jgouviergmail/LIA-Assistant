@@ -89,7 +89,7 @@ async def generate_fallback_response(
     logger.info(
         "fallback_response_generating",
         run_id=run_id,
-        query_preview=user_query[:50] if user_query else "empty",
+        query_length=len(user_query) if user_query else 0,
     )
 
     # Resolve psyche context before template formatting
@@ -183,7 +183,7 @@ async def generate_fallback_response_sync(
     logger.info(
         "fallback_response_sync_generating",
         run_id=run_id,
-        query_preview=user_query[:50] if user_query else "empty",
+        query_length=len(user_query) if user_query else 0,
     )
 
     # Resolve psyche context before template formatting

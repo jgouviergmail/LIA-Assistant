@@ -1700,6 +1700,14 @@ SSE_MAX_STREAMS_PER_USER_DEFAULT = 8
 # are eligible; from those, only the unread ones are actually returned.
 MAX_UNREAD_BROADCASTS = 3
 
+# The sent-broadcasts history under the admin send form (ADR-312): the page the
+# API serves by default, the largest it accepts (a published Query bound, like
+# every admin listing's), and how many recipients of a targeted broadcast a row
+# names before counting the rest.
+BROADCAST_HISTORY_PAGE_SIZE_DEFAULT = 10
+BROADCAST_HISTORY_PAGE_SIZE_MAX = 50
+BROADCAST_HISTORY_RECIPIENTS_SHOWN = 5
+
 # ============================================================================
 # TOOL EXECUTION TIMEOUTS
 # ============================================================================
@@ -5626,6 +5634,19 @@ IMAGE_GENERATION_OUTPUT_FORMAT_DEFAULT: str = "png"
 # LLM config key (for LLMConfigOverrideCache lookup)
 IMAGE_GENERATION_LLM_TYPE: str = "image_generation"
 
+# Prompt enhancement (ADR-315): an optional rewrite of an image prompt by a slot
+# of its own, before the vendor call. The person turns it on (off by default);
+# the operator can withdraw it for the instance. The ceiling bounds what the
+# vendor receives — far below both families' own limits (gpt-image reads 32 000
+# characters, Qwen Image 3.0 prompts up to 4 500 tokens), so an enhanced prompt
+# can never be what a vendor refuses.
+IMAGE_PROMPT_ENHANCEMENT_ENABLED_DEFAULT: bool = True
+IMAGE_PROMPT_ENHANCEMENT_MAX_CHARS_DEFAULT: int = 1200
+IMAGE_PROMPT_ENHANCEMENT_MAX_CHARS_CEILING: int = 4000
+IMAGE_GENERATION_PROMPT_ENHANCEMENT_DEFAULT: bool = False  # the person's opt-in
+# The slot's default output cap: a JSON object holding at most the ceiling above.
+IMAGE_PROMPT_ENHANCEMENT_MAX_OUTPUT_TOKENS: int = 1_500
+
 # Cross-worker cache invalidation (ADR-063)
 CACHE_NAME_IMAGE_GENERATION_PRICING: str = "image_generation_pricing"
 
@@ -6030,6 +6051,14 @@ PEERS_ACCESS_LOG_RETENTION_DAYS_DEFAULT = 90
 SCHEDULER_JOB_PEERS_DELIVERY_SWEEP = "peers_delivery_sweep"
 # Hard cap on the optional context note attached to a connection request.
 PEERS_CONTEXT_MESSAGE_MAX_CHARS = 500
+# Sharing a generated image with a connection (ADR-316): the sender's quotas,
+# per UTC day, counted on the share ledger (a copy lives only as long as the
+# attachment TTL, so it cannot be what a daily quota counts).
+PEERS_IMAGE_SHARE_MAX_PER_DAY_DEFAULT = 20
+PEERS_IMAGE_SHARE_MAX_PER_DAY_PER_PAIR_DEFAULT = 10
+# Hard cap on the optional comment travelling with a shared image, quoted
+# literally in the recipient's chat. Mirrored by the web app's share dialog.
+PEERS_IMAGE_SHARE_COMMENT_MAX_CHARS = 500
 
 # Workboard (ADR-276) — defaults for src/core/config/workboard.py.
 # Every bound a tool parameter meets is published from the same setting
@@ -6285,6 +6314,13 @@ AGENT_EFFECT_RESULT_PAYLOAD_MAX_BYTES_DEFAULT = 65_536
 #: died before recording its outcome. Well above the longest tool timeout, so a
 #: call merely in flight is never counted as a gap (ADR-263).
 AGENT_EFFECT_CLAIMED_ORPHAN_STALENESS_SECONDS_DEFAULT = 900
+
+#: Longest value one line of an effect's label keeps (a subject, a reminder, an
+#: objective, a recipient), cut on a word with an ellipsis beyond it. It was a
+#: 120-character constant: the « Actions performed » card then showed the first
+#: few words of a reminder or an instruction, never the thing itself (reported
+#: 2026-09-24). A paragraph fits; a pasted document does not reach the ledger.
+AGENT_EFFECT_LABEL_VALUE_MAX_CHARS_DEFAULT = 1_000
 
 #: Rows a register extraction reads at a time (ADR-273). It replaced two row
 #: CEILINGS — 5 000 per technical export, 1 000 per Article-12 source — which
@@ -6571,3 +6607,25 @@ LIVE_TURN_TEXT_MAX_CHARS: int = 4_000
 #: card, the decision row, the learning pass). The provider credential itself
 #: expires at the cap; only the Redis record is kept a little longer.
 LIVE_SESSION_RECORD_GRACE_SECONDS: int = 120
+
+# =============================================================================
+# ASSISTANT TOOLS — calculation, journal lookup, activity, generated files (ADR-318)
+# =============================================================================
+#: Longest arithmetic expression the calculator reads (a published max_length).
+CALCULATOR_EXPRESSION_MAX_CHARS_DEFAULT: int = 500
+#: The widest bound a deployment may set: the walk is iterative, and the parser
+#: refuses deeper nesting on its own (measured: 250 parentheses, a syntax error).
+CALCULATOR_EXPRESSION_MAX_CHARS_CEILING: int = 2_000
+#: Significant digits every calculator operation keeps (decimal's own default).
+CALCULATOR_PRECISION_DIGITS_DEFAULT: int = 28
+#: The widest precision: π is written to 64 digits and 5 guard digits ride on top.
+CALCULATOR_PRECISION_DIGITS_CEILING: int = 50
+#: Most journal entries one lookup returns (a published maximum).
+JOURNAL_SEARCH_MAX_RESULTS_DEFAULT: int = 10
+#: Most actions the activity tool lists, newest first — the EXACT total is stated
+#: beside them (ADR-185), so the cap shortens the list and never the count.
+EFFECT_ACTIVITY_MAX_ACTIONS_DEFAULT: int = 20
+#: Days the activity tool looks back when the request names no period.
+EFFECT_ACTIVITY_WINDOW_DAYS_DEFAULT: int = 7
+#: Most generated files one gallery lookup returns — and shows as cards.
+GENERATED_FILES_SEARCH_MAX_RESULTS_DEFAULT: int = 10

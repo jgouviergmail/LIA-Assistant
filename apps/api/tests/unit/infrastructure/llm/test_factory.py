@@ -594,3 +594,40 @@ def test_llm_instance_cache_kill_switch(mock_adapter, monkeypatch):
 
     assert first is not second
     assert mock_adapter.create_llm.call_count == 2
+
+
+# ============================================================================
+# The slot travels WITH the model (debug panel B8)
+# ============================================================================
+
+
+@patch("src.infrastructure.llm.factory.ProviderAdapter")
+def test_the_model_carries_its_slot_and_its_provider(mock_adapter, mock_llm):
+    """A callback reads the model's own metadata merged OVER the caller's config.
+
+    The graph's config says « agent_graph » for every node, so a slot read from
+    the config named every call of a turn after the graph rather than after the
+    slot an operator configured. Stamped on the model, it cannot be lost.
+    """
+    from src.core.field_names import FIELD_LLM_PROVIDER, FIELD_LLM_TYPE
+
+    mock_llm.metadata = {"kept": "as it was"}
+    mock_adapter.create_llm.return_value = mock_llm
+
+    llm = get_llm("planner")
+
+    assert llm.metadata == {
+        "kept": "as it was",
+        FIELD_LLM_TYPE: "planner",
+        FIELD_LLM_PROVIDER: LLM_DEFAULTS["planner"].provider,
+    }
+
+
+@patch("src.infrastructure.llm.factory.ProviderAdapter")
+def test_a_model_without_metadata_gets_the_slot_all_the_same(mock_adapter, mock_llm):
+    from src.core.field_names import FIELD_LLM_TYPE
+
+    mock_llm.metadata = None
+    mock_adapter.create_llm.return_value = mock_llm
+
+    assert get_llm("response").metadata[FIELD_LLM_TYPE] == "response"

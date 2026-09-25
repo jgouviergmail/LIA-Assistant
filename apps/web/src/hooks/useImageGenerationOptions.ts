@@ -44,6 +44,8 @@ export interface ImageGenerationOptions {
   effective_quality: string;
   /** The size the next generated image uses: the stored preference mapped onto the offer. */
   effective_size: string;
+  /** Whether the operator offers the prompt enhancement (ADR-315): the switch shows only then. */
+  prompt_enhancement_available: boolean;
 }
 
 /**

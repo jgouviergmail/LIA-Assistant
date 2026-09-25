@@ -80,6 +80,24 @@ class TestRealDatabaseFailuresStayLoud:
         assert fields["exc_info"] is True, "a real DB failure keeps its traceback"
         assert not recorder.debug
 
+    def test_the_error_line_states_facts_never_the_server_s_text(self, recorder: _Recorder) -> None:
+        """PostgreSQL quotes the row it rejects; the line carries SQLSTATE and constraint."""
+        from asyncpg.exceptions import UniqueViolationError
+        from sqlalchemy.exc import IntegrityError
+
+        driver = UniqueViolationError('duplicate key value violates unique constraint "u_key"')
+        driver.detail = "Key (name)=(Jean Dupont) already exists."
+        driver.constraint_name = "u_key"
+        exc = IntegrityError("INSERT INTO t VALUES ($1)", ("Jean Dupont",), driver)
+
+        _log_session_exception(exc, endpoint="fastapi")
+
+        _, fields = recorder.error[0]
+        assert fields["sqlstate"] == "23505"
+        assert fields["constraint"] == "u_key"
+        assert "error" not in fields, "str(exc) quotes the rejected row"
+        assert not any("Jean Dupont" in str(value) for value in fields.values())
+
 
 class TestPassingThroughExceptionsAreNotDatabaseErrors:
     """An exception merely crossing the session must not be renamed."""

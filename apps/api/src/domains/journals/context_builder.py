@@ -35,26 +35,32 @@ from src.domains.journals.constants import (
 )
 from src.domains.journals.models import JournalEntry
 from src.domains.journals.repository import JournalEntryRepository
+from src.infrastructure.adaptive.threshold_controller import (
+    JOURNAL_INJECTION_PERIMETER,
+    effective_threshold,
+    observe_score,
+)
+from src.infrastructure.async_utils import safe_fire_and_forget
+from src.infrastructure.database import get_db_context
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
 
 
-def _fire_and_forget_injection_tracking(entry_ids: list[UUID]) -> None:
+def track_injected_entries(entry_ids: list[UUID]) -> None:
     """
     Launch non-blocking injection count update for tracked entries.
 
     Uses a new DB session (the caller's session may be closed by the time
-    this executes) via safe_fire_and_forget.
+    this executes) via safe_fire_and_forget. Public since ADR-318: an entry
+    the journal lookup tool returns reached a prompt exactly as an injected
+    one did, and the consolidation reads the count as that entry's usefulness.
 
     Args:
         entry_ids: UUIDs of entries that were injected into a prompt
     """
-    from src.infrastructure.async_utils import safe_fire_and_forget
 
     async def _track() -> None:
-        from src.infrastructure.database import get_db_context
-
         try:
             async with get_db_context() as db:
                 repo = JournalEntryRepository(db)
@@ -199,12 +205,7 @@ async def build_journal_context(
                 # a 10% injection rate with scores massed just under the fixed
                 # 0.63 — the effective value is learned inside hard bounds and
                 # published through this call's debug/log surfaces.
-                from src.infrastructure.adaptive.threshold_controller import (
-                    effective_threshold,
-                    observe_score,
-                )
-
-                min_score = await effective_threshold(user_id, "journal_injection")
+                min_score = await effective_threshold(user_id, JOURNAL_INJECTION_PERIMETER)
                 _observed: list[float] = []
                 scored_entries = await repo.search_by_relevance(
                     user_id=user_id,
@@ -216,7 +217,7 @@ async def build_journal_context(
                 )
                 if _observed:
                     # No candidates → no information about the threshold.
-                    await observe_score(user_id, "journal_injection", max(_observed))
+                    await observe_score(user_id, JOURNAL_INJECTION_PERIMETER, max(_observed))
             else:
                 logger.warning(
                     "journal_context_embedding_empty",
@@ -360,7 +361,7 @@ async def build_journal_context(
 
         # Fire-and-forget injection tracking (non-blocking)
         if injected_ids:
-            _fire_and_forget_injection_tracking(injected_ids)
+            track_injected_entries(injected_ids)
 
         return result, debug_data, [str(_id) for _id in injected_ids]
 

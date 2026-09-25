@@ -237,6 +237,15 @@ TABLE_RULES: dict[str, TableRule] = {
             "carry."
         ),
     ),
+    "peer_image_shares": TableRule(
+        data_class=TableDataClass.USER_PURGED,
+        export=ExportPolicy.FULL,
+        reason=(
+            "Ledger of images shared with a connection (ADR-316): who, with whom, "
+            "which copy — no comment is stored. Exported to both sides and purged "
+            "on deletion of either."
+        ),
+    ),
     "peer_access_log": TableRule(
         data_class=TableDataClass.USER_PURGED,
         export=ExportPolicy.FULL,
@@ -363,6 +372,15 @@ TABLE_RULES: dict[str, TableRule] = {
         data_class=TableDataClass.USER_PURGED,
         export=ExportPolicy.FULL,
         reason="Read receipts of admin broadcasts — trivial but user-scoped.",
+    ),
+    "admin_broadcast_recipients": TableRule(
+        data_class=TableDataClass.USER_PURGED,
+        export=ExportPolicy.FULL,
+        reason=(
+            "Which targeted admin broadcasts were addressed to the account (ADR-312) "
+            "— user-scoped addressing, purged with it (its users FK never fires: the "
+            "row is scrubbed, not deleted)."
+        ),
     ),
     "account_export_jobs": TableRule(
         data_class=TableDataClass.USER_PURGED,
@@ -691,6 +709,7 @@ USER_COLUMNS: dict[str, UserColumnClass] = {
     "image_generation_default_quality": _PREFERENCE,
     "image_generation_default_size": _PREFERENCE,
     "image_generation_output_format": _PREFERENCE,
+    "image_generation_prompt_enhancement": _PREFERENCE,
     "admin_mcp_disabled_servers": _PREFERENCE,
     "briefing_preferences": _PREFERENCE,
     "onboarding_checklist": _PREFERENCE,

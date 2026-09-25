@@ -71,6 +71,15 @@ Search, list, or fetch emails.
 - `bcc` (string) — BCC recipients
 - `is_html` (bool, default: false) — Send as HTML
 
+### send_email_to_me_tool
+An e-mail to the USER THEMSELVES (a note, a digest, a copy): no confirmation card, so it
+runs in routines. The recipient is never a parameter — the connected mailbox's own address,
+or without one the account's verified address through LIA's mail relay.
+- `subject` (string) — Email subject
+- `body` (string) — Email body text
+- `content_instruction` (string) — Instruction for LLM to compose the body
+- `is_html` (bool, default: false) — Send as HTML
+
 ### reply_email_tool
 - `message_id` (string, required) — Email to reply to
 - `body` (string, required) — Reply body text
@@ -407,6 +416,76 @@ No OAuth. Domain: `document`. Semantic search over the user's RAG spaces (deploy
 ### search_user_documents_tool
 - `query` (string, required) — Semantic query in the user's language
 - `max_results` (integer) — Max excerpts (1-10, default 5)
+
+---
+
+## Memory — `memory_agent`
+
+No OAuth. Domain: `memory`. What LIA remembers about the user (long-term memory built from past conversations). Read-only.
+
+### search_memories_tool
+- `query` (string, required) — The subject to look up, in the user's language (at least 2 characters)
+- `category` (string) — One of `preference`, `personal`, `relationship`, `event`, `pattern`, `sensitivity`, `procedural`
+- `max_results` (integer) — Most memories to return (1 to the instance's `MEMORY_MAX_RESULTS`, default: that maximum)
+
+---
+
+## Calculation — `calculation_agent`
+
+No OAuth. Domain: `calculation`. Exact computations a model must not do in its head. Read-only, no personal data.
+
+### calculate_tool
+- `expression` (string, required) — The arithmetic expression (at most the instance's `CALCULATOR_EXPRESSION_MAX_CHARS` characters): numbers with a dot as the decimal separator, `+ - * / // % **`, parentheses, the functions and constants the tool's description lists; a percentage is `x * p / 100`
+
+### date_time_tool
+- `operation` (string, required) — One of `now`, `difference`, `add`, `weekday`, `business_days`, `convert_timezone`
+- `date` (string) — ISO date or datetime (today when omitted; the current moment for `convert_timezone`)
+- `other_date` (string) — The second moment of `difference` and `business_days`
+- `amount` (integer) — For `add`; negative to subtract
+- `unit` (string) — For `add`: `years`, `months`, `weeks`, `days`, `business_days`, `hours`, `minutes`
+- `timezone` (string) — IANA zone the dates without an offset are read in (the user's by default)
+- `to_timezone` (string) — Target IANA zone of `convert_timezone`
+
+### convert_currency_tool
+- `amount` (number, required) — The amount, zero or more
+- `from_currency` (string, required) — ISO 4217 code
+- `to_currency` (string, required) — ISO 4217 code
+
+---
+
+## Journal — `journal_agent`
+
+No OAuth. Domain: `journal`. LIA's own journal (directives, patterns, portrait facets). Read-only; only where the instance ships journals.
+
+### search_journal_tool
+- `query` (string, required) — The subject to look up, in a few words
+- `max_results` (integer) — Most entries to return (1 to the instance's `JOURNAL_SEARCH_MAX_RESULTS`, default: that maximum)
+
+---
+
+## Activity — `activity_agent`
+
+No OAuth. Domain: `activity`. What LIA did and consulted for the user, from its registers, with exact totals. Read-only.
+
+### get_my_activity_tool
+- `start_date` (string) — First day of the period, ISO (the instance's `EFFECT_ACTIVITY_WINDOW_DAYS` before the end when omitted)
+- `end_date` (string) — Last day of the period, inclusive, ISO (now when omitted)
+- `origin` (string) — One of `mine`, `initiative`, `all` (default)
+- `status` (string) — One of `succeeded`, `failed`, `refused`, `claimed`, `abandoned`
+- `max_results` (integer) — Most actions to list (1 to the instance's `EFFECT_ACTIVITY_MAX_ACTIONS`)
+
+---
+
+## Generated files — `generated_file_agent`
+
+No OAuth. Domain: `generated_file`. The files LIA produced for the user, found again and SHOWN as chat cards. Read-only.
+
+### find_generated_files_tool
+- `query` (string) — Words of the file's title or name
+- `family` (string) — One of `image`, `document`, `screenshot`
+- `start_date` (string) — Produced on or after this day, ISO
+- `end_date` (string) — Produced on or before this day, ISO
+- `max_results` (integer) — Most files to return and show (1 to the instance's `GENERATED_FILES_SEARCH_MAX_RESULTS`)
 
 ---
 

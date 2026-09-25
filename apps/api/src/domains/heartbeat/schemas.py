@@ -58,7 +58,9 @@ class HeartbeatDecision(BaseModel):
     action: Literal["skip", "notify"] = Field(
         description="Whether to skip (no useful info) or notify the user"
     )
-    reason: str = Field(description="Why this decision was made (logged for debugging/audit)")
+    reason: str = Field(
+        description="Why this decision was made (kept with the notification when one is sent)"
+    )
     message_draft: str | None = Field(
         None,
         description="Draft notification message (required when action=notify)",

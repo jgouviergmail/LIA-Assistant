@@ -259,6 +259,10 @@ class AppleEmailClient(BaseAppleClient):
             include_attachments,
         )
 
+    async def get_own_address(self) -> str | None:
+        """The connected mailbox's address: the Apple ID it signs in with (ADR-314)."""
+        return self.credentials.apple_id or None
+
     async def trash_email(self, message_id: str) -> dict[str, Any]:
         """Move an email to Trash."""
         return await self._execute_with_retry(

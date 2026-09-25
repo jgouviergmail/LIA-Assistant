@@ -89,7 +89,11 @@ const DialogDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Description
     ref={ref}
-    className={cn('text-sm text-muted-foreground', className)}
+    // `text-foreground/80`, not `muted-foreground`: the dialog is translucent
+    // glass (v1.27.0) over a dark overlay, and muted text measured 4.19:1 on
+    // that composite in light mode (axe, 2026-09-24) — below the AA floor the
+    // contrast contract holds every neutral surface to (docs/a11y/CONTRAST_TOKENS.md).
+    className={cn('text-sm text-foreground/80', className)}
     {...props}
   />
 ));

@@ -244,7 +244,7 @@ class PreferenceNameResolver:
             # Not found
             logger.warning(
                 "preference_name_not_found",
-                name=name,
+                name_length=len(name),
                 available_count=len(items),
             )
 
@@ -255,7 +255,7 @@ class PreferenceNameResolver:
         except Exception as e:
             logger.error(
                 "preference_name_resolution_failed",
-                name=name,
+                name_length=len(name),
                 error=str(e),
             )
             if fallback_id:

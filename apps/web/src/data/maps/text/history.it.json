@@ -1652,6 +1652,41 @@
       "title": "Il ritmo degli scambi appartiene alla persona",
       "summary": "Ognuno sceglie tra scambi frequenti e occasionali. Frequenti: LIA tiene tutti i suoi strumenti e prepara ogni turno perché il successivo lo rilegga dalla cache, un primo messaggio più costoso e poi altri molto più economici. Occasionali: sceglie gli strumenti per pertinenza, con un costo stabile.",
       "src": "6da70629f513"
+    },
+    "312": {
+      "title": "Una diffusione dice a chi era destinata",
+      "summary": "Un messaggio inviato ad alcuni account scelti veniva poi mostrato a tutti al loro accesso successivo: l'elenco dei destinatari non veniva conservato. Ora sì, e sotto il modulo l'amministratore rilegge la cronologia paginata di ciò che è stato inviato: data, destinatari, scadenza.",
+      "src": "6f570d9edca6"
+    },
+    "313": {
+      "title": "LIA può cercare nella sua memoria",
+      "summary": "Finora LIA ricordava solo ciò che il messaggio evocava. Ora può cercare un argomento scoperto strada facendo: il mittente di un'e-mail, un luogo, un'istruzione data un giorno. Al telefono, quella ricerca risponde finalmente alla domanda posta invece di restituire gli ultimi ricordi.",
+      "src": "a92407a4177a"
+    },
+    "314": {
+      "title": "Un'e-mail a se stessi parte senza conferma",
+      "summary": "Scrivere alla propria casella non chiede più di convalidare una bozza, come la telefonata a se stessi: «ogni mattina mandami il meteo per e-mail» può funzionare come routine. Il destinatario non è mai un parametro: la casella collegata o l'indirizzo verificato dell'account.",
+      "src": "cf8ee87a0682"
+    },
+    "315": {
+      "title": "Un prompt d'immagine può essere migliorato senza essere tradito",
+      "summary": "Per chi lo attiva, un modello dedicato riscrive la descrizione di ogni nuova immagine con le tecniche raccomandate dai fornitori: inquadratura, luce, obiettivo, stile. Ciò che viene chiesto non cambia, il testo da scrivere nell'immagine resta parola per parola e, al minimo dubbio, la richiesta originale parte così com'è.",
+      "src": "c669a50ebf39"
+    },
+    "316": {
+      "title": "Condividere un'immagine generata con una connessione",
+      "summary": "Un clic su un'immagine la invia a una connessione, con un commento se vuoi. Arriva tra le sue immagini, come se l'avesse generata, e nella sua chat, con il commento citato così com'è: mai trasformato in un link o in un'immagine nascosta.",
+      "src": "bb1730b8709d"
+    },
+    "317": {
+      "title": "I log conservano fatti, mai le parole di una persona",
+      "summary": "Fuori dal debug, i log conservano solo numeri, lunghezze e identificativi: niente ricerche, niente interessi, niente nomi di contatti o di file. Quando un database o un servizio cita il dato che rifiuta, la citazione viene rimossa prima di scrivere la riga. Un test legge ogni riga di log del codice e rifiuta quella che scriverebbe le parole di una persona.",
+      "src": "abfc2f1d0235"
+    },
+    "318": {
+      "title": "LIA calcola invece di stimare, e ritrova ciò che ha fatto",
+      "summary": "Un calcolo, una data o una conversione di valuta non si stimano più a occhio: LIA li calcola esattamente, al tasso di riferimento del giorno, che indica. Può anche cercare nel suo diario un argomento scoperto strada facendo, dirti ciò che ha fatto e consultato in un periodo con totali esatti, e mostrarti di nuovo un file che ha prodotto finché esiste ancora.",
+      "src": "deff5cf96b72"
     }
   }
 }

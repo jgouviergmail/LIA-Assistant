@@ -373,8 +373,11 @@ Each memory is indexed twice — once on its content, once on the keywords that 
 **📊 Usage:**
 These memories personalize LIA's responses. For example, LIA will say "Hello Mary" to your sister without you specifying.
 
+**🔎 Also looked up on purpose:**
+Beyond what it recalls with each message, LIA can search its memory for a subject it meets along the way — the sender of an e-mail it just read, a place named in a document. On the phone too, it recalls what matches your question, not its latest memories. If you switched memory off, nothing is searched, and a failed search is never passed off as "nothing remembered".
+
 **🛡️ Full control:**
-View, edit, pin or delete your memories in **Settings > Memory**.
+View, edit, pin or delete your memories in **Settings › Features › Long-term Memory**.
 
 ## What are usage limits and where can I see them?
 Usage limits are quotas set by your administrator to control resource consumption (tokens, messages, cost). You can see your current usage vs limits on the **Dashboard** via dedicated tiles (Period Limits and Global Limits).
@@ -690,3 +693,12 @@ In **Settings › Preferences › Personalization › Usage preferences**, you t
 • the saving relies on the prompt cache of your instance's AI provider: on a model without one, occasional exchanges remain the cheaper choice
 • until you choose, your instance's default applies
 • the Pipeline mode keeps its own planner and is not affected
+
+## How does an administrator send an announcement to some users only?
+In **Settings › Administration › Broadcast Message**. Write the message, choose **All users** or **Selected users**, and when it expires.
+
+**🎯 It reaches whom it targets:**
+The recipients are stored with it: a targeted announcement is shown to them only, including at their next sign-in. A selection that targets no active account is refused, rather than going to nobody — or to everybody.
+
+**🗂️ Sent broadcasts:**
+The history shows, for each announcement, its audience, the exact number of people reached with a preview of their names, its expiry date and the delay chosen.

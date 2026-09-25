@@ -195,7 +195,7 @@ Trafic HTTP detaille : requetes/s par endpoint, distribution latence (p50/p95/p9
 
 ### 05 - LLM Tokens & Cost (60 panels)
 
-Dashboard le plus riche en panels avec le 07. Headlines de couts (jour, mois, projection), ventilation par modele et par node, consommation tokens (prompt, completion, cached), metriques d'efficacite (cout par requete, tokens par seconde). Section Loki pour le suivi par utilisateur. Performance des appels API LLM (latence, erreurs par provider). Cache LLM (hits/misses, erreurs, migrations de format) et economies estimees (`llm_cache_cost_saved_total`), fallbacks du cache pricing. Metriques de cout cumulees sur la duree de vie. La section compaction historique a ete deplacee vers le dashboard 22. Derniere ligne, la **completude comptable** des familles payees par la plateforme : `google_api_calls_unaccounted_total` (appels Google Maps Platform faits sans `TrackingContext` ambiant — attendu 0, `or vector(0)`, alerte `GoogleApiCallsUnaccounted`), le pendant cote Maps de `LLMCallsWithoutUsage`.
+Dashboard le plus riche en panels avec le 07. Headlines de couts (jour, mois, projection), ventilation par modele et par node, consommation tokens (prompt, completion, cached), metriques d'efficacite (cout par requete, tokens par seconde). Section Loki pour le suivi par utilisateur. Performance des appels API LLM (latence, erreurs par provider). Cache LLM (hits/misses, erreurs, migrations de format) et economies estimees (`llm_cache_cost_saved_total`), fallbacks du cache pricing. Metriques de cout cumulees sur la duree de vie. La section compaction historique a ete deplacee vers le dashboard 22. Derniere ligne, la **completude comptable** des familles payees par la plateforme : `google_api_calls_unaccounted_total` (appels Google Maps Platform faits sans `TrackingContext` ambiant — attendu 0, `or vector(0)`, alerte `GoogleApiCallsUnaccounted`), le pendant cote Maps de `LLMCallsWithoutUsage`. Une ligne dediee suit la reecriture optionnelle des prompts d'image (ADR-315) : prompts ameliores sur 24 h et issues par heure (`image_prompt_enhancement_total{outcome}` — toute issue autre que `enhanced` envoie le prompt d'origine).
 
 **Datasources** : Prometheus + Loki (pour les logs de suivi utilisateur).
 
@@ -215,7 +215,7 @@ Monitoring des 6 types HITL : Plan Approval, Clarification, Draft Critique, Dest
 
 ### 09 - Conversations & Users (37 panels)
 
-Activite utilisateurs (sessions actives, repartition horaire), cycle de vie des conversations (creation, duree, longueur en messages), analyse de l'abandon (ou et quand les utilisateurs quittent), succes des agents par domaine et indicateurs de qualite. Section repliee : attachments en profondeur (duree upload par content_type, suppressions cleanup) et inscriptions par provider/statut.
+Activite utilisateurs (sessions actives, repartition horaire), cycle de vie des conversations (creation, duree, longueur en messages), analyse de l'abandon (ou et quand les utilisateurs quittent), succes des agents par domaine et indicateurs de qualite. Section repliee : attachments en profondeur (duree upload par content_type, suppressions cleanup) et inscriptions par provider/statut. Une ligne dediee couvre les connexions entre comptes : messages relayes et evenements de cycle de vie par heure, et images partagees par issue (`peers_image_shares_total{outcome}`, ADR-316).
 
 ### 10 - OAuth, Connectors & MCP (46 panels)
 

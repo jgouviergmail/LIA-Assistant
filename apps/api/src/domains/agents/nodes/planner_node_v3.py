@@ -186,7 +186,6 @@ async def planner_node_v3(
             planner_iteration=planner_iteration,
             clarification_field=state.get(STATE_KEY_CLARIFICATION_FIELD),
             clarification_length=len(clarification_response),
-            clarification_preview=clarification_response[:100] if clarification_response else "",
         )
 
     if planner_iteration > 0:
@@ -386,8 +385,8 @@ async def planner_node_v3(
             logger.info(
                 "planner_v3_clarification_resolved",
                 run_id=run_id,
-                original=clarification_response,
-                resolved=resolved_clarification,
+                original_length=len(clarification_response),
+                resolved_length=len(resolved_clarification),
                 field=clarification_field,
             )
             clarification_response = resolved_clarification
@@ -740,7 +739,7 @@ async def _resolve_clarification_reference(
     logger.info(
         "clarification_resolution_started",
         run_id=run_id,
-        clarification_response=clarification_response,
+        clarification_length=len(clarification_response),
         clarification_field=clarification_field,
     )
 
@@ -808,9 +807,9 @@ async def _resolve_clarification_reference(
             logger.info(
                 "clarification_resolution_memory_success",
                 run_id=run_id,
-                original=clarification_response,
-                resolved=resolved_name,
-                mappings=result.mappings,
+                original_length=len(clarification_response),
+                resolved_length=len(resolved_name),
+                mappings_count=len(result.mappings),
             )
             return resolved_name
 
@@ -823,7 +822,7 @@ async def _resolve_clarification_reference(
             "clarification_resolution_error",
             run_id=run_id,
             error=str(e),
-            response=clarification_response,
+            clarification_length=len(clarification_response),
         )
         return clarification_response
 

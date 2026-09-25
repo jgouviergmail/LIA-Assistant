@@ -1,6 +1,7 @@
 /**
  * Scenes of section 02 — "When LIA replies": follow-up chips, the floating
- * return-to-bottom button, the per-bubble action row, share/export, the
+ * return-to-bottom button, the per-bubble action row, share/export, an image
+ * shared with a connection, the
  * one-draft-at-a-time review, the network question a script asks before going
  * out, and the execution-trace backstage. Timer-driven micro-demos; last phase
  * = resting frame.
@@ -22,24 +23,34 @@ import {
   FileText,
   Globe,
   Handshake,
+  Image as ImageIcon,
   Languages,
-  Link2,
   Mail,
   PenLine,
   Reply,
   Search,
+  Send,
   Share2,
   ShieldOff,
   TextSelect,
   ThumbsDown,
   ThumbsUp,
   User,
+  Users,
   Wrench,
 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
-import { Cursor, MiniBubble, MiniChip, MiniToast, SkeletonLine, STAGE } from './primitives';
+import {
+  Cursor,
+  MiniBubble,
+  MiniChip,
+  MiniComposer,
+  MiniToast,
+  SkeletonLine,
+  STAGE,
+} from './primitives';
 import type { SceneComponent, SceneProps } from './scene-types';
 import { useLoopedTimeline, type TimelineStep } from './useLoopedTimeline';
 
@@ -176,47 +187,157 @@ function BubbleActionsScene({ active, labels }: SceneProps) {
   );
 }
 
-type SharePhase = 'bubble' | 'm1' | 'm2' | 'm3';
+type SharePhase = 'bubble' | 'download' | 'menu' | 'prefill';
 const SHARE_STEPS: readonly TimelineStep<SharePhase>[] = [
   { at: 0, state: 'bubble' },
-  { at: 1000, state: 'm1' },
-  { at: 1350, state: 'm2' },
-  { at: 1700, state: 'm3' },
+  { at: 900, state: 'download' },
+  { at: 2200, state: 'menu' },
+  { at: 3300, state: 'prefill' },
 ];
 
-const SHARE_ROWS = [
-  { icon: Share2, visibleFrom: ['m1', 'm2', 'm3'] },
-  { icon: Download, visibleFrom: ['m2', 'm3'] },
-  { icon: Link2, visibleFrom: ['m3'] },
-] as const;
-
-function ShareExportScene({ active }: SceneProps) {
+/**
+ * One answer, two direct exits under the bubble. Download drops a dated
+ * Markdown file in one click; Share opens the device sheet and, below it, the
+ * connections — where picking a name only PREFILLS the composer: the relay
+ * then takes the assistant's ordinary road, confirmation included.
+ */
+function ShareExportScene({ active, labels }: SceneProps) {
   const phase = useLoopedTimeline(SHARE_STEPS, { active });
+  const downloaded = phase !== 'bubble';
+  const sharing = phase === 'menu' || phase === 'prefill';
+  const prefilled = phase === 'prefill';
   return (
-    <div className={cn(STAGE, 'flex-row items-center justify-center gap-3')}>
-      <MiniBubble side="assistant" className="w-2/5 space-y-1.5">
-        <SkeletonLine w="w-full" />
-        <SkeletonLine w="w-2/3" />
-        <span className="mt-1 flex items-center gap-2 text-muted-foreground">
-          <Share2 className={cn('h-3 w-3', phase !== 'bubble' && 'text-primary')} />
-          <SkeletonLine w="w-6" />
-        </span>
-      </MiniBubble>
-      <div className="w-2/5 space-y-1">
-        {SHARE_ROWS.map(({ icon: Icon, visibleFrom }, i) => (
-          <div
-            key={i}
-            className={cn(
-              'flex items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5 transition-all duration-300',
-              (visibleFrom as readonly string[]).includes(phase)
-                ? 'translate-x-0 opacity-100'
-                : 'translate-x-2 opacity-0'
-            )}
-          >
-            <Icon className="h-3 w-3 text-muted-foreground" />
+    <div className={cn(STAGE, 'items-stretch justify-center gap-1.5')}>
+      <div className="flex items-start gap-2">
+        <MiniBubble side="assistant" className="w-3/5 space-y-1.5">
+          <SkeletonLine w="w-full" />
+          <SkeletonLine w="w-2/3" />
+        </MiniBubble>
+        <div
+          className={cn(
+            'w-2/5 space-y-1 transition-all duration-300',
+            sharing ? 'translate-x-0 opacity-100' : 'translate-x-2 opacity-0'
+          )}
+        >
+          <div className="flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1">
+            <Share2 className="h-3 w-3 text-muted-foreground" />
             <SkeletonLine w="w-3/5" />
           </div>
-        ))}
+          <div
+            className={cn(
+              'flex items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] transition-colors duration-300',
+              prefilled
+                ? 'border-primary/40 bg-primary/10 text-primary'
+                : 'border-border bg-background text-foreground/80'
+            )}
+          >
+            <Users className="h-3 w-3 shrink-0" />
+            <span className="truncate">{labels.peer}</span>
+          </div>
+        </div>
+      </div>
+      <div className="flex items-center gap-2.5 self-start pl-2 text-muted-foreground">
+        <Copy className="h-3 w-3" />
+        <Share2 className={cn('h-3 w-3 transition-colors', sharing && 'text-primary')} />
+        <Download
+          className={cn('h-3 w-3 transition-colors', phase === 'download' && 'text-primary')}
+        />
+        <span
+          className={cn(
+            'flex items-center gap-1 rounded-md border border-border bg-background px-1.5 py-0.5 text-[10px] transition-all duration-300',
+            downloaded ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
+          )}
+        >
+          <FileText className="h-3 w-3 shrink-0" />
+          {labels.file}
+        </span>
+      </div>
+      <MiniComposer
+        className={cn('transition-opacity duration-300', prefilled ? 'opacity-100' : 'opacity-40')}
+      >
+        {prefilled ? (
+          <span className="block truncate text-[10px] text-foreground/80">{labels.prefill}</span>
+        ) : (
+          <SkeletonLine w="w-2" />
+        )}
+      </MiniComposer>
+    </div>
+  );
+}
+
+type ImageSharePhase = 'card' | 'compose' | 'sent' | 'received';
+const IMAGE_SHARE_STEPS: readonly TimelineStep<ImageSharePhase>[] = [
+  { at: 0, state: 'card' },
+  { at: 900, state: 'compose' },
+  { at: 2100, state: 'sent' },
+  { at: 2800, state: 'received' },
+];
+
+/** The miniature of a generated image — a tinted frame, never a real picture. */
+function MiniPicture({ className }: { className?: string }) {
+  return (
+    <div
+      className={cn(
+        'flex items-center justify-center rounded-md border border-border bg-gradient-to-br from-primary/25 to-primary/5',
+        className
+      )}
+    >
+      <ImageIcon className="h-4 w-4 text-primary" />
+    </div>
+  );
+}
+
+/**
+ * A generated image goes to a connection as a COPY: the card's share button,
+ * a recipient and a comment, then — on the other side — a bubble of their own
+ * chat carrying the image and the comment, quoted as it was written.
+ */
+function ImageShareScene({ active, labels }: SceneProps) {
+  const phase = useLoopedTimeline(IMAGE_SHARE_STEPS, { active });
+  const composing = phase === 'compose' || phase === 'sent';
+  const received = phase === 'received';
+  return (
+    <div className={cn(STAGE, 'flex-row items-center justify-center gap-3')}>
+      <div className="w-2/5 space-y-1.5">
+        <MiniPicture className="h-14 w-full" />
+        <MiniChip pressed={phase !== 'card'} className="w-full justify-center">
+          <Send className="h-3 w-3" />
+        </MiniChip>
+      </div>
+      <div className="relative h-24 w-1/2">
+        <div
+          className={cn(
+            'absolute inset-x-0 top-0 space-y-1.5 rounded-lg border border-border bg-background p-2 transition-all duration-300',
+            composing ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
+          )}
+        >
+          <span className="flex items-center gap-1.5 text-[10px] text-foreground/80">
+            <User className="h-3 w-3 shrink-0 text-muted-foreground" />
+            <span className="truncate">{labels.peer}</span>
+          </span>
+          <span className="block truncate text-[10px] italic text-muted-foreground">
+            {labels.comment}
+          </span>
+          <span
+            className={cn(
+              'flex justify-end text-primary transition-opacity duration-300',
+              phase === 'sent' ? 'opacity-100' : 'opacity-0'
+            )}
+          >
+            <Check className="h-3 w-3" />
+          </span>
+        </div>
+        <MiniBubble
+          side="assistant"
+          className={cn(
+            'absolute inset-x-0 top-0 max-w-full space-y-1 border-primary/25 bg-primary/10 transition-all duration-500',
+            received ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
+          )}
+        >
+          <span className="block truncate text-[9px] text-primary">{labels.received}</span>
+          <MiniPicture className="h-8 w-full" />
+          <span className="block truncate italic">{labels.comment}</span>
+        </MiniBubble>
       </div>
     </div>
   );
@@ -928,6 +1049,7 @@ export const RESPOND_SCENES: Readonly<Record<string, SceneComponent>> = {
   bubble_actions: BubbleActionsScene,
   selection_actions: SelectionActionsScene,
   share_export: ShareExportScene,
+  image_share: ImageShareScene,
   keep_answer: KeepAnswerScene,
   draft_sequence: DraftSequenceScene,
   network_question: NetworkQuestionScene,

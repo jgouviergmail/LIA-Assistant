@@ -86,6 +86,13 @@ class UserUpdate(
         None,
         description="Format generated and edited images are delivered in: 'png', 'jpeg', 'webp'",
     )
+    image_generation_prompt_enhancement: bool | None = Field(
+        None,
+        description=(
+            "Rewrite image prompts with recognised prompting techniques before "
+            "generation (ADR-315); inert while the operator withdraws it"
+        ),
+    )
 
     # ADR-311: strict on write — the two rhythms, dumped as exact strings.
     exchange_rhythm: ExchangeRhythm | None = Field(

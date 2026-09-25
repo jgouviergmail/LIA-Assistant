@@ -78,7 +78,7 @@ def _validate_outputs(value: Any, path: Path) -> list[str] | None:
     if not isinstance(value, list) or not all(
         isinstance(entry, str) and entry in SKILL_OUTPUT_CHANNELS for entry in value
     ):
-        logger.warning("skill_outputs_invalid", path=str(path), value=repr(value)[:100])
+        logger.warning("skill_outputs_invalid", path=str(path), value_type=type(value).__name__)
         return None
     return value
 
@@ -190,15 +190,15 @@ def parse_skill_file(path: Path) -> dict[str, Any] | None:
     # Name validation (lenient: warn but load)
     name = meta.get("name", path.parent.name)  # Fallback to directory name
     if len(name) > SKILLS_NAME_MAX_LENGTH:
-        logger.warning("skill_name_too_long", path=str(path), name=name)
+        logger.warning("skill_name_too_long", path=str(path), skill_name=name)
     if not SKILL_NAME_PATTERN.match(name):
-        logger.warning("skill_name_invalid_chars", path=str(path), name=name)
+        logger.warning("skill_name_invalid_chars", path=str(path), skill_name=name)
     if SKILL_NAME_NO_CONSECUTIVE_HYPHENS.search(name):
-        logger.warning("skill_name_consecutive_hyphens", path=str(path), name=name)
+        logger.warning("skill_name_consecutive_hyphens", path=str(path), skill_name=name)
 
     # Reserved names: "claude" and "anthropic" prefixes (per Anthropic spec)
     if name.startswith("claude") or name.startswith("anthropic"):
-        logger.warning("skill_name_reserved", path=str(path), name=name)
+        logger.warning("skill_name_reserved", path=str(path), skill_name=name)
         return None
 
     # Description length check (per Anthropic spec: max 1024 chars)
@@ -208,7 +208,7 @@ def parse_skill_file(path: Path) -> dict[str, Any] | None:
 
     # Warn if name doesn't match directory (agentskills.io spec)
     if name != path.parent.name:
-        logger.warning("skill_name_dir_mismatch", name=name, dir=path.parent.name)
+        logger.warning("skill_name_dir_mismatch", skill_name=name, dir=path.parent.name)
 
     instructions = parts[2].strip()
 

@@ -6,6 +6,7 @@ and managing FCM tokens.
 """
 
 import asyncio
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
@@ -203,6 +204,18 @@ class FCMNotificationService:
             List of active FCM tokens
         """
         return await self.repository.get_active_tokens_for_user(user_id)
+
+    async def get_active_token_strings(self, user_ids: Sequence[UUID]) -> list[str]:
+        """
+        Get the active token strings of several users in one query.
+
+        Args:
+            user_ids: The users whose devices a batch reaches
+
+        Returns:
+            Their active FCM token strings
+        """
+        return await self.repository.get_active_token_strings(user_ids)
 
     async def delete_token_by_id(
         self,

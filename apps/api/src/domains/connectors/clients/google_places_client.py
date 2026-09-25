@@ -41,6 +41,7 @@ from src.domains.connectors.clients.google_api_tracker import track_google_api_c
 from src.domains.connectors.clients.google_geocoding_helpers import GOOGLE_GEOCODING_API_URL
 from src.domains.connectors.models import ConnectorType
 from src.infrastructure.cache import PlacesCache
+from src.infrastructure.observability.log_facts import log_unreadable_text
 
 logger = structlog.get_logger(__name__)
 
@@ -286,12 +287,14 @@ class GooglePlacesClient(CacheableMixin[PlacesCache]):
                     continue
 
                 # Client error - don't retry
-                logger.error(
+                log_unreadable_text(
+                    logger,
                     "places_api_client_error",
+                    response.text or "",
+                    level="error",
                     user_id=str(self.user_id),
                     status_code=response.status_code,
                     endpoint=endpoint,
-                    response_text=response.text[:500] if response.text else None,
                 )
                 raise ConnectorAPIError(
                     connector_type="google_places",
@@ -443,7 +446,7 @@ class GooglePlacesClient(CacheableMixin[PlacesCache]):
         logger.info(
             "places_search_text_completed",
             user_id=str(self.user_id),
-            query=query,
+            query_length=len(query),
             results_count=len(places),
         )
 
@@ -682,7 +685,6 @@ class GooglePlacesClient(CacheableMixin[PlacesCache]):
             "places_get_details_completed",
             user_id=str(self.user_id),
             place_id=place_id,
-            name=response.get("displayName", {}).get("text", "Unknown"),
         )
 
         # Add freshness metadata
@@ -742,7 +744,7 @@ class GooglePlacesClient(CacheableMixin[PlacesCache]):
         logger.info(
             "places_autocomplete_completed",
             user_id=str(self.user_id),
-            input=input_text,
+            input_length=len(input_text),
             suggestions_count=len(suggestions),
         )
 
@@ -831,13 +833,13 @@ class GooglePlacesClient(CacheableMixin[PlacesCache]):
             track_google_api_call("geocoding", "/geocode/json", cached=False)
 
             if data.get("status") != "OK":
-                status_msg = data.get("status", "UNKNOWN_ERROR")
+                api_status = data.get("status", "UNKNOWN_ERROR")
                 error_msg = data.get("error_message", "No error message")
                 # No PII above DEBUG: GPS coordinates are logged at DEBUG only.
                 logger.warning(
                     "geocoding_api_status_error",
                     user_id=str(self.user_id),
-                    status=status_msg,
+                    status=api_status,
                     error_message=error_msg,
                 )
                 logger.debug(
@@ -848,7 +850,7 @@ class GooglePlacesClient(CacheableMixin[PlacesCache]):
                 )
                 return {
                     "success": False,
-                    "status": status_msg,
+                    "status": api_status,
                     "error_message": error_msg,
                     "formatted_address": None,
                     "location": {"lat": latitude, "lon": longitude},

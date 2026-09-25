@@ -273,6 +273,9 @@ CAPABILITY_SPECS: dict[PlatformCapability, CapabilitySpec] = {
         family="knowledge",
         env_flag="journals_enabled",
         setting_key=SystemSettingKey.CAPABILITY_JOURNALS_ENABLED,
+        # The journal lookup tool (ADR-318): hidden from the planner when off,
+        # and refused at call time by the tool itself.
+        agents=("journal_agent",),
         route_enforced=True,
     ),
     # ADR-280 amendment (2026-09-11): habits and the heartbeat are ACTS —

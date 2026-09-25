@@ -18,6 +18,7 @@ import redis.asyncio as aioredis
 import structlog
 
 from src.core.config import get_settings
+from src.infrastructure.observability.log_facts import url_host
 
 from .base import (
     CacheResult,
@@ -133,7 +134,7 @@ class WebSearchCache:
                     logger.info(
                         "web_search_cache_hit",
                         user_id=str(user_id),
-                        query_preview=query[:30],
+                        query_length=len(query),
                         recency=recency,
                         cache_age_seconds=result.cache_age_seconds,
                     )
@@ -142,7 +143,7 @@ class WebSearchCache:
             logger.info(
                 "web_search_cache_miss",
                 user_id=str(user_id),
-                query_preview=query[:30],
+                query_length=len(query),
                 recency=recency,
             )
             record_cache_miss(CACHE_TYPE_WEB_SEARCH)
@@ -186,7 +187,7 @@ class WebSearchCache:
             logger.info(
                 "web_search_cache_set",
                 user_id=str(user_id),
-                query_preview=query[:30],
+                query_length=len(query),
                 recency=recency,
                 ttl_seconds=ttl_seconds,
             )
@@ -227,7 +228,7 @@ class WebSearchCache:
                     logger.info(
                         "web_fetch_cache_hit",
                         user_id=str(user_id),
-                        url_preview=url[:50],
+                        url_host=url_host(url),
                         cache_age_seconds=result.cache_age_seconds,
                     )
                     return result
@@ -235,7 +236,7 @@ class WebSearchCache:
             logger.info(
                 "web_fetch_cache_miss",
                 user_id=str(user_id),
-                url_preview=url[:50],
+                url_host=url_host(url),
             )
             record_cache_miss(CACHE_TYPE_WEB_FETCH)
             return CacheResult.miss()
@@ -276,7 +277,7 @@ class WebSearchCache:
             logger.info(
                 "web_fetch_cache_set",
                 user_id=str(user_id),
-                url_preview=url[:50],
+                url_host=url_host(url),
                 ttl_seconds=ttl_seconds,
             )
         except Exception as e:

@@ -553,7 +553,6 @@ class ConversationRepository(BaseRepository[Conversation]):
                 "conversation_created_with_audit",
                 conversation_id=str(conversation.id),
                 user_id=str(user_id),
-                title=title,
             )
 
             return conversation

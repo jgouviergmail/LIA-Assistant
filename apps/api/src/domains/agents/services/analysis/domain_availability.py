@@ -28,6 +28,10 @@ FLAG_GATED_DOMAINS: Final[dict[str, str]] = {
     "telephony": "telephony_enabled",  # ADR-127
     "document": "rag_spaces_enabled",  # P1, ADR-141
     "peer": "peers_enabled",  # ADR-180
+    # Declared ``feature_flag: workboard_enabled`` since ADR-276 and enforced by
+    # nobody here until the test below read the table in both directions.
+    "ticket": "workboard_enabled",  # ADR-276
+    "journal": "journals_enabled",  # ADR-318
 }
 
 
@@ -72,8 +76,8 @@ def build_available_domains() -> list[dict[str, str]]:
         if config:
             available_domains.append({"name": domain_name, "description": config.description})
 
-    # Deployment-flag gating (telephony, documents, peers) — same
-    # runtime-filtering chokepoint as MCP below.
+    # Deployment-flag gating (FLAG_GATED_DOMAINS) — same runtime-filtering
+    # chokepoint as MCP below.
     available_domains = _withdraw_disabled_domains(available_domains)
 
     # F2.2+F2.5: Unified MCP per-server domain injection (admin + user).

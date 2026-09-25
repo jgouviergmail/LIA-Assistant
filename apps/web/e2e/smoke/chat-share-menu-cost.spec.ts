@@ -1,11 +1,12 @@
 /**
  * What the share menu costs on a busy conversation.
  *
- * `ShareResponseMenu` renders on EVERY assistant bubble. Reading the settings
- * panel's `usePeerConnections` there — five queries, because that panel shows
- * requests, blocks and the access log too — cost 5 requests per message:
- * measured at 120 calls on a twelve-answer conversation, 80 % of them for data
- * the menu never reads.
+ * `ShareResponseActions` renders on EVERY assistant bubble, and its « Share »
+ * opens a menu of the person's connections when the instance offers them.
+ * Reading the settings panel's `usePeerConnections` there — five queries,
+ * because that panel shows requests, blocks and the access log too — cost 5
+ * requests per message: measured at 120 calls on a twelve-answer conversation,
+ * 80 % of them for data the menu never reads.
  *
  * Only a browser can assert this: the defect is not in what renders, it is in
  * what LEAVES. Both halves matter — a closed menu must cost nothing, and an
@@ -30,6 +31,17 @@ const answer = (index: number) => ({
 });
 
 const ROUTES: MockRoute[] = [
+  // Connections offered on this instance: the Share menu exists only then.
+  {
+    url: '**/api/v1/config',
+    json: {
+      sse: { heartbeat_interval_seconds: 30 },
+      rate_limits: { enabled: false, per_minute: 60, burst: 10 },
+      i18n: { supported_languages: ['en', 'fr', 'de', 'es', 'it', 'zh'], default_language: 'en' },
+      features: { workboard_enabled: true, peers_enabled: true },
+      api_version: 'v1',
+    },
+  },
   {
     url: '**/api/v1/conversations/me',
     json: {
@@ -109,7 +121,7 @@ test.describe('share menu network cost', () => {
     await page.goto('/fr/dashboard/chat');
     await expect(page.getByText('Réponse 0')).toBeVisible({ timeout: 25_000 });
 
-    await page.getByRole('button', { name: "Plus d'actions" }).first().click();
+    await page.getByRole('button', { name: 'Partager', exact: true }).first().click();
 
     // The recipient appears — the lazy fetch must not cost the feature.
     await expect(page.getByRole('menuitem', { name: 'Gérard Dupont' })).toBeVisible({

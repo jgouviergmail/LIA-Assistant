@@ -23,6 +23,7 @@ from src.core.exceptions import (
 )
 from src.core.session_dependencies import get_current_active_session
 from src.domains.users.models import User
+from src.infrastructure.observability.log_facts import url_host
 from src.infrastructure.utils.bounded_read import BodyTooLargeError, read_bounded
 
 logger = structlog.get_logger(__name__)
@@ -84,12 +85,12 @@ async def _fetch_image_following_redirects(
             logger.warning(
                 "profile_image_proxy_redirect_blocked",
                 user_id=str(user_id),
-                original_url=url[:100],
-                final_hostname=urlparse(current).hostname,
+                url_host=url_host(url),
+                final_hostname=url_host(current),
             )
             raise_invalid_input(
                 "Redirect to disallowed domain",
-                domain=urlparse(current).hostname,
+                domain=url_host(current),
             )
 
         async with client.stream(
@@ -113,7 +114,7 @@ async def _fetch_image_following_redirects(
                 logger.warning(
                     "profile_image_proxy_fetch_failed",
                     user_id=str(user_id),
-                    url=url[:100],
+                    url_host=url_host(url),
                     status_code=response.status_code,
                 )
                 raise_external_service_fetch_error(
@@ -128,7 +129,7 @@ async def _fetch_image_following_redirects(
     logger.warning(
         "profile_image_proxy_too_many_redirects",
         user_id=str(user_id),
-        original_url=url[:100],
+        url_host=url_host(url),
         max_redirects=PROFILE_IMAGE_MAX_REDIRECTS,
     )
     raise_invalid_input("Too many redirects", max_redirects=PROFILE_IMAGE_MAX_REDIRECTS)
@@ -195,7 +196,7 @@ async def proxy_profile_image(
     logger.info(
         "profile_image_proxy_request",
         user_id=str(user_id),
-        url=url[:100] if len(url) > 100 else url,
+        url_host=url_host(url),
     )
 
     try:
@@ -229,14 +230,14 @@ async def proxy_profile_image(
         logger.warning(
             "profile_image_proxy_timeout",
             user_id=str(user_id),
-            url=url[:100],
+            url_host=url_host(url),
         )
         raise_external_service_connection_error("google_profile_image")
     except httpx.RequestError as e:
         logger.warning(
             "profile_image_proxy_request_error",
             user_id=str(user_id),
-            url=url[:100],
+            url_host=url_host(url),
             error=str(e),
         )
         raise_external_service_connection_error("google_profile_image")

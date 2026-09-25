@@ -175,11 +175,11 @@ def _require_api_key(provider: str) -> str:
 
     # 3. Graceful degradation: allow startup without API keys
     # Users can configure keys post-launch via Settings > Administration > LLM Configuration
-    display_name = LLM_PROVIDERS.get(provider, provider)
+    provider_label = LLM_PROVIDERS.get(provider, provider)
     env_hint = _ENV_FALLBACK.get(provider, "UNKNOWN")
     logger.warning(
         "api_key_not_configured",
-        provider=display_name,
+        provider=provider_label,
         env_var=env_hint,
         hint="Configure via Settings > Administration > LLM Configuration or set environment variable",
     )
@@ -893,7 +893,7 @@ class ProviderAdapter:
                 logger.info(
                     "qwen_thinking_configured",
                     model=model,
-                    extra_body=qwen_extra,
+                    request_extras=qwen_extra,
                 )
 
             # Qwen does NOT support frequency_penalty

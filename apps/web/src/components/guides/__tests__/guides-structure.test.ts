@@ -70,6 +70,29 @@ const renderedHeadings = (text: string): string[] => {
 
 const tocNumbers = (text: string): string[] => [...text.matchAll(/^(\d+)\. \[/gm)].map(m => m[1]);
 
+/**
+ * Lines that CommonMark turns into a SETEXT heading: a paragraph line directly
+ * above `---` (or `===`) is a heading, not a paragraph followed by a rule.
+ * It renders as one more `<h2>` that `renderedHeadings` cannot see — every
+ * anchor after it shifts by one. The last paragraph of §19.6 sat right above
+ * the rule closing §19 in the six `how` guides. A list item, a table row, a
+ * heading or a quote above the rule is not a paragraph, so it is not counted.
+ */
+const setextHeadings = (text: string): string[] => {
+  const lines = text.split('\n');
+  const found: string[] = [];
+  let fenced = false;
+  lines.forEach((line, i) => {
+    if (line.startsWith('```')) fenced = !fenced;
+    if (fenced || i === 0 || !/^(-{3,}|={3,})\s*$/.test(line)) return;
+    const above = lines[i - 1];
+    if (above.trim() && !/^\s*([-*+>|#]|\d+\.\s)/.test(above)) {
+      found.push(`line ${i}: ${above.slice(0, 60)}`);
+    }
+  });
+  return found;
+};
+
 /** The `**Version**` stamp, whatever the locale calls it (Versión, Versione, 版本). */
 const docVersion = (text: string): string | null =>
   text.match(/^\*\*(?:Version|Versione|Versión|版本)\*\*\s*[:：]\s*([0-9][0-9.]*)\s*$/m)?.[1] ??
@@ -121,6 +144,14 @@ describe.each(FAMILIES)('$name guide', ({ name, sections, hasMarkdownToc }) => {
       );
 
     expect(miscounted).toEqual([]);
+  });
+
+  it('never glues a paragraph to a rule (a setext heading the navigation cannot see)', () => {
+    const glued = LANGS.flatMap(lang =>
+      setextHeadings(read(name, lang)).map(where => `${name}.${lang} ${where}`)
+    );
+
+    expect(glued).toEqual([]);
   });
 
   it('numbers its sections contiguously from 1', () => {

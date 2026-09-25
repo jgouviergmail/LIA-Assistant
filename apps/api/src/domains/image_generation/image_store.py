@@ -17,6 +17,10 @@ from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
 
+#: The message-metadata key the chat reads image cards from — on the done chunk,
+#: on the archived row, and on a shared image's notification (ADR-316).
+GENERATED_IMAGES_METADATA_KEY = "generated_images"
+
 
 @dataclass
 class PendingImage:
@@ -90,7 +94,7 @@ def store_pending_image(
         "pending_image_stored",
         conversation_id=conversation_id,
         url=url,
-        alt_text=sanitized_alt,
+        alt_length=len(sanitized_alt),
     )
 
 

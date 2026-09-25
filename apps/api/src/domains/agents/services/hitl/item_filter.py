@@ -35,6 +35,7 @@ from src.domains.agents.prompts import load_prompt
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.instrumentation import create_instrumented_config
 from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
+from src.infrastructure.observability.log_facts import log_unreadable_text
 
 logger = structlog.get_logger(__name__)
 
@@ -102,7 +103,7 @@ class ItemFilterService:
             "item_filter_started",
             run_id=run_id,
             item_count=len(item_previews),
-            exclude_criteria=exclude_criteria[:100],
+            exclude_criteria_length=len(exclude_criteria),
         )
 
         # Build the prompt
@@ -204,9 +205,10 @@ class ItemFilterService:
 
             # Validate it's a list of integers within range
             if not isinstance(indices, list):
-                logger.warning(
+                log_unreadable_text(
+                    logger,
                     "item_filter_response_not_list",
-                    content=content[:100],
+                    content,
                     parsed_type=type(indices).__name__,
                 )
                 return []
@@ -225,10 +227,8 @@ class ItemFilterService:
             return valid_indices
 
         except json.JSONDecodeError as e:
-            logger.error(
-                "item_filter_json_parse_error",
-                error=str(e),
-                content=content[:200],
+            log_unreadable_text(
+                logger, "item_filter_json_parse_error", content, level="error", error=str(e)
             )
             # Fallback: try to extract numbers from response
             import re

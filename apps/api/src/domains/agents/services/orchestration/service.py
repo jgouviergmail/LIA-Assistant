@@ -1133,7 +1133,7 @@ class OrchestrationService:
                     "hitl_edit_removing_original_message",
                     run_id=run_id,
                     message_id=last_human_msg_id,
-                    original_content=original_content[:50] if original_content else None,
+                    original_content_length=len(original_content) if original_content else 0,
                     reason="Replacing to avoid LLM confusion",
                 )
             else:
@@ -1150,8 +1150,8 @@ class OrchestrationService:
             logger.info(
                 "hitl_edit_message_reformulation_applied",
                 run_id=run_id,
-                original_content=original_content[:50] if original_content else None,
-                reformulated_intent=reformulated_intent,
+                original_content_length=len(original_content) if original_content else 0,
+                reformulated_intent_length=len(reformulated_intent),
                 modifications_count=len(modifications),
             )
 

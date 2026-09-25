@@ -37,7 +37,7 @@ class TestLLMDefaults:
             ), f"LLM_DEFAULTS['{llm_type}'] is {type(config)}, expected LLMAgentConfig"
 
     def test_default_count(self) -> None:
-        """Should have 57 LLM types: 51 (v1.18.0) + voice_transcription (ADR-080)
+        """Should have 61 LLM types: 51 (v1.18.0) + voice_transcription (ADR-080)
         + voice_tts (ADR-081) + personality_translation (audit wave 3, N-219.1)
         + telephony_synthesis (ADR-127) + telephony_agent (ADR-127 routing fix)
         + open_loop_extraction (ADR-139) + document_generation (ADR-226)
@@ -45,8 +45,9 @@ class TestLLMDefaults:
         + meeting_synthesis (ADR-258)
         + relation_debrief (the daily relationship debrief)
         + email_digest (ADR-287)
+        + image_prompt_enhancement (ADR-315)
         - router and context_resolver (ADR-244: no get_llm() caller anywhere)."""
-        assert len(LLM_DEFAULTS) == 60
+        assert len(LLM_DEFAULTS) == 61
 
     @pytest.mark.parametrize(
         "llm_type,expected_provider,expected_model",

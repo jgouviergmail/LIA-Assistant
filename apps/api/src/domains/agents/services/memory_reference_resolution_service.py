@@ -441,7 +441,7 @@ class MemoryReferenceResolutionService:
         except Exception as e:
             logger.error(
                 "memory_resolution_llm_error_unified",
-                query_preview=query[:50],
+                query_length=len(query),
                 error=str(e),
             )
             return ResolvedReferences(

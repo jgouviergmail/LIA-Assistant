@@ -153,7 +153,7 @@ class LLMReflectionContentSource:
 
             logger.info(
                 "llm_reflection_source_content_generated",
-                topic=topic,
+                topic_length=len(topic),
                 content_length=len(content),
                 language=user_language,
                 user_id=user_id,
@@ -179,7 +179,7 @@ class LLMReflectionContentSource:
         except Exception as e:
             logger.warning(
                 "llm_reflection_source_generation_failed",
-                topic=topic,
+                topic_length=len(topic),
                 user_id=user_id,
                 error=str(e),
                 error_type=type(e).__name__,

@@ -199,7 +199,6 @@ class ReminderRepository(BaseRepository[Reminder]):
     async def cancel_reminder(self, reminder: Reminder) -> Reminder:
         """Cancel a pending reminder by deleting it completely."""
         reminder_id = reminder.id
-        reminder_content = reminder.content
 
         # Delete the reminder completely instead of setting status to CANCELLED
         await self.db.delete(reminder)
@@ -208,6 +207,5 @@ class ReminderRepository(BaseRepository[Reminder]):
         logger.info(
             "reminder_deleted",
             reminder_id=str(reminder_id),
-            content=reminder_content,
         )
         return reminder

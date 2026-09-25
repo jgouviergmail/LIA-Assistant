@@ -24,6 +24,7 @@ _SRC = Path(__file__).resolve().parents[3] / "src"
 #: (The HITL classifier is not one: it already sends its whole prompt as a system
 #: message, where the shapers find the marker.)
 SINGLE_CALL_SITES: tuple[str, ...] = (
+    "domains/agents/image_generation/prompt_enhancement.py",
     "domains/agents/nodes/initiative_node.py",
     "domains/agents/services/memory_extractor.py",
     "domains/agents/services/query_analyzer_service.py",

@@ -735,11 +735,19 @@ ReAct response model lacked. A failed effect is not stated here — the honesty
 directive states it, once (ADR-303).
 
 **A card that ends on « posture cr » reads as broken.** An effect label value
-is bounded (`MAX_VALUE_CHARS`) and was cut mid-word with no mark. It is now cut
-on a word boundary with the ellipsis counted inside the bound, by the one
-implementation the relationship debrief already needed privately
-(`core/text_clip.clip_on_word`). The label is built when an effect is CLAIMED,
-so rows written before keep their old cut.
+is bounded and was cut mid-word with no mark. It is now cut on a word boundary
+with the ellipsis counted inside the bound, by the one implementation the
+relationship debrief already needed privately (`core/text_clip.clip_on_word`).
+The label is built when an effect is CLAIMED, so rows written before keep their
+old cut.
+
+**A card that shows the first words of a reminder shows nothing** (amended
+2026-09-24, reported by the owner). The bound was a 120-character constant, so
+« Actions performed » cut a reminder, an objective or an instruction after a few
+words — a claim about the world the reader could not read. It is now the
+operator's setting `EFFECT_LABEL_VALUE_MAX_CHARS` (1 000 by default: a paragraph
+fits, a pasted document does not reach the ledger), read at claim time; every
+surface that draws a label wraps it rather than clipping it.
 
 ## Consequences
 

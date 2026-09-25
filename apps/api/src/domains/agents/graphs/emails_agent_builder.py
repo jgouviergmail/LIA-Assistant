@@ -74,6 +74,7 @@ def build_emails_agent() -> Any:
         resolve_reference,
         set_current_item,
     )
+    from src.domains.agents.tools.email_self_tools import send_email_to_me_tool
     from src.domains.agents.tools.emails_tools import (
         delete_email_tool,
         forward_email_tool,
@@ -98,6 +99,7 @@ def build_emails_agent() -> Any:
             # Gmail tools (unified)
             get_emails_tool,  # Unified: search + details
             send_email_tool,
+            send_email_to_me_tool,  # To the user themselves: no draft (ADR-314)
             reply_email_tool,
             forward_email_tool,
             delete_email_tool,

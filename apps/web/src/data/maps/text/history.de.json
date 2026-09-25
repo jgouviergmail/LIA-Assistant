@@ -1652,6 +1652,41 @@
       "title": "Der Austauschrhythmus gehört der Person",
       "summary": "Jede Person wählt zwischen häufigem und gelegentlichem Austausch. Häufig: LIA behält alle Werkzeuge und bereitet jede Runde so vor, dass die nächste die vorige aus dem Cache liest, mit einer aufwendigeren ersten Nachricht und danach deutlich günstigeren. Gelegentlich: LIA wählt die Werkzeuge nach Relevanz, bei stabilen Kosten.",
       "src": "6da70629f513"
+    },
+    "312": {
+      "title": "Eine Rundnachricht sagt, an wen sie ging",
+      "summary": "Eine Nachricht an einige ausgewählte Konten wurde danach bei der nächsten Anmeldung allen angezeigt: Die Empfängerliste wurde nicht gespeichert. Jetzt wird sie es, und unter dem Formular liest die Administration den seitenweisen Verlauf des Gesendeten — Datum, Empfänger, Ablauffrist.",
+      "src": "6f570d9edca6"
+    },
+    "313": {
+      "title": "LIA kann in ihrem Gedächtnis suchen",
+      "summary": "Bisher erinnerte sich LIA nur an das, was die Nachricht wachrief. Jetzt kann sie ein unterwegs entdecktes Thema nachschlagen — den Absender einer E-Mail, einen Ort, eine einmal gegebene Anweisung. Am Telefon beantwortet diese Suche endlich die gestellte Frage, statt die neuesten Erinnerungen zu liefern.",
+      "src": "a92407a4177a"
+    },
+    "314": {
+      "title": "Eine E-Mail an sich selbst geht ohne Bestätigung",
+      "summary": "Wer an das eigene Postfach schreibt, muss keinen Entwurf mehr bestätigen, wie beim Anruf an sich selbst: „Schick mir jeden Morgen das Wetter per E-Mail“ kann als Routine laufen. Der Empfänger ist nie ein Parameter: das verbundene Postfach oder die verifizierte Adresse des Kontos.",
+      "src": "cf8ee87a0682"
+    },
+    "315": {
+      "title": "Ein Bild-Prompt kann verbessert werden, ohne verfälscht zu werden",
+      "summary": "Wer es aktiviert, dem schreibt ein eigenes Modell die Beschreibung jedes neuen Bildes mit den Techniken um, die die Anbieter empfehlen: Bildausschnitt, Licht, Objektiv, Stil. Das Gewünschte bleibt gleich, der Text im Bild bleibt Wort für Wort, und beim geringsten Zweifel geht die ursprüngliche Anfrage unverändert hinaus.",
+      "src": "c669a50ebf39"
+    },
+    "316": {
+      "title": "Ein generiertes Bild mit einer Verbindung teilen",
+      "summary": "Ein Klick auf ein Bild schickt es an eine Verbindung, auf Wunsch mit einem Kommentar. Es landet in ihren Bildern, als hätte sie es selbst generiert, und in ihrem Chat, der Kommentar wörtlich zitiert — nie in einen Link oder ein verstecktes Bild verwandelt.",
+      "src": "bb1730b8709d"
+    },
+    "317": {
+      "title": "Protokolle behalten Fakten, nie die Worte einer Person",
+      "summary": "Außerhalb des Debug-Modus halten die Protokolle nur noch Zahlen, Längen und Kennungen fest: keine Suchanfragen, keine Interessen, keine Namen von Kontakten oder Dateien. Zitiert eine Datenbank oder ein Dienst die abgelehnten Daten, wird das Zitat vor dem Schreiben entfernt. Ein Test liest jede Protokollzeile im Code und lehnt jede ab, die die Worte einer Person schreiben würde.",
+      "src": "abfc2f1d0235"
+    },
+    "318": {
+      "title": "LIA rechnet, statt zu schätzen, und findet wieder, was sie getan hat",
+      "summary": "Eine Rechnung, ein Datum oder eine Währungsumrechnung wird nicht mehr über den Daumen gepeilt: LIA rechnet sie exakt, zum Referenzkurs des Tages, den sie nennt. Sie kann außerdem in ihrem Tagebuch nach einem unterwegs entdeckten Thema suchen, dir sagen, was sie in einem Zeitraum getan und eingesehen hat — mit exakten Summen —, und dir eine von ihr erzeugte Datei erneut zeigen, solange es sie noch gibt.",
+      "src": "deff5cf96b72"
     }
   }
 }

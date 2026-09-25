@@ -64,6 +64,10 @@ class GalleryFilters:
         created_before: Inclusive upper bound on the creation instant.
         expires_before: Inclusive upper bound on the expiry instant — « what am
             I about to lose? ».
+        expires_after: Exclusive lower bound on the expiry instant — « what can
+            I still open? ». The cleanup deletes a file only at its next pass, so
+            a row past its deadline may still be listed; a lookup that SHOWS what
+            it finds (ADR-318) asks for this bound, the gallery does not.
         sort: One of :data:`GALLERY_SORTS`.
         limit: Page size.
         offset: Page start.
@@ -74,6 +78,7 @@ class GalleryFilters:
     created_after: datetime | None = None
     created_before: datetime | None = None
     expires_before: datetime | None = None
+    expires_after: datetime | None = None
     sort: str = _DEFAULT_SORT
     limit: int = 24
     offset: int = 0
@@ -123,6 +128,8 @@ def build_gallery_statement(
         statement = statement.where(Attachment.created_at <= filters.created_before)
     if filters.expires_before is not None:
         statement = statement.where(Attachment.expires_at <= filters.expires_before)
+    if filters.expires_after is not None:
+        statement = statement.where(Attachment.expires_at > filters.expires_after)
 
     if count:
         return statement

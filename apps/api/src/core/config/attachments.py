@@ -27,6 +27,7 @@ from src.core.constants import (
     ATTACHMENTS_MAX_PER_MESSAGE_DEFAULT,
     ATTACHMENTS_STORAGE_PATH_DEFAULT,
     ATTACHMENTS_TTL_HOURS_DEFAULT,
+    GENERATED_FILES_SEARCH_MAX_RESULTS_DEFAULT,
 )
 
 
@@ -98,6 +99,16 @@ class AttachmentsSettings(BaseSettings):
         ge=1,
         le=168,
         description="TTL safety net for orphan files in hours (cleanup scheduler).",
+    )
+
+    generated_files_search_max_results: int = Field(
+        default=GENERATED_FILES_SEARCH_MAX_RESULTS_DEFAULT,
+        ge=1,
+        le=24,
+        description=(
+            "Most generated files one lookup (find_generated_files_tool, ADR-318) "
+            "returns — and shows in the chat as cards. Published as the maximum."
+        ),
     )
 
     # ========================================================================

@@ -4,7 +4,7 @@
 
 **Versión**: 6.1
 **Fecha**: 2026-09-24
-**Aplicación**: LIA v1.47.3
+**Aplicación**: LIA v1.47.4
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -153,7 +153,7 @@ LIA ofrece un modo vocal completo:
 
 ### 3.5. Creación y medios
 
-- **Generación de imágenes**: crea imágenes a partir de descripciones textuales, retoca fotos existentes — con GPT Image de OpenAI o Qwen Image 3.0, según el modelo que elija el administrador; tus preferencias de calidad, tamaño y formato se adaptan a lo que el modelo sabe hacer, sin pasar nunca a una opción más cara
+- **Generación de imágenes**: crea imágenes a partir de descripciones textuales, retoca fotos existentes — con GPT Image de OpenAI o Qwen Image 3.0, según el modelo que elija el administrador; tus preferencias de calidad, tamaño y formato se adaptan a lo que el modelo sabe hacer, sin pasar nunca a una opción más cara; si lo deseas, tu descripción se enriquece según los consejos del proveedor, con un texto entre comillas conservado palabra por palabra; una imagen se vuelve a encontrar pidiéndola y se comparte con un clic con una conexión, que la recibe en su galería y su chat
 - **Generación de documentos**: pide un CSV, una hoja Excel, un informe Word, un PowerPoint o un PDF — un modelo redactor dedicado produce el contenido en tu idioma y luego un motor de renderizado local construye el archivo real con los códigos de su formato: diapositivas 16:9 cuya maquetación sigue la intención, índice y paginación calculados por Word, columnas de Excel tipadas bajo una tabla filtrable, números de página exactos y marcadores en el PDF. El texto se mide antes de colocarse, así que nada se desborda; y si el modelo se corta a medias, LIA te lo dice en vez de entregarte un documento amputado. El archivo llega como tarjeta descargable con una caducidad explícita
 - **Diagramas Excalidraw**: genera diagramas y esquemas directamente en la conversación
 - **Adjuntos**: añade fotos y PDF — LIA analiza el contenido visual y extrae el texto de los documentos; el « + » también ofrece cada documento de tus espacios de conocimiento, incluso de un espacio en pausa, como copia para ese mensaje
@@ -211,6 +211,8 @@ Y LIA puede llamarte *a ti*. Declara tu número en *Telefonía · Mi identidad*,
 En la misma instancia, dos usuarios pueden conectarse — y sus asistentes se hablan. Dices “pregúntale a Marie si está libre el martes”, apruebas la redacción exacta, y es el asistente de Marie quien le entrega el mensaje, con su propia personalidad, nombrándote; el tuyo te confirma la entrega. Cada conexión puede además abrir comparticiones elegidas, de solo lectura: tu disponibilidad de calendario, los títulos de tus tareas — nada más, nada por defecto.
 
 Proteger a las personas está por encima de la funcionalidad: la visibilidad es voluntaria y solo por identidad exacta — nombre completo o dirección, nunca un fragmento, el bloqueo es silencioso (la otra parte nunca lo sabe), y un desconocido, un rechazo o un bloqueo reciben exactamente la misma respuesta — sondear quién existe es imposible. Cada acceso a una compartición se vuelve a comprobar en el momento de la lectura y queda registrado, y el contenido de los mensajes transmitidos se borra al cabo de treinta días, dejando solo el rastro del intercambio.
+
+Una imagen que LIA generó para ti también se comparte con un clic: la persona recibe una copia en su galería y en su chat, con tu comentario citado tal cual, nunca convertido en un enlace ni en una imagen oculta.
 
 ### 3.12. Lo que te une a alguien, reunido
 
@@ -385,6 +387,8 @@ Una última pestaña dibuja el período en gráficos, cada uno con el total exac
 
 El artículo 12 del Reglamento europeo de IA exige registros a los sistemas de alto riesgo; no clasifica automáticamente a este asistente personal como tal. LIA conserva, aun así, cinco tipos de prueba: los tres anteriores, los parámetros enviados realmente a cada modelo y las lagunas del propio registro, para que sus límites sean visibles.
 
+Y LIA los lee ella misma: pregúntale qué hizo por ti esta semana y responde desde los mismos registros, con totales exactos — lo que pediste por un lado, lo que emprendió por su cuenta por otro —, en lugar de recordarlo a grandes rasgos.
+
 ## 7. Profundidad emocional
 
 ### 7.1. Más allá de la memoria factual
@@ -394,6 +398,8 @@ Los grandes asistentes recuerdan tus preferencias y datos personales. Es útil, 
 Cada recuerdo tiene un peso emocional (-10 a +10), una puntuación de importancia, un matiz de uso y una categoría psicológica. No es una simple base de datos — es un perfil que comprende lo que te conmueve, lo que te motiva, lo que te duele.
 
 Aún hace falta que esos recuerdos lleguen. Una memoria solo vale por lo que capta realmente, y el silencio es ahí el peor de los fallos: nada señala un recuerdo que nunca llegó a formarse. Por eso LIA cuenta cada una de sus decisiones de memorización — retenido, ignorado, desactivado — para que la distancia entre lo que debería retener y lo que retiene sea visible en lugar de supuesta. Lo que le confía de pasada al pedir una acción cuenta tanto como una confidencia, lo que escribe desde una mensajería cuenta tanto como desde el navegador, y lo que el sistema se dice a sí mismo no cuenta nunca.
+
+Y no se queda en lo que evoca tu mensaje: cuando surge por el camino un nombre o un tema — el remitente de un correo, un lugar en un documento —, lo busca en su memoria; también por teléfono recupera lo que responde a tu pregunta y no sus últimos recuerdos.
 
 ### 7.2. El Psyche Engine: una personalidad viva
 
@@ -432,6 +438,8 @@ De esta estratificación emerge un **retrato de usuario compilado**: tu voz, tu 
 Ese retrato no lee solo los cuadernos: tus recuerdos, tus intereses, tus hábitos aprendidos y tus debriefs de relación entran en él como materia, cada uno bajo su propio interruptor — el tuyo y el del administrador. Y te dice de dónde viene: bajo el retrato, una línea nombra lo que se leyó, lo que estaba vacío, lo que estaba apagado. Una fuente que no responde se nombra, nunca se lee como vacía.
 
 Es una forma de introspección artificial — el asistente que reflexiona sobre sus interacciones, mide su propia utilidad y desarrolla una comprensión matizada de ti. Mantienes el control total: lectura por tema o por nivel, edición, señalización de un problema en el retrato, activación de una consolidación bajo demanda. El retrato mismo nunca se edita directamente — es una voz de síntesis, corregida mediante palancas indirectas para preservar su coherencia.
+
+También busca en ellos cuando surge un tema — sus directrices, sus patrones, las facetas de tu retrato, nunca sus observaciones en bruto aún no verificadas.
 
 ### 7.4. La seguridad emocional
 
@@ -476,6 +484,8 @@ El sistema de respuesta dispone de un mecanismo anti-alucinación en tres capas:
 
 Un fallo, por su parte, se **dice, nunca se adivina**: cuando un servicio falla, LIA dice cuál y qué respondió, en lugar de inventar un problema de configuración — medido antes de la corrección, una respuesta de cada tres lo hacía en los turnos donde una herramienta había fallado. Y en modo autónomo, una respuesta se juzga por su resultado: lo que LIA se propuso obtener termina obtenido, o declarado al final de la respuesta con lo que intentó; un dato que vino de otra fuente lleva esa fuente.
 
+Lo que debe ser exacto se **calcula, nunca se estima**: un cálculo, una duración entre dos fechas, una conversión de divisas pasan por herramientas — decimal exacto, instantes reales, el tipo del Banco Central Europeo con su fecha —, en ambos modos, y un resultado redondeado lo dice.
+
 ### 8.4. Human-in-the-Loop en 6 niveles
 
 LIA no rechaza las acciones sensibles — te las **presenta** con el nivel de detalle adecuado: aprobación de plan, clarificación, revisión de borrador, confirmación destructiva, confirmación de operaciones masivas, revisión de modificaciones. Cada aprobación alimenta el aprendizaje — el sistema se acelera con el tiempo. Y la promesa se cumple al pie de la letra: lo que apruebas — tras una, dos o diez retoques — es **exactamente** lo que se ejecuta, nunca una versión regenerada a escondidas. Y cuando una petición prepara varios borradores, se te presentan uno a uno, cada uno en su tarjeta, sin ejecutar nada antes de tu última respuesta, y el informe dice a quién y qué — solo una operación en masa que aprobaste como lista conserva una confirmación única.
@@ -504,7 +514,7 @@ LIA no pide que se la crea bajo palabra. Los marcos que sigue están escritos po
 
 ### 9.1. Lo que exige la regulación
 
-**La privacidad se diseña en la arquitectura; no se certifica con un eslogan.** Los datos de tu cuenta residen en la base de datos de la instancia LIA que usas; si la autoalojas, controlas ese servidor. Puedes exportarlos o solicitar su eliminación; los secretos no se exportan deliberadamente. Las credenciales están cifradas, las sesiones aisladas y los datos personales se filtran de los registros. Cumplir todas las obligaciones del RGPD en una instalación concreta también depende de cómo se opere y de los proveedores elegidos.
+**La privacidad se diseña en la arquitectura; no se certifica con un eslogan.** Los datos de tu cuenta residen en la base de datos de la instancia LIA que usas; si la autoalojas, controlas ese servidor. Puedes exportarlos o solicitar su eliminación; los secretos no se exportan deliberadamente. Las credenciales están cifradas, las sesiones aisladas, y los registros técnicos del servidor solo guardan hechos — cifras, códigos, identificadores —, nunca tus palabras: una prueba lee cada línea de registro del código para garantizarlo. Cumplir todas las obligaciones del RGPD en una instalación concreta también depende de cómo se opere y de los proveedores elegidos.
 
 **LIA guarda registros incluso cuando la ley no los exige para este uso personal.** El artículo 12 del Reglamento europeo de IA se dirige a los sistemas de alto riesgo. Los registros de acciones, consultas, decisiones, parámetros del modelo y lagunas son una elección de transparencia, no una certificación. Se pueden exportar y se eliminan con la cuenta, dentro de los límites documentados de cada registro.
 

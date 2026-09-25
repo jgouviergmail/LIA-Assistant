@@ -164,7 +164,7 @@ async def generate_interest_embedding(text: str) -> list[float] | None:
     except Exception as e:
         logger.warning(
             "interest_embedding_generation_failed",
-            text_preview=text[:50] if text else "empty",
+            text_length=len(text) if text else 0,
             error=str(e),
             error_type=type(e).__name__,
         )

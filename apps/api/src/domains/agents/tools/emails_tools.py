@@ -41,34 +41,30 @@ from src.core.constants import (
     GMAIL_INBOX_ONLY_KEYWORDS,
     GMAIL_TRASH_KEYWORDS,
 )
-from src.core.i18n import get_language_name
 from src.core.i18n_api_messages import APIMessages, SupportedLanguage
 from src.core.validators import validate_email
 from src.domains.agents.constants import AGENT_EMAIL, CONTEXT_DOMAIN_EMAILS
 from src.domains.agents.context import ContextTypeDefinition, ContextTypeRegistry
 from src.domains.agents.context.runtime_context import (
     LiaRuntimeContext,
-    tool_runtime_context,
     tool_user_id_str,
 )
 from src.domains.agents.context.schemas import ContextSaveMode
+from src.domains.agents.emails.content_generation import resolve_email_content
 from src.domains.agents.emails.detail_levels import (
     DEFAULT_DETAIL,
     EmailDetail,
     apply_detail_level,
     coerce_detail,
 )
-from src.domains.agents.prompts import load_prompt
 from src.domains.agents.tools.base import ConnectorTool
 from src.domains.agents.tools.decorators import connector_tool
 from src.domains.agents.tools.exceptions import (
-    ContentGenerationError,
     EmailValidationError,
 )
 from src.domains.agents.tools.mixins import ToolOutputMixin
 from src.domains.agents.tools.output import StandardToolOutput, UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import (
-    get_original_user_message,
     get_user_preferences,
     parse_user_id,
     resolve_recipients_to_emails,
@@ -76,8 +72,6 @@ from src.domains.agents.tools.runtime_helpers import (
 from src.domains.agents.tools.validation_helpers import validate_positive_int_or_default
 from src.domains.connectors.clients.google_gmail_client import GoogleGmailClient
 from src.domains.connectors.models import ConnectorType
-from src.infrastructure.llm import get_llm
-from src.infrastructure.llm.message_text import coerce_content_to_text
 
 logger = structlog.get_logger(__name__)
 
@@ -1060,182 +1054,8 @@ class SendEmailDraftTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
         )
 
 
-# ============================================================================
-# LEGACY: Direct Send (for backward compatibility during transition)
-# ============================================================================
-
-
-class SendEmailDirectTool(ConnectorTool[GoogleGmailClient]):
-    """
-    Send email tool that executes immediately (no HITL).
-
-    WARNING: This tool sends emails WITHOUT user confirmation.
-    Use SendEmailDraftTool instead for production.
-
-    This class is kept for:
-    1. Backward compatibility during LOT 5.4 migration
-    2. execute_fn in DraftCritiqueInteraction (actual send after confirm)
-    3. Testing/debugging without HITL flow
-
-    For normal use, prefer SendEmailDraftTool which creates a draft
-    and requires user confirmation before sending.
-    """
-
-    connector_type = ConnectorType.GOOGLE_GMAIL
-    client_class = GoogleGmailClient
-    functional_category = "email"
-
-    def __init__(self) -> None:
-        """Initialize direct send email tool."""
-        super().__init__(tool_name="send_email_direct_tool", operation="send")
-
-    async def execute_api_call(
-        self,
-        client: GoogleGmailClient,
-        user_id: UUID,
-        **kwargs: Any,
-    ) -> dict[str, Any]:
-        """Execute send email API call - business logic only."""
-        to: str = kwargs["to"]
-        subject: str = kwargs["subject"]
-        body: str = kwargs["body"]
-        cc: str | None = kwargs.get("cc")
-        bcc: str | None = kwargs.get("bcc")
-        is_html: bool = kwargs.get("is_html", False)
-
-        # Centralized validation (DRY)
-        _validate_send_email_inputs(to, subject, body, cc, bcc)
-
-        # Send email
-        result = await client.send_email(
-            to=to,
-            subject=subject,
-            body=body,
-            cc=cc,
-            bcc=bcc,
-            is_html=is_html,
-        )
-
-        logger.info(
-            "gmail_email_sent_via_tool",
-            user_id=str(user_id),
-            message_id=result.get("id"),
-        )
-
-        return {
-            "success": True,
-            "message_id": result.get("id"),
-            "thread_id": result.get("threadId"),
-            "to": to,
-            "subject": subject,
-            "message": APIMessages.email_sent_successfully(to),
-        }
-
-
 # Create tool instance (singleton)
 _send_email_draft_tool_instance = SendEmailDraftTool()
-
-
-# ============================================================================
-# CONTENT GENERATION HELPER
-# ============================================================================
-
-
-async def _generate_email_content(
-    instruction: str,
-    recipient: str,
-    user_language: str = settings.default_language,
-    existing_body: str | None = None,
-    config: Any = None,
-    user_id: str | None = None,
-    sender_name: str | None = None,
-) -> dict[str, str]:
-    """
-    Generate email subject and/or body from a creative instruction using LLM.
-
-    Optimized: When existing_body is provided, only generates the subject
-    using a specialized prompt for better efficiency and accuracy.
-
-    Args:
-        instruction: Creative instruction (e.g., "poème d'amour humoristique sur Excel")
-        recipient: Email recipient for context
-        user_language: Target language for generated content
-        existing_body: If provided, only generate subject (body already exists)
-        config: Optional RunnableConfig with TokenTrackingCallback for billing tracking
-        user_id: User UUID string for psyche context injection
-        sender_name: The user's (sender's) first name so explicitly requested
-            signatures use the real name instead of a placeholder (None = unknown)
-
-    Returns:
-        Dict with 'subject' key (always) and 'body' key (only if generated)
-
-    Raises:
-        ContentGenerationError: If generation fails or returns invalid format
-    """
-    from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
-
-    # Convert language code to human-readable name for LLM comprehension
-    language_name = get_language_name(user_language)
-
-    # Choose appropriate prompt based on what needs to be generated
-    if existing_body:
-        # Subject-only mode: more efficient, uses existing body for context
-        prompt = load_prompt("email_subject_generation_prompt").format(
-            instruction=instruction,
-            recipient=recipient,
-            body=existing_body,
-            user_language=language_name,
-        )
-        required_fields = ["subject"]
-        logger.debug(
-            "email_content_generation_mode",
-            mode="subject_only",
-            body_length=len(existing_body),
-        )
-    else:
-        # Full generation mode: generate both subject and body
-        prompt = load_prompt("email_content_generation_prompt").format(
-            instruction=instruction,
-            recipient=recipient,
-            sender_name=sender_name or "unknown",
-            user_language=language_name,
-        )
-        required_fields = ["subject", "body"]
-        logger.debug("email_content_generation_mode", mode="full")
-
-    llm = get_llm("email_agent")
-
-    # Enrich config with node metadata for token tracking
-    enriched_config = (
-        enrich_config_with_node_metadata(config, "email_content_generation") if config else None
-    )
-
-    result = await llm.ainvoke(prompt, config=enriched_config)
-
-    # Extract content. Gemini 3.x returns content as list[dict] blocks; coerce to
-    # text so .strip()/.startswith()/json.loads below stay str-safe.
-    content = coerce_content_to_text(result.content) if hasattr(result, "content") else str(result)
-    content = content.strip()
-
-    # Clean potential markdown code blocks
-    if content.startswith("```"):
-        lines = content.split("\n")
-        content = "\n".join(lines[1:-1]) if len(lines) > 2 else content
-
-    # Parse JSON
-    try:
-        parsed = json.loads(content)
-        for field in required_fields:
-            if field not in parsed:
-                raise ContentGenerationError(f"Missing '{field}' in LLM response")
-        # Return only the fields that were generated
-        result_dict = {"subject": parsed["subject"]}
-        if "body" in parsed:
-            result_dict["body"] = parsed["body"]
-        return result_dict
-    except json.JSONDecodeError as e:
-        logger.error("email_content_parse_error", content=content[:200], error=str(e))
-        raise ContentGenerationError(f"Invalid JSON from LLM: {e}") from e
 
 
 @connector_tool(
@@ -1265,7 +1085,9 @@ async def send_email_tool(
     Send an email via Gmail (with user confirmation).
 
     IMPORTANT: This tool creates a DRAFT that requires user confirmation.
-    The email is NOT sent until the user confirms via HITL.
+    The email is NOT sent until the user confirms via HITL. An e-mail to the
+    user THEMSELVES goes through ``send_email_to_me_tool`` instead: no draft,
+    and it runs in a routine (ADR-314).
 
     Data Registry LOT 5.4: Write operations with Draft/Critique/Execute flow.
 
@@ -1291,132 +1113,22 @@ async def send_email_tool(
         "Brouillon créé: Email à jean@example.com: Confirmation RDV [draft_abc123]
          Action requise: confirmez, modifiez ou annulez."
     """
-    # Get user language from runtime config (default: settings.default_language)
-    user_language: SupportedLanguage = (
-        (
-            tool_runtime_context(runtime).language
-            if tool_runtime_context(runtime) is not None
-            else settings.default_language
-        )
-        if runtime and runtime.config
-        else settings.default_language
+    content = await resolve_email_content(
+        runtime=runtime,
+        recipient=to,
+        subject=subject,
+        body=body,
+        content_instruction=content_instruction,
     )
-
-    # Determine effective content instruction:
-    # 1. Use explicit content_instruction if provided
-    # 2. Fallback to original user message if subject OR body is missing (not just when ALL missing)
-    #    This handles cases like "send an email to X saying I am happy" where
-    #    the planner provides body but not subject
-    effective_content_instruction = content_instruction
-
-    # DEBUG: Log parameters received to diagnose content resolution
-    logger.debug(
-        "send_email_parameters_debug",
-        to=to,
-        subject_provided=bool(subject),
-        subject_value=subject[:50] if subject else None,
-        body_provided=bool(body),
-        body_value=body[:50] if body else None,
-        content_instruction_provided=bool(content_instruction),
-        content_instruction_value=(content_instruction[:50] if content_instruction else None),
-        runtime_provided=runtime is not None,
-        runtime_config_keys=(list(runtime.config.keys()) if runtime and runtime.config else []),
-        configurable_keys=(
-            list(runtime.config.get("configurable", {}).keys())
-            if runtime and runtime.config
-            else []
-        ),
-    )
-
-    # FIX: Activate fallback when subject OR body is missing (not just when ALL are missing)
-    # This handles the common case where planner provides body but not subject
-    if not content_instruction and (not subject or not body) and runtime:
-        user_message = get_original_user_message(runtime)
-        logger.debug(
-            "send_email_fallback_attempt",
-            user_message_found=bool(user_message),
-            user_message_length=len(user_message) if user_message else 0,
-            user_message_preview=(
-                user_message[:100] if user_message and len(user_message) > 100 else user_message
-            ),
-            missing_subject=not subject,
-            missing_body=not body,
-        )
-        if user_message:
-            effective_content_instruction = user_message
-            logger.info(
-                "email_content_instruction_fallback_to_user_message",
-                user_message_chars=len(user_message),  # counts only (no PII at INFO)
-                will_generate_subject=not subject,
-                will_generate_body=not body,
-            )
-
-    # If content_instruction available (explicit or from user message), generate missing content via LLM
-    # IMPORTANT: Preserve planner-provided values, only generate what's missing
-    final_subject = subject or ""
-    final_body = body or ""
-
-    if effective_content_instruction and (not subject or not body):
-        try:
-            # Optimization: Pass existing body to use subject-only generation prompt
-            # This is more efficient and produces better subjects based on actual body content
-            # Extract user_id from runtime config for psyche context
-            _email_user_id = (
-                (tool_user_id_str(runtime) or "") if runtime and runtime.config else ""
-            ) or None
-            _sender_name = (
-                (
-                    tool_runtime_context(runtime).display_name
-                    if tool_runtime_context(runtime) is not None
-                    else None
-                )
-                if runtime and runtime.config
-                else None
-            )
-            generated = await _generate_email_content(
-                instruction=effective_content_instruction,
-                recipient=to,
-                user_language=user_language,
-                existing_body=body if body and not subject else None,
-                config=(runtime.config if runtime else None),  # Pass config for token tracking
-                user_id=_email_user_id,
-                sender_name=_sender_name,
-            )
-            # Only use generated values for fields that are missing
-            # This preserves planner-provided values (e.g., body) while generating missing ones (e.g., subject)
-            if not subject:
-                final_subject = generated.get("subject", "")
-            if not body:
-                final_body = generated.get("body", "")
-            logger.info(
-                "email_content_generated",
-                instruction=(
-                    effective_content_instruction[:100] if effective_content_instruction else ""
-                ),
-                subject_generated=not subject,
-                body_generated=not body,
-                subject_preview=final_subject[:50] if final_subject else "",
-            )
-        except ContentGenerationError as e:
-            logger.error("email_content_generation_failed", error=str(e))
-            return UnifiedToolOutput.failure(
-                message=APIMessages.content_generation_failed(str(e), user_language),
-                error_code="CONTENT_GENERATION_FAILED",
-            )
-
-    # Validate we have content
-    if not final_subject or not final_body:
-        return UnifiedToolOutput.failure(
-            message=APIMessages.email_content_missing(user_language),
-            error_code="MISSING_CONTENT",
-        )
+    if isinstance(content, UnifiedToolOutput):
+        return content
 
     # Delegate to draft tool instance (Data Registry mode)
     return await _send_email_draft_tool_instance.execute(
         runtime=runtime,
         to=to,
-        subject=final_subject,
-        body=final_body,
+        subject=content.subject,
+        body=content.body,
         cc=cc,
         bcc=bcc,
         is_html=is_html,
@@ -1942,41 +1654,6 @@ class DeleteEmailDraftTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
 
 
 # Direct delete tool for execute_fn callback
-class DeleteEmailDirectTool(ConnectorTool[GoogleGmailClient]):
-    """Delete email that executes immediately (for HITL callback)."""
-
-    connector_type = ConnectorType.GOOGLE_GMAIL
-    client_class = GoogleGmailClient
-    functional_category = "email"
-
-    def __init__(self) -> None:
-        super().__init__(tool_name="delete_email_direct_tool", operation="delete")
-
-    async def execute_api_call(
-        self,
-        client: GoogleGmailClient,
-        user_id: UUID,
-        **kwargs: Any,
-    ) -> dict[str, Any]:
-        """Execute trash email API call - moves to trash (soft delete)."""
-        message_id: str = kwargs["message_id"]
-
-        # Move to trash (soft delete, recoverable for 30 days)
-        await client.trash_email(message_id)
-
-        logger.info(
-            "email_deleted_via_tool",
-            user_id=str(user_id),
-            message_id=message_id,
-        )
-
-        return {
-            "success": True,
-            "message_id": message_id,
-            "message": APIMessages.email_moved_to_trash(),
-        }
-
-
 _delete_email_draft_tool_instance = DeleteEmailDraftTool()
 
 
@@ -2140,11 +1817,9 @@ __all__ = [
     "delete_email_tool",
     # Tool classes (Phase 3.2 / LOT 5.4 architecture)
     "SendEmailDraftTool",
-    "SendEmailDirectTool",
     "ReplyEmailDraftTool",
     "ForwardEmailDraftTool",
     "DeleteEmailDraftTool",
-    "DeleteEmailDirectTool",
     # Draft execution helpers (LOT 5.4)
     "execute_email_draft",
     "execute_email_reply_draft",

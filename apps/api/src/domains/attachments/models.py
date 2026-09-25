@@ -142,6 +142,20 @@ class Attachment(BaseModel):
         comment="Human-meaningful name of a generated file; NULL = use original_filename.",
     )
 
+    # Who handed it over, for an image a connection shared (ADR-316): the
+    # recipient's copy is filed like one they generated, and this line is what
+    # the gallery says about where it came from. A snapshot at share time —
+    # never a source of truth on who that person is (the share ledger is) —
+    # and it lives no longer than the copy.
+    # As wide as ``users.full_name``, the value it snapshots: narrower, a
+    # long-named account's share failed at the INSERT.
+    shared_by_name: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        default=None,
+        comment="Display name of the connection who shared this image (ADR-316); NULL otherwise.",
+    )
+
     # Where it was produced — a POINTER, never a copy, and SET NULL so a
     # deleted conversation leaves the file listed rather than orphaning it.
     conversation_id: Mapped[uuid.UUID | None] = mapped_column(

@@ -36,6 +36,7 @@ apps/api/src/domains/journals/
 ├── extraction_service.py    # Background extraction (ADR-079: previous-turn directives + inner-state section)
 ├── consolidation_service.py # Periodic maintenance + portrait compilation + level promotion (ADR-079)
 ├── context_builder.py       # Prompt injection via semantic relevance (with debug data)
+├── search.py                # The journal LOOKUP door (ADR-318): a subject embedded, L1-L3 above the configured floor
 ├── portrait_builder.py      # Standalone build_journal_user_model_block (ADR-079, symmetric to build_psyche_prompt_block)
 └── embedding.py             # Lazy-initialized GeminiRetrievalEmbeddings singleton (ADR-069)
 ```
@@ -167,12 +168,45 @@ Conversation
 - **Embeddings**: Gemini `gemini-embedding-001` (1536 dims, pgvector HNSW index) — ADR-069
 - **Dual-vector strategy**: every entry has a `content` embedding (title + content) and a `keyword` embedding (search_hints only). Search picks `LEAST(dist_content, dist_keyword)` per row, bridging the gap between the assistant's introspective phrasing and the user's vocabulary.
 - **Search hints**: LLM-generated keywords in user vocabulary, also embedded as a separate vector
-- **Min score prefilter**: `JOURNAL_CONTEXT_MIN_SCORE` (default 0.63) — entries below this threshold are discarded BEFORE being sent to the LLM
+- **Min score prefilter**: entries below the floor are discarded BEFORE being sent to the LLM. The injection's floor is LEARNED per account, inside the bounds its perimeter declares, by the adaptive controller (`threshold_controller.JOURNAL_INJECTION_PERIMETER`, 2026-08-19), starting from `JOURNAL_CONTEXT_MIN_SCORE` (default 0.63); the lookup below keeps the configured value
 - **Level routing (ADR-088)**: the operational chokepoint `build_journal_context` injects **only L1/L2 behavioural directives**. L0 (private feedstock) and L3 (carried by the compiled portrait) are excluded by default via `JOURNAL_OPERATIONAL_INJECTION_EXCLUDE_LEVELS = ["L0", "L3"]`. The repository methods (`search_by_relevance`, `get_recent_for_user`) take an optional `exclude_levels` param whose **default `None` preserves the all-levels view** — extraction and consolidation call the repository directly and still see every level.
 - **Temporal continuity**: `JOURNAL_CONTEXT_RECENT_ENTRIES` most recent entries are always injected regardless of semantic score
-- **Injection tracking**: Each injected entry increments `injection_count` and updates `last_injected_at` (fire-and-forget, non-blocking). These metrics are surfaced back to the LLM at extraction/consolidation as a self-feedback loop (ADR-079).
+- **Injection tracking**: Each injected entry increments `injection_count` and updates `last_injected_at` (fire-and-forget, non-blocking — `track_injected_entries`, shared with the lookup). These metrics are surfaced back to the LLM at extraction/consolidation as a self-feedback loop (ADR-079).
 - **Dual injection**: Journal context is injected into both the **planner** (via `intelligence.original_query`) and the **response** (via `last_user_message`) prompts. Since ADR-088 the **ReAct reasoning loop** also receives L1/L2 directives, injected once at `react_setup` (count-capped by `JOURNAL_REACT_CONTEXT_MAX_ENTRIES`, full entries, no truncation) — closing the cross-mode gap. Deferred self-evaluation stays anchored to `response_node`.
 - **LLM autonomy**: The LLM receives remaining entries WITH their similarity scores and decides which to use based on contextual relevance
+
+### The journal as a lookup (ADR-318)
+
+The injection ranks the journal on the person's MESSAGE, so a subject the turn
+discovers on the way — a project named in an e-mail just read, « what did you
+notice about my week » — reaches no entry. `search_journal_tool` (domain
+`journal`, agent `journal_agent`, registered where `JOURNALS_ENABLED`, both
+execution modes and the phone) looks such a subject up through ONE door,
+`journals/search.py`:
+
+- the subject is embedded with the JOURNAL's own model (`get_journal_embeddings`,
+  the one its entries were indexed with), truncated like a user message, BEFORE
+  any session opens (ADR-304); no vector means « could not look », never
+  « nothing matched »;
+- L0 feedstock is excluded (`JOURNAL_LOOKUP_EXCLUDE_LEVELS`): a lookup reads what
+  LIA concluded — directives, patterns, portrait facets (`kind` in the answer) —
+  never its unripe observations;
+- the floor is the CONFIGURED `JOURNAL_CONTEXT_MIN_SCORE`, never the floor the
+  controller learns for the injection, and the lookup never feeds that
+  controller: the controller throttles per-message injection toward a target
+  rate, a different question. Measured on 17 real entries (2026-09-25): the
+  learned 0.70 kept one of the six entries scoring 0.68-0.705 for « style des
+  réponses », the configured 0.63 kept them all;
+- the entries returned count as injections (`track_injected_entries`) — they
+  reached a prompt, which is what consolidation reads the count as.
+
+Gated at CALL time by the capability (`PlatformCapability.JOURNALS`; the switch
+also hides `journal_agent` from the planner, ADR-280) and by the person's
+preference read from THEIR ROW (`journal_enabled_for`) — a voice lookup runs on a
+synthetic runtime that carries no preference, and its default would read « off »
+for everyone. One embedding call per lookup, recorded in the active
+`TrackingContext`. At most `JOURNAL_SEARCH_MAX_RESULTS` entries, a bound stated
+in the wording the planner's manifest and the ReAct schema share.
 
 ### Configuration
 
@@ -190,7 +224,8 @@ Conversation
 - `JOURNAL_MAX_ENTRY_CHARS` — Default max per entry (default: 800)
 - `JOURNAL_CONTEXT_MAX_RESULTS` — Default max search results (default: 10)
 - `JOURNAL_REACT_CONTEXT_MAX_ENTRIES` — Max L1/L2 directives injected into the ReAct reasoning loop, count cap with no truncation (default: 3; 0 disables, portrait only) — ADR-088
-- `JOURNAL_CONTEXT_MIN_SCORE` — Min cosine similarity for prefiltering (default: 0.63)
+- `JOURNAL_CONTEXT_MIN_SCORE` — Min cosine similarity for prefiltering (default: 0.63): the injection's starting point, the lookup's floor (ADR-318)
+- `JOURNAL_SEARCH_MAX_RESULTS` — Most entries one `search_journal_tool` call returns (default: 10) — ADR-318
 - `JOURNAL_PORTRAIT_FULL_MAX_TOKENS` / `JOURNAL_PORTRAIT_BRIEF_MAX_TOKENS` — the budgets the consolidation prompt STATES for the two portraits (ADR-292; a stated budget, not a clamp — measured overshoot about a third)
 - `JOURNAL_CONSOLIDATION_MEMORIES_MAX` / `…_INTERESTS_MAX` / `…_DEBRIEFS_MAX` — items each portrait source renders (habits are bounded by construction)
 - `JOURNAL_CONSOLIDATION_SOURCE_ITEM_MAX_CHARS` — clamp per rendered item; `JOURNAL_CONSOLIDATION_SOURCES_MAX_CHARS` — cap over the four sections together (a section that does not fit is dropped whole and reported `unavailable`)
@@ -384,3 +419,4 @@ These metrics underpin the dashboards used to verify that stratification is happ
 - [ADR-069: Gemini Embedding Migration](../architecture/ADR-069-Gemini-Embedding-Migration.md) — Dual-vector search
 - [ADR-079: Stratified Journal Consciousness](../architecture/ADR-079-Stratified-Journal-Consciousness.md) — Levels, epistemic status, deferred self-evaluation, portrait diffusion
 - [ADR-088: Journal Restraint + Level-Routed Injection](../architecture/ADR-088-Journal-Restraint-And-Level-Routed-Injection.md) — Restraint-first write discipline, L1/L2-only operational injection, ReAct directive coherence
+- [ADR-318: Exact answers, and LIA's own records, as tools](../architecture/ADR-318-Assistant-Tools-Exact-Answers-And-Own-Records.md) — The journal as a lookup (`search_journal_tool`), on the configured floor

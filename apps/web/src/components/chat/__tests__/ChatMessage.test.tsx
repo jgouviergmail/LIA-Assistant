@@ -88,27 +88,31 @@ describe('ChatMessage — copy to clipboard', () => {
   });
 });
 
-describe('ChatMessage — share/export menu (UX P4)', () => {
-  it('offers the actions menu next to Copy on assistant bubbles', () => {
+describe('ChatMessage — share/export icons (UX P4)', () => {
+  // Two direct icons replaced the « … » menu (2026-09-24): Download is always
+  // there when the bubble has text; Share depends on the platform and on the
+  // connections (ShareResponseActions.test.tsx).
+  it('offers Download next to Copy on assistant bubbles', () => {
     renderMessage(makeMessage({ content: 'Réponse à partager' }));
     const copy = screen.getByRole('button', { name: 'chat.message.copy' });
-    const menu = screen.getByRole('button', { name: 'chat.message.more_actions' });
-    expect(copy.closest('div')!.contains(menu)).toBe(true);
+    const download = screen.getByRole('button', { name: 'chat.message.download_md' });
+    expect(copy.closest('div')!.contains(download)).toBe(true);
   });
 
   it('is not offered on the bubble the user wrote', () => {
     renderMessage(makeMessage({ role: 'user' }), true);
-    expect(screen.queryByRole('button', { name: 'chat.message.more_actions' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'chat.message.download_md' })).toBeNull();
   });
 
   it('is not offered on a system notice', () => {
     renderMessage(makeMessage({ role: 'system', content: 'Session expired' }));
-    expect(screen.queryByRole('button', { name: 'chat.message.more_actions' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'chat.message.download_md' })).toBeNull();
   });
 
   it('is not offered when the bubble has no text to share (image-only answer)', () => {
     renderMessage(makeMessage({ content: '   ' }));
-    expect(screen.queryByRole('button', { name: 'chat.message.more_actions' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'chat.message.download_md' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'chat.message.share' })).toBeNull();
   });
 });
 

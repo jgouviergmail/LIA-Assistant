@@ -133,7 +133,12 @@ classDiagram
 |---------|-------|
 | **Google Contacts** | `search_contacts_tool`, `list_contacts_tool`, `get_contact_details_tool`, `create_contact_tool`, `update_contact_tool`, `delete_contact_tool` |
 | **Context** | `resolve_reference`, `set_current_item`, `get_context_state`, `list_active_domains`, `get_context_list` |
-| **Gmail** | `get_emails_tool` (detail `metadata` \| `summary` \| `full`), `send_email_tool`, `reply_email_tool`, `forward_email_tool`, `delete_email_tool` |
+| **Gmail** | `get_emails_tool` (detail `metadata` \| `summary` \| `full`), `send_email_tool`, `send_email_to_me_tool` (à soi-même, sans confirmation — ADR-314), `reply_email_tool`, `forward_email_tool`, `delete_email_tool` |
+| **Memory** | `search_memories_tool` (lecture seule, domaine `memory` — ADR-313) |
+| **Calculation** | `calculate_tool`, `date_time_tool`, `convert_currency_tool` (lecture seule, sans donnée personnelle, domaine `calculation` — ADR-318) |
+| **Journal** | `search_journal_tool` (lecture seule, domaine `journal`, enregistré sous `JOURNALS_ENABLED` — ADR-318) |
+| **Activity** | `get_my_activity_tool` (lecture seule, les registres d'ADR-263, domaine `activity` — ADR-318) |
+| **Generated files** | `find_generated_files_tool` (lecture seule, la galerie d'ADR-279, domaine `generated_file` — ADR-318) |
 | **Calendar** | `list_calendars_tool`, `search_events_tool`, `get_event_details_tool`, `create_event_tool`, `update_event_tool`, `delete_event_tool` |
 | **Drive** | `search_files_tool`, `list_files_tool`, `get_file_details_tool` |
 | **Tasks** | `list_tasks_tool`, `get_task_details_tool`, `create_task_tool`, `update_task_tool`, `delete_task_tool`, `complete_task_tool`, `list_task_lists_tool` |

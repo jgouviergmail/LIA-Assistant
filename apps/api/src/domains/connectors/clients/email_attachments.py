@@ -127,7 +127,7 @@ def select_attachment(
     wanted = filename.casefold()
     matches = [a for a in attachments if str(a.get("filename") or "").casefold() == wanted]
     if not matches:
-        raise EmailAttachmentNotFoundError(f"no attachment called {filename!r}")
+        raise EmailAttachmentNotFoundError("no attachment with that file name")
     if len(matches) > 1:
         raise EmailAttachmentAmbiguousError(filename, matches)
     return matches[0]

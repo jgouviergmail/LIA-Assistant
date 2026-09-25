@@ -64,9 +64,7 @@ describe('PeerConnectionsSettings', () => {
       error: null,
     });
     usePeerConnections.mockReturnValue(hookState());
-    const { container } = renderWithProviders(
-      <PeerConnectionsSettings lng="fr" />
-    );
+    const { container } = renderWithProviders(<PeerConnectionsSettings lng="fr" />);
     expect(container).toBeEmptyDOMElement();
     expect(usePeerConnections).toHaveBeenCalledWith(false);
   });

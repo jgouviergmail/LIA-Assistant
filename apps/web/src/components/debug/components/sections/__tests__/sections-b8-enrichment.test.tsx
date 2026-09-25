@@ -171,6 +171,35 @@ describe('a model call says what was sent and what came back', () => {
     expect(screen.getByText('router_classification')).toBeInTheDocument();
   });
 
+  it('names the configured model, and the one the provider served it under', () => {
+    // Measured on dev 2026-09-24: a slot configured on a retired alias was
+    // shown under the provider's current name, a model nobody configured.
+    open(
+      ['llm'],
+      <LLMCallsSection
+        calls={[call({ model_name: 'deepseek-flash', requested_model: 'deepseek-v4-flash' })]}
+        summary={SUMMARY}
+      />
+    );
+
+    expect(screen.getByText('deepseek-v4-flash')).toBeInTheDocument();
+    expect(screen.getByText('Served as:')).toBeInTheDocument();
+    expect(screen.getByText('deepseek-flash')).toBeInTheDocument();
+  });
+
+  it('names one model when the provider answered under the configured name', () => {
+    open(
+      ['llm'],
+      <LLMCallsSection
+        calls={[call({ model_name: 'qwen3.5-plus', requested_model: 'qwen3.5-plus' })]}
+        summary={SUMMARY}
+      />
+    );
+
+    expect(screen.getByText('qwen3.5-plus')).toBeInTheDocument();
+    expect(screen.queryByText('Served as:')).not.toBeInTheDocument();
+  });
+
   it('lists the parameters that were actually observed', () => {
     open(
       ['llm'],

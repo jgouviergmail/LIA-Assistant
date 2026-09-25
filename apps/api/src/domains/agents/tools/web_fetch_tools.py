@@ -86,6 +86,7 @@ from src.domains.agents.web_fetch.url_validator import validate_resolved_url, va
 from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.cache.web_search_cache import WebSearchCache
 from src.infrastructure.observability.decorators import track_tool_metrics
+from src.infrastructure.observability.log_facts import url_host
 from src.infrastructure.observability.metrics_agents import (
     agent_tool_duration_seconds,
     agent_tool_invocations,
@@ -341,7 +342,7 @@ async def fetch_web_page_tool(
             if cache_result.from_cache and cache_result.data:
                 logger.info(
                     "web_fetch_from_cache",
-                    url=url[:50],
+                    url_host=url_host(url),
                     user_id=user_id_str[:8],
                     cache_age_seconds=cache_result.cache_age_seconds,
                 )
@@ -402,8 +403,8 @@ async def fetch_web_page_tool(
                     if not is_safe:
                         logger.warning(
                             "ssrf_redirect_blocked",
-                            original_url=safe_url,
-                            redirect_url=final_url,
+                            original_host=url_host(safe_url),
+                            redirect_host=url_host(final_url),
                             user_id=user_id_str[:8],
                         )
                         return UnifiedToolOutput.failure(
@@ -481,7 +482,7 @@ async def fetch_web_page_tool(
     try:
         title, markdown_content = _html_to_markdown(html, extract_mode)
     except Exception as e:
-        logger.warning("html_extraction_error", error=str(e), url=safe_url)
+        logger.warning("html_extraction_error", error=str(e), url_host=url_host(safe_url))
         return UnifiedToolOutput.failure(
             message="Failed to extract content from page",
             error_code="INVALID_RESPONSE_FORMAT",
@@ -540,8 +541,7 @@ async def fetch_web_page_tool(
 
     logger.info(
         "web_fetch_success",
-        url=safe_url,
-        title=title[:80],
+        url_host=url_host(safe_url),
         word_count=word_count,
         extract_mode=extract_mode,
         was_truncated=was_truncated,

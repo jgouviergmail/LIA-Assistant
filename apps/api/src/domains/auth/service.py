@@ -45,6 +45,7 @@ from src.domains.auth.schemas import (
 from src.domains.users.models import User
 from src.infrastructure.cache.redis import SessionService, get_redis_session
 from src.infrastructure.cache.session_store import SessionStore
+from src.infrastructure.observability.log_facts import log_unreadable_text
 
 logger = structlog.get_logger(__name__)
 
@@ -553,10 +554,12 @@ class AuthService:
                     )
 
                     oauth_provider_errors_total.labels(provider="google", endpoint="userinfo").inc()
-                logger.error(
+                log_unreadable_text(
+                    logger,
                     "google_userinfo_api_failed",
+                    userinfo_response.text,
+                    level="error",
                     status_code=userinfo_response.status_code,
-                    response=userinfo_response.text,
                 )
                 raise_invalid_input(
                     "Failed to get user info from Google",
@@ -718,7 +721,7 @@ class AuthService:
         if user.is_deleted:
             raise GoogleSignInRefusedError("account_deleted")
 
-        proves_address = not user.is_verified
+        address_proven = not user.is_verified
         updates: dict[str, Any] = {
             "oauth_provider": "google",
             "oauth_provider_id": google_id,
@@ -726,11 +729,11 @@ class AuthService:
             "is_verified": True,
             "last_login": datetime.now(UTC),
         }
-        if proves_address:
+        if address_proven:
             updates["hashed_password"] = None
         await self.repository.update(user, updates)
 
-        if proves_address:
+        if address_proven:
             redis = await get_redis_session()
             await SessionStore(redis).delete_all_user_sessions(str(user.id))
 
@@ -739,11 +742,11 @@ class AuthService:
             "oauth_linked_to_existing_account",
             user_id=str(user.id),
             provider="google",
-            proved_address=proves_address,
+            address_proven=address_proven,
             is_active=user.is_active,
         )
 
-        if proves_address and not user.is_active:
+        if address_proven and not user.is_active:
             await self._notify_admins_of_new_registration(
                 user_email=user.email,
                 user_name=user.full_name,

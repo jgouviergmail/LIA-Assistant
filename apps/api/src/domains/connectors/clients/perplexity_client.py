@@ -188,7 +188,7 @@ class PerplexityClient(BaseAPIKeyClient):
         logger.info(
             "perplexity_search_completed",
             user_id=str(self.user_id) if self.user_id else None,
-            query_preview=query[:50] if len(query) > 50 else query,
+            query_length=len(query),
             answer_length=len(answer),
             citations_count=len(citations),
         )
@@ -269,7 +269,7 @@ class PerplexityClient(BaseAPIKeyClient):
         logger.info(
             "perplexity_ask_completed",
             user_id=str(self.user_id) if self.user_id else None,
-            question_preview=question[:50] if len(question) > 50 else question,
+            question_length=len(question),
         )
 
         return {

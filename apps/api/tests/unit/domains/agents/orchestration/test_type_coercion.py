@@ -229,15 +229,15 @@ class TestCoerceStringToListLogging:
             assert call_kwargs["pattern"] == "single_value"
             assert call_kwargs["items_count"] == 1
 
-    def test_logs_truncated_original_value(self):
-        """Test that long original values are truncated in logs."""
+    def test_logs_the_length_never_the_value(self):
+        """The coerced value is the plan's data: the INFO line carries its length alone."""
         with patch("src.domains.agents.orchestration.type_coercion.logger") as mock_logger:
             long_value = "x" * 150
             coerce_string_to_list(long_value)
 
             call_kwargs = mock_logger.info.call_args[1]
-            # Should be truncated to 100 chars
-            assert len(call_kwargs["original_value"]) == 100
+            assert call_kwargs["original_length"] == 150
+            assert "original_value" not in call_kwargs
 
     def test_does_not_log_for_empty_string(self):
         """Test that empty strings don't trigger logging."""

@@ -294,7 +294,6 @@ class RAGDriveSyncService:
             source_id=str(source.id),
             space_id=str(space_id),
             folder_id=folder_id,
-            folder_name=folder_name,
         )
         return source
 

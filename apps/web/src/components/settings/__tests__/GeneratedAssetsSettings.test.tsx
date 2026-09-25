@@ -53,10 +53,12 @@ const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), info: vi.fn(
 vi.mock('sonner', () => ({ toast }));
 
 // The fourth tab (ADR-282) follows the instance flag; its list has its own suite.
-const config = vi.hoisted(() => ({ bookmarks: false }));
+const config = vi.hoisted(() => ({ bookmarks: false, peers: false }));
 vi.mock('@/hooks/useAppConfig', () => ({
   useAppConfig: () => ({
-    config: { features: { bookmarks_enabled: config.bookmarks } },
+    config: {
+      features: { bookmarks_enabled: config.bookmarks, peers_enabled: config.peers },
+    },
     loading: false,
     error: null,
   }),
@@ -86,6 +88,7 @@ function asset(over: Partial<GeneratedAsset> = {}): GeneratedAsset {
     conversation_id: null,
     created_at: '2026-09-10T08:00:00Z',
     expires_at: '2026-09-11T08:00:00Z',
+    shared_by_name: null,
     ...over,
   };
 }
@@ -94,6 +97,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   media.wide = true;
   config.bookmarks = false;
+  config.peers = false;
   navigation.search = '';
   bookmarkList.mounted = 0;
   gallery.items = [];
@@ -109,9 +113,7 @@ describe('the three galleries', () => {
     renderWithProviders(<GeneratedAssetsSettings lng="fr" />);
 
     for (const family of ['images', 'documents', 'screenshots']) {
-      expect(
-        screen.getByRole('tab', { name: new RegExp(`family.${family}`) })
-      ).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: new RegExp(`family.${family}`) })).toBeInTheDocument();
     }
   });
 
@@ -274,6 +276,33 @@ describe('on a phone', () => {
     renderWithProviders(<GeneratedAssetsSettings lng="fr" />);
 
     expect(screen.getByLabelText(/filters.search/)).toBeInTheDocument();
+  });
+});
+
+describe('an image shared with a connection (ADR-316)', () => {
+  it('says who shared a received copy', () => {
+    gallery.items = [asset({ shared_by_name: 'Gérard Dupont' })];
+    gallery.total = 1;
+    renderWithProviders(<GeneratedAssetsSettings lng="en" />);
+
+    expect(screen.getByTestId('generated-asset-shared-by')).toBeInTheDocument();
+  });
+
+  it('offers the share action only where the instance offers connections', () => {
+    gallery.items = [asset()];
+    gallery.total = 1;
+    config.peers = false;
+    const { unmount } = renderWithProviders(<GeneratedAssetsSettings lng="en" />);
+    expect(
+      screen.queryByRole('button', { name: 'settings.generated_assets.share' })
+    ).not.toBeInTheDocument();
+    unmount();
+
+    config.peers = true;
+    renderWithProviders(<GeneratedAssetsSettings lng="en" />);
+    expect(
+      screen.getByRole('button', { name: 'settings.generated_assets.share' })
+    ).toBeInTheDocument();
   });
 });
 

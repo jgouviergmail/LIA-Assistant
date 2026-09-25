@@ -179,7 +179,6 @@ class MemoryService:
             user_id=str(user_id),
             memory_id=str(created.id),
             category=category,
-            content_preview=content[:50],
             char_count=char_count,
             has_embedding=embedding is not None,
         )

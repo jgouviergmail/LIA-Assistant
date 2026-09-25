@@ -28,6 +28,7 @@ from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, REDIS_KEY_BROWSER_SESSION_PREFIX
 from src.infrastructure.browser.models import BrowserSessionInfo
 from src.infrastructure.browser.security import BrowserSecurityPolicy
+from src.infrastructure.observability.log_facts import url_host
 from src.infrastructure.observability.metrics_browser import (
     browser_memory_bytes,
     browser_sessions_active,
@@ -224,13 +225,13 @@ class BrowserPool:
                     logger.info(
                         "browser_session_recovered",
                         user_id=user_id[:8],
-                        url=recovery_url[:100],
+                        url_host=url_host(recovery_url),
                     )
                 except Exception as e:
                     logger.warning(
                         "browser_session_recovery_failed",
                         user_id=user_id[:8],
-                        url=recovery_url[:100],
+                        url_host=url_host(recovery_url),
                         error=str(e),
                     )
 

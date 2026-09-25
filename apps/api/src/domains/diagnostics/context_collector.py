@@ -85,8 +85,8 @@ _COMMIT_CHARS = 12
 
 
 def _clean(value: object, limit: int = DIAGNOSTICS_CONTEXT_FIELD_MAX_CHARS) -> str:
-    """Bounded, sanitised text of any field value."""
-    return sanitize_string(str(value))[:limit]
+    """Bounded, sanitised text of any field value — what it quotes of a row withheld."""
+    return sanitize_string(str(value), redact_content=True)[:limit]
 
 
 def _runtime_block(window_minutes: int) -> dict[str, object]:

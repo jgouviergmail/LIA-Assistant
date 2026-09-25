@@ -3,11 +3,14 @@
 ## Can LIA actually calculate, or does it estimate like other AIs?
 It can calculate. Since v1.37 (ADR-249), when a question needs real computation — adding up many durations, matching two lists against each other, converting times across timezones, deduplicating entries — LIA writes a few lines of Python and **runs them**, then answers from the result. A language model asked the same question answers plausibly and gives you no way to see that it is wrong; a script gives an answer you could check yourself.
 
+## Does LIA need a script for everyday calculations?
+No. A percentage, a sum, the days until a date, a duration across a clock change or a currency conversion are handled by **dedicated tools**, in both the pipeline and the ReAct mode (ADR-318): the calculation is parsed and evaluated in exact decimal — never executed as code — and says when a result had to be rounded; a duration is counted between absolute instants, so a night with a clock change lasts 23 or 25 hours; a conversion uses the European Central Bank reference rate and gives its date. Working days are Monday to Friday, public holidays not deducted — the answer says so. The sandboxed script described below is for what no tool covers.
+
 ## When does LIA use a script instead of just answering?
 The assistant decides, and it is told explicitly not to reach for a script when it can answer directly: a simple lookup, a two-number sum, or a question about text does not need one. Scripts are for arithmetic over many rows, joins by key, timezone-aware durations, sorting or deduplication — cases where a model's fluency is exactly the problem. Most conversations never trigger one.
 
 ## Which mode does this work in?
-The **autonomous (ReAct)** mode only. The deterministic pipeline mode does not offer the tool at all — it plans its steps in advance, and it already has skills and plugins for structured work. Switch modes from the chat header; the choice is saved per user.
+Scripts run in the **autonomous (ReAct)** mode only — the calculation, date and currency tools above work in both modes. The deterministic pipeline mode does not offer the script tool at all — it plans its steps in advance, and it already has skills and plugins for structured work. Switch modes from the chat header; the choice is saved per user.
 
 ## What can a sandboxed script reach?
 Nothing you would not want it to. Each run starts a **throwaway container** with no database access, no Docker socket, a read-only root filesystem apart from a temporary directory, an unprivileged account and every Linux capability dropped. A script that declares no host has **no network at all**; a script that declares hosts reaches them — and nothing else — through one dedicated proxy (see below). The only data a script sees is what the current turn already collected and passed to it, and the container is discarded when the run ends. It is the same sandbox LIA uses for user-installed skills, which was built and hardened for exactly this threat.

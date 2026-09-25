@@ -85,6 +85,18 @@ class TestSearchingAndNarrowing:
         )
         assert "attachments.expires_at <=" in sql
 
+    def test_what_can_still_be_opened_excludes_the_deadline(self) -> None:
+        sql = _sql(
+            GalleryFilters(origin=AttachmentOrigin.GENERATED_IMAGE, expires_after=datetime.now(UTC))
+        )
+        assert "attachments.expires_at >" in sql
+        assert "attachments.expires_at >=" not in sql
+
+    def test_the_gallery_itself_keeps_every_row(self) -> None:
+        sql = _sql(GalleryFilters(origin=AttachmentOrigin.GENERATED_IMAGE))
+        assert "attachments.expires_at >" not in sql
+        assert "attachments.expires_at <=" not in sql
+
 
 class TestASearchNeedleIsDataNeverAPattern:
     def test_an_underscore_does_not_match_everything(self) -> None:

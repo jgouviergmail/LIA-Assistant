@@ -127,10 +127,8 @@ class TestAnUnreadableReferenceIsRefused:
 
     @pytest.mark.parametrize("ref", ["demain", "mañana", "morgen", "gibberish", "next month"])
     def test_an_unreadable_reference_raises(self, ref: str) -> None:
-        from src.domains.agents.tools.weather_dates import (
-            UnreadableDateError,
-            calculate_target_date,
-        )
+        from src.core.date_contract import UnreadableDateError
+        from src.domains.agents.tools.weather_dates import calculate_target_date
 
         with pytest.raises(UnreadableDateError) as caught:
             calculate_target_date(ref, TEST_TIMEZONE)

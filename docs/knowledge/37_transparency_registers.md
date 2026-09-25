@@ -70,3 +70,6 @@ Sealing runs shortly after the fact rather than instantly — the delay is publi
 Because an assistant that acts for you should be able to say what it did, and what it looked at to do it. [Article 12 of the European AI Act](https://eur-lex.europa.eu/eli/reg/2024/1689/oj) sets record-keeping requirements for high-risk AI systems; it does not automatically classify this personal assistant as high-risk. LIA's records are a deliberate transparency measure, not a certification or a claim that every Article 12 obligation applies to every installation.
 
 LIA keeps five records in total. Three of them — actions, consultations and turns — are made for you to read. The other two are technical: the parameters actually sent to each model, and the gaps in the record. All five can be extracted into a single file — by an administrator across accounts, and by you for your own.
+
+## Can I just ask LIA what it did?
+Yes. Ask "*what did you do for me this week?*": LIA reads the same registers and answers with **exact totals** — what it did, what it consulted, and what it did on its own initiative, with the same authorship filter as the tabs — rather than from the memory of a conversation.

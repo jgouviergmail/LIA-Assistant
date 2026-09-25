@@ -108,6 +108,7 @@ _TWO_SIDED: dict[str, tuple[str, str]] = {
     # table → (side_a_column, side_b_column)
     "peer_connections": ("user_a_id", "user_b_id"),
     "peer_messages": ("sender_id", "recipient_id"),
+    "peer_image_shares": ("sender_id", "recipient_id"),
     "peer_access_log": ("accessor_id", "owner_id"),
     # A ticket is on the archive of whoever OWNS it and of whoever HOLDS it:
     # the board of user U is « owner = U or assignee = U », and an archive

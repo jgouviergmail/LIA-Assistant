@@ -260,16 +260,16 @@ The assistant **reasons step by step**: it calls a tool, analyzes the result, th
 
 ## How do I copy a message or code, and are math formulas rendered correctly?
 
-Since v1.16.9, the chat has several useful finishing touches:
+The chat has several useful finishing touches:
 
 **📋 Copy button on messages and code**
 - Hover over a LIA reply or a code block → a "Copy" button appears
 - Text is copied as-is to your clipboard, with visual confirmation
 
-**📤 Share or export an answer**
-- A "…" menu sits next to the Copy button at the bottom of every answer
-- **Share** hands the raw text to your device's share sheet (Messages, Mail, Notes…) — offered only where the browser actually provides one; dismissing the sheet is not an error
-- **Download as Markdown** works everywhere: a dated `.md` file (`lia-YYYY-MM-DD-HH-mm.md`), accents preserved
+**📤 Share or download an answer**
+- Two icons sit next to the Copy button at the bottom of every answer
+- **Download** saves it in one click as a dated Markdown file (`lia-YYYY-MM-DD-HH-mm.md`), accents preserved
+- **Share** hands the raw text to your device's share sheet (Messages, Mail, Notes…) where the browser provides one — dismissing the sheet is not an error. If you have connections, Share opens a menu that lists them as well: picking one fills your message box with a request to relay the answer; you send it, and LIA prepares the message for you to approve, like any message to a connection
 
 **🎨 Syntax highlighting on code**
 - Code blocks ```python, ```typescript, ```json, ```bash, ```sql... are auto-colored (25 languages)

@@ -110,6 +110,16 @@ class ProactiveMessages:
             "it": "Messaggio da un contatto",
             "zh-CN": "来自联系人的消息",
         },
+        # A generated image a connection shared (ADR-316): the recipient's
+        # assistant presents it, the sender named in the body.
+        "peer_image": {
+            "fr": "Image d'un contact",
+            "en": "Image from a contact",
+            "es": "Imagen de un contacto",
+            "de": "Bild von einem Kontakt",
+            "it": "Immagine da un contatto",
+            "zh-CN": "来自联系人的图片",
+        },
         # …and every other connection-lifecycle update (accepted, declined,
         # removed) rides this one.
         "peer_connection": {
@@ -220,6 +230,16 @@ class ProactiveMessages:
         "de": "Deine Nachricht an {name} wurde von ihrem Assistenten übermittelt.",
         "it": "Il tuo messaggio per {name} è stato consegnato dal suo assistente.",
         "zh-CN": "你发给 {name} 的消息已由对方的助手转达。",
+    }
+    # ADR-316: what the recipient's chat says above an image a connection
+    # shared. The sender's optional comment follows it as a literal quote.
+    _PEER_IMAGE_SHARED_BODIES: dict[str, str] = {
+        "fr": "{name} t'a partagé une image.",
+        "en": "{name} shared an image with you.",
+        "es": "{name} ha compartido una imagen contigo.",
+        "de": "{name} hat ein Bild mit dir geteilt.",
+        "it": "{name} ha condiviso un'immagine con te.",
+        "zh-CN": "{name} 与你分享了一张图片。",
     }
     _PEER_MESSAGE_FAILED_BODIES: dict[str, str] = {
         "fr": "Ton message pour {name} n'a pas pu être transmis. Tu peux réessayer plus tard.",
@@ -532,6 +552,21 @@ class ProactiveMessages:
         """
         return ProactiveMessages._peer_template(
             ProactiveMessages._PEER_MESSAGE_DELIVERED_BODIES, language
+        ).format(name=peer_name)
+
+    @staticmethod
+    def peer_image_shared_body(peer_name: str, language: str) -> str:
+        """Recipient line above an image a connection shared (ADR-316).
+
+        Args:
+            peer_name: Sender display name.
+            language: Recipient language.
+
+        Returns:
+            Localized body.
+        """
+        return ProactiveMessages._peer_template(
+            ProactiveMessages._PEER_IMAGE_SHARED_BODIES, language
         ).format(name=peer_name)
 
     @staticmethod

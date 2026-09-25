@@ -1652,6 +1652,41 @@
       "title": "El ritmo de intercambio pertenece a la persona",
       "summary": "Cada persona elige entre intercambios frecuentes y puntuales. Frecuentes: LIA conserva todas sus herramientas y prepara cada turno para que el siguiente lo relea desde la caché, un primer mensaje más costoso y luego otros mucho más baratos. Puntuales: elige las herramientas por relevancia, con un coste estable.",
       "src": "6da70629f513"
+    },
+    "312": {
+      "title": "Una difusión dice a quién iba dirigida",
+      "summary": "Un mensaje enviado a unas cuentas elegidas se mostraba después a todo el mundo en su siguiente inicio de sesión: la lista de destinatarios no se guardaba. Ahora sí, y bajo el formulario el administrador consulta el historial paginado de lo enviado: fecha, destinatarios, plazo de caducidad.",
+      "src": "6f570d9edca6"
+    },
+    "313": {
+      "title": "LIA puede buscar en su memoria",
+      "summary": "Hasta ahora LIA solo recordaba lo que evocaba el mensaje. Ahora puede buscar un tema descubierto por el camino: el remitente de un correo, un lugar, una instrucción dada un día. Por teléfono, esa búsqueda por fin responde a la pregunta hecha en lugar de devolver los últimos recuerdos.",
+      "src": "a92407a4177a"
+    },
+    "314": {
+      "title": "Un correo a uno mismo sale sin confirmación",
+      "summary": "Escribir a tu propio buzón ya no pide validar un borrador, como la llamada telefónica a uno mismo: «cada mañana, envíame el tiempo por correo» puede funcionar como rutina. El destinatario nunca es un parámetro: el buzón conectado o la dirección verificada de la cuenta.",
+      "src": "cf8ee87a0682"
+    },
+    "315": {
+      "title": "Un prompt de imagen puede mejorarse sin ser traicionado",
+      "summary": "Para quien lo activa, un modelo dedicado reescribe la descripción de cada imagen nueva con las técnicas que recomiendan los proveedores: encuadre, luz, objetivo, estilo. Lo que se pide no cambia, el texto que va en la imagen se mantiene palabra por palabra y, ante la menor duda, la petición original se envía tal cual.",
+      "src": "c669a50ebf39"
+    },
+    "316": {
+      "title": "Compartir una imagen generada con una conexión",
+      "summary": "Un clic en una imagen la envía a una conexión, con un comentario si quieres. Llega a sus imágenes, como si la hubiera generado, y a su chat, con el comentario citado tal cual: nunca convertido en un enlace ni en una imagen oculta.",
+      "src": "bb1730b8709d"
+    },
+    "317": {
+      "title": "Los registros guardan hechos, nunca las palabras de una persona",
+      "summary": "Fuera de la depuración, los registros solo guardan cifras, longitudes e identificadores: ni búsquedas, ni intereses, ni nombres de contactos o de archivos. Cuando una base de datos o un servicio cita el dato que rechaza, la cita se elimina antes de escribir la línea. Una prueba lee cada línea de registro del código y rechaza la que escribiría las palabras de una persona.",
+      "src": "abfc2f1d0235"
+    },
+    "318": {
+      "title": "LIA calcula en lugar de estimar, y encuentra lo que ha hecho",
+      "summary": "Un cálculo, una fecha o una conversión de divisas ya no se estiman a ojo: LIA los calcula con exactitud, al tipo de referencia del día, que indica. También puede buscar en su diario un tema descubierto por el camino, decirte lo que ha hecho y consultado en un periodo con totales exactos, y volver a mostrarte un archivo que ha producido mientras siga existiendo.",
+      "src": "deff5cf96b72"
     }
   }
 }

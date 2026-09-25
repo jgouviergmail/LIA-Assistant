@@ -145,7 +145,6 @@ def _build_plan_modifications_from_classifier(
                 run_id=run_id,
                 step_id=step_id,
                 matched_keys=list(matching_keys),
-                new_values=step_modifications,
             )
 
     # Handle unmatched params (params that don't match any step)

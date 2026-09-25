@@ -159,7 +159,8 @@ class TestEveryCapabilityIsReadable:
             for domain in surface.domains.values()
             if domain not in DOMAIN_REGISTRY
         }
-        assert outside == {"interest", "journal"}, (
+        # ``journal`` joined the taxonomy with its lookup tool (ADR-318).
+        assert outside == {"interest"}, (
             f"a consultation domain left the taxonomy without being argued: " f"{sorted(outside)}"
         )
 

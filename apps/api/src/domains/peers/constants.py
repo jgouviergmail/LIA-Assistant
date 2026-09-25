@@ -27,6 +27,11 @@ from src.core.constants import PROACTIVE_MESSAGE_TYPE_PREFIX
 #: ``NotificationDispatcher`` derives the archived metadata ``type`` from it.
 PEER_MESSAGE_TASK_TYPE = "peer_message"
 
+#: Proactive task type of a generated image a connection SHARED (ADR-316): the
+#: recipient's copy lands in their gallery and this notification shows it in
+#: their chat, with the sender's optional comment quoted literally.
+PEER_IMAGE_TASK_TYPE = "peer_image"
+
 #: Proactive task type of every connection-lifecycle notice — accepted,
 #: declined, removed, AND the sender's own delivered/failed delivery notice.
 PEER_CONNECTION_TASK_TYPE = "peer_connection"
@@ -39,6 +44,10 @@ PEER_REQUEST_TASK_TYPE = "peer_request"
 #: a reader may filter on (prefix matching would also catch requests and
 #: lifecycle notices, which are NOT messages from the peer).
 PROACTIVE_PEER_MESSAGE_TYPE = f"{PROACTIVE_MESSAGE_TYPE_PREFIX}{PEER_MESSAGE_TASK_TYPE}"
+
+#: ``message_metadata['type']`` of a shared image, composed the same way. The
+#: chat reads it for the reply and block actions under the bubble.
+PROACTIVE_PEER_IMAGE_TYPE = f"{PROACTIVE_MESSAGE_TYPE_PREFIX}{PEER_IMAGE_TASK_TYPE}"
 
 #: Metadata key: boolean marker written since Lot 7. NO reader depends on it —
 #: what identifies a relayed bubble is ``type``, which cannot be imitated by
@@ -69,6 +78,7 @@ PEER_MESSAGE_DIRECTION_SENT = "sent"
 
 __all__ = [
     "PEER_CONNECTION_TASK_TYPE",
+    "PEER_IMAGE_TASK_TYPE",
     "PEER_MESSAGE_DIRECTION_RECEIVED",
     "PEER_MESSAGE_DIRECTION_SENT",
     "PEER_MESSAGE_TASK_TYPE",
@@ -77,5 +87,6 @@ __all__ = [
     "PEER_META_SENDER_NAME",
     "PEER_REQUEST_TASK_TYPE",
     "PEER_UNKNOWN_DISPLAY_NAME",
+    "PROACTIVE_PEER_IMAGE_TYPE",
     "PROACTIVE_PEER_MESSAGE_TYPE",
 ]

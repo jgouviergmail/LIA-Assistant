@@ -49,7 +49,6 @@ from src.core.run_config import run_id_of
 from src.domains.agents.analysis.query_intelligence_helpers import get_qi_attr
 from src.domains.agents.constants import (
     DATA_FILTERING_GENERATION_ERROR_MARKER,
-    LOGGING_SUMMARY_PREVIEW_CHARS,
     RESPONSE_MAX_ERRORS_DISPLAY,
     STATE_KEY_AGENT_RESULTS,
     STATE_KEY_COMPLETED_STEPS,
@@ -150,6 +149,7 @@ from src.domains.agents.utils.turn_type import (
 from src.domains.agents.utils.turn_type import (
     is_reference_turn as _is_reference_turn,
 )
+from src.domains.attachments.urls import ATTACHMENT_PATH_PREFIX
 from src.infrastructure.llm import get_llm
 from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
 from src.infrastructure.llm.message_text import coerce_content_to_text
@@ -327,7 +327,7 @@ ALLOWED_PHOTO_PATH_PREFIXES: tuple[str, ...] = (
     "/api/v1/connectors/google-places/photo/",
     "/api/v1/connectors/google-drive/thumbnail/",
     "/api/v1/connectors/",
-    "/api/v1/attachments/",  # Generated images (AI Image Generation)
+    ATTACHMENT_PATH_PREFIX,  # Generated images (AI Image Generation)
 )
 
 
@@ -1103,7 +1103,7 @@ def _load_all_skill_resources(skill_name: str, skill_user_id: str | None) -> str
                 "skill_resource_file_not_found",
                 skill_name=skill_name,
                 path=ref,
-                expected_location=str(ref_path),
+                expected_path=str(ref_path),
             )
     return "\n\n".join(parts)
 
@@ -1810,7 +1810,7 @@ def _apply_relevant_ids_filtering(
                 relevant_ids_count=len(relevant_ids),
                 original_count=original_registry_count,
                 filtered_count=len(current_turn_registry) if current_turn_registry else 0,
-                user_query_preview=last_user_message[:50] if last_user_message else "",
+                user_query_length=len(last_user_message) if last_user_message else 0,
             )
         elif relevant_ids == []:
             # Empty list explicitly returned - LLM found no matches
@@ -1833,7 +1833,7 @@ def _apply_relevant_ids_filtering(
                         "intelligent_filtering_skipped_for_domain",
                         run_id=run_id,
                         domains=list(result_domains),
-                        user_query_preview=last_user_message[:50] if last_user_message else "",
+                        user_query_length=len(last_user_message) if last_user_message else 0,
                     )
                 else:
                     # Preserve protected items even when LLM returns empty
@@ -1842,7 +1842,7 @@ def _apply_relevant_ids_filtering(
                         "intelligent_filtering_no_matches",
                         run_id=run_id,
                         protected_preserved=len(protected_items),
-                        user_query_preview=last_user_message[:50] if last_user_message else "",
+                        user_query_length=len(last_user_message) if last_user_message else 0,
                     )
     except (ValueError, KeyError, TypeError, AttributeError, RuntimeError) as e:
         # Log error but continue with unfiltered registry
@@ -2103,7 +2103,7 @@ async def _await_knowledge_enrichment(
                 logger.info(
                     "knowledge_enrichment_injected",
                     run_id=run_id,
-                    keyword=context_obj.keyword,
+                    keyword_length=len(context_obj.keyword),
                     endpoint=context_obj.endpoint,
                     from_cache=context_obj.from_cache,
                     results_count=len(context_obj.results),
@@ -2565,7 +2565,7 @@ def _detect_response_result_domains(
     logger.info(
         "response_node_domain_detection",
         run_id=run_id,
-        agent_results_summary=agent_results_summary[:LOGGING_SUMMARY_PREVIEW_CHARS],
+        agent_results_summary_length=len(agent_results_summary),
         is_conversational_turn=is_conversational_turn,
         result_domains=list(result_domains),
         is_mono_domain=is_mono_domain,
@@ -2807,7 +2807,7 @@ def _apply_react_passthrough(state: MessagesState, run_id: str) -> tuple[Any, bo
             run_id=run_id,
             iterations=react_result.get("iteration_count", 0),
             registry_items=len(current_registry),
-            message_preview=react_message[:80] if react_message else "",
+            message_length=len(react_message) if react_message else 0,
         )
     return react_result, _react_passthrough_merged
 
@@ -2912,7 +2912,7 @@ def _log_response_llm_input(
 ) -> None:
     """Emit the pre-synthesis debug log describing the exact LLM input."""
     # DEBUG: Log exactly what goes to the LLM
-    logger.info(
+    logger.debug(
         "response_node_llm_input_debug",
         run_id=run_id,
         agent_results_summary=(

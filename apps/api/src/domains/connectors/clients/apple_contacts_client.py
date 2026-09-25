@@ -161,7 +161,7 @@ class AppleContactsClient(BaseAppleClient):
             logger.error(
                 "carddav_step1_failed",
                 status=resp.status_code,
-                body=resp.text[:2000],
+                body_length=len(resp.text),
             )
             raise ValueError("Could not discover CardDAV principal URL")
 
@@ -188,7 +188,7 @@ class AppleContactsClient(BaseAppleClient):
             logger.warning(
                 "carddav_step2_no_home_set",
                 status=resp.status_code,
-                body=resp.text[:2000],
+                body_length=len(resp.text),
             )
             # Fallback: some servers expose addressbook directly on principal
             home_set_url = principal_url
@@ -216,7 +216,7 @@ class AppleContactsClient(BaseAppleClient):
             logger.warning(
                 "carddav_step3_no_addressbook",
                 status=resp.status_code,
-                body=resp.text[:2000],
+                body_length=len(resp.text),
             )
             # Last fallback: use the home-set URL itself as the addressbook
             addressbook_url = home_set_url

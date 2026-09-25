@@ -227,7 +227,7 @@ async def for_each_confirm_node(
                 "for_each_edit_all_excluded",
                 run_id=run_id,
                 plan_id=plan_id,
-                exclude_criteria=exclude_criteria[:100],
+                exclude_criteria_length=len(exclude_criteria),
                 original_count=len(item_previews),
             )
             result = _cancel_result("All items excluded by user filter")
@@ -248,7 +248,7 @@ async def for_each_confirm_node(
             iteration=iteration,
             original_count=len(item_previews),
             filtered_count=len(filtered_previews),
-            exclude_criteria=exclude_criteria[:100],
+            exclude_criteria_length=len(exclude_criteria),
         )
 
         # Self-loop: the filtered list is persisted (and checkpointed) BEFORE

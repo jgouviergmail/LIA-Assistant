@@ -20,12 +20,7 @@ from uuid import UUID
 
 import structlog
 from sqlalchemy import select
-from sqlalchemy.exc import (
-    DBAPIError,
-    IntegrityError,
-    OperationalError,
-    SQLAlchemyError,
-)
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 
@@ -34,6 +29,10 @@ from src.core.pagination_helpers import (
     PaginationResult,
     calculate_total_pages,
     validate_pagination,
+)
+from src.infrastructure.database.errors import (
+    classify_database_error,
+    database_error_fields,
 )
 
 logger = structlog.get_logger(__name__)
@@ -82,53 +81,31 @@ class BaseRepository[ModelType: DeclarativeBase]:
         self.model = model
         self.model_name = model.__name__
 
-    @staticmethod
-    def _classify_db_error(error: Exception) -> str:
-        """
-        Classify database errors into standardized categories for metrics.
+    def _report_query_error(self, error: SQLAlchemyError, *, method: str) -> None:
+        """Count and log a failed query by its FACTS, never by the server's text.
 
-        Error taxonomy for observability:
-        - deadlock: Concurrent transaction conflicts (PostgreSQL 40P01)
-        - timeout: Query or connection timeouts (statement_timeout, lock_timeout)
-        - constraint_violation: Unique/FK/Check constraint failures
-        - serialization_failure: Transaction isolation conflicts (PostgreSQL 40001)
-        - connection_error: Connection pool exhaustion, network failures
-        - unknown: Other database errors
+        PostgreSQL quotes the row it rejects — a unique violation's DETAIL names
+        the duplicated key — so the line carries the SQLSTATE, the constraint and
+        the table (``infrastructure/database/errors.py``), and the metric label is
+        decided by the SQLSTATE rather than by words of the message. The
+        traceback stays: the PII filter removes what the server quoted in it.
 
         Args:
-            error: SQLAlchemy exception
-
-        Returns:
-            Error type string for metrics labeling
+            error: The failure the query raised.
+            method: The repository method that ran the query.
         """
-        if isinstance(error, IntegrityError):
-            return "constraint_violation"
+        from src.infrastructure.observability.metrics_database import db_query_errors_total
 
-        if isinstance(error, OperationalError):
-            error_msg = str(error).lower()
-
-            # PostgreSQL deadlock error code 40P01
-            if "deadlock" in error_msg or "40p01" in error_msg:
-                return "deadlock"
-
-            # PostgreSQL serialization failure 40001
-            if "serialization failure" in error_msg or "40001" in error_msg:
-                return "serialization_failure"
-
-            # Timeout errors
-            if any(
-                keyword in error_msg for keyword in ["timeout", "timed out", "connection refused"]
-            ):
-                return "timeout"
-
-            # Connection pool errors
-            if any(keyword in error_msg for keyword in ["connection", "pool", "max_overflow"]):
-                return "connection_error"
-
-        if isinstance(error, DBAPIError):
-            return "connection_error"
-
-        return "unknown"
+        error_type = classify_database_error(error)
+        db_query_errors_total.labels(repository=self.model_name, error_type=error_type).inc()
+        logger.error(
+            "repository_query_error",
+            repository=self.model_name,
+            method=method,
+            error_type=error_type,
+            exc_info=True,
+            **database_error_fields(error),
+        )
 
     async def get_by_id(
         self,
@@ -157,7 +134,6 @@ class BaseRepository[ModelType: DeclarativeBase]:
             ...     print(f"Found: {user.email}")
         """
         from src.infrastructure.observability.metrics_database import (
-            db_query_errors_total,
             repository_query_duration_seconds,
         )
 
@@ -184,17 +160,7 @@ class BaseRepository[ModelType: DeclarativeBase]:
             return instance
 
         except SQLAlchemyError as e:
-            error_type = self._classify_db_error(e)
-            db_query_errors_total.labels(repository=self.model_name, error_type=error_type).inc()
-
-            logger.error(
-                "repository_query_error",
-                repository=self.model_name,
-                method="get_by_id",
-                error_type=error_type,
-                error=str(e),
-                exc_info=True,
-            )
+            self._report_query_error(e, method="get_by_id")
             raise
 
         finally:
@@ -233,7 +199,6 @@ class BaseRepository[ModelType: DeclarativeBase]:
             >>> users = await repo.get_all(limit=50, offset=0)
         """
         from src.infrastructure.observability.metrics_database import (
-            db_query_errors_total,
             repository_query_duration_seconds,
         )
 
@@ -267,17 +232,7 @@ class BaseRepository[ModelType: DeclarativeBase]:
             return instances
 
         except SQLAlchemyError as e:
-            error_type = self._classify_db_error(e)
-            db_query_errors_total.labels(repository=self.model_name, error_type=error_type).inc()
-
-            logger.error(
-                "repository_query_error",
-                repository=self.model_name,
-                method="get_all",
-                error_type=error_type,
-                error=str(e),
-                exc_info=True,
-            )
+            self._report_query_error(e, method="get_all")
             raise
 
         finally:
@@ -317,7 +272,6 @@ class BaseRepository[ModelType: DeclarativeBase]:
             Use flush() + refresh() pattern for ID generation.
         """
         from src.infrastructure.observability.metrics_database import (
-            db_query_errors_total,
             repository_query_duration_seconds,
         )
 
@@ -338,17 +292,7 @@ class BaseRepository[ModelType: DeclarativeBase]:
             return instance
 
         except SQLAlchemyError as e:
-            error_type = self._classify_db_error(e)
-            db_query_errors_total.labels(repository=self.model_name, error_type=error_type).inc()
-
-            logger.error(
-                "repository_query_error",
-                repository=self.model_name,
-                method="create",
-                error_type=error_type,
-                error=str(e),
-                exc_info=True,
-            )
+            self._report_query_error(e, method="create")
             raise
 
         finally:
@@ -391,7 +335,6 @@ class BaseRepository[ModelType: DeclarativeBase]:
             Requires db.commit() to persist to database.
         """
         from src.infrastructure.observability.metrics_database import (
-            db_query_errors_total,
             repository_query_duration_seconds,
         )
 
@@ -414,17 +357,7 @@ class BaseRepository[ModelType: DeclarativeBase]:
             return instance
 
         except SQLAlchemyError as e:
-            error_type = self._classify_db_error(e)
-            db_query_errors_total.labels(repository=self.model_name, error_type=error_type).inc()
-
-            logger.error(
-                "repository_query_error",
-                repository=self.model_name,
-                method="update",
-                error_type=error_type,
-                error=str(e),
-                exc_info=True,
-            )
+            self._report_query_error(e, method="update")
             raise
 
         finally:
@@ -460,7 +393,6 @@ class BaseRepository[ModelType: DeclarativeBase]:
             For soft delete: await repo.update(instance, {"is_active": False})
         """
         from src.infrastructure.observability.metrics_database import (
-            db_query_errors_total,
             repository_query_duration_seconds,
         )
 
@@ -476,17 +408,7 @@ class BaseRepository[ModelType: DeclarativeBase]:
             )
 
         except SQLAlchemyError as e:
-            error_type = self._classify_db_error(e)
-            db_query_errors_total.labels(repository=self.model_name, error_type=error_type).inc()
-
-            logger.error(
-                "repository_query_error",
-                repository=self.model_name,
-                method="delete",
-                error_type=error_type,
-                error=str(e),
-                exc_info=True,
-            )
+            self._report_query_error(e, method="delete")
             raise
 
         finally:
@@ -750,7 +672,6 @@ class BaseRepository[ModelType: DeclarativeBase]:
             - Returns first match (assumes email is unique)
         """
         from src.infrastructure.observability.metrics_database import (
-            db_query_errors_total,
             repository_query_duration_seconds,
         )
 
@@ -771,17 +692,7 @@ class BaseRepository[ModelType: DeclarativeBase]:
             return instance
 
         except SQLAlchemyError as e:
-            error_type = self._classify_db_error(e)
-            db_query_errors_total.labels(repository=self.model_name, error_type=error_type).inc()
-
-            logger.error(
-                "repository_query_error",
-                repository=self.model_name,
-                method="get_by_email",
-                error_type=error_type,
-                error=str(e),
-                exc_info=True,
-            )
+            self._report_query_error(e, method="get_by_email")
             raise
 
         finally:

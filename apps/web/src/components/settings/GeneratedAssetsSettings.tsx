@@ -39,6 +39,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useConfirm } from '@/components/ui/use-confirm';
 import { useApiMutation } from '@/hooks/useApiMutation';
 import { useAppConfig } from '@/hooks/useAppConfig';
+import { PeersAvailabilityProvider } from '@/lib/peers/availability-context';
+import { peersAvailable } from '@/lib/peers/image-share';
 import { useGeneratedAssets } from '@/hooks/useGeneratedAssets';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useTranslation } from '@/i18n/client';
@@ -93,41 +95,49 @@ export function GeneratedAssetsSettings({ lng }: GeneratedAssetsSettingsProps) {
       description={t('settings.generated_assets.description')}
       icon={FolderOpen}
     >
-      <Tabs value={shown} onValueChange={value => setTab(value as SectionTab)}>
-        <TabsList className={`grid w-full ${columns}`}>
-          {/* Equal columns are ~60-80 px each at 320 px: the mark yields to
+      {/* A generated image may be shared with a connection (ADR-316): read
+          ONCE here from the configuration, never by every card. */}
+      <PeersAvailabilityProvider available={peersAvailable(config)}>
+        <Tabs value={shown} onValueChange={value => setTab(value as SectionTab)}>
+          <TabsList className={`grid w-full ${columns}`}>
+            {/* Equal columns are ~60-80 px each at 320 px: the mark yields to
               the word below `sm` (the `SkillGuideModal` precedent), because a
               tab reading « Docu… » names nothing. */}
+            {FAMILIES.map(({ key, icon: Icon }) => (
+              <TabsTrigger
+                key={key}
+                value={key}
+                className="gap-1.5 px-2 text-xs sm:px-3 sm:text-sm"
+              >
+                <Icon className="hidden h-4 w-4 shrink-0 sm:block" aria-hidden="true" />
+                <span className="truncate">{t(`settings.generated_assets.family.${key}`)}</span>
+              </TabsTrigger>
+            ))}
+            {bookmarksEnabled && (
+              <TabsTrigger
+                value={BOOKMARKS_TAB}
+                className="gap-1.5 px-2 text-xs sm:px-3 sm:text-sm"
+                data-testid="bookmarks-tab"
+              >
+                <Bookmark className="hidden h-4 w-4 shrink-0 sm:block" aria-hidden="true" />
+                <span className="truncate">{t('settings.generated_assets.family.bookmarks')}</span>
+              </TabsTrigger>
+            )}
+          </TabsList>
           {FAMILIES.map(({ key, icon: Icon }) => (
-            <TabsTrigger key={key} value={key} className="gap-1.5 px-2 text-xs sm:px-3 sm:text-sm">
-              <Icon className="hidden h-4 w-4 shrink-0 sm:block" aria-hidden="true" />
-              <span className="truncate">{t(`settings.generated_assets.family.${key}`)}</span>
-            </TabsTrigger>
+            <TabsContent key={key} value={key} className="mt-4">
+              {/* Mounted only while its tab is open: four lists fetching at
+                once would open four pages nobody is looking at. */}
+              {shown === key && <Gallery lng={lng} family={key} icon={Icon} />}
+            </TabsContent>
           ))}
           {bookmarksEnabled && (
-            <TabsTrigger
-              value={BOOKMARKS_TAB}
-              className="gap-1.5 px-2 text-xs sm:px-3 sm:text-sm"
-              data-testid="bookmarks-tab"
-            >
-              <Bookmark className="hidden h-4 w-4 shrink-0 sm:block" aria-hidden="true" />
-              <span className="truncate">{t('settings.generated_assets.family.bookmarks')}</span>
-            </TabsTrigger>
+            <TabsContent value={BOOKMARKS_TAB} className="mt-4">
+              {shown === BOOKMARKS_TAB && <BookmarkList lng={lng} />}
+            </TabsContent>
           )}
-        </TabsList>
-        {FAMILIES.map(({ key, icon: Icon }) => (
-          <TabsContent key={key} value={key} className="mt-4">
-            {/* Mounted only while its tab is open: four lists fetching at
-                once would open four pages nobody is looking at. */}
-            {shown === key && <Gallery lng={lng} family={key} icon={Icon} />}
-          </TabsContent>
-        ))}
-        {bookmarksEnabled && (
-          <TabsContent value={BOOKMARKS_TAB} className="mt-4">
-            {shown === BOOKMARKS_TAB && <BookmarkList lng={lng} />}
-          </TabsContent>
-        )}
-      </Tabs>
+        </Tabs>
+      </PeersAvailabilityProvider>
     </SettingsSection>
   );
 }

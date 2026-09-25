@@ -131,7 +131,7 @@ class GooglePeopleClient(CacheableMixin[ContactsCache], BaseGoogleClient):
                 logger.info(
                     "contacts_search_cache_hit",
                     user_id=str(self.user_id),
-                    query_preview=query[:20],
+                    query_length=len(query),
                     fields_used=fields_key,
                     cache_age_seconds=cache_age_seconds,
                 )
@@ -183,7 +183,7 @@ class GooglePeopleClient(CacheableMixin[ContactsCache], BaseGoogleClient):
         logger.info(
             "contacts_search_success",
             user_id=str(self.user_id),
-            query_preview=query[:20],
+            query_length=len(query),
             total_results=results["totalItems"],
             fields_used=fields_key,
         )
@@ -463,7 +463,6 @@ class GooglePeopleClient(CacheableMixin[ContactsCache], BaseGoogleClient):
             "contacts_create_success",
             user_id=str(self.user_id),
             resource_name=response.get("resourceName"),
-            name=name,
         )
 
         # Invalidate cache after write operation

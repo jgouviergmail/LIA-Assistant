@@ -193,8 +193,7 @@ class MemoryResolver:
             if references:
                 logger.info(
                     "memory_references_extracted",
-                    query_preview=query[:80],
-                    references=references,
+                    query_length=len(query),
                     count=len(references),
                 )
             else:
@@ -208,14 +207,14 @@ class MemoryResolver:
         except TimeoutError:
             logger.warning(
                 "memory_reference_extraction_timeout",
-                query_preview=query[:50],
+                query_length=len(query),
             )
             return []
 
         except Exception as e:
             logger.warning(
                 "memory_reference_extraction_failed",
-                query_preview=query[:50],
+                query_length=len(query),
                 error=str(e),
                 error_type=type(e).__name__,
             )
@@ -377,7 +376,7 @@ class MemoryResolver:
         except Exception as e:
             logger.warning(
                 "memory_reference_resolution_failed",
-                query_preview=query[:50],
+                query_length=len(query),
                 error=str(e),
             )
             return None

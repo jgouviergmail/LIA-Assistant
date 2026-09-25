@@ -185,7 +185,6 @@ def _append_document_content(
         logger.warning(
             "vision_document_no_text",
             attachment_id=attachment["id"],
-            original_filename=attachment["original_filename"],
         )
         return
 

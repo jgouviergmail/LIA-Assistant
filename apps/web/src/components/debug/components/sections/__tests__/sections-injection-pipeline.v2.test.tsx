@@ -254,6 +254,18 @@ describe('LLMPipelineSection v2', () => {
     open(['llm_pipeline'], <LLMPipelineSection data={DATA} />);
     expect(screen.getAllByText(/2 calls/).length).toBeGreaterThan(0);
   });
+
+  it('names the configured model, the served one in its title', () => {
+    const [first, second] = DATA.calls;
+    const aliased = {
+      ...DATA,
+      calls: [{ ...first, model_name: 'deepseek-flash', requested_model: 'deepseek-v4-flash' }, second],
+    };
+    open(['llm_pipeline'], <LLMPipelineSection data={aliased} />);
+
+    const name = screen.getByText('deepseek-v4-flash');
+    expect(name).toHaveAttribute('title', 'deepseek-v4-flash (served as deepseek-flash)');
+  });
 });
 
 describe('IntelligentMechanismsSection v2', () => {

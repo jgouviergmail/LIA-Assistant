@@ -497,6 +497,21 @@ The list in the prompt is not decorative: it mirrors `DraftType` member for
 member. An action with **no** downstream confirmation (a payment, say) is not in
 it and still halts.
 
+## ✉️ What has nothing to confirm (ADR-314)
+
+A confirmation protects a third party or a piece of data. `send_email_to_me_tool`
+has neither to protect: its recipient is NOT a parameter — the connected
+mailbox's own address as its provider states it
+(`EmailClientProtocol.get_own_address`), else LIA's relay to the account's
+VERIFIED address — so no model output and no text slipped into an e-mail LIA
+reads can redirect it. It declares `mutation_policy="reversible"` with a written
+reason, sends without a draft, and runs in a routine where a draft would be
+refused (the `call_me_tool` precedent, ADR-290). An address the person TYPES
+that happens to be their own still goes through `send_email_tool` and its
+`EMAIL` draft: a recipient that sometimes skips confirmation is an injection
+target (owner decision). See
+[ADR-314](../architecture/ADR-314-An-E-Mail-To-Oneself-Needs-No-Confirmation.md).
+
 ## 🔢 Plusieurs brouillons dans un tour : un à la fois (ADR-288)
 
 Un tour peut préparer plusieurs brouillons — deux e-mails à deux personnes, un

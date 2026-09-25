@@ -174,8 +174,7 @@ class WikipediaContentSource:
 
             logger.info(
                 "wikipedia_source_content_generated",
-                topic=topic,
-                title=article_title,
+                topic_length=len(topic),
                 extract_length=len(extract),
                 language=wiki_lang,
             )
@@ -196,7 +195,7 @@ class WikipediaContentSource:
         except Exception as e:
             logger.warning(
                 "wikipedia_source_generation_failed",
-                topic=topic,
+                topic_length=len(topic),
                 language=user_language,
                 error=str(e),
                 error_type=type(e).__name__,

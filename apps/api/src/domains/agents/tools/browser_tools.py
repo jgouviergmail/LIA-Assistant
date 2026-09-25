@@ -54,6 +54,7 @@ from src.domains.agents.tools.runtime_helpers import validate_runtime_config
 from src.domains.agents.utils.content_wrapper import wrap_external_content
 from src.domains.agents.utils.rate_limiting import rate_limit
 from src.infrastructure.observability.decorators import track_tool_metrics
+from src.infrastructure.observability.log_facts import url_host
 from src.infrastructure.observability.metrics_agents import (
     agent_tool_duration_seconds,
     agent_tool_invocations,
@@ -366,7 +367,7 @@ async def browser_task_tool(
         )
 
     except ValueError as e:
-        logger.warning("browser_task_error", task=task[:100], error=str(e))
+        logger.warning("browser_task_error", task_length=len(task), error=str(e))
         error_code = "RATE_LIMIT_EXCEEDED" if "Max" in str(e) else "CONFIGURATION_ERROR"
         return UnifiedToolOutput.failure(message=str(e), error_code=error_code)
 
@@ -381,12 +382,12 @@ async def browser_task_tool(
                 error_type="timeout" if "Timeout" in type(e).__name__ else type(e).__name__
             ).inc()
         if "Timeout" in type(e).__name__:
-            logger.error("browser_task_timeout", task=task[:100])
+            logger.error("browser_task_timeout", task_length=len(task))
             return UnifiedToolOutput.failure(
                 message=f"Browser task timed out: {task[:100]}",
                 error_code="TIMEOUT",
             )
-        logger.error("browser_task_error", task=task[:100], error=str(e))
+        logger.error("browser_task_error", task_length=len(task), error=str(e))
         return UnifiedToolOutput.failure(
             message=f"Browser task failed: {type(e).__name__}: {str(e)[:200]}",
             error_code="EXTERNAL_API_ERROR",
@@ -469,7 +470,7 @@ async def browser_navigate_tool(
         )
 
     except ValueError as e:
-        logger.warning("browser_navigate_validation_error", url=url[:200], error=str(e))
+        logger.warning("browser_navigate_validation_error", url_host=url_host(url), error=str(e))
         error_code = "INVALID_INPUT" if "URL blocked" in str(e) else "CONFIGURATION_ERROR"
         if _is_browser_limit_error(str(e)):
             error_code = "RATE_LIMIT_EXCEEDED"
@@ -479,12 +480,12 @@ async def browser_navigate_tool(
         # Detect timeout (Playwright's TimeoutError does NOT inherit from
         # Python's builtin TimeoutError — it inherits from playwright.Error)
         if "Timeout" in type(e).__name__:
-            logger.error("browser_navigate_timeout", url=url[:200])
+            logger.error("browser_navigate_timeout", url_host=url_host(url))
             return UnifiedToolOutput.failure(
                 message=f"Page load timeout after {settings.browser_page_load_timeout_seconds}s",
                 error_code="TIMEOUT",
             )
-        logger.error("browser_navigate_error", url=url[:200], error=str(e))
+        logger.error("browser_navigate_error", url_host=url_host(url), error=str(e))
         return UnifiedToolOutput.failure(
             message=f"Navigation failed: {type(e).__name__}",
             error_code="EXTERNAL_API_ERROR",

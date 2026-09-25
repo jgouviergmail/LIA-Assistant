@@ -8,7 +8,8 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { PEERS_ERROR_KEYS, toastPeersError } from '../peers-error-messages';
+import { ApiError } from '@/lib/api-client';
+import { PEERS_ERROR_KEYS, peersErrorCode, toastPeersError } from '../peers-error-messages';
 
 const { toast } = vi.hoisted(() => ({ toast: { error: vi.fn() } }));
 vi.mock('sonner', () => ({ toast }));
@@ -29,6 +30,10 @@ describe('peers-error-messages', () => {
       'peers_invalid_share_level',
       'peers_self_block',
       'peers_conflict',
+      // ADR-316 — pinned by tests/integration/domains/peers/test_image_share_db.py.
+      'peers_image_not_shareable',
+      'peers_image_comment_too_long',
+      'peers_image_quota_reached',
     ];
     for (const code of backendCodes) {
       expect(PEERS_ERROR_KEYS[code], `missing mapping for ${code}`).toMatch(
@@ -49,5 +54,17 @@ describe('peers-error-messages', () => {
     toastPeersError(t, null);
     expect(toast.error).toHaveBeenNthCalledWith(1, 'settings.peers.errors.generic');
     expect(toast.error).toHaveBeenNthCalledWith(2, 'settings.peers.errors.generic');
+  });
+});
+
+describe('peersErrorCode', () => {
+  it('reads the plain-string detail the /peers surface answers', () => {
+    const err = new ApiError('Too Many Requests', 429, { detail: 'peers_image_quota_reached' });
+    expect(peersErrorCode(err)).toBe('peers_image_quota_reached');
+  });
+
+  it('answers null for any other shape', () => {
+    expect(peersErrorCode(new ApiError('x', 400, { detail: { code: 'other' } }))).toBeNull();
+    expect(peersErrorCode(new Error('boom'))).toBeNull();
   });
 });

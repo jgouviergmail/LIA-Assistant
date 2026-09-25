@@ -356,6 +356,58 @@ def ensure_tools_loaded() -> None:
         )
 
 
+#: Tool modules registered only where their feature ships: ``(settings flag,
+#: module path, module name)``. A disabled instance must not register tools
+#: whose manifests, routes or sweeps are absent — one line of data per family
+#: rather than one branch each (the function had reached the complexity cap).
+_FLAG_GATED_TOOL_MODULES: tuple[tuple[str, str, str], ...] = (
+    # Skills (the SKILLS sandbox).
+    ("skills_enabled", "src.domains.skills.tools", "skills_tools"),
+    # Sub-agent delegation (F6).
+    ("sub_agents_enabled", "src.domains.agents.tools.sub_agent_tools", "sub_agent_tools"),
+    # Image generation.
+    (
+        "image_generation_enabled",
+        "src.domains.agents.tools.image_generation_tools",
+        "image_generation_tools",
+    ),
+    # Document generation (ADR-226).
+    (
+        "document_generation_enabled",
+        "src.domains.agents.tools.document_generation_tools",
+        "document_generation_tools",
+    ),
+    # DevOps: Claude CLI remote server management.
+    ("devops_enabled", "src.domains.agents.tools.devops_tools", "devops_tools"),
+    # Ephemeral Python: the agent's calculator (ADR-249, ReAct only).
+    (
+        "python_sandbox_tool_enabled",
+        "src.domains.agents.tools.python_sandbox_tools",
+        "python_sandbox_tools",
+    ),
+    # Peers: user-to-user connections (relay drafts + shared-domain reads).
+    ("peers_enabled", "src.domains.agents.tools.peers_tools", "peers_tools"),
+    ("peers_enabled", "src.domains.agents.tools.peers_read_tools", "peers_read_tools"),
+    # Workboard (ADR-276): flag-gated like its router, its sweep and its manifests.
+    ("workboard_enabled", "src.domains.agents.tools.workboard_tools", "workboard_tools"),
+    # LIA's own journal as an active lookup (ADR-318), under the manifest's flag.
+    (
+        "journals_enabled",
+        "src.domains.agents.tools.journal_search_tools",
+        "journal_search_tools",
+    ),
+    # Health Metrics (v1.17.2): seven tools owned by the unified health_agent.
+    ("health_metrics_enabled", "src.domains.agents.tools.health_tools", "health_tools"),
+    # Telephony: agentic outbound calls (per-user connector) and the owner's own.
+    ("telephony_enabled", "src.domains.agents.tools.telephony_tools", "telephony_tools"),
+    (
+        "telephony_enabled",
+        "src.domains.agents.tools.telephony_self_tools",
+        "telephony_self_tools",
+    ),
+)
+
+
 def _import_tool_modules() -> None:
     """
     Import all tool modules and auto-register their tools.
@@ -376,6 +428,7 @@ def _import_tool_modules() -> None:
         ("src.domains.agents.tools.drive_tools", "drive_tools"),
         ("src.domains.agents.tools.workspace_docs_tools", "workspace_docs_tools"),
         ("src.domains.agents.tools.emails_tools", "emails_tools"),
+        ("src.domains.agents.tools.email_self_tools", "email_self_tools"),  # ADR-314
         ("src.domains.agents.tools.email_attachment_tools", "email_attachment_tools"),
         ("src.domains.agents.tools.gmail_settings_tools", "gmail_settings_tools"),
         ("src.domains.agents.tools.google_contacts_tools", "google_contacts_tools"),
@@ -406,6 +459,13 @@ def _import_tool_modules() -> None:
         ("src.domains.agents.tools.person_tools", "person_tools"),
         ("src.domains.agents.tools.relation_read_tools", "relation_read_tools"),
         ("src.domains.agents.tools.documents_tools", "documents_tools"),
+        # Long-term memory as an active lookup (ADR-313).
+        ("src.domains.agents.tools.memory_search_tools", "memory_search_tools"),
+        # Exact arithmetic, dates and currency conversion (ADR-318).
+        ("src.domains.agents.tools.calculation_tools", "calculation_tools"),
+        # LIA's own registers and gallery as lookups (ADR-318).
+        ("src.domains.agents.tools.activity_tools", "activity_tools"),
+        ("src.domains.agents.tools.generated_files_tools", "generated_files_tools"),
         ("src.domains.agents.tools.automation_tools", "automation_tools"),
         # Internal Tools
         ("src.domains.agents.tools.context_tools", "context_tools"),
@@ -413,64 +473,16 @@ def _import_tool_modules() -> None:
         ("src.domains.agents.tools.local_query_tool", "local_query_tool"),
     ]
 
-    # Skills tools: only register when feature is enabled
+    # Tool families that ship only where their feature does (one line each in
+    # _FLAG_GATED_TOOL_MODULES, the domain_availability table's shape).
     from src.core.config import get_settings
 
-    if getattr(get_settings(), "skills_enabled", False):
-        tool_modules.append(("src.domains.skills.tools", "skills_tools"))
-
-    # Sub-Agent delegation tool (F6): only register when feature is enabled
-    if getattr(get_settings(), "sub_agents_enabled", False):
-        tool_modules.append(("src.domains.agents.tools.sub_agent_tools", "sub_agent_tools"))
-
-    # Image Generation tool: only register when feature is enabled
-    if getattr(get_settings(), "image_generation_enabled", False):
-        tool_modules.append(
-            ("src.domains.agents.tools.image_generation_tools", "image_generation_tools")
-        )
-
-    # Document Generation tool (ADR-226): only register when feature is enabled
-    if getattr(get_settings(), "document_generation_enabled", False):
-        tool_modules.append(
-            (
-                "src.domains.agents.tools.document_generation_tools",
-                "document_generation_tools",
-            )
-        )
-
-    # DevOps: Claude CLI remote server management
-    if getattr(get_settings(), "devops_enabled", False):
-        tool_modules.append(("src.domains.agents.tools.devops_tools", "devops_tools"))
-
-    # Ephemeral Python: the agent's calculator (ADR-249, ReAct only).
-    if getattr(get_settings(), "python_sandbox_tool_enabled", False):
-        tool_modules.append(
-            ("src.domains.agents.tools.python_sandbox_tools", "python_sandbox_tools")
-        )
-
-    # Peers: user-to-user connections (relay drafts + shared-domain reads)
-    if getattr(get_settings(), "peers_enabled", False):
-        tool_modules.append(("src.domains.agents.tools.peers_tools", "peers_tools"))
-        tool_modules.append(("src.domains.agents.tools.peers_read_tools", "peers_read_tools"))
-
-    # Workboard (ADR-276): the board of tickets, from the chat. Flag-gated
-    # like its router, its sweep and its manifests — a disabled instance must
-    # not register tools whose REST surface is absent.
-    if getattr(get_settings(), "workboard_enabled", False):
-        tool_modules.append(("src.domains.agents.tools.workboard_tools", "workboard_tools"))
-
-    # Health Metrics tools (v1.17.2): only register when feature is enabled.
-    # Seven tools owned by the unified ``health_agent``.
-    # See docs/technical/HEALTH_METRICS.md.
-    if getattr(get_settings(), "health_metrics_enabled", False):
-        tool_modules.append(("src.domains.agents.tools.health_tools", "health_tools"))
-
-    # Telephony: agentic outbound calls (per-user connector), only when enabled.
-    if getattr(get_settings(), "telephony_enabled", False):
-        tool_modules.append(("src.domains.agents.tools.telephony_tools", "telephony_tools"))
-        tool_modules.append(
-            ("src.domains.agents.tools.telephony_self_tools", "telephony_self_tools")
-        )
+    current = get_settings()
+    tool_modules.extend(
+        (module_path, module_name)
+        for flag, module_path, module_name in _FLAG_GATED_TOOL_MODULES
+        if getattr(current, flag, False)
+    )
 
     # MCP ReAct tools (ADR-062): loaded by _register_iterative_task_tool()
     # in registration.py at MCP startup, NOT here. The generic mcp_server_task_tool

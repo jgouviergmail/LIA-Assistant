@@ -189,7 +189,7 @@ async def cache_get_json(
             "cache_get_json_decode_error",
             key=key,
             error=str(e),
-            cached_value_preview=cached_value[:100] if cached_value else None,
+            cached_value_length=len(cached_value) if cached_value else 0,
         )
         # Delete corrupted cache entry
         await redis_client.delete(key)

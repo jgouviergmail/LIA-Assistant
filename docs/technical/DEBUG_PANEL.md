@@ -136,6 +136,48 @@ déclaré est écarté), la liste est PLAFONNÉE et **dit qu'elle l'est**, et
 `note_verdict` est silencieux hors d'un tour : une correction ne doit jamais
 être la raison d'un échec.
 
+### 6. Le poste et le modèle d'un appel sont ceux de la CONFIGURATION (2026-09-24)
+
+Signalé par le propriétaire : « les noms des modèles ne correspondent pas aux
+modèles définis en base ». Mesuré sur dev, trois écarts de même cause — l'appel
+ne savait pas de quelle configuration il venait :
+
+- **Le poste valait `agent_graph` pour tous les appels d'un tour de chat.** Le
+  service d'orchestration écrit cette valeur dans les métadonnées de la config
+  du GRAPHE, tous les nœuds en héritent, et le callback la lisait comme poste de
+  l'appel. La fabrique (`get_llm`) estampille désormais le poste et le
+  fournisseur SUR le modèle (`FIELD_LLM_TYPE`, `FIELD_LLM_PROVIDER`) : LangChain
+  fusionne les métadonnées propres d'un modèle PAR-DESSUS celles de l'appelant
+  (sondé, y compris à travers `.bind()`), et le cache d'instances est indexé par
+  poste — une instance n'est jamais partagée entre deux.
+- **Le fournisseur était la famille de la CLASSE cliente** : `chat-deepseek`
+  pour DeepSeek, `openai` pour Qwen servi par le client compatible OpenAI. Le
+  fournisseur déclaré par la fabrique l'emporte (`capture_inference_params(…,
+  declared_provider=…)`), et `chat-deepseek` rejoint la table des familles.
+- **Le modèle affiché était celui que le fournisseur RAPPORTE** : un poste
+  configuré sur un alias (`deepseek-v4-flash`) s'affichait sous le nom courant
+  du fournisseur, un modèle que personne n'a configuré. Le callback lit aussi le
+  modèle DEMANDÉ (`requested_model`, dans les paramètres d'invocation — ce que la
+  base configure) ; le panneau l'affiche en tête et le nom servi seulement s'il
+  diffère (`Served as:`, `utils/call-model.ts`). Le registre garde le nom servi,
+  qui est ce qui est facturé. Un appel en ÉCHEC, qui ne rapporte aucun modèle,
+  est enregistré sous le modèle demandé plutôt que `unknown` : ADR-244 juge un
+  modèle sur ses échecs aussi.
+
+### 7. La largeur se règle à la main (2026-09-24)
+
+Une poignée sur le bord gauche du panneau, dans l'interstice : glissée, elle
+élargit le panneau DANS la conversation, qui garde toujours
+`DEBUG_PANEL_CHAT_MIN_WIDTH` (`utils/panel-width.ts`, une règle pure pour le
+glisser, le clavier et une fenêtre plus étroite). C'est un séparateur de fenêtre
+focalisable : les flèches déplacent (Maj : pas ×4), Début/Fin atteignent les
+bornes, Entrée ou un double-clic rétablit la largeur par défaut. La largeur est
+une préférence de l'APPAREIL (`debugPanelStore`, hors registre de purge comme
+le dock et les yeux), bornée à l'affichage et conservée telle que choisie. Les
+en-têtes de phase sont passés au-dessus des titres de section qu'ils regroupent
+(encre pleine, 14 px, gras, pastille numérotée) : ils étaient en 10 px estompés
+sous des titres en 14 px.
+
 ---
 
 ## Grammaire de présentation (front)

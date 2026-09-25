@@ -156,6 +156,9 @@ To protect your data, any modification action goes through a **draft system**:
 **📚 Several drafts at once:**
 Ask for two e-mails in one sentence: LIA first lists what it prepared, then shows one draft at a time ("*Draft 1 of 2*"), each with its own card and its own Approve / Edit / Cancel. Nothing is sent before your last answer, and the report says to whom and what went out — a cancelled draft is listed too. A bulk action you approved as a list ("*delete these 5 emails*") keeps a single confirmation.
 
+**✉️ One exception:**
+An e-mail to yourself leaves without a draft: its recipient is your own address, which nothing can change — not even a text slipped into an e-mail LIA reads.
+
 ## How do I use contextual references?
 LIA understands **references to previous items** in the conversation:
 
@@ -333,6 +336,9 @@ LIA reads e-mails at three levels and picks the one your question needs:
 **⚠️ Security tip:**
 Always verify the recipient's email address in the preview!
 
+**📬 To yourself:**
+"*E-mail me this summary*" goes straight to your own mailbox, without a draft: the recipient is your own address, and nothing can change it.
+
 ## How do I reply to or forward an email?
 **Gmail** - Reply and forward:
 
@@ -420,3 +426,17 @@ To permanently delete, you must do it directly in Gmail.
 
 **💡 Tip:**
 Set your default calendar in settings so you don't have to specify it each time.
+
+## How do I e-mail something to myself?
+Just ask:
+• "*E-mail me this summary*"
+• "*Send me the shopping list by mail*"
+
+**✉️ Where it lands:**
+In your own mailbox, at the address your connected mail provider states. Without a connected mailbox, LIA sends it through its own relay to your account's **verified** address.
+
+**⚡ Why without confirmation:**
+The recipient is you, and it is not a parameter: neither a mistake nor a text slipped into an e-mail LIA reads can redirect it to another address. An e-mail to anyone else — even to an address you type that happens to be yours — always goes through a draft for you to approve.
+
+**🔁 In a scheduled action:**
+A routine can e-mail you its result every morning: it is one of the few actions it can take without you.

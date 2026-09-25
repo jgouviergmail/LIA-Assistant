@@ -39,3 +39,14 @@ Blocked, unknown and declined targets all receive the exact same neutral answer,
 Removing a connection ends all shares immediately, and **both** assistants inform their users.
 
 Relayed message content is scrubbed after delivery — LIA does not keep a browsable message history. Your GDPR export includes your connections and shares, and deleting your account purges both sides of every pair.
+
+## How do I share a generated image with a connection?
+On the card of an image LIA generated for you — in the chat as well as in **Settings › My generated files** —, tap **Share with a connection**, pick the person and add a comment if you like. The click is your confirmation: no model is involved.
+
+**📥 What they receive:**
+A copy of the image, filed in their own gallery as if they had generated it, with its own retention period, and a bubble in their chat carrying the image, your name and your comment — quoted exactly as written, never turned into a link or a hidden image.
+
+**🔒 The rules:**
+• Only your own generated images can be shared, with an accepted connection and no block between you
+• It is a copy: deleting your image does not remove theirs
+• A daily limit caps sharing, for you and for each connection; the message tells you when to try again

@@ -20,6 +20,7 @@ Created: 2026-03-30
 
 from __future__ import annotations
 
+from collections.abc import Collection
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
@@ -144,6 +145,7 @@ class MemoryRepository:
         query_embedding: list[float],
         limit: int = 10,
         min_score: float = 0.5,
+        categories: Collection[str] | None = None,
     ) -> list[tuple[Memory, float]]:
         """Search memories by multi-vector semantic relevance.
 
@@ -159,6 +161,8 @@ class MemoryRepository:
             query_embedding: Pre-computed query embedding vector (1536 dims).
             limit: Max results to return.
             min_score: Minimum similarity score to include (0.0-1.0).
+            categories: Families to keep (ADR-313, the memory search tool);
+                None or empty keeps every family — never « none allowed ».
 
         Returns:
             List of (memory, score) tuples sorted by score descending,
@@ -177,15 +181,12 @@ class MemoryRepository:
             func.coalesce(dist_keyword, dist_content),
         )
 
+        conditions = [Memory.user_id == user_id, Memory.embedding.isnot(None), _active()]
+        if categories:
+            conditions.append(Memory.category.in_(list(categories)))
         stmt = (
             select(Memory, best_distance.label("distance"))
-            .where(
-                and_(
-                    Memory.user_id == user_id,
-                    Memory.embedding.isnot(None),
-                    _active(),
-                )
-            )
+            .where(and_(*conditions))
             .order_by(best_distance)
             .limit(limit)
         )

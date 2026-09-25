@@ -4,7 +4,7 @@
 
 **Version**: 6.1
 **Datum**: 2026-09-24
-**Anwendung**: LIA v1.47.3
+**Anwendung**: LIA v1.47.4
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -153,7 +153,7 @@ LIA bietet einen vollständigen Sprachmodus:
 
 ### 3.5. Erstellung und Medien
 
-- **Bildgenerierung**: Erstelle Bilder aus Textbeschreibungen, bearbeite vorhandene Fotos – mit GPT Image von OpenAI oder Qwen Image 3.0, je nach dem Modell, das die Administration gewählt hat; deine Vorlieben für Qualität, Größe und Format passen sich dem an, was das Modell kann, ohne je zu einer teureren Option zu wechseln
+- **Bildgenerierung**: Erstelle Bilder aus Textbeschreibungen, bearbeite vorhandene Fotos – mit GPT Image von OpenAI oder Qwen Image 3.0, je nach dem Modell, das die Administration gewählt hat; deine Vorlieben für Qualität, Größe und Format passen sich dem an, was das Modell kann, ohne je zu einer teureren Option zu wechseln; auf Wunsch wird deine Beschreibung nach den Ratschlägen des Anbieters angereichert, ein Text in Anführungszeichen bleibt Wort für Wort erhalten; ein Bild findest du durch Fragen wieder und teilst es mit einem Klick mit einer Verbindung, die es in ihrer Galerie und ihrem Chat erhält
 - **Dokumenterstellung**: Frag nach einer CSV, einer Excel-Tabelle, einem Word-Bericht, einem PowerPoint oder einem PDF — ein eigenes Autorenmodell erzeugt den Inhalt in deiner Sprache, dann baut ein lokaler Renderer die echte Datei mit den Regeln ihres Formats: 16:9-Folien, deren Layout der Absicht folgt, ein von Word berechnetes Inhaltsverzeichnis samt Seitenzahlen, typisierte Excel-Spalten unter einer filterbaren Tabelle, exakte Seitenzahlen und Lesezeichen im PDF. Text wird gemessen, bevor er gesetzt wird, also läuft nichts über; und wenn das Modell abgeschnitten wird, sagt LIA es dir, statt ein verstümmeltes Dokument zu liefern. Die Datei kommt als herunterladbare Karte mit klarem Ablaufdatum
 - **Excalidraw-Diagramme**: Generiere Schaubilder und Diagramme direkt im Gespräch
 - **Anhänge**: Fotos und PDF anfügen — LIA analysiert visuelle Inhalte und extrahiert Text aus Dokumenten; das « + » bietet auch jedes Dokument deiner Wissensbereiche an, auch aus einem pausierten, als Kopie für diese Nachricht
@@ -211,6 +211,8 @@ Und LIA kann *dich* anrufen. Hinterlege deine Nummer unter *Telefonie · Meine I
 Auf derselben Instanz können sich zwei Nutzer verbinden — und ihre Assistenten sprechen miteinander. Du sagst „frag Marie, ob sie am Dienstag frei ist“, bestätigst den genauen Wortlaut, und es ist Maries Assistent, der die Nachricht übermittelt, mit seiner eigenen Persönlichkeit, und dich dabei nennt; deiner bestätigt dir die Zustellung. Jede Verbindung kann außerdem gewählte Nur-Lese-Freigaben öffnen: Deine Kalender-Verfügbarkeit, deine Aufgabentitel — nicht mehr, nichts standardmäßig.
 
 Der Schutz der Menschen steht über der Funktion: Die Auffindbarkeit ist freiwillig und nur über die exakte Identität möglich — vollständiger Name oder Adresse, nie ein Fragment, das Blockieren ist lautlos (die andere Seite erfährt nie davon), und ein Unbekannter, eine Ablehnung oder eine Blockierung erhalten exakt dieselbe Antwort — auszuforschen, wer existiert, ist unmöglich. Jeder Zugriff auf eine Freigabe wird im Moment des Lesens neu geprüft und protokolliert, und der Inhalt übermittelter Nachrichten wird nach dreißig Tagen gelöscht, sodass nur die Spur des Austauschs bleibt.
+
+Ein Bild, das LIA für dich erzeugt hat, lässt sich ebenfalls mit einem Klick teilen: Die Person erhält eine Kopie in ihrer Galerie und in ihrem Chat, mit deinem Kommentar wörtlich zitiert — nie in einen Link oder ein verstecktes Bild verwandelt.
 
 ### 3.12. Was dich mit jemandem verbindet, an einem Ort
 
@@ -313,7 +315,7 @@ Direkt in der Chat-Oberfläche zeigt ein Debug-Panel in Echtzeit zu jedem Gespr�
 
 Jede Nachricht zeigt ihre Kosten in Tokens und Euro an. Der Benutzer kann seinen Verbrauch exportieren. Der Administrator verfügt über Echtzeit-Dashboards mit Anzeigen pro Benutzer und konfigurierbaren Kontingenten.
 
-Du zahlst kein Abonnement, das die tatsächlichen Kosten verschleiert. Du siehst genau, was jede Interaktion kostet, und können optimieren: ein günstigeres Modell für das Routing, ein leistungsfähigeres für die Antwort.
+Du zahlst kein Abonnement, das die tatsächlichen Kosten verschleiert. Du siehst genau, was jede Interaktion kostet, und kannst optimieren: ein günstigeres Modell für das Routing, ein leistungsfähigeres für die Antwort.
 
 Dieselbe Transparenz gilt für Aktionen: Unter jeder Antwort zeigt eine eingeklappte Zeile „⚙ N Schritte · X s“ den tatsächlichen Ablauf — Routing, aufgerufene Werkzeuge, Dauer — und diese Spur wird mit der Nachricht gespeichert: Sie bleibt nach einem Neuladen erhalten, auf allen Geräten. Jede Antwort lässt sich zudem mit einem dezenten 👍/👎 bewerten, das gespeichert und in das Lernen des Assistenten zurückgespielt wird — niemals, um die Antwort ungefragt neu zu generieren.
 
@@ -323,7 +325,7 @@ Und die angezeigte Zahl ist die, die der Anbieter wirklich berechnet: Die Tarife
 
 ### 6.4. Vertrauen durch Beweis
 
-Transparenz ist kein technisches Gadget. Sie verändert die Beziehung zu deinem Assistenten: Du **verstehst** seine Entscheidungen, Du **beherrschst** deine Kosten, Du **erkennst** Probleme. Du vertraust, weil du überprüfen kannst — nicht weil man dich bittet zu glauben.
+Transparenz ist kein technisches Gadget. Sie verändert die Beziehung zu deinem Assistenten: Du **verstehst** seine Entscheidungen, du **beherrschst** deine Kosten, du **erkennst** Probleme. Du vertraust, weil du überprüfen kannst — nicht weil man dich bittet zu glauben.
 
 ---
 
@@ -385,6 +387,8 @@ Ein letzter Reiter zeichnet den Zeitraum als Diagramme, jedes mit dem exakten Ge
 
 Artikel 12 der EU-KI-Verordnung schreibt Aufzeichnungen für Hochrisikosysteme vor; er stuft diesen persönlichen Assistenten nicht automatisch so ein. LIA bewahrt dennoch fünf Arten von Nachweisen auf: die drei oben, die tatsächlich an jedes Modell gesendeten Parameter und die Lücken des Registers selbst — damit sichtbar bleibt, wo es unvollständig ist.
 
+Und LIA liest sie selbst: Frag sie, was sie diese Woche für dich getan hat, und sie antwortet aus denselben Registern, mit exakten Summen — was du verlangt hast auf der einen Seite, was sie von sich aus unternommen hat auf der anderen —, statt sich ungefähr zu erinnern.
+
 ## 7. Emotionale Tiefe
 
 ### 7.1. Jenseits des faktischen Gedächtnisses
@@ -394,6 +398,8 @@ Die großen Assistenten merken sich deine Präferenzen und persönlichen Fakten.
 Jede Erinnerung trägt ein emotionales Gewicht (-10 bis +10), einen Wichtigkeitswert, eine Nutzungsnuance und eine psychologische Kategorie. Das ist keine simple Datenbank — das ist ein Profil, das versteht, was dich berührt, was dich motiviert, was dir wehtut.
 
 Diese Erinnerungen müssen allerdings erst ankommen. Ein Gedächtnis ist nur so viel wert wie das, was es tatsächlich erfasst, und Stille ist dabei der schlimmste Fehler: Nichts weist auf eine Erinnerung hin, die nie entstanden ist. LIA zählt daher jede ihrer Merk-Entscheidungen — behalten, übergangen, deaktiviert —, damit die Lücke zwischen dem, was sie behalten sollte, und dem, was sie behält, sichtbar statt vermutet ist. Was du ihr nebenbei bei einer Aktion anvertraust, zählt so viel wie eine Vertraulichkeit, was du aus einem Messenger schreibst, zählt so viel wie aus dem Browser, und was das System zu sich selbst sagt, zählt nie.
+
+Und sie bleibt nicht bei dem, was deine Nachricht anspricht: Taucht unterwegs ein Name oder ein Thema auf — der Absender einer E-Mail, ein Ort in einem Dokument —, schlägt sie in ihrem Gedächtnis nach; auch am Telefon findet sie, was deine Frage beantwortet, statt ihrer neuesten Erinnerungen.
 
 ### 7.2. Die Psyche Engine: eine lebendige Persönlichkeit
 
@@ -432,6 +438,8 @@ Aus dieser Stratifizierung ergibt sich ein **kompiliertes Nutzer-Porträt**: Dei
 Dieses Porträt liest mehr als die Tagebücher: Deine Erinnerungen, deine Interessen, deine gelernten Gewohnheiten und deine Beziehungs-Debriefs gehen als Material ein, jedes unter seinem eigenen Schalter — deinem und dem des Administrators. Und es sagt dir, woher es kommt: Unter dem Porträt nennt eine Zeile, was gelesen wurde, was leer war, was abgeschaltet war. Eine Quelle, die nicht antwortet, wird benannt, nie als leer gelesen.
 
 Das ist eine Form künstlicher Introspektion — der Assistent, der über seine Interaktionen nachdenkt, seine eigene Nützlichkeit misst und ein nuanciertes Verständnis von dir entwickelt. Du behältst die volle Kontrolle: Lesen nach Thema oder Ebene, Bearbeiten, Problem-Meldung am Porträt, Auslösen einer Konsolidierung auf Anfrage. Das Porträt selbst wird nie direkt bearbeitet — es ist eine Synthese-Stimme, korrigiert über indirekte Hebel, um seine Kohärenz zu bewahren.
+
+Sie durchsucht sie auch, wenn ein Thema auftaucht — ihre Direktiven, ihre Muster, die Facetten deines Porträts, nie ihre rohen, noch nicht überprüften Beobachtungen.
 
 ### 7.4. Emotionale Sicherheit
 
@@ -476,6 +484,8 @@ Das Antwortsystem verfügt über einen dreischichtigen Anti-Halluzinations-Mecha
 
 Ein Fehler wiederum wird **gesagt, nie erraten**: Wenn ein Dienst ausfällt, nennt LIA ihn und seine Antwort, statt ein Konfigurationsproblem zu erfinden – vor der Korrektur gemessen tat das jede dritte Antwort bei Durchgängen, in denen ein Werkzeug gescheitert war. Und im autonomen Modus wird eine Antwort am Ergebnis gemessen: Was LIA sich vorgenommen hat, endet erhalten oder am Ende der Antwort erklärt, zusammen mit dem, was sie versucht hat; eine Angabe aus einer anderen Quelle trägt diese Quelle.
 
+Was exakt sein muss, wird **berechnet, nie geschätzt**: Eine Rechnung, eine Dauer zwischen zwei Daten, eine Währungsumrechnung laufen über Werkzeuge — exakte Dezimalarithmetik, echte Zeitpunkte, der Kurs der Europäischen Zentralbank mit seinem Datum —, in beiden Modi, und ein gerundetes Ergebnis sagt es.
+
 ### 8.4. Human-in-the-Loop auf 6 Ebenen
 
 LIA lehnt sensible Aktionen nicht ab — sie **legt sie dir vor** mit dem jeweils passenden Detailgrad: Plangenehmigung, Klärung, Entwurfskritik, destruktive Bestätigung, Bestätigung von Massenoperationen, Überprüfung von Änderungen. Jede Genehmigung fließt in das Lernen ein — das System beschleunigt sich mit der Zeit. Und das Versprechen wird wortwörtlich gehalten: Was du bestätigst — nach einer, zwei oder zehn Überarbeitungen — wird **exakt** so ausgeführt, niemals eine im Hintergrund neu generierte Version. Und wenn eine Anfrage mehrere Entwürfe vorbereitet, werden sie dir einer nach dem anderen vorgelegt, jeder auf seiner Karte, nichts wird vor deiner letzten Antwort ausgeführt, und der Bericht sagt, an wen und was — nur eine Massenaktion, die du als Liste genehmigt hast, behält eine einzige Bestätigung.
@@ -504,7 +514,7 @@ LIA verlangt nicht, dass man ihr aufs Wort glaubt. Die Rahmenwerke, denen sie fo
 
 ### 9.1. Was die Regulierung verlangt
 
-**Datenschutz ist eine Entwurfsentscheidung, kein Zertifikat durch Behauptung.** Deine Kontodaten liegen in der Datenbank der LIA-Instanz, die du nutzt; bei Selbsthosting kontrollierst du diesen Server. Du kannst sie exportieren oder ihre Löschung verlangen; Geheimnisse werden bewusst nicht exportiert. Zugangsdaten sind verschlüsselt, Sitzungen isoliert und personenbezogene Daten werden aus Protokollen gefiltert. Ob ein konkreter Betrieb alle Pflichten der DSGVO erfüllt, hängt auch von seiner Konfiguration und den gewählten Anbietern ab.
+**Datenschutz ist eine Entwurfsentscheidung, kein Zertifikat durch Behauptung.** Deine Kontodaten liegen in der Datenbank der LIA-Instanz, die du nutzt; bei Selbsthosting kontrollierst du diesen Server. Du kannst sie exportieren oder ihre Löschung verlangen; Geheimnisse werden bewusst nicht exportiert. Zugangsdaten sind verschlüsselt, Sitzungen isoliert, und die technischen Protokolle des Servers behalten nur Fakten — Zahlen, Codes, Kennungen —, nie deine Worte: Ein Test liest jede Protokollzeile des Codes, um das sicherzustellen. Ob ein konkreter Betrieb alle Pflichten der DSGVO erfüllt, hängt auch von seiner Konfiguration und den gewählten Anbietern ab.
 
 **LIA führt Aufzeichnungen auch dort, wo das Gesetz sie für diesen persönlichen Anwendungsfall nicht verlangt.** Artikel 12 der EU-KI-Verordnung gilt für Hochrisikosysteme. Aktions-, Lese-, Entscheidungs-, Modellparameter- und Integritätsregister sind eine bewusste Transparenzentscheidung, keine Zertifizierung. Sie sind exportierbar und werden mit dem Konto entfernt, innerhalb der dokumentierten Grenzen ihres Inhalts.
 

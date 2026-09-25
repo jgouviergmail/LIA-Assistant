@@ -34,6 +34,7 @@ import { apiImageProps, apiResourceUrl } from '@/lib/utils/api-resource-url';
 import { formatDate, formatFileSize } from '@/lib/format';
 import { assetLabel, assetOpenHref, expiryTone } from '@/lib/generated-assets/display';
 import type { GeneratedAsset } from '@/types/generated-assets';
+import { SharedByLine, ShareAssetButton } from './AssetShareControls';
 
 export interface GeneratedAssetGridProps {
   lng: Language;
@@ -168,6 +169,7 @@ export function GeneratedAssetGrid({
               <p className="text-xs text-muted-foreground">
                 {formatFileSize(asset.file_size)} · {formatDate(asset.created_at, lng)}
               </p>
+              <SharedByLine lng={lng} asset={asset} />
               {/* The deadline is STATED: a file that vanishes with nothing said
                   is the defect this line exists for. */}
               <p className={`text-xs ${tone}`}>
@@ -200,6 +202,7 @@ export function GeneratedAssetGrid({
                     <Download className="h-3.5 w-3.5" aria-hidden="true" />
                   </a>
                 </Button>
+                <ShareAssetButton lng={lng} asset={asset} label={label} />
                 <Button
                   variant="ghost"
                   size="sm"

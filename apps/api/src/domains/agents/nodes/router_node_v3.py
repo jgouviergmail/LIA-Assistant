@@ -224,7 +224,7 @@ async def router_node_v3(
         domains=intelligence.domains,
         turn_type=intelligence.turn_type,
         route_to=intelligence.route_to,
-        reasoning=intelligence.reasoning_trace[:3] if intelligence.reasoning_trace else [],
+        reasoning_steps=len(intelligence.reasoning_trace or []),
     )
 
     # === STEP: Semantic tool scoring — the planner's domain scores and the

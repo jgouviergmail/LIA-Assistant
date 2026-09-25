@@ -334,7 +334,7 @@ class UserService:
 
         logger.info(
             "users_autocomplete",
-            query=query[:20],
+            query_length=len(query),
             results=len(users),
         )
 
@@ -452,9 +452,8 @@ class UserService:
         logger.info(
             "home_location_set",
             user_id=str(user_id),
-            address_preview=location.address[:50] if location.address else None,
-            lat=final_lat,
-            lon=final_lon,
+            has_address=bool(location.address),
+            has_coordinates=final_lat is not None and final_lon is not None,
         )
 
         return HomeLocationResponse(
@@ -567,7 +566,7 @@ class UserService:
         logger.info(
             "users_searched_admin",
             admin_user_id=str(admin_user_id),
-            query=params.q,
+            query_length=len(params.q) if params.q else 0,
             total_results=total,
             page=params.page,
         )

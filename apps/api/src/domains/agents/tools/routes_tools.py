@@ -454,7 +454,6 @@ async def _resolve_destination(
     if not destination or destination.strip().lower() in ROUTES_INVALID_DESTINATION_VALUES:
         logger.warning(
             "destination_invalid_rejected",
-            destination=destination,
             reason="null_or_empty_destination",
         )
         return None
@@ -576,7 +575,6 @@ async def _resolve_destination(
         # Best-effort: an API failure is not evidence the destination is bad.
         logger.warning(
             "destination_places_error",
-            destination=destination,
             error=str(e),
             error_type=type(e).__name__,
         )
@@ -1581,8 +1579,6 @@ async def get_route_tool(
                     logger.info(
                         "route_from_cache",
                         cache_age_seconds=cache_age,
-                        origin=str(resolved_origin)[:30],
-                        destination=str(resolved_destination)[:30],
                         is_arrival_based=is_arrival_based,
                     )
             except (ConnectionError, TimeoutError, RuntimeError, OSError) as e:

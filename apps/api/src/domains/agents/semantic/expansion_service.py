@@ -196,7 +196,7 @@ class SemanticExpansionService:
                         added_domain="contact",
                         reason=f"provides {semantic_type}",
                         has_person_ref=True,
-                        query=query,
+                        query_length=len(query),
                         original_domains=domains,
                         required_type=semantic_type,
                     )
@@ -210,7 +210,7 @@ class SemanticExpansionService:
                 original_domains=domains,
                 expanded_domains=expanded_domains,
                 added_domains=domains_to_add,
-                query=query,
+                query_length=len(query),
                 has_person_ref=has_person_reference,
                 required_types=list(required_semantic_types),
             )
@@ -376,12 +376,12 @@ class SemanticExpansionService:
 
         added_domains: list[str] = []
 
-        for entity_name in sorted(evidence_entities):
-            type_def = self.registry.get(entity_name)
+        for entity_type in sorted(evidence_entities):
+            type_def = self.registry.get(entity_type)
             if not type_def or not type_def.properties:
                 logger.debug(
                     "evidence_expansion_entity_unusable",
-                    entity=entity_name,
+                    entity=entity_type,
                     found=type_def is not None,
                 )
                 continue
@@ -399,7 +399,7 @@ class SemanticExpansionService:
                         "evidence_expansion_cap_reached",
                         cap=max_added_domains,
                         dropped_provider=provider,
-                        entity=entity_name,
+                        entity=entity_type,
                     )
                     break
                 added_domains.append(provider)
@@ -409,15 +409,15 @@ class SemanticExpansionService:
                 )
 
                 semantic_expansion_total.labels(
-                    evidence_entity=entity_name,
+                    evidence_entity=entity_type,
                     added_domain=provider,
                 ).inc()
                 logger.info(
                     "evidence_expansion_added",
                     added_domain=provider,
-                    evidence_entity=entity_name,
+                    evidence_entity=entity_type,
                     matched_types=matched_types,
-                    query=query,
+                    query_length=len(query),
                 )
 
         expanded_domains = domains + added_domains
@@ -429,7 +429,7 @@ class SemanticExpansionService:
                 added_domains=added_domains,
                 evidence_entities=sorted(evidence_entities),
                 required_types=sorted(required_semantic_types),
-                query=query,
+                query_length=len(query),
             )
         return expanded_domains
 

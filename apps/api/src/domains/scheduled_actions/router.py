@@ -156,7 +156,6 @@ async def create_scheduled_action(
         "scheduled_action_created",
         user_id=str(user.id),
         action_id=str(action.id),
-        title=data.title,
     )
 
     return _action_to_response(action)

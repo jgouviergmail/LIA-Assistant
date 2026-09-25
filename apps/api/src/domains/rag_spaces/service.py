@@ -225,7 +225,6 @@ class RAGSpaceService:
                 "rag_space_created",
                 space_id=str(space.id),
                 user_id=str(user_id),
-                name=name,
             )
             return space
 
@@ -348,7 +347,6 @@ class RAGSpaceService:
             "rag_space_deleted",
             space_id=str(space_id),
             user_id=str(user_id),
-            name=space.name,
         )
 
     async def toggle_space(self, space_id: uuid.UUID, user_id: uuid.UUID) -> RAGSpace:

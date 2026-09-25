@@ -1128,16 +1128,31 @@ class TestFreeTextEventUrlRedaction:
             "event": "x",
             "logger": "src.domains.auth.service",
             "level": "info",
+            "timestamp": "2026-09-24T10:00:00Z",
             "lineno": 42,
-            "filename": "service.py",
         }
 
         result = add_pii_filter(None, "info", dict(event))
 
         assert result["logger"] == event["logger"]
         assert result["level"] == event["level"]
+        assert result["timestamp"] == event["timestamp"]
         assert result["lineno"] == 42
-        assert result["filename"] == "service.py"
+
+    def test_a_filename_field_is_application_data_not_a_call_site(self):
+        """No processor of the chain adds call-site parameters: `filename=` is ours.
+
+        It used to sit in the bypass list, so an attachment's name — and an
+        address inside it — escaped every rule of this filter.
+        """
+        result = add_pii_filter(
+            None, "info", {"event": "x", "filename": "CV jean.dupont@example.org.pdf"}
+        )
+
+        assert result["filename"] == "[REDACTED]"
+        assert "jean.dupont" not in str(
+            add_pii_filter(None, "debug", {"event": "x", "filename": "jean.dupont@example.org"})
+        )
 
 
 class TestGeolocationQueryRedaction:

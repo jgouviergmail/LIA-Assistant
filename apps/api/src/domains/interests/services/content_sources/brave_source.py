@@ -182,7 +182,7 @@ class BraveSearchContentSource:
 
             logger.info(
                 "brave_source_content_generated",
-                topic=topic,
+                topic_length=len(topic),
                 results_count=len(results),
                 content_length=len(formatted_content),
                 user_id=user_id,
@@ -204,7 +204,7 @@ class BraveSearchContentSource:
         except Exception as e:
             logger.warning(
                 "brave_source_generation_failed",
-                topic=topic,
+                topic_length=len(topic),
                 user_id=user_id,
                 error=str(e),
                 error_type=type(e).__name__,

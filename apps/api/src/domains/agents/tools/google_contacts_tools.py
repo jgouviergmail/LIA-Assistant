@@ -638,8 +638,7 @@ class SearchContactsTool(ToolOutputMixin, ConnectorTool[GooglePeopleClient]):
                 extracted_email = match.group(1).strip()
                 logger.info(
                     "search_contacts_query_cleaned",
-                    original_query=query[:50],
-                    cleaned_query=extracted_email,
+                    original_query_length=len(query),
                     user_id=str(user_id),
                 )
                 query = extracted_email
@@ -655,8 +654,7 @@ class SearchContactsTool(ToolOutputMixin, ConnectorTool[GooglePeopleClient]):
             if normalized_phone != query:
                 logger.info(
                     "search_contacts_phone_normalized",
-                    original_query=query,
-                    normalized_query=normalized_phone,
+                    original_query_length=len(query),
                     user_id=str(user_id),
                 )
                 query = normalized_phone
@@ -714,8 +712,7 @@ class SearchContactsTool(ToolOutputMixin, ConnectorTool[GooglePeopleClient]):
             for variant in phone_variants:
                 logger.info(
                     "search_contacts_phone_variant_retry",
-                    original_query=original_query,
-                    variant=variant,
+                    original_query_length=len(original_query),
                     user_id=str(user_id),
                 )
                 variant_results = await client.search_contacts(
@@ -730,8 +727,7 @@ class SearchContactsTool(ToolOutputMixin, ConnectorTool[GooglePeopleClient]):
                     results = variant_results
                     logger.info(
                         "search_contacts_phone_variant_success",
-                        original_query=original_query,
-                        successful_variant=variant,
+                        original_query_length=len(original_query),
                         total_results=len(contacts_list),
                         user_id=str(user_id),
                     )
@@ -752,7 +748,7 @@ class SearchContactsTool(ToolOutputMixin, ConnectorTool[GooglePeopleClient]):
             logger.info(
                 "search_contacts_address_not_supported",
                 user_id=str(user_id),
-                query=query,
+                query_length=len(query),
                 reason="Google API does not index addresses",
             )
             # Inform user about the limitation
@@ -779,7 +775,7 @@ class SearchContactsTool(ToolOutputMixin, ConnectorTool[GooglePeopleClient]):
         logger.info(
             "search_contacts_success",
             user_id=str(user_id),
-            query_preview=query[:20],
+            query_length=len(query),
             total_results=len(contacts_list),
             api_duration_ms=int(api_duration * 1000),
             fields_count=len(requested_fields),
@@ -972,7 +968,6 @@ class ListContactsTool(ToolOutputMixin, ConnectorTool[GooglePeopleClient]):
                     user_id=str(user_id),
                     requested_limit=limit,
                     capped_limit=max_limit_without_query,
-                    query=query,
                     issue="list_contacts_tool called without query but with high limit",
                     impact=f"Would fetch {limit} contacts without criteria (wasteful)",
                     action=f"Capping limit to {max_limit_without_query}",
@@ -1043,7 +1038,7 @@ class ListContactsTool(ToolOutputMixin, ConnectorTool[GooglePeopleClient]):
             logger.info(
                 "list_contacts_using_search_api",
                 user_id=str(user_id),
-                query=query,
+                query_length=len(query),
                 total_results=len(contacts_list),
                 api_duration_ms=int(api_duration * 1000),
             )
@@ -1086,7 +1081,7 @@ class ListContactsTool(ToolOutputMixin, ConnectorTool[GooglePeopleClient]):
         logger.info(
             "list_contacts_success",
             user_id=str(user_id),
-            query=query,
+            query_length=len(query) if query else 0,
             total_contacts=len(contacts_list),
             has_more=has_more,
             api_duration_ms=int(api_duration * 1000),
@@ -1296,7 +1291,7 @@ class GetContactDetailsTool(ToolOutputMixin, ConnectorTool[GooglePeopleClient]):
                 logger.info(
                     "resource_names_csv_coerced",
                     original_length=len(resource_names),
-                    first_name=resource_names[0] if resource_names else None,
+                    first_resource_name=resource_names[0] if resource_names else None,
                 )
             else:
                 # Single resource_name as string
@@ -1481,7 +1476,6 @@ class GetContactDetailsTool(ToolOutputMixin, ConnectorTool[GooglePeopleClient]):
             logger.info(
                 "batch_fetch_retrying_as_search",
                 failed_count=len(fallback_tasks),
-                queries=[q for _, q in fallback_tasks],
             )
             fallback_results = await asyncio.gather(
                 *[
@@ -2245,7 +2239,6 @@ class CreateContactDraftTool(ToolOutputMixin, ConnectorTool[GooglePeopleClient])
         logger.info(
             "create_contact_draft_prepared",
             user_id=str(user_id),
-            name=name,
             has_email=email is not None,
             has_phone=phone is not None,
         )
@@ -2341,7 +2334,6 @@ class CreateContactDirectTool(ConnectorTool[GooglePeopleClient]):
             "contacts_contact_created_via_tool",
             user_id=str(user_id),
             resource_name=result.get("resourceName"),
-            name=name,
         )
 
         return {
@@ -2459,7 +2451,6 @@ async def execute_contact_draft(
         "contact_draft_executed",
         user_id=str(user_id),
         resource_name=result.get("resourceName"),
-        name=draft_content["name"],
     )
 
     resource_name = result.get("resourceName")

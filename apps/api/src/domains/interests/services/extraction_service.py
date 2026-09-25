@@ -577,10 +577,8 @@ async def _analyze_interests_core(
         "interest_extraction_llm_input",
         user_id=user_id,
         session_id=session_id,
-        conversation_preview=conversation[:500] if conversation else "EMPTY",
-        existing_interests_preview=(
-            "\n".join(existing_texts)[:200] if existing_texts else "(none)"
-        ),
+        conversation_length=len(conversation) if conversation else 0,
+        existing_interests_count=len(existing_texts),
         user_language=user_language,
     )
 
@@ -603,7 +601,7 @@ async def _analyze_interests_core(
         "interest_extraction_llm_output",
         user_id=user_id,
         session_id=session_id,
-        result_content=result_content[:500] if result_content else "EMPTY",
+        result_length=len(result_content) if result_content else 0,
     )
 
     # Extract LLM metadata

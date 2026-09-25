@@ -167,7 +167,7 @@ class BraveSearchToolImpl(APIKeyConnectorTool[BraveSearchClient]):
         logger.info(
             "brave_search_success",
             user_id=str(user_id),
-            query=query[:50] if len(query) > 50 else query,
+            query_length=len(query),
             endpoint=endpoint,
             results_count=len(raw_results),
         )

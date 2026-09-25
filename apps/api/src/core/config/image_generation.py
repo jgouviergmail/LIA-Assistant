@@ -28,6 +28,9 @@ from src.core.constants import (
     IMAGE_GENERATION_RESULT_DOWNLOAD_TIMEOUT_SECONDS_DEFAULT,
     IMAGE_GENERATION_RESULT_MAX_MB_DEFAULT,
     IMAGE_GENERATION_TOOL_TIMEOUT_SECONDS_DEFAULT,
+    IMAGE_PROMPT_ENHANCEMENT_ENABLED_DEFAULT,
+    IMAGE_PROMPT_ENHANCEMENT_MAX_CHARS_CEILING,
+    IMAGE_PROMPT_ENHANCEMENT_MAX_CHARS_DEFAULT,
     MAX_IMAGE_GENERATION_TOOL_TIMEOUT_SECONDS_DEFAULT,
 )
 
@@ -59,6 +62,28 @@ class ImageGenerationSettings(BaseSettings):
         description=(
             "Maximum number of images a single tool call can generate. "
             "Higher values increase cost proportionally."
+        ),
+    )
+
+    # ========================================================================
+    # Prompt Enhancement (ADR-315)
+    # ========================================================================
+
+    image_prompt_enhancement_enabled: bool = Field(
+        default=IMAGE_PROMPT_ENHANCEMENT_ENABLED_DEFAULT,
+        description=(
+            "Offer the optional rewrite of image prompts (the person turns it on in "
+            "Settings > AI image generation). When false the setting is not offered "
+            "and no prompt is rewritten, whatever an account chose."
+        ),
+    )
+    image_prompt_enhancement_max_chars: int = Field(
+        default=IMAGE_PROMPT_ENHANCEMENT_MAX_CHARS_DEFAULT,
+        ge=200,
+        le=IMAGE_PROMPT_ENHANCEMENT_MAX_CHARS_CEILING,
+        description=(
+            "Longest enhanced prompt kept, in characters; a longer rewrite is "
+            "discarded for the original. Bounded far below the vendors' own limits."
         ),
     )
 

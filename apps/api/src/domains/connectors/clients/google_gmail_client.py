@@ -339,6 +339,11 @@ class GoogleGmailClient(GmailAttachmentsMixin, GmailThreadsMixin, BaseGoogleClie
         """Get the mailbox profile — the historyId anchor for delta sync (lot G)."""
         return await self._make_request("GET", "/users/me/profile")
 
+    async def get_own_address(self) -> str | None:
+        """The connected mailbox's address, from its profile (ADR-314)."""
+        address = (await self.get_profile()).get("emailAddress")
+        return str(address) if address else None
+
     async def get_history(
         self,
         start_history_id: str,
@@ -644,8 +649,6 @@ class GoogleGmailClient(GmailAttachmentsMixin, GmailThreadsMixin, BaseGoogleClie
             "gmail_email_sent",
             user_id=str(self.user_id),
             message_id=response.get("id"),
-            to=to,
-            subject=subject[:50],
         )
 
         return response
@@ -890,7 +893,6 @@ class GoogleGmailClient(GmailAttachmentsMixin, GmailThreadsMixin, BaseGoogleClie
                     logger.warning(
                         "gmail_forward_attachment_failed",
                         attachment_id=att_info.get("attachment_id"),
-                        filename=att_info.get("filename"),
                         error=str(e),
                     )
                     # Continue with other attachments even if one fails
@@ -1254,8 +1256,7 @@ class GoogleGmailClient(GmailAttachmentsMixin, GmailThreadsMixin, BaseGoogleClie
                 logger.warning(
                     "gmail_label_not_found",
                     user_id=str(self.user_id),
-                    label_name=label_name,
-                    available_labels=list(name_to_id.keys())[:10],  # First 10 for debug
+                    available_labels_count=len(name_to_id),
                 )
 
         return resolved_query
@@ -1458,7 +1459,6 @@ class GoogleGmailClient(GmailAttachmentsMixin, GmailThreadsMixin, BaseGoogleClie
             "gmail_label_created",
             user_id=str(self.user_id),
             label_id=response.get("id"),
-            label_name=name,
         )
 
         # Invalidate cache
@@ -1499,7 +1499,6 @@ class GoogleGmailClient(GmailAttachmentsMixin, GmailThreadsMixin, BaseGoogleClie
             "gmail_label_updated",
             user_id=str(self.user_id),
             label_id=label_id,
-            new_name=new_name,
         )
 
         # Invalidate cache

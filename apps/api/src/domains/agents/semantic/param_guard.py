@@ -218,7 +218,7 @@ def strip_placeholder_arguments(
                     "placeholder_argument_dropped",
                     tool_name=tool_name,
                     param_name=name,
-                    value=value,
+                    value_length=len(str(value)),
                 )
         return cleaned
 

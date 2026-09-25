@@ -28,8 +28,6 @@
     "oauth_health_notification_skipped_total",
     "open_loop_closures_total",
     "peer_domain_correction_total",
-    "peers_events_total",
-    "peers_messages_total",
     "planner_fabricated_parameters_restored_total",
     "planner_parameter_bounds_corrections_total",
     "prompt_injection_patterns_total",

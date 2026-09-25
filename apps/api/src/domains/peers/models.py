@@ -315,6 +315,57 @@ class PeerMessage(BaseModel):
         )
 
 
+class PeerImageShare(BaseModel):
+    """Ledger of one generated image shared with a connection (ADR-316).
+
+    The recipient receives a COPY in their own gallery, as if they had generated
+    it when it arrived — so the copy expires with the attachment TTL and cannot
+    be what a daily quota counts: this row is. It records who shared with whom
+    and which copy it produced, and nothing of what was said: the optional
+    comment reaches the recipient's chat and is kept nowhere else.
+
+    ``attachment_id`` is SET NULL: the copy expires or is deleted by its owner
+    long before the row loses its purpose (the quota day, the audit).
+    """
+
+    __tablename__ = "peer_image_shares"
+
+    connection_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("peer_connections.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        comment="Connection the image travelled on.",
+    )
+    sender_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        comment="User who shared the image.",
+    )
+    recipient_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        comment="User who received a copy in their gallery.",
+    )
+    attachment_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("attachments.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="The recipient's copy; NULL once it expired or was deleted.",
+    )
+
+    __table_args__ = (
+        # The quotas count one sender's shares of the current UTC day.
+        Index("ix_peer_image_shares_sender_created", "sender_id", "created_at"),
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<PeerImageShare(id={self.id}, sender={self.sender_id}, "
+            f"recipient={self.recipient_id})>"
+        )
+
+
 class PeerAccessLog(Base, UUIDMixin):
     """Immutable audit of one cross-user read (AdminAuditLog pattern).
 
@@ -376,6 +427,7 @@ __all__ = [
     "PeerConnection",
     "PeerConnectionStatus",
     "PeerDomainShare",
+    "PeerImageShare",
     "PeerMessage",
     "PeerMessageStatus",
     "PeerShareDomain",

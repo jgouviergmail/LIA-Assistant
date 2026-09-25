@@ -500,7 +500,7 @@ class SkillScriptExecutor:
                 "skill_script_sandbox_unavailable",
                 skill_name=skill_name,
                 script=script_name,
-                stderr=result.stderr[:500] if result.stderr else "",
+                stderr_length=len(result.stderr or ""),
                 user_id=user_id,
             )
             return ScriptResult(
@@ -517,8 +517,8 @@ class SkillScriptExecutor:
                 skill_name=skill_name,
                 script=script_name,
                 exit_code=result.returncode,
-                stderr=result.stderr[:500] if result.stderr else "",
-                stdout=result.stdout[:500] if result.stdout else "",
+                stderr_length=len(result.stderr or ""),
+                stdout_length=len(result.stdout or ""),
                 user_id=user_id,
                 sandbox="container",
             )
@@ -790,8 +790,8 @@ class SkillScriptExecutor:
                     skill_name=skill_name,
                     script=script_name,
                     exit_code=result.returncode,
-                    stderr=result.stderr[:500] if result.stderr else "",
-                    stdout=result.stdout[:500] if result.stdout else "",
+                    stderr_length=len(result.stderr or ""),
+                    stdout_length=len(result.stdout or ""),
                     user_id=user_id,
                 )
                 return ScriptResult(

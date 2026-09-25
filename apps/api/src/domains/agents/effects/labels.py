@@ -20,15 +20,12 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
+from src.core.config import settings
 from src.core.constants import MCP_TOOL_NAME_PREFIX
 from src.core.text_clip import clip_on_word
 
 #: A builder reads the call arguments and returns the values its wording needs.
 LabelValuesBuilder = Callable[[dict[str, Any]], dict[str, Any]]
-
-#: One value is one line of a card: long enough to identify, short enough to
-#: read. The ellipsis of a shortened value counts inside it.
-MAX_VALUE_CHARS = 120
 
 #: Prefix under which a draft executor is recorded (``draft:email``).
 DRAFT_TOOL_PREFIX = "draft:"
@@ -52,8 +49,10 @@ def _text(value: Any, fallback: str = "?") -> str:
         rest = len(value) - LIST_ITEMS_SHOWN
         value = (f"{shown}, +{rest}" if rest > 0 else shown) or fallback
     # On a word boundary with an ellipsis: a card that ended on « posture cr »
-    # read as broken, not as shortened (2026-09-23).
-    return clip_on_word(" ".join(str(value).split()), MAX_VALUE_CHARS)
+    # read as broken, not as shortened (2026-09-23). The bound is the operator's
+    # (the ellipsis counts inside it), read at claim time: a paragraph fits,
+    # and the card wraps it rather than stopping after a few words (2026-09-24).
+    return clip_on_word(" ".join(str(value).split()), settings.effect_label_value_max_chars)
 
 
 def _first(arguments: dict[str, Any], *names: str, fallback: str = "?") -> str:
@@ -130,6 +129,9 @@ EFFECT_LABEL_BUILDERS: dict[str, LabelValuesBuilder] = {
     # LIA calls the account holder (phone-as-a-channel, lot 3): the objective
     # is what the row can name; an empty one reads as a catch-up in the wording.
     "call_me_tool": _target("objective"),
+    # An e-mail to the account holder themselves (ADR-314): the subject is what
+    # the row names — the recipient is always the reader.
+    "send_email_to_me_tool": _target("subject", "content_instruction"),
     "toggle_scheduled_action_tool": _target("name", "action_name", "action_id"),
     # Workboard (ADR-276). `create` names the title it was given; the three
     # others name the ticket as the person referred to it — an id or a

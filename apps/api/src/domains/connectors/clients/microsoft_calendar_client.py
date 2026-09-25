@@ -288,7 +288,6 @@ class MicrosoftCalendarClient(BaseMicrosoftClient):
             "microsoft_calendar_event_created",
             user_id=str(self.user_id),
             event_id=response.get("id"),
-            summary=summary,
         )
 
         return normalize_graph_event(response)

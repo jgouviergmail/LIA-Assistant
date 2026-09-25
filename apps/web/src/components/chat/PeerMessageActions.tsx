@@ -8,8 +8,9 @@
  * parsed once into a typed context (module-level — CC discipline), then each
  * flow lives in its own subcomponent:
  *
- * - `proactive_peer_message` → Reply (prefills the composer — A4 contract:
- *   prefill NEVER sends) + Block (house confirm, then POST /peers/blocks).
+ * - `proactive_peer_message`, and `proactive_peer_image` (an image the peer
+ *   shared, ADR-316) → Reply (prefills the composer — A4 contract: prefill
+ *   NEVER sends) + Block (house confirm, then POST /peers/blocks).
  * - `proactive_peer_request` (incoming request) → Accept / Decline
  *   (POST /peers/requests/{id}/respond) — one-click from the chat, mirroring
  *   the settings section. After a response the chips freeze into the verdict.
@@ -22,9 +23,8 @@ import { Check, Reply, ShieldOff, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useConfirm } from '@/components/ui/use-confirm';
-import { toastPeersError } from '@/components/settings/peers/peers-error-messages';
+import { peersErrorCode, toastPeersError } from '@/components/settings/peers/peers-error-messages';
 import { useApiMutation } from '@/hooks/useApiMutation';
-import { ApiError } from '@/lib/api-client';
 import { useTranslation } from 'react-i18next';
 
 export interface PeerMessageActionsProps {
@@ -36,6 +36,12 @@ export interface PeerMessageActionsProps {
 type PeerActionContext =
   | { kind: 'message'; peerId: string | null; peerName: string }
   | { kind: 'request'; connectionId: string | null; peerName: string };
+
+/** What a peer SENT (a relayed message, a shared image): reply and block apply. */
+const FROM_PEER_TYPES: ReadonlySet<unknown> = new Set([
+  'proactive_peer_message',
+  'proactive_peer_image',
+]);
 
 /** Read one string metadata field, or null when absent/mistyped. */
 function str(metadata: Record<string, unknown>, key: string): string | null {
@@ -53,7 +59,7 @@ function parsePeerActionContext(
   metadata: Record<string, unknown> | undefined
 ): PeerActionContext | null {
   if (!metadata) return null;
-  if (metadata.type === 'proactive_peer_message') {
+  if (FROM_PEER_TYPES.has(metadata.type)) {
     return {
       kind: 'message',
       peerId: str(metadata, 'sender_id') ?? str(metadata, 'peer_id'),
@@ -66,15 +72,6 @@ function parsePeerActionContext(
       connectionId: str(metadata, 'target_id'),
       peerName: str(metadata, 'peer_name') ?? '',
     };
-  }
-  return null;
-}
-
-/** Extract the stable `peers_*` code from a thrown mutation error. */
-function errorCode(err: unknown): string | null {
-  if (err instanceof ApiError && err.data && typeof err.data === 'object') {
-    const detail = (err.data as { detail?: unknown }).detail;
-    if (typeof detail === 'string') return detail;
   }
   return null;
 }
@@ -113,7 +110,7 @@ function RelayedMessageActions({
       setBlocked(true);
       toast.success(t('settings.peers.blocks.blocked'));
     } catch (err) {
-      toastPeersError(t, errorCode(err));
+      toastPeersError(t, peersErrorCode(err));
     }
   };
 
@@ -158,7 +155,7 @@ function ConnectionRequestActions({
         accept ? t('settings.peers.requests.accepted') : t('settings.peers.requests.declined')
       );
     } catch (err) {
-      toastPeersError(t, errorCode(err));
+      toastPeersError(t, peersErrorCode(err));
     }
   };
 

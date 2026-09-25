@@ -441,7 +441,7 @@ def _process_entity_disambiguation_decision(
         elif selected_value:
             logger.info(
                 "entity_disambiguation_value_selected",
-                selected_value=selected_value[:50] if selected_value else None,
+                selected_value_length=len(selected_value) if selected_value else 0,
             )
             return "select", {"value": selected_value}, None
         else:
@@ -744,7 +744,7 @@ async def _handle_draft_critique(
                 draft_id=pending_draft.draft_id,
                 from_type=pending_draft.draft_type,
                 to_type=new_type,
-                instructions=decision_data.get("modification_instructions", "")[:80],
+                instructions_length=len(decision_data.get("modification_instructions", "")),
             )
             pending_draft = PendingDraftInfo(
                 draft_id=pending_draft.draft_id,
@@ -794,7 +794,7 @@ async def _handle_draft_critique(
             "hitl_dispatch_draft_modification_requested",
             draft_id=pending_draft.draft_id,
             draft_type=pending_draft.draft_type,
-            instructions=modification_instructions[:100],
+            instructions_length=len(modification_instructions),
             iteration=iteration,
         )
 
@@ -821,7 +821,7 @@ async def _handle_draft_critique(
             # Detect DELETE → UPDATE: modifier produced content changes
             # on a delete draft → user wants to update, not delete
             if pending_draft.draft_type in _UPDATABLE_DELETE_TYPES:
-                content_changes = [
+                changed_fields = [
                     k
                     for k in modified_content
                     if k not in _PRESERVED_FIELDS_FOR_DIFF
@@ -830,14 +830,14 @@ async def _handle_draft_critique(
                         or modified_content[k] != pending_draft.draft_content.get(k)
                     )
                 ]
-                if content_changes:
+                if changed_fields:
                     new_draft_type = _UPDATABLE_DELETE_TYPES[pending_draft.draft_type]
                     logger.info(
                         "hitl_draft_type_changed_to_update",
                         draft_id=pending_draft.draft_id,
                         from_type=pending_draft.draft_type,
                         to_type=new_draft_type,
-                        content_changes=content_changes,
+                        changed_fields=changed_fields,
                     )
 
             logger.info(
@@ -896,7 +896,7 @@ async def _handle_draft_critique(
         logger.info(
             "hitl_dispatch_draft_clarification_needed",
             draft_id=pending_draft.draft_id,
-            clarification_question=clarification_question[:100],
+            clarification_question_length=len(clarification_question),
             iteration=iteration,
         )
         # Self-loop: the question is persisted and surfaced with the
