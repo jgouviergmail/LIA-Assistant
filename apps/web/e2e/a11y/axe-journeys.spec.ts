@@ -1124,6 +1124,7 @@ ${summary}`
       { url: '**/api/v1/radio/sources', json: [] },
     ]);
     await page.goto('/en/dashboard/settings?section=radio');
+    await page.getByText('Voices', { exact: true }).click();
     const name = page.getByRole('textbox', { name: 'Station name' });
     await expect(name).toBeVisible({ timeout: 20_000 });
     await expect(name).toHaveValue('Morning Radio');

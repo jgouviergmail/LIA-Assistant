@@ -10,6 +10,12 @@
 
 set -e
 
+# Git exports repository-local variables to hooks. Clear them before running
+# checks that create their own temporary Git repositories.
+while IFS= read -r name; do
+    unset "$name"
+done < <(git rev-parse --local-env-vars)
+
 echo "🔍 Running pre-commit checks..."
 
 # Colors for output

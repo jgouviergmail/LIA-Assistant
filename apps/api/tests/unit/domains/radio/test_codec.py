@@ -183,7 +183,7 @@ def produced_segment(audio: Path) -> ProducedSegment:
                         label="Example Outlet",
                         url="https://news.example/rain",
                         published_at=T0 - timedelta(hours=2),
-                        story_key="7c0b6a9e-2f1d-4c1e-9d38-2a6f5f0f7a11",
+                        story_key="example-rain-capital",
                     ),
                     SourceRef(label="Agenda", record_kind="event", record_id="evt-17"),
                 ),

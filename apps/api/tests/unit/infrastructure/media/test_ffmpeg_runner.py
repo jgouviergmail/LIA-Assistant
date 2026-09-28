@@ -48,7 +48,7 @@ def test_stdout_is_returned_and_stdin_fed() -> None:
 def test_a_failure_carries_a_bounded_stderr_excerpt() -> None:
     with pytest.raises(FfmpegError, match="exit 3") as caught:
         run_loop(lambda: run_python("import sys; sys.stderr.write('x' * 5000); sys.exit(3)"))
-    assert len(str(caught.value)) < 400
+    assert str(caught.value).rsplit(": ", 1)[1] == "x" * ffmpeg._STDERR_EXCERPT_CHARS
 
 
 def test_a_timeout_kills_the_process() -> None:
