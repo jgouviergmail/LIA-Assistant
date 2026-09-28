@@ -1,4 +1,5 @@
-import { FEATURE_ICONS } from './chapters-data';
+import { FeatureExplorer } from './FeatureExplorer';
+import { FEATURE_SCENES } from './FeatureScenes';
 
 /**
  * Server-side translate function shape shared by the editorial sections.
@@ -8,10 +9,9 @@ import { FEATURE_ICONS } from './chapters-data';
 export type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /**
- * The detailed feature cards (reading level 2), reusing the existing
- * `landing.features.<key>.{title,description}` copy — already translated in
- * all 6 locales. Rendered inside a CatalogDisclosure; stays in the DOM while
- * collapsed so every description remains crawlable.
+ * Translate on the server, then pass serializable copy to the explorer.
+ * Every complete description remains in the DOM, including inactive panels.
+ * The chapter's editorial order is also the explorer's reading order.
  */
 export function FeatureCatalog({
   t,
@@ -21,24 +21,23 @@ export function FeatureCatalog({
   featureKeys: readonly string[];
 }) {
   return (
-    <ul className="grid list-none grid-cols-1 gap-4 md:grid-cols-2">
-      {featureKeys.map(key => {
-        const Icon = FEATURE_ICONS[key];
-        return (
-          <li
-            key={key}
-            className="rounded-xl border border-border bg-card p-5 transition-colors hover:border-primary/30"
-          >
-            <h4 className="flex items-center gap-2 text-sm font-semibold">
-              {Icon && <Icon aria-hidden="true" className="h-4 w-4 shrink-0 text-primary" />}
-              {t(`landing.features.${key}.title`)}
-            </h4>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              {t(`landing.features.${key}.description`)}
-            </p>
-          </li>
-        );
-      })}
-    </ul>
+    <FeatureExplorer
+      items={featureKeys.map((key, index) => ({
+        id: key,
+        title: t(`landing.features.${key}.title`),
+        description: t(`landing.features.${key}.description`),
+        sceneLabel: t(`landing.catalog_explorer.scenes.${FEATURE_SCENES[key]}`),
+        positionLabel: t('landing.catalog_explorer.position', {
+          current: index + 1,
+          total: featureKeys.length,
+        }),
+      }))}
+      labels={{
+        browse: t('landing.catalog_explorer.browse'),
+        hint: t('landing.catalog_explorer.hint'),
+        previous: t('landing.catalog_explorer.previous'),
+        next: t('landing.catalog_explorer.next'),
+      }}
+    />
   );
 }

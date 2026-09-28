@@ -14,16 +14,12 @@ import { getPublicShowroomVariant } from '@/lib/showroom-config';
 import { getSiteOrigin, localizedUrl } from '@/lib/site-origin';
 
 /**
- * Standalone URL for the hero conversation animation, made to be shared on
- * social networks and embedded in publications: no header, no footer, no auth
- * redirect — the four-act mockup at the center of the cosmos planetarium,
- * made INTERACTIVE here (UX P12): scene pastilles, pause/replay, progress and
- * a closing CTA. The auto loop is preserved until the visitor interacts.
- * Localized like every route (the mockup aria text doubles as the page
- * description).
+ * Shareable product demonstration: the same six contextual scenes as the
+ * landing, with selection, pause/replay and a closing CTA. A selected scene
+ * reveals its request, useful context and concrete result, then stays available
+ * to read. Engineering explanations remain opt-in; reduced motion shows the
+ * complete scene immediately. The configured guided showroom stays independent.
  */
-
-
 function buildLangUrl(path: string, lng: Language): string {
   return localizedUrl(getSiteOrigin(), path, lng);
 }
@@ -38,7 +34,7 @@ export async function generateMetadata({ params }: DemoPageProps): Promise<Metad
   const { t } = await initI18next(lng);
 
   const title = t('landing.meta.title');
-  const description = t('landing.chat_mockup.aria');
+  const description = t('landing.product_demo.meta_description');
   const canonicalUrl = buildLangUrl('/demo', lng);
   const socialImage = getSiteOrigin()?.concat('/Title.png');
 
@@ -61,7 +57,9 @@ export async function generateMetadata({ params }: DemoPageProps): Promise<Metad
       url: canonicalUrl,
       locale: LOCALE_MAP[lng],
       alternateLocale: languages.filter(l => l !== lng).map(l => LOCALE_MAP[l]),
-      images: socialImage ? [{ url: socialImage, width: 2125, height: 1193, alt: title }] : undefined,
+      images: socialImage
+        ? [{ url: socialImage, width: 2125, height: 1193, alt: title }]
+        : undefined,
     },
     twitter: {
       title,
@@ -106,11 +104,11 @@ export default async function DemoPage({ params }: DemoPageProps) {
           <>
             {/* Product funnel (ADR-178 Phase 4, anonymous allowed) — inert unless enabled */}
             <TrackView event="demo_started" />
-            {/* The real four-act mockup at the center of the planetarium — LIA's
-                feature families in orbit around the live conversation. */}
+            {/* The same illustrative product scenes used by the landing and
+                its chapters, with visitor-controlled playback. */}
             <div className="cosmos-orbit-zone w-full">
               <Planetarium />
-              {/* min-w-0/max-w-full: an unbreakable mockup line must never widen
+              {/* min-w-0/max-w-full: a long translated line must never widen
                   the centered grid track past a phone viewport. */}
               <div className="relative z-10 w-full min-w-0 max-w-md">
                 <InteractiveChatMockup lng={lng} />

@@ -44,7 +44,7 @@ export function radioOptions(over: Partial<RadioOptions> = {}): RadioOptions {
       },
     ],
     frequencies: ['off', 'rare', 'normal', 'often'],
-    sources: ['agenda', 'mails', 'health'],
+    sources: ['agenda', 'mails', 'sent_mails', 'health'],
     verification_modes: ['off', 'news', 'all'],
     verification_default: 'news',
     verification_checked: {

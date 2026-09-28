@@ -9,7 +9,7 @@ import Link from 'next/link';
 import { initI18next } from '@/i18n';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, PlayCircle, ShieldCheck, Star } from 'lucide-react';
+import { ChevronDown, PlayCircle, ShieldCheck } from 'lucide-react';
 import { GithubIcon } from '@/components/icons/GithubIcon';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 import { getPublicShowroomVariant } from '@/lib/showroom-config';
@@ -78,7 +78,7 @@ export async function CosmosHero({ lng }: { lng: string }) {
 
   return (
     <section className="relative min-h-screen flex items-center overflow-clip">
-      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-20">
+      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-10 sm:pb-12">
         <div className="grid lg:grid-cols-[1.05fr_0.95fr] gap-12 lg:gap-16 items-center">
           {/* Copy column — min-w-0 so no child's intrinsic width can widen the
               grid track past the viewport on mobile */}
@@ -93,7 +93,7 @@ export async function CosmosHero({ lng }: { lng: string }) {
               <Badge
                 pulse
                 variant="destructive"
-                className="bg-red-500/10 text-red-600 dark:text-red-300 border-red-500/30"
+                className="bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/30"
               >
                 {t('landing.hero.badge_beta')}
               </Badge>
@@ -160,20 +160,6 @@ export async function CosmosHero({ lng }: { lng: string }) {
                   {t('landing.hero.cta_github')}
                 </a>
               </Button>
-              {/* GitHub exposes no URL that stars a repository (that needs an
-                  OAuth token): this lands the visitor on the repo where the
-                  star control is one click away — the honest maximum. */}
-              <Button asChild variant="outline" size="lg" className="text-base px-5 gap-2">
-                <a
-                  href={GITHUB_REPO_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  data-testid="hero-cta-star"
-                >
-                  <Star className="w-5 h-5" aria-hidden="true" />
-                  {t('landing.hero.cta_star')}
-                </a>
-              </Button>
             </div>
 
             <div
@@ -195,27 +181,10 @@ export async function CosmosHero({ lng }: { lng: string }) {
               unbreakable line inside a mockup act sets the implicit track's
               min-content and silently widens the hero past a phone viewport
               (the historical hero-overflow mechanism, one level up). */}
-          {/* lg:-translate-y-[57px] — optical alignment of the mockup's act
-              row with the badge/date line of the left column.
-              Originally 91px, measured in-browser at 1440x900 when the acts
-              and the schedule controls shared ONE wrapping row. Splitting them
-              into two rows (the acts must never wrap — see
-              InteractiveChatMockup) made the column taller, and since the grid
-              track is `items-center` the extra height re-centred it and lifted
-              the act row: re-measured on a 1340px render, the acts sat 34px
-              ABOVE the date line instead of on it. 91 - 34 = 57.
-              TRANSFORM, not a negative margin: `items-center` would absorb a
-              margin and move the column by half the value. Two-column layout
-              only — below `lg` the columns stack and any offset breaks the
-              flow. Changing the height of the act or control rows invalidates
-              this number; it is a measurement, not a constant. */}
-          <div
-            {...rise(RISE_DELAYS.mockup)}
-            className="cosmos-rise w-full min-w-0 lg:-translate-y-[57px]"
-          >
+          <div {...rise(RISE_DELAYS.mockup)} className="cosmos-rise w-full min-w-0">
             <div className="cosmos-orbit-zone">
               <Planetarium />
-              <div className="relative z-10 w-full min-w-0">
+              <div className="relative z-10 w-full min-w-0 rounded-2xl bg-background">
                 <InteractiveChatMockup lng={lng} withCta={false} />
               </div>
             </div>

@@ -12,7 +12,6 @@ import { BasicsBand } from '@/components/landing/editorial/BasicsBand';
 import { TransparencySection } from '@/components/landing/editorial/TransparencySection';
 import { GallerySection } from '@/components/landing/editorial/GallerySection';
 import { ChapterRail } from '@/components/landing/editorial/ChapterRail';
-import { ArchitectureDiagram } from '@/components/landing/ArchitectureDiagram';
 import { UseCasesSection } from '@/components/landing/UseCasesSection';
 import { TechSection } from '@/components/landing/TechSection';
 import { BlogPreviewSection } from '@/components/landing/BlogPreviewSection';
@@ -145,17 +144,16 @@ export default async function HomePage({ params }: HomePageProps) {
         <main>
           <CosmosHero lng={lng} />
           <PromiseSection lng={lng} />
+          <UseCasesSection lng={lng} />
           <EditorialChapters lng={lng} ghosts />
           <BasicsBand lng={lng} />
           <TransparencySection
             lng={lng}
             ghost={<GhostWord wordKey="landing.cosmos.ghost.transparency" direction={1} />}
           />
-          <UseCasesSection lng={lng} />
           <CosmosDay />
           <GallerySection />
           <TechSection lng={lng} />
-          <ArchitectureDiagram />
           <ChangelogSection lng={lng} />
           <BlogPreviewSection lng={lng} />
           <CosmosFinale lng={lng} />
@@ -164,17 +162,8 @@ export default async function HomePage({ params }: HomePageProps) {
         {/* Scroll-scrub drivers: each writes its section's --sp so the cosmos
             skin can choreograph the tiles in sync with the scroll (one distinct
             pattern per section — rise, 3D flip, lift, pop, execution trace). */}
-        <ScrollScrub targetId="chapter-act" syncStageDelays />
-        <ScrollScrub targetId="chapter-know" syncStageDelays />
-        <ScrollScrub targetId="chapter-anticipate" syncStageDelays />
-        <ScrollScrub targetId="chapter-control" syncStageDelays />
-        <ScrollScrub targetId="chapter-grow" syncStageDelays />
-        <ScrollScrub targetId="chapter-connect" syncStageDelays />
         <ScrollScrub targetId="transparency" />
-        <ScrollScrub targetId="use-cases" />
         <ScrollScrub targetId="gallery" />
-        <ScrollScrub targetId="technology" />
-        <ScrollScrub targetId="architecture" />
         <ScrollScrub targetId="changelog" />
 
         <LandingFooter lng={lng} />

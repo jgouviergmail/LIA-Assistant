@@ -985,7 +985,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         // is why the effect kept not showing. Its counterpart is the composer
         // being sticky INSIDE the scroll container — blur only renders what
         // actually passes behind it.
-        'border-t border-border/30 bg-card/60 backdrop-blur-xl px-4 py-4 sm:px-6 relative',
+        'border-t border-border/30 bg-card/60 backdrop-blur-xl px-2 py-4 sm:px-6 relative',
         isDragOver && 'ring-2 ring-primary ring-inset bg-primary/5',
         className
       )}
@@ -1014,9 +1014,12 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         {attachmentsEnabled && (
           <AttachmentPreview attachments={attachments} onRemove={removeFile} />
         )}
-        {/* `gap-2` on a phone, `gap-3` from `mobile`: two gaps around a
-            square action button, the typing area takes the difference. */}
-        <form onSubmit={handleSubmit} className="flex gap-2 mobile:gap-3">
+        {/* On phones, one input surface includes the touch controls: the
+            textarea gets the space previously spent on separate gutters. */}
+        <form
+          onSubmit={handleSubmit}
+          className="flex gap-0 rounded-xl border border-input bg-background p-1 shadow-sm focus-within:ring-1 focus-within:ring-ring sm:gap-2 sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none sm:focus-within:ring-0 mobile:gap-3"
+        >
           {/* Hidden file input */}
           <input
             ref={fileInputRef}
@@ -1052,7 +1055,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           />
           {/* Positional wrapper (UXR Lot 8): the slash menu floats above the
               textarea, which carries the combobox role itself (ARIA 1.2). */}
-          <div className="relative flex-1">
+          <div className="relative min-w-0 flex-1">
             <SlashCommandMenu menu={slashMenu} />
             <textarea
               ref={textareaRef}
@@ -1078,7 +1081,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               // below it — the wrapper grew to 54 px while every control
               // stayed 48 px, and the field sat 6 px above the paperclip and
               // the send button (measured). Nothing else aligned them.
-              className="block w-full resize-none overflow-y-hidden rounded-lg border border-input bg-background px-4 py-3 text-base mobile:text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 placeholder:text-transparent mobile:placeholder:text-muted-foreground"
+              className="block w-full resize-none overflow-y-hidden rounded-lg border-0 border-input bg-transparent px-2 py-3 text-base mobile:text-sm transition-colors focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 placeholder:text-transparent sm:border sm:bg-background sm:px-4 sm:shadow-sm sm:focus-visible:ring-1 mobile:placeholder:text-muted-foreground"
               rows={1}
               disabled={disabled || !apiAvailable}
               style={{ minHeight: '48px', maxHeight: `${CHAT_INPUT_MAX_HEIGHT_PX}px` }}
@@ -1096,7 +1099,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               type="button"
               size="lg"
               variant="destructive"
-              className="gap-2 h-12 self-end transition-all duration-200"
+              className="gap-2 h-12 w-12 shrink-0 self-end px-0 transition-all duration-200 sm:w-auto sm:px-8"
               onClick={onStopGeneration}
               aria-label={t('chat.input.stop')}
             >
@@ -1112,9 +1115,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 size="lg"
                 disabled={isButtonDisabled || (showSendMode && !hasMessage)}
                 className={cn(
-                  // Icon-only at every width: `px-5` on a phone keeps a 56 px
-                  // hold-to-talk target and gives the field the rest.
-                  'gap-2 h-12 self-end px-5 transition-all duration-200 mobile:px-8',
+                  // A fixed 48 px touch target leaves the phone's remaining
+                  // width for typing; wider screens keep the labelled button.
+                  'gap-2 h-12 w-12 shrink-0 self-end px-0 transition-all duration-200 sm:w-auto sm:px-5 mobile:px-8',
                   'touch-manipulation select-none [-webkit-touch-callout:none]',
                   isRecording && 'bg-destructive hover:bg-destructive/90 animate-pulse'
                 )}

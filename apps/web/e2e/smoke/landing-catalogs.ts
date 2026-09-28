@@ -22,3 +22,12 @@ export async function unfoldCatalogs(page: Page): Promise<number> {
   await page.waitForTimeout(400);
   return unfolded;
 }
+
+/** Reveal the optional explanations too, including nested engineering details. */
+export async function unfoldLandingDetails(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const details = Array.from(document.querySelectorAll<HTMLDetailsElement>('main details'));
+    for (const detail of details) detail.open = true;
+    return details.length;
+  });
+}

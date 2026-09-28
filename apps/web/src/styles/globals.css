@@ -1403,24 +1403,6 @@
       step-in 0.35s ease-out,
       step-breathe 2s ease-in-out 0.35s infinite;
   }
-  /* Standalone utilities for the same visuals outside .markdown-content
-     (landing mockup steps — InteractiveChatMockup). */
-  .animate-step-in {
-    animation: step-in 0.35s ease-out both;
-  }
-  .animate-step-breathe {
-    animation: step-breathe 2s ease-in-out infinite;
-  }
-  /* Delayed one-way dim: a step line fades to background once the next lands. */
-  @keyframes step-dim {
-    to {
-      opacity: 0.55;
-    }
-  }
-  .animate-step-dim {
-    animation: step-dim 0.4s ease forwards;
-  }
-
   /* --- Progress → answer cross-fade (ChatMessage, one-shot on phase flip) --- */
   @keyframes phase-fade {
     from {
@@ -1579,16 +1561,6 @@
       opacity: 0;
     }
   }
-  /* Landing mockup: transient caret — 3 blinks then ends hidden ('both'). */
-  .mockup-caret {
-    display: inline-block;
-    width: 2px;
-    height: 1em;
-    margin-left: 2px;
-    vertical-align: -0.15em;
-    background-color: currentColor;
-    animation: caret-blink 1s steps(1) 3 both;
-  }
   .stream-caret .markdown-content > p:last-of-type::after {
     content: '';
     display: inline-block;
@@ -1599,121 +1571,6 @@
     background-color: currentColor;
     animation: caret-blink 1s steps(1) infinite;
   }
-  /* --- Landing hero mockup: backstage glass pane & figures (mockup/) ---
-     The glass reveal, figure chips, connector flow, input typing and token
-     tick are all transform/opacity (plus SVG stroke-dashoffset) only. */
-  @keyframes glass-in {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
-  }
-  .animate-glass-in {
-    animation: glass-in 0.35s ease-out both;
-  }
-  /* Word-by-word input typing: each word pops in after its stagger delay. */
-  @keyframes word-in {
-    to {
-      opacity: 1;
-    }
-  }
-  .animate-word-in {
-    opacity: 0;
-    animation: word-in 0.05s steps(1) both;
-  }
-  @keyframes chip-pop {
-    from {
-      opacity: 0;
-      transform: scale(0.85);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1);
-    }
-  }
-  .animate-chip-pop {
-    animation: chip-pop 0.3s ease-out both;
-  }
-  /* Connector fan: fade in, then dashes march along the path (token flow).
-     Paths are pathLength-normalized to 1; -0.23 = two full dash cycles. */
-  @keyframes fan-flow {
-    to {
-      stroke-dashoffset: -0.23;
-    }
-  }
-  .animate-fan-draw {
-    animation:
-      glass-in 0.4s ease-out both,
-      fan-flow 1.4s linear infinite;
-  }
-  @keyframes wire-draw {
-    from {
-      transform: scaleX(0);
-    }
-    to {
-      transform: scaleX(1);
-    }
-  }
-  .animate-wire-draw {
-    animation: wire-draw 0.45s ease-out both;
-  }
-  /* The HITL gate holding the flow: a quiet waiting pulse. */
-  @keyframes gate-pulse {
-    0%,
-    100% {
-      transform: scale(1);
-    }
-    50% {
-      transform: scale(1.04);
-    }
-  }
-  .animate-gate-pulse {
-    animation:
-      chip-pop 0.3s ease-out both,
-      gate-pulse 1.6s ease-in-out 0.3s infinite;
-  }
-  /* One-shot emphasis when the conversation cost counter updates. */
-  @keyframes token-tick {
-    0%,
-    100% {
-      transform: scale(1);
-    }
-    35% {
-      transform: scale(1.25);
-    }
-  }
-  .animate-token-tick {
-    display: inline-block;
-    animation: token-tick 0.5s ease-out;
-  }
-  /* The hydration glass that just got logged (skill widget, act 4). */
-  @keyframes drop-fill {
-    0% {
-      opacity: 0.3;
-      transform: scale(0.5);
-    }
-    60% {
-      transform: scale(1.2);
-    }
-    100% {
-      opacity: 1;
-      transform: scale(1);
-    }
-  }
-  .animate-drop-fill {
-    animation: drop-fill 0.45s ease-out both;
-  }
-
-  /* --- Editorial chapter vignettes (landing/editorial/ScrollStage) ---
-     Vignette elements reuse the fill-both mockup keyframes above; they stay
-     paused (delay countdown included) until the stage scrolls into view,
-     so each figure choreographs itself exactly once, on arrival. */
-  .scroll-stage:not(.staged) :is(.animate-chip-pop, .animate-wire-draw, .animate-fan-draw) {
-    animation-play-state: paused;
-  }
-
   /* Micro-interactions batch: the global reduced-motion kill-switch below is
      an explicit class list — new animated classes must opt out here too.
      (Typing variants swap to static dots via motion-reduce: DOM classes.) */
@@ -1725,11 +1582,8 @@
     .animate-send-takeoff,
     .animate-greet-float,
     .animate-bell-ring,
-    .animate-step-breathe,
     .animate-phase-fade,
     .animate-particle-up,
-    .animate-gate-pulse,
-    .animate-token-tick,
     .progress-steps .markdown-content em:last-of-type {
       animation: none !important;
     }
@@ -1742,21 +1596,6 @@
     .badge-glimmer {
       animation: none !important;
       background-position: 160px 0 !important;
-    }
-    /* step-in/step-dim are 'both'/'forwards' fill animations: killing them would
-       freeze lines invisible/undimmed mid-state — jump them to their end state.
-       Same for the landing-mockup 'both' fills (glass, words, chips, wires…). */
-    .animate-step-in,
-    .animate-step-dim,
-    .animate-glass-in,
-    .animate-word-in,
-    .animate-chip-pop,
-    .animate-fan-draw,
-    .animate-wire-draw,
-    .animate-drop-fill {
-      animation-duration: 0s !important;
-      animation-delay: 0s !important;
-      animation-iteration-count: 1 !important;
     }
   }
 
@@ -2086,7 +1925,7 @@ html:not(.dark) .cosmos .cosmos-grain {
   position: relative;
   overflow: clip;
 }
-.cosmos .landing-section > :not(.cosmos-ghost-frame) {
+.cosmos .landing-section > :not(.cosmos-ghost-frame, .landing-promise-glow) {
   position: relative;
   z-index: 1;
 }
@@ -2479,35 +2318,32 @@ html:not(.dark) .cosmos .cosmos-cloud.c3 {
    FadeIn animation is neutralized inside these sections so nothing fights
    the scrub. One DISTINCT pattern per section. --- */
 .cosmos #transparency,
-.cosmos #use-cases,
-.cosmos #gallery,
-.cosmos #technology,
-.cosmos #architecture {
+.cosmos #gallery {
   --sp: 1;
 }
-.cosmos :is(#transparency, #use-cases, #technology, #architecture) .grid > * {
+.cosmos #transparency .grid > * {
   --i: 0;
   animation: none !important;
 }
-.cosmos :is(#transparency, #use-cases, #technology, #architecture) .grid > :nth-child(2) {
+.cosmos #transparency .grid > :nth-child(2) {
   --i: 1;
 }
-.cosmos :is(#transparency, #use-cases, #technology, #architecture) .grid > :nth-child(3) {
+.cosmos #transparency .grid > :nth-child(3) {
   --i: 2;
 }
-.cosmos :is(#transparency, #use-cases, #technology, #architecture) .grid > :nth-child(4) {
+.cosmos #transparency .grid > :nth-child(4) {
   --i: 3;
 }
-.cosmos :is(#transparency, #use-cases, #technology, #architecture) .grid > :nth-child(5) {
+.cosmos #transparency .grid > :nth-child(5) {
   --i: 4;
 }
-.cosmos :is(#transparency, #use-cases, #technology, #architecture) .grid > :nth-child(6) {
+.cosmos #transparency .grid > :nth-child(6) {
   --i: 5;
 }
-.cosmos :is(#transparency, #use-cases, #technology, #architecture) .grid > :nth-child(7) {
+.cosmos #transparency .grid > :nth-child(7) {
   --i: 6;
 }
-.cosmos :is(#transparency, #use-cases, #technology, #architecture) .grid > :nth-child(8) {
+.cosmos #transparency .grid > :nth-child(8) {
   --i: 7;
 }
 
@@ -2516,19 +2352,6 @@ html:not(.dark) .cosmos .cosmos-cloud.c3 {
   --f: clamp(0, calc((var(--sp, 1) - 0.12 - var(--i) * 0.11) * 9), 1);
   opacity: var(--f);
   transform: translateY(calc((1 - var(--f)) * 90px)) scale(calc(0.92 + var(--f) * 0.08));
-}
-/* "Des demandes réelles" — 3D FLIP, one card at a time, hinged on its edge */
-.cosmos #use-cases .grid > * {
-  --f: clamp(0, calc((var(--sp, 1) - 0.12 - var(--i) * 0.11) * 9), 1);
-  opacity: var(--f);
-}
-.cosmos #use-cases .grid > :nth-child(odd) {
-  transform: perspective(900px) rotateY(calc((1 - var(--f)) * 85deg));
-  transform-origin: left center;
-}
-.cosmos #use-cases .grid > :nth-child(even) {
-  transform: perspective(900px) rotateY(calc((1 - var(--f)) * -85deg));
-  transform-origin: right center;
 }
 /* "LIA, en vrai" — the whole panel RISES from depth and its accent underline
    DRAWS itself with the scroll */
@@ -2550,56 +2373,6 @@ html:not(.dark) .cosmos .cosmos-cloud.c3 {
   transform: scaleX(var(--f, 1));
   transform-origin: left center;
 }
-/* "Sous le capot" — tiles POP in sequence (small → overshoot feel) */
-.cosmos #technology .grid > * {
-  --f: clamp(0, calc((var(--sp, 1) - 0.1 - var(--i) * 0.055) * 11), 1);
-  opacity: var(--f);
-  transform: translateY(calc((1 - var(--f)) * 40px)) rotate(calc((1 - var(--f)) * -4deg))
-    scale(calc(0.55 + var(--f) * 0.45));
-}
-/* "Dans les coulisses" — the architecture RUNS as you scroll: the flow
-   blocks assemble first, then each mode's steps light up in order like an
-   execution trace. */
-.cosmos #architecture [role='img'] > div > * {
-  --i: 0;
-  --f: clamp(0, calc((var(--sp, 1) - 0.04 - var(--i) * 0.07) * 10), 1);
-  animation: none !important;
-  opacity: var(--f);
-  transform: perspective(900px) rotateX(calc((1 - var(--f)) * 18deg))
-    translateY(calc((1 - var(--f)) * 34px));
-  transform-origin: top center;
-}
-.cosmos #architecture [role='img'] > div > :nth-child(2) {
-  --i: 1;
-}
-.cosmos #architecture [role='img'] > div > :nth-child(3) {
-  --i: 2;
-}
-.cosmos #architecture [role='img'] > div > :nth-child(4) {
-  --i: 3;
-}
-.cosmos #architecture [role='img'] > div > :nth-child(5) {
-  --i: 4;
-}
-.cosmos #architecture ol > li {
-  --j: 0;
-  --g: clamp(0, calc((var(--sp, 1) - 0.22 - var(--j) * 0.06) * 12), 1);
-  opacity: calc(0.25 + var(--g) * 0.75);
-  transform: translateX(calc((1 - var(--g)) * -18px));
-}
-.cosmos #architecture ol > :nth-child(2) {
-  --j: 1;
-}
-.cosmos #architecture ol > :nth-child(3) {
-  --j: 2;
-}
-.cosmos #architecture ol > :nth-child(4) {
-  --j: 3;
-}
-.cosmos #architecture ol > :nth-child(5) {
-  --j: 4;
-}
-
 /* --- Card bloom, final form (owner: subtle, refined). A colored shadow
    paints ONLY outside the border-box: solid card backgrounds stay solid,
    the glow follows the rounded shape, and subtlety is guaranteed by
@@ -2618,105 +2391,6 @@ html:not(.dark) .cosmos {
   box-shadow:
     0 14px 48px -12px var(--cosmos-bloom-a),
     0 -10px 40px -16px var(--cosmos-bloom-b);
-}
-
-/* --- Chapter scenes scrubbed (cosmos only): the vignette assembles at the
-   rhythm of YOUR scroll — the original one-shot timeline's delay-* stagger
-   becomes proportional scrub windows on --sp; ambient loops keep breathing. --- */
-.cosmos [id^='chapter-'] .delay-100 {
-  --d: 100;
-}
-.cosmos [id^='chapter-'] .delay-200 {
-  --d: 200;
-}
-.cosmos [id^='chapter-'] .delay-300 {
-  --d: 300;
-}
-.cosmos [id^='chapter-'] .delay-400 {
-  --d: 400;
-}
-.cosmos [id^='chapter-'] .delay-500 {
-  --d: 500;
-}
-.cosmos [id^='chapter-'] .delay-600 {
-  --d: 600;
-}
-.cosmos [id^='chapter-'] .delay-700 {
-  --d: 700;
-}
-.cosmos [id^='chapter-'] .delay-800 {
-  --d: 800;
-}
-.cosmos [id^='chapter-'] .delay-1000 {
-  --d: 1000;
-}
-.cosmos [id^='chapter-'] .delay-1200 {
-  --d: 1200;
-}
-.cosmos [id^='chapter-'] .delay-1500 {
-  --d: 1500;
-}
-.cosmos [id^='chapter-'] .delay-2000 {
-  --d: 2000;
-}
-.cosmos [id^='chapter-'] .delay-2500 {
-  --d: 2500;
-}
-.cosmos [id^='chapter-'] .delay-3000 {
-  --d: 3000;
-}
-.cosmos
-  [id^='chapter-']
-  .scroll-stage
-  :is(
-    .animate-chip-pop,
-    .animate-glass-in,
-    .animate-word-in,
-    .animate-step-in,
-    .animate-drop-fill,
-    .animate-wire-draw,
-    .animate-fan-draw,
-    .animate-gate-pulse,
-    .animate-step-dim
-  ) {
-  --f: clamp(0, calc((var(--sp, 1) - 0.1 - var(--d, 0) / 8500) * 5), 1);
-}
-.cosmos
-  [id^='chapter-']
-  .scroll-stage
-  :is(
-    .animate-chip-pop,
-    .animate-glass-in,
-    .animate-word-in,
-    .animate-step-in,
-    .animate-drop-fill,
-    .animate-wire-draw
-  ) {
-  animation: none !important;
-}
-.cosmos [id^='chapter-'] .scroll-stage :is(.animate-chip-pop, .animate-drop-fill) {
-  opacity: var(--f);
-  transform: scale(calc(0.85 + 0.15 * var(--f)));
-}
-.cosmos [id^='chapter-'] .scroll-stage :is(.animate-glass-in, .animate-word-in, .animate-step-in) {
-  opacity: var(--f);
-}
-.cosmos [id^='chapter-'] .scroll-stage .animate-wire-draw {
-  transform: scaleX(var(--f));
-}
-/* Ambient loops keep their life; only the ENTRANCE is scrubbed. */
-.cosmos [id^='chapter-'] .scroll-stage .animate-fan-draw {
-  animation: fan-flow 1.4s linear infinite !important;
-  opacity: var(--f);
-}
-.cosmos [id^='chapter-'] .scroll-stage .animate-gate-pulse {
-  animation: gate-pulse 1.6s ease-in-out infinite !important;
-  opacity: var(--f);
-}
-/* The dim step: fades DOWN as its window passes (the next step took over). */
-.cosmos [id^='chapter-'] .scroll-stage .animate-step-dim {
-  animation: none !important;
-  opacity: calc(1 - 0.45 * var(--f));
 }
 
 /* --- Calm sub-scope (reading pages, Lot C): attenuated cosmos, no choreography --- */

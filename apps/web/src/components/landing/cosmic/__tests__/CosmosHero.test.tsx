@@ -64,14 +64,10 @@ describe('CosmosHero — guided demo CTA', () => {
     }
   });
 
-  it('offers the star call to action toward the repository', async () => {
+  it('keeps the GitHub link without a redundant Star action', async () => {
     variantMock.mockReturnValue('guided');
-    const { getByTestId } = render(await CosmosHero({ lng: 'fr' }));
-    const star = getByTestId('hero-cta-star');
-    // GitHub exposes no auto-star URL: the honest maximum is landing the
-    // visitor on the repo, where the star control is one click away.
-    expect(star.getAttribute('href')).toMatch(/^https:\/\/github\.com\//);
-    expect(star.getAttribute('target')).toBe('_blank');
-    expect(star).toHaveTextContent('landing.hero.cta_star');
+    const { queryByTestId, container } = render(await CosmosHero({ lng: 'fr' }));
+    expect(queryByTestId('hero-cta-star')).not.toBeInTheDocument();
+    expect(container.querySelector('a[href^="https://github.com/"]')).toBeInTheDocument();
   });
 });

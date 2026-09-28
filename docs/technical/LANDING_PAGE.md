@@ -2,7 +2,7 @@
 
 > Architecture, composants, i18n, SEO et patterns de la vitrine publique de LIA.
 >
-> Derniere revision : **identite « LIA Cosmos » (ADR-181)** — tout l'espace public re-skinne par scope CSS, choregraphies pilotees par le scroll, sombre par defaut, registre informel dans les 6 langues — au-dessus de la page publique `/more` « Encore + » (des micro-attentions animees en 6 moments, pause WCAG 2.2.2, gardes de contenu/overflow/axe dediees, helper overflow partage), du durcissement responsive mobile (doctrine min-w-0 + garde overflow e2e sur le cycle d'animation), de la refonte de la FAQ publique (recherche, 6 sections, reponses groupees), de la page /demo partageable + export MP4, de la garde axe clair/sombre des pages publiques, et de la refonte editoriale « la page parle comme le produit » (hero anime 4 actes + recit en 6 chapitres, catalogues depliables, bande transparence, journees par profil).
+> Derniere revision : **démonstration produit partagée et lecture progressive** — six scènes contextuelles communes au hero, aux cas d’usage et aux chapitres ; catalogue visuel hiérarchisé sans perte de contenu ; explications d’ingénierie à la demande, dans l’identité « LIA Cosmos » (ADR-181).
 
 ---
 
@@ -22,17 +22,23 @@
 
 ## 1. Vue d'ensemble
 
-La landing est le point d'entree public de LIA. Ligne editoriale (refonte 2026-07) : **« la page parle comme le produit »** —
-le hero anime le produit (4 actes + coulisses), puis un **recit en 6 chapitres** porte les differenciants, chaque chapitre
-ouvrant par une **bulle de chat de LIA** (l'humeur de l'avatar est intentionnelle par chapitre : complice sur la
-differenciation, posee sur la confiance). Trois niveaux de lecture :
+La landing est le point d’entrée public de LIA. La démonstration suit une intention jusqu’à son résultat :
+une demande, les éléments de contexte utiles, puis ce que la personne récupère. Les six scènes sont des
+**exemples illustratifs**, pas des sessions réelles ni une mesure de temps ou de coût. Elles sont définies une
+seule fois et réutilisées dans le hero, le parcours de cas d’usage et les illustrations des chapitres.
 
-1. **Le recit** (scroll) : chapitres 01-06, bande commodites, bande transparence, cas d'usage, journees par profil.
-2. **Le detail** (clic) : chaque chapitre porte un catalogue depliable contenant les fiches detaillees (l'ex-mur de
-   fonctionnalites, re-parente — jamais supprime). Contenu conserve dans le DOM replie → SEO intact.
-3. **La profondeur** (liens) : /story, /why, /how, /more, audit public, privacy, blog.
+Trois niveaux de lecture :
+
+1. **Le résultat** : choisir une situation, voir ce que LIA rapproche et ce qu’elle produit ; les chapitres
+   développent les bénéfices avec la même illustration, puis viennent les fonctions courantes.
+2. **Le détail à la demande** : chaque chapitre ouvre un catalogue visuel. Un index de capacités mène à une
+   illustration et à une description complète à la fois. Les explications « Ce qui rend cela possible » se
+   déplient séparément ; elles relient les choix techniques à leur utilité.
+3. **La profondeur** : la section ingénierie présente les principes en langage courant, puis les choix
+   détaillés dans des dépliants. Les pages /story, /why, /how, /more, l’audit public et le blog prolongent la lecture.
 
 Principes non negociables :
+
 - **Zero perte d'information** : contrat executable `REQUIRED_FEATURE_KEYS` (voir §5).
 - **Zero survente** : chaque phrase mappe une fonctionnalite livree ; pas de superlatifs invérifiables ; la beta et les
   abonnements a venir sont affiches (l'honnetete est le positionnement).
@@ -49,46 +55,67 @@ Principes non negociables :
 
 ## 2. Architecture des composants
 
-Tout vit dans `apps/web/src/components/landing/`, la couche editoriale dans `landing/editorial/`.
+Les composants vivent dans `apps/web/src/components/landing/`. La démonstration partagée est dans `demo/`,
+le récit et son catalogue dans `editorial/`, l’habillage dans `cosmic/`.
 
-### 2.1 Recit editorial (`editorial/`)
+### 2.1 Démonstration partagée (`demo/`)
 
-| Composant | Type | Description |
-|-----------|------|-------------|
-| `chapters-data.ts` | data | **Source de verite** : config des 6 chapitres (ancre, humeur, nb de benefices, catalogue), `BASICS_CATALOG`, `BASICS_CHIPS`, `FEATURE_ICONS`, et le contrat `REQUIRED_FEATURE_KEYS` (l'inventaire des fiches ; le compte vit dans le code, jamais dans un document). |
-| `EditorialChapters` | Server | Orchestre les 6 chapitres (`id="features"` — ancre historique conservee). Visuels alternes : vignette coulisses (01/03/05) / scene de chat complementaire (02/04) — **jamais** les scenes du hero. |
-| `ChapterSection` | Server | Layout d'un chapitre : bulle-titre LIA, eyebrow numerote, H2, sous-titre, 3-4 benefices, ligne « Sous le capot », visuel, catalogue depliable (+ `catalogExtra`). |
-| `vignettes.tsx` | Server | Figures coulisses decomposees de l'animation hero : `VignetteOrchestration` (fan-out FOR_EACH), `VignetteSpark` (mail×agenda), `VignetteForge` (skill + rail). Decoratives (`aria-hidden` via ScrollStage). |
-| `scenes.tsx` | Server | Mini-scenes de chat : `SceneBriefing` (ch. 02), `SceneEdit` (ch. 04 — HITL en mode modification, complementaire du hero). |
-| `FeatureCatalog` | Server | Grille des fiches detaillees — reutilise `landing.features.<k>.{title,description}` existants ×6. **Une bande de longueur unique** (2026-09-17) : chaque description tient entre cinq et neuf lignes de la grille ; une capacite qui en demande plus est **decoupee en deux fiches**, jamais condensee sous ce qu'elle enonce (mesure avant : `proactive` faisait 1 529 caracteres a cote d'une fiche de 159, et la rangee entiere s'alignait sur la plus haute). Le compte du `catalog_hint` est **derive** de `chapter.catalog.length` (`{{count}}` dans la copie) : tape a la main, il etait faux sur cinq chapitres sur six. |
-| `SecurityDetail` | Server | L'ex-section Securite & Vie privee, integrale, dans le depliant du ch. 04 (`landing.security.*`). |
-| `CatalogDisclosure` | Client | Depliant accessible **ouvert a l'arrivee** (le detail est la substance de la page ; le bouton sert a replier). Bouton natif, `aria-expanded`, contenu conserve dans le DOM via `grid-template-rows`, `inert` une fois replie. |
-| `ScrollStage` | Client | Declencheur one-shot : les keyframes fill-both des vignettes restent `animation-play-state: paused` jusqu'a l'arrivee au scroll (delais geles par pause → choregraphie au moment de la revelation). Reduced-motion : durees a zero → etat final instantane. |
-| `BasicsBand` | Server | « Et tout le reste, evidemment. » — commodites en chips APRES les chapitres (le pic d'attention post-hero n'est jamais depense sur les basiques) + son propre catalogue depliable (9 fiches commodites). |
-| `TransparencySection` | Server | « LIA n'a rien a cacher. » (ancre `#transparency`) : compteur de cout reel en motif de marque, 4 preuves (cout / audit public / open source / REX), ligne beta honnete, **CTA intermediaire** au pic de confiance. |
-| `DayTimeline` | Client | « Une journee avec LIA. » — 4 profils en onglets × 4 scenes horodatees (remplace les personas, plus riche : 16 scenes). |
-| `GallerySection` | Client | Galerie a onglets fusionnant captures (12) et presentation (15 slides) — 2 sections → 1, contenus intacts. **Onglet par defaut : la presentation** (`defaultTabId="slides"`) — le deck raconte le produit dans l'ordre, les captures repondent a la demande. |
-| `ChapterRail` | Client | Rail fixe desktop (xl+) : 01-05 + ◈ transparence, scroll-spy, vraie `<nav>` de liens ancres (clavier + SR). |
-| `Tabs` | Client | Onglets WAI-ARIA generiques (roving tabindex, fleches, Home/End, panneaux `hidden` mais dans le DOM). `defaultTabId` choisit l'onglet initial ; un id inconnu retombe sur le premier. |
+| Composant                | Type        | Description                                                                                                                                                                                                                                           |
+| ------------------------ | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `demo/scenes.ts`         | data        | `PRODUCT_SCENES` déclare les six identifiants, leurs icônes, leurs sources de contexte et leurs clés i18n. Autorité commune au lecteur, aux cas d’usage et aux chapitres.                                                                             |
+| `demo/scene-tones.ts`    | data        | Accents cohérents par scène : repère du chapitre, sélection et résultat partagent le même ton, avec variantes contrastées claires et sombres.                                                                                                         |
+| `demo/ProductScene.tsx`  | Client      | Illustration d’une scène : demande, sources, résultat et limite explicite. `phase` choisit le niveau de révélation ; omise, elle donne directement l’état complet utilisé par les chapitres. `ProductResult` adapte la forme du résultat au scénario. |
+| `demo/useProductDemo.ts` | Client hook | Révélation en trois phases de la scène choisie ; s’arrête sur le résultat. Pause, reprise, relecture, changement de scène, arrêt hors du viewport, nettoyage des temporisateurs et observation de `prefers-reduced-motion`.                           |
+| `InteractiveChatMockup`  | Client      | Navigation nommée dans les six scènes, étapes de lecture, pause/relecture et explication dépliable du bénéfice. Le hero fournit son propre CTA (`withCta={false}`) ; la page de démonstration conserve celui du lecteur.                              |
 
-### 2.2 Sections conservees
+| Scène      | Contexte rapproché                            | Résultat illustré                      | Chapitre     |
+| ---------- | --------------------------------------------- | -------------------------------------- | ------------ |
+| `decision` | Documents, e-mails, décisions de réunion      | Préparation d’une décision             | `act`        |
+| `day`      | Agenda, engagements, actualité                | Journal personnel à écouter            | `know`       |
+| `watch`    | Routine configurée, mail attendu, projet      | Suivi déclenché par une condition      | `anticipate` |
+| `call`     | Disponibilités, préférences, accord           | Appel délégué et résultat              | `control`    |
+| `research` | Recherche web, connaissances, comparaison     | Recherche structurée et livrable       | `grow`       |
+| `relay`    | Connexion acceptée, périmètre partagé, agenda | Proposition transmise entre assistants | `connect`    |
 
-| Composant | Type | Notes |
-|-----------|------|-------|
-| `HeroSection` + `InteractiveChatMockup` (+ `mockup/`) | Server + Client | Hero anime « coulisses en verre », 4 actes (orchestration HITL, initiative meteo, telephonie, skill hydratation), **interactif depuis UX P12** : pastilles de scene, pause/relecture, progression — boucle auto conservee sans interaction ; le CTA du composant est masque dans le hero (`withCta={false}`, le hero a le sien). Voir `mockup/scenarios.ts` (cadence : lisibilite d'abord — vitre 7-8,5 s, notes ≥ 4,5 s). Chevron → `#features`. |
-| `UseCasesSection` | Server | 6 requetes reelles (la 6e : telephonie) ; vedettes en tete ET en pied (`example1`, `example6`). |
-| `TechSection` | Server | « Sous le capot » + **bande des chiffres d'ingenierie** (ex-ProofSection, re-cibles vers l'audience dev : agents, tools, providers, langues, tests, ADRs, releases). |
-| `ArchitectureDiagram` | Client | Deux modes d'execution (inchange). |
-| `ScreenshotsSection` / `PresentationSection` | Client | Les deux onglets de la galerie : chacun n'apporte que son inventaire (12 captures / 15 slides) et delegue l'affichage a `LandingCarousel`. Le mode section autonome (prop `embedded`, jamais mise a `false`) a ete supprime avec ses 4 cles i18n de titre/sous-titre. |
-| `LandingCarousel` | Client | Carrousel partage des deux onglets. Cadre au ratio de l'actif (`7/8` captures, `43/24` slides — plus de letterbox), fond ambiant = copie floutee de l'image servie en 32 px (elle sert aussi de placeholder progressif), fleches **toujours visibles** (elles etaient `opacity-0` hors `:hover` — invisibles au tactile, audit F038), rail de vignettes a scroll-snap recentre sur l'active, clavier ←/→/Home/End + swipe, legende `aria-live` (region vivante), plein ecran optionnel (`zoomable`, reserve aux captures). |
-| `CtaSection` | Server | CTA final : bulle LIA (le personnage a le dernier mot) + copy voix du produit. |
-| `LandingHeader` / `LandingFooter` / `AuthRedirect` / `FadeInOnScroll` / `AnimatedCounter` | — | Inchanges (ancre header → `#features`). |
-| `LandingEyes` | Client | Le personnage sur la page publique (ADR-240 §5, ADR-264) : `EyesWidget` charge en `next/dynamic` sans SSR, surface `landing`, apparence Smiley imposee, position propre (`landingPosition`, jamais celle du chat), fixe au defilement et deplacable, petit par defaut sur tous les ecrans (taille choisie respectee) et masquable sur telephone, aucun compte requis — ses trois signaux de chat sont au repos et tout ce que le visage fait de lui-meme (respiration, gestes, mimiques, saynetes) se joue sur une expression au repos. Monte apres `LandingFooter`. |
+L’explication technique ne masque plus le déroulement de la tâche. Les anciennes scènes autonomes des chapitres
+et l’ancien moteur du mockup ont été remplacés par ce rendu commun.
 
-Sections supprimees par la refonte (contenu re-home, pas perdu) : `ProofSection` (→ transparence + TechSection),
-`HowItWorksSection` (demonstre en direct par le hero ; cles i18n conservees pour le HowTo JsonLd), `FeaturesSection`
-(→ catalogues des chapitres + bande basics), `AudienceSection` (→ DayTimeline), `RexSection` (→ carte p4 de la
-transparence + /story), `SecuritySection` (→ depliant du ch. 04).
+### 2.2 Récit et catalogue (`editorial/`)
+
+| Composant                                  | Type             | Description                                                                                                                                                                                                                                                                                                       |
+| ------------------------------------------ | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `chapters-data.ts`                         | data             | Configuration des chapitres, association `scene` partagée avec les liens des cas d’usage, ordre éditorial des capacités, `BASICS_CATALOG`, `BASICS_CHIPS`, `FEATURE_ICONS` et inventaire `REQUIRED_FEATURE_KEYS`. Les capacités différenciantes précèdent les fonctions courantes ; le compte est dérivé du code. |
+| `EditorialChapters`                        | Server           | Orchestre les six chapitres sous l’ancre historique `features` et rend le `ProductScene` complet désigné par `chapter.scene`.                                                                                                                                                                                     |
+| `ChapterSection`                           | Server           | Titre, sous-titre, bénéfices courts, illustration partagée, explication « Ce qui rend cela possible » en `<details>`, puis catalogue dépliable. Les détails techniques restent disponibles dans le même dépliant.                                                                                                 |
+| `FeatureCatalog`                           | Server           | Traduit les titres, descriptions complètes, légendes et noms de commandes avant de transmettre ces données sérialisables à `FeatureExplorer`. Réutilise les textes `landing.features.*`.                                                                                                                          |
+| `FeatureExplorer`                          | Client           | Index de titres iconisés en deux colonnes, de hauteur bornée et défilable ; un panneau détaillé visible à la fois, avec illustration, texte intégral et boutons précédent/suivant. L’ordre vient du catalogue du chapitre. Tous les panneaux textuels restent dans le DOM.                                        |
+| `FeatureScenes.ts` / `FeatureIllustration` | data / rendu SVG | Correspondance explicite entre chaque capacité et une famille d’illustration. Le SVG décoratif du panneau actif représente son usage ou son résultat ; sa légende est localisée séparément.                                                                                                                       |
+| `SecurityDetail`                           | Server           | Détails de sécurité et de vie privée conservés dans le catalogue du chapitre `control` (`landing.security.*`).                                                                                                                                                                                                    |
+| `CatalogDisclosure`                        | Client           | Catalogue replié à l’arrivée ; bouton natif, `aria-expanded`, contenu conservé dans le DOM via `grid-template-rows`, `inert` une fois replié. Une ancre `#chapter-…-detail` ouvre le catalogue ciblé.                                                                                                             |
+| `BasicsBand`                               | Server           | Fonctions courantes après les chapitres : chips et catalogue propre, avec le même explorateur visuel.                                                                                                                                                                                                             |
+| `PromiseSection`                           | Server           | Trois promesses entre le hero et les scénarios : écosystème, confiance, disponibilité sur les écrans.                                                                                                                                                                                                             |
+| `TransparencySection`                      | Server           | Preuves de confiance, coûts, audit public, open source, retour d’expérience et CTA intermédiaire (`#transparency`).                                                                                                                                                                                               |
+| `DayTimeline`                              | Client           | Journées par profil en onglets ; version verticale de repli pour `CosmosDay` sur mobile et en mouvement réduit.                                                                                                                                                                                                   |
+| `GallerySection`                           | Client           | Galerie à onglets de captures réelles et de présentation. La présentation est sélectionnée à l’arrivée ; `ScreenshotsSection` et `PresentationSection` partagent `LandingCarousel`.                                                                                                                               |
+| `ChapterRail`                              | Client           | Rail fixe desktop (`xl+`) dérivé des chapitres, puis transparence ; liens d’ancre nommés, suivi de la section active.                                                                                                                                                                                             |
+| `Tabs`                                     | Client           | Onglets WAI-ARIA génériques : roving tabindex, flèches, Home/End, panneaux `hidden` conservés dans le DOM.                                                                                                                                                                                                        |
+
+Le remaniement conserve l’inventaire complet de `REQUIRED_FEATURE_KEYS`, sans doublon entre chapitres et fonctions
+courantes. Une présentation plus compacte ne raccourcit ni ne supprime les descriptions. Le compteur de chaque
+catalogue est calculé depuis sa liste, jamais recopié dans la traduction.
+
+### 2.3 Autres sections
+
+| Composant                                                                                 | Type   | Notes                                                                                                                                                                                                                                            |
+| ----------------------------------------------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `cosmic/CosmosHero`                                                                       | Server | Hero Cosmos et démonstration partagée dans le planetarium ; CTA propre et lien vers `#features`.                                                                                                                                                 |
+| `UseCasesSection`                                                                         | Server | Parcours visuel des mêmes six scènes, placé avant les chapitres : intention, contexte et résultat. Chaque carte est un lien vers le chapitre retrouvé dans `CHAPTERS` par son champ `scene`.                                                     |
+| `TechSection`                                                                             | Server | Quatre principes lisibles — relier le contexte, organiser le travail, vérifier, rendre l’action lisible — puis choix d’ingénierie détaillés et schéma d’architecture dans le dépliant facultatif. Les chiffres restent issus de `LANDING_STATS`. |
+| `ArchitectureDiagram`                                                                     | Client | Comparaison lisible de Pipeline et ReAct : trois étapes par parcours, exemples concrets et garanties communes. Met en avant rapidité, contrôle et fiabilité, sans ratio de tokens ; rendue dans le dépliant facultatif de `TechSection`.         |
+| `LandingCarousel`                                                                         | Client | Carrousel partagé de la galerie : ratio de l’actif, fond ambiant, flèches visibles, vignettes à scroll-snap, clavier et swipe, légende `aria-live`, plein écran optionnel pour les captures.                                                     |
+| `cosmic/CosmosFinale`                                                                     | Server | CTA final dans l’horizon Cosmos.                                                                                                                                                                                                                 |
+| `LandingHeader` / `LandingFooter` / `AuthRedirect` / `FadeInOnScroll` / `AnimatedCounter` | —      | Navigation publique, redirection des comptes connectés, révélations et compteurs.                                                                                                                                                                |
+| `LandingEyes`                                                                             | Client | Personnage public chargé dynamiquement, surface `landing`, Smiley, position distincte du chat, petit par défaut avec choix explicites respectés. Aucun compte requis ; ses signaux de chat sont au repos.                                        |
 
 ---
 
@@ -97,73 +124,78 @@ transparence + /story), `SecuritySection` (→ depliant du ch. 04).
 ```
 AuthRedirect | LandingHeader (fixed) | ChapterRail (fixed, xl+)
 <main>
-   1. CosmosHero           — plein ecran, demo 4 actes au centre du planetarium, chevron vers #features
-   2. EditorialChapters    — id features ; 6 chapitres ancres #chapter-{act,know,anticipate,control,grow,connect}
-   3. BasicsBand           — ancre #basics, fond bg-card
-   4. TransparencySection  — ancre #transparency, fond bg-card, CTA intermediaire
-   5. UseCasesSection      — ancre #use-cases (6 exemples)
-   6. CosmosDay            — ancre #day (4 profils en onglets), scene epinglee au scroll
-   7. GallerySection       — ancre #gallery (captures | slides)
-   8. TechSection          — ancre #technology (+ chiffres d'ingenierie)
-   9. ArchitectureDiagram  — ancre #architecture
-  10. BlogPreviewSection   — ancre #blog
-  11. CosmosFinale         — horizon planetaire (sphere + nuages) + bulle LIA
+   1. CosmosHero           — démonstration partagée, choix parmi six scènes
+   2. PromiseSection       — trois promesses
+   3. UseCasesSection      — mêmes situations, liens vers leurs chapitres
+   4. EditorialChapters    — features ; chapter-{act,know,anticipate,control,grow,connect}
+   5. BasicsBand           — basics
+   6. TransparencySection  — transparency, CTA intermédiaire
+   7. CosmosDay            — day, journées par profil
+   8. GallerySection       — gallery, captures réelles et présentation
+   9. TechSection          — technology, principes puis détails et architecture à la demande
+  10. ChangelogSection     — changelog
+  11. BlogPreviewSection   — blog
+  12. CosmosFinale         — CTA final
 </main>
-ScrollScrub ×11 (drivers `--sp`) | LandingFooter
+ScrollScrub (transparency, gallery, changelog) | LandingFooter | LandingEyes
 ```
 
-`CosmosDarkFirst` (script pre-paint) et `CosmicBackdrop` encadrent la page ; les deux vivent aussi sur les 10 autres
-pages publiques. `AuthRedirect`, `TrackView` et les donnees structurees JSON-LD restent sur `/` uniquement.
+`CosmosDarkFirst` (script avant affichage) et `CosmicBackdrop` encadrent la page et sont partagés avec les autres
+pages publiques. La landing monte aussi `AuthRedirect`, `TrackView` et ses données structurées JSON-LD.
 
-Skip-link (`sr-only`) → `#features`. Header : 1 ancre (Presentation → `#features`, scroll spy) + 6 pages
-(Story, Philosophie, Technique, Blog, FAQ, Encore +).
+Skip-link (`sr-only`) → `#features`. Le header propose les ancres Présentation et Nouveautés, ainsi que les
+pages Story, Philosophie, Technique, Blog, FAQ et Encore + ; voir la table `SECTION_ANCHORS` pour leur ordre.
 Rythme visuel : chapitres alternes (fond transparent / `bg-card` borde), visuel gauche/droite alterne sur desktop.
 
 ---
 
 ## 4. Animations et interactions
 
-- **Hero (InteractiveChatMockup)** : voir `mockup/` — moteur timeline (`useMockupTimeline.ts`, pause/reprise/
-  selection de scene), cadre partage (`MockupStage.tsx`), vitre coulisses ; reduced-motion = frames de resolution
-  statiques (les pastilles changent d'acte, pause/relecture masques — rien n'anime).
-- **Vignettes de chapitres (ScrollStage)** : reutilisent les keyframes du mockup (`chip-pop`, `wire-draw`, `fan-draw`)
-  avec `animation-delay` par element ; gating CSS `.scroll-stage:not(.staged) { animation-play-state: paused }` —
-  la pause gele aussi le delai, la choregraphie demarre donc a la revelation. One-shot (unobserve).
-- **Depliants (CatalogDisclosure)** : **ouverts par defaut** ; transition `grid-template-rows 1fr → 0fr` au repli
-  (animable sans mesure JS), `motion-reduce:transition-none`, contenu `inert` une fois replie (non tabbable, mais
-  indexable).
-- **Onglets (Tabs)** : pattern WAI-ARIA complet — roving tabindex, ArrowLeft/Right avec bouclage, Home/End,
-  panneaux `hidden` conserves dans le DOM.
-- **Choregraphies au scroll (ADR-181)** : un driver unique `ScrollScrub` ecrit la progression 0→1 de sa section dans
-  `--sp` (une seule boucle rAF passive partagee) ; le CSS du scope en tire des fenetres par tuile. **Reversible** :
-  reculer defait l'animation. Le CSS defaut `--sp: 1` (etat final) — sans JS, en SEO et sous reduced-motion, la page
-  est complete. Les scenes des 6 chapitres reutilisent **leurs propres `animation-delay` inline** (copies une fois dans
-  `--d`) : l'ordre d'origine de chaque scene est conserve, le scroll ne fait que le jouer.
-- **Scene epinglee (PinnedScene)** : wrapper haut en `dvh` + enfant sticky, progression `--p` ; jamais d'ancetre
-  scrollport (doctrine ADR-171). Mobile (≤880px) et reduced-motion retombent sur le flux vertical classique.
-- **Contraste par theme** : le jeton primaire **diverge** — sombre = bleu vif + texte encre, clair = bleu profond sous
-  blanc. Un jeton unique blanc-sur-bleu-vif mesurait 3,2:1 (sous AA).
-- **Reduced motion** : FadeInOnScroll direct, compteurs instantanes, hero statique, vignettes en etat final, `--sp`
-  epingle a 1 (kill-switch global de `globals.css` — toute nouvelle classe animee doit s'y inscrire).
+- **Démonstration** : `useProductDemo` révèle demande → contexte → résultat pour la scène sélectionnée. Le résultat
+  reste affiché, sans passage automatique à une autre scène. Une nouvelle sélection ou une relecture repart du
+  début ; pause et reprise gardent la scène choisie. Hors du viewport, la progression s’arrête. Les boutons
+  portent des noms traduits ; la sélection est annoncée par `aria-pressed`, la phase par `aria-current="step"`.
+- **Chapitres** : `ProductScene` sans `phase` rend le résultat complet, identique à celui du lecteur. La révélation
+  de section passe par `FadeInOnScroll` ; aucune seconde chorégraphie ne reconstruit la scène.
+- **Catalogues** : `CatalogDisclosure` est replié par défaut ; transition `grid-template-rows`, contenu `inert`
+  lorsqu’il est replié. À l’intérieur, `FeatureExplorer` propose un tablist à roving tabindex : gauche/droite,
+  haut/bas selon les deux colonnes, Home/End. Les boutons précédent/suivant conservent le focus et la position
+  courante est annoncée poliment. Seul l’index interne défile pour rendre le titre choisi visible.
+- **Explications** : des `<details>` natifs ouvrent le mécanisme du chapitre ou de la démonstration. La section
+  ingénierie utilise un dépliant général puis un dépliant par sujet ; il contient aussi le schéma d’architecture.
+  Les textes longs restent présents.
+- **Onglets génériques** : `Tabs` conserve le pattern WAI-ARIA des journées et de la galerie ; panneaux `hidden`
+  maintenus dans le DOM.
+- **Chorégraphies au scroll (ADR-181)** : `ScrollScrub` reste limité aux sections déclarées dans la page. Il écrit
+  `--sp` via la boucle rAF partagée ; le CSS utilise un état final par défaut. Les chapitres, les cas d’usage et
+  les cartes techniques ne dépendent plus d’un ordre d’animation piloté par cet indice.
+- **Scène épinglée** : `PinnedScene` reste utilisé par `CosmosDay` avec progression `--p`. Mobile et mouvement
+  réduit reviennent à `DayTimeline` dans le flux ; aucun ancêtre scrollport ne doit casser le sticky.
+- **Mouvement réduit** : la démonstration affiche immédiatement l’état complet, conserve les six choix et masque
+  pause/relecture. Aucun temporisateur d’animation n’est programmé. Les transitions des panneaux sont coupées,
+  `FadeInOnScroll` révèle directement et les compteurs donnent leur état final.
+- **Contraste par thème** : le jeton primaire diverge entre fond sombre et fond clair ; vérifier les deux modes,
+  notamment les petits libellés, les bordures de sélection et les focus visibles.
 
 ---
 
 ## 5. Gardes-fous executables
 
-| Garde | Fichier | Ce qu'il empeche |
-|-------|---------|------------------|
-| **Couverture de contenu** | `editorial/__tests__/editorial-content-coverage.test.ts` | La perte silencieuse d'une fiche : les catalogues des chapitres + basics doivent former une **partition exacte** de `REQUIRED_FEATURE_KEYS` (ni perte ni doublon), chaque fiche ayant icone + title/description dans les 6 locales, et chaque `catalog_hint` / `detail_hint` portant `{{count}}` (un chiffre tape a la main y est refuse). Retirer une fiche exige d'editer le contrat. |
-| **Compte des catalogues** | `editorial/__tests__/catalog-hint.test.tsx` | Un `catalog_hint` qui annonce un nombre de fiches different de celui du catalogue : `ChapterSection` et `BasicsBand` interpolent `count` depuis la longueur du catalogue, jamais depuis la copie. |
-| **Contrat i18n editorial** | `editorial/__tests__/editorial-content-coverage.test.ts` | Cle referencee absente/vide dans une des 6 locales ; resurrection des cles purgees (audience, rex, en-tetes features, extras proof) ; disparition des cles `how_it_works` requises par le HowTo JsonLd. |
-| **A11y clavier** | `editorial/__tests__/interactive.test.tsx` | Regression du pattern disclosure (bouton natif, aria-expanded, DOM replie) et du pattern tabs (roles, fleches, bouclage, roving tabindex). |
-| **Parite i18n globale** | `scripts/i18n/validate_translations.py` (hook pre-commit) | Toute divergence de cles entre les 6 locales. |
-| **Contrat hero** | `landing/__tests__/InteractiveChatMockup.test.tsx` + `mockup/__tests__/scenarios.test.ts` | Timelines mal formees, cles du mockup manquantes, regression reduced-motion, controles (selection de scene, pause/relecture, gel manuel en fin d'acte), CTA duplique dans le hero. |
-| **Routes publiques** | `src/lib/__tests__/api-client.public-routes.test.ts` | Ejection des visiteurs anonymes vers /login. |
-| **Overflow mobile** | `e2e/smoke/landing-mobile-overflow.spec.ts` | Le retour du debordement horizontal : a 375 px, aucun element en flux ne depasse le bord droit — statiquement, **a chaque battement du cycle d'animation du hero** (horloge Playwright, ~79 s virtuelles : l'oscillation 381↔448 px de 2026-07 etait invisible en capture statique) et apres scroll de chaque section ; passe reflow 320 px (WCAG 1.4.10). |
-| **Contenu FAQ groupee** | `src/lib/__tests__/faq-answer-groups.test.ts` | La perte d'un mot lors du regroupement visuel de la reponse « Que puis-je demander ? » : egalite mot-a-mot prouvee sur les 6 locales reelles + repli tel-quel (zh a une q4 differente). |
-| **Axe pages publiques** | `e2e/a11y/axe-public-pages.spec.ts` | Violations critical/serious (contraste inclus) sur `/faq` (reponse groupee ouverte), `/demo` et `/more` (scanne animee PUIS en pause via le bouton WCAG 2.2.2), en clair ET en sombre — le theme etant pilote par localStorage (`defaultTheme="light"`), emuler le scheme OS ne suffit pas. |
-| **Contrat /more** | `landing/more/__tests__/more-content-coverage.test.ts` + `scenes.test.tsx` | La perte silencieuse d'une attention : toutes les cartes des 6 sections, disjointes des fiches majeures (`REQUIRED_FEATURE_KEYS`), chacune avec icone + scene + cles i18n non vides ×6 locales ; apostrophe U+2019 en fr ; **aucun chiffre dans la copie des cartes** (regle anti-derive) ; registre de scenes = partition exacte des cartes. |
-| **Overflow mobile /more** | `e2e/smoke/more-overflow.spec.ts` | Le debordement horizontal pendant les cycles de toutes les scenes : 375 px par battement d'horloge Playwright section par section, balayage statique des 6 locales, plancher reflow 320 px (helper partage `overflow-report.ts`). |
+| Garde                      | Fichier                                                                    | Ce qu'il empeche                                                                                                                                                                                                                                                                                                                                                                        |
+| -------------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Couverture de contenu**  | `editorial/__tests__/editorial-content-coverage.test.ts`                   | La perte silencieuse d'une fiche : les catalogues des chapitres + basics doivent former une **partition exacte** de `REQUIRED_FEATURE_KEYS` (ni perte ni doublon), chaque fiche ayant icone + title/description dans les 6 locales, et chaque `catalog_hint` / `detail_hint` portant `{{count}}` (un chiffre tape a la main y est refuse). Retirer une fiche exige d'editer le contrat. |
+| **Compte des catalogues**  | `editorial/__tests__/catalog-hint.test.tsx`                                | Un `catalog_hint` qui annonce un nombre de fiches different de celui du catalogue : `ChapterSection` et `BasicsBand` interpolent `count` depuis la longueur du catalogue, jamais depuis la copie.                                                                                                                                                                                       |
+| **Contrat i18n editorial** | `editorial/__tests__/editorial-content-coverage.test.ts`                   | Cle referencee absente/vide dans une des 6 locales ; resurrection des cles purgees (audience, rex, en-tetes features, extras proof) ; disparition des cles `how_it_works` requises par le HowTo JsonLd.                                                                                                                                                                                 |
+| **A11y clavier**           | `editorial/__tests__/interactive.test.tsx`                                 | Regression du pattern disclosure (bouton natif, aria-expanded, DOM replie) et du pattern tabs (roles, fleches, bouclage, roving tabindex).                                                                                                                                                                                                                                              |
+| **Parite i18n globale**    | `scripts/i18n/validate_translations.py` (hook pre-commit)                  | Toute divergence de cles entre les 6 locales.                                                                                                                                                                                                                                                                                                                                           |
+| **Démonstration partagée** | `landing/__tests__/InteractiveChatMockup.test.tsx`                         | Sélection clavier et focus, résultat conservé, pause/relecture, suspension hors écran, nettoyage au démontage, mouvement réduit sans minuterie, noms français/anglais, explications à la demande et rendu complet commun aux chapitres.                                                                                                                                                 |
+| **Catalogue visuel**       | `editorial/__tests__/FeatureCatalog.test.tsx`                              | Conservation de tous les textes, une fiche visible à la fois, index et navigation nommés en français/anglais, focus clavier, correspondance complète capacité/illustration et légendes dans les six langues.                                                                                                                                                                            |
+| **Routes publiques**       | `src/lib/__tests__/api-client.public-routes.test.ts`                       | Ejection des visiteurs anonymes vers /login.                                                                                                                                                                                                                                                                                                                                            |
+| **Overflow mobile**        | `e2e/smoke/landing-mobile-overflow.spec.ts`                                | Débordement horizontal sur mobile : rendu initial, progression de la démonstration, sections et catalogues ouverts, balayage des locales et reflow à 320 px. Une capture statique seule ne couvre pas les états révélés.                                                                                                                                                                |
+| **Contenu FAQ groupee**    | `src/lib/__tests__/faq-answer-groups.test.ts`                              | La perte d'un mot lors du regroupement visuel de la reponse « Que puis-je demander ? » : egalite mot-a-mot prouvee sur les 6 locales reelles + repli tel-quel (zh a une q4 differente).                                                                                                                                                                                                 |
+| **Axe pages publiques**    | `e2e/a11y/axe-public-pages.spec.ts`                                        | Violations critical/serious (contraste inclus) sur `/faq` (reponse groupee ouverte), `/demo` et `/more` (scanne animee PUIS en pause via le bouton WCAG 2.2.2), en clair ET en sombre — le theme etant pilote par localStorage (`defaultTheme="light"`), emuler le scheme OS ne suffit pas.                                                                                             |
+| **Contrat /more**          | `landing/more/__tests__/more-content-coverage.test.ts` + `scenes.test.tsx` | La perte silencieuse d'une attention : toutes les cartes des 6 sections, disjointes des fiches majeures (`REQUIRED_FEATURE_KEYS`), chacune avec icone + scene + cles i18n non vides ×6 locales ; apostrophe U+2019 en fr ; **aucun chiffre dans la copie des cartes** (regle anti-derive) ; registre de scenes = partition exacte des cartes.                                           |
+| **Overflow mobile /more**  | `e2e/smoke/more-overflow.spec.ts`                                          | Le debordement horizontal pendant les cycles de toutes les scenes : 375 px par battement d'horloge Playwright section par section, balayage statique des 6 locales, plancher reflow 320 px (helper partage `overflow-report.ts`).                                                                                                                                                       |
 
 ---
 
@@ -171,12 +203,16 @@ Rythme visuel : chapitres alternes (fond transparent / `bg-card` borde), visuel 
 
 - 6 langues (fr, en, es, de, it, zh), fallback fr ; parite stricte (hook pre-commit, reference `en`).
 - La landing **tutoie** ; les titres a la voix du produit sont **transcrees** par langue, pas traduits.
-- Namespaces principaux : `landing.hero.*`, `landing.chat_mockup.*` (hero, 72 cles), `landing.chapters.*`
-  (recit : partages + c1..c5 avec benefices/vignettes/scenes), `landing.basics.*`, `landing.transparency.*`,
-  `landing.day.*` (4 profils × 4 scenes), `landing.gallery.*`, `landing.rail.*`, `landing.features.<k>.*`
-  (fiches detaillees reutilisees), `landing.security.*` (depliant ch. 04), `landing.proof.items.*` (chiffres,
-  affiches par TechSection), `landing.use_cases.*` (6 exemples), `landing.cta.*`, `landing.how_it_works.*`
-  (**reserve JsonLd** — la section n'existe plus).
+- Namespaces principaux : `landing.hero.*`, `landing.product_demo.*` (scènes, sources, phases, commandes et
+  limites), `landing.editorial.*` (parcours et dépliants), `landing.chapters.*` (c1..c6, bénéfices et mécanismes),
+  `landing.catalog_explorer.*` (navigation et légendes), `landing.engineering.*` (principes et bénéfices),
+  `landing.tech.*` (choix techniques détaillés), `landing.features.<k>.*` (textes intégraux conservés).
+- Les autres surfaces conservent `landing.basics.*`, `landing.transparency.*`, `landing.day.*`,
+  `landing.gallery.*`, `landing.rail.*`, `landing.security.*`, `landing.proof.items.*` et `landing.cta.*`.
+  `landing.how_it_works.*` reste réservé au HowTo JsonLd ; la section historique n’existe plus.
+- Les limites montrées dans les scènes font partie du contrat éditorial : condition d’une routine configurée
+  dans les réglages, spécialistes en lecture seule, connexion entre assistants sur le même serveur et données
+  explicitement partagées. Les exemples ne garantissent ni exhaustivité des sources, ni délai, ni coût chiffré.
 
 ---
 
@@ -203,7 +239,7 @@ routes de previsualisation `/cosmos/*` qui ont servi a l'arbitrage ont ete **sup
 ### `/more` — « Encore + », les petites attentions UX
 
 `app/[lng]/more/page.tsx` (serveur : metadonnees ×6, BreadcrumbJsonLd, header/footer publics) rend
-`components/landing/more/MoreContent` : 59 micro-attentions animees en 6 sections « moments » (ecrire, repondre,
+`components/landing/more/MoreContent` : les micro-attentions de `more-data.ts`, animees en 6 sections « moments » (ecrire, repondre,
 imprevus, chercher, quotidien, invisibles), un cran sous les fiches majeures — jamais en doublon (garde de
 disjonction). Chaque carte porte une scene decorative (`aria-hidden`) pilotee par `useLoopedTimeline` (timers purs,
 jamais `animationend` — jsdom ne le delivre pas), active uniquement dans le viewport ET hors pause : le bouton
@@ -212,19 +248,19 @@ pause/lecture (`AnimationPauseToggle`, `aria-pressed`) est le mecanisme WCAG 2.2
 sous `more.*` ; les chiffres de la bande « Le soin, en chiffres » proviennent exclusivement de `LANDING_STATS`
 (protocole de re-mesure par release) — la copie des cartes n'a **aucun** chiffre en dur.
 
-### `/demo` — l'animation du hero en URL partageable
+### `/demo` — la démonstration en URL partageable
 
-`app/[lng]/demo/page.tsx` rend `InteractiveChatMockup` avec son CTA au centre du **planetarium** (scope cosmos, ni header,
-ni footer, ni `AuthRedirect`) —
-concu pour etre poste sur les reseaux sociaux et integre dans des publications. Metadonnees dediees (hreflang ×6,
-canonical, OG) **sans nouvelle cle i18n** : le titre reutilise `landing.meta.title`, la description reutilise
-`landing.chat_mockup.aria`. Un partage social affiche la carte OG statique ; pour l'animation dans le fil, generer un
-MP4 depuis cette page. PIEGE Playwright : si `recordVideo.size` differe du viewport, le rescale produit une video
-ecrasee horizontalement avec bande grise — enregistrer avec **viewport = recordVideo.size = 1080×1350** (dsf 1), le
-contenu agrandi via `transform: scale(2.2)` sur `main > div.w-full` (un zoom body casse le centrage flex), overlay
-`nextjs-portal` masque ; puis ffmpeg H.264 (`-ss 1.6 -t 79.2 -crf 20 -pix_fmt yuv420p`). Toujours verifier en
-extrayant des frames du MP4 final (`ffmpeg -ss N -vframes 1`), jamais ffprobe seul. Artefacts locaux sous `exports/`,
-gitignore.
+`app/[lng]/demo/page.tsx` conserve une URL publique sans header, footer ni redirection d’authentification.
+La variante illustrative rend `InteractiveChatMockup` avec son CTA dans le planetarium. Le même lecteur que
+le hero permet de choisir une scène, de la mettre en pause et de la rejouer ; il reste sur son résultat.
+Le choix de variante dans `lib/showroom-config.ts` peut rendre à la place le parcours `GuidedShowroom` :
+ce parcours guidé est distinct des illustrations éditoriales.
+
+Les métadonnées localisées gardent canonical, hreflang et carte OpenGraph statique. Pour un export vidéo,
+parcourir explicitement les scènes voulues : attendre ne déclenche plus une boucle automatique. Utiliser la même
+taille pour le viewport et `recordVideo.size` afin d’éviter la déformation. Ajuster le cadrage et la durée au
+parcours enregistré, puis vérifier des images extraites du MP4 final ; les anciens paramètres d’export d’un
+cycle complet ne décrivent plus la démonstration. Les artefacts locaux restent sous `exports/`, ignoré par Git.
 
 ### FAQ publique (`/faq`)
 
@@ -247,12 +283,12 @@ La page existe parce que la promesse « Voir tout l'historique » de la bande `#
 part. `components/__tests__/changelog-destination.test.tsx` epingle desormais la destination des trois surfaces qui la
 promettent (bande landing, `LandingFooter`, `PublicFooter`).
 
-Source unique inchangee : `lib/changelog.ts` (`CHANGELOG_VERSION_KEYS`, 166 releases) et les traductions
+Source unique inchangee : `lib/changelog.ts` (`CHANGELOG_VERSION_KEYS`, inventaire des releases) et les traductions
 `faq.changelog.*` deja ecrites ×6 — **aucune nouvelle cle i18n**, le titre et le sous-titre de la page reutilisent
 `faq.changelog.title` / `faq.changelog.description`. `groupChangelogBySeries` plie la liste par serie mineure
 (`v1.30`, `v1.29`…) **sans jamais retrier** : la liste reste seule autorite sur l'ordre. Chaque serie est un `section`
-nomme avec son ancre (`#release-1-30`) et un rail de chips en tete de page ; seule la release la plus recente est
-ouverte d'emblee.
+nomme avec son ancre (`#release-1-30`) et un rail de chips en tete de page. La dernière version est ouverte à
+l’arrivée ; les versions précédentes sont repliées et se déplient à la demande.
 
 Le header de la landing garde, lui, son ancre vers la bande `#changelog` : c'est un rail de sections avec scroll-spy
 (la bande est une section, pas une page) et la contrainte de saturation a 880 px est gardee par
@@ -279,14 +315,14 @@ traversee que la garde 401 ci-dessus).
   chips sans wrap, un `truncate`/`whitespace-nowrap` sans `min-w-0` dans la chaine, gonflent la piste au-dela du
   viewport mobile (hero coupe a 381-448 px, chapitre 01 a 412 px ; `html` en `overflow-x: hidden` = contenu **coupe
   en silence**, pas de scrollbar). Regle : `min-w-0` sur les items des grilles 2-colonnes (hero, `ChapterSection`),
-  `min-w-0` sur tout element `truncate` en contexte flex (input du mockup, pilules requete, chips backstage/vignettes),
+  `min-w-0` sur les colonnes des scènes, les titres du catalogue et tout élément tronqué en contexte flex,
   `flex-wrap` sur les rangees a effectif variable (badges hero, points des carrousels). Garde executable : le spec
   overflow du §5. **La meme classe a mordu hors landing en v1.25.31** : les onglets des reglages, en grille de
   colonnes egales, poussaient leur libelle hors de leur propre bouton faute de `min-w-0` — coupe au bord de
   l'ecran, invisible. La regle vaut donc pour toute grille a colonnes egales, pas seulement pour la landing.
 - Chapitres : colonne unique mobile (texte puis visuel), 2 colonnes des `lg:` ; frise DayTimeline verticale mobile
   (ligne + puces), horizontale des `md:` ; rail chapitres `xl:` uniquement ; onglets wrap.
-- Theming : classes semantiques OKLCH du design system, variantes `dark:` ponctuelles (bulles, vignettes).
+- Theming : classes semantiques OKLCH du design system, variantes `dark:` ponctuelles (bulles, illustrations).
   Verifier clair ET sombre a chaque refonte.
 
 ---
@@ -295,24 +331,31 @@ traversee que la garde 401 ci-dessus).
 
 ```
 apps/web/src/components/landing/
-  index.ts                       # Barrel exports
-  HeroSection.tsx                # Hero (chevron → #features)
-  InteractiveChatMockup.tsx  mockup/  # Demo 4 actes + coulisses + controles (scenarios, moteur, stage, actes)
+  InteractiveChatMockup.tsx      # Lecteur à six scènes, commandes et explication à la demande
+  demo/
+    scenes.ts                   # Catalogue commun des scènes
+    ProductScene.tsx             # Illustration et résultat, animés ou complets
+    useProductDemo.ts            # Phases, pause, visibilité, mouvement réduit
+  cosmic/
+    CosmosHero.tsx  CosmosFinale.tsx
+    CosmosDay.tsx  ScrollScrub.tsx  PinnedScene.tsx
   editorial/
-    chapters-data.ts             # Source de verite + contrat REQUIRED_FEATURE_KEYS
-    EditorialChapters.tsx        # Les 6 chapitres
-    ChapterSection.tsx           # Layout chapitre (bulle-titre LIA)
-    vignettes.tsx  scenes.tsx    # Coulisses decomposees / scenes complementaires
-    FeatureCatalog.tsx           # Fiches detaillees (reutilise landing.features.*)
-    SecurityDetail.tsx           # Ex-section securite (depliant ch. 04)
-    CatalogDisclosure.tsx  Tabs.tsx  ScrollStage.tsx  ChapterRail.tsx
-    BasicsBand.tsx  TransparencySection.tsx  DayTimeline.tsx  GallerySection.tsx
-    __tests__/                   # Gardes-fous (couverture, i18n, a11y)
-  UseCasesSection.tsx            # 6 requetes reelles
-  TechSection.tsx                # Sous le capot + chiffres d'ingenierie
+    chapters-data.ts             # Ordre éditorial, scene par chapitre, contrat de contenu
+    EditorialChapters.tsx        # Chapitres et scènes partagées
+    ChapterSection.tsx           # Bénéfices, mécanisme à la demande, catalogue
+    FeatureCatalog.tsx           # Traductions côté serveur
+    FeatureExplorer.tsx          # Index accessible et fiche complète
+    FeatureScenes.ts            # Capacité → famille d’illustration
+    FeatureIllustration.tsx      # Illustrations SVG décoratives
+    SecurityDetail.tsx
+    CatalogDisclosure.tsx  Tabs.tsx  ChapterRail.tsx
+    PromiseSection.tsx  BasicsBand.tsx  TransparencySection.tsx
+    DayTimeline.tsx  GallerySection.tsx
+    __tests__/                  # Contenu, i18n, catalogue et interactions
+  UseCasesSection.tsx           # Même catalogue de scènes, liens vers les chapitres
+  TechSection.tsx               # Principes visibles, détails dépliables, chiffres sources
   ArchitectureDiagram.tsx
-  LandingCarousel.tsx            # Carrousel partage de la galerie
-  ScreenshotsSection.tsx  PresentationSection.tsx   # Inventaires des 2 onglets
-  CtaSection.tsx                 # CTA final (bulle LIA)
-  constants.ts                   # LANDING_STATS (chiffres sources)
+  LandingCarousel.tsx
+  ScreenshotsSection.tsx  PresentationSection.tsx
+  constants.ts                  # LANDING_STATS
 ```

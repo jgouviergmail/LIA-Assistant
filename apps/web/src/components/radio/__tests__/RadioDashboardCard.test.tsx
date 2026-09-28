@@ -1,7 +1,6 @@
 /**
  * The radio's dashboard card: the header's own command (start from the click,
- * stop on air), the way to the radio's page — and nothing where the radio is
- * not offered.
+ * stop on air), and nothing where the radio is not offered.
  */
 import { act } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -86,15 +85,12 @@ describe('RadioDashboardCard', () => {
     expect(api.get).not.toHaveBeenCalled();
   });
 
-  it('starts the station from the click and leads to its page', async () => {
+  it('starts the station from the click with one clear action', async () => {
     const { user } = renderWithProviders(<RadioDashboardCard lng="en" enabled />);
 
     await user.click(screen.getByRole('button', { name: 'radio.header.start' }));
     expect(player.start).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole('link', { name: 'radio.dashboard.open' })).toHaveAttribute(
-      'href',
-      '/en/dashboard/radio'
-    );
+    expect(screen.queryByRole('link', { name: 'radio.dashboard.open' })).toBeNull();
   });
 
   it('stops the station while it is on air', async () => {

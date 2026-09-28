@@ -27,7 +27,7 @@
  */
 
 import Link from 'next/link';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight, ChevronDown, Sparkles } from 'lucide-react';
 
 import { ChangelogItems } from '@/components/changelog/ChangelogItems';
 import { initI18next } from '@/i18n';
@@ -76,13 +76,23 @@ export async function ChangelogSection({ lng }: { lng: string }) {
             <li key={version}>
               <FadeInOnScroll delay={index * 80}>
                 <article className="rounded-2xl border border-border bg-background p-6">
-                  <header className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                    <h3 className="text-lg font-semibold tracking-tight">
-                      {t(changelogTitleKey(version))}
-                    </h3>
-                    <p className="text-xs text-muted-foreground">{t(changelogDateKey(version))}</p>
-                  </header>
-                  <ChangelogItems version={version} t={t} className="mt-4 space-y-2.5" />
+                  <details className="group/release" open={index === 0}>
+                    <summary className="flex cursor-pointer list-none items-start gap-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-lg font-semibold tracking-tight">
+                          {t(changelogTitleKey(version))}
+                        </h3>
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          {t(changelogDateKey(version))}
+                        </p>
+                      </div>
+                      <ChevronDown
+                        className="mt-1 size-4 shrink-0 text-primary transition-transform group-open/release:rotate-180"
+                        aria-hidden="true"
+                      />
+                    </summary>
+                    <ChangelogItems version={version} t={t} className="mt-4 space-y-2.5" />
+                  </details>
                 </article>
               </FadeInOnScroll>
             </li>

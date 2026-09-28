@@ -11205,11 +11205,11 @@
     "tech": {
       "title": "Unter der Haube",
       "subtitle": "Eine Architektur für Leistung und Skalierbarkeit",
-      "intro": "Kein Chatbot: ein Orchestrierungssystem. Jede Anfrage durchläuft semantisches Routing, einen Planner und parallel ausgeführte Agenten — instrumentiert von Ende zu Ende, vom Token bis zum Euro, mit E-Mail-Alerts bei vitalen Signalen.\n\nHinter der Oberfläche: bayessches Plan-Lernen, semantisches Gedächtnis mit zwei Vektoren, hybride BM25-+-Embeddings-Suche über deinen Dokumenten, eine in PostgreSQL gecheckpointete LangGraph-State-Machine. Alles selbst hostbar — bis hinunter zum Raspberry Pi.\n\nWas sie behauptet, hat sie gelesen: Jede Antwort ist auf die tatsächlich abgerufenen Daten verankert — nie auf die Erinnerung an eine frühere Formulierung — und eine nie erhaltene Information wird als fehlend benannt statt ergänzt.\n\nWas läuft, ist von dem getrennt, was es ausführt: Der Code einer Skill läuft in einem Container für genau einen Aufruf — ohne Socket, ohne Netzwerk, schreibgeschützt — und lässt sich diese Sandbox nicht bauen, läuft gar nichts.",
+      "intro": "LIA verbindet semantisches Routing mit den Werkzeugen und Quellen, die für deine Anfrage relevant sind. Bei auszuführenden Aufgaben erstellt und prüft Pipeline einen Plan; ReAct geht mit Suchen und Anpassungen voran. Du wählst den Modus. Der Ablauf ist durchgehend instrumentiert, vom Token bis zum Euro, mit E-Mail-Alerts bei wichtigen Betriebssignalen.\n\nHinter der Oberfläche: bayessches Plan-Lernen, semantisches Gedächtnis mit zwei Vektoren, hybride BM25-+-Embeddings-Suche über deinen Dokumenten, eine in PostgreSQL gecheckpointete LangGraph-State-Machine. Alles selbst hostbar — bis hinunter zum Raspberry Pi.\n\nWas sie behauptet, hat sie gelesen: Jede Antwort ist auf die tatsächlich abgerufenen Daten verankert — nie auf die Erinnerung an eine frühere Formulierung — und eine nie erhaltene Information wird als fehlend benannt statt ergänzt.\n\nWas läuft, ist von dem getrennt, was es ausführt: Der Code einer Skill läuft in einem Container für genau einen Aufruf — ohne Socket, ohne Netzwerk, schreibgeschützt — und lässt sich diese Sandbox nicht bauen, läuft gar nichts.",
       "deep_dive_link": "Vollständiger technischer Einblick",
       "langgraph": {
         "title": "Zwei Wege, eine Anfrage auszuführen",
-        "description": "Eine einfache Anfrage folgt einem Plan: LIA schreibt die Schritte, führt die unabhängigen gemeinsam aus und hält dort an, wo du bestätigst. Eine offene Anfrage wechselt in eine autonome Schleife, die am Ergebnis gemessen wird: Sie prüft, ob jede Werkzeugantwort die Frage beantwortet, wechselt bei einem Hindernis die Quelle und sagt, was ihr fehlt und was sie versucht hat. Du wählst den Modus im Chat-Kopf: Der geplante Modus verbraucht ein Vielfaches weniger Tokens, der autonome erkundet mehr – in deinem Rhythmus: häufig, um den Cache zu nutzen, gelegentlich zu festen Kosten. Ein Durchgang endet, wenn seine Antwort abgeschickt ist – LIA kündigt nie Arbeit an, die sie nicht tun wird."
+        "description": "Du wählst den Modus im Chat-Kopf. Für eine strukturierte Anfrage erstellt Pipeline einen Plan, prüft dessen Stimmigkeit und führt unabhängige Schritte parallel aus: Tempo, Kontrolle und ein vorhersehbarer Ablauf. Bei einer offenen Frage erkundet ReAct, liest die Ergebnisse und passt den nächsten Schritt an. Für mehr Zuverlässigkeit prüft es, ob die Ergebnisse die Frage beantworten, kann bei einem Hindernis die Quelle wechseln und benennt fehlende Informationen samt unternommenen Versuchen. In beiden Modi richten sich Bestätigungen nach den geplanten Aktionen. In ReAct kann dein Gesprächsrhythmus bei häufigen Wechseln den Cache bevorzugen oder bei gelegentlichen Gesprächen die Werkzeugauswahl. Der Durchgang endet mit dem Ergebnis und seinen Grenzen, ohne Arbeit anzukündigen, die nicht ausgeführt wird."
       },
       "llm_providers": {
         "title": "Sieben Modellanbieter, deine Wahl",
@@ -11241,7 +11241,7 @@
       },
       "hitl": {
         "title": "Human-in-the-Loop",
-        "description": "Sechs Freigabeebenen — Plan-Freigabe, Klärung, Entwurfskritik, destruktive Bestätigung, FOR_EACH-Bestätigung, Änderungsprüfung. Schutzmaßnahmen auf Plan-Ebene vor der Ausführung statt Rollback nach einem Fehler. Automatische Risikoklassifizierung und Vorschau der betroffenen Elemente. Der dem Klassifizierer gemeldete Aktionstyp wird aus dem Verb des Werkzeugnamens abgeleitet, nie aus einem Teilstring-Abgleich: Eine Löschung wird immer als Löschung gemeldet, und die Vorsichtsregel des Prompts für Löschvorgänge greift immer."
+        "description": "Bestätigungen erfolgen auf Werkzeugebene, je nach vorgesehener Aktion. Unklarheiten lassen sich klären, Entwürfe vor der Freigabe überarbeiten und Vorgänge in einem festgelegten Umfang gemeinsam bestätigen. Vorschläge und Ergebnisse bleiben unterscheidbar und nachvollziehbar."
       },
       "honest_enrichment": {
         "title": "Ehrliche Anreicherungen",
@@ -11273,8 +11273,8 @@
       }
     },
     "architecture": {
-      "title": "Zwei Ausführungsmodi",
-      "subtitle": "Pipeline für Effizienz, ReAct für Autonomie — Du entscheidest",
+      "title": "Zwei Wege zum Ergebnis",
+      "subtitle": "Ein direkter Weg für strukturierte Aufgaben, eine anpassungsfähige Erkundung für offene Fragen. Den Modus wählst du im Chat.",
       "nodes": {
         "query": "Anfrage",
         "router": "Router",
@@ -11292,14 +11292,42 @@
       "diagram_title": "Vollständige Systemarchitektur",
       "diagram_zoom": "Klicken zum Vergrößern",
       "diagram_alt": "Vollständiges Architekturdiagramm von LIA — Multi-Agenten-Orchestrierung, Observierbarkeit und Sicherheit",
-      "pipeline_label": "Pipeline-Modus (Standard)",
-      "pipeline_badge": "4–8× weniger Tokens",
-      "react_label": "ReAct-Modus",
-      "react_badge": "Maximale Autonomie",
-      "pipeline_desc": "Ein optimierter Plan, validiert und parallel ausgeführt — vorhersehbar und sparsam.",
-      "react_desc": "Das LLM wählt bei jedem Schritt sein nächstes Tool, bis das Ziel erreicht ist – und was noch fehlt, bekommt einen begrenzten Durchgang, bevor es benannt wird.",
+      "pipeline_label": "Pipeline",
+      "pipeline_badge": "Tempo und Kontrolle",
+      "react_label": "ReAct",
+      "react_badge": "Erkunden und anpassen",
+      "pipeline_desc": "Der Standardmodus plant die Arbeit vor der Ausführung. Ein klarer Weg mit abgestimmten Schritten.",
+      "react_desc": "Wenn der nächste Schritt von neuen Erkenntnissen abhängt, richtet LIA ihn nach den erhaltenen Ergebnissen aus.",
       "or_label": "oder",
-      "response_hint": "Streamt Token für Token"
+      "response_hint": "Streamt Token für Token",
+      "example_label": "Nützlich zum Beispiel für",
+      "pipeline_example": "Eine Rechnung finden, eine Antwort entwerfen und eine Erinnerung erstellen.",
+      "react_example": "Lösungen vergleichen, Quellen abgleichen und einen Widerspruch klären.",
+      "shared_title": "In beiden Modi bleibt die Arbeit nachvollziehbar",
+      "shared_control_title": "Du behältst die Kontrolle",
+      "shared_control_body": "Aktionen, die deine Bestätigung benötigen, fragen vor der Ausführung danach.",
+      "shared_trace_title": "Die Arbeit bleibt dokumentiert",
+      "shared_trace_body": "Abfragen und Aktionen werden in getrennten Registern erfasst.",
+      "shared_result_title": "Das Ergebnis zählt",
+      "shared_result_body": "Die Antwort stützt sich auf die erhaltenen Ergebnisse und benennt offene Fragen.",
+      "flow": {
+        "pipeline": {
+          "plan_title": "Planen",
+          "plan_body": "Aus deiner Anfrage entsteht ein Plan mit Schritten und Abhängigkeiten.",
+          "validate_title": "Den Plan prüfen",
+          "validate_body": "LIA prüft, ob die vorgesehenen Schritte und Werkzeuge zusammenpassen.",
+          "execute_title": "In der richtigen Reihenfolge ausführen",
+          "execute_body": "Unabhängige Schritte laufen parallel. Die anderen warten auf die benötigten Ergebnisse."
+        },
+        "react": {
+          "explore_title": "Erkunden",
+          "explore_body": "LIA wählt anhand deiner Anfrage eine erste Suche oder Aktion.",
+          "observe_title": "Beobachten",
+          "observe_body": "Sie liest die Ergebnisse, bevor sie den nächsten Schritt wählt.",
+          "adapt_title": "Den nächsten Schritt anpassen",
+          "adapt_body": "Sie passt die Suche an und kann offene Punkte innerhalb eines begrenzten Budgets erneut aufgreifen."
+        }
+      }
     },
     "screenshots": {
       "items": {
@@ -11324,7 +11352,7 @@
     "cta": {
       "bubble": "Dein Kalender und ich haben schon Gesprächsstoff.",
       "title": "LIA ist bereit. Und etwas ungeduldig.",
-      "subtitle": "Ein Assistent, der handelt, dich kennt, vorausdenkt — und immer erst fragt.",
+      "subtitle": "Ein Assistent, der handelt, dich kennt und vorausdenkt — mit dir am Steuer seiner Aktionen.",
       "button": "Konto erstellen",
       "note_beta": "Kostenlose Beta, 24/7 produktiv im Einsatz.",
       "philosophy_link": "Oder lies zuerst unsere Philosophie"
@@ -11373,15 +11401,15 @@
       "catalog_label": "Alles, was LIA hier kann",
       "how_prefix": "Unter der Haube:",
       "c1": {
-        "bubble": "„Sag meiner Frau Bescheid und verschieb meinen Termin“ — ein Satz, nicht zwei Apps.",
+        "bubble": "Das Angebot hat sich geändert. Die E-Mail erklärt warum. Im Protokoll steht, was vereinbart wurde.",
         "title": "LIA macht es. Wirklich.",
-        "sub": "Keine Vorschläge, keine Entwürfe zum Abtippen: Aktionen, zu Ende gebracht, in deinem echten Leben.",
-        "b1_t": "Ein Satz, mehrere Spezialisten.",
-        "b1_d": "Kontakte, Kalender und E-Mail arbeiten parallel — welche genau, musst du nie wissen.",
+        "sub": "Sag ihr, was du erreichen möchtest: Sie findet die Unterlagen, setzt sie in Beziehung und bringt die nötigen Schritte voran.",
+        "b1_t": "Alle Unterlagen gemeinsam durchdacht.",
+        "b1_d": "E-Mails, Dokumente und Besprechungsergebnisse fließen in ein Ergebnis ein, mit dem du arbeiten kannst.",
         "b2_t": "Sie greift zum Telefon. Wirklich.",
         "b2_d": "Reservieren, nachfragen, prüfen: Du gibst frei, wen und wozu — sie ruft an, du bekommst die schriftliche Zusammenfassung.",
-        "b3_t": "Vom Wohnzimmer bis ins Web.",
-        "b3_d": "„Dimm das Wohnzimmer“, „füll dieses Formular aus“: Licht, Websites, Navigation — erledigt.",
+        "b3_t": "Arbeit, die du delegieren kannst.",
+        "b3_d": "Übergib eine Aufgabe im Workboard: Kontext, Fortschritt und Austausch bleiben zusammen.",
         "b4_t": "Die Serie, nicht die Fleißarbeit.",
         "b4_d": "„Eine Erinnerung am Vortag jedes Termins“: Sie arbeitet die ganze Woche ab, mit einer Anfrage.",
         "how": "20+ parallel orchestrierte Agenten · Live-Sprachsitzungen auf deinem eigenen Gemini-, OpenAI- oder ElevenLabs-Schlüssel · agentische Telefonie über deinen ElevenLabs-Connector · Browser-Steuerung · Philips Hue · Bilder & Diagramme auf Zuruf.",
@@ -11394,16 +11422,17 @@
         "v_t3": "⏰ Erinnerungen",
         "v_t3_sub": "werden erstellt…",
         "v_series": "4 Erinnerungen erstellt",
-        "v_series_sub": "am Vortag, 19 Uhr — eine Anfrage"
+        "v_series_sub": "am Vortag, 19 Uhr — eine Anfrage",
+        "mechanism": "LIA wählt die für deine Anfrage relevanten Quellen aus, führt unabhängige Recherchen gleichzeitig durch und verbindet die hilfreichen Textstellen und Erkenntnisse. Du erhältst eine Antwort auf Grundlage dieser Quellen, mit den Punkten, die noch geprüft werden müssen."
       },
       "c2": {
-        "bubble": "Guten Morgen. Dein Kalender ist voll, dein Kaffee wird kalt. Den Rest übernehme ich.",
+        "bubble": "Dein Termin, das Versprechen, das du halten willst, die gesendete E-Mail: Das ist alles ein Tag.",
         "title": "LIA kennt dich.",
-        "sub": "Ein Assistent, der zwischen zwei Sätzen alles vergisst, assistiert niemandem.",
-        "b1_t": "Sag es einmal. Nie zweimal.",
-        "b1_d": "„Meine Frau“, „mein Freitagsrestaurant“, „mittwochs keine Meetings“: einmal gesagt, dauerhaft gemerkt.",
-        "b2_t": "Dein Tag kommt mit dem Kaffee.",
-        "b2_d": "Jeden Morgen: Zusammenfassung, Wetter, Kalender, Geburtstage, sortierte Mails — bevor du fragst.",
+        "sub": "Deine Vorlieben und Projekte geben dem Gefundenen Bedeutung. Du kannst korrigieren, was sie sich merkt.",
+        "b1_t": "Weniger Kontext wiederholen.",
+        "b1_d": "Gespeicherte Personen, Vorlieben und Fakten helfen bei späteren Anfragen, wenn sie dafür relevant sind.",
+        "b2_t": "Dein Tag, zum Lesen oder Hören.",
+        "b2_d": "Das Briefing bündelt das Wesentliche. Das Radio gestaltet seine Sendungen mit deinem Tag, deinen Quellen und deinen Interessen.",
         "b3_t": "Sie hat Launen. Du siehst sie.",
         "b3_d": "Ihr Gesicht wandelt sich mit dem Gespräch und lebt zwischen zwei Antworten weiter, ihr Humor zeigt sich, wenn es leicht wird. Vom Professor bis zum Zyniker: 14 Persönlichkeiten.",
         "how": "semantisches Gedächtnis mit zwei Vektoren · introspektive Journale · tägliches Briefing · Psyche Engine (14 Stimmungen, 22 Emotionen).",
@@ -11416,18 +11445,19 @@
         "s_day": "Dein Tag",
         "s_day_b1": "9:00 Team-Sync",
         "s_day_b2": "11:30 Kunde",
-        "s_day_b3": "18:30 Sport"
+        "s_day_b3": "18:30 Sport",
+        "mechanism": "Erinnerungen helfen LIA, deine Anfrage zu verstehen; verbundene Quellen zeigen, was gerade passiert. Briefing und Radio verbinden diese Informationen nach deinen Einstellungen, ohne auf Quellen zuzugreifen, die du ausgeschaltet hast."
       },
       "c3": {
-        "bubble": "Regen um 7. Lauf um 7:30. Siehst du das Problem? Ich ja — und ich habe die Lösung.",
+        "bubble": "Du hast auf eine Antwort gewartet. Sie ist da. Das ändert sie für dein Projekt.",
         "title": "LIA merkt es vor dir.",
-        "sub": "Der Unterschied zwischen Antworten und Assistieren: nicht auf die Frage warten.",
-        "b1_t": "Sie verknüpft, was du nicht verknüpfst.",
-        "b1_d": "Regen × geplanter Lauf, neue Mail × Terminkonflikt: Sie verbindet die Punkte und schlägt die Aktion vor.",
+        "sub": "Eine offene Antwort im Blick, der Kontext dazu, ein hilfreicher Vorschlag zur richtigen Zeit.",
+        "b1_t": "Eine Beobachtung mit klarem Ziel.",
+        "b1_d": "Lege in den Einstellungen die Bedingung und die Aufgabe einer Routine fest: LIA prüft die Regel und startet die vorgesehene Aktion, wenn die Bedingung erfüllt ist.",
         "b2_t": "Sie behält deine Themen im Blick.",
         "b2_d": "Tech, Sport, Finanzen, Gesundheit: Sie folgt dem, was dich interessiert, und liefert das Wesentliche — zur richtigen Zeit.",
-        "b3_t": "Sie erinnert sich für dich.",
-        "b3_d": "„Erinnere mich morgen um 9“ — und ganze Routinen: Montags-Mail-Digest, Morgenwetter.",
+        "b3_t": "Aufgaben behalten ihren roten Faden.",
+        "b3_d": "Routinen, Erinnerungen und delegierte Aufgaben bleiben im Blick. Du siehst den Fortschritt und machst dort weiter, wo die Arbeit steht.",
         "how": "konfigurierbare proaktive Intelligenz · Interessen · Erinnerungen in natürlicher Sprache · geplante Routinen · Gesundheitsdaten.",
         "catalog_hint": "{{count}} Fähigkeiten im Detail",
         "v_intro": "niemand hat etwas gefragt —",
@@ -11435,51 +11465,54 @@
         "v_left_sub": "„lieber Donnerstag 11 Uhr?“",
         "v_right": "📅 Kalender",
         "v_right_sub": "Zahnarzt · Donnerstag 11 Uhr",
-        "v_note": "Claires Vorschlag kollidiert mit deinem Zahnarzt. Soll ich 14 Uhr vorschlagen?"
+        "v_note": "Claires Vorschlag kollidiert mit deinem Zahnarzt. Soll ich 14 Uhr vorschlagen?",
+        "mechanism": "Eine bedingte Routine prüft die von dir festgelegte Regel, bevor sie die vorgesehene Arbeit startet. LIA kann auch von sich aus ein neues Signal mit deinem Kontext verbinden: Sie macht dich zur richtigen Zeit auf das aufmerksam, was eine Entscheidung verdient."
       },
       "c4": {
         "bubble": "Ich schlage vor. Du entscheidest. Das ist der Deal.",
-        "title": "Nichts geht ohne dich raus.",
-        "sub": "Ein Assistent, der in deinem Leben handelt, hat genau eine Haltung verdient: erst fragen.",
-        "b1_t": "Deine Freigabe vor der Aktion.",
-        "b1_d": "Senden, ändern, löschen, anrufen: Sie zeigt, du gibst frei — in natürlicher Sprache, ohne Checkboxen.",
+        "title": "Selbstständig, mit dir am Steuer.",
+        "sub": "Du siehst den Vorschlag, kannst ihn ändern und nachvollziehen, was tatsächlich erledigt wurde.",
+        "b1_t": "Dein Einverständnis für eine konkrete Aktion.",
+        "b1_d": "Vor einer Nachricht oder einem Anruf an jemand anderen zeigt sie Empfänger und Inhalt. Du passt den Vorschlag an, bevor du bestätigst.",
         "b2_t": "Jede Antwort zeigt ihren Preis.",
         "b2_d": "Tokens und Cents, Nachricht für Nachricht. Budgets, die du setzt, Zähler, die du siehst.",
         "b3_t": "Ein Stopp-Knopf. Ein echter.",
         "b3_d": "Sie stoppt mitten im Satz, und der Teiltext bleibt.",
         "b4_t": "Deine Daten bleiben deine.",
         "b4_d": "Verschlüsselt, exportierbar und unter deiner Kontrolle — auf Wunsch selbst gehostet, sogar auf einem Raspberry Pi.",
-        "how": "6 Freigabestufen · Quoten über 5 Schichten · Fernet-Verschlüsselung · BFF-Architektur, kein Token erreicht je den Browser.",
+        "how": "Bestätigungen auf Werkzeugebene, überarbeitbare Entwürfe, Aktions- und Zugriffsprotokolle, Budgets und Verschlüsselung.",
         "catalog_hint": "{{count}} Fähigkeiten im Detail + Sicherheit",
         "s_chip": "Erst deine Freigabe",
         "s_hitl": "Entwurf für Sophie bereit. Ich zeige ihn dir vor jedem Versand — nichts geht ohne dein Okay raus.",
         "s_subject": "Betreff: Heute Abend später (aber mit Stil) 😅",
         "s_quote": "„Der Verkehr testet gerade die Stabilität unserer Ehe…“",
         "s_user": "Nur das Ende weicher, bitte",
-        "s_reply": "Sanftere Version fertig. Diese senden?"
+        "s_reply": "Sanftere Version fertig. Diese senden?",
+        "mechanism": "Deine Bestätigung gilt einer konkreten Aktion: einem Empfänger, einer Nachricht oder dem Ziel eines Anrufs. Anschließend wird erfasst, was tatsächlich gelungen ist. So bleiben Vorschlag, Versuch und erledigte Aktion klar voneinander unterscheidbar."
       },
       "c5": {
-        "bubble": "Vor zehn Sekunden fehlte mir eine Fähigkeit. Jetzt nicht mehr.",
+        "bubble": "Aus verstreuten Quellen wird eine Entscheidungsgrundlage, die du teilen kannst.",
         "title": "LIA wächst mit dir.",
-        "sub": "Andere Assistenten haben eine Funktionsliste. Sie hat Wachstumspotenzial — und du zeichnest es.",
+        "sub": "Dein Wissen, gezielte Fachrecherchen und Werkzeuge, die mit deinen Anforderungen wachsen können.",
         "b1_t": "Eine Fähigkeit fehlt? Beschreib sie.",
         "b1_d": "Sie erstellt die Skill, installiert sie und zeigt sie als Mini-App im Chat — Karten, Buttons, Dashboards.",
-        "b2_t": "Deine Dokumente werden ihr Wissen.",
-        "b2_d": "PDF, Word, Drive-Ordner: importiert, indexiert, in ihren Antworten zitiert.",
+        "b2_t": "Deine Dokumente werden zur Grundlage.",
+        "b2_d": "LIA findet hilfreiche Textstellen, gleicht sie mit anderen Quellen ab und kann daraus einen Vergleich oder ein Dokument erstellen.",
         "b3_t": "Schließ sie an deine Welt an.",
         "b3_d": "MCP-Server, spezialisierte Sub-Agenten: Das Ökosystem ist offen, der Code auch.",
         "how": "gesandboxte Skills mit interaktiven Widgets · Wissensräume (15+ Formate, hybride Suche) · MCP-Protokoll · Open Source.",
         "catalog_hint": "{{count}} Fähigkeiten im Detail",
         "v_forge": "Skill „Budget-Tracker“ wird zusammengebaut",
         "v_forge_sub": "Code generiert · Sandbox · installiert",
-        "v_docs": "Deine Dokumente (vertrag.pdf, Drive-Ordner…) — indexiert, in ihren Antworten zitiert"
+        "v_docs": "Deine Dokumente (vertrag.pdf, Drive-Ordner…) — indexiert, in ihren Antworten zitiert",
+        "mechanism": "Wissensräume finden Textstellen sowohl nach ihrer Bedeutung als auch nach Wörtern. Spezialisten können mehrere Ansätze mit reinem Lesezugriff untersuchen; LIA führt ihre Ergebnisse zu einem Arbeitsergebnis zusammen. Skills und Plugins erweitern anschließend, was sie umsetzen kann."
       },
       "c6": {
-        "bubble": "Soll ich das an Marie weitergeben? Deine Assistentin sagt es ihr in ihren eigenen Worten.",
+        "bubble": "Zwei Kalender, zwei Assistenten. Ein Vorschlag, der die Freigaben beider Seiten respektiert.",
         "title": "LIA verbindet dich mit deinen Menschen",
-        "sub": "Ein geteilter Server: Deine Nächsten bekommen einen eigenen Assistenten — und die Assistenten reden.",
-        "b1_t": "Nachrichten, von Assistent zu Assistent.",
-        "b1_d": "Sag „sag Marie…“: Du gibst den Wortlaut frei, IHR Assistent überbringt ihn in eigener Stimme und bestätigt.",
+        "sub": "Auf demselben Server können sich die Assistenten deiner Angehörigen und Freunde mit den Informationen abstimmen, die jeder bewusst freigibt.",
+        "b1_t": "Von der Nachricht zur Abstimmung.",
+        "b1_d": "Finde anhand freigegebener Verfügbarkeiten einen Termin und bestätige dann den Vorschlag, den der andere Assistent weiterleitet.",
         "b2_t": "Gewählte Freigaben, nur lesend.",
         "b2_d": "Pro Verbindung Verfügbarkeit oder Aufgabentitel öffnen — nichts als Vorgabe, jederzeit widerrufbar.",
         "b3_t": "Schutz durch Konstruktion.",
@@ -11491,7 +11524,8 @@
         "s_confirm": "Das übergebe ich ihrer Assistentin — senden?",
         "s_to": "Nachricht an Marie",
         "s_message": "Ich hole die Kinder heute Abend ab.",
-        "s_delivered": "Zugestellt — ihre Assistentin hat es weitergegeben und bestätigt."
+        "s_delivered": "Zugestellt — ihre Assistentin hat es weitergegeben und bestätigt.",
+        "mechanism": "Jede Verbindung legt fest, worauf der andere Assistent zugreifen darf. LIA kann freigegebene Zeitfenster vergleichen und einen bestätigten Vorschlag weitergeben, ohne den übrigen Kalender einzusehen oder für die andere Person einen Termin zu buchen."
       }
     },
     "basics": {
@@ -11541,43 +11575,43 @@
       "tab_admin": "Administrator",
       "freelance": {
         "s1_time": "07:02",
-        "s1_text": "Das Briefing kommt mit dem Kaffee: Dein Tag, das Wetter, 5 sortierte Mails — bevor du irgendetwas fragst.",
+        "s1_text": "Vor dem Termin fragst du nach dem Kundenstand: letzte Gespräche, Angebot und Besprechungsbeschlüsse zusammengeführt, samt den noch offenen Fragen.",
         "s2_time": "09:15",
-        "s2_text": "„Antworte dem Kunden und biete zwei Termine an“ — Entwurf fertig, Slots gegen den Kalender geprüft. Du liest, du sagst „senden“.",
+        "s2_text": "„Schlage zwei Termine vor und halte meinen Mittwoch frei.“ LIA verbindet deine gespeicherte Vorliebe mit dem Kalender und bereitet eine E-Mail vor, die du überarbeiten kannst.",
         "s3_time": "14:40",
-        "s3_text": "Eine Mail erwähnt ein Meeting, das deines überlappt. Sie merkt es — und schlägt die Lösung vor dem Problem vor.",
+        "s3_text": "Deine konfigurierte Routine erkennt die Antwort des Lieferanten. Sie startet die vorgesehene Folgeaufgabe: den neuen Vorschlag mit den Projektunterlagen vergleichen und dir die Unterschiede zusammenfassen.",
         "s4_time": "19:30",
-        "s4_text": "„Morgen-Recap, und eine Erinnerung für die Rechnung“ — erledigt. Sie hat längst notiert, dass du spät fertig wirst. So ist sie."
+        "s4_text": "Das an LIA übergebene Ticket enthält ihre Recherche, das Ergebnis und das, was sie von dir braucht. Du knüpfst an, ohne alles neu zu erzählen."
       },
       "family": {
         "s1_time": "07:00",
-        "s1_text": "Geburtstage, Schulweg-Wetter, alle Kalender: das Familienbriefing, vor dem ersten Kaffee.",
+        "s1_text": "Beim Frühstückmachen startest du das Radio: dein Kalender, offene Versprechen und ausgewählte Nachrichten finden im persönlichen Journal zusammen.",
         "s2_time": "12:20",
-        "s2_text": "„Eine Zahnarzt-Erinnerung für jedes Kind“ — sie arbeitet die Liste ab, du bestätigst einmal.",
+        "s2_text": "„Finde einen Termin mit Marie.“ Auf demselben Server vergleicht LIA eure freigegebenen Verfügbarkeiten und bereitet einen Vorschlag vor. Du entscheidest, was ihre Assistentin erhält.",
         "s3_time": "17:45",
-        "s3_text": "„Ruf die Pizzeria an und reserviere für Samstag, sechs Personen“ — Du gibst frei, sie telefoniert, die Zusammenfassung kommt schriftlich.",
+        "s3_text": "Für Samstag findet LIA deine Vorlieben und mögliche Termine. Du bestätigst das Ziel des Restaurantanrufs; sie bringt das Ergebnis und etwaige Optionen zurück, über die du noch entscheiden musst.",
         "s4_time": "20:30",
-        "s4_text": "„Dimm das Wohnzimmer, Filmmodus.“ Das Licht gehorcht. Jedes Familienmitglied spricht seine Sprache — sie kommt mit."
+        "s4_text": "„Was hatten wir für den Urlaub beschlossen?“ LIA verbindet deine importierten Notizen mit den verfügbaren Gesprächen und listet auf, was noch entschieden werden muss."
       },
       "dev": {
         "s1_time": "08:30",
-        "s1_text": "Das Morgenbriefing + deine Watchlist: die Tech-Themen, denen du folgst, zusammengefasst, ohne Doomscrolling.",
+        "s1_text": "„Bereite den Projektstand vor.“ LIA verbindet die Spezifikationen in deinem Wissensraum mit dem letzten Protokoll: gefasste Beschlüsse, offene Fragen und Ansätze zum Weiterdenken.",
         "s2_time": "10:05",
-        "s2_text": "„Bau mir ein Widget für meine PRs“ — die Skill wird erstellt, installiert, im Chat angezeigt.",
+        "s2_text": "Du delegierst einen technischen Vergleich an Spezialisten mit reinem Lesezugriff. Ihre Recherchen kommen als Zusammenfassung mit Quellen und Grenzen zurück, die du diskutieren kannst.",
         "s3_time": "15:00",
-        "s3_text": "Deine Specs und Docs sind indexiert: Sie antwortet und zitiert die richtige Seite des richtigen Dokuments.",
+        "s3_text": "Aus den gefundenen Informationen lässt du eine Architekturnotiz und eine Vergleichstabelle erstellen. Die Dateien erscheinen im Chat, bereit zum Prüfen und Teilen.",
         "s4_time": "22:10",
-        "s4_text": "Dein eigener MCP-Server ist in Minuten angeschlossen — das Ökosystem ist offen, der Code auch."
+        "s4_text": "Ein Bedarf kehrt wieder: Du beschreibst einen Skill für deine Arbeit. LIA erstellt ihn; bei einer späteren Anpassung zeigt sie die vorgeschlagenen Änderungen, bevor sie das Paket ersetzt."
       },
       "admin": {
         "s1_time": "08:00",
-        "s1_text": "Das Betriebsbriefing: Verbrauch von gestern, Kosten auf den Cent, ungewöhnliche Signale.",
+        "s1_text": "Du öffnest Verbrauch und Protokolle: Wohin fließt das Budget, welche Aktionen wurden ausgeführt, welche Fähigkeiten genutzt? Du untersuchst die Aktivität anhand von Fakten.",
         "s2_time": "11:00",
-        "s2_text": "„Warum ist der API-Container neu gestartet?“ — die Diagnose in natürlicher Sprache, Logs inklusive.",
+        "s2_text": "„Warum dieser Neustart?“ Mit autorisiertem DevOps-Zugriff prüft LIA verfügbare Belege, trennt Beobachtungen von Hypothesen und benennt, was für die Diagnose noch fehlt.",
         "s3_time": "16:30",
-        "s3_text": "Ein Nutzer sprengt sein Budget: Sperren mit einem Klick, Entsperren genauso. Fünf Enforcement-Schichten wachen.",
+        "s3_text": "Anhand des beobachteten Verbrauchs passt du Budgets in der Verwaltung an. Grenzen gelten für die betreffenden Aufrufe; eine Ablehnung erklärt, wann die Ressource wieder verfügbar wird.",
         "s4_time": "18:00",
-        "s4_text": "CSV-Export des Verbrauchs, Quoten angepasst — Transparenz bis in die Rechnung."
+        "s4_text": "Mit deinem Verbrauchsexport und den Betriebsnotizen fragst du nach einer Zusammenfassung der Abweichungen. LIA erstellt eine Notiz und weist auf fehlende Informationen hin."
       }
     },
     "gallery": {
@@ -11619,6 +11653,192 @@
       "title": "Das Produkt bewegt sich — und sagt es",
       "subtitle": "Jede Version wird in klaren Worten festgehalten: was sich für dich ändert, nicht was sich im Code ändert. Hier die jüngsten; die ganze Historie ist einen Klick entfernt.",
       "all": "Vollständige Historie ansehen"
+    },
+    "product_demo": {
+      "meta_description": "Sechs Situationen zeigen, wie LIA deinen Kontext verbindet, Entscheidungen vorbereitet, dein Radio zusammenstellt und nach deiner Bestätigung handelt.",
+      "choose_scene": "Eine Situation wählen",
+      "steps": "Schritte der Demonstration",
+      "steps_request": "Deine Anfrage",
+      "steps_context": "Der Kontext",
+      "steps_result": "Das Ergebnis",
+      "play": "Demonstration abspielen",
+      "pause": "Demonstration pausieren",
+      "replay": "Demonstration wiederholen",
+      "difference": "Was den Unterschied macht",
+      "example": "Illustration",
+      "context": "LIA verbindet den relevanten Kontext",
+      "illustrative": "Beispielszenario · erfundene Personen, Daten und Ergebnisse.",
+      "sources": {
+        "space": "Deine Dokumente",
+        "mail": "Deine E-Mails",
+        "meeting": "Dein Meeting",
+        "calendar": "Dein Kalender",
+        "commitment": "Deine Zusagen",
+        "news": "Nachrichten",
+        "routine": "Deine Routine",
+        "project": "Dein Projekt",
+        "preferences": "Deine Vorlieben",
+        "approval": "Deine Freigabe",
+        "web": "Das Web",
+        "comparison": "Die Recherche",
+        "peer": "Verbundene LIA",
+        "scope": "Erlaubter Zugriff"
+      },
+      "scenes": {
+        "decision": {
+          "title": "Entscheiden",
+          "summary": "Dokumente, Gespräche und frühere Beschlüsse für eine Entscheidung zusammenführen.",
+          "request": "Bereite meinen Termin mit Claire vor: Vergleiche die Projektangebote mit den letzten E-Mails und unseren Beschlüssen.",
+          "source_1": "Zwei Angebote",
+          "source_2": "Letzter Austausch",
+          "source_3": "Beschlüsse",
+          "result_title": "Zwei offene Entscheidungen",
+          "result_1": "Frist: 3 oder 5 Wochen",
+          "result_2": "Support: noch offen",
+          "result_3": "Eine belegte Zusammenfassung und ein Entwurf für Claire, bereit zur Prüfung.",
+          "evidence_1": "Angebote · Projektraum",
+          "evidence_2": "E-Mail · Protokoll",
+          "guardrail": "Vor dem Versand bestätigst du den Entwurf.",
+          "difference": "Du musst nicht alle Unterlagen in den Chat kopieren. LIA findet zugängliche Informationen, verknüpft sie und nennt die Quellen ihrer Schlussfolgerungen. So entscheidest du mit den Belegen vor Augen."
+        },
+        "day": {
+          "title": "Zuhören",
+          "summary": "Ein Radio, das deinen Tag, deine Zusagen und relevante Nachrichten verbindet.",
+          "request": "Auf meinem Dashboard starte ich mein Radio: zuerst mein Tag, dann Nachrichten aus der Welt.",
+          "source_1": "Termin um 10",
+          "source_2": "Antwort erwartet",
+          "source_3": "Deine Themen",
+          "result_title": "Deine Sendung entsteht",
+          "result_1": "Zuerst: dein Termin und die Vorbereitung",
+          "result_2": "Danach: deine zugesagte Rückmeldung an Claire",
+          "result_3": "Dann: Nachrichten aus deinen gewählten Quellen",
+          "evidence_1": "",
+          "evidence_2": "",
+          "guardrail": "Du wählst, welche persönlichen Quellen das Radio lesen darf.",
+          "difference": "LIA stellt die Sendung aus deinen freigegebenen Quellen und den Nachrichten zusammen. Dein Alltag und die Welt werden hörbar, ohne dass du jede App öffnen musst."
+        },
+        "watch": {
+          "title": "Vorausdenken",
+          "summary": "Eine bedingte Routine meldet die passende Neuigkeit zum richtigen Zeitpunkt.",
+          "request": "Bereits eingerichtete Routine: Benachrichtige mich, wenn Claire zum Angebot antwortet.",
+          "source_1": "Bedingung aktiv",
+          "source_2": "Antwort erhalten",
+          "source_3": "Offenes Angebot",
+          "result_title": "Die erwartete Antwort ist da",
+          "result_1": "Bedingung erfüllt: Claire hat geantwortet",
+          "result_2": "„Die vorgeschlagene Frist ist akzeptiert. Der Support ist noch zu klären.“",
+          "result_3": "Die Zusammenfassung bleibt mit Angebot und ursprünglichem Austausch verbunden.",
+          "evidence_1": "",
+          "evidence_2": "",
+          "guardrail": "Bedingung und Häufigkeit legst du in den Einstellungen fest.",
+          "difference": "LIA reicht nicht nur eine Meldung weiter. Die Routine prüft ihre Bedingung und ordnet die Neuigkeit in den Kontext ein. Du setzt die Arbeit am richtigen Punkt fort."
+        },
+        "call": {
+          "title": "Delegieren",
+          "summary": "Ein Anruf nach deinen Vorgaben, von dir freigegeben und anschließend zusammengefasst.",
+          "request": "Reserviere für zwei am Donnerstagabend nach meinem letzten Termin. Wenn möglich auf der Terrasse.",
+          "source_1": "Frei ab 19 Uhr",
+          "source_2": "Zwei · Terrasse",
+          "source_3": "Vor dem Anruf",
+          "result_title": "Von der Freigabe zur Reservierung",
+          "result_1": "Donnerstag · 20 Uhr",
+          "result_2": "2 Personen",
+          "result_3": "Nach deiner Freigabe ruft LIA an. Beispielergebnis: Reservierung bestätigt, Terrasse nach Verfügbarkeit.",
+          "evidence_1": "",
+          "evidence_2": "",
+          "guardrail": "Anrufe erfordern deine Bestätigung und eingerichtete Telefonie.",
+          "difference": "LIA nutzt die verfügbaren Zeiten und Vorgaben, die du zugänglich gemacht hast. Du prüfst die Zusammenfassung vor dem Anruf und findest danach das Ergebnis im Gespräch."
+        },
+        "research": {
+          "title": "Vertiefen",
+          "summary": "Parallele Recherchen und Projektunterlagen ergeben einen nutzbaren Vergleich.",
+          "request": "Vergleiche Lösungen für unser Projekt: Prüfe öffentliche Quellen und unsere Vorgaben und erstelle ein Dokument.",
+          "source_1": "Öffentliche Quellen",
+          "source_2": "Projektvorgaben",
+          "source_3": "Parallel recherchiert",
+          "result_title": "Ein Vergleich zum Teilen",
+          "result_1": "Option A · einfache Einrichtung",
+          "result_2": "Option B · mehr Kontrolle",
+          "result_3": "Ein Dokument bündelt Unterschiede, Quellen und noch zu prüfende Punkte.",
+          "evidence_1": "Geprüfte Quellen",
+          "evidence_2": "Projektanforderungen",
+          "guardrail": "Delegierte Recherchen haben nur Lesezugriff.",
+          "difference": "Mehrere Recherchen können parallel laufen. LIA verbindet ihre Ergebnisse mit dem Projektkontext, erhält die Quellen und erstellt eine Zusammenfassung zum Weiterverwenden und Teilen."
+        },
+        "relay": {
+          "title": "Abstimmen",
+          "summary": "Zwei verbundene LIAs gleichen Zeiten innerhalb der erlaubten Zugriffe ab.",
+          "request": "Finde mit Sam einen Termin für unser Projekt. Zeig mir den Vorschlag, bevor du die Einladung sendest.",
+          "source_1": "Deine LIA ↔ Sams LIA",
+          "source_2": "Erlaubte Zeitfenster",
+          "source_3": "Dein Kalender",
+          "result_title": "Ein gemeinsamer Vorschlag",
+          "result_1": "Du · Dienstag 14 Uhr",
+          "result_2": "Sam · verfügbar",
+          "result_3": "Ein gemeinsamer Termin wird vorgeschlagen. Vor dem Versand bestätigst du die Einladung.",
+          "evidence_1": "",
+          "evidence_2": "",
+          "guardrail": "Nur erlaubte Zugriffe werden genutzt, niemals alle Daten von Sam.",
+          "difference": "Die beiden LIAs arbeiten im ausdrücklich akzeptierten Rahmen. Sie können freigegebene Verfügbarkeiten abgleichen, ohne Postfächer zu öffnen oder sämtliche Dokumente zu teilen."
+        }
+      }
+    },
+    "catalog_explorer": {
+      "browse": "Entdecke die Möglichkeiten",
+      "hint": "Wähle ein Thema und entdecke, was es dir bringt.",
+      "previous": "Vorherige Fähigkeit",
+      "next": "Nächste Fähigkeit",
+      "position": "{{current}} von {{total}}",
+      "scenes": {
+        "plan": "Eine Anfrage, mehrere abgestimmte Aktionen",
+        "call": "Vom Anruf zur schriftlichen Zusammenfassung",
+        "voice": "Ein Gespräch zum Mitreden",
+        "document": "Ein Dokument zum Lesen, Nutzen und Teilen",
+        "browser": "Ein sichtbarer Ablauf, Schritt für Schritt",
+        "calculation": "Zahlen, die du überprüfen kannst",
+        "image": "Deine Idee nimmt Gestalt an",
+        "diagram": "Aus Ideen wird ein Diagramm",
+        "home": "Die passende Stimmung, auf Wunsch",
+        "memory": "Dein Kontext bleibt griffbereit",
+        "radio": "Dein Tag auf Sendung",
+        "briefing": "Das Wesentliche auf einen Blick",
+        "automation": "Vom passenden Signal zum nächsten Schritt",
+        "board": "Arbeit, die bis zum Ergebnis begleitet wird",
+        "knowledge": "Antworten mit Bezug zu deinen Quellen",
+        "control": "Eine Entscheidung, die bei dir bleibt",
+        "people": "Assistenten führen die Verbindung weiter",
+        "tools": "Möglichkeiten zum Kombinieren",
+        "devices": "Derselbe Gesprächsfaden auf deinen Geräten",
+        "weather": "Gut vorbereitet für deinen nächsten Ausflug",
+        "health": "Deine Messwerte im Zusammenhang"
+      }
+    },
+    "editorial": {
+      "mechanism_label": "Was das möglich macht",
+      "technical_label": "Mehr darüber erfahren",
+      "examples_title": "Beginne mit einer Idee. Entdecke, was daraus werden kann.",
+      "examples_sub": "Eine Entscheidung vorbereiten, auf eine Antwort achten, einen Anruf delegieren: Entdecke Situationen, in denen LIA Zusammenhänge erkennt und deine Arbeit voranbringt.",
+      "examples_label": "Eine Situation auswählen",
+      "illustration": "Beispielszenario",
+      "results_label": "Das bekommst du",
+      "chapter_scene": "Diese Situation genauer ansehen"
+    },
+    "engineering": {
+      "title": "Leichtigkeit entsteht durch Gestaltung.",
+      "sub": "Den richtigen Kontext finden, die Arbeit organisieren, das Ergebnis prüfen: Jede Gestaltungsentscheidung soll dir das Leben erleichtern.",
+      "details": "Die technischen Entscheidungen entdecken",
+      "context_title": "Zusammenhänge herstellen",
+      "context_body": "Hilfreiche Textstellen aus deinen Dokumenten kommen mit deinen Gesprächen und gespeicherten Fakten zusammen.",
+      "context_gain": "Weniger erneut erklären.",
+      "plan_title": "Die Arbeit organisieren",
+      "plan_body": "LIA verteilt die Recherche und verknüpft Schritte, die voneinander abhängen.",
+      "plan_gain": "Aus einer Absicht wird ein Ergebnis.",
+      "verify_title": "Ergebnisse prüfen",
+      "verify_body": "Sie kann eine Suche anpassen, eine andere Quelle nutzen und benennen, was weiterhin nicht auffindbar ist.",
+      "verify_gain": "Schlüsse, die du nachvollziehen kannst.",
+      "control_title": "Aktionen verständlich machen",
+      "control_body": "Vorschläge, Bestätigungen und Ergebnisse behalten jeweils ihren Platz.",
+      "control_gain": "Du weißt, wo die Arbeit steht."
     }
   },
   "maps": {
@@ -12144,7 +12364,7 @@
       },
       "react-execution-mode": {
         "title": "Pipeline vs. ReAct: Wenn strukturierte Ingenieurskunst den Laissez-faire-Ansatz übertrifft",
-        "excerpt": "LIA bietet zwei Ausführungsmodi: eine fein orchestrierte Pipeline, die 4- bis 8-mal weniger Token verbraucht, und einen iterativen ReAct-Modus für Anfragen, deren Schritte sich nicht vorab festlegen lassen — der einzige, der ein Skript ausführen kann, um zu rechnen statt zu schätzen.",
+        "excerpt": "LIA bringt Anfragen auf zwei Wegen voran: Pipeline ordnet die Schritte für eine schnelle, kontrollierte Ausführung; ReAct passt seine Recherchen an neue Erkenntnisse an. Zwei Wege zu einem überprüfbaren Ergebnis, je nach Aufgabe.",
         "body": "<h2>Zwei Philosophien, ein Ziel</h2><p>Im KI-Agenten-Ökosystem ist <strong>ReAct</strong> (Reasoning + Acting) zum De-facto-Standard geworden. Sein Prinzip: Das LLM entscheidet bei jeder Iteration, welches Tool aufgerufen wird, ohne vordefinierten Plan. Bestechend in seiner Einfachheit, findet sich dieser Ansatz in den meisten Frameworks. LIA bietet ihn ebenfalls — geht aber mit seinem <strong>Pipeline-Modus</strong> deutlich weiter: das Ergebnis einer ausgefeilten Ingenieursleistung, die dieselbe Flexibilität mit radikal überlegener Effizienz erreicht.</p><h2>Die Pipeline: Planen, Validieren, Ausführen</h2><p>Der Pipeline-Modus folgt einem <strong>8-Knoten</strong>-LangGraph-Graphen:</p><ol><li><strong>Router</strong> — klassifiziert die Anfrage</li><li><strong>Planner</strong> — erstellt einen strukturierten ExecutionPlan mit parallelisierbaren Schritten</li><li><strong>Semantic Validator</strong> — überprüft die Plankohärenz vor der Ausführung</li><li><strong>Approval Gate</strong> — menschliche Validierung bei Bedarf (HITL)</li><li><strong>Task Orchestrator</strong> — führt Schritte parallel aus</li><li><strong>Response</strong> — finale Synthese</li></ol><p>Dieser Modus <strong>plant einmal</strong> und führt dann aus, während ReAct bei jeder Iteration neu nachdenkt. Das Ergebnis: Für dieselbe Multi-Tool-Aufgabe verbraucht die Pipeline <strong>4- bis 8-mal weniger Tokens</strong> als ReAct.</p><h2>Effizienz: Die Zahlen sprechen</h2><p>Nehmen wir eine konkrete Anfrage: Storniere meine Meetings morgen und maile jedem Teilnehmer. Im ReAct-Modus iteriert das LLM: Meetings auflisten, nachdenken, das erste stornieren, nachdenken... Jede Iteration injiziert den gesamten Kontext erneut. Im Pipeline-Modus erstellt der Planner <strong>einen einzigen Plan</strong>, der Orchestrator führt die Stornierungen <strong>parallel</strong> aus. Weniger LLM-Aufrufe, weniger Tokens, gleiches Ergebnis.</p><h2>Kontrolle und Observability</h2><p>Die Pipeline bietet eine <strong>vollständige Nachverfolgbarkeit</strong>, die ReAct nicht erreichen kann. Jeder Planschritt ist benannt, typisiert und einzeln gemessen. Bei ReAct beobachtet man eine undurchsichtige Schleife — schwer zu debuggen, zu optimieren oder einem Benutzer zu erklären.</p><h2>Zuverlässigkeit und Schutzmaßnahmen</h2><p>Die Pipeline integriert Validierungsebenen, die bei ReAct fehlen: Der <strong>Semantic Validator</strong> prüft die Plankohärenz, die <strong>Halluzinationsabwehr</strong> entfernt erfundene Parameter, und HITL bietet <strong>6 granulare Bestätigungsstufen</strong>. Zwei Leitplanken rahmen inzwischen die Schleife selbst: Deine Frist misst die <strong>Rechenzeit</strong>, sodass die Minuten, die du für eine Freigabe brauchst, das Budget nicht mehr aufzehren — zuvor schnitt eine etwas längere Bestätigung den Zug ab und ließ die Antwort von vorn neu erzeugen, wobei erledigte Schritte verloren gingen; und ein mit identischen Argumenten wiederholter Werkzeugaufruf wird beim vierten Versuch abgelehnt und beendet beim fünften den Zug, denn ein Agent, der sich wiederholt, kommt nicht voran.</p><h2>Erweiterbare Architektur</h2><p>Das <strong>generische, modulare Design</strong> der Pipeline ist ihr wichtigstes Kapital. Das Hinzufügen eines neuen Domain-Agenten erfordert nur die Registrierung seiner Tools im Katalog. Das Skills-System treibt diese Erweiterbarkeit noch weiter.</p><h2>ReAct: wenn die Form der Antwort nicht vorher feststeht</h2><p>ReAct ist nicht der Modus für <em>einfache</em> Anfragen — sondern für Anfragen, deren Schritte sich nicht vorab festlegen lassen: explorative Abfragen, Ketten, die sich nach dem Ergebnis des vorigen Werkzeugs verzweigen, externe MCP-Server. Er trägt dasselbe Gedächtnis wie die Pipeline — dasselbe Profil, dasselbe Journal, dieselben Referenzen, Einschränkungen eingeschlossen — und sein Iterationsbudget wird <strong>durch Fortschritt verdient</strong>: Eine Iteration, die nichts erbracht hat, kauft die nächste nicht. Er ist zudem der einzige Modus, der <strong>rechnen statt schätzen</strong> kann: Braucht ein Schritt Arithmetik über viele Zeilen, einen Abgleich zweier Listen oder Dauern über Zeitzonen hinweg, schreibt er ein paar Zeilen Python und führt sie in einer abgeschotteten Sandbox aus — keine Datenbank, jedes Mal ein Wegwerf-Container — und antwortet mit einem Ergebnis, das du nachprüfen könntest. Und was ein Werkzeug zurückgibt, erreicht das Modell <strong>Element für Element unter einem Token-Budget</strong> — ein zugelassenes Element ist vollständig, mindestens eines kommt immer durch, und ein Schnitt wird gesagt statt verschwiegen — sodass ein Postfach voller Nachrichten nie als Auszug ankommt, der mitten in den Kopfzeilen der ersten abgeschnitten ist. LIA implementiert die Schleife mit nativem <code>interrupt()</code> für HITL, einer auf Rechenzeit gemessenen Frist und 5 eigenen Prometheus-Metriken.</p><h2>Die Werkzeuge, die die Schleife mitnimmt</h2><p>Eine ReAct-Schleife erhält nicht den ganzen Katalog: Sie nimmt <strong>die Werkzeuge mit, die die Frage verlangt</strong>. Der Router berechnet ohnehin ein Embedding der Anfrage, um ihre Domänen zu erkennen; derselbe Vektor ordnet jedes verfügbare Werkzeug — native wie persönliche MCP-Server — zu einer globalen Rangfolge. Die Auswahl setzt sich zusammen, ohne dass ein einziger Werkzeugname geschrieben steht: die Werkzeuge der erkannten Domänen, dann die besten jeder anderen Familie, damit keine unerreichbar wird, dann die Spitze der Rangfolge bis zu einem veröffentlichten Budget. Die Obergrenze ist nur noch ein Sicherheitsnetz. Eine von Hand festgelegte „Kern“-Liste wurde geschrieben und verworfen: Sie hätte die Gewohnheiten eines Kontos in ein Produkt für viele eingeschrieben. Und die Schleife liest die Wissensbereiche der Person genau wie die Pipeline — was die eine weiß, weiß die andere.</p><h2>Die Sandbox als Werkzeugkasten</h2><p>Das Skript, das die Schleife schreibt, lief bisher abgeschottet, und das Einzige, was ein abgeschottetes Skript nicht kann, ist einen Dienst etwas zu fragen. Es darf das Web jetzt erreichen — nie direkt. Ein Netzwerklauf tritt einem internen Netz bei, dessen einziger Ausgang ein eigener Proxy ist: nur HTTPS, nur zu den Hosts, die das Skript angibt, private Bereiche und der Server selbst beim Verbindungsaufbau abgelehnt. Die Dienste, die die Person mit ihrem eigenen API-Schlüssel verbunden hat, sind sofort erreichbar, und der Schlüssel gelangt nie in den Container: das Skript liest ein Token pro Lauf, und der Proxy tauscht es allein auf diesem Host gegen den echten Schlüssel. Ein Host, den niemand erlaubt hat, wird <strong>erfragt</strong>, innerhalb der Schleife, mit drei Antworten — mit den Daten des Durchgangs, ohne sie oder gar nicht — und derselbe Aufruf geht unter der Antwort weiter, sodass der Rest der Anfrage nie an der Frage verloren geht. Jeder Netzwerklauf wird im Register der Person beansprucht, bevor der Container startet, vier Rollen werden dem Modell genannt (rechnen, diagnostizieren, eine Lücke füllen, umwandeln) mit zweiundzwanzig im gebauten Image geprüften Bibliotheken, und eine Administration kann das Netzwerk abschalten und den Taschenrechner behalten.</p><h2>Am Ergebnis gemessen</h2><p>Eine Schleife, die anhält, sobald das Modell kein Werkzeug mehr aufruft, lässt die Beharrlichkeit davon abhängen, wie ein Modell einen Satz liest – dabei ist jede Rolle konfigurierbar, und die Modelle sind austauschbar. Der Mechanismus sitzt deshalb in der Schleife: Jede Angabe, die sie sich vorgenommen hat – was die Person fragt, und jede Gegenprüfung, die sie begonnen hat –, endet <strong>erhalten oder erklärt</strong>, mit den versuchten Stufen: der korrigierte Aufruf, dann eine andere, als solche benannte Quelle, dann die Erklärung. Eine erklärte Lücke erkauft einen begrenzten Nachholdurchgang über einen Knoten, der kein Modell aufruft; die Anweisung wird den folgenden Aufrufen gezeigt, ohne je in den Verlauf zu gelangen. Ein Ergebnis, das eine andere Frage beantwortet – das Wetter von heute, als nach morgen gefragt wurde –, ist ein Hindernis wie ein Fehler, und ein Werkzeug lehnt einen Wert ab, den es nicht lesen kann, statt ihn stillschweigend zu ersetzen. Gemessen an drei Modellfamilien: 58 von 63 Angaben erhalten statt 50, der Ausgangsfall 7 von 9 Mal gelöst statt 3, und kein zusätzlicher Aufruf bei einem Durchgang ohne Hindernis.</p><p>Ein Fehler wiederum wird an der Nachricht abgelesen, nicht an ihrer Prosa: Ein Werkzeugergebnis trägt eine strukturelle Markierung, die das Fortsetzen eines Gesprächs übersteht, und ein erklärter Fehler erkauft keine weitere Iteration mehr. Schließlich wählt jede Person ihren Austauschrhythmus in den Einstellungen: Bei häufigem Austausch bindet die Schleife in jedem Durchgang alle Werkzeuge, setzt den Kontext des Durchgangs hinter die Frage und lässt den Verlauf blockweise fallen, verankert am Durchgangszähler, damit der Cache des Anbieters das Präfix von einem Durchgang zum nächsten wiederverwendet — 18 bis 42 % Ersparnis pro Durchgang je nach Cache-Mechanismus, gemessen an Hunderten echter Durchgänge; bei gelegentlichem Austausch behält sie die Relevanzauswahl, deren Kosten nicht vom Abstand zwischen zwei Durchgängen abhängen und die bei einem Modell ohne Cache die richtige Wahl bleibt. Die Betreibereinstellung legt nur noch die Voreinstellung eines Kontos fest, das nicht gewählt hat.</p><h2>Die Wahl liegt bei dir</h2><p>Die Präferenz wird <strong>pro Benutzer</strong> gespeichert und ist per Klick umschaltbar. Unsere Überzeugung: Der Pipeline-Modus beweist, dass rigorose Orchestrierung den Laissez-faire-Ansatz in der Mehrheit realer Anwendungsfälle übertrifft.</p>"
       },
       "mcp-react-agent": {
@@ -14627,7 +14847,7 @@
     },
     "formats": {
       "opening": "Eröffnung",
-      "journal": "Das Journal",
+      "journal": "Persönliches Journal",
       "headlines": "Schlagzeilen",
       "bulletin": "Nachrichten",
       "brief": "Kurzmeldung",
@@ -14709,6 +14929,7 @@
         "tickets": "Tickets",
         "birthdays": "Geburtstage",
         "mails": "Ungelesene E-Mails",
+        "sent_mails": "Gesendete E-Mails",
         "actions": "Was LIA erledigt hat",
         "weather": "Wetter",
         "health": "Gesundheit",
@@ -14805,6 +15026,7 @@
         "tickets": "Tickets im Workboard, die auf deine Antwort warten oder überfällig sind.",
         "birthdays": "Die kommenden Geburtstage deiner Kontakte.",
         "mails": "Deine ungelesenen E-Mails von heute: Absender und Betreff.",
+        "sent_mails": "Deine heute gesendeten E-Mails: Empfänger und Betreff, in der Mittags- und Abendausgabe.",
         "actions": "Was LIA heute für dich erledigt hat, aus ihrem eigenen Register — in der Mittags- und Abendausgabe des Journals.",
         "weather": "Das Wetter an deinem Ort, einmal pro Sitzung.",
         "health": "Deine heutigen Gesundheitswerte im Vergleich zu deinem Durchschnitt.",

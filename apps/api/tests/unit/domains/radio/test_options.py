@@ -14,6 +14,7 @@ from src.domains.radio.constants import (
 from src.domains.radio.formats import CONFIGURABLE_ROLES, FORMAT_SPECS
 from src.domains.radio.newsroom.catalogue import CATALOGUE
 from src.domains.radio.options import build_options
+from src.domains.radio.personal import PersonalSource
 from src.domains.radio.preferences import RadioPreferences
 from src.domains.radio.schemas import RadioOptionsResponse
 from src.domains.radio.setup import VerificationMode
@@ -49,6 +50,7 @@ def test_every_option_published_is_a_setting_the_radio_accepts() -> None:
         )
     assert options.verification_checked[VerificationMode.OFF] == []  # off bills no check
     assert options.verification_default in options.verification_modes
+    assert PersonalSource.SENT_MAILS in options.sources
 
 
 def test_the_settings_give_a_voice_to_the_listener_s_four_roles_alone() -> None:

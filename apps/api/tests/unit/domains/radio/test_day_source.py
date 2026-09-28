@@ -41,6 +41,13 @@ AHEAD_EVENT = PersonalDraft(
     Sensitivity.PERSONAL,
     JournalPart.AHEAD,
 )
+SENT_MAIL = PersonalDraft(
+    FactKind.EMAIL,
+    'E-mail sent to Sam: "Plans"',
+    "done:email:1",
+    Sensitivity.PERSONAL,
+    JournalPart.DONE,
+)
 TICKET = PersonalDraft(
     FactKind.TICKET,
     'Ticket "Renew the lease" waits on the listener',
@@ -146,6 +153,24 @@ def _day(
 
 def _at(hour: int, minute: int = 0) -> datetime:
     return datetime(2026, 9, 26, hour, minute, tzinfo=UTC)
+
+
+@pytest.mark.parametrize(
+    ("disabled", "read_calls"),
+    [(PersonalSource.MAILS, 1), (PersonalSource.SENT_MAILS, 0)],
+)
+async def test_sent_mail_has_its_own_switch(disabled: PersonalSource, read_calls: int) -> None:
+    sent = Reader([SENT_MAIL])
+    facts = await _day(
+        Reader([]),
+        Reader([]),
+        Recorder(),
+        disabled_sources=frozenset({disabled}),
+        done={PersonalSource.SENT_MAILS: sent},
+        now=_at(JOURNAL_NOON_FROM_HOUR),
+    ).day()
+    assert sent.calls == read_calls
+    assert [fact.text for fact in facts.done] == ([SENT_MAIL.text] if read_calls else [])
 
 
 async def test_journal_off_reads_only_weather_even_with_personal_sources_enabled() -> None:

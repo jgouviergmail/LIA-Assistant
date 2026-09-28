@@ -2,7 +2,7 @@
 
 /**
  * Blur→sharp one-shot reveal (the mockup's "proofs" device). Same staging
- * pattern as the editorial `ScrollStage`: an IntersectionObserver adds the
+ * pattern as `FadeInOnScroll`: an IntersectionObserver adds the
  * final-state class once, then unobserves. Under prefers-reduced-motion the
  * content renders in its final state immediately.
  */

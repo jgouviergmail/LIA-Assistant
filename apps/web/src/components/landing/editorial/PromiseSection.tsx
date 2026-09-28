@@ -15,11 +15,11 @@ export async function PromiseSection({ lng }: { lng: string }) {
   return (
     <section
       aria-labelledby="landing-promise-title"
-      className="landing-section relative isolate overflow-hidden border-y border-border/60 bg-card/70 py-16 sm:py-20"
+      className="landing-section relative isolate overflow-hidden border-y border-border/60 bg-card/70 pt-10 pb-16 sm:pt-12 sm:pb-20"
     >
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -right-36 -top-56 size-[30rem] rounded-full bg-primary/5 blur-3xl"
+        className="landing-promise-glow pointer-events-none absolute -right-36 -top-56 size-[30rem] rounded-full bg-primary/5 blur-3xl"
       />
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <FadeInOnScroll>
@@ -39,7 +39,7 @@ export async function PromiseSection({ lng }: { lng: string }) {
           </div>
         </FadeInOnScroll>
 
-        <div className="mt-10 grid gap-4 md:grid-cols-3">
+        <div className="mt-8 grid gap-4 md:grid-cols-3">
           {PROMISES.map(({ key, icon: Icon }, index) => (
             <FadeInOnScroll key={key}>
               <article className="h-full rounded-2xl border border-border/70 bg-background/80 p-6 shadow-sm sm:p-7">

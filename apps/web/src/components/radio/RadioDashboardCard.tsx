@@ -4,15 +4,13 @@
  * The radio on the dashboard (ADR-324, owner decision Q6): the station's name,
  * what it does, the one command it accepts now — the header's own, so the
  * click that starts it also starts the station's music (the browser's autoplay
- * rule) — and the way to the radio's page, where the transcript and the
- * sources are. Nothing renders where the instance does not offer the radio.
+ * rule). Nothing renders where the instance does not offer the radio.
  *
  * The name is the one the session on air carries once it names it; tuning
  * in, off air and once the session is over, the listener's own name for it
  * (the one the next session will carry), else their language's.
  */
 import { Radio } from 'lucide-react';
-import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -20,7 +18,6 @@ import { useRadioStationName } from '@/hooks/useRadioStationName';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { useRadioStore } from '@/stores/radioStore';
-import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 
 import { useRadioCommand } from './RadioControl';
 
@@ -54,11 +51,6 @@ export function RadioDashboardCard({ lng, enabled }: { lng: Language; enabled: b
             aria-disabled={command.busy || undefined}
           >
             {t(command.onAir ? 'radio.header.stop' : 'radio.header.start')}
-          </Button>
-          <Button asChild variant="outline">
-            <Link href={buildLocalizedPath('/dashboard/radio', lng)}>
-              {t('radio.dashboard.open')}
-            </Link>
           </Button>
         </div>
       </CardContent>

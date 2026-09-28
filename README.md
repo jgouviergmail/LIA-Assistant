@@ -195,67 +195,282 @@ Source-line figure: 781,426 physical lines in Python, TypeScript, JavaScript and
 
 Every capability below is documented in an architecture decision record (ADR) or a technical document — the links lead there.
 
+| Explore | What you'll find |
+| --- | --- |
+| [Talk to it](#talk-to-it) | Chat, voice, live sessions, radio and a companion that feels present |
+| [Connect your world](#connect-your-world) | Your accounts, documents, home, health, tools and skills |
+| [Act, under your control](#act-under-your-control) | Orchestration, approvals, calls, creation, browser work and tickets |
+| [Anticipate](#anticipate) | Timely suggestions, routines, reminders and a daily briefing |
+| [Remember](#remember) | Memory, journals, knowledge, meetings, people and saved work |
+| [Trust it](#trust-it) | Records, spending limits, authentication, data protection and controls |
+
 ### Talk to it
 
-- **A chat that streams** — answers arrive over SSE with rich HTML cards, interactive widgets and a per-message cost badge; in the rich HTML mode every data-bearing answer is a composed page — a lead sentence, one section per facet in the component that fits it, a closing callout — laid out on conversational turns too unless a voice is reading them ([ADR-177](docs/architecture/ADR-177-Rich-HTML-Response-Components.md)); images and PDFs can be attached (vision analysis, text extraction, strict per-user isolation); long conversations are compacted by an LLM summary that preserves identifiers, the history scrolls back page by page without limit, and each answer is shared — to the device's sheet, or to a connection through an ordinary confirmed message — or downloaded as a dated Markdown file in one click.
-- **One conversation across devices and channels** — once a message is committed, the open chat learns of it and merges the new history without replacing older pages, moving the reader or interrupting an action. Other tabs, calls, routines and external channels become visible without a reload; a reconnected tab catches up after an interruption ([ADR-320](docs/architecture/ADR-320-The-Chat-Follows-The-Server-Without-A-Reload.md)).
-- **Voice, both ways** — push-to-talk or the wake word "OK Guy", detected in the browser by sherpa-onnx so no audio leaves the device for detection; offline Whisper transcription in the user's own language; spoken answers from a catalogue-driven TTS (Edge, free; OpenAI; ElevenLabs) streamed sentence by sentence, first audio in about a second ([VOICE](docs/technical/VOICE.md), [ADR-081](docs/architecture/ADR-081-Voice-TTS-Catalogue-Driven.md), [ADR-082](docs/architecture/ADR-082-Progressive-Sentence-Streaming.md)).
-- **Live, voice to voice** — a real-time session on a live model the person connects with their own key (Gemini Live over a WebSocket, GPT-Live over WebRTC, or an ElevenLabs agent whose voice stays on its portal); the audio never transits the server; the voice model owns the conversation and delegates every request for data or action to the chat engine through one declared function, so the delegated turn runs in the graph with its approvals, registers and quotas and is drawn in the thread while the person speaks; a provider declares its wire and the seam never branches on its name; a direct session holds the read-only tools itself and acts on nothing; the provider's own usage is folded into an indicative meter and shown, never recorded — the vendor's bill read once at the end where it has one ([ADR-299](docs/architecture/ADR-299-Live-Voice-Mode-Two-Intelligences-One-Seam.md), [ADR-300](docs/architecture/ADR-300-A-Second-Live-Provider-One-Seam-Two-Wires.md), [LIVE_MODE](docs/technical/LIVE_MODE.md)).
-- **A personal radio, on demand** — a deterministic programme grid blends the listener's day with news from identified sources; models write and voice the segments, while verification decides what may air. The listener chooses subjects, sources, voices and verification, sees sources and live cost, and ends the session with a timer. Production runs only while someone listens; an administrator controls the capability and the guided self-host installer asks before enabling it ([ADR-324](docs/architecture/ADR-324-A-Personal-Radio-A-Grid-Decides-Models-Only-Write.md), [RADIO](docs/technical/RADIO.md)).
-- **An expressive companion** — Psyche temperament, actual tool execution and the delivered answer's tone share one animation rig, including the shaded Smiley. Eyes lead a head with depth and weight; continuous mouth/brow contours, quiet thought and varied resting scenes keep transitions natural. Speech follows actual audio, and a prepared draft never earns an accomplished-action gesture. Fresh cached weather and the account clock add discreet ambience without a provider or LLM call; reduced motion keeps static contextual poses ([ADR-240](docs/architecture/ADR-240-expressive-eyes-widget.md), [ADR-252](docs/architecture/ADR-252-Expressive-Eyes-Animation-Rig.md), [ADR-253](docs/architecture/ADR-253-Per-Turn-Expressivity-Annotation.md), [ADR-264](docs/architecture/ADR-264-Living-Brows-And-Mouth.md), [ADR-294](docs/architecture/ADR-294-A-Face-That-Never-Plays-The-Same-Twice.md)).
-- **A psyche of its own** — Big Five traits, a mood space, discrete emotions, a relationship stage and curiosity drives shape word choice and rhythm without ever being announced; a four-chart dashboard, temperament sliders and two reset scopes in Settings ([PSYCHE_ENGINE](docs/technical/PSYCHE_ENGINE.md)).
-- **Wherever you are** — six languages end to end (UI, approvals, notifications, Telegram, skills); a bidirectional Telegram channel with OTP linking and localized approval keyboards ([GUIDE_TELEGRAM](docs/guides/GUIDE_TELEGRAM_INTEGRATION.md)); native Android and iOS shells that load _your_ server, with native push and the sign-in flow Google permits ([ADR-246](docs/architecture/ADR-246-Native-Push-And-Wake-Relay.md), [GUIDE_MOBILE_ANDROID](docs/guides/GUIDE_MOBILE_ANDROID.md), [GUIDE_MOBILE_IOS](docs/guides/GUIDE_MOBILE_IOS.md)); an offline-capable PWA ([ADR-146](docs/architecture/ADR-146-Offline-PWA.md)).
+#### A chat that streams
+
+- Answers arrive over SSE with rich HTML cards, interactive widgets and a per-message cost badge.
+- In the rich HTML mode every data-bearing answer is a composed page — a lead sentence, one section per facet in the component that fits it, a closing callout — laid out on conversational turns too unless a voice is reading them ([ADR-177](docs/architecture/ADR-177-Rich-HTML-Response-Components.md)).
+- Images and PDFs can be attached (vision analysis, text extraction, strict per-user isolation).
+- Long conversations are compacted by an LLM summary that preserves identifiers, the history scrolls back page by page without limit, and each answer is shared — to the device's sheet, or to a connection through an ordinary confirmed message — or downloaded as a dated Markdown file in one click.
+
+#### One conversation across devices and channels
+
+- Once a message is committed, the open chat learns of it and merges the new history without replacing older pages, moving the reader or interrupting an action. Other tabs, calls, routines and external channels become visible without a reload.
+- A reconnected tab catches up after an interruption ([ADR-320](docs/architecture/ADR-320-The-Chat-Follows-The-Server-Without-A-Reload.md)).
+
+#### Voice, both ways
+
+- Push-to-talk or the wake word "OK Guy", detected in the browser by sherpa-onnx so no audio leaves the device for detection.
+- Offline Whisper transcription in the user's own language.
+- Spoken answers from a catalogue-driven TTS (Edge, free; OpenAI; ElevenLabs) streamed sentence by sentence, first audio in about a second ([VOICE](docs/technical/VOICE.md), [ADR-081](docs/architecture/ADR-081-Voice-TTS-Catalogue-Driven.md), [ADR-082](docs/architecture/ADR-082-Progressive-Sentence-Streaming.md)).
+
+#### Live, voice to voice
+
+- A real-time session on a live model the person connects with their own key (Gemini Live over a WebSocket, GPT-Live over WebRTC, or an ElevenLabs agent whose voice stays on its portal).
+- The audio never transits the server.
+- The voice model owns the conversation and delegates every request for data or action to the chat engine through one declared function, so the delegated turn runs in the graph with its approvals, registers and quotas and is drawn in the thread while the person speaks.
+- A provider declares its wire and the seam never branches on its name.
+- A direct session holds the read-only tools itself and acts on nothing.
+- The provider's own usage is folded into an indicative meter and shown, never recorded — the vendor's bill read once at the end where it has one ([ADR-299](docs/architecture/ADR-299-Live-Voice-Mode-Two-Intelligences-One-Seam.md), [ADR-300](docs/architecture/ADR-300-A-Second-Live-Provider-One-Seam-Two-Wires.md), [LIVE_MODE](docs/technical/LIVE_MODE.md)).
+
+#### A personal radio, on demand
+
+- A deterministic programme grid blends the listener's day with news from identified sources.
+- Models write and voice the segments, while verification decides what may air. The listener chooses subjects, sources, voices and verification, sees sources and live cost, and ends the session with a timer. Production runs only while someone listens.
+- An administrator controls the capability and the guided self-host installer asks before enabling it ([ADR-324](docs/architecture/ADR-324-A-Personal-Radio-A-Grid-Decides-Models-Only-Write.md), [RADIO](docs/technical/RADIO.md)).
+
+#### An expressive companion
+
+- Psyche temperament, actual tool execution and the delivered answer's tone share one animation rig, including the shaded Smiley. Eyes lead a head with depth and weight.
+- Continuous mouth/brow contours, quiet thought and varied resting scenes keep transitions natural. Speech follows actual audio, and a prepared draft never earns an accomplished-action gesture. Fresh cached weather and the account clock add discreet ambience without a provider or LLM call.
+- Reduced motion keeps static contextual poses ([ADR-240](docs/architecture/ADR-240-expressive-eyes-widget.md), [ADR-252](docs/architecture/ADR-252-Expressive-Eyes-Animation-Rig.md), [ADR-253](docs/architecture/ADR-253-Per-Turn-Expressivity-Annotation.md), [ADR-264](docs/architecture/ADR-264-Living-Brows-And-Mouth.md), [ADR-294](docs/architecture/ADR-294-A-Face-That-Never-Plays-The-Same-Twice.md)).
+
+#### A psyche of its own
+
+- Big Five traits, a mood space, discrete emotions, a relationship stage and curiosity drives shape word choice and rhythm without ever being announced.
+- A four-chart dashboard, temperament sliders and two reset scopes in Settings ([PSYCHE_ENGINE](docs/technical/PSYCHE_ENGINE.md)).
+
+#### Wherever you are
+
+- Six languages end to end (UI, approvals, notifications, Telegram, skills).
+- A bidirectional Telegram channel with OTP linking and localized approval keyboards ([GUIDE_TELEGRAM](docs/guides/GUIDE_TELEGRAM_INTEGRATION.md)).
+- Native Android and iOS shells that load _your_ server, with native push and the sign-in flow Google permits ([ADR-246](docs/architecture/ADR-246-Native-Push-And-Wake-Relay.md), [GUIDE_MOBILE_ANDROID](docs/guides/GUIDE_MOBILE_ANDROID.md), [GUIDE_MOBILE_IOS](docs/guides/GUIDE_MOBILE_IOS.md)).
+- An offline-capable PWA ([ADR-146](docs/architecture/ADR-146-Offline-PWA.md)).
 
 ### Connect your world
 
-- **Mail, calendar, contacts, tasks** — Google (OAuth 2.1 + PKCE), Apple iCloud (IMAP/SMTP, CalDAV, CardDAV) and Microsoft 365 (Graph API, personal and business tenants); one active provider per category, and activating one deactivates its competitor. Google and Microsoft each offer one consent to connect or reconnect several services on the same verified account, while each service can still be disconnected separately ([ADR-302](docs/architecture/ADR-302-OAuth-Grant-Par-Compte-Et-Consentement-Groupe.md), [OAUTH](docs/technical/OAUTH.md)).
-- **E-mail, read whole and clean** — the three providers speak one vocabulary at the client boundary (a text body, never HTML, quoted history and signature removed, measured on real payloads), and the assistant chooses how much to read from the question: headers to list, a body paginated by paragraph to read, a digest per message — computed once by a small model, cached thirty days, counted in your usage, never invented — to reason over many ([ADR-287](docs/architecture/ADR-287-Email-Content-First-Detail-Levels-Digests-And-Neutral-Message.md), [EMAIL_FORMATTER](docs/technical/EMAIL_FORMATTER.md)); an attachment is read too — its text when it has one, the vision slot for a picture or a scan — bounded, paginated and treated as what a stranger sent ([ADR-296](docs/architecture/ADR-296-Mail-Attachments-Read-By-Text-Or-Vision.md)).
-- **Connected from the first day** — the connectors that ask nothing of the person (Wikipedia, page browsing, Google Places, Weather and Environment) belong to the instance: no per-account row and no entry in « My connectors », always on unless the administrator switches one off for everyone or the instance has no platform key; for the weather, a person's own OpenWeatherMap key takes precedence over the instance's default ([ADR-307](docs/architecture/ADR-307-Keyless-Connectors-Belong-To-The-Instance.md), [CONNECTORS_PATTERNS](docs/technical/CONNECTORS_PATTERNS.md)).
-- **Documents, places and weather** — Google Drive folders, sub-folders included, and a Gmail label as knowledge sources, synced incrementally, with the exact number of files stated before a large sync starts ([ADR-262](docs/architecture/ADR-262-Opt-In-Mail-Label-RAG-Source.md), [ADR-297](docs/architecture/ADR-297-Drive-Folder-Is-A-Tree-And-The-Count-Is-Exact.md)); Google Maps places, routes and geocoding; weather with change detection; a last-known-position cascade so every feature knows where you are, with the age of the fix stated ([ADR-219](docs/architecture/ADR-219-Derniere-Position-Connue-Generalisee.md)).
-- **Home and body** — Philips Hue lighting by voice (rooms, scenes, local bridge or cloud); daily steps and heart-rate batches pushed from an iPhone Shortcut, idempotently, with baselines, variation detection and charts ([ADR-076](docs/architecture/ADR-076-Health-Metrics-Ingestion.md), [ADR-148](docs/architecture/ADR-148-Health-Daily-Rollup.md), [GUIDE_IPHONE_SHORTCUTS_HEALTH](docs/guides/GUIDE_IPHONE_SHORTCUTS_HEALTH.md)).
-- **Your own tools (MCP)** — per-user servers with API key, bearer or OAuth 2.1 authentication (dynamic registration, PKCE), HTTPS-only, SSRF-checked, credentials encrypted; conformant to the protocol's current revision on both halves and reading tool declarations to the letter of JSON Schema 2020-12 ([ADR-224](docs/architecture/ADR-224-Conformite-MCP-2026-07-28-SDK-v2.md), [ADR-255](docs/architecture/ADR-255-MCP-Tool-Declaration-Conformance.md)); MCP Apps rendered as sandboxed widgets behind a CSP airlock ([ADR-098](docs/architecture/ADR-098-CSP-Widget-Airlock.md)); an iterative mode where a dedicated agent reads a complex server's docs before calling it ([MCP_INTEGRATION](docs/technical/MCP_INTEGRATION.md)).
-- **Skills and plugins** — agentskills.io skills with progressive disclosure, sandboxed scripts and rich outputs (maps, dashboards, calendars, QR codes…), generated from a conversation and installed straight into _My Skills_ ([SKILLS_INTEGRATION](docs/technical/SKILLS_INTEGRATION.md)); Agent Plugins v1 packages — skills plus streamable-http MCP servers — installed in one step with an exhaustive per-component report ([ADR-225](docs/architecture/ADR-225-Standard-Agent-Plugins-v1.md)).
+#### Mail, calendar, contacts, tasks
+
+- Google (OAuth 2.1 + PKCE), Apple iCloud (IMAP/SMTP, CalDAV, CardDAV) and Microsoft 365 (Graph API, personal and business tenants).
+- One active provider per category; activating one deactivates its competitor.
+- Google and Microsoft each offer one consent to connect or reconnect several services on the same verified account. Each service can still be disconnected separately ([ADR-302](docs/architecture/ADR-302-OAuth-Grant-Par-Compte-Et-Consentement-Groupe.md), [OAUTH](docs/technical/OAUTH.md)).
+
+#### E-mail, read whole and clean
+
+- The three providers speak one vocabulary at the client boundary: a text body, never HTML, with quoted history and signature removed, measured on real payloads.
+- The assistant chooses how much to read from the question: headers to list, a body paginated by paragraph to read, or a digest per message to reason over many. A small model computes each digest once; it is cached thirty days, counted in your usage and never invented ([ADR-287](docs/architecture/ADR-287-Email-Content-First-Detail-Levels-Digests-And-Neutral-Message.md), [EMAIL_FORMATTER](docs/technical/EMAIL_FORMATTER.md)).
+- An attachment is read too — its text when it has one, the vision slot for a picture or a scan — bounded, paginated and treated as what a stranger sent ([ADR-296](docs/architecture/ADR-296-Mail-Attachments-Read-By-Text-Or-Vision.md)).
+
+#### Connected from the first day
+
+- The connectors that ask nothing of the person (Wikipedia, page browsing, Google Places, Weather and Environment) belong to the instance: no per-account row and no entry in « My connectors », always on unless the administrator switches one off for everyone or the instance has no platform key.
+- For the weather, a person's own OpenWeatherMap key takes precedence over the instance's default ([ADR-307](docs/architecture/ADR-307-Keyless-Connectors-Belong-To-The-Instance.md), [CONNECTORS_PATTERNS](docs/technical/CONNECTORS_PATTERNS.md)).
+
+#### Documents, places and weather
+
+- Google Drive folders, sub-folders included, and a Gmail label as knowledge sources, synced incrementally, with the exact number of files stated before a large sync starts ([ADR-262](docs/architecture/ADR-262-Opt-In-Mail-Label-RAG-Source.md), [ADR-297](docs/architecture/ADR-297-Drive-Folder-Is-A-Tree-And-The-Count-Is-Exact.md)).
+- Google Maps places, routes and geocoding.
+- Weather with change detection.
+- A last-known-position cascade so every feature knows where you are, with the age of the fix stated ([ADR-219](docs/architecture/ADR-219-Derniere-Position-Connue-Generalisee.md)).
+
+#### Home and body
+
+- Philips Hue lighting by voice (rooms, scenes, local bridge or cloud).
+- Daily steps and heart-rate batches pushed from an iPhone Shortcut, idempotently, with baselines, variation detection and charts ([ADR-076](docs/architecture/ADR-076-Health-Metrics-Ingestion.md), [ADR-148](docs/architecture/ADR-148-Health-Daily-Rollup.md), [GUIDE_IPHONE_SHORTCUTS_HEALTH](docs/guides/GUIDE_IPHONE_SHORTCUTS_HEALTH.md)).
+
+#### Your own tools (MCP)
+
+- Per-user servers with API key, bearer or OAuth 2.1 authentication (dynamic registration, PKCE), HTTPS-only, SSRF-checked, credentials encrypted.
+- Conformant to the protocol's current revision on both halves and reading tool declarations to the letter of JSON Schema 2020-12 ([ADR-224](docs/architecture/ADR-224-Conformite-MCP-2026-07-28-SDK-v2.md), [ADR-255](docs/architecture/ADR-255-MCP-Tool-Declaration-Conformance.md)).
+- MCP Apps rendered as sandboxed widgets behind a CSP airlock ([ADR-098](docs/architecture/ADR-098-CSP-Widget-Airlock.md)).
+- An iterative mode where a dedicated agent reads a complex server's docs before calling it ([MCP_INTEGRATION](docs/technical/MCP_INTEGRATION.md)).
+
+#### Skills and plugins
+
+- Agentskills.io skills with progressive disclosure, sandboxed scripts and rich outputs (maps, dashboards, calendars, QR codes…), generated from a conversation and installed straight into _My Skills_ ([SKILLS_INTEGRATION](docs/technical/SKILLS_INTEGRATION.md)).
+- Agent Plugins v1 packages — skills plus streamable-http MCP servers — installed in one step with an exhaustive per-component report ([ADR-225](docs/architecture/ADR-225-Standard-Agent-Plugins-v1.md)).
 
 ### Act, under your control
 
-- **Two execution modes, one toggle** — the _pipeline_ (planner → semantic validator → approval gate → parallel orchestrator) is deterministic and 4–8× cheaper in tokens; _ReAct_ lets the model reason step by step for exploratory or ambiguous requests; both stream through the same response node ([ADR-070](docs/architecture/ADR-070-ReAct-Execution-Mode.md), [PLANNER](docs/technical/PLANNER.md)); a ReAct tool result is projected item by item under a token budget derived from the slot's own window, never cut mid-item, the cut stated to the model and counted ([ADR-286](docs/architecture/ADR-286-Tool-Result-Projected-Per-Item-Under-A-Token-Budget.md)); the loop binds its tools by relevance — the detected domains' tools, the best-ranked doors of every other family, the top of the turn's global ranking — so no family falls off a blind cap and the schemas stop being most of the prompt, and it reads the same knowledge spaces the pipeline reads ([ADR-293](docs/architecture/ADR-293-React-Tools-Bound-By-Relevance.md)); a ReAct turn is judged on its result — every fact the loop set out to obtain ends obtained or declared with the rungs tried, a declared gap buying one bounded recovery pass through a node that calls no model ([ADR-310](docs/architecture/ADR-310-ReAct-Turn-Judged-On-Its-Result.md)) — and each person picks an exchange rhythm: frequent binds every tool, moves the turn's context after the question and drops the history by blocks anchored on the turn counter, so the provider's prompt cache is read from one turn to the next; occasional keeps the relevance selection at a steady cost ([ADR-308](docs/architecture/ADR-308-ReAct-Cross-Turn-Prompt-Cache.md), [ADR-311](docs/architecture/ADR-311-Exchange-Rhythm-Is-The-Persons-Choice.md)).
-- **Human-in-the-Loop** — five interrupting approval levels (clarification, draft critique, destructive confirmation, bulk `FOR_EACH` confirmation, modifier review) plus plan approval, currently auto-approved because tool-level approval supersedes it ([HITL](docs/technical/HITL.md), [ADR-106](docs/architecture/ADR-106-HITL-Contract-Coherence.md)); several independent drafts in one turn are reviewed one per question, with their position stated and nothing executed before the last answer, while a lot you pre-approved as a list keeps its grouped confirmation ([ADR-288](docs/architecture/ADR-288-Independent-Drafts-Reviewed-One-At-A-Time.md)); a draft and its report are described once and drawn per surface — a `lia-card` in the chat, Markdown on a ticket or an external channel — the report naming to whom and what ([ADR-289](docs/architecture/ADR-289-Draft-Surfaces-Drawn-From-One-Description.md)); an e-mail to yourself needs no confirmation, because its recipient is not a parameter — the address your mailbox's provider states, or your verified one through LIA's relay — so a routine can send you its result ([ADR-314](docs/architecture/ADR-314-An-E-Mail-To-Oneself-Needs-No-Confirmation.md)).
-- **Phone calls on your behalf — and to you** — through your own ElevenLabs + Twilio connector, every call to a third party confirmed before dialing, a strict mandate that forbids any expense beyond the objective, free/busy visibility only, no recording, and a post-call summary that states every cost ([ADR-127](docs/architecture/ADR-127-Agentic-Telephony.md), [TELEPHONY](docs/technical/TELEPHONY.md)); and **the phone as a channel** — LIA calls _you_ on a number you declared and verified by a spoken code, with no confirmation card, the chat's own context and your configured personality on the line; the voice agent reads everything the chat reads through the same read-only tools (mails, calendar, tasks, contacts, files, places, weather, memory — one switch per domain, yours) and acts on nothing; what you say comes back as your own message, with drafts to confirm in the chat, ten relay verdicts and one bill per call for what LIA spent ([ADR-290](docs/architecture/ADR-290-Phone-As-A-Channel-Owner-Calls.md)); since ADR-301 a voice session has a **mode** and the policy follows it whatever the line — _Live_ (the default), where each request is a chat turn of yours handled while you speak, a question LIA asks being the answer and the next request resuming the run that asked, or _Live direct_, where the voice reads and the words are relayed at the end — one closing for the phone and the browser, the effective mode derived and published, and the browser's direct session relayed like a call ([ADR-301](docs/architecture/ADR-301-Voice-Sessions-One-Policy-Per-Mode.md)).
-- **Documents and images** — CSV, Excel, Word, PowerPoint, PDF, Markdown or text produced by local renderers with each format's native mechanisms (styles, fields, layouts, typed tables, bookmarks); nothing overflows by construction, and a truncated model answer is refused rather than rescued into a shorter file ([ADR-226](docs/architecture/ADR-226-Document-Generation-Agent.md), [ADR-274](docs/architecture/ADR-274-Document-Craft-Renderer-Owned-Model-Semantic.md), [ADR-275](docs/architecture/ADR-275-Truncated-Structured-Output-Is-A-Refusal.md)); image generation and natural-language editing on OpenAI GPT Image or Qwen Image 3.0 — a model family declares its offer, so nothing the configured model cannot serve is priced, offered or selected, the person's preference is resolved to that offer and every image arrives in the chosen format ([ADR-305](docs/architecture/ADR-305-Image-Model-Declares-Its-Offer.md), [IMAGE_GENERATION](docs/technical/IMAGE_GENERATION.md)); on request, a new image's description is rewritten following the provider's own advice — a quoted text kept word for word, the original sent whenever in doubt, an edit never rewritten ([ADR-315](docs/architecture/ADR-315-Image-Prompt-Enhancement.md)).
-- **Keep and send what LIA made** — generated images, documents and screenshots can be kept without a deadline within published account limits, or released to a fresh normal deadline; their chat cards reflect the current state ([ADR-319](docs/architecture/ADR-319-A-Generated-File-Can-Be-Kept.md)). A file or answer can be sent by e-mail with a subject and optional note: chosen recipients through a connected mailbox, or the account's verified address through LIA's relay, under the selected provider's displayed size limit ([ADR-321](docs/architecture/ADR-321-A-File-Or-An-Answer-Sent-By-E-Mail.md)).
-- **A browser, a sandbox, delegates** — browser control with progressive screenshot streaming ([ADR-059](docs/architecture/ADR-059-Browser-Control.md)); a short Python script run in the skills sandbox when a step needs real computation, ReAct only ([ADR-249](docs/architecture/ADR-249-Ephemeral-Python-In-The-Existing-Sandbox.md)) — and, when the person allows it, reaching the web through one egress proxy that swaps per-run tokens for the person's own connector keys, an unknown host asked with three answers and settled inside the loop ([ADR-298](docs/architecture/ADR-298-Sandbox-Egress-Toolbox.md)); persistent read-only sub-agents with their own instructions, skills and budgets ([SUB_AGENTS](docs/technical/SUB_AGENTS.md)).
-- **The workboard** — a ticket has a lifecycle, a holder and a result ([ADR-276](docs/architecture/ADR-276-Workboard.md), [WORKBOARD](docs/technical/WORKBOARD.md)):
-  - one row per ticket, shared by its owner and its holder, across seven columns with sub-tickets, comments and a history; the holder can be you, a connected peer, or LIA;
-  - when LIA holds it, a sweep claims one ticket at a time, runs it in the execution mode the ticket declares, and settles from an explicit result — a quota ceiling or a busy conversation postpones the run, never fails it;
-  - a run that needs a decision asks instead of refusing: the ticket lands in « To confirm » carrying the exact card the chat would show, and your comment _is_ the answer.
+#### Two execution modes, one toggle
+
+- The _pipeline_ (planner → semantic validator → approval gate → parallel orchestrator) is deterministic and 4–8× cheaper in tokens.
+- _ReAct_ lets the model reason step by step for exploratory or ambiguous requests.
+- Both stream through the same response node ([ADR-070](docs/architecture/ADR-070-ReAct-Execution-Mode.md), [PLANNER](docs/technical/PLANNER.md)).
+- A ReAct tool result is projected item by item under a token budget derived from the slot's own window, never cut mid-item, the cut stated to the model and counted ([ADR-286](docs/architecture/ADR-286-Tool-Result-Projected-Per-Item-Under-A-Token-Budget.md)).
+- The loop binds its tools by relevance — the detected domains' tools, the best-ranked doors of every other family, the top of the turn's global ranking — so no family falls off a blind cap and the schemas stop being most of the prompt, and it reads the same knowledge spaces the pipeline reads ([ADR-293](docs/architecture/ADR-293-React-Tools-Bound-By-Relevance.md)).
+- A ReAct turn is judged on its result: every fact the loop set out to obtain ends obtained or declared with the rungs tried. A declared gap buys one bounded recovery pass through a node that calls no model ([ADR-310](docs/architecture/ADR-310-ReAct-Turn-Judged-On-Its-Result.md)).
+- Each person picks an exchange rhythm. Frequent binds every tool, moves the turn's context after the question and drops the history by blocks anchored on the turn counter, so the provider's prompt cache is read from one turn to the next. Occasional keeps the relevance selection at a steady cost ([ADR-308](docs/architecture/ADR-308-ReAct-Cross-Turn-Prompt-Cache.md), [ADR-311](docs/architecture/ADR-311-Exchange-Rhythm-Is-The-Persons-Choice.md)).
+
+#### Human-in-the-Loop
+
+- Five interrupting approval levels (clarification, draft critique, destructive confirmation, bulk `FOR_EACH` confirmation, modifier review) plus plan approval, currently auto-approved because tool-level approval supersedes it ([HITL](docs/technical/HITL.md), [ADR-106](docs/architecture/ADR-106-HITL-Contract-Coherence.md)).
+- Several independent drafts in one turn are reviewed one per question, with their position stated and nothing executed before the last answer, while a lot you pre-approved as a list keeps its grouped confirmation ([ADR-288](docs/architecture/ADR-288-Independent-Drafts-Reviewed-One-At-A-Time.md)).
+- A draft and its report are described once and drawn per surface — a `lia-card` in the chat, Markdown on a ticket or an external channel — the report naming to whom and what ([ADR-289](docs/architecture/ADR-289-Draft-Surfaces-Drawn-From-One-Description.md)).
+- An e-mail to yourself needs no confirmation, because its recipient is not a parameter — the address your mailbox's provider states, or your verified one through LIA's relay — so a routine can send you its result ([ADR-314](docs/architecture/ADR-314-An-E-Mail-To-Oneself-Needs-No-Confirmation.md)).
+
+#### Phone calls on your behalf — and to you
+
+- Through your own ElevenLabs + Twilio connector, every call to a third party confirmed before dialing, a strict mandate that forbids any expense beyond the objective, free/busy visibility only, no recording, and a post-call summary that states every cost ([ADR-127](docs/architecture/ADR-127-Agentic-Telephony.md), [TELEPHONY](docs/technical/TELEPHONY.md)).
+- **The phone as a channel:** LIA calls _you_ on a number you declared and verified by a spoken code, with no confirmation card, the chat's own context and your configured personality on the line.
+- The voice agent reads everything the chat reads through the same read-only tools (mails, calendar, tasks, contacts, files, places, weather, memory — one switch per domain, yours) and acts on nothing.
+- What you say comes back as your own message, with drafts to confirm in the chat, ten relay verdicts and one bill per call for what LIA spent ([ADR-290](docs/architecture/ADR-290-Phone-As-A-Channel-Owner-Calls.md)).
+- Since ADR-301 a voice session has a **mode**, and the policy follows it whatever the line. In _Live_ (the default), each request is a chat turn of yours handled while you speak; a question LIA asks is the answer, and the next request resumes the run that asked. In _Live direct_, the voice reads and the words are relayed at the end. Phone and browser share one closing; the effective mode is derived and published, and the browser's direct session is relayed like a call ([ADR-301](docs/architecture/ADR-301-Voice-Sessions-One-Policy-Per-Mode.md)).
+
+#### Documents and images
+
+- CSV, Excel, Word, PowerPoint, PDF, Markdown or text produced by local renderers with each format's native mechanisms (styles, fields, layouts, typed tables, bookmarks).
+- Nothing overflows by construction, and a truncated model answer is refused rather than rescued into a shorter file ([ADR-226](docs/architecture/ADR-226-Document-Generation-Agent.md), [ADR-274](docs/architecture/ADR-274-Document-Craft-Renderer-Owned-Model-Semantic.md), [ADR-275](docs/architecture/ADR-275-Truncated-Structured-Output-Is-A-Refusal.md)).
+- Image generation and natural-language editing on OpenAI GPT Image or Qwen Image 3.0 — a model family declares its offer, so nothing the configured model cannot serve is priced, offered or selected, the person's preference is resolved to that offer and every image arrives in the chosen format ([ADR-305](docs/architecture/ADR-305-Image-Model-Declares-Its-Offer.md), [IMAGE_GENERATION](docs/technical/IMAGE_GENERATION.md)).
+- On request, a new image's description is rewritten following the provider's own advice — a quoted text kept word for word, the original sent whenever in doubt, an edit never rewritten ([ADR-315](docs/architecture/ADR-315-Image-Prompt-Enhancement.md)).
+
+#### Keep and send what LIA made
+
+- Generated images, documents and screenshots can be kept without a deadline within published account limits, or released to a fresh normal deadline.
+- Their chat cards reflect the current state ([ADR-319](docs/architecture/ADR-319-A-Generated-File-Can-Be-Kept.md)).
+- A file or answer can be sent by e-mail with a subject and optional note: chosen recipients through a connected mailbox, or the account's verified address through LIA's relay, under the selected provider's displayed size limit ([ADR-321](docs/architecture/ADR-321-A-File-Or-An-Answer-Sent-By-E-Mail.md)).
+
+#### A browser, a sandbox, delegates
+
+- Browser control with progressive screenshot streaming ([ADR-059](docs/architecture/ADR-059-Browser-Control.md)).
+- A short Python script run in the skills sandbox when a step needs real computation, ReAct only ([ADR-249](docs/architecture/ADR-249-Ephemeral-Python-In-The-Existing-Sandbox.md)) — and, when the person allows it, reaching the web through one egress proxy that swaps per-run tokens for the person's own connector keys, an unknown host asked with three answers and settled inside the loop ([ADR-298](docs/architecture/ADR-298-Sandbox-Egress-Toolbox.md)).
+- Persistent read-only sub-agents with their own instructions, skills and budgets ([SUB_AGENTS](docs/technical/SUB_AGENTS.md)).
+
+#### The workboard
+
+A ticket has a lifecycle, a holder and a result ([ADR-276](docs/architecture/ADR-276-Workboard.md), [WORKBOARD](docs/technical/WORKBOARD.md)):
+
+- One row per ticket, shared by its owner and its holder, across seven columns with sub-tickets, comments and a history; the holder can be you, a connected peer, or LIA.
+- When LIA holds it, a sweep claims one ticket at a time, runs it in the execution mode the ticket declares, and settles from an explicit result — a quota ceiling or a busy conversation postpones the run, never fails it.
+- A run that needs a decision asks instead of refusing: the ticket lands in « To confirm » carrying the exact card the chat would show, and your comment _is_ the answer.
 
 ### Anticipate
 
-- **The heartbeat** — LIA takes the initiative when it is worth it: calendar, mail, tasks, weather changes, interests, memories, habits and the workboard are aggregated, a cheap structured decision says whether to speak, at your local time, and a second pass writes it in your voice and language; each source has a switch that says whether it is connected, you set the windows, the daily maximum and the channels, rate every notification, and every pass files what it read in your registers ([HEARTBEAT_AUTONOME](docs/technical/HEARTBEAT_AUTONOME.md), [GUIDE_HEARTBEAT](docs/guides/GUIDE_HEARTBEAT_PROACTIVE_NOTIFICATIONS.md)).
-- **Moments served to the minute** — a periodic sweep cannot serve an instant, so a finished meeting or an awaited reply is kept as an anticipated moment, claimed under a lock, revalidated, and served under the full eligibility checker while bypassing only the deferrals; mail watches are answered from the push-driven wake that already holds the Gmail delta ([ADR-281](docs/architecture/ADR-281-Anticipated-Moments-And-Mail-Watches.md), [ADR-261](docs/architecture/ADR-261-Push-Driven-Heartbeat-Wake-And-Incremental-Drive-Sync.md)).
-- **Routines and reminders** — a scheduled routine or reminder uses the timezone-aware recurrence engine ("every three days", "the 2nd Tuesday of the month"); a condition routine instead has no schedule and is checked at the system's cadence for its source, recording a run only when it fires. The studio offers one mode at a time, with a week view of actual runs ([ADR-268](docs/architecture/ADR-268-Generic-Recurrence-And-Reminder-Management.md), [ADR-322](docs/architecture/ADR-322-One-Clock-Per-Routine.md), [ADR-265](docs/architecture/ADR-265-Routine-Week-Timeline-And-Run-History.md), [SCHEDULED_ACTIONS](docs/technical/SCHEDULED_ACTIONS.md)).
-- **Interests and habits, learned with restraint** — an interest is created only on a named ground quoted from your own words, with six exclusion classes and a cap on deletions per run ([ADR-166](docs/architecture/ADR-166-Extraction-Admission-Doctrine.md), [INTERESTS](docs/technical/INTERESTS.md)); habits are learned deterministically from a recurrence ledger, promoted, refreshed or demoted by a nightly job and never on doubt; a status you set on a learned window holds for the heartbeat, its scheduling and the assistant's context alike, a missed routine is offered by name, and one learning switch closes every door ([ADR-214](docs/architecture/ADR-214-Habitudes-Utilisateur-Apprentissage-Deterministe.md)).
-- **A daily briefing** — the home page aggregates your sources in parallel with a per-section cache and an LLM synthesis, served by a read-only domain outside the agent graph ([BRIEFING_DOMAIN](docs/technical/BRIEFING_DOMAIN.md)).
+#### The heartbeat
+
+- LIA takes the initiative when it is worth it: calendar, mail, tasks, weather changes, interests, memories, habits and the workboard are aggregated, a cheap structured decision says whether to speak, at your local time, and a second pass writes it in your voice and language.
+- Each source has a switch that says whether it is connected, you set the windows, the daily maximum and the channels, rate every notification, and every pass files what it read in your registers ([HEARTBEAT_AUTONOME](docs/technical/HEARTBEAT_AUTONOME.md), [GUIDE_HEARTBEAT](docs/guides/GUIDE_HEARTBEAT_PROACTIVE_NOTIFICATIONS.md)).
+
+#### Moments served to the minute
+
+- A periodic sweep cannot serve an instant, so a finished meeting or an awaited reply is kept as an anticipated moment, claimed under a lock, revalidated, and served under the full eligibility checker while bypassing only the deferrals.
+- Mail watches are answered from the push-driven wake that already holds the Gmail delta ([ADR-281](docs/architecture/ADR-281-Anticipated-Moments-And-Mail-Watches.md), [ADR-261](docs/architecture/ADR-261-Push-Driven-Heartbeat-Wake-And-Incremental-Drive-Sync.md)).
+
+#### Routines and reminders
+
+- A scheduled routine or reminder uses the timezone-aware recurrence engine ("every three days", "the 2nd Tuesday of the month").
+- A condition routine has no schedule: it is checked at the system's cadence for its source and records a run only when it fires.
+- The studio offers one mode at a time, with a week view of actual runs ([ADR-268](docs/architecture/ADR-268-Generic-Recurrence-And-Reminder-Management.md), [ADR-322](docs/architecture/ADR-322-One-Clock-Per-Routine.md), [ADR-265](docs/architecture/ADR-265-Routine-Week-Timeline-And-Run-History.md), [SCHEDULED_ACTIONS](docs/technical/SCHEDULED_ACTIONS.md)).
+
+#### Interests and habits, learned with restraint
+
+- An interest is created only on a named ground quoted from your own words, with six exclusion classes and a cap on deletions per run ([ADR-166](docs/architecture/ADR-166-Extraction-Admission-Doctrine.md), [INTERESTS](docs/technical/INTERESTS.md)).
+- Habits are learned deterministically from a recurrence ledger, promoted, refreshed or demoted by a nightly job and never on doubt.
+- A status you set on a learned window holds for the heartbeat, its scheduling and the assistant's context alike, a missed routine is offered by name, and one learning switch closes every door ([ADR-214](docs/architecture/ADR-214-Habitudes-Utilisateur-Apprentissage-Deterministe.md)).
+
+#### A daily briefing
+
+The home page aggregates your sources in parallel with a per-section cache and an LLM synthesis, served by a read-only domain outside the agent graph ([BRIEFING_DOMAIN](docs/technical/BRIEFING_DOMAIN.md)).
 
 ### Remember
 
-- **Long-term memory** — facts extracted after each conversation, pinned or edited by hand, injected by relevance with their scores visible in the debug panel ([LONG_TERM_MEMORY](docs/technical/LONG_TERM_MEMORY.md), [MEMORY_RESOLUTION](docs/technical/MEMORY_RESOLUTION.md)), and looked up on purpose — by the planner, the ReAct loop and the phone — through one lookup door that answers what was asked, never the latest memories ([ADR-313](docs/architecture/ADR-313-Long-Term-Memory-As-An-Active-Lookup.md)).
-- **Personal journals** — introspective notebooks the assistant keeps in the first person, stratified from raw observations to a user portrait, with an epistemic status per entry and a deferred self-evaluation at zero added LLM cost; the portrait is compiled from four sources — memories, interests, learned habits, relationship debriefs — each read under its own gates, and it shows which ones it used ([ADR-079](docs/architecture/ADR-079-Stratified-Journal-Consciousness.md), [ADR-292](docs/architecture/ADR-292-Portrait-Reads-Four-Sources.md), [JOURNALS](docs/technical/JOURNALS.md)); a read tool searches them on demand — directives, patterns and facets, never raw observations ([ADR-318](docs/architecture/ADR-318-Assistant-Tools-Exact-Answers-And-Own-Records.md)).
-- **Knowledge spaces** — personal document bases in 15+ formats with hybrid search (pgvector cosine + BM25), Google Drive folder sync, a Gmail label as a source, and a system space that indexes the product's own FAQ so LIA can explain itself; a document that cannot be indexed says why in your language — a scanned PDF without a text layer names its remedy; any indexed document, paused space or not, attaches to a chat message as a copy from the composer's « + » ([ADR-295](docs/architecture/ADR-295-Knowledge-Documents-As-Message-Attachments.md), [GUIDE_RAG_SPACES](docs/guides/GUIDE_RAG_SPACES.md), [ADR-055](docs/architecture/ADR-055-RAG-Spaces-Architecture.md), [ADR-058](docs/architecture/ADR-058-System-RAG-Spaces.md)).
-- **Meetings and minutes** — record from the phone or the computer while the chat stays usable, with a capture that survives reloads and lost microphones; a chain of transcription engines walked at processing time; minutes filled from one of thirty built-in templates or your own, reformatted in place or derived into a second set from the same transcript ([ADR-258](docs/architecture/ADR-258-Meeting-Recording-And-Structured-Minutes.md), [ADR-259](docs/architecture/ADR-259-Meeting-Template-Library-And-Reformatting.md), [MEETINGS](docs/technical/MEETINGS.md)).
-- **People** — a 360° relationship lens over open loops, calls, messages and memories, with a written debrief per person built lazily when the card opens ([ADR-176](docs/architecture/ADR-176-Personal-CRM-Relations.md), [ADR-193](docs/architecture/ADR-193-Read-Capabilities-And-Merged-Identity.md), [ADR-269](docs/architecture/ADR-269-Relationship-Debrief.md)); connections between users of the same instance, assistant to assistant — relayed messages delivered by the recipient's own assistant, field-level read-only shares, silent blocking ([ADR-180](docs/architecture/ADR-180-Peer-Connections.md), [ADR-182](docs/architecture/ADR-182-Peer-Routing-Awareness-And-Honest-Failure.md)); a generated image shared with a connection as a copy, in one click and one transaction, its comment quoted literally in their chat ([ADR-316](docs/architecture/ADR-316-Sharing-A-Generated-Image-With-A-Connection.md)).
-- **What LIA produced is yours** — generated images, documents and browser screenshots have their own galleries with search, exact totals and a visible retention deadline; clearing a conversation never clears them ([ADR-279](docs/architecture/ADR-279-Generated-Assets-Gallery.md)); LIA finds them again when asked and shows them as the chat's own cards ([ADR-318](docs/architecture/ADR-318-Assistant-Tools-Exact-Answers-And-Own-Records.md)).
-- **What you keep is yours too** — a bookmark on every answer copies it with the request that produced it and the answer's date, so it outlives the conversation; a Bookmarks tab beside the galleries lists them newest first, with search, an exact total against the account's cap, sharing, a Markdown export and deletion; every kept answer is also indexed in a knowledge space of your own, so LIA cites it weeks later when a question concerns it, and the card shows the indexing state and its cost ([ADR-282](docs/architecture/ADR-282-Message-Bookmarks.md), [ADR-291](docs/architecture/ADR-291-Kept-Answers-Knowledge-Space.md), [BOOKMARKS](docs/technical/BOOKMARKS.md)).
+#### Long-term memory
+
+- Facts are extracted after each conversation, pinned or edited by hand, and injected by relevance with their scores visible in the debug panel ([LONG_TERM_MEMORY](docs/technical/LONG_TERM_MEMORY.md), [MEMORY_RESOLUTION](docs/technical/MEMORY_RESOLUTION.md)).
+- The planner, the ReAct loop and the phone look them up on purpose through one lookup door that answers what was asked, never just the latest memories ([ADR-313](docs/architecture/ADR-313-Long-Term-Memory-As-An-Active-Lookup.md)).
+
+#### Personal journals
+
+- Introspective notebooks the assistant keeps in the first person, stratified from raw observations to a user portrait, with an epistemic status per entry and a deferred self-evaluation at zero added LLM cost.
+- The portrait is compiled from four sources — memories, interests, learned habits, relationship debriefs — each read under its own gates, and it shows which ones it used ([ADR-079](docs/architecture/ADR-079-Stratified-Journal-Consciousness.md), [ADR-292](docs/architecture/ADR-292-Portrait-Reads-Four-Sources.md), [JOURNALS](docs/technical/JOURNALS.md)).
+- A read tool searches them on demand — directives, patterns and facets, never raw observations ([ADR-318](docs/architecture/ADR-318-Assistant-Tools-Exact-Answers-And-Own-Records.md)).
+
+#### Knowledge spaces
+
+- Personal document bases in 15+ formats with hybrid search (pgvector cosine + BM25), Google Drive folder sync, a Gmail label as a source, and a system space that indexes the product's own FAQ so LIA can explain itself.
+- A document that cannot be indexed says why in your language — a scanned PDF without a text layer names its remedy.
+- Any indexed document, paused space or not, attaches to a chat message as a copy from the composer's « + » ([ADR-295](docs/architecture/ADR-295-Knowledge-Documents-As-Message-Attachments.md), [GUIDE_RAG_SPACES](docs/guides/GUIDE_RAG_SPACES.md), [ADR-055](docs/architecture/ADR-055-RAG-Spaces-Architecture.md), [ADR-058](docs/architecture/ADR-058-System-RAG-Spaces.md)).
+
+#### Meetings and minutes
+
+- Record from the phone or the computer while the chat stays usable, with a capture that survives reloads and lost microphones.
+- A chain of transcription engines walked at processing time.
+- Minutes filled from one of thirty built-in templates or your own, reformatted in place or derived into a second set from the same transcript ([ADR-258](docs/architecture/ADR-258-Meeting-Recording-And-Structured-Minutes.md), [ADR-259](docs/architecture/ADR-259-Meeting-Template-Library-And-Reformatting.md), [MEETINGS](docs/technical/MEETINGS.md)).
+
+#### People
+
+- A 360° relationship lens over open loops, calls, messages and memories, with a written debrief per person built lazily when the card opens ([ADR-176](docs/architecture/ADR-176-Personal-CRM-Relations.md), [ADR-193](docs/architecture/ADR-193-Read-Capabilities-And-Merged-Identity.md), [ADR-269](docs/architecture/ADR-269-Relationship-Debrief.md)).
+- Connections between users of the same instance, assistant to assistant — relayed messages delivered by the recipient's own assistant, field-level read-only shares, silent blocking ([ADR-180](docs/architecture/ADR-180-Peer-Connections.md), [ADR-182](docs/architecture/ADR-182-Peer-Routing-Awareness-And-Honest-Failure.md)).
+- A generated image shared with a connection as a copy, in one click and one transaction, its comment quoted literally in their chat ([ADR-316](docs/architecture/ADR-316-Sharing-A-Generated-Image-With-A-Connection.md)).
+
+#### What LIA produced is yours
+
+- Generated images, documents and browser screenshots have their own galleries with search, exact totals and a visible retention deadline.
+- Clearing a conversation never clears them ([ADR-279](docs/architecture/ADR-279-Generated-Assets-Gallery.md)).
+- LIA finds them again when asked and shows them as the chat's own cards ([ADR-318](docs/architecture/ADR-318-Assistant-Tools-Exact-Answers-And-Own-Records.md)).
+
+#### What you keep is yours too
+
+- A bookmark on every answer copies it with the request that produced it and the answer's date, so it outlives the conversation.
+- A Bookmarks tab beside the galleries lists them newest first, with search, an exact total against the account's cap, sharing, a Markdown export and deletion.
+- Every kept answer is also indexed in a knowledge space of your own, so LIA cites it weeks later when a question concerns it, and the card shows the indexing state and its cost ([ADR-282](docs/architecture/ADR-282-Message-Bookmarks.md), [ADR-291](docs/architecture/ADR-291-Kept-Answers-Knowledge-Space.md), [BOOKMARKS](docs/technical/BOOKMARKS.md)).
 
 ### Trust it
 
-- **Three registers, sealed on request** — one row per action (claimed before it happens, closed from an explicit result), one per consultation (which capability read what, when, with what outcome), one per turn; proactive acts and direct reads are recorded too; extractions are complete, never capped; an opt-in per-account hash chain makes the registers tamper-evident while preserving the right to erasure, and LIA answers « what did you do? » from them with exact totals ([ADR-263](docs/architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md), [ADR-270](docs/architecture/ADR-270-Spend-Roads-And-Register-Authorship.md), [ADR-273](docs/architecture/ADR-273-Complete-Register-Extractions.md), [ADR-318](docs/architecture/ADR-318-Assistant-Tools-Exact-Answers-And-Own-Records.md), [AI_ACT_TRACEABILITY](docs/technical/AI_ACT_TRACEABILITY.md)).
-- **Spend that answers to two ceilings** — every platform-paid token counts against the account's quota _and_ the instance's daily budget; a refusal carries a dedicated code and a `Retry-After`; where each module's spend is recorded is declared and guarded, never inferred; and the rule is not the model's alone — every euro the platform pays for a person, a Maps lookup during a call, the briefing's weather, a photo shown, a voice synthesis, reaches their ledger whatever the path, one persistence predicate covering every family the tracker holds and a counter that fails closed into an alert ([ADR-216](docs/architecture/ADR-216-Plafond-De-Depense-D-Instance.md), [ADR-272](docs/architecture/ADR-272-Every-Platform-Paid-Token-Answers-To-Both-Ceilings.md), [USAGE_LIMITS](docs/technical/USAGE_LIMITS.md)); and at the price the provider bills — tariffs read from the vendors' pages, a prompt-cache write billed at its price, a pricing window that names its days, a Maps call filed at the SKU its request triggers, every tariff writer reaching every worker ([ADR-306](docs/architecture/ADR-306-Claude-Request-Surface-And-Billed-Prompt-Cache.md), [LLM_PRICING_MANAGEMENT](docs/technical/LLM_PRICING_MANAGEMENT.md)).
-- **Strong authentication** — WebAuthn passkeys, a TOTP second factor with backup codes, step-up re-authentication on sensitive actions, device sessions with per-device revocation, server-side Redis sessions behind HTTP-only cookies ([ADR-143](docs/architecture/ADR-143-Strong-Authentication-Passkeys.md), [ADR-144](docs/architecture/ADR-144-Device-Sessions.md), [AUTHENTICATION](docs/technical/AUTHENTICATION.md)); a federated sign-in proves an address, never a right — it can neither activate nor unblock an account ([ADR-002](docs/architecture/ADR-002-BFF-Pattern-Authentication.md)) — and every « who is calling? » reads one resolver ([ADR-213](docs/architecture/ADR-213-L-Identite-De-L-Appelant-Vient-D-Un-En-Tete-Qu-Il-Ne-Peut-Pas-Ecrire.md)).
-- **Your data, by construction** — Fernet-encrypted credentials, logs that keep facts and never the words of the people they concern, guarded by the value rather than the field name ([ADR-317](docs/architecture/ADR-317-A-Log-Line-Carries-Facts-Never-The-Words.md)), a full-account GDPR export ([ADR-145](docs/architecture/ADR-145-Account-Export.md)), external content wrapped with a provenance that survives compaction, skill scripts confined to a throwaway container, automated backups with a tested one-command restore ([ADR-109](docs/architecture/ADR-109-PostgreSQL-Backup-Strategy.md), [SECURITY](docs/technical/SECURITY.md)).
-- **Exact where it must be** — arithmetic, dates and currencies are tools in both execution modes, never a model's estimate: a calculation parsed and evaluated in exact decimal that says when it rounded, a duration counted between absolute instants across a clock change, the European Central Bank reference rate with its date ([ADR-318](docs/architecture/ADR-318-Assistant-Tools-Exact-Answers-And-Own-Records.md)).
-- **A failure is said, never guessed** — one status vocabulary whose every member is produced and read, one success predicate for the register, the metrics and the ReAct loop, a structural failure marker on the ReAct message, and an honesty directive that names the tool that failed and the exact total, so a model never fills the silence with an invented configuration problem ([ADR-303](docs/architecture/ADR-303-Tool-Failure-Restitution.md)); every act is filed under its own turn and stated to the response as the assistant's own ([ADR-263](docs/architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md)); and no database transaction stays open while a provider answers ([ADR-304](docs/architecture/ADR-304-No-Transaction-Across-A-Network-Call.md)).
-- **Switches, not redeploys** — every capability switches off from the admin panel, each declaring where it is enforced; a switch removes the capability, never the record ([ADR-217](docs/architecture/ADR-217-Capacites-Administrables.md), [ADR-280](docs/architecture/ADR-280-Complete-Capability-Control.md)).
+#### Three registers, sealed on request
+
+- One row per action (claimed before it happens, closed from an explicit result), one per consultation (which capability read what, when, with what outcome), one per turn.
+- Proactive acts and direct reads are recorded too.
+- Extractions are complete, never capped.
+- An opt-in per-account hash chain makes the registers tamper-evident while preserving the right to erasure, and LIA answers « what did you do? » from them with exact totals ([ADR-263](docs/architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md), [ADR-270](docs/architecture/ADR-270-Spend-Roads-And-Register-Authorship.md), [ADR-273](docs/architecture/ADR-273-Complete-Register-Extractions.md), [ADR-318](docs/architecture/ADR-318-Assistant-Tools-Exact-Answers-And-Own-Records.md), [AI_ACT_TRACEABILITY](docs/technical/AI_ACT_TRACEABILITY.md)).
+
+#### Spend that answers to two ceilings
+
+- Every platform-paid token counts against the account's quota _and_ the instance's daily budget.
+- A refusal carries a dedicated code and a `Retry-After`.
+- Where each module's spend is recorded is declared and guarded, never inferred.
+- The rule covers more than model tokens: every euro the platform pays for a person — a Maps lookup during a call, the briefing's weather, a photo shown, a voice synthesis — reaches their ledger whatever the path. One persistence predicate covers every family the tracker holds, and a counter fails closed into an alert ([ADR-216](docs/architecture/ADR-216-Plafond-De-Depense-D-Instance.md), [ADR-272](docs/architecture/ADR-272-Every-Platform-Paid-Token-Answers-To-Both-Ceilings.md), [USAGE_LIMITS](docs/technical/USAGE_LIMITS.md)).
+- Spend uses the price the provider bills: tariffs read from the vendors' pages, a prompt-cache write billed at its price, a pricing window that names its days, a Maps call filed at the SKU its request triggers, and every tariff writer reaching every worker ([ADR-306](docs/architecture/ADR-306-Claude-Request-Surface-And-Billed-Prompt-Cache.md), [LLM_PRICING_MANAGEMENT](docs/technical/LLM_PRICING_MANAGEMENT.md)).
+
+#### Strong authentication
+
+- WebAuthn passkeys, a TOTP second factor with backup codes, step-up re-authentication on sensitive actions, device sessions with per-device revocation, server-side Redis sessions behind HTTP-only cookies ([ADR-143](docs/architecture/ADR-143-Strong-Authentication-Passkeys.md), [ADR-144](docs/architecture/ADR-144-Device-Sessions.md), [AUTHENTICATION](docs/technical/AUTHENTICATION.md)).
+- A federated sign-in proves an address, never a right — it can neither activate nor unblock an account ([ADR-002](docs/architecture/ADR-002-BFF-Pattern-Authentication.md)) — and every « who is calling? » reads one resolver ([ADR-213](docs/architecture/ADR-213-L-Identite-De-L-Appelant-Vient-D-Un-En-Tete-Qu-Il-Ne-Peut-Pas-Ecrire.md)).
+
+#### Your data, by construction
+
+- Credentials are encrypted with Fernet. Logs keep facts, never the words of the people they concern; the guard checks the value rather than the field name ([ADR-317](docs/architecture/ADR-317-A-Log-Line-Carries-Facts-Never-The-Words.md)).
+- A full-account GDPR export is available ([ADR-145](docs/architecture/ADR-145-Account-Export.md)). External content keeps its provenance through compaction.
+- Skill scripts run in a throwaway container. Automated backups have a tested one-command restore ([ADR-109](docs/architecture/ADR-109-PostgreSQL-Backup-Strategy.md), [SECURITY](docs/technical/SECURITY.md)).
+
+#### Exact where it must be
+
+Arithmetic, dates and currencies use tools in both execution modes, never a model's estimate:
+
+- Calculations are parsed and evaluated in exact decimal, with rounding stated.
+- Durations are counted between absolute instants across a clock change.
+- Currency conversion uses the European Central Bank reference rate with its date ([ADR-318](docs/architecture/ADR-318-Assistant-Tools-Exact-Answers-And-Own-Records.md)).
+
+#### A failure is said, never guessed
+
+- One status vocabulary whose every member is produced and read, one success predicate for the register, the metrics and the ReAct loop, a structural failure marker on the ReAct message, and an honesty directive that names the tool that failed and the exact total, so a model never fills the silence with an invented configuration problem ([ADR-303](docs/architecture/ADR-303-Tool-Failure-Restitution.md)).
+- Every act is filed under its own turn and stated to the response as the assistant's own ([ADR-263](docs/architecture/ADR-263-Execution-Authority-Chain-And-Effect-Register.md)).
+- No database transaction stays open while a provider answers ([ADR-304](docs/architecture/ADR-304-No-Transaction-Across-A-Network-Call.md)).
+
+#### Switches, not redeploys
+
+- Every capability switches off from the admin panel, each declaring where it is enforced.
+- A switch removes the capability, never the record ([ADR-217](docs/architecture/ADR-217-Capacites-Administrables.md), [ADR-280](docs/architecture/ADR-280-Complete-Capability-Control.md)).
 
 ---
 

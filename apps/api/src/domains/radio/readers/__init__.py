@@ -86,7 +86,7 @@ DONE_READERS: Final[Mapping[PersonalSource, SourceReader]] = MappingProxyType(
         PersonalSource.TASKS: read_tasks_done,
         PersonalSource.REMINDERS: read_reminders_done,
         PersonalSource.TICKETS: read_closed_tickets,
-        PersonalSource.MAILS: read_sent_mail,
+        PersonalSource.SENT_MAILS: read_sent_mail,
         PersonalSource.ACTIONS: read_actions,
     }
 )

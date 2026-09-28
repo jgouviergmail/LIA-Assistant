@@ -40,6 +40,8 @@ import { speakableName } from '@/lib/radio/preferences';
 import type { RadioCustomSource, RadioDiscovery } from '@/lib/radio/types';
 import type { BaseSettingsProps } from '@/types/settings';
 
+import { RadioSourceLogo } from './RadioSourceLogo';
+
 interface RadioCustomSourcesProps {
   lng: BaseSettingsProps['lng'];
   newsroom: UseRadioSourcesReturn;
@@ -178,15 +180,17 @@ function SourceList({
         return (
           <li
             key={source.id}
-            className="flex items-start justify-between gap-3 rounded-md border p-2"
+            className="flex items-stretch justify-between gap-3 rounded-md border p-2"
           >
-            <div className="flex min-w-0 items-start gap-2">
+            <div className="flex min-w-0 items-stretch gap-2">
               <Checkbox
                 id={id}
+                className="self-center"
                 aria-describedby={hintId}
                 checked={!source.paused}
                 onChange={event => onRunning(source, event.target.checked)}
               />
+              <RadioSourceLogo url={source.feed_url} />
               <div className="min-w-0 space-y-0.5">
                 <Label htmlFor={id} className="break-words" title={source.feed_url}>
                   {source.language
@@ -217,6 +221,7 @@ function SourceList({
               </div>
             </div>
             <RowActions
+              className="self-center"
               menuLabel={t('common.actions_for', { name })}
               actions={[
                 {

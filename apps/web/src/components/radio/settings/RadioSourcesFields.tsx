@@ -30,6 +30,7 @@ import type { RadioBaseSource, RadioOptions, RadioPreferences } from '@/lib/radi
 import type { BaseSettingsProps } from '@/types/settings';
 
 import { RadioCustomSources } from './RadioCustomSources';
+import { RadioSourceLogo } from './RadioSourceLogo';
 
 interface RadioSourcesFieldsProps {
   lng: BaseSettingsProps['lng'];
@@ -162,13 +163,15 @@ function BaseSources({
           const id = `radio-feed-${index}`;
           const hintId = `${id}-hint`;
           return (
-            <li key={source.url} className="flex items-start gap-2">
+            <li key={source.url} className="flex items-stretch gap-2 rounded-lg border p-3">
               <Checkbox
                 id={id}
+                className="self-center"
                 aria-describedby={hintId}
                 checked={!unticked.includes(source.url)}
                 onChange={event => void onTick(source.url, event.target.checked)}
               />
+              <RadioSourceLogo url={source.url} />
               <div className="min-w-0 space-y-0.5">
                 <Label htmlFor={id} className="break-words">
                   {t('radio.settings.news.with_language', {

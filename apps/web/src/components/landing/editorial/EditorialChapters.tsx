@@ -2,30 +2,24 @@ import { initI18next } from '@/i18n';
 import { GhostWord } from '../cosmic/GhostWord';
 import { CHAPTERS } from './chapters-data';
 import { ChapterSection } from './ChapterSection';
-import { SceneBriefing, SceneEdit, SceneRelay } from './scenes';
+import { ProductScene } from '../demo/ProductScene';
 import { SecurityDetail } from './SecurityDetail';
-import { VignetteForge, VignetteOrchestration, VignetteSpark } from './vignettes';
 
 /**
- * The six-chapter narrative replacing the former features wall,
- * how-it-works and security sections. Visuals alternate between decomposed
- * backstage vignettes (chapters 01/03/05) and complementary chat scenes
- * (chapters 02/04/06) — never duplicating the hero's four acts.
+ * Each chapter takes a completed frame from the same scenes as the hero.
+ * The story and its illustration therefore share one product vocabulary.
  *
  * `ghosts` (used by the cosmos landing, default off):
  * each chapter receives its translated GhostWord with alternating drift.
  */
-export async function EditorialChapters({ lng, ghosts = false }: { lng: string; ghosts?: boolean }) {
+export async function EditorialChapters({
+  lng,
+  ghosts = false,
+}: {
+  lng: string;
+  ghosts?: boolean;
+}) {
   const { t } = await initI18next(lng);
-
-  const visuals: Record<string, React.ReactNode> = {
-    act: <VignetteOrchestration t={t} />,
-    know: <SceneBriefing t={t} />,
-    anticipate: <VignetteSpark t={t} />,
-    control: <SceneEdit t={t} />,
-    grow: <VignetteForge t={t} />,
-    connect: <SceneRelay t={t} />,
-  };
 
   return (
     // `features` keeps the historical anchor alive (skip link, external links)
@@ -36,7 +30,7 @@ export async function EditorialChapters({ lng, ghosts = false }: { lng: string; 
           t={t}
           chapter={chapter}
           reverse={i % 2 === 1}
-          visual={visuals[chapter.id]}
+          visual={<ProductScene sceneId={chapter.scene} />}
           catalogExtra={chapter.id === 'control' ? <SecurityDetail t={t} lng={lng} /> : undefined}
           ghost={
             ghosts ? (

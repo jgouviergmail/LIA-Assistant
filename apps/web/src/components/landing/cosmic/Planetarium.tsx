@@ -14,8 +14,10 @@
 import type { CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
+import styles from './Planetarium.module.css';
 
 type Orbit = 'out' | 'mid' | 'in';
+type PlanetSurface = 'ocean' | 'banded' | 'rocky' | 'ice';
 
 export interface PlanetSpec {
   orbit: Orbit;
@@ -23,20 +25,98 @@ export interface PlanetSpec {
   phaseS: number;
   sizePx: number;
   color: string;
+  highlight: string;
+  surface: PlanetSurface;
+  hasRing?: boolean;
   labelKey: string;
 }
 
-/** 8 major features on 3 ellipses (2–3 per ellipse), sizes 10–26 px. */
+/** 8 major features on 3 ellipses, with distinct mineral, ocean and gas surfaces. */
 export const PLANETS: readonly PlanetSpec[] = [
-  { orbit: 'out', phaseS: 0, sizePx: 26, color: '#4f8dfd', labelKey: 'landing.cosmos.planet.maison' },
-  { orbit: 'out', phaseS: -28, sizePx: 18, color: '#38d4f5', labelKey: 'landing.cosmos.planet.emails' },
-  { orbit: 'out', phaseS: -56, sizePx: 12, color: '#8b5cf6', labelKey: 'landing.cosmos.planet.agenda' },
-  { orbit: 'mid', phaseS: -8, sizePx: 22, color: '#8b5cf6', labelKey: 'landing.cosmos.planet.memoire' },
-  { orbit: 'mid', phaseS: -27, sizePx: 15, color: '#4f8dfd', labelKey: 'landing.cosmos.planet.voix' },
-  { orbit: 'mid', phaseS: -46, sizePx: 11, color: '#38d4f5', labelKey: 'landing.cosmos.planet.veille' },
-  { orbit: 'in', phaseS: -5, sizePx: 16, color: '#38d4f5', labelKey: 'landing.cosmos.planet.skills' },
-  { orbit: 'in', phaseS: -24, sizePx: 10, color: '#4f8dfd', labelKey: 'landing.cosmos.planet.briefing' },
+  {
+    orbit: 'out',
+    phaseS: 0,
+    sizePx: 28,
+    color: '#397edc',
+    highlight: '#90e5ba',
+    surface: 'ocean',
+    labelKey: 'landing.cosmos.planet.maison',
+  },
+  {
+    orbit: 'out',
+    phaseS: -28,
+    sizePx: 20,
+    color: '#db9d55',
+    highlight: '#ffe7bb',
+    surface: 'banded',
+    hasRing: true,
+    labelKey: 'landing.cosmos.planet.emails',
+  },
+  {
+    orbit: 'out',
+    phaseS: -56,
+    sizePx: 13,
+    color: '#d96b63',
+    highlight: '#ffc4a4',
+    surface: 'rocky',
+    labelKey: 'landing.cosmos.planet.agenda',
+  },
+  {
+    orbit: 'mid',
+    phaseS: -8,
+    sizePx: 24,
+    color: '#a385e9',
+    highlight: '#e1d4ff',
+    surface: 'ice',
+    hasRing: true,
+    labelKey: 'landing.cosmos.planet.memoire',
+  },
+  {
+    orbit: 'mid',
+    phaseS: -27,
+    sizePx: 17,
+    color: '#db77aa',
+    highlight: '#ffdae8',
+    surface: 'banded',
+    labelKey: 'landing.cosmos.planet.voix',
+  },
+  {
+    orbit: 'mid',
+    phaseS: -46,
+    sizePx: 11,
+    color: '#39ae8c',
+    highlight: '#b3ead0',
+    surface: 'ocean',
+    labelKey: 'landing.cosmos.planet.veille',
+  },
+  {
+    orbit: 'in',
+    phaseS: -5,
+    sizePx: 16,
+    color: '#40bcda',
+    highlight: '#d5f7ff',
+    surface: 'ice',
+    labelKey: 'landing.cosmos.planet.skills',
+  },
+  {
+    orbit: 'in',
+    phaseS: -24,
+    sizePx: 10,
+    color: '#e6a072',
+    highlight: '#ffe4c5',
+    surface: 'rocky',
+    labelKey: 'landing.cosmos.planet.briefing',
+  },
 ] as const;
+
+const SPHERE_LIGHT =
+  'radial-gradient(circle at 30% 25%, #ffffffa6, transparent 38%, #000000b3 94%)';
+const SURFACES: Record<PlanetSurface, string> = {
+  ocean: `${SPHERE_LIGHT}, radial-gradient(ellipse at 32% 58%, var(--highlight) 0 19%, transparent 24%), radial-gradient(ellipse at 72% 30%, var(--highlight) 0 13%, transparent 19%), linear-gradient(var(--c), var(--c))`,
+  banded: `${SPHERE_LIGHT}, repeating-linear-gradient(168deg, var(--c) 0 12%, var(--highlight) 15% 20%, var(--c) 25% 32%)`,
+  rocky: `${SPHERE_LIGHT}, radial-gradient(circle at 65% 60%, #0004 0 12%, transparent 16%), radial-gradient(circle at 32% 38%, var(--highlight) 0 12%, transparent 18%), linear-gradient(var(--c), var(--c))`,
+  ice: `${SPHERE_LIGHT}, linear-gradient(125deg, var(--highlight) 5%, var(--c) 35%, var(--highlight) 43%, var(--c) 56%, var(--highlight) 68%, var(--c) 78%)`,
+};
 
 const ORBIT_TRAILS: Record<Orbit, string> = {
   out: 'var(--cosmos-glow-blue)',
@@ -68,10 +148,22 @@ export function Planetarium() {
             >
               <span className="cosmos-sat" style={{ '--ph': `${planet.phaseS}s` } as CSSProperties}>
                 <span className="cosmos-pl-body">
-                  <i
-                    className="cosmos-pl"
-                    style={{ '--s': `${planet.sizePx}px`, '--c': planet.color } as CSSProperties}
-                  />
+                  <span
+                    className={styles.planetFrame}
+                    style={
+                      {
+                        '--s': `${planet.sizePx}px`,
+                        '--c': planet.color,
+                        '--highlight': planet.highlight,
+                      } as CSSProperties
+                    }
+                  >
+                    <i
+                      className="cosmos-pl"
+                      style={{ backgroundImage: SURFACES[planet.surface] }}
+                    />
+                    {planet.hasRing && <span className={styles.planetRing} />}
+                  </span>
                   <em>{t(planet.labelKey)}</em>
                 </span>
               </span>

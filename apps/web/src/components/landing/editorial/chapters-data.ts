@@ -5,11 +5,10 @@
  * per-chapter expandable catalogs, reusing the translated
  * `landing.features.<key>.{title,description}` copy in all 6 locales.
  *
- * Every description sits in ONE length band (about five to seven lines of
- * the catalog grid) so a row never aligns on a card four times taller than
- * its neighbours: a capability that needs more words is split into two
- * cards, never condensed below what it states. The hint under each chapter
- * derives its count from the catalog — never typed into the copy.
+ * The most distinctive capabilities lead each catalog. Its compact visual
+ * index opens one complete description at a time; the original copy is never
+ * shortened to fit a card. The hint under each chapter derives its count
+ * from the catalog — never typed into the copy.
  *
  * ANTI-REGRESSION CONTRACT: `REQUIRED_FEATURE_KEYS` is the canonical
  * inventory of detailed feature cards. The guard test
@@ -20,6 +19,7 @@
  */
 
 import type { LucideIcon } from 'lucide-react';
+import type { ProductSceneId } from '../demo/scenes';
 import {
   CloudSun,
   Activity,
@@ -86,6 +86,8 @@ export type ChapterId = 'act' | 'know' | 'anticipate' | 'control' | 'grow' | 'co
 
 export interface ChapterConfig {
   id: ChapterId;
+  /** Shared functional illustration from the hero demonstration. */
+  scene: ProductSceneId;
   /** i18n suffix under `landing.chapters.` (c1..c6). */
   key: 'c1' | 'c2' | 'c3' | 'c4' | 'c5' | 'c6';
   /** Anchor id (chapter rail + deep links). */
@@ -105,25 +107,26 @@ export interface ChapterConfig {
 export const CHAPTERS: readonly ChapterConfig[] = [
   {
     id: 'act',
+    scene: 'decision',
     key: 'c1',
     anchor: 'chapter-act',
     num: '01',
     mood: '😏',
     benefits: 4,
     catalog: [
-      'natural_language',
       'multi_agent',
-      'computed_answers',
       'telephony',
-      'telephony_callback',
       'live_voice',
       'meetings',
-      'meeting_templates',
       'browser_control',
-      'smart_home',
-      'image_generation',
       'document_generation',
+      'computed_answers',
+      'telephony_callback',
+      'meeting_templates',
+      'image_generation',
       'excalidraw',
+      'smart_home',
+      'natural_language',
       'rich_responses',
       'chat_sync',
       'email_share',
@@ -133,6 +136,7 @@ export const CHAPTERS: readonly ChapterConfig[] = [
   },
   {
     id: 'know',
+    scene: 'day',
     key: 'c2',
     anchor: 'chapter-know',
     num: '02',
@@ -140,71 +144,75 @@ export const CHAPTERS: readonly ChapterConfig[] = [
     benefits: 3,
     catalog: [
       'memory',
-      'bookmarks',
-      'personal_crm',
-      'briefing',
-      'personal_radio',
-      'personalities',
-      'psyche',
-      'mood_face',
       'journals',
+      'personal_crm',
+      'personal_radio',
+      'psyche',
+      'briefing',
+      'bookmarks',
+      'personalities',
+      'mood_face',
       'self_knowledge',
     ],
     tinted: true,
   },
   {
     id: 'anticipate',
+    scene: 'watch',
     key: 'c3',
     anchor: 'chapter-anticipate',
     num: '03',
     mood: '😏',
     benefits: 3,
     catalog: [
+      'workboard_delegation',
+      'conditional_routines',
       'proactive',
       'proactive_wake',
       'proactive_moments',
-      'interests',
       'habits',
       'habits_lifecycle',
-      'reminders_scheduling',
-      'conditional_routines',
       'workboard',
-      'workboard_delegation',
+      'interests',
+      'reminders_scheduling',
       'health_metrics',
     ],
     tinted: false,
   },
   {
     id: 'control',
+    scene: 'call',
     key: 'c4',
     anchor: 'chapter-control',
     num: '04',
     mood: '🙂',
     benefits: 4,
-    catalog: ['control', 'usage_limits', 'privacy', 'native_apps'],
+    catalog: ['control', 'privacy', 'usage_limits', 'native_apps'],
     tinted: true,
   },
   {
     id: 'grow',
+    scene: 'research',
     key: 'c5',
     anchor: 'chapter-grow',
     num: '05',
     mood: '😏',
     benefits: 3,
     catalog: [
-      'skills',
-      'plugins',
-      'mcp',
-      'mcp_apps',
-      'rag_spaces',
-      'mail_label_spaces',
       'sub_agents',
+      'rag_spaces',
+      'skills',
+      'mail_label_spaces',
+      'mcp_apps',
+      'mcp',
+      'plugins',
       'devops_cli',
     ],
     tinted: false,
   },
   {
     id: 'connect',
+    scene: 'relay',
     key: 'c6',
     anchor: 'chapter-connect',
     num: '06',
@@ -217,13 +225,13 @@ export const CHAPTERS: readonly ChapterConfig[] = [
 
 /** Commodity cards living in the basics band's own catalog. */
 export const BASICS_CATALOG: readonly string[] = [
-  'connected_services',
-  'environment',
   'web_intelligence',
-  'voice_mode',
-  'languages',
+  'connected_services',
   'multichannel',
+  'voice_mode',
+  'environment',
   'attachments',
+  'languages',
   'responsive',
   'simplicity',
   'themes',

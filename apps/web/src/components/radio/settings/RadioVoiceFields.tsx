@@ -6,7 +6,7 @@
  * automatic gets a voice the station picks, alternating genders; a voice the
  * engine no longer holds is read the same way.
  */
-import { Mic } from 'lucide-react';
+import { AudioLines, Mic, MicVocal, Podcast, Radio, type LucideIcon } from 'lucide-react';
 import { useId, useState } from 'react';
 
 import { Disclosure } from '@/components/ui/disclosure';
@@ -29,6 +29,12 @@ import type { RadioFieldsProps } from './fields';
 /** Select values that stand for « no choice » (a real id is a UUID or a provider's id). */
 const CHAT_PERSONALITY = 'chat';
 const AUTOMATIC_VOICE = 'automatic';
+const ROLE_ICONS: Record<RadioRole, LucideIcon> = {
+  host: Radio,
+  anchor: MicVocal,
+  expert: AudioLines,
+  columnist: Podcast,
+};
 
 /**
  * The station's name, saved when the listener leaves the field or presses
@@ -124,10 +130,14 @@ export function RadioVoiceFields({ lng, options, preferences, onChange }: RadioF
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           {options.roles.map(role => {
+            const Icon = ROLE_ICONS[role];
             const id = `radio-voice-${role}`;
             return (
-              <div key={role} className="space-y-3">
-                <Label htmlFor={id}>{t(`radio.roles.${role}`)}</Label>
+              <div key={role} className="space-y-3 rounded-lg border p-4">
+                <Label htmlFor={id} className="flex items-center gap-2">
+                  <Icon className="size-4 shrink-0 text-primary" aria-hidden="true" />
+                  {t(`radio.roles.${role}`)}
+                </Label>
                 <Select
                   value={preferences.voices[role] ?? AUTOMATIC_VOICE}
                   onValueChange={voiceFor(role)}

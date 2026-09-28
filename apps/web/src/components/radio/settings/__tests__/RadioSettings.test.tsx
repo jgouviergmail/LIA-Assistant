@@ -149,7 +149,10 @@ describe('RadioSettings', () => {
     await openSection(user, 'sources');
 
     const health = await screen.findByRole('switch', { name: 'radio.settings.source.health' });
-    expect(screen.getAllByRole('switch', { name: /radio\.settings\.source\./ })).toHaveLength(3);
+    expect(screen.getAllByRole('switch', { name: /radio\.settings\.source\./ })).toHaveLength(4);
+    expect(
+      screen.getByRole('switch', { name: 'radio.settings.source.sent_mails' })
+    ).toBeChecked();
     expect(health).toBeChecked();
 
     await user.click(health);
@@ -302,6 +305,26 @@ describe('RadioSettings', () => {
     expect(await screen.findByText('radio.settings.news.totals')).toBeInTheDocument();
     const [wire] = screen.getAllByRole('checkbox', { name: 'radio.settings.news.with_language' });
     expect(wire).toHaveAccessibleDescription(/radio\.settings\.news\.failing/);
+  });
+
+  it('shows a small site mark without sending the page as a referrer, then falls back', async () => {
+    serve(radioOptions(), radioPreferences());
+    const { user, container } = renderWithProviders(<RadioSettings lng="en" />);
+
+    await openSection(user, 'news');
+
+    const mark = await waitFor(() => {
+      const image = container.querySelector<HTMLImageElement>('img[src="https://feeds.example/favicon.ico"]');
+      expect(image).not.toBeNull();
+      return image!;
+    });
+    expect(mark).toHaveAttribute('referrerpolicy', 'no-referrer');
+    expect(mark).toHaveAttribute('alt', '');
+    fireEvent.error(mark);
+    expect(container.querySelector('img[src="https://feeds.example/favicon.ico"]')).toBeNull();
+    expect(
+      screen.getAllByRole('checkbox', { name: 'radio.settings.news.with_language' })[0]
+    ).toBeVisible();
   });
 
   it('forgets what the listener heard only once they confirm it', async () => {

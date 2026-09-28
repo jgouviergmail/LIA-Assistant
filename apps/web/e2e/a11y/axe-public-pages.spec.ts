@@ -16,7 +16,7 @@
  * proves no backend dependency beyond the expected /auth/me 401 probe.
  */
 import { test, expect } from '../fixtures';
-import { unfoldCatalogs } from '../smoke/landing-catalogs';
+import { unfoldCatalogs, unfoldLandingDetails } from '../smoke/landing-catalogs';
 import { scanPage } from './scan';
 
 const THEMES = ['light', 'dark'] as const;
@@ -55,6 +55,10 @@ for (const theme of THEMES) {
       // The catalogs are folded on arrival: unfold them, or the feature cards
       // (the bulk of the page's text) would never be scanned.
       expect(await unfoldCatalogs(page), 'the landing must hold its catalogs').toBeGreaterThan(0);
+      expect(
+        await unfoldLandingDetails(page),
+        'the landing must expose its optional explanations'
+      ).toBeGreaterThan(0);
 
       const { blocking, summary } = await scanPage(page, testInfo, `/landing-${theme}`);
       expect(blocking, `axe violations on / (${theme}):\n${summary}`).toHaveLength(0);
@@ -99,9 +103,7 @@ for (const theme of THEMES) {
       expect(blocking, `axe violations on /faq (${theme}):\n${summary}`).toHaveLength(0);
     });
 
-    test(`changelog page scans clean with releases open (${theme})`, async ({
-      page,
-    }, testInfo) => {
+    test(`changelog page scans clean with releases open (${theme})`, async ({ page }, testInfo) => {
       await page.goto('/changelog');
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 
@@ -121,8 +123,11 @@ for (const theme of THEMES) {
       expect(opened, 'the changelog page must render its releases').toBeGreaterThan(10);
 
       const { blocking, summary } = await scanPage(page, testInfo, `/changelog-${theme}`);
-      expect(blocking, `axe violations on /changelog (${theme}):
-${summary}`).toHaveLength(0);
+      expect(
+        blocking,
+        `axe violations on /changelog (${theme}):
+${summary}`
+      ).toHaveLength(0);
     });
 
     test(`maps pages scan clean, a brick detail open (${theme})`, async ({ page }, testInfo) => {
@@ -130,8 +135,11 @@ ${summary}`).toHaveLength(0);
         await page.goto(path);
         await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
         const { blocking, summary } = await scanPage(page, testInfo, `${path}-${theme}`);
-        expect(blocking, `axe violations on ${path} (${theme}):
-${summary}`).toHaveLength(0);
+        expect(
+          blocking,
+          `axe violations on ${path} (${theme}):
+${summary}`
+        ).toHaveLength(0);
       }
       // The functional map, with a brick's detail open (a portaled dialog that
       // carries the section's own scope, tones included).

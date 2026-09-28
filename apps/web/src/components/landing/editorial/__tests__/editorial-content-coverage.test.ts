@@ -75,9 +75,7 @@ describe('editorial i18n contract', () => {
   /** Keys referenced by the editorial components (suffixes under landing.). */
   const REFERENCED: string[] = [
     'chapters.eyebrow',
-    'chapters.backstage_label',
     'chapters.catalog_label',
-    'chapters.how_prefix',
     ...CHAPTERS.flatMap(c => {
       const base = `chapters.${c.key}`;
       const benefits = Array.from({ length: c.benefits }, (_, i) => [
@@ -85,44 +83,25 @@ describe('editorial i18n contract', () => {
         `${base}.b${i + 1}_d`,
       ]).flat();
       return [
-        `${base}.bubble`,
         `${base}.title`,
         `${base}.sub`,
         `${base}.how`,
+        `${base}.mechanism`,
         `${base}.catalog_hint`,
         ...benefits,
       ];
     }),
-    // vignette / scene strings
     ...[
-      'v_query',
-      'v_t1',
-      'v_t1_sub',
-      'v_t2',
-      'v_t2_sub',
-      'v_t3',
-      'v_t3_sub',
-      'v_series',
-      'v_series_sub',
-    ].map(s => `chapters.c1.${s}`),
-    ...[
-      's_chip',
-      's_greet',
-      's_weather',
-      's_weather_b1',
-      's_weather_b2',
-      's_day',
-      's_day_b1',
-      's_day_b2',
-      's_day_b3',
-    ].map(s => `chapters.c2.${s}`),
-    ...['v_intro', 'v_left', 'v_left_sub', 'v_right', 'v_right_sub', 'v_note'].map(
-      s => `chapters.c3.${s}`
+      'mechanism_label',
+      'technical_label',
+      'examples_title',
+      'examples_sub',
+      'chapter_scene',
+    ].map(key => `editorial.${key}`),
+    ...['title', 'sub', 'details'].map(key => `engineering.${key}`),
+    ...['context', 'plan', 'verify', 'control'].flatMap(step =>
+      ['title', 'body', 'gain'].map(part => `engineering.${step}_${part}`)
     ),
-    ...['s_chip', 's_hitl', 's_subject', 's_quote', 's_user', 's_reply'].map(
-      s => `chapters.c4.${s}`
-    ),
-    ...['v_forge', 'v_forge_sub', 'v_docs'].map(s => `chapters.c5.${s}`),
     'basics.title',
     'basics.sub',
     'basics.detail_label',

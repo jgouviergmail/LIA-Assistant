@@ -51,7 +51,7 @@ export function CosmosFinale({ lng }: { lng: string }) {
         <p className="text-sm text-muted-foreground mt-6">{t('landing.cta.note_beta')}</p>
         <Link
           href={whyHref}
-          className="inline-flex items-center gap-1 text-sm text-muted-foreground/80 hover:text-foreground transition-colors mt-3"
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mt-3"
         >
           {t('landing.cta.philosophy_link')} →
         </Link>

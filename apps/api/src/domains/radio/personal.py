@@ -69,6 +69,7 @@ class PersonalSource(StrEnum):
     TICKETS = "tickets"
     BIRTHDAYS = "birthdays"
     MAILS = "mails"
+    SENT_MAILS = "sent_mails"
     #: What LIA did for the listener today — the effect register (decision 41, lot 4b).
     ACTIONS = "actions"
     WEATHER = "weather"
@@ -126,6 +127,7 @@ MAX_PER_SOURCE: Final[dict[PersonalSource, int]] = {
     PersonalSource.TICKETS: 5,
     PersonalSource.BIRTHDAYS: 3,
     PersonalSource.MAILS: 5,
+    PersonalSource.SENT_MAILS: 5,
     PersonalSource.ACTIONS: 4,
     PersonalSource.WEATHER: 1,
     PersonalSource.HEALTH: 2,

@@ -136,7 +136,7 @@ async def read_sent_mail(user_id: UUID, *, now: datetime, tz: tzinfo) -> list[Pe
         )
     hits = result.get("messages") or []
     lines = [line for hit in hits if isinstance(hit, dict) and (line := sent_mail_line(hit))]
-    return sent_mail_drafts(lines, now=now, tz=tz)[: MAX_PER_SOURCE[PersonalSource.MAILS]]
+    return sent_mail_drafts(lines, now=now, tz=tz)[: MAX_PER_SOURCE[PersonalSource.SENT_MAILS]]
 
 
 __all__ = ["SentMail", "read_sent_mail", "sent_mail_drafts", "sent_mail_line"]

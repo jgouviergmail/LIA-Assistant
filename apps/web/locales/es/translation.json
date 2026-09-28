@@ -11205,11 +11205,11 @@
     "tech": {
       "title": "Bajo el capó",
       "subtitle": "Una arquitectura pensada para el rendimiento y la escalabilidad",
-      "intro": "No es un chatbot: es un sistema de orquestación. Cada petición atraviesa un enrutado semántico, un planificador y agentes ejecutados en paralelo — instrumentado de extremo a extremo, del token al euro, con alertas por correo sobre las señales vitales.\n\nDetrás de la interfaz: aprendizaje bayesiano de planes, memoria semántica de doble vector, búsqueda híbrida BM25 + embeddings sobre tus documentos, una máquina de estados LangGraph con checkpoints en PostgreSQL. Todo autoalojable — hasta en una Raspberry Pi.\n\nLo que afirma, lo ha leído: cada respuesta se ancla en los datos realmente obtenidos —nunca en el recuerdo de una formulación anterior— y una información que nunca se obtuvo se anuncia como tal en vez de rellenarse.\n\nLo que se ejecuta está aislado de lo que lo ejecuta: el código de una skill corre en un contenedor creado para una sola llamada — sin socket, sin red, de solo lectura — y si ese sandbox no puede construirse, no se ejecuta nada.",
+      "intro": "LIA conecta el enrutamiento semántico con las herramientas y las fuentes útiles para tu petición. Para las tareas que hay que ejecutar, Pipeline prepara y verifica un plan; ReAct avanza mediante búsquedas y ajustes. Tú eliges el modo. El recorrido está instrumentado de extremo a extremo, del token al euro, con alertas por correo sobre las señales vitales.\n\nDetrás de la interfaz: aprendizaje bayesiano de planes, memoria semántica de doble vector, búsqueda híbrida BM25 + embeddings sobre tus documentos, una máquina de estados LangGraph con checkpoints en PostgreSQL. Todo autoalojable — hasta en una Raspberry Pi.\n\nLo que afirma, lo ha leído: cada respuesta se ancla en los datos realmente obtenidos —nunca en el recuerdo de una formulación anterior— y una información que nunca se obtuvo se anuncia como tal en vez de rellenarse.\n\nLo que se ejecuta está aislado de lo que lo ejecuta: el código de una skill corre en un contenedor creado para una sola llamada — sin socket, sin red, de solo lectura — y si ese sandbox no puede construirse, no se ejecuta nada.",
       "deep_dive_link": "Inmersión técnica completa",
       "langgraph": {
         "title": "Dos maneras de llevar a cabo una petición",
-        "description": "Una petición sencilla sigue un plan: LIA escribe los pasos, ejecuta juntos los que son independientes y se detiene donde tú confirmas. Una petición abierta pasa a un bucle autónomo, juzgado por su resultado: comprueba que cada respuesta de herramienta responde a la pregunta, cambia de fuente ante un obstáculo y dice lo que no pudo obtener con lo que intentó. Eliges el modo en la cabecera del chat: el modo planificado consume varias veces menos tokens, el autónomo explora más, al ritmo que eliges: frecuente para aprovechar la caché, puntual para un coste estable. Un turno termina cuando sale su respuesta: LIA nunca anuncia un trabajo que no hará."
+        "description": "Tú eliges el modo en la cabecera del chat. Para una petición estructurada, Pipeline prepara un plan, comprueba su coherencia y ejecuta los pasos independientes en paralelo: rapidez, control y un recorrido previsible. Para una pregunta abierta, ReAct explora, lee los resultados y adapta el siguiente paso. Para reforzar la fiabilidad, comprueba que los resultados respondan a la pregunta, puede cambiar de fuente ante un obstáculo e indica lo que sigue faltando junto con los intentos realizados. En ambos modos, las confirmaciones dependen de las acciones previstas. En ReAct, tu ritmo de intercambio puede favorecer la caché para conversaciones frecuentes o la selección de herramientas para consultas puntuales. El turno termina con el resultado y sus límites, sin anunciar trabajo que no se vaya a ejecutar."
       },
       "llm_providers": {
         "title": "Siete proveedores de modelos, a elegir",
@@ -11241,7 +11241,7 @@
       },
       "hitl": {
         "title": "Human-in-the-Loop",
-        "description": "Seis niveles de aprobación — aprobación de plan, clarificación, crítica de borrador, confirmación destructiva, FOR_EACH confirm, revisión de modificación. Salvaguardas a nivel de plan antes de la ejecución en lugar de rollback tras un fallo. Clasificación automática de riesgos y vista previa de los elementos afectados. El tipo de acción anunciado al clasificador se deriva del verbo del nombre de la herramienta, nunca de una coincidencia de subcadena: un borrado se anuncia siempre como un borrado, y la regla de prudencia del prompt sobre los borrados se aplica siempre."
+        "description": "Las confirmaciones se realizan a nivel de herramienta, según la acción prevista. Se pueden aclarar ambigüedades, revisar borradores antes de aprobarlos y agrupar operaciones para su aprobación dentro de un alcance definido. Las propuestas y los resultados siguen siendo distintos y trazables."
       },
       "honest_enrichment": {
         "title": "Enriquecimientos honestos",
@@ -11273,8 +11273,8 @@
       }
     },
     "architecture": {
-      "title": "Dos modos de ejecución",
-      "subtitle": "Pipeline para eficiencia, ReAct para autonomía — tú eliges",
+      "title": "Dos caminos hacia el resultado",
+      "subtitle": "Un camino directo para peticiones estructuradas y una exploración adaptable para preguntas abiertas. Tú eliges el modo en el chat.",
       "nodes": {
         "query": "Petición",
         "router": "Enrutador",
@@ -11292,14 +11292,42 @@
       "diagram_title": "Arquitectura completa del sistema",
       "diagram_zoom": "Clic para ampliar el diagrama",
       "diagram_alt": "Diagrama de arquitectura completa de LIA — orquestación multi-agente, observabilidad y seguridad",
-      "pipeline_label": "Modo Pipeline (por defecto)",
-      "pipeline_badge": "4–8× menos tokens",
-      "react_label": "Modo ReAct",
-      "react_badge": "Autonomía máxima",
-      "pipeline_desc": "Un plan optimizado, validado y ejecutado en paralelo — predecible y económico.",
-      "react_desc": "El LLM elige su próxima herramienta en cada paso hasta llegar al resultado — y lo que aún falta tiene una pasada acotada antes de decirse.",
+      "pipeline_label": "Pipeline",
+      "pipeline_badge": "Rapidez y control",
+      "react_label": "ReAct",
+      "react_badge": "Exploración y adaptación",
+      "pipeline_desc": "El modo predeterminado organiza el trabajo antes de ejecutarlo. Un camino claro, con pasos coordinados.",
+      "react_desc": "Cuando el siguiente paso depende de lo que se descubre, LIA lo elige a partir de los resultados obtenidos.",
       "or_label": "o",
-      "response_hint": "Streaming token a token"
+      "response_hint": "Streaming token a token",
+      "example_label": "Útil, por ejemplo, para",
+      "pipeline_example": "Encontrar una factura, preparar una respuesta y crear un recordatorio.",
+      "react_example": "Comparar soluciones, contrastar fuentes y aclarar una discrepancia.",
+      "shared_title": "En ambos modos, motivos para confiar en el trabajo",
+      "shared_control_title": "Tú mantienes el control",
+      "shared_control_body": "Las acciones que necesitan tu confirmación la solicitan antes de ejecutarse.",
+      "shared_trace_title": "El trabajo deja rastro",
+      "shared_trace_body": "Las consultas y las acciones tienen registros separados.",
+      "shared_result_title": "El resultado cuenta",
+      "shared_result_body": "La respuesta se basa en lo obtenido e indica lo que queda por aclarar.",
+      "flow": {
+        "pipeline": {
+          "plan_title": "Planificar",
+          "plan_body": "Tu petición se convierte en un plan de pasos y dependencias.",
+          "validate_title": "Verificar el plan",
+          "validate_body": "LIA comprueba la coherencia de los pasos y las herramientas previstos.",
+          "execute_title": "Ejecutar en el orden adecuado",
+          "execute_body": "Los pasos independientes avanzan en paralelo. Los demás esperan los resultados necesarios."
+        },
+        "react": {
+          "explore_title": "Explorar",
+          "explore_body": "LIA elige una primera búsqueda o acción según tu petición.",
+          "observe_title": "Observar",
+          "observe_body": "Lee los resultados antes de decidir cómo continuar.",
+          "adapt_title": "Adaptar el siguiente paso",
+          "adapt_body": "Ajusta la búsqueda y puede retomar un punto pendiente dentro de un presupuesto limitado."
+        }
+      }
     },
     "screenshots": {
       "items": {
@@ -11324,7 +11352,7 @@
     "cta": {
       "bubble": "Tu agenda y yo ya tenemos cosas de que hablar.",
       "title": "LIA está lista. Y algo impaciente.",
-      "subtitle": "Un asistente que actúa, que te conoce, que anticipa — y que siempre pregunta antes.",
+      "subtitle": "Un asistente que actúa, te conoce y anticipa — contigo al mando de sus acciones.",
       "button": "Crear mi cuenta",
       "note_beta": "Beta gratuita, en producción 24/7.",
       "philosophy_link": "O descubre antes nuestra filosofía"
@@ -11373,15 +11401,15 @@
       "catalog_label": "Todo lo que LIA sabe hacer aquí",
       "how_prefix": "Bajo el capó:",
       "c1": {
-        "bubble": "«Avisa a mi mujer y aplaza mi cita» — es una frase, no dos aplicaciones.",
+        "bubble": "El presupuesto ha cambiado. El correo explica por qué. El acta recoge lo que se acordó.",
         "title": "LIA lo hace. De verdad.",
-        "sub": "Ni sugerencias ni borradores para copiar: acciones llevadas hasta el final, en tu vida real.",
-        "b1_t": "Una frase, varios especialistas.",
-        "b1_d": "Contactos, agenda y correo trabajan en paralelo — nunca necesitas saber cuáles.",
+        "sub": "Dile el objetivo: encuentra las piezas, las relaciona y hace avanzar los pasos necesarios.",
+        "b1_t": "Todo el caso en un mismo razonamiento.",
+        "b1_d": "Correos, documentos y decisiones de reunión se conectan para preparar un resultado que puedas utilizar.",
         "b2_t": "Descuelga tu teléfono. De verdad.",
         "b2_d": "Reservar, preguntar, comprobar: apruebas a quién y para qué, ella llama, tú recibes el resumen escrito.",
-        "b3_t": "Del salón a la web.",
-        "b3_d": "«Atenúa el salón», «rellena este formulario»: luces, webs, navegación — se encarga.",
+        "b3_t": "Trabajo que puedes delegar.",
+        "b3_d": "Asigna una misión en el Workboard: su contexto, su progreso y la conversación se mantienen juntos.",
         "b4_t": "La serie, no la faena.",
         "b4_d": "«Un recordatorio la víspera de cada cita»: itera sobre toda la semana, con una sola petición.",
         "how": "20+ agentes orquestados en paralelo · sesiones de voz live con tu propia clave de Gemini, OpenAI o ElevenLabs · telefonía agéntica con tu conector ElevenLabs · control del navegador · Philips Hue · imágenes y diagramas bajo demanda.",
@@ -11394,16 +11422,17 @@
         "v_t3": "⏰ Recordatorios",
         "v_t3_sub": "creando…",
         "v_series": "4 recordatorios creados",
-        "v_series_sub": "la víspera, 19:00 — una petición"
+        "v_series_sub": "la víspera, 19:00 — una petición",
+        "mechanism": "LIA elige las fuentes relevantes para tu petición, realiza a la vez las búsquedas independientes y conecta los pasajes y los datos útiles encontrados. Recibes una respuesta apoyada en esas fuentes, con los puntos que aún quedan por comprobar."
       },
       "c2": {
-        "bubble": "Buenos días. Tu agenda está llena y tu café se enfría. Del resto me ocupo yo.",
+        "bubble": "Tu cita, la promesa que debes cumplir, el correo que has enviado: todo forma parte del mismo día.",
         "title": "LIA te conoce.",
-        "sub": "Un asistente que lo olvida todo entre dos frases no asiste a nadie.",
-        "b1_t": "Dilo una vez. Nunca dos.",
-        "b1_d": "«Mi mujer», «mi restaurante de los viernes», «nada de reuniones los miércoles»: dicho una vez, recordado para siempre.",
-        "b2_t": "Tu día llega con el café.",
-        "b2_d": "Cada mañana: síntesis, tiempo, agenda, cumpleaños, correos clasificados — antes de que preguntes.",
+        "sub": "Tus preferencias y proyectos dan sentido a lo que encuentra. Puedes corregir lo que recuerda.",
+        "b1_t": "Menos contexto que repetir.",
+        "b1_d": "Las personas, preferencias y hechos recordados ayudan a responder a futuras peticiones cuando son relevantes.",
+        "b2_t": "Tu día, para leerlo o escucharlo.",
+        "b2_d": "El briefing reúne lo esencial. La radio crea sus programas con tu día, tus fuentes y tus intereses.",
         "b3_t": "Tiene sus humores. Y los ves.",
         "b3_d": "Su cara cambia con la conversación y sigue viva entre dos respuestas; su humor asoma cuando el tono es ligero. Del Profesor al Cínico: 14 personalidades.",
         "how": "memoria semántica de doble vector · diarios introspectivos · briefing diario · Psyche Engine (14 humores, 22 emociones).",
@@ -11416,18 +11445,19 @@
         "s_day": "Tu día",
         "s_day_b1": "9:00 Sync de equipo",
         "s_day_b2": "11:30 Cliente",
-        "s_day_b3": "18:30 Deporte"
+        "s_day_b3": "18:30 Deporte",
+        "mechanism": "La memoria ayuda a interpretar tu petición; las fuentes conectadas aportan lo que ocurre ahora. El briefing y la radio reúnen estos elementos según tus ajustes, sin consultar las fuentes que has desactivado."
       },
       "c3": {
-        "bubble": "Lluvia a las 7. Carrera a las 7:30. ¿Ves el problema? Yo sí — y tengo la solución.",
+        "bubble": "Esperabas una respuesta. Ya ha llegado. Esto es lo que cambia para tu proyecto.",
         "title": "LIA lo nota antes que tú.",
-        "sub": "La diferencia entre responder y asistir es no esperar a la pregunta.",
-        "b1_t": "Cruza lo que tú no cruzas.",
-        "b1_d": "Lluvia prevista × salida planificada, correo recibido × conflicto de agenda: une los puntos y propone la acción.",
+        "sub": "Una respuesta pendiente bajo seguimiento, el contexto conectado, una propuesta útil en el momento adecuado.",
+        "b1_t": "Un seguimiento con un objetivo.",
+        "b1_d": "Define en los ajustes la condición y el trabajo de una rutina: LIA comprueba la regla y activa la acción prevista cuando se cumple la condición.",
         "b2_t": "Vigila tus temas.",
         "b2_d": "Tech, deporte, finanzas, salud: sigue lo que te apasiona y te acerca lo esencial, en el momento justo.",
-        "b3_t": "Recuerda por ti.",
-        "b3_d": "«Recuérdamelo mañana a las 9» — y rutinas enteras: resumen de correos del lunes, tiempo por la mañana.",
+        "b3_t": "Las tareas conservan su hilo.",
+        "b3_d": "Las rutinas, los recordatorios y las misiones delegadas siguen bajo seguimiento. Consulta el progreso y retoma el trabajo donde se quedó.",
         "how": "inteligencia proactiva configurable · centros de interés · recordatorios en lenguaje natural · rutinas programadas · datos de salud.",
         "catalog_hint": "{{count}} capacidades en detalle",
         "v_intro": "nadie ha pedido nada —",
@@ -11435,51 +11465,54 @@
         "v_left_sub": "«¿mejor el jueves a las 11?»",
         "v_right": "📅 Agenda",
         "v_right_sub": "Dentista · jueves 11:00",
-        "v_note": "La hora que propone Claire coincide con tu dentista. ¿Respondo proponiendo las 14:00?"
+        "v_note": "La hora que propone Claire coincide con tu dentista. ¿Respondo proponiendo las 14:00?",
+        "mechanism": "Una rutina condicional comprueba la regla que has configurado antes de iniciar el trabajo previsto. La proactividad también puede relacionar una nueva señal con tu contexto: lo útil es mostrarte lo que merece una decisión en el momento adecuado."
       },
       "c4": {
         "bubble": "Yo propongo. Tú dispones. Ese es el contrato.",
-        "title": "Nada sale sin ti.",
-        "sub": "Un asistente que actúa en tu vida solo tiene derecho a una postura: preguntar primero.",
-        "b1_t": "Tu aprobación antes de la acción.",
-        "b1_d": "Enviar, modificar, borrar, llamar: ella muestra, tú validas — en lenguaje natural, sin casillas.",
+        "title": "Autonomía, contigo al mando.",
+        "sub": "Ves lo que se propone, puedes ajustarlo y consultar lo que realmente se ha hecho.",
+        "b1_t": "Tu aprobación para una acción concreta.",
+        "b1_d": "Antes de enviar un mensaje o llamar a otra persona, te muestra el destinatario y el contenido. Ajustas la propuesta antes de confirmar.",
         "b2_t": "Cada respuesta muestra su precio.",
         "b2_d": "Tokens y céntimos, mensaje a mensaje. Presupuestos que fijas tú, contadores que ves tú.",
         "b3_t": "Un botón de stop. De verdad.",
         "b3_d": "Se interrumpe a mitad de frase y el texto parcial se queda.",
         "b4_t": "Tus datos siguen siendo tuyos.",
         "b4_d": "Cifrados, exportables y bajo tu control — con la opción de autoalojar LIA, incluso en una Raspberry Pi.",
-        "how": "6 niveles de aprobación · cuotas aplicadas en 5 capas · cifrado Fernet · arquitectura BFF, ningún token llega al navegador.",
+        "how": "Confirmaciones a nivel de herramienta, borradores editables, registros de acciones y consultas, presupuestos y cifrado.",
         "catalog_hint": "{{count}} capacidades en detalle + seguridad",
         "s_chip": "Primero tu aprobación",
         "s_hitl": "Borrador listo para Sophie. Te lo enseño antes de cualquier envío — nada sale sin tu visto bueno.",
         "s_subject": "Asunto: Retraso esta noche (pero con estilo) 😅",
         "s_quote": "«El tráfico ha decidido poner a prueba nuestro matrimonio…»",
         "s_user": "Solo suaviza el final",
-        "s_reply": "Versión más suave lista. ¿Enviamos esta?"
+        "s_reply": "Versión más suave lista. ¿Enviamos esta?",
+        "mechanism": "La confirmación se refiere a una acción concreta: un destinatario, un mensaje o el objetivo de una llamada. Después se registra el resultado a partir de lo que realmente se ha logrado, para distinguir una propuesta, un intento y una acción completada."
       },
       "c5": {
-        "bubble": "Hace diez segundos me faltaba una habilidad. Ya no.",
+        "bubble": "De fuentes dispersas a una nota para decidir que puedes compartir.",
         "title": "LIA crece contigo.",
-        "sub": "Los demás asistentes tienen una lista de funciones. Ella tiene margen de crecimiento — y lo dibujas tú.",
+        "sub": "Tus conocimientos, investigaciones especializadas y herramientas que puedes ampliar a medida que cambian tus necesidades.",
         "b1_t": "¿Falta una capacidad? Descríbela.",
         "b1_d": "Crea la skill, la instala y la muestra como mini-app en el chat — tarjetas, botones, dashboards.",
-        "b2_t": "Tus documentos se vuelven su conocimiento.",
-        "b2_d": "PDF, Word, carpetas de Drive: importados, indexados, citados en sus respuestas.",
+        "b2_t": "Tus documentos se convierten en un punto de apoyo.",
+        "b2_d": "LIA encuentra los pasajes útiles, los contrasta con otras fuentes y puede crear una comparativa o un documento.",
         "b3_t": "Conéctala a tu mundo.",
         "b3_d": "Servidores MCP, subagentes especializados: el ecosistema es abierto, y el código también.",
         "how": "skills en sandbox con widgets interactivos · espacios de conocimiento (15+ formatos, búsqueda híbrida) · protocolo MCP · open source.",
         "catalog_hint": "{{count}} capacidades en detalle",
         "v_forge": "Skill «Control de gastos» en construcción",
         "v_forge_sub": "código generado · sandbox · instalación",
-        "v_docs": "tus documentos (contrato.pdf, carpeta de Drive…) — indexados, citados en sus respuestas"
+        "v_docs": "tus documentos (contrato.pdf, carpeta de Drive…) — indexados, citados en sus respuestas",
+        "mechanism": "Los espacios de conocimiento encuentran pasajes por su significado y sus palabras. Los especialistas pueden explorar varias pistas en modo de solo lectura; LIA reúne sus resultados para crear el entregable. Los skills y plugins amplían después lo que puede hacer."
       },
       "c6": {
-        "bubble": "¿Se lo paso a Marie? Su asistente se lo dirá con sus propias palabras.",
+        "bubble": "Dos agendas, dos asistentes. Una propuesta que respeta lo que cada persona decide compartir.",
         "title": "LIA te conecta con los tuyos",
-        "sub": "Un servidor compartido: tus allegados tienen su propio asistente — y los asistentes hablan entre sí.",
-        "b1_t": "Mensajes, de asistente a asistente.",
-        "b1_d": "Di « avisa a Marie… »: tú apruebas la redacción, SU asistente la entrega a su manera y confirma.",
+        "sub": "En un mismo servidor, los asistentes de tus seres queridos pueden coordinar lo que cada persona elige compartir.",
+        "b1_t": "Del mensaje a la coordinación.",
+        "b1_d": "Encuentra una hora a partir de las disponibilidades compartidas y aprueba la propuesta que su asistente le transmitirá.",
         "b2_t": "Comparticiones elegidas, de solo lectura.",
         "b2_d": "Por conexión, abre tu disponibilidad o los títulos de tus tareas — nada por defecto, revocable cuando quieras.",
         "b3_t": "Protección por construcción.",
@@ -11491,7 +11524,8 @@
         "s_confirm": "Esto es lo que entregaré a su asistente — ¿lo envío?",
         "s_to": "Mensaje para Marie",
         "s_message": "Esta noche recojo yo a los niños.",
-        "s_delivered": "Entregado — su asistente se lo transmitió y lo confirmó."
+        "s_delivered": "Entregado — su asistente se lo transmitió y lo confirmó.",
+        "mechanism": "Cada conexión define qué puede consultar el otro asistente. LIA puede comparar los horarios compartidos y transmitir una propuesta aprobada, sin acceder al resto de la agenda ni reservar en nombre de la otra persona."
       }
     },
     "basics": {
@@ -11541,43 +11575,43 @@
       "tab_admin": "Administrador",
       "freelance": {
         "s1_time": "07:02",
-        "s1_text": "El briefing llega con el café: tu día, el tiempo, 5 correos clasificados — antes de que pidas nada.",
+        "s1_text": "Antes de la reunión, pides el resumen del cliente: últimos intercambios, presupuesto y decisiones reunidos, con las preguntas aún abiertas.",
         "s2_time": "09:15",
-        "s2_text": "«Responde al cliente y proponle dos horas» — borrador listo, huecos comprobados en la agenda. Lees y dices «envía».",
+        "s2_text": "«Propón dos horarios y deja libre mi miércoles». LIA relaciona tu preferencia recordada con la agenda y prepara un correo que puedes corregir.",
         "s3_time": "14:40",
-        "s3_text": "Un correo menciona una reunión que se solapa con la tuya. Ella lo nota — y propone la solución antes que el problema.",
+        "s3_text": "Tu rutina configurada detecta la respuesta del proveedor. Inicia el seguimiento previsto: comparar la nueva propuesta con los documentos del proyecto y resumirte las diferencias.",
         "s4_time": "19:30",
-        "s4_text": "«Resumen de mañana, y un recordatorio para la factura» — hecho. Ella ya anotó que terminas tarde. Es el personaje."
+        "s4_text": "El ticket que has asignado a LIA contiene su investigación, el resultado y lo que necesita de ti. Retomas el hilo sin volver a contar la historia."
       },
       "family": {
         "s1_time": "07:00",
-        "s1_text": "Cumpleaños, tiempo para el cole, la agenda de todos: el briefing familiar, antes del primer café.",
+        "s1_text": "Pones la radio mientras preparas el desayuno: tu agenda, las promesas pendientes y las noticias que has elegido se reúnen en el diario personal.",
         "s2_time": "12:20",
-        "s2_text": "«Un recordatorio del dentista para cada niño» — itera sobre la lista, tú confirmas una vez.",
+        "s2_text": "«Busca un momento con Marie». En el mismo servidor, LIA compara vuestras disponibilidades compartidas y prepara una propuesta. Tú eliges qué recibe su asistente.",
         "s3_time": "17:45",
-        "s3_text": "«Llama a la pizzería y reserva para el sábado, seis personas» — apruebas, ella llama, el resumen llega por escrito.",
+        "s3_text": "Para el sábado, LIA encuentra tus preferencias y los horarios posibles. Apruebas el objetivo de la llamada al restaurante; vuelve con el resultado y las posibles opciones que debes decidir.",
         "s4_time": "20:30",
-        "s4_text": "«Atenúa el salón, modo cine.» Las luces obedecen. Cada miembro habla su idioma; ella sigue el ritmo."
+        "s4_text": "«¿Qué habíamos decidido para las vacaciones?». LIA relaciona tus notas importadas con los intercambios disponibles y enumera las decisiones pendientes."
       },
       "dev": {
         "s1_time": "08:30",
-        "s1_text": "El briefing matinal + tu radar: los temas tech que sigues, resumidos, sin doomscrolling.",
+        "s1_text": "«Prepara el estado del proyecto». LIA relaciona las especificaciones de tu espacio de conocimiento con la última acta: decisiones tomadas, preguntas abiertas y pistas que explorar.",
         "s2_time": "10:05",
-        "s2_text": "«Hazme un widget para seguir mis PR» — la skill se crea, se instala y se muestra en el chat.",
+        "s2_text": "Delegas una comparación técnica a especialistas con acceso de solo lectura. Su investigación vuelve en una síntesis con fuentes y límites que puedes discutir.",
         "s3_time": "15:00",
-        "s3_text": "Tus specs y documentos están indexados: responde citando la página correcta del documento correcto.",
+        "s3_text": "A partir de los datos encontrados, pides una nota de arquitectura y una tabla comparativa. Los archivos aparecen en el chat, listos para revisar y compartir.",
         "s4_time": "22:10",
-        "s4_text": "Tu servidor MCP casero se conecta en minutos — el ecosistema es abierto, y el código también."
+        "s4_text": "Una necesidad se repite: describes un skill para tu trabajo. LIA lo crea; cuando pides ajustarlo, muestra los cambios propuestos antes de sustituir el paquete."
       },
       "admin": {
         "s1_time": "08:00",
-        "s1_text": "El briefing de operación: consumos de ayer, costes al céntimo, señales inusuales.",
+        "s1_text": "Abres el consumo y los registros: dónde va el presupuesto, qué acciones se ejecutaron y qué capacidades se consultaron. Examinas la actividad a partir de hechos.",
         "s2_time": "11:00",
-        "s2_text": "«¿Por qué se reinició el contenedor de la API?» — el diagnóstico en lenguaje natural, con logs.",
+        "s2_text": "«¿Por qué se ha reiniciado?». Con acceso DevOps autorizado, LIA consulta las pruebas disponibles, distingue observaciones de hipótesis y explica qué falta todavía para el diagnóstico.",
         "s3_time": "16:30",
-        "s3_text": "Un usuario se pasa de presupuesto: bloqueo en un clic, desbloqueo igual. Cinco capas de enforcement vigilan.",
+        "s3_text": "A partir del consumo observado, ajustas los presupuestos en administración. Los límites se aplican a las llamadas correspondientes; un rechazo indica cuándo volverá a estar disponible el recurso.",
         "s4_time": "18:00",
-        "s4_text": "Export CSV de consumos, cuotas ajustadas — transparencia hasta en la factura."
+        "s4_text": "Con tu exportación de consumo y tus notas de operación, pides una síntesis de las diferencias. LIA prepara una nota y señala la información que falta."
       }
     },
     "gallery": {
@@ -11619,6 +11653,192 @@
       "title": "El producto avanza, y lo cuenta",
       "subtitle": "Cada versión se cuenta en palabras claras: lo que cambia para ti, no lo que cambia en el código. Estas son las últimas; todo el historial está a un clic.",
       "all": "Ver todo el historial"
+    },
+    "product_demo": {
+      "meta_description": "Seis situaciones para ver cómo LIA conecta tu contexto, prepara decisiones, compone tu radio y actúa tras tu confirmación.",
+      "choose_scene": "Elegir una situación",
+      "steps": "Pasos de la demostración",
+      "steps_request": "Tu petición",
+      "steps_context": "El contexto",
+      "steps_result": "El resultado",
+      "play": "Reproducir la demostración",
+      "pause": "Pausar la demostración",
+      "replay": "Repetir la demostración",
+      "difference": "Qué marca la diferencia",
+      "example": "Ilustración",
+      "context": "LIA reúne el contexto útil",
+      "illustrative": "Escenario ilustrativo · personas, datos y resultados ficticios.",
+      "sources": {
+        "space": "Tus documentos",
+        "mail": "Tus correos",
+        "meeting": "Tu reunión",
+        "calendar": "Tu calendario",
+        "commitment": "Tus compromisos",
+        "news": "La actualidad",
+        "routine": "Tu rutina",
+        "project": "Tu proyecto",
+        "preferences": "Tus preferencias",
+        "approval": "Tu aprobación",
+        "web": "La web",
+        "comparison": "Las búsquedas",
+        "peer": "LIA conectada",
+        "scope": "Acceso aceptado"
+      },
+      "scenes": {
+        "decision": {
+          "title": "Decidir",
+          "summary": "Preparar una decisión reuniendo documentos, conversaciones y acuerdos anteriores.",
+          "request": "Prepara mi reunión con Claire: compara los presupuestos del proyecto con los últimos correos y nuestras decisiones.",
+          "source_1": "Dos presupuestos",
+          "source_2": "Último intercambio",
+          "source_3": "Acuerdos tomados",
+          "result_title": "Dos puntos por decidir",
+          "result_1": "Plazo: 3 o 5 semanas",
+          "result_2": "Soporte: por aclarar",
+          "result_3": "Un resumen con fuentes y un borrador para Claire, listos para revisar.",
+          "evidence_1": "Presupuestos · Proyecto",
+          "evidence_2": "Correo · acta",
+          "guardrail": "El borrador requiere tu confirmación antes de enviarse.",
+          "difference": "No tienes que copiar todo el expediente en el chat. LIA encuentra la información accesible, la relaciona y señala de dónde vienen sus conclusiones. Decides con las fuentes a la vista."
+        },
+        "day": {
+          "title": "Escuchar",
+          "summary": "Una radio que conecta tu día, tus compromisos y las noticias que te interesan.",
+          "request": "Desde mi panel, pongo mi radio: primero mi día, después las noticias del mundo.",
+          "source_1": "Reunión a las 10",
+          "source_2": "Respuesta pendiente",
+          "source_3": "Tus temas",
+          "result_title": "Tu programa toma forma",
+          "result_1": "Primero: tu reunión y qué preparar",
+          "result_2": "Después: el seguimiento que prometiste a Claire",
+          "result_3": "Luego: noticias de las fuentes que elegiste",
+          "evidence_1": "",
+          "evidence_2": "",
+          "guardrail": "Tú eliges qué fuentes personales puede leer la radio.",
+          "difference": "LIA compone el programa con tus fuentes autorizadas y la actualidad. Tu día y el mundo se unen en un hilo que puedes escuchar sin abrir cada aplicación."
+        },
+        "watch": {
+          "title": "Anticipar",
+          "summary": "Una rutina condicional destaca la información adecuada en el momento oportuno.",
+          "request": "Rutina ya configurada: avisarme cuando Claire responda sobre el presupuesto.",
+          "source_1": "Condición activa",
+          "source_2": "Respuesta recibida",
+          "source_3": "Presupuesto pendiente",
+          "result_title": "Ha llegado la respuesta esperada",
+          "result_1": "Condición cumplida: Claire ha respondido",
+          "result_2": "«El plazo propuesto está aceptado. Falta aclarar el soporte».",
+          "result_3": "El resumen mantiene el vínculo con el presupuesto y el intercambio original.",
+          "evidence_1": "",
+          "evidence_2": "",
+          "guardrail": "La condición y su frecuencia se configuran en los ajustes.",
+          "difference": "LIA no se limita a reenviar una alerta. La rutina comprueba su condición y sitúa la novedad en su contexto. Retomas el proyecto donde lo dejaste."
+        },
+        "call": {
+          "title": "Delegar",
+          "summary": "Una llamada preparada con tus condiciones, aprobada por ti y resumida al terminar.",
+          "request": "Reserva para dos el jueves por la noche, después de mi última cita. Terraza si es posible.",
+          "source_1": "Libre desde las 19 h",
+          "source_2": "Dos · terraza",
+          "source_3": "Antes de llamar",
+          "result_title": "De la revisión a la reserva",
+          "result_1": "Jueves · 20 h",
+          "result_2": "2 personas",
+          "result_3": "Tras tu aprobación, LIA llama. Ejemplo de resultado: reserva confirmada, terraza según disponibilidad.",
+          "evidence_1": "",
+          "evidence_2": "",
+          "guardrail": "La llamada requiere confirmación y telefonía configurada.",
+          "difference": "LIA usa la disponibilidad y las condiciones a las que le has dado acceso. Revisas el resumen antes de la llamada y después encuentras el resultado en la conversación."
+        },
+        "research": {
+          "title": "Profundizar",
+          "summary": "Búsquedas paralelas y tu proyecto reunidos en una comparación útil.",
+          "request": "Compara soluciones para nuestro proyecto: verifica fuentes públicas y nuestros requisitos y prepara un documento.",
+          "source_1": "Fuentes públicas",
+          "source_2": "Requisitos",
+          "source_3": "Lecturas paralelas",
+          "result_title": "Una comparación para compartir",
+          "result_1": "Opción A · instalación sencilla",
+          "result_2": "Opción B · más control",
+          "result_3": "Un documento reúne diferencias, fuentes y puntos pendientes de verificar.",
+          "evidence_1": "Fuentes consultadas",
+          "evidence_2": "Requisitos del proyecto",
+          "guardrail": "Las búsquedas delegadas son de solo lectura.",
+          "difference": "Varias búsquedas pueden avanzar en paralelo. LIA relaciona sus resultados con el proyecto, conserva las fuentes y prepara una síntesis que puedes utilizar y compartir."
+        },
+        "relay": {
+          "title": "Coordinar",
+          "summary": "Dos LIA conectadas comparan disponibilidad dentro del acceso aceptado.",
+          "request": "Busca un hueco con Sam para nuestro proyecto. Propónmelo antes de enviar la invitación.",
+          "source_1": "Tu LIA ↔ LIA de Sam",
+          "source_2": "Horarios autorizados",
+          "source_3": "Tu calendario",
+          "result_title": "Una propuesta común",
+          "result_1": "Tú · martes 14 h",
+          "result_2": "Sam · disponible",
+          "result_3": "Se propone un horario común. Tú confirmas antes de enviar la invitación.",
+          "evidence_1": "",
+          "evidence_2": "",
+          "guardrail": "Solo se usan los accesos aceptados, nunca todos los datos de Sam.",
+          "difference": "Las dos LIA trabajan en un ámbito aceptado explícitamente. Pueden comparar disponibilidad autorizada sin abrir buzones de correo ni compartir todos los documentos de cada persona."
+        }
+      }
+    },
+    "catalog_explorer": {
+      "browse": "Explora las capacidades",
+      "hint": "Elige un tema para descubrir qué te aporta.",
+      "previous": "Capacidad anterior",
+      "next": "Capacidad siguiente",
+      "position": "{{current}} de {{total}}",
+      "scenes": {
+        "plan": "Una petición, varias acciones coordinadas",
+        "call": "De la llamada al resumen escrito",
+        "voice": "Una conversación en voz alta",
+        "document": "Un documento para leer, usar y compartir",
+        "browser": "Un recorrido visible, paso a paso",
+        "calculation": "Cifras que puedes comprobar",
+        "image": "Tu idea toma forma",
+        "diagram": "Las ideas se convierten en un esquema",
+        "home": "El ambiente adecuado, cuando lo pides",
+        "memory": "Tu contexto sigue a mano",
+        "radio": "Tu día, en antena",
+        "briefing": "Lo esencial de un vistazo",
+        "automation": "De la señal adecuada al siguiente paso",
+        "board": "Un trabajo acompañado hasta su resultado",
+        "knowledge": "Respuestas conectadas con tus fuentes",
+        "control": "Una decisión que sigue siendo tuya",
+        "people": "El vínculo continúa entre asistentes",
+        "tools": "Posibilidades que puedes combinar",
+        "devices": "El mismo hilo, en tus pantallas",
+        "weather": "Prepara tu próxima salida",
+        "health": "Tus medidas, con sus referencias"
+      }
+    },
+    "editorial": {
+      "mechanism_label": "Qué lo hace posible",
+      "technical_label": "Para saber más",
+      "examples_title": "Empieza con una idea. Descubre hasta dónde puede llegar.",
+      "examples_sub": "Una decisión que preparar, una respuesta que esperar, una llamada que delegar: explora situaciones en las que LIA conecta el contexto y hace avanzar el trabajo.",
+      "examples_label": "Elegir una situación",
+      "illustration": "Escenario ilustrativo",
+      "results_label": "Qué obtienes",
+      "chapter_scene": "Ver esta situación en detalle"
+    },
+    "engineering": {
+      "title": "La fluidez se construye.",
+      "sub": "Encontrar el contexto adecuado, organizar el trabajo, comprobar el resultado: cada decisión de diseño debe facilitarte la vida.",
+      "details": "Explorar las decisiones de ingeniería",
+      "context_title": "Conectar el contexto",
+      "context_body": "Los pasajes útiles de tus documentos se unen a tus conversaciones y a los hechos recordados.",
+      "context_gain": "Menos que volver a explicar.",
+      "plan_title": "Organizar el trabajo",
+      "plan_body": "LIA reparte las búsquedas y conecta los pasos que dependen unos de otros.",
+      "plan_gain": "Una intención se convierte en un resultado.",
+      "verify_title": "Comprobar lo encontrado",
+      "verify_body": "Puede ajustar una búsqueda, cambiar de fuente y señalar lo que sigue sin encontrar.",
+      "verify_gain": "Conclusiones que puedes examinar.",
+      "control_title": "Hacer claras las acciones",
+      "control_body": "Propuestas, confirmaciones y resultados mantienen cada uno su lugar.",
+      "control_gain": "Sabes en qué punto está el trabajo."
     }
   },
   "maps": {
@@ -12144,7 +12364,7 @@
       },
       "react-execution-mode": {
         "title": "Pipeline vs ReAct: cuando la ingeniería estructurada supera al laissez-faire",
-        "excerpt": "LIA ofrece dos modos de ejecución: un Pipeline finamente orquestado que consume de 4 a 8 veces menos tokens, y un modo ReAct iterativo para las peticiones cuyos pasos no pueden trazarse por adelantado — el único capaz de ejecutar un script para calcular en vez de estimar.",
+        "excerpt": "LIA ofrece dos formas de avanzar: Pipeline organiza los pasos para una ejecución rápida y controlada; ReAct adapta sus búsquedas a lo que descubre. Dos enfoques para obtener un resultado verificable según la tarea.",
         "body": "<h2>Dos filosofías, un mismo objetivo</h2><p>En el ecosistema de agentes IA, <strong>ReAct</strong> (Reasoning + Acting) se ha convertido en el estándar de facto. Su principio: dejar que el LLM decida en cada iteración qué herramienta llamar, sin plan predefinido. Seductor por su simplicidad, es el enfoque que encontramos en la mayoría de frameworks hoy. LIA también lo ofrece — pero va mucho más allá con su <strong>modo Pipeline</strong>, fruto de una ingeniería avanzada que alcanza la misma flexibilidad con una eficiencia radicalmente superior.</p><h2>El Pipeline: planificar, validar, ejecutar</h2><p>El modo Pipeline sigue un grafo LangGraph de <strong>8 nodos</strong>:</p><ol><li><strong>Router</strong> — clasifica la solicitud (conversacional o accionable)</li><li><strong>Planner</strong> — genera un ExecutionPlan estructurado con pasos paralelizables</li><li><strong>Semantic Validator</strong> — verifica la coherencia del plan antes de la ejecución</li><li><strong>Approval Gate</strong> — validación humana si es necesario (HITL)</li><li><strong>Task Orchestrator</strong> — ejecuta pasos en paralelo</li><li><strong>Response</strong> — síntesis final</li></ol><p>Este modo <strong>planifica una sola vez</strong> y luego ejecuta, mientras que ReAct razona en cada iteración. El resultado: para la misma tarea multi-herramienta, el Pipeline consume <strong>de 4 a 8 veces menos tokens</strong> que el ReAct, que debe reinyectar el historial completo en cada llamada al LLM.</p><h2>Eficiencia: los números hablan</h2><p>Tomemos una solicitud concreta: cancela mis reuniones de mañana y envía un email a cada participante. En modo ReAct, el LLM itera: listar reuniones, razonar, cancelar la primera, razonar, cancelar la segunda, razonar, redactar un email, razonar... Cada iteración reinyecta todo el contexto. En modo Pipeline, el planificador genera <strong>un único plan</strong>, el orquestador ejecuta las cancelaciones <strong>en paralelo</strong>, luego la síntesis produce los emails. Menos llamadas al LLM, menos tokens, mismo resultado.</p><h2>Control y observabilidad</h2><p>El Pipeline ofrece una <strong>trazabilidad completa</strong> que el ReAct no puede igualar. Cada paso del plan está nombrado, tipado y medido individualmente. El panel de depuración muestra el plan estructurado, los resultados por paso y los tokens consumidos por nodo. En ReAct, se observa un bucle opaco donde el LLM decide solo — difícil de depurar, optimizar o explicar a un usuario.</p><h2>Fiabilidad y protecciones</h2><p>El Pipeline integra capas de validación ausentes en ReAct: el <strong>Semantic Validator</strong> verifica la coherencia del plan antes de la ejecución, la <strong>defensa contra alucinaciones</strong> elimina parámetros inventados por el LLM, y el HITL ofrece <strong>6 niveles de confirmación</strong> granulares. En ReAct, la validación humana se basa en un mecanismo <code>interrupt()</code> más básico, y no hay validación semántica previa. Dos barreras enmarcan ahora el propio bucle: su plazo se mide sobre el <strong>tiempo de cálculo</strong>, de modo que los minutos que dedicas a decidir una aprobación ya no consumen el presupuesto — antes, una validación algo larga cortaba el turno y obligaba a rehacer la respuesta desde cero, perdiendo los pasos ya realizados; y una herramienta llamada con argumentos idénticos se rechaza al cuarto intento, y al quinto concluye el turno, porque un agente que se repite no avanza.</p><h2>Arquitectura extensible</h2><p>El <strong>diseño genérico y modular</strong> del Pipeline es su principal activo. Añadir un nuevo agente de dominio solo requiere registrar sus herramientas en el catálogo — el planificador, el validador y el orquestador los gestionan automáticamente. El sistema de Skills lleva esta extensibilidad más allá: instrucciones expertas reutilizables que el planificador puede activar sobre la marcha.</p><h2>ReAct: cuando la forma de la respuesta no se conoce de antemano</h2><p>ReAct no es el modo de las peticiones <em>simples</em>: es el de las peticiones cuyos pasos no pueden trazarse por adelantado — consultas exploratorias, cadenas que se bifurcan según lo que devolvió la herramienta anterior, servidores MCP externos. Lleva la misma memoria que el Pipeline — el mismo perfil, el mismo diario, las mismas referencias, degradaciones incluidas — y su presupuesto de iteraciones se <strong>gana con el progreso</strong>: una iteración que no produjo nada no compra la siguiente. Es además el único modo capaz de <strong>calcular en vez de estimar</strong>: cuando un paso exige aritmética sobre muchas filas, un cruce entre dos listas o duraciones entre husos horarios, escribe unas líneas de Python y las ejecuta en un entorno aislado — sin base de datos, un contenedor desechable cada vez — y responde con un resultado que podrías comprobar. Y lo que devuelve una herramienta llega al modelo <strong>elemento a elemento bajo un presupuesto de tokens</strong> — un elemento admitido está completo, al menos uno pasa siempre, y un corte se anuncia en lugar de callarse — de modo que un buzón de mensajes enteros nunca llega como un volcado cortado en medio de las cabeceras del primero. LIA implementa el bucle con <code>interrupt()</code> nativo para el HITL, un plazo medido sobre el tiempo de cálculo y 5 métricas Prometheus dedicadas.</p><h2>Las herramientas que el bucle lleva consigo</h2><p>Un bucle ReAct no recibe todo el catálogo: lleva consigo <strong>las herramientas que la pregunta reclama</strong>. El router ya calcula un embedding de la petición para reconocer sus dominios; el mismo vector ordena cada herramienta disponible — nativas y servidores MCP personales por igual — en una clasificación global. La selección se compone sin que se escriba un solo nombre de herramienta: las herramientas de los dominios reconocidos, luego las mejores de cada otra familia para que ninguna quede inalcanzable, luego la cabeza de la clasificación hasta un presupuesto publicado. El tope ya no es más que una red de seguridad. Una lista «básica» fijada a mano se escribió y se rechazó: habría codificado los hábitos de una cuenta en un producto hecho para muchos. Y el bucle lee los espacios de conocimiento de la persona exactamente como el pipeline — lo que uno sabe, el otro lo sabe.</p><h2>El entorno aislado como caja de herramientas</h2><p>El script que el bucle escribe corría sin conexión, y lo único que un script sin conexión no puede hacer es preguntarle nada a un servicio. Ahora puede llegar a la web — nunca en directo. Una ejecución en red se une a una red interna cuya única salida es un proxy dedicado: solo HTTPS, hacia los hosts que el script declara, los rangos privados y el propio servidor rechazados al conectar. Los servicios que la persona conectó con su propia clave API son accesibles de inmediato, y la clave nunca entra en el contenedor: el script lee un token propio de la ejecución, y el proxy lo cambia por la clave real solo en ese host. Un host que nadie permitió se <strong>pregunta</strong>, dentro del bucle, con tres respuestas — con los datos del turno, sin ellos, o nada — y la misma llamada continúa bajo la respuesta, de modo que el resto de la petición nunca se pierde por la pregunta. Cada ejecución en red se reclama en el registro de la persona antes de que arranque el contenedor, cuatro papeles se enuncian al modelo (calcular, diagnosticar, cubrir un hueco, transformar) con veintidós bibliotecas verificadas en la imagen construida, y un administrador puede apagar la red conservando la calculadora.</p><h2>Juzgado por su resultado</h2><p>Un bucle que se detiene en cuanto el modelo deja de llamar herramientas hace depender la perseverancia de cómo un modelo lee una frase; sin embargo, cada rol es configurable y los modelos son intercambiables. Por eso el mecanismo está en el bucle: todo dato que se propuso obtener — lo que la persona pide y cada verificación cruzada que inició — termina <strong>obtenido o declarado</strong>, con los peldaños intentados: la llamada corregida, luego otra fuente nombrada como tal, luego la declaración. Una laguna declarada compra una pasada de recuperación acotada, mediante un nodo que no llama a ningún modelo; la consigna se muestra a las llamadas siguientes sin entrar nunca en el historial. Un resultado que responde a otra pregunta — el tiempo de hoy cuando se pedía mañana — es un obstáculo igual que un error, y una herramienta rechaza un valor que no sabe leer en lugar de sustituirlo en silencio. Medido en tres familias de modelos: 58 datos obtenidos de 63 frente a 50, el caso original resuelto 7 veces de 9 frente a 3, y ninguna llamada de más en un turno sin obstáculo.</p><p>Un fallo, por su parte, se lee en el mensaje y no en su prosa: el resultado de una herramienta lleva una marca estructural que sobrevive a la reanudación de una conversación, y un fallo declarado ya no compra ninguna iteración. Por último, cada persona elige su ritmo de intercambios en sus ajustes: con intercambios frecuentes, el bucle vincula todas las herramientas en cada turno, coloca el contexto del turno después de la pregunta y deja caer el historial por bloques anclados en el contador de turnos, para que la caché del proveedor relea el prefijo de un turno al siguiente — de un 18 a un 42 % de ahorro por turno según el mecanismo de caché, medido en cientos de turnos reales; con intercambios puntuales, conserva la selección por pertinencia, cuyo coste no depende del intervalo entre dos turnos y que sigue siendo la opción adecuada con un modelo sin caché. El ajuste del operador ya solo fija el valor por defecto de una cuenta que no ha elegido.</p><h2>La elección es tuya</h2><p>La preferencia se <strong>persiste por usuario</strong> en la base de datos y se puede cambiar con un clic desde el panel de control. Nuestra convicción: el modo Pipeline, aunque más complejo de concebir, demuestra que una orquestación rigurosa supera al laissez-faire en la mayoría de los casos de uso reales.</p>"
       },
       "mcp-react-agent": {
@@ -14627,7 +14847,7 @@
     },
     "formats": {
       "opening": "Apertura",
-      "journal": "El diario",
+      "journal": "Diario personal",
       "headlines": "Titulares",
       "bulletin": "El informativo",
       "brief": "Breve",
@@ -14709,6 +14929,7 @@
         "tickets": "Tickets",
         "birthdays": "Cumpleaños",
         "mails": "Correos sin leer",
+        "sent_mails": "Correos enviados",
         "actions": "Lo que hizo LIA",
         "weather": "Tiempo",
         "health": "Salud",
@@ -14805,6 +15026,7 @@
         "tickets": "Tickets del Workboard que esperan tu respuesta o han superado su fecha.",
         "birthdays": "Los próximos cumpleaños de tus contactos.",
         "mails": "Tus correos sin leer de hoy: remitente y asunto.",
+        "sent_mails": "Tus correos enviados hoy: destinatario y asunto, en las ediciones del mediodía y de la tarde.",
         "actions": "Las acciones que LIA hizo por ti hoy, leídas en su propio registro — en las ediciones de mediodía y de la noche del diario.",
         "weather": "El tiempo donde estás, dicho una vez por sesión.",
         "health": "Tus datos de salud de hoy comparados con tu media.",

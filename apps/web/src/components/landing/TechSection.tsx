@@ -5,6 +5,7 @@ import {
   Calculator,
   ClipboardList,
   CloudSun,
+  ChevronDown,
   Cpu,
   GitBranch,
   KeyRound,
@@ -18,13 +19,13 @@ import {
   TabletSmartphone,
   TrendingUp,
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 import type { Language } from '@/i18n/settings';
 import { formatNumber } from '@/lib/format';
 import { FadeInOnScroll } from './FadeInOnScroll';
 import { LANDING_STATS } from './constants';
+import { ArchitectureDiagram } from './ArchitectureDiagram';
 
 interface TechSectionProps {
   lng: string;
@@ -109,6 +110,13 @@ const TECH_ITEMS = [
   },
 ];
 
+const ENGINEERING_STEPS = [
+  { key: 'context', icon: Network },
+  { key: 'plan', icon: GitBranch },
+  { key: 'verify', icon: Search },
+  { key: 'control', icon: ShieldCheck },
+] as const;
+
 export async function TechSection({ lng }: TechSectionProps) {
   const { t } = await initI18next(lng);
 
@@ -116,41 +124,78 @@ export async function TechSection({ lng }: TechSectionProps) {
     <section id="technology" className="landing-section py-24 bg-card" aria-labelledby="tech-title">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <FadeInOnScroll>
-          <div className="text-center mb-16">
+          <div className="mb-10 max-w-3xl">
             <h2 id="tech-title" className="text-3xl mobile:text-4xl font-bold tracking-tight mb-4">
-              {t('landing.tech.title')}
+              {t('landing.engineering.title')}
             </h2>
-            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              {t('landing.tech.subtitle')}
-            </p>
-            <p className="text-muted-foreground text-sm max-w-2xl mx-auto mt-4 leading-relaxed whitespace-pre-line">
-              {t('landing.tech.intro')}
+            <p className="max-w-[65ch] text-muted-foreground leading-relaxed">
+              {t('landing.engineering.sub')}
             </p>
           </div>
         </FadeInOnScroll>
 
-        {/* Four columns from the `mobile` breakpoint, two from `sm`, stacked
-            below: keep the card count a multiple of four (16 today) so the
-            last row is never left ragged. */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 mobile:grid-cols-4 gap-6">
-          {TECH_ITEMS.map(({ key, icon: Icon, iconBg }, i) => (
-            <FadeInOnScroll key={key} delay={i * 80}>
-              <Card className="glass hover-lift hover-glow h-full border-border/60">
-                <CardHeader className="space-y-3">
-                  <div
-                    className={cn('w-12 h-12 rounded-xl flex items-center justify-center', iconBg)}
-                  >
-                    <Icon className="w-6 h-6 text-primary" />
-                  </div>
-                  <CardTitle className="text-lg">{t(`landing.tech.${key}.title`)}</CardTitle>
-                  <CardDescription className="text-sm leading-relaxed">
-                    {t(`landing.tech.${key}.description`)}
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-            </FadeInOnScroll>
+        <ol className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {ENGINEERING_STEPS.map(({ key, icon: Icon }, index) => (
+            <li key={key} className="relative border-t-2 border-primary/25 pt-5">
+              <div className="mb-4 flex items-center gap-3">
+                <span className="flex size-10 items-center justify-center rounded-full border border-primary/25 bg-primary/10">
+                  <Icon className="size-5 text-primary" aria-hidden="true" />
+                </span>
+                <span className="text-xs tabular-nums text-muted-foreground" aria-hidden="true">
+                  {index + 1}
+                </span>
+              </div>
+              <h3 className="text-base font-semibold">{t(`landing.engineering.${key}_title`)}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                {t(`landing.engineering.${key}_body`)}
+              </p>
+              <p className="mt-4 text-sm font-medium text-primary">
+                {t(`landing.engineering.${key}_gain`)}
+              </p>
+            </li>
           ))}
-        </div>
+        </ol>
+
+        <details className="group/engineering mt-10 rounded-2xl border border-border bg-background/70 p-5 sm:p-6">
+          <summary className="flex cursor-pointer list-none items-center gap-3 rounded-md py-1 text-base font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+            <Cpu className="size-5 shrink-0 text-primary" aria-hidden="true" />
+            {t('landing.engineering.details')}
+            <ChevronDown
+              className="ml-auto size-4 shrink-0 transition-transform group-open/engineering:rotate-180"
+              aria-hidden="true"
+            />
+          </summary>
+          <p className="mt-5 max-w-[80ch] whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
+            {t('landing.tech.intro')}
+          </p>
+          <div className="mt-6 grid items-start gap-3 md:grid-cols-2">
+            {TECH_ITEMS.map(({ key, icon: Icon, iconBg }, i) => (
+              <FadeInOnScroll key={key} delay={(i % 2) * 80}>
+                <details className="group/tech rounded-xl border border-border bg-card">
+                  <summary className="flex cursor-pointer list-none items-center gap-3 rounded-xl p-4 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+                    <span
+                      className={cn(
+                        'flex size-9 shrink-0 items-center justify-center rounded-lg',
+                        iconBg
+                      )}
+                    >
+                      <Icon className="size-4 text-primary" aria-hidden="true" />
+                    </span>
+                    {t(`landing.tech.${key}.title`)}
+                    <ChevronDown
+                      className="ml-auto size-4 shrink-0 text-muted-foreground transition-transform group-open/tech:rotate-180"
+                      aria-hidden="true"
+                    />
+                  </summary>
+                  <p className="px-4 pb-5 text-sm leading-6 text-muted-foreground">
+                    {t(`landing.tech.${key}.description`)}
+                  </p>
+                </details>
+              </FadeInOnScroll>
+            ))}
+          </div>
+          <ArchitectureDiagram />
+        </details>
 
         {/* Engineering numbers, re-targeted from the former proof section:
             this is their audience — the general public gets trust proofs in
@@ -188,7 +233,7 @@ export async function TechSection({ lng }: TechSectionProps) {
           <div className="text-center mt-8">
             <Link
               href={buildLocalizedPath('/how', lng as Language)}
-              className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/90 transition-colors"
+              className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
             >
               {t('landing.tech.deep_dive_link')} →
             </Link>

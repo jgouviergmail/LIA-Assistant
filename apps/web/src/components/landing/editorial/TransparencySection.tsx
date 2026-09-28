@@ -53,8 +53,8 @@ export async function TransparencySection({
           {/* The real per-message cost counter, elevated into a brand motif */}
           <p className="mx-auto mt-8 w-fit rounded-2xl border border-border bg-background px-6 py-3.5 text-base shadow-lg tabular-nums mobile:text-lg">
             {t('landing.transparency.cost_prefix')}{' '}
-            <span className="text-orange-500">🟠 1 240 IN</span>{' '}
-            <span className="text-green-600">🟢 210 OUT</span>{' '}
+            <span className="text-orange-700 dark:text-orange-400">🟠 1 240 IN</span>{' '}
+            <span className="text-green-700 dark:text-green-400">🟢 210 OUT</span>{' '}
             <strong className="font-extrabold">· 0,003 €</strong>
           </p>
           <p className="mt-2 text-xs text-muted-foreground">

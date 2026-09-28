@@ -19,7 +19,7 @@
  * Both are pinned by measurement, in a browser: a class name assertion would
  * pass while the pixels lied.
  */
-import { test, expect, type MockRoute } from '../fixtures';
+import { test, expect, waitForHydration, type MockRoute } from '../fixtures';
 
 const ROUTES: MockRoute[] = [
   {
@@ -155,4 +155,119 @@ test.describe('composer alignment', () => {
 
     expect(overlap, 'the two must not share pixels').toBe(0);
   });
+});
+
+test.describe('mobile composer space and touch access', () => {
+  test.use({ hasTouch: true });
+
+  for (const width of [320, 375]) {
+    test(`at ${width}px: typing keeps the width while the attachment target stays reachable`, async ({
+      page,
+      authenticate,
+      mockApi,
+    }, testInfo) => {
+      await page.setViewportSize({ width, height: 812 });
+      await authenticate({ language: 'fr' });
+      await mockApi(ROUTES);
+      await page.goto('/fr/dashboard/chat');
+      const field = page.locator('form textarea').first();
+      const plus = page.getByRole('button', { name: 'Joindre un fichier', exact: true });
+      await expect(field).toBeVisible({ timeout: 30_000 });
+      await waitForHydration(page);
+      // The development overlay is not application chrome. Its floating badge
+      // otherwise intercepts the bottom-left touch on a phone-width viewport.
+      // Hiding this portal leaves normal hit testing on every app control.
+      await page.addStyleTag({ content: 'nextjs-portal { display: none !important; }' });
+
+      await expect
+        .poll(async () =>
+          field.evaluate(element => {
+            const style = getComputedStyle(element);
+            return (
+              element.clientWidth -
+              Number.parseFloat(style.paddingLeft) -
+              Number.parseFloat(style.paddingRight)
+            );
+          })
+        )
+        // Keep at least 150px of actual typing width on a 320px display,
+        // excluding textarea padding and preserving the dashboard gutters.
+        // The old separated controls left roughly 106px: a >=40px gain.
+        .toBeGreaterThanOrEqual(width - 170);
+
+      const assertControlGeometry = async () => {
+        const geometry = await field.evaluate(element => {
+          const form = element.closest('form');
+          const buttons = Array.from(form?.querySelectorAll('button') ?? []).filter(
+            button => button.offsetParent !== null
+          );
+          const first = buttons[0]?.getBoundingClientRect();
+          const last = buttons.at(-1)?.getBoundingClientRect();
+          const text = element.getBoundingClientRect();
+          if (!first || !last) return null;
+          return {
+            textWidth:
+              element.clientWidth -
+              Number.parseFloat(getComputedStyle(element).paddingLeft) -
+              Number.parseFloat(getComputedStyle(element).paddingRight),
+            targetWidth: first.width,
+            targetHeight: first.height,
+            sendWidth: last.width,
+            sendHeight: last.height,
+            leftOverlap: first.right - text.left,
+            rightOverlap: text.right - last.left,
+            bottomDifference: Math.max(
+              Math.abs(first.bottom - text.bottom),
+              Math.abs(last.bottom - text.bottom)
+            ),
+            overflow: document.documentElement.scrollWidth - window.innerWidth,
+          };
+        });
+        expect(geometry).not.toBeNull();
+        expect(geometry!.targetWidth).toBeGreaterThanOrEqual(44);
+        expect(geometry!.targetHeight).toBeGreaterThanOrEqual(44);
+        expect(geometry!.sendWidth).toBeGreaterThanOrEqual(44);
+        expect(geometry!.sendHeight).toBeGreaterThanOrEqual(44);
+        expect(geometry!.leftOverlap).toBeLessThanOrEqual(1);
+        expect(geometry!.rightOverlap).toBeLessThanOrEqual(1);
+        expect(geometry!.bottomDifference).toBeLessThanOrEqual(1);
+        expect(geometry!.overflow).toBeLessThanOrEqual(1);
+        return geometry;
+      };
+      await assertControlGeometry();
+
+      const initialHeight = (await field.boundingBox())!.height;
+      const draft = 'Prépare ma journée.\nRésume mes rendez-vous.\nGarde les points importants.';
+      await field.fill(draft);
+      await expect(field).toHaveValue(draft);
+      await expect
+        .poll(async () => (await field.boundingBox())?.height ?? 0)
+        .toBeGreaterThan(initialHeight);
+      const geometry = await assertControlGeometry();
+
+      // Actual touch activation, with the browser's normal overlap checks.
+      await plus.tap();
+      const menu = page.getByRole('menu');
+      await expect(menu).toBeVisible();
+      await expect(menu.getByRole('menuitem', { name: /espace de connaissances/ })).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(menu).toBeHidden();
+      await expect(plus).toBeFocused();
+      await field.tap();
+      await expect(field).toBeFocused();
+      await expect(field).toHaveValue(draft);
+
+      await testInfo.attach('composer-geometry', {
+        body: JSON.stringify({ viewport: width, ...geometry }),
+        contentType: 'application/json',
+      });
+      if (width === 375) {
+        await page.screenshot({ path: testInfo.outputPath('composer-mobile-full.png') });
+        await page.screenshot({
+          path: testInfo.outputPath('composer-mobile-final.png'),
+          clip: { x: 0, y: 512, width: 375, height: 300 },
+        });
+      }
+    });
+  }
 });

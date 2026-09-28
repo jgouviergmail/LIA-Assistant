@@ -215,7 +215,8 @@ entry (`formats.read_frequencies`).
 readers (`readers.DONE_READERS` — `agenda.py` the appointments over by now, `tasks.py`
 the tasks ticked today, `reminders.py` the reminders that rang, read from the message
 each one left in the chat under `REMINDER_NOTIFICATION_MESSAGE_TYPE`, `tickets.py` the
-tickets closed today, `sent_mail.py` the e-mails sent from the sent folder's headers,
+tickets closed today, `sent_mail.py` the e-mails sent from the sent folder's headers
+(the `sent_mails` source, independently switchable from unread `mails`),
 `actions.py` what LIA did from the effect register — the `actions` source, with its own
 switch) and three « ahead » readers (`AHEAD_READERS`: the appointments, the open tasks
 due and the pending reminders from tomorrow to seven days on, under the day's own keys,
@@ -225,7 +226,7 @@ desk may be asked before it is read again (`ListenerDay.parts_due`: the edition 
 and the one at the end of the desk's time to live), records a source once whatever the
 parts it read for (`failed` when any read of it failed), and treats a missing connector
 as nothing to read and refused credentials as a failure. The radio's consultation
-surface gained the sections `agenda`, `tasks`, `mails`, `reminders` and `actions`.
+surface gained the sections `agenda`, `tasks`, `mails`, `sent_mails`, `reminders` and `actions`.
 
 - The sources the Today Briefing carries reuse its readers and cache through
   `BriefingService.read_selected_cards`: a cold or expired section is fetched without
